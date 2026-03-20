@@ -43161,6 +43161,10 @@ namespace gaia {
 			QueryEntityArray diffTraversalTriggerTerms{};
 			//! Number of populated traversal trigger terms.
 			uint8_t diffTraversalTriggerTermCount = 0;
+			//! Traversal relations referenced by dynamic diff terms.
+			QueryEntityArray diffTraversalRelations{};
+			//! Number of populated traversal relations.
+			uint8_t diffTraversalRelationCount = 0;
 
 			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
 				++termCount;
@@ -43427,6 +43431,7 @@ namespace gaia {
 					bool active = false;
 					bool targeted = false;
 					bool targetsAddedAfterPrepare = false;
+					bool resetTraversalCaches = false;
 				};
 
 			private:
@@ -43769,6 +43774,28 @@ namespace gaia {
 					return false;
 				}
 
+				static bool observer_uses_changed_traversal_relation(
+						World& world, const ObserverRuntimeData& obs, EntitySpan changedTerms) {
+					if (obs.diffTraversalRelationCount == 0 || changedTerms.empty())
+						return false;
+
+					for (auto changedTerm: changedTerms) {
+						if (!changedTerm.pair())
+							continue;
+
+						const auto relation = entity_from_id(world, changedTerm.id());
+						if (!world.valid(relation))
+							continue;
+
+						GAIA_FOR(obs.diffTraversalRelationCount) {
+							if (obs.diffTraversalRelations[i] == relation)
+								return true;
+						}
+					}
+
+					return false;
+				}
+
 				static void execute_observer_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
 					if (targets.empty())
 						return;
@@ -43810,8 +43837,7 @@ namespace gaia {
 					return true;
 				}
 
-				static int32_t find_diff_match_cache_entry(
-						cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+				static int32_t find_diff_match_cache_entry(cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
 					auto& queryInfo = obs.query.fetch();
 					auto& queryCtx = queryInfo.ctx();
 					const auto queryHash = queryCtx.hashLookup.hash;
@@ -44224,6 +44250,8 @@ namespace gaia {
 						ctx.observers.push_back({});
 						auto& snapshot = ctx.observers.back();
 						snapshot.pObs = pObs;
+						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+							ctx.resetTraversalCaches = true;
 
 						auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
 						if (cacheIdx == -1) {
@@ -44290,6 +44318,8 @@ namespace gaia {
 					ctx.targeted = true;
 					ctx.targetsAddedAfterPrepare = true;
 					for (auto* pObs: m_relevant_observers_tmp) {
+						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+							ctx.resetTraversalCaches = true;
 						ctx.observers.push_back({});
 						ctx.observers.back().pObs = pObs;
 					}
@@ -44308,12 +44338,14 @@ namespace gaia {
 					if (!ctx.active)
 						return;
 
-					world.m_targetsTravCache = {};
-					world.m_srcBfsTravCache = {};
-					world.m_sourcesAllCache = {};
-					world.m_targetsAllCache = {};
-					world.m_entityToAsTargetsTravCache = {};
-					world.m_entityToAsRelationsTravCache = {};
+					if (ctx.resetTraversalCaches) {
+						world.m_targetsTravCache = {};
+						world.m_srcBfsTravCache = {};
+						world.m_sourcesAllCache = {};
+						world.m_targetsAllCache = {};
+						world.m_entityToAsTargetsTravCache = {};
+						world.m_entityToAsRelationsTravCache = {};
+					}
 
 					if (ctx.targeted)
 						normalize_diff_targets(ctx.targets);
@@ -54130,6 +54162,21 @@ namespace gaia {
 					return;
 
 				data.diffDispatch = true;
+				if (options.entTrav != EntityBad) {
+					bool hasRelation = false;
+					GAIA_FOR(data.diffTraversalRelationCount) {
+						if (data.diffTraversalRelations[i] == options.entTrav) {
+							hasRelation = true;
+							break;
+						}
+					}
+
+					if (!hasRelation) {
+						GAIA_ASSERT(data.diffTraversalRelationCount < MAX_ITEMS_IN_QUERY);
+						if (data.diffTraversalRelationCount < MAX_ITEMS_IN_QUERY)
+							data.diffTraversalRelations[data.diffTraversalRelationCount++] = options.entTrav;
+					}
+				}
 				update_diff_target_narrow_plan(data, op, term, options);
 				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
 			}

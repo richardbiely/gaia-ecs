@@ -204,6 +204,21 @@ namespace gaia {
 					return;
 
 				data.diffDispatch = true;
+				if (options.entTrav != EntityBad) {
+					bool hasRelation = false;
+					GAIA_FOR(data.diffTraversalRelationCount) {
+						if (data.diffTraversalRelations[i] == options.entTrav) {
+							hasRelation = true;
+							break;
+						}
+					}
+
+					if (!hasRelation) {
+						GAIA_ASSERT(data.diffTraversalRelationCount < MAX_ITEMS_IN_QUERY);
+						if (data.diffTraversalRelationCount < MAX_ITEMS_IN_QUERY)
+							data.diffTraversalRelations[data.diffTraversalRelationCount++] = options.entTrav;
+					}
+				}
 				update_diff_target_narrow_plan(data, op, term, options);
 				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
 			}

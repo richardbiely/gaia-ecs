@@ -246,6 +246,7 @@ namespace gaia {
 					bool active = false;
 					bool targeted = false;
 					bool targetsAddedAfterPrepare = false;
+					bool resetTraversalCaches = false;
 				};
 
 			private:
@@ -588,6 +589,28 @@ namespace gaia {
 					return false;
 				}
 
+				static bool observer_uses_changed_traversal_relation(
+						World& world, const ObserverRuntimeData& obs, EntitySpan changedTerms) {
+					if (obs.diffTraversalRelationCount == 0 || changedTerms.empty())
+						return false;
+
+					for (auto changedTerm: changedTerms) {
+						if (!changedTerm.pair())
+							continue;
+
+						const auto relation = entity_from_id(world, changedTerm.id());
+						if (!world.valid(relation))
+							continue;
+
+						GAIA_FOR(obs.diffTraversalRelationCount) {
+							if (obs.diffTraversalRelations[i] == relation)
+								return true;
+						}
+					}
+
+					return false;
+				}
+
 				static void execute_observer_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
 					if (targets.empty())
 						return;
@@ -629,8 +652,7 @@ namespace gaia {
 					return true;
 				}
 
-				static int32_t find_diff_match_cache_entry(
-						cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+				static int32_t find_diff_match_cache_entry(cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
 					auto& queryInfo = obs.query.fetch();
 					auto& queryCtx = queryInfo.ctx();
 					const auto queryHash = queryCtx.hashLookup.hash;
@@ -1043,6 +1065,8 @@ namespace gaia {
 						ctx.observers.push_back({});
 						auto& snapshot = ctx.observers.back();
 						snapshot.pObs = pObs;
+						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+							ctx.resetTraversalCaches = true;
 
 						auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
 						if (cacheIdx == -1) {
@@ -1109,6 +1133,8 @@ namespace gaia {
 					ctx.targeted = true;
 					ctx.targetsAddedAfterPrepare = true;
 					for (auto* pObs: m_relevant_observers_tmp) {
+						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+							ctx.resetTraversalCaches = true;
 						ctx.observers.push_back({});
 						ctx.observers.back().pObs = pObs;
 					}
@@ -1127,12 +1153,14 @@ namespace gaia {
 					if (!ctx.active)
 						return;
 
-					world.m_targetsTravCache = {};
-					world.m_srcBfsTravCache = {};
-					world.m_sourcesAllCache = {};
-					world.m_targetsAllCache = {};
-					world.m_entityToAsTargetsTravCache = {};
-					world.m_entityToAsRelationsTravCache = {};
+					if (ctx.resetTraversalCaches) {
+						world.m_targetsTravCache = {};
+						world.m_srcBfsTravCache = {};
+						world.m_sourcesAllCache = {};
+						world.m_targetsAllCache = {};
+						world.m_entityToAsTargetsTravCache = {};
+						world.m_entityToAsRelationsTravCache = {};
+					}
 
 					if (ctx.targeted)
 						normalize_diff_targets(ctx.targets);

@@ -73,6 +73,10 @@ namespace gaia {
 			QueryEntityArray diffTraversalTriggerTerms{};
 			//! Number of populated traversal trigger terms.
 			uint8_t diffTraversalTriggerTermCount = 0;
+			//! Traversal relations referenced by dynamic diff terms.
+			QueryEntityArray diffTraversalRelations{};
+			//! Number of populated traversal relations.
+			uint8_t diffTraversalRelationCount = 0;
 
 			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
 				++termCount;
