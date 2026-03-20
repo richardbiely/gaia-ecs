@@ -43606,6 +43606,148 @@ namespace gaia {
 						bool resetTraversalCaches = false;
 					};
 
+					static void collect_query_matches(World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
+						out.clear();
+						if (!world.valid(obs.entity))
+							return;
+
+						const auto& ec = world.fetch(obs.entity);
+						if (!world.enabled(ec))
+							return;
+
+						obs.query.reset();
+						obs.query.each([&](Entity entity) {
+							out.push_back(entity);
+						});
+
+						core::sort(out, [](Entity left, Entity right) {
+							return left.value() < right.value();
+						});
+					}
+
+					static void collect_query_target_matches(
+							World& world, ObserverRuntimeData& obs, EntitySpan targets, cnt::darray<Entity>& out) {
+						out.clear();
+						if (!world.valid(obs.entity))
+							return;
+
+						const auto& ec = world.fetch(obs.entity);
+						if (!world.enabled(ec))
+							return;
+
+						auto& queryInfo = obs.query.fetch();
+						for (auto entity: targets) {
+							if (!world.valid(entity))
+								continue;
+
+							const auto& ecTarget = world.fetch(entity);
+							if (ecTarget.pArchetype == nullptr)
+								continue;
+
+							if (obs.query.matches_any(queryInfo, *ecTarget.pArchetype, EntitySpan{&entity, 1}))
+								out.push_back(entity);
+						}
+					}
+
+					static void append_valid_targets(World& world, cnt::darray<Entity>& out, EntitySpan targets) {
+						for (auto entity: targets) {
+							if (world.valid(entity))
+								out.push_back(entity);
+						}
+					}
+
+					static void copy_target_narrow_plan(const ObserverRuntimeData& obs, TargetNarrowCacheEntry& entry) {
+						entry.kind = obs.plan.diff.dispatchKind;
+						entry.bindingRelation = obs.plan.diff.bindingRelation;
+						entry.traversalRelation = obs.plan.diff.traversalRelation;
+						entry.travKind = obs.plan.diff.travKind;
+						entry.travDepth = obs.plan.diff.travDepth;
+						entry.triggerTermCount = obs.plan.diff.traversalTriggerTermCount;
+						GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
+							entry.triggerTerms[i] = obs.plan.diff.traversalTriggerTerms[i];
+						}
+					}
+
+					static bool same_target_narrow_plan(const ObserverRuntimeData& obs, const TargetNarrowCacheEntry& entry) {
+						if (obs.plan.diff.dispatchKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
+								obs.plan.diff.traversalRelation != entry.traversalRelation || obs.plan.diff.travKind != entry.travKind ||
+								obs.plan.diff.travDepth != entry.travDepth ||
+								obs.plan.diff.traversalTriggerTermCount != entry.triggerTermCount)
+							return false;
+
+						GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
+							if (obs.plan.diff.traversalTriggerTerms[i] != entry.triggerTerms[i])
+								return false;
+						}
+
+						return true;
+					}
+
+					static void normalize_targets(cnt::darray<Entity>& targets) {
+						if (targets.empty())
+							return;
+
+						core::sort(targets, [](Entity left, Entity right) {
+							return left.value() < right.value();
+						});
+
+						uint32_t outIdx = 0;
+						for (uint32_t i = 0; i < targets.size(); ++i) {
+							if (outIdx != 0 && targets[i] == targets[outIdx - 1])
+								continue;
+							targets[outIdx++] = targets[i];
+						}
+						targets.resize(outIdx);
+					}
+
+					static uint64_t query_hash(ObserverRuntimeData& obs) {
+						auto& queryInfo = obs.query.fetch();
+						return queryInfo.ctx().hashLookup.hash;
+					}
+
+					static bool same_query_ctx(const QueryCtx& left, const QueryCtx& right) {
+						if (left.hashLookup != right.hashLookup)
+							return false;
+
+						const auto& leftData = left.data;
+						const auto& rightData = right.data;
+						if (leftData.idsCnt != rightData.idsCnt || leftData.changedCnt != rightData.changedCnt ||
+								leftData.readWriteMask != rightData.readWriteMask || leftData.cacheSrcTrav != rightData.cacheSrcTrav ||
+								leftData.sortBy != rightData.sortBy || leftData.sortByFunc != rightData.sortByFunc ||
+								leftData.groupBy != rightData.groupBy || leftData.groupByFunc != rightData.groupByFunc)
+							return false;
+
+						GAIA_FOR(leftData.idsCnt) {
+							if (leftData._terms[i] != rightData._terms[i])
+								return false;
+						}
+
+						GAIA_FOR(leftData.changedCnt) {
+							if (leftData._changed[i] != rightData._changed[i])
+								return false;
+						}
+
+						return true;
+					}
+
+					static int32_t find_match_cache_entry(cnt::darray<MatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+						auto& queryInfo = obs.query.fetch();
+						auto& queryCtx = queryInfo.ctx();
+						const auto queryHash = queryCtx.hashLookup.hash;
+
+						GAIA_FOR((uint32_t)cache.size()) {
+							auto& entry = cache[i];
+							if (entry.queryHash != queryHash || entry.pObsRepresentative == nullptr)
+								continue;
+
+							auto& repQueryInfo = entry.pObsRepresentative->query.fetch();
+							if (same_query_ctx(queryCtx, repQueryInfo.ctx()))
+								return (int32_t)i;
+						}
+
+						return -1;
+					}
+
 					static Context prepare(
 							ObserverRegistry& registry, World& world, ObserverEvent event, EntitySpan terms,
 							EntitySpan targetEntities = {}) {
@@ -43620,8 +43762,8 @@ namespace gaia {
 								!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
 							ctx.targeted = true;
 							ctx.targets.reserve(targetEntities.size());
-							append_valid_diff_targets(world, ctx.targets, targetEntities);
-							normalize_diff_targets(ctx.targets);
+							append_valid_targets(world, ctx.targets, targetEntities);
+							normalize_targets(ctx.targets);
 						}
 
 						registry.m_relevant_observers_tmp.clear();
@@ -43660,7 +43802,7 @@ namespace gaia {
 
 								const TargetNarrowCacheEntry* pEntry = nullptr;
 								for (const auto& entry: narrowCache) {
-									if (same_diff_target_narrow_plan(*pObs, entry)) {
+									if (same_target_narrow_plan(*pObs, entry)) {
 										pEntry = &entry;
 										break;
 									}
@@ -43669,7 +43811,7 @@ namespace gaia {
 								if (pEntry == nullptr) {
 									narrowCache.push_back({});
 									auto& entry = narrowCache.back();
-									copy_diff_target_narrow_plan(*pObs, entry);
+									copy_target_narrow_plan(*pObs, entry);
 
 									if (!collect_diff_targets_for_observer(world, *pObs, terms, targetEntities, entry.targets)) {
 										canNarrow = false;
@@ -43684,7 +43826,7 @@ namespace gaia {
 							}
 
 							if (canNarrow) {
-								normalize_diff_targets(narrowedTargets);
+								normalize_targets(narrowedTargets);
 								ctx.targeted = true;
 								ctx.targets = GAIA_MOV(narrowedTargets);
 							}
@@ -43701,12 +43843,12 @@ namespace gaia {
 							if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
 								ctx.resetTraversalCaches = true;
 
-							auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
+							auto cacheIdx = find_match_cache_entry(ctx.matchesBeforeCache, *pObs);
 							if (cacheIdx == -1) {
 								ctx.matchesBeforeCache.push_back({});
 								auto& entry = ctx.matchesBeforeCache.back();
 								entry.pObsRepresentative = pObs;
-								entry.queryHash = observer_query_hash(*pObs);
+								entry.queryHash = query_hash(*pObs);
 								if (ctx.targeted)
 									collect_query_target_matches(
 											world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
@@ -43772,7 +43914,7 @@ namespace gaia {
 						if (!ctx.active || !ctx.targeted || targets.empty())
 							return;
 
-						append_valid_diff_targets(world, ctx.targets, targets);
+						append_valid_targets(world, ctx.targets, targets);
 					}
 
 					static void finish(ObserverRegistry& registry, World& world, Context&& ctx) {
@@ -43789,7 +43931,7 @@ namespace gaia {
 						}
 
 						if (ctx.targeted)
-							normalize_diff_targets(ctx.targets);
+							normalize_targets(ctx.targets);
 
 						cnt::darray<MatchCacheEntry> matchesAfterCache;
 						cnt::darray<Entity> delta;
@@ -43799,12 +43941,12 @@ namespace gaia {
 							if (pObs == nullptr || !world.valid(pObs->entity))
 								continue;
 
-							auto afterCacheIdx = find_diff_match_cache_entry(matchesAfterCache, *pObs);
+							auto afterCacheIdx = find_match_cache_entry(matchesAfterCache, *pObs);
 							if (afterCacheIdx == -1) {
 								matchesAfterCache.push_back({});
 								auto& entry = matchesAfterCache.back();
 								entry.pObsRepresentative = pObs;
-								entry.queryHash = observer_query_hash(*pObs);
+								entry.queryHash = query_hash(*pObs);
 								if (ctx.targeted)
 									collect_query_target_matches(
 											world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
@@ -44303,102 +44445,6 @@ namespace gaia {
 					}
 				}
 
-				static void collect_query_matches(World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
-					out.clear();
-					if (!world.valid(obs.entity))
-						return;
-
-					const auto& ec = world.fetch(obs.entity);
-					if (!world.enabled(ec))
-						return;
-
-					obs.query.reset();
-					obs.query.each([&](Entity entity) {
-						out.push_back(entity);
-					});
-
-					core::sort(out, [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
-				}
-
-				static void collect_query_target_matches(
-						World& world, ObserverRuntimeData& obs, EntitySpan targets, cnt::darray<Entity>& out) {
-					out.clear();
-					if (!world.valid(obs.entity))
-						return;
-
-					const auto& ec = world.fetch(obs.entity);
-					if (!world.enabled(ec))
-						return;
-
-					auto& queryInfo = obs.query.fetch();
-					for (auto entity: targets) {
-						if (!world.valid(entity))
-							continue;
-
-						const auto& ecTarget = world.fetch(entity);
-						if (ecTarget.pArchetype == nullptr)
-							continue;
-
-						if (obs.query.matches_any(queryInfo, *ecTarget.pArchetype, EntitySpan{&entity, 1}))
-							out.push_back(entity);
-					}
-				}
-
-				static void append_valid_diff_targets(World& world, cnt::darray<Entity>& out, EntitySpan targets) {
-					for (auto entity: targets) {
-						if (world.valid(entity))
-							out.push_back(entity);
-					}
-				}
-
-				static void
-				copy_diff_target_narrow_plan(const ObserverRuntimeData& obs, DiffDispatcher::TargetNarrowCacheEntry& entry) {
-					entry.kind = obs.plan.diff.dispatchKind;
-					entry.bindingRelation = obs.plan.diff.bindingRelation;
-					entry.traversalRelation = obs.plan.diff.traversalRelation;
-					entry.travKind = obs.plan.diff.travKind;
-					entry.travDepth = obs.plan.diff.travDepth;
-					entry.triggerTermCount = obs.plan.diff.traversalTriggerTermCount;
-					GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
-						entry.triggerTerms[i] = obs.plan.diff.traversalTriggerTerms[i];
-					}
-				}
-
-				static bool same_diff_target_narrow_plan(
-						const ObserverRuntimeData& obs, const DiffDispatcher::TargetNarrowCacheEntry& entry) {
-					if (obs.plan.diff.dispatchKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
-							obs.plan.diff.traversalRelation != entry.traversalRelation || obs.plan.diff.travKind != entry.travKind ||
-							obs.plan.diff.travDepth != entry.travDepth ||
-							obs.plan.diff.traversalTriggerTermCount != entry.triggerTermCount)
-						return false;
-
-					GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
-						if (obs.plan.diff.traversalTriggerTerms[i] != entry.triggerTerms[i])
-							return false;
-					}
-
-					return true;
-				}
-
-				static void normalize_diff_targets(cnt::darray<Entity>& targets) {
-					if (targets.empty())
-						return;
-
-					core::sort(targets, [](Entity left, Entity right) {
-						return left.value() < right.value();
-					});
-
-					uint32_t outIdx = 0;
-					for (uint32_t i = 0; i < targets.size(); ++i) {
-						if (outIdx != 0 && targets[i] == targets[outIdx - 1])
-							continue;
-						targets[outIdx++] = targets[i];
-					}
-					targets.resize(outIdx);
-				}
-
 				static void collect_traversal_descendants(
 						World& world, Entity relation, Entity root, QueryTravKind travKind, uint8_t travDepth,
 						cnt::set<EntityLookupKey>& visitedNodes, cnt::darray<Entity>& outTargets) {
@@ -44502,7 +44548,7 @@ namespace gaia {
 						cnt::darray<Entity>& outTargets) {
 					switch (obs.plan.exec_kind()) {
 						case ObserverPlan::ExecKind::DiffLocal:
-							append_valid_diff_targets(world, outTargets, changedTargets);
+							DiffDispatcher::append_valid_targets(world, outTargets, changedTargets);
 							return true;
 						case ObserverPlan::ExecKind::DiffPropagated:
 							return collect_source_traversal_diff_targets(world, obs, changedTerms, changedTargets, outTargets);
@@ -44536,55 +44582,6 @@ namespace gaia {
 					}
 
 					return false;
-				}
-
-				static uint64_t observer_query_hash(ObserverRuntimeData& obs) {
-					auto& queryInfo = obs.query.fetch();
-					return queryInfo.ctx().hashLookup.hash;
-				}
-
-				static bool same_observer_query_ctx(const QueryCtx& left, const QueryCtx& right) {
-					if (left.hashLookup != right.hashLookup)
-						return false;
-
-					const auto& leftData = left.data;
-					const auto& rightData = right.data;
-					if (leftData.idsCnt != rightData.idsCnt || leftData.changedCnt != rightData.changedCnt ||
-							leftData.readWriteMask != rightData.readWriteMask || leftData.cacheSrcTrav != rightData.cacheSrcTrav ||
-							leftData.sortBy != rightData.sortBy || leftData.sortByFunc != rightData.sortByFunc ||
-							leftData.groupBy != rightData.groupBy || leftData.groupByFunc != rightData.groupByFunc)
-						return false;
-
-					GAIA_FOR(leftData.idsCnt) {
-						if (leftData._terms[i] != rightData._terms[i])
-							return false;
-					}
-
-					GAIA_FOR(leftData.changedCnt) {
-						if (leftData._changed[i] != rightData._changed[i])
-							return false;
-					}
-
-					return true;
-				}
-
-				static int32_t
-				find_diff_match_cache_entry(cnt::darray<DiffDispatcher::MatchCacheEntry>& cache, ObserverRuntimeData& obs) {
-					auto& queryInfo = obs.query.fetch();
-					auto& queryCtx = queryInfo.ctx();
-					const auto queryHash = queryCtx.hashLookup.hash;
-
-					GAIA_FOR((uint32_t)cache.size()) {
-						auto& entry = cache[i];
-						if (entry.queryHash != queryHash || entry.pObsRepresentative == nullptr)
-							continue;
-
-						auto& repQueryInfo = entry.pObsRepresentative->query.fetch();
-						if (same_observer_query_ctx(queryCtx, repQueryInfo.ctx()))
-							return (int32_t)i;
-					}
-
-					return -1;
 				}
 
 				static bool is_dynamic_pair_endpoint(EntityId endpoint) {
