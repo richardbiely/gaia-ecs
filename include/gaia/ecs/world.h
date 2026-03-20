@@ -421,7 +421,7 @@ namespace gaia {
 				}
 
 				struct DiffTargetNarrowCacheEntry {
-					ObserverRuntimeData::DiffTargetNarrowKind kind = ObserverRuntimeData::DiffTargetNarrowKind::None;
+					ObserverPlan::DiffPlan::TargetNarrowKind kind = ObserverPlan::DiffPlan::TargetNarrowKind::None;
 					Entity bindingRelation = EntityBad;
 					Entity traversalRelation = EntityBad;
 					QueryTravKind travKind = QueryTravKind::None;
@@ -432,26 +432,27 @@ namespace gaia {
 				};
 
 				static void copy_diff_target_narrow_plan(const ObserverRuntimeData& obs, DiffTargetNarrowCacheEntry& entry) {
-					entry.kind = obs.diffTargetNarrowKind;
-					entry.bindingRelation = obs.diffBindingRelation;
-					entry.traversalRelation = obs.diffTraversalRelation;
-					entry.travKind = obs.diffTravKind;
-					entry.travDepth = obs.diffTravDepth;
-					entry.triggerTermCount = obs.diffTraversalTriggerTermCount;
-					GAIA_FOR(obs.diffTraversalTriggerTermCount) {
-						entry.triggerTerms[i] = obs.diffTraversalTriggerTerms[i];
+					entry.kind = obs.plan.diff.targetNarrowKind;
+					entry.bindingRelation = obs.plan.diff.bindingRelation;
+					entry.traversalRelation = obs.plan.diff.traversalRelation;
+					entry.travKind = obs.plan.diff.travKind;
+					entry.travDepth = obs.plan.diff.travDepth;
+					entry.triggerTermCount = obs.plan.diff.traversalTriggerTermCount;
+					GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
+						entry.triggerTerms[i] = obs.plan.diff.traversalTriggerTerms[i];
 					}
 				}
 
 				static bool
 				same_diff_target_narrow_plan(const ObserverRuntimeData& obs, const DiffTargetNarrowCacheEntry& entry) {
-					if (obs.diffTargetNarrowKind != entry.kind || obs.diffBindingRelation != entry.bindingRelation ||
-							obs.diffTraversalRelation != entry.traversalRelation || obs.diffTravKind != entry.travKind ||
-							obs.diffTravDepth != entry.travDepth || obs.diffTraversalTriggerTermCount != entry.triggerTermCount)
+					if (obs.plan.diff.targetNarrowKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
+							obs.plan.diff.traversalRelation != entry.traversalRelation || obs.plan.diff.travKind != entry.travKind ||
+							obs.plan.diff.travDepth != entry.travDepth ||
+							obs.plan.diff.traversalTriggerTermCount != entry.triggerTermCount)
 						return false;
 
-					GAIA_FOR(obs.diffTraversalTriggerTermCount) {
-						if (obs.diffTraversalTriggerTerms[i] != entry.triggerTerms[i])
+					GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
+						if (obs.plan.diff.traversalTriggerTerms[i] != entry.triggerTerms[i])
 							return false;
 					}
 
@@ -524,21 +525,21 @@ namespace gaia {
 						cnt::darray<Entity>& outTargets) {
 					if (changedSources.empty())
 						return false;
-					if (obs.diffTargetNarrowKind != ObserverRuntimeData::DiffTargetNarrowKind::BoundUpTraversal)
+					if (obs.plan.diff.targetNarrowKind != ObserverPlan::DiffPlan::TargetNarrowKind::BoundUpTraversal)
 						return false;
-					if (obs.diffBindingRelation == EntityBad || obs.diffTraversalRelation == EntityBad ||
-							obs.diffTraversalTriggerTermCount == 0)
+					if (obs.plan.diff.bindingRelation == EntityBad || obs.plan.diff.traversalRelation == EntityBad ||
+							obs.plan.diff.traversalTriggerTermCount == 0)
 						return false;
 
 					bool termTriggered = false;
 					for (auto changedTerm: changedTerms) {
-						if (changedTerm.pair() && entity_from_id(world, changedTerm.id()) == obs.diffTraversalRelation) {
+						if (changedTerm.pair() && entity_from_id(world, changedTerm.id()) == obs.plan.diff.traversalRelation) {
 							termTriggered = true;
 							break;
 						}
 
-						GAIA_FOR(obs.diffTraversalTriggerTermCount) {
-							if (obs.diffTraversalTriggerTerms[i] == changedTerm) {
+						GAIA_FOR(obs.plan.diff.traversalTriggerTermCount) {
+							if (obs.plan.diff.traversalTriggerTerms[i] == changedTerm) {
 								termTriggered = true;
 								break;
 							}
@@ -556,14 +557,14 @@ namespace gaia {
 
 					for (auto changedSource: changedSources)
 						collect_traversal_descendants(
-								world, obs.diffTraversalRelation, changedSource, obs.diffTravKind, obs.diffTravDepth, visitedNodes,
-								bindingTargets);
+								world, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind, obs.plan.diff.travDepth,
+								visitedNodes, bindingTargets);
 
 					if (bindingTargets.empty())
 						return true;
 
 					for (auto bindingTarget: bindingTargets) {
-						world.sources(obs.diffBindingRelation, bindingTarget, [&](Entity source) {
+						world.sources(obs.plan.diff.bindingRelation, bindingTarget, [&](Entity source) {
 							const auto ins = visitedSources.insert(EntityLookupKey(source));
 							if (ins.second)
 								outTargets.push_back(source);
@@ -576,13 +577,13 @@ namespace gaia {
 				static bool collect_diff_targets_for_observer(
 						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedTargets,
 						cnt::darray<Entity>& outTargets) {
-					switch (obs.diffTargetNarrowKind) {
-						case ObserverRuntimeData::DiffTargetNarrowKind::None:
+					switch (obs.plan.diff.targetNarrowKind) {
+						case ObserverPlan::DiffPlan::TargetNarrowKind::None:
 							append_valid_diff_targets(world, outTargets, changedTargets);
 							return true;
-						case ObserverRuntimeData::DiffTargetNarrowKind::BoundUpTraversal:
+						case ObserverPlan::DiffPlan::TargetNarrowKind::BoundUpTraversal:
 							return collect_source_traversal_diff_targets(world, obs, changedTerms, changedTargets, outTargets);
-						case ObserverRuntimeData::DiffTargetNarrowKind::Unsupported:
+						case ObserverPlan::DiffPlan::TargetNarrowKind::Unsupported:
 							return false;
 					}
 
@@ -591,7 +592,7 @@ namespace gaia {
 
 				static bool observer_uses_changed_traversal_relation(
 						World& world, const ObserverRuntimeData& obs, EntitySpan changedTerms) {
-					if (obs.diffTraversalRelationCount == 0 || changedTerms.empty())
+					if (obs.plan.diff.traversalRelationCount == 0 || changedTerms.empty())
 						return false;
 
 					for (auto changedTerm: changedTerms) {
@@ -602,8 +603,8 @@ namespace gaia {
 						if (!world.valid(relation))
 							continue;
 
-						GAIA_FOR(obs.diffTraversalRelationCount) {
-							if (obs.diffTraversalRelations[i] == relation)
+						GAIA_FOR(obs.plan.diff.traversalRelationCount) {
+							if (obs.plan.diff.traversalRelations[i] == relation)
 								return true;
 						}
 					}
@@ -715,7 +716,7 @@ namespace gaia {
 							continue;
 
 						auto* pObs = data_try(observer);
-						if (pObs == nullptr || !pObs->diffDispatch)
+						if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
 							continue;
 
 						obsHdr.lastMatchStamp = matchStamp;
@@ -753,7 +754,7 @@ namespace gaia {
 							continue;
 
 						auto* pObs = data_try(observer);
-						if (pObs == nullptr || !pObs->diffDispatch)
+						if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
 							continue;
 
 						obsHdr.lastMatchStamp = matchStamp;
@@ -1409,7 +1410,7 @@ namespace gaia {
 					// Fire OnAdd for observers that started matching
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
-						if (obs.diffDispatch)
+						if (obs.plan.uses_diff_dispatch())
 							continue;
 						QueryInfo* pQueryInfo = nullptr;
 						if (archetypeIsPrefab) {
@@ -1419,9 +1420,9 @@ namespace gaia {
 						}
 
 						bool matches = false;
-						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
+						if (obs.plan.is_fast_positive())
 							matches = true;
-						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
+						else if (obs.plan.is_fast_negative())
 							matches = false;
 						else {
 							// Entity matches after the add completed. Trigger the event for each matching observer.
@@ -1475,7 +1476,7 @@ namespace gaia {
 					// Fire OnDel for observers that no longer match
 					for (auto* pObs: m_relevant_observers_tmp) {
 						auto& obs = *pObs; // ObserverRuntimeData
-						if (obs.diffDispatch)
+						if (obs.plan.uses_diff_dispatch())
 							continue;
 						QueryInfo* pQueryInfo = nullptr;
 						if (archetypeIsPrefab) {
@@ -1485,9 +1486,9 @@ namespace gaia {
 						}
 
 						bool matches = false;
-						if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SinglePositiveTerm)
+						if (obs.plan.is_fast_positive())
 							matches = true;
-						else if (obs.fastPath == ObserverRuntimeData::MatchFastPath::SingleNegativeTerm)
+						else if (obs.plan.is_fast_negative())
 							matches = true;
 						else {
 							// Entity still matches at this point, but won't after removal completes.

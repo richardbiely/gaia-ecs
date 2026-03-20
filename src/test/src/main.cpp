@@ -17568,17 +17568,17 @@ TEST_CASE("Observer - fast path") {
 	const auto& dataAllPosSrc = wld.observers().data(observerAllPosSrc);
 	const auto& dataAllPosTrav = wld.observers().data(observerAllPosTrav);
 
-	CHECK(dataAllPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
-	CHECK(dataPairFixed.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataPairIs.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
-	CHECK(dataPairWildcard.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
-	CHECK(dataAllPosRead.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataAllPosWrite.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataAllPosTravKindOnly.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataAllPosTravDepthOnly.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
-	CHECK(dataAllPosSrc.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
-	CHECK(dataAllPosTrav.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+	CHECK(dataAllPos.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
+	CHECK(dataPairFixed.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataPairIs.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
+	CHECK(dataPairWildcard.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
+	CHECK(dataAllPosRead.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataAllPosWrite.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataAllPosTravKindOnly.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataAllPosTravDepthOnly.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
+	CHECK(dataAllPosSrc.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
+	CHECK(dataAllPosTrav.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
 
 	int pairHits = 0;
 	const auto observerPairRuntime = wld.observer()
@@ -18733,7 +18733,7 @@ TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 																	.entity();
 
 	const auto& dataSimple = wld.observers().data(observerSimple);
-	CHECK(dataSimple.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataSimple.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
 
 	const auto e = wld.add();
 	wld.add<Position>(e, {});
@@ -18749,7 +18749,7 @@ TEST_CASE("Observer - add(QueryInput) registration and fast path") {
 			wld.observer().event(ecs::ObserverEvent::OnAdd).add(srcItem).on_each([](ecs::Iter&) {}).entity();
 
 	const auto& dataSrc = wld.observers().data(observerSrc);
-	CHECK(dataSrc.fastPath == ecs::ObserverRuntimeData::MatchFastPath::Disabled);
+	CHECK(dataSrc.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
 }
 
 TEST_CASE("Observer - single negative fast path runtime") {
@@ -18775,8 +18775,8 @@ TEST_CASE("Observer - single negative fast path runtime") {
 
 	const auto& dataOnAddNoPos = wld.observers().data(observerOnAddNoPos);
 	const auto& dataOnDelNoPos = wld.observers().data(observerOnDelNoPos);
-	CHECK(dataOnAddNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
-	CHECK(dataOnDelNoPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SingleNegativeTerm);
+	CHECK(dataOnAddNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
+	CHECK(dataOnDelNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
 
 	const auto e = wld.add();
 	wld.add<Position>(e, {});
@@ -18805,7 +18805,7 @@ TEST_CASE("Observer - single positive OnDel fast path runtime") {
 																		.entity();
 
 	const auto& dataOnDelPos = wld.observers().data(observerOnDelPos);
-	CHECK(dataOnDelPos.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(dataOnDelPos.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
 
 	const auto e = wld.add();
 	wld.add<Position>(e, {});
@@ -18838,7 +18838,7 @@ TEST_CASE("Observer - fixed pair OnDel fast path runtime") {
 														.entity();
 
 	const auto& data = wld.observers().data(observer);
-	CHECK(data.fastPath == ecs::ObserverRuntimeData::MatchFastPath::SinglePositiveTerm);
+	CHECK(data.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
 
 	const auto e = wld.add();
 	wld.add(e, pair);

@@ -40,57 +40,78 @@ namespace gaia {
 		};
 
 		//! Runtime payload for observers kept out-of-line from ECS component storage.
-		struct ObserverRuntimeData {
+		struct ObserverPlan {
+			enum class ExecKind : uint8_t { DirectQuery, DirectFast, Diff };
+			enum class FastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
 			using TObserverIterFunc = std::function<void(Iter&)>;
-			enum class MatchFastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
-			enum class DiffTargetNarrowKind : uint8_t { None, BoundUpTraversal, Unsupported };
+			
+			struct DiffPlan {
+				enum class TargetNarrowKind : uint8_t { None, BoundUpTraversal, Unsupported };
 
-			//! Entity identifying the observer
-			Entity entity = EntityBad;
-			//! Called every time the observer ticked
-			TObserverIterFunc on_each_func;
-			//! Query associated with the system
-			Query query;
+				//! Dynamic terms require full query diffing across structural changes.
+				bool enabled = false;
+				//! Optional precomputed target narrowing strategy for diff observers.
+				TargetNarrowKind targetNarrowKind = TargetNarrowKind::None;
+				//! Bound variable used by the supported traversal/source diff narrowing shape.
+				Entity bindingVar = EntityBad;
+				//! Fixed pair relation that binds the traversal source variable.
+				Entity bindingRelation = EntityBad;
+				//! Traversal relation used by the source term.
+				Entity traversalRelation = EntityBad;
+				//! Traversal direction mask used by the source term.
+				QueryTravKind travKind = QueryTravKind::None;
+				//! Traversal depth cap used by the source term.
+				uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
+				//! Traversed term ids that can trigger the bound-up-traversal narrowing path.
+				QueryEntityArray traversalTriggerTerms{};
+				//! Number of populated traversal trigger terms.
+				uint8_t traversalTriggerTermCount = 0;
+				//! Traversal relations referenced by dynamic diff terms.
+				QueryEntityArray traversalRelations{};
+				//! Number of populated traversal relations.
+				uint8_t traversalRelationCount = 0;
+			};
+
 			//! Fast-path classification for trivial single-term observers.
-			MatchFastPath fastPath = MatchFastPath::None;
+			FastPath fastPath = FastPath::None;
 			//! Number of terms added to the observer query.
 			uint8_t termCount = 0;
-			//! Dynamic terms require full query diffing across structural changes.
-			bool diffDispatch = false;
-			//! Optional precomputed target narrowing strategy for diff observers.
-			DiffTargetNarrowKind diffTargetNarrowKind = DiffTargetNarrowKind::None;
-			//! Bound variable used by the supported traversal/source diff narrowing shape.
-			Entity diffBindingVar = EntityBad;
-			//! Fixed pair relation that binds the traversal source variable.
-			Entity diffBindingRelation = EntityBad;
-			//! Traversal relation used by the source term.
-			Entity diffTraversalRelation = EntityBad;
-			//! Traversal direction mask used by the source term.
-			QueryTravKind diffTravKind = QueryTravKind::None;
-			//! Traversal depth cap used by the source term.
-			uint8_t diffTravDepth = QueryTermOptions::TravDepthUnlimited;
-			//! Traversed term ids that can trigger the bound-up-traversal narrowing path.
-			QueryEntityArray diffTraversalTriggerTerms{};
-			//! Number of populated traversal trigger terms.
-			uint8_t diffTraversalTriggerTermCount = 0;
-			//! Traversal relations referenced by dynamic diff terms.
-			QueryEntityArray diffTraversalRelations{};
-			//! Number of populated traversal relations.
-			uint8_t diffTraversalRelationCount = 0;
+			//! Dynamic/propgated execution metadata.
+			DiffPlan diff;
+
+			GAIA_NODISCARD ExecKind exec_kind() const {
+				if (diff.enabled)
+					return ExecKind::Diff;
+				if (fastPath == FastPath::SinglePositiveTerm || fastPath == FastPath::SingleNegativeTerm)
+					return ExecKind::DirectFast;
+				return ExecKind::DirectQuery;
+			}
+
+			GAIA_NODISCARD bool uses_diff_dispatch() const {
+				return exec_kind() == ExecKind::Diff;
+			}
+
+			GAIA_NODISCARD bool is_fast_positive() const {
+				return fastPath == FastPath::SinglePositiveTerm;
+			}
+
+			GAIA_NODISCARD bool is_fast_negative() const {
+				return fastPath == FastPath::SingleNegativeTerm;
+			}
 
 			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
 				++termCount;
 
 				if (!allowFastPath) {
-					fastPath = MatchFastPath::Disabled;
+					fastPath = FastPath::Disabled;
 					return;
 				}
 
-				if (fastPath == MatchFastPath::Disabled)
+				if (fastPath == FastPath::Disabled)
 					return;
 
 				if (termCount != 1) {
-					fastPath = MatchFastPath::Disabled;
+					fastPath = FastPath::Disabled;
 					return;
 				}
 
@@ -98,16 +119,30 @@ namespace gaia {
 					case QueryOpKind::All:
 					case QueryOpKind::Any:
 					case QueryOpKind::Or:
-						fastPath = MatchFastPath::SinglePositiveTerm;
+						fastPath = FastPath::SinglePositiveTerm;
 						break;
 					case QueryOpKind::Not:
-						fastPath = MatchFastPath::SingleNegativeTerm;
+						fastPath = FastPath::SingleNegativeTerm;
 						break;
 					default:
-						fastPath = MatchFastPath::Disabled;
+						fastPath = FastPath::Disabled;
 						break;
 				}
 			}
+		};
+
+		//! Runtime payload for observers kept out-of-line from ECS component storage.
+		struct ObserverRuntimeData {
+			using TObserverIterFunc = std::function<void(Iter&)>;
+
+			//! Entity identifying the observer
+			Entity entity = EntityBad;
+			//! Called every time the observer ticked
+			TObserverIterFunc on_each_func;
+			//! Query associated with the system
+			Query query;
+			//! Precomputed observer execution plan.
+			ObserverPlan plan;
 
 			void exec(Iter& iter, EntitySpan targets);
 		};
