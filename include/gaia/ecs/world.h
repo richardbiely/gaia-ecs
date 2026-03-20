@@ -460,7 +460,26 @@ namespace gaia {
 						if (terms.empty() && index.all.empty() && index.global.empty())
 							return ctx;
 
-						if (!targetEntities.empty() && !terms.empty() && !SharedDispatch::has_terms(index.sourceTerm, terms) &&
+						bool hasEntityLifecycleTerm = false;
+						if (!targetEntities.empty() && !terms.empty()) {
+							for (auto term: terms) {
+								if (term.pair())
+									continue;
+
+								for (auto target: targetEntities) {
+									if (term == target) {
+										hasEntityLifecycleTerm = true;
+										break;
+									}
+								}
+
+								if (hasEntityLifecycleTerm)
+									break;
+							}
+						}
+
+						if (!hasEntityLifecycleTerm && !targetEntities.empty() && !terms.empty() &&
+								!SharedDispatch::has_terms(index.sourceTerm, terms) &&
 								!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
 							ctx.targeted = true;
 							ctx.targets.reserve(targetEntities.size());
@@ -479,20 +498,25 @@ namespace gaia {
 								if (!term.pair())
 									continue;
 
-								const auto relation = entity_from_id(world, term.id());
-								if (world.valid(relation)) {
-									SharedDispatch::collect_from_map<true>(
-											registry, world, index.traversalRelation, relation, matchStamp);
-									SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+								if (!is_wildcard(term.id()) && world.valid_entity_id((EntityId)term.id())) {
+									const auto relation = entity_from_id(world, term.id());
+									if (world.valid(relation)) {
+										SharedDispatch::collect_from_map<true>(
+												registry, world, index.traversalRelation, relation, matchStamp);
+										SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+									}
 								}
 
-								const auto target = world.get(term.gen());
-								if (world.valid(target))
-									SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+								if (!is_wildcard(term.gen()) && world.valid_entity_id((EntityId)term.gen())) {
+									const auto target = world.get(term.gen());
+									if (world.valid(target))
+										SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+								}
 							}
 						}
+						if (hasEntityLifecycleTerm)
+							SharedDispatch::collect_all_diff_for_event(registry, world, event, matchStamp);
 						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
-
 						if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
 							cnt::darray<Entity> narrowedTargets;
 							cnt::darray<TargetNarrowCacheEntry> narrowCache;
@@ -588,13 +612,17 @@ namespace gaia {
 							if (!term.pair())
 								continue;
 
-							const auto relation = entity_from_id(world, term.id());
-							if (world.valid(relation))
-								SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+							if (!is_wildcard(term.id()) && world.valid_entity_id((EntityId)term.id())) {
+								const auto relation = entity_from_id(world, term.id());
+								if (world.valid(relation))
+									SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+							}
 
-							const auto target = world.get(term.gen());
-							if (world.valid(target))
-								SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+							if (!is_wildcard(term.gen()) && world.valid_entity_id((EntityId)term.gen())) {
+								const auto target = world.get(term.gen());
+								if (world.valid(target))
+									SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+							}
 						}
 						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
 
@@ -861,6 +889,30 @@ namespace gaia {
 						}
 					}
 
+					static void collect_all_diff_for_event(
+							ObserverRegistry& registry, World& world, ObserverEvent event, uint64_t matchStamp) {
+						for (auto& [observerKey, data]: registry.m_observer_data) {
+							auto& obsData = data;
+							if (!obsData.plan.uses_diff_dispatch())
+								continue;
+							if (obsData.lastMatchStamp == matchStamp)
+								continue;
+
+							const auto observer = observerKey.entity();
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+							if (obs.event != event)
+								continue;
+
+							obsData.lastMatchStamp = matchStamp;
+							registry.m_relevant_observers_tmp.push_back(&obsData);
+						}
+					}
+
 					template <typename TObserverMap>
 					GAIA_NODISCARD static bool has_terms(const TObserverMap& map, EntitySpan terms) {
 						for (auto term: terms) {
@@ -893,6 +945,9 @@ namespace gaia {
 					template <typename TObserverMap>
 					static void collect_for_event_term(
 							ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+						if (!world.valid(term))
+							return;
+
 						if (!is_semantic_is_term(term)) {
 							if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) == 0)
 								return;
@@ -1151,12 +1206,11 @@ namespace gaia {
 						return;
 
 					if (travDepth == QueryTermOptions::TravDepthUnlimited && !query_trav_has(travKind, QueryTravKind::Down)) {
-						const auto& cachedSources = world.sources_bfs_trav_cache(relation, root);
-						for (auto source: cachedSources) {
+						world.sources_bfs(relation, root, [&](Entity source) {
 							const auto ins = visitedNodes.insert(EntityLookupKey(source));
 							if (ins.second)
 								outTargets.push_back(source);
-						}
+						});
 						return;
 					}
 
@@ -1214,7 +1268,6 @@ namespace gaia {
 						collect_traversal_descendants(
 								world, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind, obs.plan.diff.travDepth,
 								visitedNodes, bindingTargets);
-
 						for (auto bindingTarget: bindingTargets) {
 							world.sources(obs.plan.diff.bindingRelation, bindingTarget, [&](Entity source) {
 								entry.targets.push_back(source);
@@ -1261,6 +1314,15 @@ namespace gaia {
 
 					bool termTriggered = false;
 					for (auto changedTerm: changedTerms) {
+						for (auto changedSource: changedSources) {
+							if (!changedTerm.pair() && changedTerm == changedSource) {
+								termTriggered = true;
+								break;
+							}
+						}
+						if (termTriggered)
+							break;
+
 						if (changedTerm.pair() && entity_from_id(world, changedTerm.id()) == obs.plan.diff.traversalRelation) {
 							termTriggered = true;
 							break;
@@ -1778,18 +1840,25 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
-				// Valid entity
-				GAIA_ASSERT(valid(entity));
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
+				if (!valid(entity)) {
+					// Delete-time cleanup can still reference an exact pair record after one endpoint
+					// has already become invalid. As long as the pair record itself still exists,
+					// allow fetch() so cleanup can finish removing it.
+					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
+						GAIA_ASSERT(false);
+				}
 				return m_recs[entity];
 			}
 
 			GAIA_NODISCARD const EntityContainer& fetch(Entity entity) const {
-				// Valid entity
-				GAIA_ASSERT(valid(entity));
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
+				if (!valid(entity)) {
+					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
+						GAIA_ASSERT(false);
+				}
 				return m_recs[entity];
 			}
 
@@ -2021,6 +2090,13 @@ namespace gaia {
 				store.srcToTgt[source.id()] = target;
 				store.srcToTgtIdx[source.id()] = (uint32_t)sources.size();
 				sources.push_back(source);
+
+				touch_rel_version(relation);
+				invalidate_queries_for_rel(relation);
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
+				m_targetsAllCache = {};
 			}
 
 			bool exclusive_adjunct_del(Entity source, Entity relation, Entity target) {
@@ -2044,6 +2120,13 @@ namespace gaia {
 				exclusive_adjunct_untrack_src_relation(source, relation);
 				if (store.srcToTgtCnt == 0)
 					m_exclusiveAdjunctByRel.erase(itStore);
+
+				touch_rel_version(relation);
+				invalidate_queries_for_rel(relation);
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
+				m_targetsAllCache = {};
 
 				return true;
 			}
@@ -2310,6 +2393,17 @@ namespace gaia {
 						GAIA_ASSERT(ec.pChunk == m_pChunkSrc);
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+						auto delDiffCtx = tl_del_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
+																									 : m_world.m_observers.prepare_diff(
+																												 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
+																												 EntitySpan{&m_entity, 1});
+						auto addDiffCtx = tl_new_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
+																									 : m_world.m_observers.prepare_diff(
+																												 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
+																												 EntitySpan{&m_entity, 1});
+#endif
+
 						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
 							const auto compIdx = m_pChunkSrc->comp_idx(GAIA_ID(EntityDesc));
 							auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc));
@@ -2327,6 +2421,11 @@ namespace gaia {
 								pDesc->alias_len = m_targetAliasKey.len();
 							}
 						}
+
+#if GAIA_OBSERVERS_ENABLED
+						m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
+						m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+#endif
 					}
 
 					// Finalize the builder by reseting the archetype pointer
@@ -2661,7 +2760,9 @@ namespace gaia {
 							auto rel = Entity(
 									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
 									(EntityKind)ecRel.data.kind);
-							auto tgt = m_world.get(entity.gen());
+							auto tgt = m_world.get_if_valid(entity.gen());
+							if (tgt == EntityBad)
+								return false;
 
 							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
 							// However, before that we need to make sure there only exists one target at most.
@@ -2810,8 +2911,10 @@ namespace gaia {
 					if (!entity.pair())
 						return;
 
-					const auto rel = m_world.get(entity.id());
-					const auto tgt = m_world.get(entity.gen());
+					const auto rel = m_world.get_if_valid(entity.id());
+					const auto tgt = m_world.get_if_valid(entity.gen());
+					if (rel == EntityBad || tgt == EntityBad)
+						return;
 
 					// Adding a pair to an entity with OnDeleteTarget relationship.
 					// We need to update the target entity's flags.
@@ -2906,7 +3009,9 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto e = m_world.get(entity.gen());
+						auto e = m_world.get_if_valid(entity.gen());
+						if (e == EntityBad)
+							return false;
 
 						EntityLookupKey entityKey(m_entity);
 						EntityLookupKey eKey(e);
@@ -2929,8 +3034,11 @@ namespace gaia {
 					}
 
 					if (isDontFragmentPair) {
-						const auto relation = m_world.get(entity.id());
-						const auto target = m_world.get(entity.gen());
+						const auto relation = m_world.get_if_valid(entity.id());
+						const auto target = m_world.get_if_valid(entity.gen());
+						if (relation == EntityBad || target == EntityBad)
+							return false;
+
 						m_world.exclusive_adjunct_set(m_entity, relation, target);
 					} else {
 						m_pArchetype = m_world.foc_archetype_add_no_graph(m_pArchetype, entity);
@@ -2949,6 +3057,14 @@ namespace gaia {
 				}
 
 				void handle_del(Entity entity) {
+					if (entity.pair() && !m_world.valid(entity)) {
+						if (m_pArchetype->has(entity)) {
+							m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
+							note_graph_edge(entity, false);
+						}
+						return;
+					}
+
 					const bool isDontFragmentPair =
 							entity.pair() && m_world.is_exclusive_dont_fragment_relation(m_world.get(entity.id()));
 					if (entity.pair())
@@ -2978,47 +3094,49 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto e = m_world.get(entity.gen());
+						auto e = m_world.get_if_valid(entity.gen());
+						if (e != EntityBad) {
+							EntityLookupKey entityKey(m_entity);
+							EntityLookupKey eKey(e);
 
-						EntityLookupKey entityKey(m_entity);
-						EntityLookupKey eKey(e);
+							// Cached queries might need to be invalidated.
+							m_world.invalidate_queries_for_entity({Is, e});
 
-						// Cached queries might need to be invalidated.
-						m_world.invalidate_queries_for_entity({Is, e});
+							// m_entity -> {..., e}
+							{
+								const auto it = m_world.m_entityToAsTargets.find(entityKey);
+								GAIA_ASSERT(it != m_world.m_entityToAsTargets.end());
+								auto& set = it->second;
+								GAIA_ASSERT(!set.empty());
+								set.erase(eKey);
 
-						// m_entity -> {..., e}
-						{
-							const auto it = m_world.m_entityToAsTargets.find(entityKey);
-							GAIA_ASSERT(it != m_world.m_entityToAsTargets.end());
-							auto& set = it->second;
-							GAIA_ASSERT(!set.empty());
-							set.erase(eKey);
+								// Remove the record if it is not referenced anymore
+								if (set.empty())
+									m_world.m_entityToAsTargets.erase(it);
+							}
+							m_world.m_entityToAsTargetsTravCache = {};
 
-							// Remove the record if it is not referenced anymore
-							if (set.empty())
-								m_world.m_entityToAsTargets.erase(it);
+							// e -> {..., m_entity}
+							{
+								const auto it = m_world.m_entityToAsRelations.find(eKey);
+								GAIA_ASSERT(it != m_world.m_entityToAsRelations.end());
+								auto& set = it->second;
+								GAIA_ASSERT(!set.empty());
+								set.erase(entityKey);
+
+								// Remove the record if it is not referenced anymore
+								if (set.empty())
+									m_world.m_entityToAsRelations.erase(it);
+							}
+							m_world.m_entityToAsRelationsTravCache = {};
 						}
-						m_world.m_entityToAsTargetsTravCache = {};
-
-						// e -> {..., m_entity}
-						{
-							const auto it = m_world.m_entityToAsRelations.find(eKey);
-							GAIA_ASSERT(it != m_world.m_entityToAsRelations.end());
-							auto& set = it->second;
-							GAIA_ASSERT(!set.empty());
-							set.erase(entityKey);
-
-							// Remove the record if it is not referenced anymore
-							if (set.empty())
-								m_world.m_entityToAsRelations.erase(it);
-						}
-						m_world.m_entityToAsRelationsTravCache = {};
 					}
 
 					if (isDontFragmentPair) {
-						const auto relation = m_world.get(entity.id());
-						const auto target = m_world.get(entity.gen());
-						(void)m_world.exclusive_adjunct_del(m_entity, relation, target);
+						const auto relation = m_world.get_if_valid(entity.id());
+						const auto target = m_world.get_if_valid(entity.gen());
+						if (relation != EntityBad && target != EntityBad)
+							(void)m_world.exclusive_adjunct_del(m_entity, relation, target);
 					} else {
 						m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
 						note_graph_edge(entity, false);
@@ -3621,10 +3739,18 @@ namespace gaia {
 			//! \param id Entity id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
-				GAIA_ASSERT(valid_entity_id(id));
+				// Cleanup, observer propagation, and wildcard expansion can briefly encounter stale ids.
+				// Treat those as absent instead of crashing the world.
+				if (!valid_entity_id(id))
+					return EntityBad;
 
 				const auto& ec = m_recs.entities[id];
 				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
+			}
+
+			//! Returns the entity for @a id when it is still live, or EntityBad for stale cleanup-time ids.
+			GAIA_NODISCARD Entity get_if_valid(EntityId id) const {
+				return valid_entity_id(id) ? get(id) : EntityBad;
 			}
 
 			template <typename T>
@@ -6357,9 +6483,9 @@ namespace gaia {
 				const auto ids = pArchetype->ids_view();
 				for (auto idsIdx: pArchetype->pair_indices()) {
 					const auto id = ids[idsIdx];
-
-					const auto& ecTarget = m_recs.entities[id.gen()];
-					const auto target = *ecTarget.pEntity;
+					const auto target = pair_target_if_alive(id);
+					if (target == EntityBad)
+						continue;
 					if (try_mark_entity_visited(target, visitStamp))
 						cache.push_back(target);
 				}
@@ -6407,6 +6533,8 @@ namespace gaia {
 						const auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
 							const auto source = entities[i];
+							if (!valid(source))
+								continue;
 							if (try_mark_entity_visited(source, visitStamp))
 								cache.push_back(source);
 						}
@@ -6580,9 +6708,9 @@ namespace gaia {
 				const auto ids = pArchetype->ids_view();
 				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
 					const auto e = ids[idsIdx];
-
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = *ecTarget.pEntity;
+					const auto target = pair_target_if_alive(e);
+					if (target == EntityBad)
+						continue;
 					return target;
 				}
 
@@ -6623,9 +6751,9 @@ namespace gaia {
 				const auto ids = pArchetype->ids_view();
 				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
 					const auto e = ids[idsIdx];
-
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = *ecTarget.pEntity;
+					const auto target = pair_target_if_alive(e);
+					if (target == EntityBad)
+						continue;
 					func(target);
 				}
 			}
@@ -6667,12 +6795,26 @@ namespace gaia {
 				const auto ids = pArchetype->ids_view();
 				for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
 					const auto e = ids[idsIdx];
-
-					const auto& ecTarget = m_recs.entities[e.gen()];
-					auto target = *ecTarget.pEntity;
+					const auto target = pair_target_if_alive(e);
+					if (target == EntityBad)
+						continue;
 					if (!func(target))
 						return;
 				}
+			}
+
+			//! Resolves the target of an archetype-stored exact pair id, skipping stale cleanup-time targets.
+			GAIA_NODISCARD Entity pair_target_if_alive(Entity pair) const {
+				GAIA_ASSERT(pair.pair());
+				if (!valid_entity_id((EntityId)pair.gen()))
+					return EntityBad;
+
+				const auto& ecTarget = m_recs.entities[pair.gen()];
+				if (ecTarget.pEntity == nullptr)
+					return EntityBad;
+
+				const auto target = *ecTarget.pEntity;
+				return valid(target) ? target : EntityBad;
 			}
 
 			//! Returns relationship sources for the @a relation and @a target.
@@ -6723,7 +6865,10 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							func(entities[i]);
+							const auto source = entities[i];
+							if (!valid(source))
+								continue;
+							func(source);
 						}
 					}
 				}
@@ -6781,7 +6926,10 @@ namespace gaia {
 					for (const auto* pChunk: pArchetype->chunks()) {
 						auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
-							if (!func(entities[i]))
+							const auto source = entities[i];
+							if (!valid(source))
+								continue;
+							if (!func(source))
 								return;
 						}
 					}
@@ -9475,10 +9623,78 @@ namespace gaia {
 				if (is_req_del(ec))
 					return;
 
+#if GAIA_OBSERVERS_ENABLED
+				auto delDiffCtx =
+						m_observers.prepare_diff(*this, ObserverEvent::OnDel, EntitySpan{&entity, 1}, EntitySpan{&entity, 1});
+#endif
 				del_entity(ec, entity, false);
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
+#endif
 
 				ec.req_del();
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
+			}
+
+			void invalidate_pair_removal_caches(Entity entity) {
+				if (!entity.pair())
+					return;
+
+				auto invalidate_relation = [this](Entity relation) {
+					if (relation == EntityBad)
+						return;
+					touch_rel_version(relation);
+					invalidate_queries_for_rel(relation);
+				};
+
+				if (entity.id() != All.id()) {
+					invalidate_relation(get_if_valid(entity.id()));
+				} else if (entity.gen() != All.id()) {
+					const auto target = get_if_valid(entity.gen());
+					if (target != EntityBad) {
+						if (const auto* pRelations = relations(target)) {
+							for (auto relationKey: *pRelations)
+								invalidate_relation(relationKey.entity());
+						}
+					}
+				} else {
+					for (const auto& [relationKey, _]: m_relToTgt)
+						invalidate_relation(relationKey.entity());
+				}
+
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+				m_sourcesAllCache = {};
+				m_targetsAllCache = {};
+			}
+
+			//! Collects entities that will be deleted by `OnDeleteTarget, Delete` cascade for `entity`.
+			//! `entity` is expected to be a wildcard target query such as `(All, target)`.
+			void collect_delete_cascade_targets(Entity entity, Pair cond, cnt::darray<Entity>& out) {
+				GAIA_ASSERT(entity.pair());
+				GAIA_ASSERT(entity.id() == All.id());
+
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
+				if (it == m_entityToArchetypeMap.end())
+					return;
+
+				cnt::set<EntityLookupKey> seen;
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
+					if (pArchetype == nullptr || pArchetype->is_req_del())
+						continue;
+					if (!archetype_cond_match(*pArchetype, cond, entity))
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities) {
+							const auto source = entities[i];
+							if (seen.insert(EntityLookupKey(source)).second)
+								out.push_back(source);
+						}
+					}
+				}
 			}
 
 			//! Requests deleting anything that references the \param entity. No questions asked.
@@ -9499,17 +9715,21 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get(entity.id());
-						if (is_exclusive_dont_fragment_relation(relation))
-							req_del_adjunct_pair(relation, get(entity.gen()));
+						const auto relation = get_if_valid(entity.id());
+						const auto target = get_if_valid(entity.gen());
+						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+							req_del_adjunct_pair(relation, target);
 					} else {
-						const auto target = get(entity.gen());
+						const auto target = get_if_valid(entity.gen());
+						if (target == EntityBad)
+							goto skip_req_del_all_target;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
 							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							req_del_adjunct_pair(relKey.entity(), target);
 						}
+					skip_req_del_all_target:;
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
 					if (const auto* pTargets = targets(entity)) {
@@ -9529,9 +9749,16 @@ namespace gaia {
 			//! Requests deleting anything that references the \param entity. No questions asked.
 			//! Takes \param cond into account.
 			void req_del_entities_with(Entity entity, Pair cond) {
+				cnt::set<EntityLookupKey> visited;
+				req_del_entities_with(entity, cond, visited);
+			}
+
+			void req_del_entities_with(Entity entity, Pair cond, cnt::set<EntityLookupKey>& visited) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
 
 				GAIA_ASSERT(entity != Pair(All, All));
+				if (!visited.insert(EntityLookupKey(entity)).second)
+					return;
 
 				auto req_del_adjunct_pair = [&](Entity relation, Entity target) {
 					if (!has(relation, cond))
@@ -9548,17 +9775,21 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get(entity.id());
-						if (is_exclusive_dont_fragment_relation(relation))
-							req_del_adjunct_pair(relation, get(entity.gen()));
+						const auto relation = get_if_valid(entity.id());
+						const auto target = get_if_valid(entity.gen());
+						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+							req_del_adjunct_pair(relation, target);
 					} else {
-						const auto target = get(entity.gen());
+						const auto target = get_if_valid(entity.gen());
+						if (target == EntityBad)
+							goto skip_req_del_all_target_cond;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
 							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							req_del_adjunct_pair(relKey.entity(), target);
 						}
+					skip_req_del_all_target_cond:;
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
 					if (const auto* pTargets = targets(entity)) {
@@ -9570,6 +9801,12 @@ namespace gaia {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
 					return;
+
+				cnt::darray<Entity> cascadeTargets;
+				collect_delete_cascade_targets(entity, cond, cascadeTargets);
+
+				for (auto source: cascadeTargets)
+					req_del_entities_with(Pair(All, source), cond, visited);
 
 				for (const auto& record: it->second) {
 					auto* pArchetype = record.pArchetype;
@@ -9585,6 +9822,8 @@ namespace gaia {
 			void rem_from_entities(Entity entity) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
+				invalidate_pair_removal_caches(entity);
+
 				auto rem_adjunct_pair = [&](Entity relation, Entity target) {
 					cnt::darray<Entity> sourcesToRem;
 					sources(relation, target, [&](Entity source) {
@@ -9597,17 +9836,21 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get(entity.id());
-						if (is_exclusive_dont_fragment_relation(relation))
-							rem_adjunct_pair(relation, get(entity.gen()));
+						const auto relation = get_if_valid(entity.id());
+						const auto target = get_if_valid(entity.gen());
+						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+							rem_adjunct_pair(relation, target);
 					} else {
-						const auto target = get(entity.gen());
+						const auto target = get_if_valid(entity.gen());
+						if (target == EntityBad)
+							goto skip_rem_all_target;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
 							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);
 						}
+					skip_rem_all_target:;
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
 					if (const auto* pTargets = targets(entity)) {
@@ -9631,6 +9874,53 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_OBSERVERS_ENABLED
+				cnt::set<EntityLookupKey> diffTermSet;
+				cnt::darray<Entity> diffTerms;
+				cnt::darray<Entity> diffTargets;
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
+					if (pArchetype->is_req_del())
+						continue;
+
+					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
+					if (pDstArchetype == nullptr)
+						continue;
+
+					for (auto id: pArchetype->ids_view()) {
+						bool matches = false;
+						if (entity.pair()) {
+							if (entity.id() == All.id() && entity.gen() == All.id())
+								matches = id.pair();
+							else if (entity.id() == All.id())
+								matches = id.pair() && id.gen() == entity.gen();
+							else if (entity.gen() == All.id())
+								matches = id.pair() && id.id() == entity.id();
+							else
+								matches = id == entity;
+						} else
+							matches = id == entity;
+
+						if (!matches)
+							continue;
+
+						if (diffTermSet.insert(EntityLookupKey(id)).second)
+							diffTerms.push_back(id);
+					}
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities)
+						diffTargets.push_back(entities[i]);
+					}
+				}
+				auto delDiffCtx = diffTargets.empty() || diffTerms.empty()
+															? ObserverRegistry::DiffDispatchCtx{}
+															: m_observers.prepare_diff(
+																		*this, ObserverEvent::OnDel, EntitySpan{diffTerms.data(), diffTerms.size()},
+																		EntitySpan{diffTargets.data(), diffTargets.size()});
+#endif
+
 				// Update archetypes of all affected entities
 				for (const auto& record: it->second) {
 					auto* pArchetype = record.pArchetype;
@@ -9641,12 +9931,18 @@ namespace gaia {
 					if (pDstArchetype != nullptr)
 						move_to_archetype(*pArchetype, *pDstArchetype);
 				}
+
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
+#endif
 			}
 
 			//! Removes the entity \param entity from anything referencing it.
 			//! Takes \param cond into account.
 			void rem_from_entities(Entity entity, Pair cond) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
+
+				invalidate_pair_removal_caches(entity);
 
 				auto rem_adjunct_pair = [&](Entity relation, Entity target) {
 					if (!has(relation, cond))
@@ -9663,17 +9959,21 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get(entity.id());
-						if (is_exclusive_dont_fragment_relation(relation))
-							rem_adjunct_pair(relation, get(entity.gen()));
+						const auto relation = get_if_valid(entity.id());
+						const auto target = get_if_valid(entity.gen());
+						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+							rem_adjunct_pair(relation, target);
 					} else {
-						const auto target = get(entity.gen());
+						const auto target = get_if_valid(entity.gen());
+						if (target == EntityBad)
+							goto skip_rem_all_target_cond;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
 							if (exclusive_adjunct_sources(store, target) == nullptr)
 								continue;
 
 							rem_adjunct_pair(relKey.entity(), target);
 						}
+					skip_rem_all_target_cond:;
 					}
 				} else if (is_exclusive_dont_fragment_relation(entity)) {
 					if (const auto* pTargets = targets(entity)) {
@@ -9697,6 +9997,56 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_OBSERVERS_ENABLED
+				cnt::set<EntityLookupKey> diffTermSet;
+				cnt::darray<Entity> diffTerms;
+				cnt::darray<Entity> diffTargets;
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
+					if (pArchetype->is_req_del())
+						continue;
+
+					if (!archetype_cond_match(*pArchetype, cond, entity))
+						continue;
+
+					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
+					if (pDstArchetype == nullptr)
+						continue;
+
+					for (auto id: pArchetype->ids_view()) {
+						bool matches = false;
+						if (entity.pair()) {
+							if (entity.id() == All.id() && entity.gen() == All.id())
+								matches = id.pair();
+							else if (entity.id() == All.id())
+								matches = id.pair() && id.gen() == entity.gen();
+							else if (entity.gen() == All.id())
+								matches = id.pair() && id.id() == entity.id();
+							else
+								matches = id == entity;
+						} else
+							matches = id == entity;
+
+						if (!matches)
+							continue;
+
+						if (diffTermSet.insert(EntityLookupKey(id)).second)
+							diffTerms.push_back(id);
+					}
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						const auto entities = pChunk->entity_view();
+						GAIA_EACH(entities)
+						diffTargets.push_back(entities[i]);
+					}
+				}
+				auto delDiffCtx = diffTargets.empty() || diffTerms.empty()
+															? ObserverRegistry::DiffDispatchCtx{}
+															: m_observers.prepare_diff(
+																		*this, ObserverEvent::OnDel, EntitySpan{diffTerms.data(), diffTerms.size()},
+																		EntitySpan{diffTargets.data(), diffTargets.size()});
+#endif
+
 				for (const auto& record: it->second) {
 					auto* pArchetype = record.pArchetype;
 					if (pArchetype->is_req_del())
@@ -9710,6 +10060,10 @@ namespace gaia {
 					if (pDstArchetype != nullptr)
 						move_to_archetype(*pArchetype, *pDstArchetype);
 				}
+
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
+#endif
 			}
 
 			//! Handles specific conditions that might arise from deleting \param entity.
@@ -9736,15 +10090,19 @@ namespace gaia {
 						return;
 					}
 
-					const auto tgt = get(entity.gen());
-					const auto& ecTgt = fetch(tgt);
-					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0 ||
-							has_exclusive_adjunct_target_cond(tgt, Pair(OnDeleteTarget, Error))) {
-						GAIA_ASSERT2(false, "Trying to delete an entity that is forbidden from being deleted (target restriction)");
-						GAIA_LOG_E(
-								"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted (target restriction)",
-								entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
-						return;
+					const auto tgt = get_if_valid(entity.gen());
+					const bool hasLiveTarget = tgt != EntityBad;
+					if (hasLiveTarget) {
+						const auto& ecTgt = fetch(tgt);
+						if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Error) != 0 ||
+								has_exclusive_adjunct_target_cond(tgt, Pair(OnDeleteTarget, Error))) {
+							GAIA_ASSERT2(
+									false, "Trying to delete an entity that is forbidden from being deleted (target restriction)");
+							GAIA_LOG_E(
+									"Trying to delete a pair [%u.%u] %s [%s] that is forbidden from being deleted (target restriction)",
+									entity.id(), entity.gen(), name(entity), EntityKindString[entity.kind()]);
+							return;
+						}
 					}
 
 #if GAIA_USE_SAFE_ENTITY
@@ -9759,13 +10117,29 @@ namespace gaia {
 						return;
 #endif
 
-					if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
-							has_exclusive_adjunct_target_cond(tgt, Pair(OnDeleteTarget, Delete))) {
-						// Delete all entities referencing this one as a relationship pair's target
-						req_del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
-					} else {
-						// Remove from all entities referencing this one as a relationship pair's target
-						rem_from_entities(Pair(All, tgt));
+					if (hasLiveTarget) {
+						const auto& ecTgt = fetch(tgt);
+						if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
+								has_exclusive_adjunct_target_cond(tgt, Pair(OnDeleteTarget, Delete))) {
+#if GAIA_OBSERVERS_ENABLED
+							cnt::darray<Entity> cascadeTargets;
+							collect_delete_cascade_targets(Pair(All, tgt), Pair(OnDeleteTarget, Delete), cascadeTargets);
+							auto cascadeDelDiffCtx =
+									cascadeTargets.empty()
+											? ObserverRegistry::DiffDispatchCtx{}
+											: m_observers.prepare_diff(
+														*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
+														EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
+#endif
+							// Delete all entities referencing this one as a relationship pair's target
+							req_del_entities_with(Pair(All, tgt), Pair(OnDeleteTarget, Delete));
+#if GAIA_OBSERVERS_ENABLED
+							m_observers.finish_diff(*this, GAIA_MOV(cascadeDelDiffCtx));
+#endif
+						} else {
+							// Remove from all entities referencing this one as a relationship pair's target
+							rem_from_entities(Pair(All, tgt));
+						}
 					}
 
 					// This entity has been requested to be deleted already. Nothing more for us to do here
@@ -9813,14 +10187,32 @@ namespace gaia {
 						return;
 #endif
 
-					if ((ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
-							has_exclusive_adjunct_target_cond(entity, Pair(OnDeleteTarget, Delete))) {
+					const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
+																		 has_exclusive_adjunct_target_cond(entity, Pair(OnDeleteTarget, Delete));
+#if GAIA_OBSERVERS_ENABLED
+					auto cascadeDelDiffCtx = ObserverRegistry::DiffDispatchCtx{};
+					if (deleteTargets) {
+						cnt::darray<Entity> cascadeTargets;
+						collect_delete_cascade_targets(Pair(All, entity), Pair(OnDeleteTarget, Delete), cascadeTargets);
+						if (!cascadeTargets.empty()) {
+							cascadeDelDiffCtx = m_observers.prepare_diff(
+									*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
+									EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
+						}
+					}
+#endif
+
+					if (deleteTargets) {
 						// Delete all entities referencing this one as a relationship pair's target
 						req_del_entities_with(Pair(All, entity), Pair(OnDeleteTarget, Delete));
 					} else {
 						// Remove from all entities referencing this one as a relationship pair's target
 						rem_from_entities(Pair(All, entity));
 					}
+
+#if GAIA_OBSERVERS_ENABLED
+					m_observers.finish_diff(*this, GAIA_MOV(cascadeDelDiffCtx));
+#endif
 
 					// This entity is has been requested to be deleted already. Nothing more for us to do here
 					if (is_req_del(ec))

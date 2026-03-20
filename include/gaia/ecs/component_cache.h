@@ -364,7 +364,9 @@ namespace gaia {
 			//! \param entity Entity associated with the component item.
 			//! \return Component cache item if found, nullptr otherwise.
 			GAIA_NODISCARD const ComponentCacheItem* find(Entity entity) const noexcept {
-				GAIA_ASSERT(!entity.pair());
+				if (entity.pair())
+					return nullptr;
+
 				const auto it = m_compByEntity.find(EntityLookupKey(entity));
 				if (it != m_compByEntity.end())
 					return it->second;

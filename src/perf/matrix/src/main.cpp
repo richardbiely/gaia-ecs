@@ -4346,6 +4346,66 @@ void BM_Observer_DiffAncestorFilteredObservers_OnAdd(picobench::state& state) {
 	}
 }
 
+void BM_Observer_DiffAncestorCascadeDelete_OnDel(picobench::state& state) {
+	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+
+		const auto rootCold = w.add();
+		const auto childCold = w.add();
+		w.child(childCold, rootCold);
+		w.add<Acceleration>(rootCold);
+
+		GAIA_FOR(existingMatchCount) {
+			const auto cableExisting = w.add();
+			w.add<Position>(cableExisting);
+			w.add(cableExisting, ecs::Pair(relationHot, childCold));
+		}
+
+		const auto rootHot = w.add();
+		const auto childAHot = w.add();
+		const auto childBHot = w.add();
+		const auto grandChildHot = w.add();
+		w.child(childAHot, rootHot);
+		w.child(childBHot, rootHot);
+		w.child(grandChildHot, childAHot);
+		w.add<Acceleration>(rootHot);
+
+		const auto cableA = w.add();
+		const auto cableB = w.add();
+		const auto cableC = w.add();
+		w.add<Position>(cableA);
+		w.add<Position>(cableB);
+		w.add<Position>(cableC);
+		w.add(cableA, ecs::Pair(relationHot, childAHot));
+		w.add(cableB, ecs::Pair(relationHot, childBHot));
+		w.add(cableC, ecs::Pair(relationHot, grandChildHot));
+
+		w.observer()
+				.event(ecs::ObserverEvent::OnDel)
+				.all<Position>()
+				.all(ecs::Pair(relationHot, ecs::Var0))
+				.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter&) {
+					++hits;
+				});
+
+		hits = 0;
+		state.start_timer();
+		w.del(rootHot);
+		state.stop_timer();
+
+		dont_optimize(hits);
+	}
+}
+
 void BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd(picobench::state& state) {
 	const uint32_t existingMatchCount = (uint32_t)state.user_data();
 
@@ -6084,6 +6144,18 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(200)
 				.label("observer diff ancestor filtered observers 200");
+		PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff ancestor delete 1");
+		PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(100)
+				.label("observer diff ancestor delete 100");
+		PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1000)
+				.label("observer diff ancestor delete 1000");
 		PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1)

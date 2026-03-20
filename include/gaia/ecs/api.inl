@@ -48,6 +48,9 @@ namespace gaia {
 		}
 
 		GAIA_NODISCARD inline Archetype* archetype_from_entity(const World& world, Entity entity) {
+			if (!world.valid(entity))
+				return nullptr;
+
 			const auto& ec = world.fetch(entity);
 			if (World::is_req_del(ec))
 				return nullptr;

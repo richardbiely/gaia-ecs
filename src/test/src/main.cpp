@@ -18313,6 +18313,57 @@ TEST_CASE("Observer - duplicate-path relation edge removals with remaining path"
 	});
 }
 
+TEST_CASE("Observer - deleting one repeated-path intermediate keeps the match") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto linkedTo = wld.add();
+	const auto root = wld.add();
+	const auto midA = wld.add();
+	const auto midB = wld.add();
+	const auto leaf = wld.add();
+
+	wld.add<Acceleration>(root);
+	wld.add(midA, ecs::Pair(linkedTo, root));
+	wld.add(midB, ecs::Pair(linkedTo, root));
+	wld.add(leaf, ecs::Pair(linkedTo, midA));
+	wld.add(leaf, ecs::Pair(linkedTo, midB));
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.del(midB);
+	});
+}
+
+TEST_CASE("Observer - deleting the last repeated-path intermediate removes the match") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto linkedTo = wld.add();
+	const auto root = wld.add();
+	const auto midA = wld.add();
+	const auto midB = wld.add();
+	const auto leaf = wld.add();
+
+	wld.add<Acceleration>(root);
+	wld.add(midA, ecs::Pair(linkedTo, root));
+	wld.add(midB, ecs::Pair(linkedTo, root));
+	wld.add(leaf, ecs::Pair(linkedTo, midA));
+	wld.add(leaf, ecs::Pair(linkedTo, midB));
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	wld.del(midB);
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.del(midA);
+	});
+}
+
 TEST_CASE("Observer - removing one of multiple matching binding pairs") {
 	TestWorld twld;
 
@@ -18366,6 +18417,75 @@ TEST_CASE("Observer - another bound source still matches") {
 	});
 	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.del<Acceleration>(rootA);
+	});
+}
+
+TEST_CASE("Observer - deleting a matching ancestor updates all descendants") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	const auto grandChild = wld.add();
+	wld.child(childA, root);
+	wld.child(childB, root);
+	wld.child(grandChild, childA);
+	wld.add<Acceleration>(root);
+
+	const auto cableA = wld.add();
+	const auto cableB = wld.add();
+	const auto cableC = wld.add();
+	wld.add<Position>(cableA);
+	wld.add<Position>(cableB);
+	wld.add<Position>(cableC);
+	wld.add(cableA, ecs::Pair(connectedTo, childA));
+	wld.add(cableB, ecs::Pair(connectedTo, childB));
+	wld.add(cableC, ecs::Pair(connectedTo, grandChild));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del(root);
+	});
+}
+
+TEST_CASE("Observer - deleting one bound source with another still matching") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.child(childA, rootA);
+	wld.child(childB, rootB);
+	wld.add<Acceleration>(rootA);
+	wld.add<Acceleration>(rootB);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, childA));
+	wld.add(cable, ecs::Pair(connectedTo, childB));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del(childB);
+	});
+}
+
+TEST_CASE("Observer - deleting the only bound source emits removal") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del(child);
 	});
 }
 
