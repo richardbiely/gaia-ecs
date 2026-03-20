@@ -43,6 +43,7 @@ namespace gaia {
 		struct ObserverRuntimeData {
 			using TObserverIterFunc = std::function<void(Iter&)>;
 			enum class MatchFastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
+			enum class DiffTargetNarrowKind : uint8_t { None, BoundUpTraversal, Unsupported };
 
 			//! Entity identifying the observer
 			Entity entity = EntityBad;
@@ -56,6 +57,22 @@ namespace gaia {
 			uint8_t termCount = 0;
 			//! Dynamic terms require full query diffing across structural changes.
 			bool diffDispatch = false;
+			//! Optional precomputed target narrowing strategy for diff observers.
+			DiffTargetNarrowKind diffTargetNarrowKind = DiffTargetNarrowKind::None;
+			//! Bound variable used by the supported traversal/source diff narrowing shape.
+			Entity diffBindingVar = EntityBad;
+			//! Fixed pair relation that binds the traversal source variable.
+			Entity diffBindingRelation = EntityBad;
+			//! Traversal relation used by the source term.
+			Entity diffTraversalRelation = EntityBad;
+			//! Traversal direction mask used by the source term.
+			QueryTravKind diffTravKind = QueryTravKind::None;
+			//! Traversal depth cap used by the source term.
+			uint8_t diffTravDepth = QueryTermOptions::TravDepthUnlimited;
+			//! Traversed term ids that can trigger the bound-up-traversal narrowing path.
+			QueryEntityArray diffTraversalTriggerTerms{};
+			//! Number of populated traversal trigger terms.
+			uint8_t diffTraversalTriggerTermCount = 0;
 
 			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
 				++termCount;

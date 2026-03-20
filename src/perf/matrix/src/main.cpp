@@ -4251,6 +4251,89 @@ void BM_Observer_DiffRelationEdgeExistingMatches_OnAdd(picobench::state& state) 
 	}
 }
 
+void BM_Observer_DiffAncestorFilteredObservers_OnAdd(picobench::state& state) {
+	const uint32_t observerCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		w.child(child, root);
+
+		const auto cable = w.add();
+		w.add<Position>(cable);
+		w.add(cable, ecs::Pair(relationHot, child));
+
+		GAIA_FOR(observerCount) {
+			w.observer()
+					.event(ecs::ObserverEvent::OnAdd)
+					.all<Position>()
+					.all(ecs::Pair(relationHot, ecs::Var0))
+					.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+					.on_each([&](ecs::Iter&) {
+						++hits;
+					});
+		}
+
+		hits = 0;
+		state.start_timer();
+		w.add<Acceleration>(root);
+		state.stop_timer();
+
+		dont_optimize(hits);
+	}
+}
+
+void BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd(picobench::state& state) {
+	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto rootMatching = w.add();
+		const auto childMatching = w.add();
+		w.child(childMatching, rootMatching);
+		w.add<Acceleration>(rootMatching);
+
+		GAIA_FOR(existingMatchCount) {
+			const auto cableExisting = w.add();
+			w.add<Position>(cableExisting);
+			w.add(cableExisting, ecs::Pair(relationHot, childMatching));
+		}
+
+		const auto rootUnrelated = w.add();
+		const auto childUnrelated = w.add();
+		w.child(childUnrelated, rootUnrelated);
+
+		w.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.all(ecs::Pair(relationHot, ecs::Var0))
+				.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter&) {
+					++hits;
+				});
+
+		hits = 0;
+		state.start_timer();
+		w.add<Acceleration>(rootUnrelated);
+		state.stop_timer();
+
+		dont_optimize(hits);
+	}
+}
+
 void BM_Observer_DiffCopyExtDirectFiltered_OnAdd(picobench::state& state) {
 	const uint32_t directObserverCount = (uint32_t)state.user_data();
 
@@ -5925,6 +6008,30 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1000)
 				.label("observer diff relation-edge local existing 1000");
+		PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff ancestor filtered observers 1");
+		PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(50)
+				.label("observer diff ancestor filtered observers 50");
+		PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(200)
+				.label("observer diff ancestor filtered observers 200");
+		PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff ancestor unrelated existing 1");
+		PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(100)
+				.label("observer diff ancestor unrelated existing 100");
+		PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1000)
+				.label("observer diff ancestor unrelated existing 1000");
 		PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1)

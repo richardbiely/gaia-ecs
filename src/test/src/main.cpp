@@ -11340,13 +11340,9 @@ TEST_CASE("Prefab - instantiate creates a non-prefab instance with copied data")
 	wld.add<Position>(prefabAnimal, {7, 0, 0});
 
 	int positionHits = 0;
-	(void)wld.observer()
-			.event(ecs::ObserverEvent::OnAdd)
-			.all<Position>()
-			.on_each([&](ecs::Iter&) {
-				++positionHits;
-			})
-			.entity();
+	wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().on_each([&](ecs::Iter&) {
+		++positionHits;
+	});
 
 	const auto instance = wld.instantiate(prefabAnimal);
 
@@ -17089,25 +17085,23 @@ TEST_CASE("Observer - copy_ext ignores unrelated traversed source observers") {
 	int hitsA = 0;
 	int hitsB = 0;
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedToA, ecs::Var0))
 			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
 			.on_each([&](ecs::Iter&) {
 				++hitsA;
-			})
-			.entity();
+			});
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedToB, ecs::Var0))
 			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
 			.on_each([&](ecs::Iter&) {
 				++hitsB;
-			})
-			.entity();
+			});
 
 	(void)wld.copy_ext(src);
 	CHECK(hitsA == 1);
@@ -17303,7 +17297,7 @@ TEST_CASE("Observer - traversed source propagation on ancestor term changes igno
 	int addHits = 0;
 	cnt::darr<ecs::Entity> added;
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -17314,13 +17308,50 @@ TEST_CASE("Observer - traversed source propagation on ancestor term changes igno
 					++addHits;
 					added.push_back(entities[i]);
 				}
-			})
-			.entity();
+			});
 
 	wld.add<Acceleration>(rootHot);
 	CHECK(addHits == 1);
 	CHECK(added.size() == 1);
 	CHECK(added[0] == cableHot);
+}
+
+TEST_CASE("Observer - traversed source propagation on unrelated ancestor term changes emits nothing") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootMatching = wld.add();
+	const auto childMatching = wld.add();
+	wld.child(childMatching, rootMatching);
+	wld.add<Acceleration>(rootMatching);
+
+	const auto cableMatching = wld.add();
+	wld.add<Position>(cableMatching);
+	wld.add(cableMatching, ecs::Pair(connectedTo, childMatching));
+
+	const auto rootUnrelated = wld.add();
+	const auto childUnrelated = wld.add();
+	wld.child(childUnrelated, rootUnrelated);
+
+	int addHits = 0;
+	cnt::darr<ecs::Entity> added;
+
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++addHits;
+					added.push_back(entities[i]);
+				}
+			});
+
+	wld.add<Acceleration>(rootUnrelated);
+	CHECK(addHits == 0);
+	CHECK(added.empty());
 }
 
 TEST_CASE("Observer - traversed source propagation on source binding pair changes") {
@@ -17389,7 +17420,7 @@ TEST_CASE("Observer - traversed source local pair change only diffs touched enti
 	int addHits = 0;
 	cnt::darr<ecs::Entity> added;
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -17400,8 +17431,7 @@ TEST_CASE("Observer - traversed source local pair change only diffs touched enti
 					++addHits;
 					added.push_back(entities[i]);
 				}
-			})
-			.entity();
+			});
 
 	wld.add(cableAdded, ecs::Pair(connectedTo, child));
 	CHECK(addHits == 1);
@@ -17410,7 +17440,7 @@ TEST_CASE("Observer - traversed source local pair change only diffs touched enti
 
 	int delHits = 0;
 	cnt::darr<ecs::Entity> removed;
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnDel)
 			.template all<Position>()
 			.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -17421,8 +17451,7 @@ TEST_CASE("Observer - traversed source local pair change only diffs touched enti
 					++delHits;
 					removed.push_back(entities[i]);
 				}
-			})
-			.entity();
+			});
 
 	wld.del(cableAdded, ecs::Pair(connectedTo, child));
 	CHECK(delHits == 1);
@@ -17510,25 +17539,23 @@ TEST_CASE("Observer - traversed source propagation ignores unrelated pair relati
 	int hitsA = 0;
 	int hitsB = 0;
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedToA, ecs::Var0))
 			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
 			.on_each([&](ecs::Iter&) {
 				++hitsA;
-			})
-			.entity();
+			});
 
-	(void)wld.observer()
+	wld.observer()
 			.event(ecs::ObserverEvent::OnAdd)
 			.template all<Position>()
 			.all(ecs::Pair(connectedToB, ecs::Var0))
 			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
 			.on_each([&](ecs::Iter&) {
 				++hitsB;
-			})
-			.entity();
+			});
 
 	wld.add(cable, ecs::Pair(connectedToA, child));
 	CHECK(hitsA == 1);

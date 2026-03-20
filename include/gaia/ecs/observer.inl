@@ -199,19 +199,111 @@ namespace gaia {
 				return false;
 			}
 
-			void register_diff_term(ObserverRuntimeData& data, Entity term, const QueryTermOptions& options) {
+			void register_diff_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
 				if (!requires_diff_dispatch(term, options))
 					return;
 
 				data.diffDispatch = true;
+				update_diff_target_narrow_plan(data, op, term, options);
 				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
+			}
+
+			void update_diff_target_narrow_plan(
+					ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				using NarrowKind = ObserverRuntimeData::DiffTargetNarrowKind;
+				if (data.diffTargetNarrowKind == NarrowKind::Unsupported)
+					return;
+
+				const auto mark_unsupported = [&] {
+					data.diffTargetNarrowKind = NarrowKind::Unsupported;
+					data.diffBindingVar = EntityBad;
+					data.diffBindingRelation = EntityBad;
+					data.diffTraversalRelation = EntityBad;
+					data.diffTravKind = QueryTravKind::None;
+					data.diffTravDepth = QueryTermOptions::TravDepthUnlimited;
+					data.diffTraversalTriggerTermCount = 0;
+				};
+
+				if (options.entSrc != EntityBad || options.entTrav != EntityBad) {
+					if (options.entSrc == EntityBad || options.entTrav == EntityBad || op != QueryOpKind::All ||
+							!query_trav_has(options.travKind, QueryTravKind::Up) ||
+							query_trav_has(options.travKind, QueryTravKind::Down)) {
+						mark_unsupported();
+						return;
+					}
+
+					if (data.diffBindingVar == EntityBad)
+						data.diffBindingVar = options.entSrc;
+					else if (data.diffBindingVar != options.entSrc) {
+						mark_unsupported();
+						return;
+					}
+
+					if (data.diffTraversalRelation == EntityBad) {
+						data.diffTraversalRelation = options.entTrav;
+						data.diffTravKind = options.travKind;
+						data.diffTravDepth = options.travDepth;
+					} else if (
+							data.diffTraversalRelation != options.entTrav || data.diffTravKind != options.travKind ||
+							data.diffTravDepth != options.travDepth) {
+						mark_unsupported();
+						return;
+					}
+
+					bool hasTerm = false;
+					GAIA_FOR(data.diffTraversalTriggerTermCount) {
+						if (data.diffTraversalTriggerTerms[i] == term) {
+							hasTerm = true;
+							break;
+						}
+					}
+					if (!hasTerm) {
+						if (data.diffTraversalTriggerTermCount >= MAX_ITEMS_IN_QUERY) {
+							mark_unsupported();
+							return;
+						}
+						data.diffTraversalTriggerTerms[data.diffTraversalTriggerTermCount++] = term;
+					}
+
+					if (data.diffTargetNarrowKind == NarrowKind::None)
+						data.diffTargetNarrowKind = NarrowKind::BoundUpTraversal;
+					return;
+				}
+
+				if (term.pair() && op == QueryOpKind::All && !is_wildcard(term) && !is_variable((EntityId)term.id()) &&
+						is_variable((EntityId)term.gen())) {
+					const auto bindingVar = entity_from_id(m_world, term.gen());
+					const auto bindingRelation = entity_from_id(m_world, term.id());
+					if (!m_world.valid(bindingRelation)) {
+						mark_unsupported();
+						return;
+					}
+
+					if (data.diffBindingVar == EntityBad)
+						data.diffBindingVar = bindingVar;
+					else if (data.diffBindingVar != bindingVar) {
+						mark_unsupported();
+						return;
+					}
+
+					if (data.diffBindingRelation == EntityBad)
+						data.diffBindingRelation = bindingRelation;
+					else if (data.diffBindingRelation != bindingRelation) {
+						mark_unsupported();
+						return;
+					}
+
+					return;
+				}
+
+				mark_unsupported();
 			}
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-				register_diff_term(data, term, QueryTermOptions{});
+				register_diff_term(data, Op, term, QueryTermOptions{});
 				m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
 			}
 
@@ -219,7 +311,7 @@ namespace gaia {
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-				register_diff_term(data, term, options);
+				register_diff_term(data, Op, term, options);
 				m_world.observers().add(m_world, term, m_entity, options.matchKind);
 			}
 
@@ -250,7 +342,7 @@ namespace gaia {
 				options.matchKind = item.matchKind;
 
 				data.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
-				register_diff_term(data, item.id, options);
+				register_diff_term(data, item.op, item.id, options);
 				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
 				return *this;
 			}
@@ -275,7 +367,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.all(entity, options);
 				data.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, entity, options);
+				register_diff_term(data, QueryOpKind::All, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -285,7 +377,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.any(entity, options);
 				data.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, entity, options);
+				register_diff_term(data, QueryOpKind::Any, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -295,7 +387,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
 				data.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, entity, options);
+				register_diff_term(data, QueryOpKind::Or, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -305,7 +397,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.no(entity, options);
 				data.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, entity, options);
+				register_diff_term(data, QueryOpKind::Not, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}

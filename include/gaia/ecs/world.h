@@ -412,6 +412,44 @@ namespace gaia {
 					}
 				}
 
+				struct DiffTargetNarrowCacheEntry {
+					ObserverRuntimeData::DiffTargetNarrowKind kind = ObserverRuntimeData::DiffTargetNarrowKind::None;
+					Entity bindingRelation = EntityBad;
+					Entity traversalRelation = EntityBad;
+					QueryTravKind travKind = QueryTravKind::None;
+					uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
+					QueryEntityArray triggerTerms{};
+					uint8_t triggerTermCount = 0;
+					cnt::darray<Entity> targets;
+				};
+
+				static void copy_diff_target_narrow_plan(const ObserverRuntimeData& obs, DiffTargetNarrowCacheEntry& entry) {
+					entry.kind = obs.diffTargetNarrowKind;
+					entry.bindingRelation = obs.diffBindingRelation;
+					entry.traversalRelation = obs.diffTraversalRelation;
+					entry.travKind = obs.diffTravKind;
+					entry.travDepth = obs.diffTravDepth;
+					entry.triggerTermCount = obs.diffTraversalTriggerTermCount;
+					GAIA_FOR(obs.diffTraversalTriggerTermCount) {
+						entry.triggerTerms[i] = obs.diffTraversalTriggerTerms[i];
+					}
+				}
+
+				static bool
+				same_diff_target_narrow_plan(const ObserverRuntimeData& obs, const DiffTargetNarrowCacheEntry& entry) {
+					if (obs.diffTargetNarrowKind != entry.kind || obs.diffBindingRelation != entry.bindingRelation ||
+							obs.diffTraversalRelation != entry.traversalRelation || obs.diffTravKind != entry.travKind ||
+							obs.diffTravDepth != entry.travDepth || obs.diffTraversalTriggerTermCount != entry.triggerTermCount)
+						return false;
+
+					GAIA_FOR(obs.diffTraversalTriggerTermCount) {
+						if (obs.diffTraversalTriggerTerms[i] != entry.triggerTerms[i])
+							return false;
+					}
+
+					return true;
+				}
+
 				static void normalize_diff_targets(cnt::darray<Entity>& targets) {
 					if (targets.empty())
 						return;
@@ -476,77 +514,32 @@ namespace gaia {
 				static bool collect_source_traversal_diff_targets(
 						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedSources,
 						cnt::darray<Entity>& outTargets) {
-					auto& queryInfo = obs.query.fetch();
-					const auto terms = queryInfo.ctx().data.terms_view();
-					if (terms.empty() || changedSources.empty())
+					if (changedSources.empty())
+						return false;
+					if (obs.diffTargetNarrowKind != ObserverRuntimeData::DiffTargetNarrowKind::BoundUpTraversal)
+						return false;
+					if (obs.diffBindingRelation == EntityBad || obs.diffTraversalRelation == EntityBad ||
+							obs.diffTraversalTriggerTermCount == 0)
 						return false;
 
-					Entity bindingVar = EntityBad;
-					Entity bindingRelation = EntityBad;
-					Entity traversalRelation = EntityBad;
-					QueryTravKind travKind = QueryTravKind::None;
-					uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
-					bool hasTraversalTerm = false;
-					bool sawSourceTerms = false;
+					bool termTriggered = false;
+					for (auto changedTerm: changedTerms) {
+						if (changedTerm.pair() && entity_from_id(world, changedTerm.id()) == obs.diffTraversalRelation) {
+							termTriggered = true;
+							break;
+						}
 
-					for (const auto& term: terms) {
-						if (term.src == EntityBad && term.entTrav == EntityBad)
-							continue;
+						GAIA_FOR(obs.diffTraversalTriggerTermCount) {
+							if (obs.diffTraversalTriggerTerms[i] == changedTerm) {
+								termTriggered = true;
+								break;
+							}
+						}
 
-						sawSourceTerms = true;
-						if (term.src == EntityBad || term.entTrav == EntityBad)
-							return false;
-
-						if (!query_trav_has(term.travKind, QueryTravKind::Up) || query_trav_has(term.travKind, QueryTravKind::Down))
-							return false;
-
-						const bool termTriggered =
-								core::has(changedTerms, term.id) || core::has_if(changedTerms, [&](Entity changedTerm) {
-									return changedTerm.pair() && entity_from_id(world, changedTerm.id()) == term.entTrav;
-								});
-						if (!termTriggered)
-							continue;
-
-						hasTraversalTerm = true;
-						if (bindingVar == EntityBad)
-							bindingVar = term.src;
-						else if (bindingVar != term.src)
-							return false;
-
-						if (traversalRelation == EntityBad) {
-							traversalRelation = term.entTrav;
-							travKind = term.travKind;
-							travDepth = term.travDepth;
-						} else if (traversalRelation != term.entTrav || travKind != term.travKind || travDepth != term.travDepth)
-							return false;
+						if (termTriggered)
+							break;
 					}
-
-					if (!sawSourceTerms)
-						return false;
-					if (!hasTraversalTerm || bindingVar == EntityBad || traversalRelation == EntityBad)
-						return false;
-
-					for (const auto& term: terms) {
-						if (!term.id.pair() || term.src != EntityBad || term.entTrav != EntityBad)
-							continue;
-						if (term.op != QueryOpKind::All)
-							continue;
-						if (is_variable((EntityId)term.id.id()) || !is_variable((EntityId)term.id.gen()))
-							continue;
-						if (term.id.gen() != bindingVar.id())
-							continue;
-
-						const auto relation = entity_from_id(world, term.id.id());
-						if (!world.valid(relation))
-							return false;
-
-						if (bindingRelation == EntityBad)
-							bindingRelation = relation;
-						else if (bindingRelation != relation)
-							return false;
-					}
-
-					if (bindingRelation == EntityBad)
+					if (!termTriggered)
 						return false;
 
 					cnt::set<EntityLookupKey> visitedNodes;
@@ -555,13 +548,14 @@ namespace gaia {
 
 					for (auto changedSource: changedSources)
 						collect_traversal_descendants(
-								world, traversalRelation, changedSource, travKind, travDepth, visitedNodes, bindingTargets);
+								world, obs.diffTraversalRelation, changedSource, obs.diffTravKind, obs.diffTravDepth, visitedNodes,
+								bindingTargets);
 
 					if (bindingTargets.empty())
 						return true;
 
 					for (auto bindingTarget: bindingTargets) {
-						world.sources(bindingRelation, bindingTarget, [&](Entity source) {
+						world.sources(obs.diffBindingRelation, bindingTarget, [&](Entity source) {
 							const auto ins = visitedSources.insert(EntityLookupKey(source));
 							if (ins.second)
 								outTargets.push_back(source);
@@ -569,6 +563,22 @@ namespace gaia {
 					}
 
 					return true;
+				}
+
+				static bool collect_diff_targets_for_observer(
+						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedTargets,
+						cnt::darray<Entity>& outTargets) {
+					switch (obs.diffTargetNarrowKind) {
+						case ObserverRuntimeData::DiffTargetNarrowKind::None:
+							append_valid_diff_targets(world, outTargets, changedTargets);
+							return true;
+						case ObserverRuntimeData::DiffTargetNarrowKind::BoundUpTraversal:
+							return collect_source_traversal_diff_targets(world, obs, changedTerms, changedTargets, outTargets);
+						case ObserverRuntimeData::DiffTargetNarrowKind::Unsupported:
+							return false;
+					}
+
+					return false;
 				}
 
 				static void execute_observer_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
@@ -930,38 +940,42 @@ namespace gaia {
 
 					if (!ctx.targeted && !targetEntities.empty() && !m_relevant_observers_tmp.empty()) {
 						cnt::darray<Entity> narrowedTargets;
+						cnt::darray<DiffTargetNarrowCacheEntry> narrowCache;
 						bool canNarrow = true;
 
 						for (auto* pObs: m_relevant_observers_tmp) {
 							if (pObs == nullptr)
 								continue;
 
-							auto& queryInfo = pObs->query.fetch();
-							bool hasSourceTerms = false;
-							for (const auto& term: queryInfo.ctx().data.terms_view()) {
-								if (term.src != EntityBad || term.entTrav != EntityBad) {
-									hasSourceTerms = true;
+							const DiffTargetNarrowCacheEntry* pEntry = nullptr;
+							for (const auto& entry: narrowCache) {
+								if (same_diff_target_narrow_plan(*pObs, entry)) {
+									pEntry = &entry;
 									break;
 								}
 							}
 
-							if (!hasSourceTerms) {
-								append_valid_diff_targets(world, narrowedTargets, targetEntities);
-								continue;
+							if (pEntry == nullptr) {
+								narrowCache.push_back({});
+								auto& entry = narrowCache.back();
+								copy_diff_target_narrow_plan(*pObs, entry);
+
+								if (!collect_diff_targets_for_observer(world, *pObs, terms, targetEntities, entry.targets)) {
+									canNarrow = false;
+									break;
+								}
+
+								pEntry = &entry;
 							}
 
-							if (!collect_source_traversal_diff_targets(world, *pObs, terms, targetEntities, narrowedTargets)) {
-								canNarrow = false;
-								break;
-							}
+							for (auto entity: pEntry->targets)
+								narrowedTargets.push_back(entity);
 						}
 
 						if (canNarrow) {
 							normalize_diff_targets(narrowedTargets);
-							if (!narrowedTargets.empty()) {
-								ctx.targeted = true;
-								ctx.targets = GAIA_MOV(narrowedTargets);
-							}
+							ctx.targeted = true;
+							ctx.targets = GAIA_MOV(narrowedTargets);
 						}
 					}
 
