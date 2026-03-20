@@ -31,16 +31,20 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->q.handle.id();
+				if (m_pCtx == other.m_pCtx)
+					return true;
 
-				// Temporary key is given. Do full context comparison.
-				if (id == QueryIdBad)
-					return *m_pCtx == *other.m_pCtx;
+				const auto lhsReal = m_pCtx->q.handle.id() != QueryIdBad;
+				const auto rhsReal = other.m_pCtx->q.handle.id() != QueryIdBad;
 
-				// Real key is given. Compare context pointer.
-				// Normally we'd compare query IDs but because we do not allow query copies and all queries are
-				// unique it's guaranteed that if pointers are the same we have a match.
-				return m_pCtx == other.m_pCtx;
+				// Two persisted cached-query keys with different stable context pointers cannot represent
+				// the same query.
+				if (lhsReal && rhsReal)
+					return false;
+
+				// At least one side is a temporary lookup key. Fall back to structural comparison so cached
+				// queries deduplicate correctly regardless of comparison direction.
+				return QueryCtx::equals_no_handle_assumption(*m_pCtx, *other.m_pCtx);
 			}
 		};
 

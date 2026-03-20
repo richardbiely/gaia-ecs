@@ -50,7 +50,7 @@ namespace gaia {
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
 			//! Query associated with the system
-			QueryUncached query;
+			Query query;
 			//! Fast-path classification for trivial single-term observers.
 			MatchFastPath fastPath = MatchFastPath::None;
 			//! Number of terms added to the observer query.

@@ -11158,7 +11158,7 @@ namespace gaia {
 			{
 				hdr.entity = e;
 				obs.entity = e;
-				obs.query = query<false>();
+				obs.query = query<true>();
 			}
 			return ObserverBuilder(*this, e);
 		}

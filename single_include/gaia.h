@@ -30708,6 +30708,57 @@ namespace gaia {
 			}
 		};
 
+		inline bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
+			if (lhs.op != rhs.op)
+				return lhs.op < rhs.op;
+
+			if (lhs.id != rhs.id)
+				return SortComponentCond()(lhs.id, rhs.id);
+
+			if (lhs.src != rhs.src)
+				return SortComponentCond()(lhs.src, rhs.src);
+
+			if (lhs.entTrav != rhs.entTrav)
+				return SortComponentCond()(lhs.entTrav, rhs.entTrav);
+
+			if (lhs.travKind != rhs.travKind)
+				return (uint8_t)lhs.travKind < (uint8_t)rhs.travKind;
+
+			if (lhs.travDepth != rhs.travDepth)
+				return lhs.travDepth < rhs.travDepth;
+
+			return (uint8_t)lhs.matchKind < (uint8_t)rhs.matchKind;
+		}
+
+		template <typename TermsArray>
+		inline void canonicalize_lookup_terms(TermsArray& terms, uint32_t idsCnt) {
+			if (idsCnt > 0) {
+				uint32_t orCnt = 0;
+				uint32_t orIdx = BadIndex;
+				GAIA_FOR(idsCnt) {
+					if (terms[i].op != QueryOpKind::Or)
+						continue;
+					++orCnt;
+					orIdx = i;
+					if (orCnt > 1)
+						break;
+				}
+
+				if (orCnt == 1)
+					terms[orIdx].op = QueryOpKind::All;
+			}
+
+			core::sort(terms.data(), terms.data() + idsCnt, [](const QueryTerm& left, const QueryTerm& right) {
+				return query_term_less_for_lookup(left, right);
+			});
+		}
+
+		template <typename ChangedArray>
+		inline void canonicalize_lookup_changed(ChangedArray& changed, uint32_t changedCnt) {
+			if (changedCnt > 1)
+				core::sort(changed.data(), changed.data() + changedCnt, SortComponentCond{});
+		}
+
 		GAIA_NODISCARD inline bool term_has_variables(const QueryTerm& term) {
 			if (is_variable(term.src))
 				return true;
@@ -31203,19 +31254,14 @@ namespace gaia {
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
-			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
-				// Comparison expected to be done only the first time the query is set up
-				GAIA_ASSERT(q.handle.id() == QueryIdBad);
-				// Fast path when cache ids are set
-				// if (queryId != QueryIdBad && queryId == other.queryId)
-				// 	return true;
-
+			GAIA_NODISCARD static bool
+			equals_no_handle_assumption(const QueryCtx& leftCtx, const QueryCtx& rightCtx) noexcept {
 				// Lookup hash must match
-				if (hashLookup != other.hashLookup)
+				if (leftCtx.hashLookup != rightCtx.hashLookup)
 					return false;
 
-				const auto& left = data;
-				const auto& right = other.data;
+				const auto& left = leftCtx.data;
+				const auto& right = rightCtx.data;
 
 				// Check array sizes first
 				if (left.idsCnt != right.idsCnt)
@@ -31227,20 +31273,36 @@ namespace gaia {
 				if (left.cacheSrcTrav != right.cacheSrcTrav)
 					return false;
 
-				// Components need to be the same
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> leftTerms{};
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> rightTerms{};
+				GAIA_FOR(left.idsCnt) {
+					leftTerms[i] = left._terms[i];
+					rightTerms[i] = right._terms[i];
+				}
+				canonicalize_lookup_terms(leftTerms, left.idsCnt);
+				canonicalize_lookup_terms(rightTerms, right.idsCnt);
+
 				{
 					const auto cnt = left.idsCnt;
 					GAIA_FOR(cnt) {
-						if (left._terms[i] != right._terms[i])
+						if (leftTerms[i] != rightTerms[i])
 							return false;
 					}
 				}
 
-				// Filters need to be the same
+				QueryEntityArray leftChanged{};
+				QueryEntityArray rightChanged{};
+				GAIA_FOR(left.changedCnt) {
+					leftChanged[i] = left._changed[i];
+					rightChanged[i] = right._changed[i];
+				}
+				canonicalize_lookup_changed(leftChanged, left.changedCnt);
+				canonicalize_lookup_changed(rightChanged, right.changedCnt);
+
 				{
 					const auto cnt = left.changedCnt;
 					GAIA_FOR(cnt) {
-						if (left._changed[i] != right._changed[i])
+						if (leftChanged[i] != rightChanged[i])
 							return false;
 					}
 				}
@@ -31260,6 +31322,16 @@ namespace gaia {
 				return true;
 			}
 
+			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
+				// Comparison expected to be done only the first time the query is set up
+				GAIA_ASSERT(q.handle.id() == QueryIdBad);
+				// Fast path when cache ids are set
+				// if (queryId != QueryIdBad && queryId == other.queryId)
+				// 	return true;
+
+				return equals_no_handle_assumption(*this, other);
+			}
+
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const noexcept {
 				return !operator==(other);
 			}
@@ -31268,35 +31340,7 @@ namespace gaia {
 		//! Functor for sorting terms in a query before compilation
 		struct query_sort_cond {
 			constexpr bool operator()(const QueryTerm& lhs, const QueryTerm& rhs) const {
-				// Smaller ops first.
-				if (lhs.op != rhs.op)
-					return lhs.op < rhs.op;
-
-				// Smaller ids second.
-				if (lhs.id != rhs.id)
-					return SortComponentCond()(lhs.id, rhs.id);
-
-				// Sources go last. Note, sources are never a pair.
-				// We want to do it this way because it would be expensive to build cache for
-				// the entire tree. Rather, we only cache fixed parts of the query without
-				// variables.
-				// TODO: In theory, there might be a better way to sort sources.
-				//       E.g. depending on the number of archetypes we'd have to traverse
-				//       it might be beneficial to do a different ordering which is impossible
-				//       to do at this point.
-				if (lhs.src != rhs.src)
-					return SortComponentCond()(lhs.src, rhs.src);
-
-				if (lhs.entTrav != rhs.entTrav)
-					return SortComponentCond()(lhs.entTrav, rhs.entTrav);
-
-				if (lhs.travKind != rhs.travKind)
-					return (uint8_t)lhs.travKind < (uint8_t)rhs.travKind;
-
-				if (lhs.travDepth != rhs.travDepth)
-					return lhs.travDepth < rhs.travDepth;
-
-				return (uint8_t)lhs.matchKind < (uint8_t)rhs.matchKind;
+				return query_term_less_for_lookup(lhs, rhs);
 			}
 		};
 
@@ -31408,8 +31452,12 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto terms = ctxData.terms_view();
-				for (const auto& pair: terms) {
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms{};
+				GAIA_FOR(ctxData.idsCnt) terms[i] = ctxData._terms[i];
+				canonicalize_lookup_terms(terms, ctxData.idsCnt);
+
+				for (uint32_t i = 0; i < ctxData.idsCnt; ++i) {
+					const auto& pair = terms[i];
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
@@ -31418,7 +31466,7 @@ namespace gaia {
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.travDepth);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
 				}
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)terms.size());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.idsCnt);
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
 
@@ -31432,10 +31480,13 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				auto changed = ctxData.changed_view();
-				for (auto id: changed)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)id.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)changed.size());
+				QueryEntityArray changed{};
+				GAIA_FOR(ctxData.changedCnt) changed[i] = ctxData._changed[i];
+				canonicalize_lookup_changed(changed, ctxData.changedCnt);
+
+				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)changed[i].value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -38173,16 +38224,20 @@ namespace gaia {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
 
-				const auto id = m_pCtx->q.handle.id();
+				if (m_pCtx == other.m_pCtx)
+					return true;
 
-				// Temporary key is given. Do full context comparison.
-				if (id == QueryIdBad)
-					return *m_pCtx == *other.m_pCtx;
+				const auto lhsReal = m_pCtx->q.handle.id() != QueryIdBad;
+				const auto rhsReal = other.m_pCtx->q.handle.id() != QueryIdBad;
 
-				// Real key is given. Compare context pointer.
-				// Normally we'd compare query IDs but because we do not allow query copies and all queries are
-				// unique it's guaranteed that if pointers are the same we have a match.
-				return m_pCtx == other.m_pCtx;
+				// Two persisted cached-query keys with different stable context pointers cannot represent
+				// the same query.
+				if (lhsReal && rhsReal)
+					return false;
+
+				// At least one side is a temporary lookup key. Fall back to structural comparison so cached
+				// queries deduplicate correctly regardless of comparison direction.
+				return QueryCtx::equals_no_handle_assumption(*m_pCtx, *other.m_pCtx);
 			}
 		};
 
@@ -39466,6 +39521,8 @@ namespace gaia {
 						auto& queryInfo =
 								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
+						recommit(queryInfo.ctx());
+						apply_runtime_var_state(queryInfo.ctx());
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
 					} else {
@@ -43138,7 +43195,7 @@ namespace gaia {
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
 			//! Query associated with the system
-			QueryUncached query;
+			Query query;
 			//! Fast-path classification for trivial single-term observers.
 			MatchFastPath fastPath = MatchFastPath::None;
 			//! Number of terms added to the observer query.
@@ -56321,7 +56378,7 @@ namespace gaia {
 			{
 				hdr.entity = e;
 				obs.entity = e;
-				obs.query = query<false>();
+				obs.query = query<true>();
 			}
 			return ObserverBuilder(*this, e);
 		}

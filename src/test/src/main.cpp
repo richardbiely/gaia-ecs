@@ -13093,6 +13093,43 @@ TEST_CASE("Query - cache_src_trav affects cache lookup hash only for traversed s
 	CHECK(ctxTraversedSourceSrcTrav.data.cacheSrcTrav == ecs::MaxCacheSrcTrav);
 }
 
+TEST_CASE("Query - shared cache deduplicates identical persistent traversed queries") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	const auto buildQuery = [&] {
+		return wld.query()
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
+	};
+
+	cnt::darray<ecs::Query> queries;
+	queries.reserve(200);
+
+	auto q0 = buildQuery();
+	const auto expectedHandle = ecs::QueryInfo::handle(q0.fetch());
+	CHECK(q0.count() == 1);
+	queries.push_back(GAIA_MOV(q0));
+
+	for (uint32_t i = 1; i < 200; ++i) {
+		auto q = buildQuery();
+		CHECK(ecs::QueryInfo::handle(q.fetch()) == expectedHandle);
+		queries.push_back(GAIA_MOV(q));
+	}
+
+	CHECK(queries.size() == 200);
+}
+
 TEST_CASE("Query - cached broad NOT query refreshes lazily after archetype creation") {
 	TestWorld twld;
 
@@ -17224,6 +17261,46 @@ TEST_CASE("Observer - fast path") {
 	wld.add(e, ecs::Pair(relation, target));
 	CHECK(pairHits == 1);
 	(void)observerPairRuntime;
+}
+
+TEST_CASE("Observer - identical traversed observers share cached query") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	cnt::darray<ecs::Entity> observers;
+	observers.reserve(200);
+
+	const auto makeObserver = [&] {
+		return wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([](ecs::Iter&) {})
+				.entity();
+	};
+
+	const auto observer0 = makeObserver();
+	const auto expectedHandle = ecs::QueryInfo::handle(wld.observers().data(observer0).query.fetch());
+	observers.push_back(observer0);
+
+	for (uint32_t i = 1; i < 200; ++i) {
+		const auto observer = makeObserver();
+		const auto handle = ecs::QueryInfo::handle(wld.observers().data(observer).query.fetch());
+		CHECK(handle == expectedHandle);
+		observers.push_back(observer);
+	}
+
+	CHECK(observers.size() == 200);
 }
 
 TEST_CASE("Observer - traversed source propagation on ancestor term changes") {

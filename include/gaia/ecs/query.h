@@ -669,6 +669,8 @@ namespace gaia {
 						auto& queryInfo =
 								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
+						recommit(queryInfo.ctx());
+						apply_runtime_var_state(queryInfo.ctx());
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
 					} else {
