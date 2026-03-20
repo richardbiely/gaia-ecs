@@ -514,9 +514,12 @@ namespace gaia {
 								}
 							}
 						}
+
 						if (hasEntityLifecycleTerm)
 							SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
-						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+						if (!terms.empty() && !hasEntityLifecycleTerm)
+							SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+
 						if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
 							cnt::darray<Entity> narrowedTargets;
 							cnt::darray<TargetNarrowCacheEntry> narrowCache;
