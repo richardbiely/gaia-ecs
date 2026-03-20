@@ -4019,6 +4019,97 @@ void BM_Observer_DiffPairRelFiltered_OnAdd(picobench::state& state) {
 	}
 }
 
+void BM_Observer_DiffCopyExtFiltered_OnAdd(picobench::state& state) {
+	const uint32_t observerCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		const auto src = w.add();
+
+		w.child(child, root);
+		w.add<Acceleration>(root);
+		w.add<Position>(src);
+		w.add(src, ecs::Pair(relationHot, child));
+
+		auto makeObserver = [&](ecs::Entity relation) {
+			w.observer()
+					.event(ecs::ObserverEvent::OnAdd)
+					.all<Position>()
+					.all(ecs::Pair(relation, ecs::Var0))
+					.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+					.on_each([&](ecs::Iter&) {
+						++hits;
+					});
+		};
+
+		if (observerCount != 0U)
+			makeObserver(relationHot);
+		GAIA_FOR2_(1, observerCount, i) {
+			(void)i;
+			makeObserver(w.add());
+		}
+
+		hits = 0;
+		state.start_timer();
+		const auto dst = w.copy_ext(src);
+		state.stop_timer();
+
+		dont_optimize(dst);
+		dont_optimize(hits);
+	}
+}
+
+void BM_Observer_DiffCopyExtDirectFiltered_OnAdd(picobench::state& state) {
+	const uint32_t directObserverCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		const auto src = w.add();
+
+		w.child(child, root);
+		w.add<Acceleration>(root);
+		w.add<Position>(src);
+		w.add(src, ecs::Pair(relationHot, child));
+
+		w.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.all(ecs::Pair(relationHot, ecs::Var0))
+				.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter&) {
+					++hits;
+				});
+
+		GAIA_FOR(directObserverCount) {
+			w.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().on_each([](ecs::Iter&) {});
+		}
+
+		hits = 0;
+		state.start_timer();
+		const auto dst = w.copy_ext(src);
+		state.stop_timer();
+
+		dont_optimize(dst);
+		dont_optimize(hits);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // System frame benchmarks
 ////////////////////////////////////////////////////////////////////////////////
@@ -5590,6 +5681,30 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(200)
 				.label("observer diff pair-rel on_add filtered 200");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff copy_ext on_add filtered 1");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(50)
+				.label("observer diff copy_ext on_add filtered 50");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(200)
+				.label("observer diff copy_ext on_add filtered 200");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff copy_ext direct-filtered 1");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(50)
+				.label("observer diff copy_ext direct-filtered 50");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(200)
+				.label("observer diff copy_ext direct-filtered 200");
 		PICOBENCH_REG(BM_Observer_IsMatchesAny_Semantic_D2)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1024)

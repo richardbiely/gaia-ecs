@@ -43415,6 +43415,10 @@ namespace gaia {
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add_is;
 				//! Semantic `Is` target to OnDel observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del_is;
+				//! Exact direct term to OnAdd diff observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_direct;
+				//! Exact direct term to OnDel diff observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_direct;
 				//! Traversal relation to OnAdd diff observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_trav;
 				//! Traversal relation to OnDel diff observer mapping.
@@ -43756,6 +43760,8 @@ namespace gaia {
 					const auto& ec = world.fetch(observer);
 					const auto compIdx = ec.pChunk->comp_idx(Observer);
 					const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
+					auto* pDirectMap =
+							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_direct : &m_diff_observer_map_del_direct;
 					auto* pTravMap =
 							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_trav : &m_diff_observer_map_del_trav;
 					auto* pPairRelMap =
@@ -43777,6 +43783,11 @@ namespace gaia {
 					add_observer_to_list(*pAll, observer);
 
 					bool registered = false;
+
+					if (term != EntityBad && term != All) {
+						add_observer_to_map_unique(*pDirectMap, term, observer);
+						registered = true;
+					}
 
 					if (options.entTrav != EntityBad) {
 						add_observer_to_map_unique(*pTravMap, options.entTrav, observer);
@@ -43806,7 +43817,8 @@ namespace gaia {
 					DiffDispatchCtx ctx{};
 					ctx.event = event;
 
-					const auto* pDiffDirectMap = event == ObserverEvent::OnAdd ? &m_observer_map_add : &m_observer_map_del;
+					const auto* pDiffDirectMap =
+							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_direct : &m_diff_observer_map_del_direct;
 					const auto* pTravMap =
 							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_trav : &m_diff_observer_map_del_trav;
 					const auto* pPairRelMap =
@@ -44046,6 +44058,8 @@ namespace gaia {
 					remove_observer_from_map(m_observer_map_del);
 					remove_observer_from_map(m_observer_map_add_is);
 					remove_observer_from_map(m_observer_map_del_is);
+					remove_observer_from_map(m_diff_observer_map_add_direct);
+					remove_observer_from_map(m_diff_observer_map_del_direct);
 					remove_observer_from_map(m_diff_observer_map_add_trav);
 					remove_observer_from_map(m_diff_observer_map_del_trav);
 					remove_observer_from_map(m_diff_observer_map_add_pair_rel);
@@ -46625,22 +46639,37 @@ namespace gaia {
 			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
 				GAIA_ASSERT(!srcEntity.pair());
 				GAIA_ASSERT(valid(srcEntity));
-	#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{});
-	#endif
 
 				auto& ec = m_recs.entities[srcEntity.id()];
 				GAIA_ASSERT(ec.pArchetype != nullptr);
 				GAIA_ASSERT(ec.pChunk != nullptr);
 
 				auto* pDstArchetype = ec.pArchetype;
-				Entity dstEntity;
-
 				// Names have to be unique so if we see that EntityDesc is present during copy
 				// we navigate towards a version of the archetype without the EntityDesc.
-				if (pDstArchetype->has<EntityDesc>()) {
+				const bool hasEntityDesc = pDstArchetype->has<EntityDesc>();
+				if (hasEntityDesc)
 					pDstArchetype = foc_archetype_del(pDstArchetype, GAIA_ID(EntityDesc));
 
+				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
+				const auto sparseIdCount = copied_sparse_id_count(srcEntity, [](Entity) {
+					return true;
+				});
+				const auto addedIdCount = archetypeIdCount + sparseIdCount;
+				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
+				write_archetype_ids(*pDstArchetype, pAddedIds);
+				write_copied_sparse_ids(
+						srcEntity,
+						[](Entity) {
+							return true;
+						},
+						pAddedIds + archetypeIdCount);
+#if GAIA_OBSERVERS_ENABLED
+				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{pAddedIds, addedIdCount});
+#endif
+
+				Entity dstEntity;
+				if (hasEntityDesc) {
 					dstEntity = add(*pDstArchetype, srcEntity.entity(), srcEntity.pair(), srcEntity.kind());
 					auto& ecDst = m_recs.entities[dstEntity.id()];
 					Chunk::copy_foreign_entity_data(ec.pChunk, ec.row, ecDst.pChunk, ecDst.row);
@@ -46650,13 +46679,6 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				const auto archetypeIdCount = (uint32_t)pDstArchetype->ids_view().size();
-				const auto sparseIdCount = copied_sparse_id_count(srcEntity, [](Entity) {
-					return true;
-				});
-				const auto addedIdCount = archetypeIdCount + sparseIdCount;
-				auto* pAddedIds = addedIdCount != 0U ? (Entity*)alloca(sizeof(Entity) * addedIdCount) : nullptr;
-				write_archetype_ids(*pDstArchetype, pAddedIds);
 				const auto sparseIdsWritten = copy_sparse_entity_data(
 						srcEntity, dstEntity,
 						[](Entity) {
@@ -46684,9 +46706,6 @@ namespace gaia {
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
 			void copy_ext_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
-	#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{});
-	#endif
 				auto& ec = m_recs.entities[entity.id()];
 				auto* pDstArchetype = ec.pArchetype;
 				if (pDstArchetype->has<EntityDesc>())
@@ -46705,6 +46724,9 @@ namespace gaia {
 							return true;
 						},
 						pAddedIds + archetypeIdCount);
+#if GAIA_OBSERVERS_ENABLED
+				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{pAddedIds, addedIdCount});
+#endif
 				copy_n_inter(entity, count, func, EntitySpan{pAddedIds, addedIdCount});
 	#if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));

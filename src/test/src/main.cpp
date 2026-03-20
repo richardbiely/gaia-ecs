@@ -17072,6 +17072,48 @@ TEST_CASE("Observer - copy_ext_n sparse payload") {
 	CHECK(observedEntities.size() == N);
 }
 
+TEST_CASE("Observer - copy_ext ignores unrelated traversed source observers") {
+	TestWorld twld;
+
+	const auto connectedToA = wld.add();
+	const auto connectedToB = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto src = wld.add();
+	wld.add<Position>(src);
+	wld.add(src, ecs::Pair(connectedToA, child));
+
+	int hitsA = 0;
+	int hitsB = 0;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedToA, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter&) {
+				++hitsA;
+			})
+			.entity();
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedToB, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter&) {
+				++hitsB;
+			})
+			.entity();
+
+	(void)wld.copy_ext(src);
+	CHECK(hitsA == 1);
+	CHECK(hitsB == 0);
+}
+
 TEST_CASE("copy_ext_n strips names and preserves sparse data") {
 	TestWorld twld;
 
