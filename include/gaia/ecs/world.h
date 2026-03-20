@@ -1128,6 +1128,18 @@ namespace gaia {
 					if (!query_trav_has(travKind, QueryTravKind::Up))
 						return;
 
+					if (
+							travDepth == QueryTermOptions::TravDepthUnlimited &&
+							!query_trav_has(travKind, QueryTravKind::Down)) {
+						const auto& cachedSources = world.sources_bfs_trav_cache(relation, root);
+						for (auto source: cachedSources) {
+							const auto ins = visitedNodes.insert(EntityLookupKey(source));
+							if (ins.second)
+								outTargets.push_back(source);
+						}
+						return;
+					}
+
 					if (travDepth == 1) {
 						world.sources(relation, root, [&](Entity source) {
 							const auto ins = visitedNodes.insert(EntityLookupKey(source));
