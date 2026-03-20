@@ -44545,9 +44545,8 @@ namespace gaia {
 					}
 				}
 
-				static void collect_propagated_targets_cached(
-						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource,
-						cnt::set<EntityLookupKey>& visitedSources, cnt::darray<Entity>& outTargets) {
+				static PropagatedTargetCacheEntry& ensure_propagated_targets_cached(
+						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource) {
 					const PropagatedTargetCacheKey key{
 							obs.plan.diff.bindingRelation, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind,
 							obs.plan.diff.travDepth};
@@ -44578,11 +44577,28 @@ namespace gaia {
 						DiffDispatcher::normalize_targets(entry.targets);
 					}
 
+					return entry;
+				}
+
+				static void collect_propagated_targets_cached(
+						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource,
+						cnt::set<EntityLookupKey>& visitedSources, cnt::darray<Entity>& outTargets) {
+					auto& entry = ensure_propagated_targets_cached(registry, world, obs, changedSource);
+
 					for (auto source: entry.targets) {
 						const auto ins = visitedSources.insert(EntityLookupKey(source));
 						if (ins.second)
 							outTargets.push_back(source);
 					}
+				}
+
+				static void append_propagated_targets_cached(
+						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource,
+						cnt::darray<Entity>& outTargets) {
+					auto& entry = ensure_propagated_targets_cached(registry, world, obs, changedSource);
+
+					for (auto source: entry.targets)
+						outTargets.push_back(source);
 				}
 
 				static bool collect_source_traversal_diff_targets(
@@ -44615,6 +44631,11 @@ namespace gaia {
 					}
 					if (!termTriggered)
 						return false;
+
+					if (changedSources.size() == 1) {
+						append_propagated_targets_cached(registry, world, obs, changedSources[0], outTargets);
+						return true;
+					}
 
 					cnt::set<EntityLookupKey> visitedSources;
 					for (auto changedSource: changedSources)
