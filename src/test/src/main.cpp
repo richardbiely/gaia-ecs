@@ -15425,6 +15425,133 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local reporting s
 	expect_exact_entities(q1, {});
 }
 
+TEST_CASE("Query Filter - cached changed queries keep instance-local var bindings") {
+	TestWorld twld;
+	struct Ship {};
+	struct Planet {};
+	struct Status {
+		int value;
+	};
+
+	const auto dockedTo = wld.add();
+	const auto earth = wld.add();
+	const auto mars = wld.add();
+	wld.add<Planet>(earth);
+	wld.add<Planet>(mars);
+
+	const auto shipEarth = wld.add();
+	wld.add<Ship>(shipEarth);
+	wld.add<Status>(shipEarth, {1});
+	wld.add(shipEarth, ecs::Pair(dockedTo, earth));
+
+	const auto shipMars = wld.add();
+	wld.add<Ship>(shipMars);
+	wld.add<Status>(shipMars, {2});
+	wld.add(shipMars, ecs::Pair(dockedTo, mars));
+
+	auto makeQuery = [&] {
+		return wld.query()
+				.template all<Ship>()
+				.template all<Status>()
+				.all(ecs::Pair(dockedTo, ecs::Var0))
+				.template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var0))
+				.template changed<Status>();
+	};
+
+	auto qEarth = makeQuery();
+	auto qMars = makeQuery();
+
+	qEarth.set_var(ecs::Var0, earth);
+	qMars.set_var(ecs::Var0, mars);
+
+	CHECK(qEarth.id() == qMars.id());
+	CHECK(qEarth.gen() == qMars.gen());
+
+	CHECK(qEarth.count() == 1);
+	expect_exact_entities(qEarth, {shipEarth});
+	CHECK(qMars.count() == 1);
+	expect_exact_entities(qMars, {shipMars});
+
+	CHECK(qEarth.count() == 0);
+	expect_exact_entities(qEarth, {});
+	CHECK(qMars.count() == 0);
+	expect_exact_entities(qMars, {});
+
+	wld.set<Status>(shipEarth) = {3};
+
+	CHECK(qEarth.count() == 1);
+	expect_exact_entities(qEarth, {shipEarth});
+	CHECK(qMars.count() == 0);
+	expect_exact_entities(qMars, {});
+
+	wld.set<Status>(shipMars) = {4};
+
+	CHECK(qEarth.count() == 0);
+	expect_exact_entities(qEarth, {});
+	CHECK(qMars.count() == 1);
+	expect_exact_entities(qMars, {shipMars});
+}
+
+TEST_CASE("Query Filter - cached changed queries keep instance-local group filters") {
+	TestWorld twld;
+	struct Position {
+		float x, y, z;
+	};
+
+	const auto eats = wld.add();
+	const auto carrot = wld.add();
+	const auto salad = wld.add();
+
+	const auto eCarrotA = wld.add();
+	wld.add<Position>(eCarrotA, {1, 0, 0});
+	wld.add(eCarrotA, ecs::Pair(eats, carrot));
+
+	const auto eCarrotB = wld.add();
+	wld.add<Position>(eCarrotB, {2, 0, 0});
+	wld.add(eCarrotB, ecs::Pair(eats, carrot));
+
+	const auto eSaladA = wld.add();
+	wld.add<Position>(eSaladA, {3, 0, 0});
+	wld.add(eSaladA, ecs::Pair(eats, salad));
+
+	const auto eSaladB = wld.add();
+	wld.add<Position>(eSaladB, {4, 0, 0});
+	wld.add(eSaladB, ecs::Pair(eats, salad));
+
+	auto qCarrot = wld.query().all<Position>().group_by(eats).changed<Position>();
+	auto qSalad = wld.query().all<Position>().group_by(eats).changed<Position>();
+
+	qCarrot.group_id(carrot);
+	qSalad.group_id(salad);
+
+	CHECK(qCarrot.id() == qSalad.id());
+	CHECK(qCarrot.gen() == qSalad.gen());
+
+	CHECK(qCarrot.count() == 2);
+	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
+	CHECK(qSalad.count() == 2);
+	expect_exact_entities(qSalad, {eSaladA, eSaladB});
+
+	CHECK(qCarrot.count() == 0);
+	expect_exact_entities(qCarrot, {});
+	CHECK(qSalad.count() == 0);
+	expect_exact_entities(qSalad, {});
+
+	wld.set<Position>(eCarrotA) = {10, 0, 0};
+
+	CHECK(qCarrot.count() == 2);
+	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
+	CHECK(qSalad.count() == 0);
+	expect_exact_entities(qSalad, {});
+
+	wld.set<Position>(eSaladB) = {20, 0, 0};
+
+	CHECK(qCarrot.count() == 0);
+	expect_exact_entities(qCarrot, {});
+	CHECK(qSalad.count() == 2);
+	expect_exact_entities(qSalad, {eSaladA, eSaladB});
+}
+
 TEST_CASE("Query Filter - systems") {
 	uint32_t expectedCnt = 0;
 	uint32_t actualCnt = 0;
