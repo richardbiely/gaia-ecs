@@ -15425,6 +15425,66 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local reporting s
 	expect_exact_entities(q1, {});
 }
 
+TEST_CASE("Query Filter - cached changed query count is non-consuming and instance-local") {
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+
+	const auto e = wld.add();
+	wld.add<Marker>(e);
+	wld.add<A>(e, {1});
+
+	ecs::Query q0 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+	ecs::Query q1 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+
+	CHECK(q0.id() == q1.id());
+	CHECK(q0.gen() == q1.gen());
+
+	CHECK(q0.count() == 1);
+	CHECK(q0.count() == 1);
+	CHECK(q1.count() == 1);
+	CHECK(q1.count() == 1);
+
+	expect_exact_entities(q0, {e});
+	CHECK(q0.count() == 0);
+	CHECK(q1.count() == 1);
+
+	expect_exact_entities(q1, {e});
+	CHECK(q1.count() == 0);
+}
+
+TEST_CASE("Query Filter - cached changed query empty is non-consuming and instance-local") {
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+
+	const auto e = wld.add();
+	wld.add<Marker>(e);
+	wld.add<A>(e, {1});
+
+	ecs::Query q0 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+	ecs::Query q1 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+
+	CHECK(q0.id() == q1.id());
+	CHECK(q0.gen() == q1.gen());
+
+	CHECK_FALSE(q0.empty());
+	CHECK_FALSE(q0.empty());
+	CHECK_FALSE(q1.empty());
+	CHECK_FALSE(q1.empty());
+
+	expect_exact_entities(q0, {e});
+	CHECK(q0.empty());
+	CHECK_FALSE(q1.empty());
+
+	expect_exact_entities(q1, {e});
+	CHECK(q1.empty());
+}
+
 TEST_CASE("Query Filter - cached changed queries keep instance-local var bindings") {
 	TestWorld twld;
 	struct Ship {};

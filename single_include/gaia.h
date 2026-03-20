@@ -42686,6 +42686,8 @@ namespace gaia {
 				//!					 The result is not cached and repeated calls to the function might be slow.
 				//!					 If you already called arr(), checking if it is empty is preferred.
 				//!					 Use empty() instead of calling count()==0.
+				//! \note For changed() queries this is a non-consuming probe. It does not advance the
+				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
@@ -42730,6 +42732,8 @@ namespace gaia {
 				//! \warning Only use if you only care about the number of entities matching the query.
 				//!          The result is not cached and repeated calls to the function might be slow.If you already called
 				//!          arr(), use the size provided by the array.Use empty() instead of calling count() == 0.
+				//! \note For changed() queries this is a non-consuming probe. It does not advance the
+				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
