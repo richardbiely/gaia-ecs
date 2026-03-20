@@ -238,6 +238,7 @@ namespace gaia {
 					cnt::darray<Entity> targets;
 					bool active = false;
 					bool targeted = false;
+					bool targetsAddedAfterPrepare = false;
 				};
 
 			private:
@@ -402,6 +403,30 @@ namespace gaia {
 						if (obs.query.matches_any(queryInfo, *ecTarget.pArchetype, EntitySpan{&entity, 1}))
 							out.push_back(entity);
 					}
+				}
+
+				static void append_valid_diff_targets(World& world, cnt::darray<Entity>& out, EntitySpan targets) {
+					for (auto entity: targets) {
+						if (world.valid(entity))
+							out.push_back(entity);
+					}
+				}
+
+				static void normalize_diff_targets(cnt::darray<Entity>& targets) {
+					if (targets.empty())
+						return;
+
+					core::sort(targets, [](Entity left, Entity right) {
+						return left.value() < right.value();
+					});
+
+					uint32_t outIdx = 0;
+					for (uint32_t i = 0; i < targets.size(); ++i) {
+						if (outIdx != 0 && targets[i] == targets[outIdx - 1])
+							continue;
+						targets[outIdx++] = targets[i];
+					}
+					targets.resize(outIdx);
 				}
 
 				static void execute_observer_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
@@ -733,22 +758,8 @@ namespace gaia {
 							!has_observers_for_pair_relations(world, *pTravMap, terms)) {
 						ctx.targeted = true;
 						ctx.targets.reserve(targetEntities.size());
-						for (auto entity: targetEntities) {
-							if (world.valid(entity))
-								ctx.targets.push_back(entity);
-						}
-
-						core::sort(ctx.targets, [](Entity left, Entity right) {
-							return left.value() < right.value();
-						});
-
-						uint32_t outIdx = 0;
-						for (uint32_t i = 0; i < ctx.targets.size(); ++i) {
-							if (outIdx != 0 && ctx.targets[i] == ctx.targets[outIdx - 1])
-								continue;
-							ctx.targets[outIdx++] = ctx.targets[i];
-						}
-						ctx.targets.resize(outIdx);
+						append_valid_diff_targets(world, ctx.targets, targetEntities);
+						normalize_diff_targets(ctx.targets);
 					}
 
 					m_relevant_observers_tmp.clear();
@@ -793,6 +804,65 @@ namespace gaia {
 					return ctx;
 				}
 
+				GAIA_NODISCARD DiffDispatchCtx prepare_diff_add_new(World& world, EntitySpan terms) {
+					DiffDispatchCtx ctx{};
+					ctx.event = ObserverEvent::OnAdd;
+
+					const auto* pDiffDirectMap = &m_diff_observer_map_add_direct;
+					const auto* pSourceTermMap = &m_diff_observer_map_add_source_term;
+					const auto* pTravMap = &m_diff_observer_map_add_trav;
+					const auto* pPairRelMap = &m_diff_observer_map_add_pair_rel;
+					const auto* pPairTgtMap = &m_diff_observer_map_add_pair_tgt;
+					const auto* pAll = &m_diff_observers_add_all;
+					const auto* pGlobal = &m_diff_observers_add_global;
+
+					if (terms.empty() && pAll->empty() && pGlobal->empty())
+						return ctx;
+
+					if (terms.empty() || has_observers_for_event_terms(*pSourceTermMap, terms) ||
+							has_observers_for_pair_relations(world, *pTravMap, terms)) {
+						return prepare_diff(world, ObserverEvent::OnAdd, terms);
+					}
+
+					m_relevant_observers_tmp.clear();
+					const auto matchStamp = ++m_current_match_stamp;
+					for (auto term: terms) {
+						collect_diff_observers_for_term(world, *pDiffDirectMap, term, matchStamp);
+
+						if (!term.pair())
+							continue;
+
+						const auto relation = entity_from_id(world, term.id());
+						if (world.valid(relation))
+							collect_diff_observers_for_term(world, *pPairRelMap, relation, matchStamp);
+
+						const auto target = world.get(term.gen());
+						if (world.valid(target))
+							collect_diff_observers_for_term(world, *pPairTgtMap, target, matchStamp);
+					}
+					collect_diff_observers_from_list(world, *pGlobal, matchStamp);
+
+					if (m_relevant_observers_tmp.empty())
+						return ctx;
+
+					ctx.active = true;
+					ctx.targeted = true;
+					ctx.targetsAddedAfterPrepare = true;
+					for (auto* pObs: m_relevant_observers_tmp) {
+						ctx.observers.push_back({});
+						ctx.observers.back().pObs = pObs;
+					}
+
+					return ctx;
+				}
+
+				void append_diff_targets(World& world, DiffDispatchCtx& ctx, EntitySpan targets) {
+					if (!ctx.active || !ctx.targeted || targets.empty())
+						return;
+
+					append_valid_diff_targets(world, ctx.targets, targets);
+				}
+
 				void finish_diff(World& world, DiffDispatchCtx&& ctx) {
 					if (!ctx.active)
 						return;
@@ -803,6 +873,9 @@ namespace gaia {
 					world.m_targetsAllCache = {};
 					world.m_entityToAsTargetsTravCache = {};
 					world.m_entityToAsRelationsTravCache = {};
+
+					if (ctx.targeted)
+						normalize_diff_targets(ctx.targets);
 
 					cnt::darray<Entity> matchesAfter;
 					cnt::darray<Entity> delta;
@@ -3596,7 +3669,7 @@ namespace gaia {
 						},
 						pAddedIds + archetypeIdCount);
 	#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{pAddedIds, addedIdCount});
+				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
 
 				Entity dstEntity;
@@ -3617,6 +3690,7 @@ namespace gaia {
 						},
 						pAddedIds + archetypeIdCount);
 				GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
+				m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{&dstEntity, 1});
 
 				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
 	#if GAIA_OBSERVERS_ENABLED
@@ -3656,9 +3730,15 @@ namespace gaia {
 						},
 						pAddedIds + archetypeIdCount);
 	#if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{pAddedIds, addedIdCount});
+				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{pAddedIds, addedIdCount});
 	#endif
-				copy_n_inter(entity, count, func, EntitySpan{pAddedIds, addedIdCount});
+				copy_n_inter(
+						entity, count, func, EntitySpan{pAddedIds, addedIdCount}, EntityBad
+	#if GAIA_OBSERVERS_ENABLED
+						,
+						&addDiffCtx
+	#endif
+				);
 	#if GAIA_OBSERVERS_ENABLED
 				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
 	#endif
@@ -3890,8 +3970,13 @@ namespace gaia {
 			}
 
 			template <typename Func>
-			void
-			copy_n_inter(Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad) {
+			void copy_n_inter(
+					Entity entity, uint32_t count, Func& func, EntitySpan addedIds, Entity parentInstance = EntityBad
+#if GAIA_OBSERVERS_ENABLED
+					,
+					ObserverRegistry::DiffDispatchCtx* pAddDiffCtx = nullptr
+#endif
+			) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(parentInstance == EntityBad || valid(parentInstance));
@@ -3967,6 +4052,9 @@ namespace gaia {
 #if GAIA_OBSERVERS_ENABLED
 					if (!addedIds.empty()) {
 						auto entities = pDstChunk->entity_view();
+						if (pAddDiffCtx != nullptr)
+							m_observers.append_diff_targets(
+									*this, *pAddDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
 						m_observers.on_add(
 								*this, *pDstArchetype, addedIds, EntitySpan{entities.data() + originalChunkSize, toCreate});
 					}
@@ -4276,7 +4364,7 @@ namespace gaia {
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
 				GAIA_ASSERT(pDstArchetype != nullptr);
 #if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{addedIds});
+				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{addedIds});
 #endif
 
 				auto& ecSrc = m_recs.entities[prefabEntity.id()];
@@ -4296,6 +4384,9 @@ namespace gaia {
 
 				(void)copy_sparse_entity_data(
 						prefabEntity, instance, addedIds.subspan((uint32_t)pDstArchetype->ids_view().size()));
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{&instance, 1});
+#endif
 
 				touch_rel_version(Is);
 				invalidate_queries_for_rel(Is);
@@ -4362,7 +4453,7 @@ namespace gaia {
 				if (count == 0U)
 					return;
 #if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{node.addedIds});
+				auto addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{node.addedIds});
 #endif
 
 				auto& ecSrc = m_recs.entities[node.prefab.id()];
@@ -4431,6 +4522,7 @@ namespace gaia {
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
+					m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
 					m_observers.on_add(
 							*this, *pDstArchetype, EntitySpan{node.addedIds},
 							EntitySpan{entities.data() + originalChunkSize, toCreate});

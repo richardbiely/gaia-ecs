@@ -4110,6 +4110,51 @@ void BM_Observer_DiffCopyExtFiltered_OnAdd(picobench::state& state) {
 	}
 }
 
+void BM_Observer_DiffCopyExtExistingMatches_OnAdd(picobench::state& state) {
+	const uint32_t existingMatchCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		w.child(child, root);
+		w.add<Acceleration>(root);
+
+		GAIA_FOR(existingMatchCount) {
+			const auto cableExisting = w.add();
+			w.add<Position>(cableExisting);
+			w.add(cableExisting, ecs::Pair(relationHot, child));
+		}
+
+		const auto src = w.add();
+		w.add<Position>(src);
+		w.add(src, ecs::Pair(relationHot, child));
+
+		w.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.all<Position>()
+				.all(ecs::Pair(relationHot, ecs::Var0))
+				.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&](ecs::Iter&) {
+					++hits;
+				});
+
+		hits = 0;
+		state.start_timer();
+		const auto dst = w.copy_ext(src);
+		state.stop_timer();
+
+		dont_optimize(dst);
+		dont_optimize(hits);
+	}
+}
+
 void BM_Observer_DiffCopyExtDirectFiltered_OnAdd(picobench::state& state) {
 	const uint32_t directObserverCount = (uint32_t)state.user_data();
 
@@ -5748,6 +5793,18 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(200)
 				.label("observer diff copy_ext on_add filtered 200");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff copy_ext local existing 1");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(100)
+				.label("observer diff copy_ext local existing 100");
+		PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1000)
+				.label("observer diff copy_ext local existing 1000");
 		PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1)
