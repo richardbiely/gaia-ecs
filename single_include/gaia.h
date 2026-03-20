@@ -30376,6 +30376,8 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
 		GAIA_NODISCARD uint32_t
 		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
+		//! Groups fragmenting hierarchy archetypes by depth for cascade-style top-down iteration.
+		GAIA_NODISCARD GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
@@ -42709,6 +42711,29 @@ namespace gaia {
 				//! Pair(relation, X) on entity E means E depends on X.
 				GAIA_NODISCARD OrderByBfsView bfs(Entity relation) {
 					return OrderByBfsView(*this, relation);
+				}
+
+				//------------------------------------------------
+
+				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! This is the cached-query equivalent of a cascade traversal and is intended for
+				//! relations such as ChildOf where the target is part of the archetype shape.
+				QueryImpl& cascade(Entity relation = ChildOf) {
+					GAIA_ASSERT(!relation.pair());
+					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
+					group_by_inter(relation, group_by_func_cascade);
+					return *this;
+				}
+
+				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
+				template <typename Rel>
+				QueryImpl& cascade() {
+					using UO = typename component_type_t<Rel>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use cascade() with raw relation types only");
+
+					const auto& desc = comp_cache_add<Rel>(*m_storage.world());
+					return cascade(desc.entity);
 				}
 
 				//------------------------------------------------
@@ -55300,6 +55325,22 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Orders cached observer query iteration top-down by fragmenting hierarchy depth.
+			ObserverBuilder& cascade(Entity relation = ChildOf) {
+				validate();
+				runtime_data().query.cascade(relation);
+				return *this;
+			}
+
+			template <typename Rel>
+			ObserverBuilder& cascade() {
+				validate();
+				runtime_data().query.template cascade<Rel>();
+				return *this;
+			}
+
+			//------------------------------------------------
+
 			ObserverBuilder& name(const char* name, uint32_t len = 0) {
 				m_world.name(m_entity, name, len);
 				return *this;
@@ -55616,6 +55657,20 @@ namespace gaia {
 				return *this;
 			}
 	#endif
+
+			//------------------------------------------------
+
+			//! Orders cached system query iteration top-down by fragmenting hierarchy depth.
+			SystemBuilder& cascade(Entity relation = ChildOf) {
+				data().query.cascade(relation);
+				return *this;
+			}
+
+			template <typename Rel>
+			SystemBuilder& cascade() {
+				data().query.template cascade<Rel>();
+				return *this;
+			}
 
 			//------------------------------------------------
 
@@ -55995,6 +56050,43 @@ namespace gaia {
 
 			// No group
 			return 0;
+		}
+
+		inline GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation) {
+			GAIA_ASSERT(!relation.pair());
+
+			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
+				return 0;
+
+			auto ids = archetype.ids_view();
+			GroupId minDepth = GroupIdMax;
+			bool found = false;
+
+			for (auto idsIdx: archetype.pair_rel_indices(relation)) {
+				const auto pair = ids[idsIdx];
+				const auto target = world.pair_target_if_alive(pair);
+				if (target == EntityBad)
+					continue;
+
+				GroupId depth = 1;
+				auto curr = target;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = world.target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					++depth;
+					curr = next;
+				}
+
+				if (!found || depth < minDepth) {
+					minDepth = depth;
+					found = true;
+				}
+			}
+
+			return found ? minDepth : 0;
 		}
 	} // namespace ecs
 } // namespace gaia

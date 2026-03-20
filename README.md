@@ -636,6 +636,8 @@ Observers can be looked at as reactive alternative to systems. They allow differ
 
 Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.
 
+Because observers are query-backed, query shaping helpers such as `cascade(...)` can be used on them as well when you want cached top-down iteration over fragmenting hierarchies like `ChildOf`.
+
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
 ```cpp
@@ -1029,6 +1031,12 @@ q.bfs(MyDependsOn).each([&](ecs::Entity e) {
   entities.push_back(e);
 });
 // Repeated calls are cached and only recomputed when query/world data changes.
+
+// Configure cached query iteration to run top-down through a fragmenting hierarchy.
+// Use this for structural hierarchies such as ChildOf.
+q.cascade(ecs::ChildOf).each([&](ecs::Entity e) {
+  entities.push_back(e);
+});
 
 // Fill the positions array with position data.
 cnt::darray<Position> positions;
@@ -1804,6 +1812,22 @@ ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const 
 q.group_by(eats, my_group_sort_func).each(...) { ... };
 ```
 
+`group_by(...)` is fully custom.
+
+Use `bfs(...)` when you want to walk the current query result in breadth-first dependency or traversal order.
+
+Use `cascade(...)` when you want normal cached query iteration to already run top-down for a fragmenting hierarchy such as `ChildOf`.
+
+```cpp
+ecs::Query q = wld.query()
+  .all<Position>()
+  .cascade(ecs::ChildOf);
+
+q.each([&](ecs::Entity entity) {
+  ...
+});
+```
+
 ### Sorting
 
 Data stored in ECS can be sorted. We can sort either by entity index or by component of choice. To accomplish that the `Query::sort_by` function is used.
@@ -2409,6 +2433,7 @@ Properties of `ChildOf`:
 - part of archetype identity
 - good when parenthood is part of the entity's physical or structural identity
 - adding/removing it can fragment archetypes when many entities differ only by parent
+- supports cached top-down query ordering with `query().cascade(ecs::ChildOf)`
 
 Use `ChildOf` only when you explicitly want physical ownership / structural hierarchy semantics:
 - parent deletion should own child lifetime

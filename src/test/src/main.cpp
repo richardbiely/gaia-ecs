@@ -8792,6 +8792,140 @@ TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	}
 }
 
+TEST_CASE("Query cascade ChildOf orders entities by depth") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto childA = wld.add();
+	auto childB = wld.add();
+	auto grandChild = wld.add();
+
+	wld.child(childA, root);
+	wld.child(childB, root);
+	wld.child(grandChild, childA);
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(childA, {0, 0, 0});
+	wld.add<Position>(childB, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	auto depth_of = [&](ecs::Entity entity) {
+		uint32_t depth = 0;
+		auto curr = entity;
+		while (true) {
+			const auto parent = wld.target(curr, ecs::ChildOf);
+			if (parent == ecs::EntityBad || parent == curr)
+				break;
+			++depth;
+			curr = parent;
+		}
+		return depth;
+	};
+
+	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(depth_of(ents[0]) == 0);
+	CHECK(depth_of(ents[1]) == 1);
+	CHECK(depth_of(ents[2]) == 1);
+	CHECK(depth_of(ents[3]) == 2);
+	CHECK(ents[0] == root);
+	CHECK(ents[3] == grandChild);
+}
+
+TEST_CASE("Query cascade ChildOf updates after reparent") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto child = wld.add();
+	auto grandChild = wld.add();
+	auto leaf = wld.add();
+
+	wld.child(child, root);
+	wld.child(grandChild, child);
+	wld.child(leaf, root);
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(child, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+	wld.add<Position>(leaf, {0, 0, 0});
+
+	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[3] == grandChild);
+
+	wld.del(grandChild, ecs::Pair(ecs::ChildOf, child));
+	wld.add(grandChild, ecs::Pair(ecs::ChildOf, leaf));
+
+	ents.clear();
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == child);
+	CHECK(ents[2] == leaf);
+	CHECK(ents[3] == grandChild);
+}
+
+TEST_CASE("Query cascade custom relation orders entities by depth") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto childA = wld.add();
+	auto childB = wld.add();
+	auto grandChild = wld.add();
+
+	wld.add(childA, ecs::Pair(rel, root));
+	wld.add(childB, ecs::Pair(rel, root));
+	wld.add(grandChild, ecs::Pair(rel, childA));
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(childA, {0, 0, 0});
+	wld.add<Position>(childB, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	auto depth_of = [&](ecs::Entity entity) {
+		uint32_t depth = 0;
+		auto curr = entity;
+		while (true) {
+			const auto parent = wld.target(curr, rel);
+			if (parent == ecs::EntityBad || parent == curr)
+				break;
+			++depth;
+			curr = parent;
+		}
+		return depth;
+	};
+
+	auto q = wld.query().all<Position>().cascade(rel);
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(depth_of(ents[0]) == 0);
+	CHECK(depth_of(ents[1]) == 1);
+	CHECK(depth_of(ents[2]) == 1);
+	CHECK(depth_of(ents[3]) == 2);
+	CHECK(ents[0] == root);
+	CHECK(ents[3] == grandChild);
+}
+
 template <typename TQuery>
 void Test_Query_Equality() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -16196,6 +16330,40 @@ TEST_CASE("System - dependency BFS order") {
 	}
 }
 
+TEST_CASE("System - cascade query order") {
+	cnt::darr<ecs::Entity> order;
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto childA = wld.add();
+	auto childB = wld.add();
+	auto grandChild = wld.add();
+
+	wld.child(childA, root);
+	wld.child(childB, root);
+	wld.child(grandChild, childA);
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(childA, {0, 0, 0});
+	wld.add<Position>(childB, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	wld.system().all<Position>().cascade(ecs::ChildOf).on_each([&](ecs::Entity entity, Position) {
+		order.push_back(entity);
+	});
+
+	wld.update();
+
+	CHECK(order.size() == 4);
+	CHECK(order[0] == root);
+	const bool secondIsChild = order[1] == childA || order[1] == childB;
+	const bool thirdIsChild = order[2] == childA || order[2] == childB;
+	CHECK(secondIsChild);
+	CHECK(thirdIsChild);
+	CHECK(order[1] != order[2]);
+	CHECK(order[3] == grandChild);
+}
+
 TEST_CASE("System - world teardown drops cached query tracking before chunk destruction") {
 	uint32_t runs = 0;
 
@@ -17557,6 +17725,8 @@ TEST_CASE("Observer - fast path") {
 	travOpts.trav(ecs::ChildOf);
 	const auto observerAllPosTrav =
 			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(travOpts).on_each([](ecs::Iter&) {}).entity();
+	const auto observerCascade =
+			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().cascade(ecs::ChildOf).on_each([](ecs::Iter&) {}).entity();
 
 	const auto& dataAllPos = wld.observers().data(observerAllPos);
 	const auto& dataNoPos = wld.observers().data(observerNoPos);
@@ -17569,6 +17739,7 @@ TEST_CASE("Observer - fast path") {
 	const auto& dataAllPosTravDepthOnly = wld.observers().data(observerAllPosTravDepthOnly);
 	const auto& dataAllPosSrc = wld.observers().data(observerAllPosSrc);
 	const auto& dataAllPosTrav = wld.observers().data(observerAllPosTrav);
+	auto& dataCascade = wld.observers().data(observerCascade);
 
 	CHECK(dataAllPos.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
 	CHECK(dataNoPos.plan.fastPath == ecs::ObserverPlan::FastPath::SingleNegativeTerm);
@@ -17581,6 +17752,8 @@ TEST_CASE("Observer - fast path") {
 	CHECK(dataAllPosTravDepthOnly.plan.fastPath == ecs::ObserverPlan::FastPath::SinglePositiveTerm);
 	CHECK(dataAllPosSrc.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
 	CHECK(dataAllPosTrav.plan.fastPath == ecs::ObserverPlan::FastPath::Disabled);
+	CHECK(dataCascade.query.fetch().ctx().data.groupBy == ecs::ChildOf);
+	CHECK(dataCascade.query.fetch().ctx().data.groupByFunc != nullptr);
 
 	int pairHits = 0;
 	const auto observerPairRuntime = wld.observer()

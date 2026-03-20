@@ -4713,6 +4713,32 @@ void BM_Query_Bfs(picobench::state& state) {
 	dont_optimize(visited);
 }
 
+void BM_Query_Cascade_ChildOf(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n);
+
+	auto q = w.query().all<Position>().cascade(ecs::ChildOf);
+	uint64_t visited = 0;
+
+	q.each([&](ecs::Entity) {
+		++visited;
+	});
+	visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
 void BM_Hierarchy_Bfs_ChildOf_Disabled(picobench::state& state) {
 	BM_Hierarchy_Bfs<false, true>(state);
 }
@@ -5636,6 +5662,10 @@ int main(int argc, char* argv[]) {
 				.label("parent bfs disabled barrier 10K");
 		PICOBENCH_REG(BM_Query_Bfs<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("query childof bfs 10K");
 		PICOBENCH_REG(BM_Query_Bfs<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("query parent bfs 10K");
+		PICOBENCH_REG(BM_Query_Cascade_ChildOf)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("query childof cascade 10K");
 		PICOBENCH_REG(BM_Query_Bfs_ChildOf_Disabled)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)

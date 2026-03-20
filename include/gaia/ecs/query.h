@@ -3748,6 +3748,29 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! This is the cached-query equivalent of a cascade traversal and is intended for
+				//! relations such as ChildOf where the target is part of the archetype shape.
+				QueryImpl& cascade(Entity relation = ChildOf) {
+					GAIA_ASSERT(!relation.pair());
+					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
+					group_by_inter(relation, group_by_func_cascade);
+					return *this;
+				}
+
+				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
+				template <typename Rel>
+				QueryImpl& cascade() {
+					using UO = typename component_type_t<Rel>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use cascade() with raw relation types only");
+
+					const auto& desc = comp_cache_add<Rel>(*m_storage.world());
+					return cascade(desc.entity);
+				}
+
+				//------------------------------------------------
+
 				//! Organizes matching archetypes into groups according to the grouping function and entity.
 				//! \param entity The entity to group by.
 				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.

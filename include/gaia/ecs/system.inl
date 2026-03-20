@@ -261,6 +261,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Orders cached system query iteration top-down by fragmenting hierarchy depth.
+			SystemBuilder& cascade(Entity relation = ChildOf) {
+				data().query.cascade(relation);
+				return *this;
+			}
+
+			template <typename Rel>
+			SystemBuilder& cascade() {
+				data().query.template cascade<Rel>();
+				return *this;
+			}
+
+			//------------------------------------------------
+
 			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 				data().query.group_by(entity, func);
 				return *this;

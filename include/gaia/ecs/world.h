@@ -11356,6 +11356,43 @@ namespace gaia {
 			// No group
 			return 0;
 		}
+
+		inline GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation) {
+			GAIA_ASSERT(!relation.pair());
+
+			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
+				return 0;
+
+			auto ids = archetype.ids_view();
+			GroupId minDepth = GroupIdMax;
+			bool found = false;
+
+			for (auto idsIdx: archetype.pair_rel_indices(relation)) {
+				const auto pair = ids[idsIdx];
+				const auto target = world.pair_target_if_alive(pair);
+				if (target == EntityBad)
+					continue;
+
+				GroupId depth = 1;
+				auto curr = target;
+				constexpr uint32_t MaxTraversalDepth = 2048;
+				GAIA_FOR(MaxTraversalDepth) {
+					const auto next = world.target(curr, relation);
+					if (next == EntityBad || next == curr)
+						break;
+					++depth;
+					curr = next;
+				}
+
+				if (!found || depth < minDepth) {
+					minDepth = depth;
+					found = true;
+				}
+			}
+
+			return found ? minDepth : 0;
+		}
 	} // namespace ecs
 } // namespace gaia
 

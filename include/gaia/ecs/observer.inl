@@ -554,6 +554,22 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Orders cached observer query iteration top-down by fragmenting hierarchy depth.
+			ObserverBuilder& cascade(Entity relation = ChildOf) {
+				validate();
+				runtime_data().query.cascade(relation);
+				return *this;
+			}
+
+			template <typename Rel>
+			ObserverBuilder& cascade() {
+				validate();
+				runtime_data().query.template cascade<Rel>();
+				return *this;
+			}
+
+			//------------------------------------------------
+
 			ObserverBuilder& name(const char* name, uint32_t len = 0) {
 				m_world.name(m_entity, name, len);
 				return *this;
