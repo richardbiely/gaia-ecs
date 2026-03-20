@@ -162,8 +162,6 @@ namespace gaia {
 
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
-				//! Version of the world for which the query has been called most recently
-				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
 				//! Last seen archetype versions for tracked direct concrete source entities.
@@ -652,14 +650,6 @@ namespace gaia {
 
 				// Compile the opcodes
 				m_plan.vm.create_opcodes(m_plan.ctx);
-			}
-
-			void set_world_version(uint32_t version) {
-				m_state.worldVersion = version;
-			}
-
-			GAIA_NODISCARD uint32_t world_version() const {
-				return m_state.worldVersion;
 			}
 
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {

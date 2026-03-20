@@ -30926,8 +30926,6 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				uint8_t idsCnt = 0;
 				uint8_t changedCnt = 0;
-				//! Iteration will be restricted only to target Group
-				GroupId groupIdSet;
 				//! Array of filtered components
 				QueryEntityArray _changed;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
@@ -36820,8 +36818,6 @@ namespace gaia {
 
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
-				//! Version of the world for which the query has been called most recently
-				uint32_t worldVersion{};
 				//! Last seen versions for tracked dynamic relation dependencies.
 				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
 				//! Last seen archetype versions for tracked direct concrete source entities.
@@ -37310,14 +37306,6 @@ namespace gaia {
 
 				// Compile the opcodes
 				m_plan.vm.create_opcodes(m_plan.ctx);
-			}
-
-			void set_world_version(uint32_t version) {
-				m_state.worldVersion = version;
-			}
-
-			GAIA_NODISCARD uint32_t world_version() const {
-				return m_state.worldVersion;
 			}
 
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
@@ -38945,7 +38933,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, SET_GROUP, MATCH_PREFAB };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, MATCH_PREFAB };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -39064,18 +39052,6 @@ namespace gaia {
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
 					ctxData.groupByFunc = func; // group_by_func_default;
-				}
-			};
-
-			struct QueryCmd_SetGroupId {
-				static constexpr QueryCmdType Id = QueryCmdType::SET_GROUP;
-				static constexpr bool InvalidatesHash = false;
-
-				GroupId groupId;
-
-				void exec(QueryCtx& ctx) const {
-					auto& ctxData = ctx.data;
-					ctxData.groupIdSet = groupId;
 				}
 			};
 
@@ -39345,12 +39321,6 @@ namespace gaia {
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
-						// SetGroupId
-						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
-							QueryCmd_SetGroupId cmd;
-							ser::load(buffer, cmd);
-							cmd.exec(ctx);
-						},
 						// MatchPrefab
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_MatchPrefab cmd;
@@ -39381,6 +39351,8 @@ namespace gaia {
 				uint8_t m_varBindingsMask = 0;
 				//! Runtime-selected group id for grouped iteration.
 				GroupId m_groupIdSet = 0;
+				//! World version seen by this query instance for changed() filters.
+				uint32_t m_changedWorldVersion = 0;
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -39711,6 +39683,10 @@ namespace gaia {
 						pBfsData->cacheValid = false;
 				}
 
+				void reset_changed_filter_state() {
+					m_changedWorldVersion = 0;
+				}
+
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
@@ -39803,8 +39779,10 @@ namespace gaia {
 					invalidate_each_bfs_cache();
 
 					// Make sure to invalidate if necessary.
-					if constexpr (T::InvalidatesHash)
+					if constexpr (T::InvalidatesHash) {
+						reset_changed_filter_state();
 						m_storage.invalidate();
+					}
 
 					auto& serBuffer = m_storage.ser_buffer();
 					ser::save(serBuffer, T::Id);
@@ -40122,10 +40100,11 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				GAIA_NODISCARD static bool match_filters(const Chunk& chunk, const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static bool
+				match_filters(const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
 
-					const auto queryVersion = queryInfo.world_version();
+					const auto queryVersion = changedWorldVersion;
 					const auto& filtered = queryInfo.ctx().data.changed_view();
 
 					// Skip unchanged chunks
@@ -40141,7 +40120,7 @@ namespace gaia {
 						if (compIdx != BadIndex && chunk.changed(queryVersion, compIdx))
 							return true;
 
-						return chunk.changed(queryInfo.world_version());
+						return chunk.changed(changedWorldVersion);
 					}
 
 					// See if any component has changed
@@ -40170,7 +40149,7 @@ namespace gaia {
 
 					// If the component hasn't been modified, the entity itself still might have been moved.
 					// For that reason we also need to check the entity version.
-					return chunk.changed(queryInfo.world_version());
+					return chunk.changed(changedWorldVersion);
 				}
 
 				GAIA_NODISCARD bool can_process_archetype(const QueryInfo& queryInfo, const Archetype& archetype) const {
@@ -40280,7 +40259,7 @@ namespace gaia {
 								continue;
 
 							if constexpr (HasFilters) {
-								if (!match_filters(*view.pChunk, queryInfo))
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
 									continue;
 							}
 
@@ -40314,7 +40293,7 @@ namespace gaia {
 										continue;
 
 									if constexpr (HasFilters) {
-										if (!match_filters(*pChunk, queryInfo))
+										if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 											continue;
 									}
 
@@ -40370,7 +40349,7 @@ namespace gaia {
 								continue;
 
 							if constexpr (HasFilters) {
-								if (!match_filters(*view.pChunk, queryInfo))
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
 									continue;
 							}
 
@@ -40392,7 +40371,7 @@ namespace gaia {
 									continue;
 
 								if constexpr (HasFilters) {
-									if (!match_filters(*pChunk, queryInfo))
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 										continue;
 								}
 
@@ -40470,7 +40449,7 @@ namespace gaia {
 									continue;
 
 								if constexpr (HasFilters) {
-									if (!match_filters(*pChunk, queryInfo))
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 										continue;
 								}
 
@@ -40537,7 +40516,7 @@ namespace gaia {
 								continue;
 
 							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 									continue;
 							}
 
@@ -40642,8 +40621,7 @@ namespace gaia {
 					}
 
 					unlock(*m_storage.world());
-					// Update the query version with the current world's version
-					// queryInfo.set_world_version(*m_worldVersion);
+					// Changed-filter state is instance-local for cached queries.
 				}
 
 				//------------------------------------------------
@@ -40659,8 +40637,8 @@ namespace gaia {
 					else
 						run_query<false, ExecType, TIter>(queryInfo, func);
 
-					// Update the query version with the current world's version
-					queryInfo.set_world_version(*m_worldVersion);
+					// Changed-filter state is instance-local for cached queries.
+					m_changedWorldVersion = *m_worldVersion;
 				}
 
 				template <typename TIter, typename Func, typename... T>
@@ -41477,7 +41455,7 @@ namespace gaia {
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
 							if constexpr (UseFilters)
-								if (it.size() == 0 || !match_filters(*pChunk, queryInfo))
+								if (it.size() == 0 || !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 									return false;
 							if (!hasEntityFilters)
 								return it.size() > 0;
@@ -41591,8 +41569,10 @@ namespace gaia {
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
+					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+
 					if constexpr (!UseFilters) {
-						if (can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
 							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
 								return count_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
@@ -41618,8 +41598,19 @@ namespace gaia {
 					TIter it;
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					const auto cacheView = queryInfo.cache_archetype_view();
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (hasRuntimeGroupFilter) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr)
+							return 0;
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
 
-					for (const auto* pArchetype: queryInfo) {
+					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
+						const auto* pArchetype = cacheView[qi];
 						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 
@@ -41640,7 +41631,7 @@ namespace gaia {
 
 							// Filters
 							if constexpr (UseFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 									continue;
 							}
 
@@ -41901,7 +41892,7 @@ namespace gaia {
 
 							// Filters
 							if constexpr (UseFilters) {
-								if (!match_filters(*pChunk, queryInfo))
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 									continue;
 							}
 
@@ -41965,12 +41956,14 @@ namespace gaia {
 				void reset() {
 					m_storage.reset();
 					m_eachBfsData.reset();
+					reset_changed_filter_state();
 					invalidate_each_bfs_cache();
 				}
 
 				void destroy() {
 					(void)m_storage.try_del_from_cache();
 					m_eachBfsData.reset();
+					reset_changed_filter_state();
 					invalidate_each_bfs_cache();
 				}
 
@@ -42696,7 +42689,7 @@ namespace gaia {
 				//!	\return True if there are any entities matching the query. False otherwise.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
-					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								return empty_inter<false, Iter>(queryInfo);
@@ -42740,7 +42733,7 @@ namespace gaia {
 				//! \return The number of matching entities
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
-					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								return count_inter<false, Iter>(queryInfo);

@@ -598,8 +598,6 @@ namespace gaia {
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
 				uint8_t idsCnt = 0;
 				uint8_t changedCnt = 0;
-				//! Iteration will be restricted only to target Group
-				GroupId groupIdSet;
 				//! Array of filtered components
 				QueryEntityArray _changed;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.

@@ -15385,6 +15385,46 @@ TEST_CASE("Query Filter - changed order cache key canonicalization") {
 	CHECK(qAB.gen() == qBA.gen());
 }
 
+TEST_CASE("Query Filter - cached changed queries keep instance-local reporting state") {
+	TestWorld twld;
+	struct Marker {};
+	struct A {
+		int value;
+	};
+
+	const auto e = wld.add();
+	wld.add<Marker>(e);
+	wld.add<A>(e, {1});
+
+	ecs::Query q0 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+	ecs::Query q1 = wld.query().template all<Marker>().template all<A>().template changed<A>();
+
+	CHECK(q0.id() == q1.id());
+	CHECK(q0.gen() == q1.gen());
+
+	CHECK(q0.count() == 1);
+	expect_exact_entities(q0, {e});
+	CHECK(q1.count() == 1);
+	expect_exact_entities(q1, {e});
+
+	CHECK(q0.count() == 0);
+	expect_exact_entities(q0, {});
+	CHECK(q1.count() == 0);
+	expect_exact_entities(q1, {});
+
+	wld.set<A>(e) = {2};
+
+	CHECK(q0.count() == 1);
+	expect_exact_entities(q0, {e});
+	CHECK(q1.count() == 1);
+	expect_exact_entities(q1, {e});
+
+	CHECK(q0.count() == 0);
+	expect_exact_entities(q0, {});
+	CHECK(q1.count() == 0);
+	expect_exact_entities(q1, {});
+}
+
 TEST_CASE("Query Filter - systems") {
 	uint32_t expectedCnt = 0;
 	uint32_t actualCnt = 0;
