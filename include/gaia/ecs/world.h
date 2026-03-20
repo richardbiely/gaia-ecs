@@ -9668,32 +9668,72 @@ namespace gaia {
 				m_targetsAllCache = {};
 			}
 
-			//! Collects entities that will be deleted by `OnDeleteTarget, Delete` cascade for `entity`.
-			//! `entity` is expected to be a wildcard target query such as `(All, target)`.
-			void collect_delete_cascade_targets(Entity entity, Pair cond, cnt::darray<Entity>& out) {
-				GAIA_ASSERT(entity.pair());
-				GAIA_ASSERT(entity.id() == All.id());
+			template <typename Func>
+			void each_delete_cascade_direct_source(Entity target, Pair cond, Func&& func) {
+				GAIA_ASSERT(!target.pair());
 
-				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
-				if (it == m_entityToArchetypeMap.end())
-					return;
-
-				cnt::set<EntityLookupKey> seen;
-				for (const auto& record: it->second) {
-					auto* pArchetype = record.pArchetype;
-					if (pArchetype == nullptr || pArchetype->is_req_del())
-						continue;
-					if (!archetype_cond_match(*pArchetype, cond, entity))
+				for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
+					const auto relation = relKey.entity();
+					if (!has(relation, cond))
 						continue;
 
-					for (const auto* pChunk: pArchetype->chunks()) {
-						const auto entities = pChunk->entity_view();
-						GAIA_EACH(entities) {
-							const auto source = entities[i];
-							if (seen.insert(EntityLookupKey(source)).second)
-								out.push_back(source);
+					const auto* pSources = exclusive_adjunct_sources(store, target);
+					if (pSources == nullptr)
+						continue;
+
+					for (auto source: *pSources)
+						func(source);
+				}
+
+				const auto pairEntity = Pair(All, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pairEntity));
+				if (it != m_entityToArchetypeMap.end()) {
+					for (const auto& record: it->second) {
+						auto* pArchetype = record.pArchetype;
+						if (pArchetype == nullptr || pArchetype->is_req_del())
+							continue;
+						if (!archetype_cond_match(*pArchetype, cond, pairEntity))
+							continue;
+
+						for (const auto* pChunk: pArchetype->chunks()) {
+							const auto entities = pChunk->entity_view();
+							GAIA_EACH(entities)
+							func(entities[i]);
 						}
 					}
+				}
+			}
+
+			void collect_delete_cascade_direct_sources(Entity target, Pair cond, cnt::darray<Entity>& out) {
+				GAIA_ASSERT(!target.pair());
+				const auto visitStamp = next_entity_visit_stamp();
+				each_delete_cascade_direct_source(target, cond, [&](Entity source) {
+					if (!valid(source))
+						return;
+					if (!try_mark_entity_visited(source, visitStamp))
+						return;
+					out.push_back(source);
+				});
+			}
+
+			void collect_delete_cascade_sources(Entity target, Pair cond, cnt::darray<Entity>& out) {
+				GAIA_ASSERT(!target.pair());
+				const auto visitStamp = next_entity_visit_stamp();
+				cnt::darray_ext<Entity, 32> targetsToVisit;
+				(void)try_mark_entity_visited(target, visitStamp);
+				targetsToVisit.push_back(target);
+
+				for (uint32_t i = 0; i < targetsToVisit.size(); ++i) {
+					const auto currTarget = targetsToVisit[i];
+					each_delete_cascade_direct_source(currTarget, cond, [&](Entity source) {
+						if (!valid(source))
+							return;
+						if (!try_mark_entity_visited(source, visitStamp))
+							return;
+
+						out.push_back(source);
+						targetsToVisit.push_back(source);
+					});
 				}
 			}
 
@@ -9803,7 +9843,11 @@ namespace gaia {
 					return;
 
 				cnt::darray<Entity> cascadeTargets;
-				collect_delete_cascade_targets(entity, cond, cascadeTargets);
+				if (entity.pair() && entity.id() == All.id()) {
+					const auto target = get_if_valid(entity.gen());
+					if (target != EntityBad)
+						collect_delete_cascade_direct_sources(target, cond, cascadeTargets);
+				}
 
 				for (auto source: cascadeTargets)
 					req_del_entities_with(Pair(All, source), cond, visited);
@@ -10123,7 +10167,7 @@ namespace gaia {
 								has_exclusive_adjunct_target_cond(tgt, Pair(OnDeleteTarget, Delete))) {
 #if GAIA_OBSERVERS_ENABLED
 							cnt::darray<Entity> cascadeTargets;
-							collect_delete_cascade_targets(Pair(All, tgt), Pair(OnDeleteTarget, Delete), cascadeTargets);
+							collect_delete_cascade_sources(tgt, Pair(OnDeleteTarget, Delete), cascadeTargets);
 							auto cascadeDelDiffCtx =
 									cascadeTargets.empty()
 											? ObserverRegistry::DiffDispatchCtx{}
@@ -10189,16 +10233,15 @@ namespace gaia {
 
 					const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
 																		 has_exclusive_adjunct_target_cond(entity, Pair(OnDeleteTarget, Delete));
+					cnt::darray<Entity> cascadeTargets;
+					if (deleteTargets)
+						collect_delete_cascade_sources(entity, Pair(OnDeleteTarget, Delete), cascadeTargets);
 #if GAIA_OBSERVERS_ENABLED
 					auto cascadeDelDiffCtx = ObserverRegistry::DiffDispatchCtx{};
-					if (deleteTargets) {
-						cnt::darray<Entity> cascadeTargets;
-						collect_delete_cascade_targets(Pair(All, entity), Pair(OnDeleteTarget, Delete), cascadeTargets);
-						if (!cascadeTargets.empty()) {
-							cascadeDelDiffCtx = m_observers.prepare_diff(
-									*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
-									EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
-						}
+					if (!cascadeTargets.empty()) {
+						cascadeDelDiffCtx = m_observers.prepare_diff(
+								*this, ObserverEvent::OnDel, EntitySpan{cascadeTargets.data(), cascadeTargets.size()},
+								EntitySpan{cascadeTargets.data(), cascadeTargets.size()});
 					}
 #endif
 
