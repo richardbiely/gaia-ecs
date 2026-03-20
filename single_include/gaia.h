@@ -37541,7 +37541,7 @@ namespace gaia {
 				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad) {
+			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad, bool assumeNew = false) {
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary.
@@ -37551,7 +37551,7 @@ namespace gaia {
 				if (!can_update_with_new_archetype())
 					return false;
 
-				const bool hadMatchBefore = m_state.archetypeSet.contains(&archetype);
+				const bool hadMatchBefore = !assumeNew && m_state.archetypeSet.contains(&archetype);
 				if (can_use_direct_create_archetype_match()) {
 					const bool usesIs = direct_create_archetype_match_uses_is();
 					bool hasOrTerms = false;
@@ -37582,8 +37582,12 @@ namespace gaia {
 					if (hadMatchBefore)
 						return false;
 
-					add_archetype_to_seed_cache(&archetype);
-					add_archetype_to_cache(&archetype, true);
+					if (assumeNew)
+						add_new_archetype_to_immediate_caches(&archetype, true);
+					else {
+						add_archetype_to_seed_cache(&archetype, false);
+						add_archetype_to_cache(&archetype, true, false);
+					}
 					return true;
 				}
 
@@ -37641,7 +37645,8 @@ namespace gaia {
 				ctxData.lastMatchedArchetypeIdx_All = GAIA_MOV(lastMatchedArchetypeIdx_All);
 				ctxData.lastMatchedArchetypeIdx_Or = GAIA_MOV(lastMatchedArchetypeIdx_Or);
 				ctxData.lastMatchedArchetypeIdx_Not = GAIA_MOV(lastMatchedArchetypeIdx_Not);
-				const bool matched = !hadMatchBefore && m_state.archetypeSet.contains(&archetype);
+				const bool matched = assumeNew ? m_state.archetypeSet.contains(&archetype)
+																			 : !hadMatchBefore && m_state.archetypeSet.contains(&archetype);
 
 				if (!matched)
 					return false;
@@ -37831,11 +37836,13 @@ namespace gaia {
 				return cacheData;
 			}
 
-			void add_archetype_to_cache_no_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
+			void add_archetype_to_cache_no_grouping(
+					const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
 
-				if (m_state.archetypeSet.contains(pArchetype))
+				if (!assumeAbsent && m_state.archetypeSet.contains(pArchetype))
 					return;
+				GAIA_ASSERT(assumeAbsent || !m_state.archetypeSet.contains(pArchetype));
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
@@ -37844,20 +37851,42 @@ namespace gaia {
 					mark_result_cache_membership_changed();
 			}
 
-			void add_archetype_to_seed_cache(const Archetype* pArchetype) {
-				if (m_state.seedArchetypeSet.contains(pArchetype))
+			void add_archetype_to_seed_cache(const Archetype* pArchetype, bool assumeAbsent = false) {
+				if (!assumeAbsent && m_state.seedArchetypeSet.contains(pArchetype))
 					return;
+				GAIA_ASSERT(assumeAbsent || !m_state.seedArchetypeSet.contains(pArchetype));
 
 				m_state.seedArchetypeSet.emplace(pArchetype);
 				m_state.seedArchetypeCache.push_back(pArchetype);
 				m_state.seedArchetypeCacheData.push_back(create_cache_data(pArchetype));
 			}
 
-			void add_archetype_to_cache_w_grouping(const Archetype* pArchetype, bool trackMembershipChange) {
+			//! Adds a newly matched archetype to both immediate caches while reusing one computed index mapping.
+			void add_new_archetype_to_immediate_caches(const Archetype* pArchetype, bool trackMembershipChange) {
+				GAIA_ASSERT(m_plan.ctx.data.groupBy == EntityBad);
+				GAIA_ASSERT(m_plan.ctx.data.sortByFunc == nullptr);
+				GAIA_ASSERT(!m_state.seedArchetypeSet.contains(pArchetype));
+				GAIA_ASSERT(!m_state.archetypeSet.contains(pArchetype));
+
+				auto cacheData = create_cache_data(pArchetype);
+				m_state.seedArchetypeSet.emplace(pArchetype);
+				m_state.seedArchetypeCache.push_back(pArchetype);
+				m_state.seedArchetypeCacheData.push_back(cacheData);
+
+				m_state.archetypeSet.emplace(pArchetype);
+				m_state.archetypeCache.push_back(pArchetype);
+				m_state.archetypeCacheData.push_back(cacheData);
+				if (trackMembershipChange)
+					mark_result_cache_membership_changed();
+			}
+
+			void add_archetype_to_cache_w_grouping(
+					const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
 
-				if (m_state.archetypeSet.contains(pArchetype))
+				if (!assumeAbsent && m_state.archetypeSet.contains(pArchetype))
 					return;
+				GAIA_ASSERT(assumeAbsent || !m_state.archetypeSet.contains(pArchetype));
 
 				m_state.selectedGroupDataValid = false;
 
@@ -37934,14 +37963,14 @@ namespace gaia {
 					mark_result_cache_membership_changed();
 			}
 
-			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange) {
+			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				if (m_plan.ctx.data.groupBy != EntityBad)
-					add_archetype_to_cache_w_grouping(pArchetype, trackMembershipChange);
+					add_archetype_to_cache_w_grouping(pArchetype, trackMembershipChange, assumeAbsent);
 				else
-					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange);
+					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange, assumeAbsent);
 			}
 
 			//! Returns cached group bounds for the currently selected group filter.
@@ -38623,7 +38652,7 @@ namespace gaia {
 					if (pInfo == nullptr || pInfo->refs() == 0)
 						continue;
 
-					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector))
+					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector, true))
 						continue;
 
 					register_query_archetype(candidate.handle, pArchetype, pInfo->reverse_index_revision());

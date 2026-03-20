@@ -419,7 +419,7 @@ namespace gaia {
 					if (pInfo == nullptr || pInfo->refs() == 0)
 						continue;
 
-					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector))
+					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector, true))
 						continue;
 
 					register_query_archetype(candidate.handle, pArchetype, pInfo->reverse_index_revision());
