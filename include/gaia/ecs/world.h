@@ -515,7 +515,7 @@ namespace gaia {
 							}
 						}
 						if (hasEntityLifecycleTerm)
-							SharedDispatch::collect_all_diff_for_event(registry, world, event, matchStamp);
+							SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
 						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
 						if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
 							cnt::darray<Entity> narrowedTargets;
@@ -889,30 +889,6 @@ namespace gaia {
 						}
 					}
 
-					static void collect_all_diff_for_event(
-							ObserverRegistry& registry, World& world, ObserverEvent event, uint64_t matchStamp) {
-						for (auto& [observerKey, data]: registry.m_observer_data) {
-							auto& obsData = data;
-							if (!obsData.plan.uses_diff_dispatch())
-								continue;
-							if (obsData.lastMatchStamp == matchStamp)
-								continue;
-
-							const auto observer = observerKey.entity();
-							const auto& ec = world.fetch(observer);
-							if (!world.enabled(ec))
-								continue;
-
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-							if (obs.event != event)
-								continue;
-
-							obsData.lastMatchStamp = matchStamp;
-							registry.m_relevant_observers_tmp.push_back(&obsData);
-						}
-					}
-
 					template <typename TObserverMap>
 					GAIA_NODISCARD static bool has_terms(const TObserverMap& map, EntitySpan terms) {
 						for (auto term: terms) {
@@ -1194,11 +1170,17 @@ namespace gaia {
 				}
 
 				static void collect_traversal_descendants(
-						World& world, Entity relation, Entity root, QueryTravKind travKind, uint8_t travDepth,
-						cnt::set<EntityLookupKey>& visitedNodes, cnt::darray<Entity>& outTargets) {
+						World& world, Entity relation, Entity root, QueryTravKind travKind, uint8_t travDepth, uint64_t visitStamp,
+						cnt::darray<Entity>& outTargets) {
+					cnt::set<EntityLookupKey> visitedPairs;
+					auto try_mark_visited = [&](Entity entity) {
+						if (entity.pair())
+							return visitedPairs.insert(EntityLookupKey(entity)).second;
+						return world.try_mark_entity_visited(entity, visitStamp);
+					};
+
 					if (query_trav_has(travKind, QueryTravKind::Self)) {
-						const auto ins = visitedNodes.insert(EntityLookupKey(root));
-						if (ins.second)
+						if (try_mark_visited(root))
 							outTargets.push_back(root);
 					}
 
@@ -1207,8 +1189,7 @@ namespace gaia {
 
 					if (travDepth == QueryTermOptions::TravDepthUnlimited && !query_trav_has(travKind, QueryTravKind::Down)) {
 						world.sources_bfs(relation, root, [&](Entity source) {
-							const auto ins = visitedNodes.insert(EntityLookupKey(source));
-							if (ins.second)
+							if (try_mark_visited(source))
 								outTargets.push_back(source);
 						});
 						return;
@@ -1216,8 +1197,7 @@ namespace gaia {
 
 					if (travDepth == 1) {
 						world.sources(relation, root, [&](Entity source) {
-							const auto ins = visitedNodes.insert(EntityLookupKey(source));
-							if (ins.second)
+							if (try_mark_visited(source))
 								outTargets.push_back(source);
 						});
 						return;
@@ -1235,8 +1215,7 @@ namespace gaia {
 							continue;
 
 						world.sources(relation, curr, [&](Entity source) {
-							const auto ins = visitedNodes.insert(EntityLookupKey(source));
-							if (!ins.second)
+							if (!try_mark_visited(source))
 								return;
 
 							outTargets.push_back(source);
@@ -1263,11 +1242,11 @@ namespace gaia {
 						entry.traversalRelationVersion = traversalRelationVersion;
 						entry.targets.clear();
 
-						cnt::set<EntityLookupKey> visitedNodes;
+						const auto visitStamp = world.next_entity_visit_stamp();
 						cnt::darray<Entity> bindingTargets;
 						collect_traversal_descendants(
 								world, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind, obs.plan.diff.travDepth,
-								visitedNodes, bindingTargets);
+								visitStamp, bindingTargets);
 						for (auto bindingTarget: bindingTargets) {
 							world.sources(obs.plan.diff.bindingRelation, bindingTarget, [&](Entity source) {
 								entry.targets.push_back(source);
@@ -1282,12 +1261,13 @@ namespace gaia {
 
 				static void collect_propagated_targets_cached(
 						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource,
-						cnt::set<EntityLookupKey>& visitedSources, cnt::darray<Entity>& outTargets) {
+						uint64_t visitStamp, cnt::set<EntityLookupKey>& visitedPairs, cnt::darray<Entity>& outTargets) {
 					auto& entry = ensure_propagated_targets_cached(registry, world, obs, changedSource);
 
 					for (auto source: entry.targets) {
-						const auto ins = visitedSources.insert(EntityLookupKey(source));
-						if (ins.second)
+						const bool isNew = source.pair() ? visitedPairs.insert(EntityLookupKey(source)).second
+																						 : world.try_mark_entity_visited(source, visitStamp);
+						if (isNew)
 							outTargets.push_back(source);
 					}
 				}
@@ -1346,9 +1326,11 @@ namespace gaia {
 						return true;
 					}
 
-					cnt::set<EntityLookupKey> visitedSources;
+					const auto visitStamp = world.next_entity_visit_stamp();
+					cnt::set<EntityLookupKey> visitedPairs;
 					for (auto changedSource: changedSources)
-						collect_propagated_targets_cached(registry, world, obs, changedSource, visitedSources, outTargets);
+						collect_propagated_targets_cached(
+								registry, world, obs, changedSource, visitStamp, visitedPairs, outTargets);
 
 					return true;
 				}
