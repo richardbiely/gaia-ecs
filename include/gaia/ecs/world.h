@@ -4352,7 +4352,10 @@ namespace gaia {
 					return;
 
 #if GAIA_OBSERVERS_ENABLED
-				auto addDiffCtx = m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{addedIds});
+				const bool useLocalAddDiff = !addedIds.empty() && pAddDiffCtx == nullptr;
+				ObserverRegistry::DiffDispatchCtx addDiffCtx{};
+				if (useLocalAddDiff)
+					addDiffCtx = m_observers.prepare_diff_add_new(*this, EntitySpan{addedIds});
 #endif
 
 				auto& ec = m_recs.entities[entity.id()];
@@ -4422,6 +4425,9 @@ namespace gaia {
 						if (pAddDiffCtx != nullptr)
 							m_observers.append_diff_targets(
 									*this, *pAddDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
+						else if (useLocalAddDiff)
+							m_observers.append_diff_targets(
+									*this, addDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
 						m_observers.on_add(
 								*this, *pDstArchetype, addedIds, EntitySpan{entities.data() + originalChunkSize, toCreate});
 					}
@@ -4435,7 +4441,8 @@ namespace gaia {
 					left -= toCreate;
 				} while (left > 0);
 #if GAIA_OBSERVERS_ENABLED
-				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+				if (useLocalAddDiff)
+					m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
 #endif
 			}
 
@@ -10410,6 +10417,12 @@ namespace gaia {
 			template <typename Func>
 			void add_entity_n(Archetype& archetype, uint32_t count, Func func) {
 				EntityContainerCtx ctx{true, false, EntityKind::EK_Gen};
+#if GAIA_OBSERVERS_ENABLED
+				const auto addedIds = EntitySpan{archetype.ids_view()};
+				ObserverRegistry::DiffDispatchCtx addDiffCtx{};
+				if (!addedIds.empty())
+					addDiffCtx = m_observers.prepare_diff_add_new(*this, addedIds);
+#endif
 
 				uint32_t left = count;
 				do {
@@ -10444,8 +10457,22 @@ namespace gaia {
 
 					pChunk->update_versions();
 
+#if GAIA_OBSERVERS_ENABLED
+					if (!addedIds.empty()) {
+						auto entities = pChunk->entity_view();
+						const auto targets = EntitySpan{entities.data() + originalChunkSize, toCreate};
+						m_observers.append_diff_targets(*this, addDiffCtx, targets);
+						m_observers.on_add(*this, archetype, addedIds, targets);
+					}
+#endif
+
 					left -= toCreate;
 				} while (left > 0);
+
+#if GAIA_OBSERVERS_ENABLED
+				if (!addedIds.empty())
+					m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
 			}
 
 			//! Garbage collection
