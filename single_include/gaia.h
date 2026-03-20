@@ -43192,24 +43192,26 @@ namespace gaia {
 
 		//! Runtime payload for observers kept out-of-line from ECS component storage.
 		struct ObserverPlan {
-			enum class ExecKind : uint8_t { DirectQuery, DirectFast, Diff };
-			using TObserverIterFunc = std::function<void(Iter&)>;
+			enum class ExecKind : uint8_t { DirectQuery, DirectFast, DiffLocal, DiffPropagated, DiffFallback };
 			enum class FastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
-			struct DiffPlan {
-				enum class TargetNarrowKind : uint8_t { None, BoundUpTraversal, Unsupported };
+			using TObserverIterFunc = std::function<void(Iter&)>;
 
-				//! Dynamic terms require full query diffing across structural changes.
-				bool enabled = false;
-				//! Optional precomputed target narrowing strategy for diff observers.
-				TargetNarrowKind targetNarrowKind = TargetNarrowKind::None;
+			struct DiffPlan {
+				enum class DispatchKind : uint8_t { LocalTargets, PropagatedTraversal, GlobalFallback };
+
 				//! Bound variable used by the supported traversal/source diff narrowing shape.
 				Entity bindingVar = EntityBad;
 				//! Fixed pair relation that binds the traversal source variable.
 				Entity bindingRelation = EntityBad;
 				//! Traversal relation used by the source term.
 				Entity traversalRelation = EntityBad;
+
+				//! Chosen diff-dispatch strategy for dynamic observers.
+				DispatchKind dispatchKind = DispatchKind::LocalTargets;
 				//! Traversal direction mask used by the source term.
 				QueryTravKind travKind = QueryTravKind::None;
+				//! Dynamic terms require full query diffing across structural changes.
+				bool enabled = false;
 				//! Traversal depth cap used by the source term.
 				uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
 				//! Traversed term ids that can trigger the bound-up-traversal narrowing path.
@@ -43226,19 +43228,62 @@ namespace gaia {
 			FastPath fastPath = FastPath::None;
 			//! Number of terms added to the observer query.
 			uint8_t termCount = 0;
-			//! Dynamic/propgated execution metadata.
+			//! Chosen observer execution class.
+			ExecKind execKind = ExecKind::DirectQuery;
+			//! Dynamic/propagated execution metadata.
 			DiffPlan diff;
 
+			void refresh_exec_kind() {
+				if (diff.enabled) {
+					switch (diff.dispatchKind) {
+						case DiffPlan::DispatchKind::LocalTargets:
+							execKind = ExecKind::DiffLocal;
+							break;
+						case DiffPlan::DispatchKind::PropagatedTraversal:
+							execKind = ExecKind::DiffPropagated;
+							break;
+						case DiffPlan::DispatchKind::GlobalFallback:
+							execKind = ExecKind::DiffFallback;
+							break;
+					}
+				} else if (fastPath == FastPath::SinglePositiveTerm || fastPath == FastPath::SingleNegativeTerm)
+					execKind = ExecKind::DirectFast;
+				else
+					execKind = ExecKind::DirectQuery;
+			}
+
 			GAIA_NODISCARD ExecKind exec_kind() const {
-				if (diff.enabled)
-					return ExecKind::Diff;
-				if (fastPath == FastPath::SinglePositiveTerm || fastPath == FastPath::SingleNegativeTerm)
-					return ExecKind::DirectFast;
-				return ExecKind::DirectQuery;
+				return execKind;
 			}
 
 			GAIA_NODISCARD bool uses_diff_dispatch() const {
-				return exec_kind() == ExecKind::Diff;
+				switch (exec_kind()) {
+					case ExecKind::DiffLocal:
+					case ExecKind::DiffPropagated:
+					case ExecKind::DiffFallback:
+						return true;
+					case ExecKind::DirectQuery:
+					case ExecKind::DirectFast:
+						return false;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD bool uses_direct_dispatch() const {
+				return !uses_diff_dispatch();
+			}
+
+			GAIA_NODISCARD bool uses_local_diff_targets() const {
+				return exec_kind() == ExecKind::DiffLocal;
+			}
+
+			GAIA_NODISCARD bool uses_propagated_diff_targets() const {
+				return exec_kind() == ExecKind::DiffPropagated;
+			}
+
+			GAIA_NODISCARD bool uses_fallback_diff_dispatch() const {
+				return exec_kind() == ExecKind::DiffFallback;
 			}
 
 			GAIA_NODISCARD bool is_fast_positive() const {
@@ -43278,6 +43323,8 @@ namespace gaia {
 						fastPath = FastPath::Disabled;
 						break;
 				}
+
+				refresh_exec_kind();
 			}
 		};
 
@@ -43508,28 +43555,646 @@ namespace gaia {
 
 #if GAIA_OBSERVERS_ENABLED
 			class ObserverRegistry {
-				struct DiffObserverSnapshot {
-					ObserverRuntimeData* pObs = nullptr;
-					uint32_t matchesBeforeIdx = UINT32_MAX;
+				struct DiffObserverIndex {
+					//! Exact direct term to diff observer mapping.
+					cnt::map<EntityLookupKey, cnt::darray<Entity>> direct;
+					//! Source-evaluated term to diff observer mapping.
+					cnt::map<EntityLookupKey, cnt::darray<Entity>> sourceTerm;
+					//! Traversal relation to diff observer mapping.
+					cnt::map<EntityLookupKey, cnt::darray<Entity>> traversalRelation;
+					//! Pair relation to diff observer mapping for wildcard/variable target terms.
+					cnt::map<EntityLookupKey, cnt::darray<Entity>> pairRelation;
+					//! Pair target to diff observer mapping for wildcard/variable relation terms.
+					cnt::map<EntityLookupKey, cnt::darray<Entity>> pairTarget;
+					//! Full diff observer set for call sites without precise changed-term spans.
+					cnt::darray<Entity> all;
+					//! Broad fallback list for diff observers that cannot be narrowed by changed terms.
+					cnt::darray<Entity> global;
 				};
 
-				struct DiffMatchCacheEntry {
-					ObserverRuntimeData* pObsRepresentative = nullptr;
-					uint64_t queryHash = 0;
-					cnt::darray<Entity> matches;
+				struct DiffDispatcher {
+					struct Snapshot {
+						ObserverRuntimeData* pObs = nullptr;
+						uint32_t matchesBeforeIdx = UINT32_MAX;
+					};
+
+					struct MatchCacheEntry {
+						ObserverRuntimeData* pObsRepresentative = nullptr;
+						uint64_t queryHash = 0;
+						cnt::darray<Entity> matches;
+					};
+
+					struct TargetNarrowCacheEntry {
+						ObserverPlan::DiffPlan::DispatchKind kind = ObserverPlan::DiffPlan::DispatchKind::LocalTargets;
+						Entity bindingRelation = EntityBad;
+						Entity traversalRelation = EntityBad;
+						QueryTravKind travKind = QueryTravKind::None;
+						uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
+						QueryEntityArray triggerTerms{};
+						uint8_t triggerTermCount = 0;
+						cnt::darray<Entity> targets;
+					};
+
+					struct Context {
+						ObserverEvent event = ObserverEvent::OnAdd;
+						cnt::darray<Snapshot> observers;
+						cnt::darray<MatchCacheEntry> matchesBeforeCache;
+						cnt::darray<Entity> targets;
+						bool active = false;
+						bool targeted = false;
+						bool targetsAddedAfterPrepare = false;
+						bool resetTraversalCaches = false;
+					};
+
+					static Context prepare(
+							ObserverRegistry& registry, World& world, ObserverEvent event, EntitySpan terms,
+							EntitySpan targetEntities = {}) {
+						Context ctx{};
+						ctx.event = event;
+						const auto& index = registry.diff_index(event);
+
+						if (terms.empty() && index.all.empty() && index.global.empty())
+							return ctx;
+
+						if (!targetEntities.empty() && !terms.empty() && !SharedDispatch::has_terms(index.sourceTerm, terms) &&
+								!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
+							ctx.targeted = true;
+							ctx.targets.reserve(targetEntities.size());
+							append_valid_diff_targets(world, ctx.targets, targetEntities);
+							normalize_diff_targets(ctx.targets);
+						}
+
+						registry.m_relevant_observers_tmp.clear();
+						const auto matchStamp = ++registry.m_current_match_stamp;
+						if (terms.empty()) {
+							SharedDispatch::collect_diff_from_list(registry, world, index.all, matchStamp);
+						} else {
+							for (auto term: terms) {
+								SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp);
+
+								if (!term.pair())
+									continue;
+
+								const auto relation = entity_from_id(world, term.id());
+								if (world.valid(relation)) {
+									SharedDispatch::collect_from_map<true>(
+											registry, world, index.traversalRelation, relation, matchStamp);
+									SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+								}
+
+								const auto target = world.get(term.gen());
+								if (world.valid(target))
+									SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+							}
+						}
+						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+
+						if (!ctx.targeted && !targetEntities.empty() && !registry.m_relevant_observers_tmp.empty()) {
+							cnt::darray<Entity> narrowedTargets;
+							cnt::darray<TargetNarrowCacheEntry> narrowCache;
+							bool canNarrow = true;
+
+							for (auto* pObs: registry.m_relevant_observers_tmp) {
+								if (pObs == nullptr)
+									continue;
+
+								const TargetNarrowCacheEntry* pEntry = nullptr;
+								for (const auto& entry: narrowCache) {
+									if (same_diff_target_narrow_plan(*pObs, entry)) {
+										pEntry = &entry;
+										break;
+									}
+								}
+
+								if (pEntry == nullptr) {
+									narrowCache.push_back({});
+									auto& entry = narrowCache.back();
+									copy_diff_target_narrow_plan(*pObs, entry);
+
+									if (!collect_diff_targets_for_observer(world, *pObs, terms, targetEntities, entry.targets)) {
+										canNarrow = false;
+										break;
+									}
+
+									pEntry = &entry;
+								}
+
+								for (auto entity: pEntry->targets)
+									narrowedTargets.push_back(entity);
+							}
+
+							if (canNarrow) {
+								normalize_diff_targets(narrowedTargets);
+								ctx.targeted = true;
+								ctx.targets = GAIA_MOV(narrowedTargets);
+							}
+						}
+
+						if (registry.m_relevant_observers_tmp.empty())
+							return ctx;
+
+						ctx.active = true;
+						for (auto* pObs: registry.m_relevant_observers_tmp) {
+							ctx.observers.push_back({});
+							auto& snapshot = ctx.observers.back();
+							snapshot.pObs = pObs;
+							if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+								ctx.resetTraversalCaches = true;
+
+							auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
+							if (cacheIdx == -1) {
+								ctx.matchesBeforeCache.push_back({});
+								auto& entry = ctx.matchesBeforeCache.back();
+								entry.pObsRepresentative = pObs;
+								entry.queryHash = observer_query_hash(*pObs);
+								if (ctx.targeted)
+									collect_query_target_matches(
+											world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
+								else
+									collect_query_matches(world, *pObs, entry.matches);
+								cacheIdx = (int32_t)ctx.matchesBeforeCache.size() - 1;
+							}
+
+							snapshot.matchesBeforeIdx = (uint32_t)cacheIdx;
+						}
+
+						return ctx;
+					}
+
+					static Context prepare_add_new(ObserverRegistry& registry, World& world, EntitySpan terms) {
+						Context ctx{};
+						ctx.event = ObserverEvent::OnAdd;
+						const auto& index = registry.diff_index(ObserverEvent::OnAdd);
+
+						if (terms.empty() && index.all.empty() && index.global.empty())
+							return ctx;
+
+						if (terms.empty() || SharedDispatch::has_terms(index.sourceTerm, terms) ||
+								SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
+							return prepare(registry, world, ObserverEvent::OnAdd, terms);
+						}
+
+						registry.m_relevant_observers_tmp.clear();
+						const auto matchStamp = ++registry.m_current_match_stamp;
+						for (auto term: terms) {
+							SharedDispatch::collect_from_map<true>(registry, world, index.direct, term, matchStamp);
+
+							if (!term.pair())
+								continue;
+
+							const auto relation = entity_from_id(world, term.id());
+							if (world.valid(relation))
+								SharedDispatch::collect_from_map<true>(registry, world, index.pairRelation, relation, matchStamp);
+
+							const auto target = world.get(term.gen());
+							if (world.valid(target))
+								SharedDispatch::collect_from_map<true>(registry, world, index.pairTarget, target, matchStamp);
+						}
+						SharedDispatch::collect_diff_from_list(registry, world, index.global, matchStamp);
+
+						if (registry.m_relevant_observers_tmp.empty())
+							return ctx;
+
+						ctx.active = true;
+						ctx.targeted = true;
+						ctx.targetsAddedAfterPrepare = true;
+						for (auto* pObs: registry.m_relevant_observers_tmp) {
+							if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
+								ctx.resetTraversalCaches = true;
+							ctx.observers.push_back({});
+							ctx.observers.back().pObs = pObs;
+						}
+
+						return ctx;
+					}
+
+					static void append_targets(World& world, Context& ctx, EntitySpan targets) {
+						if (!ctx.active || !ctx.targeted || targets.empty())
+							return;
+
+						append_valid_diff_targets(world, ctx.targets, targets);
+					}
+
+					static void finish(ObserverRegistry& registry, World& world, Context&& ctx) {
+						if (!ctx.active)
+							return;
+
+						if (ctx.resetTraversalCaches) {
+							world.m_targetsTravCache = {};
+							world.m_srcBfsTravCache = {};
+							world.m_sourcesAllCache = {};
+							world.m_targetsAllCache = {};
+							world.m_entityToAsTargetsTravCache = {};
+							world.m_entityToAsRelationsTravCache = {};
+						}
+
+						if (ctx.targeted)
+							normalize_diff_targets(ctx.targets);
+
+						cnt::darray<MatchCacheEntry> matchesAfterCache;
+						cnt::darray<Entity> delta;
+
+						for (auto& snapshot: ctx.observers) {
+							auto* pObs = snapshot.pObs;
+							if (pObs == nullptr || !world.valid(pObs->entity))
+								continue;
+
+							auto afterCacheIdx = find_diff_match_cache_entry(matchesAfterCache, *pObs);
+							if (afterCacheIdx == -1) {
+								matchesAfterCache.push_back({});
+								auto& entry = matchesAfterCache.back();
+								entry.pObsRepresentative = pObs;
+								entry.queryHash = observer_query_hash(*pObs);
+								if (ctx.targeted)
+									collect_query_target_matches(
+											world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
+								else
+									collect_query_matches(world, *pObs, entry.matches);
+								afterCacheIdx = (int32_t)matchesAfterCache.size() - 1;
+							}
+
+							const auto& matchesAfter = matchesAfterCache[(uint32_t)afterCacheIdx].matches;
+
+							if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
+								SharedDispatch::execute_targets(world, *pObs, EntitySpan{matchesAfter});
+								continue;
+							}
+
+							GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
+							const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
+
+							delta.clear();
+							uint32_t beforeIdx = 0;
+							uint32_t afterMatchIdx = 0;
+							while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
+								if (beforeIdx == before.size()) {
+									if (ctx.event == ObserverEvent::OnAdd)
+										delta.push_back(matchesAfter[afterMatchIdx]);
+									++afterMatchIdx;
+									continue;
+								}
+
+								if (afterMatchIdx == matchesAfter.size()) {
+									if (ctx.event == ObserverEvent::OnDel)
+										delta.push_back(before[beforeIdx]);
+									++beforeIdx;
+									continue;
+								}
+
+								const auto beforeEntity = before[beforeIdx];
+								const auto afterEntity = matchesAfter[afterMatchIdx];
+								if (beforeEntity == afterEntity) {
+									++beforeIdx;
+									++afterMatchIdx;
+									continue;
+								}
+
+								if (beforeEntity < afterEntity) {
+									if (ctx.event == ObserverEvent::OnDel)
+										delta.push_back(beforeEntity);
+									++beforeIdx;
+								} else {
+									if (ctx.event == ObserverEvent::OnAdd)
+										delta.push_back(afterEntity);
+									++afterMatchIdx;
+								}
+							}
+
+							SharedDispatch::execute_targets(world, *pObs, EntitySpan{delta.data(), delta.size()});
+						}
+					}
+				};
+
+				struct DirectDispatcher {
+					static void on_add(
+							ObserverRegistry& registry, World& world, const Archetype& archetype, EntitySpan entsAdded,
+							EntitySpan targets) {
+						if (!archetype.has_observed_terms() && !SharedDispatch::has_terms(registry.m_observer_map_add, entsAdded) &&
+								!SharedDispatch::has_semantic_is_terms(world, registry.m_observer_map_add_is, entsAdded) &&
+								!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_add, entsAdded))
+							return;
+
+						const bool archetypeIsPrefab = archetype.has(Prefab);
+						const auto matchStamp = ++registry.m_current_match_stamp;
+						for (auto comp: entsAdded) {
+							SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_add, comp, matchStamp);
+							if (!is_semantic_is_term(comp))
+								continue;
+
+							const auto target = world.get(comp.gen());
+							if (!world.valid(target))
+								continue;
+
+							SharedDispatch::collect_for_is_target(
+									registry, world, registry.m_observer_map_add_is, target, matchStamp);
+							for (auto inheritedTarget: world.as_targets_trav_cache(target))
+								SharedDispatch::collect_for_is_target(
+										registry, world, registry.m_observer_map_add_is, inheritedTarget, matchStamp);
+							SharedDispatch::collect_for_inherited_terms(
+									registry, world, registry.m_observer_map_add, target, matchStamp);
+						}
+
+						for (auto* pObs: registry.m_relevant_observers_tmp) {
+							auto& obs = *pObs;
+							if (!obs.plan.uses_direct_dispatch())
+								continue;
+							QueryInfo* pQueryInfo = nullptr;
+							if (archetypeIsPrefab) {
+								pQueryInfo = &obs.query.fetch();
+								if (!pQueryInfo->matches_prefab_entities())
+									continue;
+							}
+
+							if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo)) {
+								Iter it;
+								it.set_world(&world);
+								it.set_archetype(&archetype);
+								it.set_group_id(0);
+								it.set_remapping_indices(0);
+								obs.exec(it, targets);
+							}
+						}
+
+						registry.m_relevant_observers_tmp.clear();
+					}
+
+					static void on_del(
+							ObserverRegistry& registry, World& world, const Archetype& archetype, EntitySpan entsRemoved,
+							EntitySpan targets) {
+						const bool archetypeIsPrefab = archetype.has(Prefab);
+						if (!archetype.has_observed_terms() &&
+								!SharedDispatch::has_terms(registry.m_observer_map_del, entsRemoved) &&
+								!SharedDispatch::has_semantic_is_terms(world, registry.m_observer_map_del_is, entsRemoved) &&
+								!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_del, entsRemoved))
+							return;
+
+						const auto matchStamp = ++registry.m_current_match_stamp;
+						for (auto comp: entsRemoved) {
+							SharedDispatch::collect_for_event_term(registry, world, registry.m_observer_map_del, comp, matchStamp);
+							if (!is_semantic_is_term(comp))
+								continue;
+
+							const auto target = world.get(comp.gen());
+							if (!world.valid(target))
+								continue;
+
+							SharedDispatch::collect_for_is_target(
+									registry, world, registry.m_observer_map_del_is, target, matchStamp);
+							for (auto inheritedTarget: world.as_targets_trav_cache(target))
+								SharedDispatch::collect_for_is_target(
+										registry, world, registry.m_observer_map_del_is, inheritedTarget, matchStamp);
+							SharedDispatch::collect_for_inherited_terms(
+									registry, world, registry.m_observer_map_del, target, matchStamp);
+						}
+
+						for (auto* pObs: registry.m_relevant_observers_tmp) {
+							auto& obs = *pObs;
+							if (!obs.plan.uses_direct_dispatch())
+								continue;
+							QueryInfo* pQueryInfo = nullptr;
+							if (archetypeIsPrefab) {
+								pQueryInfo = &obs.query.fetch();
+								if (!pQueryInfo->matches_prefab_entities())
+									continue;
+							}
+
+							bool matches = SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo);
+							if (obs.plan.exec_kind() == ObserverPlan::ExecKind::DirectFast && obs.plan.is_fast_negative())
+								matches = true;
+
+							if (matches) {
+								Iter it;
+								it.set_world(&world);
+								it.set_archetype(&archetype);
+								it.set_group_id(0);
+								it.set_remapping_indices(0);
+								obs.exec(it, targets);
+							}
+						}
+
+						registry.m_relevant_observers_tmp.clear();
+					}
+				};
+
+				struct SharedDispatch {
+					template <bool DiffOnly, typename TObserverMap>
+					static void collect_from_map(
+							ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+						const auto it = map.find(EntityLookupKey(term));
+						if (it == map.end())
+							return;
+
+						for (auto observer: it->second) {
+							if (!world.valid(observer))
+								continue;
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+
+							auto* pObs = registry.data_try(observer);
+							if (pObs == nullptr)
+								continue;
+							if constexpr (DiffOnly) {
+								if (!pObs->plan.uses_diff_dispatch())
+									continue;
+							}
+
+							obsHdr.lastMatchStamp = matchStamp;
+							registry.m_relevant_observers_tmp.push_back(pObs);
+						}
+					}
+
+					static void collect_diff_from_list(
+							ObserverRegistry& registry, World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp) {
+						for (auto observer: observers) {
+							if (!world.valid(observer))
+								continue;
+							const auto& ec = world.fetch(observer);
+							if (!world.enabled(ec))
+								continue;
+
+							const auto compIdx = ec.pChunk->comp_idx(Observer);
+							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+							if (obsHdr.lastMatchStamp == matchStamp)
+								continue;
+
+							auto* pObs = registry.data_try(observer);
+							if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
+								continue;
+
+							obsHdr.lastMatchStamp = matchStamp;
+							registry.m_relevant_observers_tmp.push_back(pObs);
+						}
+					}
+
+					template <typename TObserverMap>
+					GAIA_NODISCARD static bool has_terms(const TObserverMap& map, EntitySpan terms) {
+						for (auto term: terms) {
+							const auto it = map.find(EntityLookupKey(term));
+							if (it != map.end() && !it->second.empty())
+								return true;
+						}
+
+						return false;
+					}
+
+					template <typename TObserverMap>
+					GAIA_NODISCARD static bool has_pair_relations(World& world, const TObserverMap& map, EntitySpan terms) {
+						for (auto term: terms) {
+							if (!term.pair())
+								continue;
+
+							const auto relation = entity_from_id(world, term.id());
+							if (!world.valid(relation))
+								continue;
+
+							const auto it = map.find(EntityLookupKey(relation));
+							if (it != map.end() && !it->second.empty())
+								return true;
+						}
+
+						return false;
+					}
+
+					template <typename TObserverMap>
+					static void collect_for_event_term(
+							ObserverRegistry& registry, World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
+						if (!is_semantic_is_term(term)) {
+							if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) == 0)
+								return;
+						}
+
+						collect_from_map<false>(registry, world, map, term, matchStamp);
+					}
+
+					template <typename TObserverMap>
+					static void collect_for_is_target(
+							ObserverRegistry& registry, World& world, const TObserverMap& map, Entity target, uint64_t matchStamp) {
+						collect_from_map<false>(registry, world, map, target, matchStamp);
+					}
+
+					template <typename Func>
+					static void for_each_inherited_term(World& world, Entity baseEntity, Func&& func) {
+						auto collectTerms = [&](Entity entity) {
+							if (!world.valid(entity))
+								return;
+
+							const auto& ec = world.fetch(entity);
+							if (ec.pArchetype == nullptr)
+								return;
+
+							for (const auto id: ec.pArchetype->ids_view()) {
+								if (id.pair() || is_wildcard(id) || !world.valid(id))
+									continue;
+								if (world.target(id, OnInstantiate) != Inherit)
+									continue;
+
+								func(id);
+							}
+						};
+
+						collectTerms(baseEntity);
+						for (const auto inheritedBase: world.as_targets_trav_cache(baseEntity))
+							collectTerms(inheritedBase);
+					}
+
+					template <typename TObserverMap>
+					GAIA_NODISCARD static bool has_semantic_is_terms(World& world, const TObserverMap& map, EntitySpan terms) {
+						for (auto term: terms) {
+							if (!is_semantic_is_term(term))
+								continue;
+
+							const auto target = world.get(term.gen());
+							if (!world.valid(target))
+								continue;
+
+							if (map.find(EntityLookupKey(target)) != map.end())
+								return true;
+
+							for (auto inheritedTarget: world.as_targets_trav_cache(target)) {
+								if (map.find(EntityLookupKey(inheritedTarget)) != map.end())
+									return true;
+							}
+						}
+
+						return false;
+					}
+
+					template <typename TObserverMap>
+					GAIA_NODISCARD static bool has_inherited_terms(World& world, const TObserverMap& map, EntitySpan terms) {
+						for (auto term: terms) {
+							if (!is_semantic_is_term(term))
+								continue;
+
+							const auto target = world.get(term.gen());
+							if (!world.valid(target))
+								continue;
+
+							bool found = false;
+							for_each_inherited_term(world, target, [&](Entity inheritedId) {
+								if (found)
+									return;
+								const auto it = map.find(EntityLookupKey(inheritedId));
+								found = it != map.end() && !it->second.empty();
+							});
+
+							if (found)
+								return true;
+						}
+
+						return false;
+					}
+
+					template <typename TObserverMap>
+					static void collect_for_inherited_terms(
+							ObserverRegistry& registry, World& world, const TObserverMap& map, Entity baseEntity,
+							uint64_t matchStamp) {
+						for_each_inherited_term(world, baseEntity, [&](Entity inheritedId) {
+							collect_for_event_term(registry, world, map, inheritedId, matchStamp);
+						});
+					}
+
+					static void execute_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
+						if (targets.empty())
+							return;
+
+						Iter it;
+						it.set_world(&world);
+						it.set_group_id(0);
+						it.set_remapping_indices(0);
+						obs.exec(it, targets);
+					}
+
+					static bool matches_direct_targets(
+							ObserverRuntimeData& obs, const Archetype& archetype, EntitySpan targets,
+							QueryInfo* pQueryInfo = nullptr) {
+						switch (obs.plan.exec_kind()) {
+							case ObserverPlan::ExecKind::DirectFast:
+								if (obs.plan.is_fast_positive())
+									return true;
+								if (obs.plan.is_fast_negative())
+									return false;
+								break;
+							case ObserverPlan::ExecKind::DirectQuery:
+								break;
+							case ObserverPlan::ExecKind::DiffLocal:
+							case ObserverPlan::ExecKind::DiffPropagated:
+							case ObserverPlan::ExecKind::DiffFallback:
+								return false;
+						}
+
+						auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
+						return obs.query.matches_any(queryInfo, archetype, targets);
+					}
 				};
 
 			public:
-				struct DiffDispatchCtx {
-					ObserverEvent event = ObserverEvent::OnAdd;
-					cnt::darray<DiffObserverSnapshot> observers;
-					cnt::darray<DiffMatchCacheEntry> matchesBeforeCache;
-					cnt::darray<Entity> targets;
-					bool active = false;
-					bool targeted = false;
-					bool targetsAddedAfterPrepare = false;
-					bool resetTraversalCaches = false;
-				};
+				using DiffDispatchCtx = DiffDispatcher::Context;
 
 			private:
 				//! Temporary list of observers preliminary matching the event.
@@ -43544,36 +44209,22 @@ namespace gaia {
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add_is;
 				//! Semantic `Is` target to OnDel observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del_is;
-				//! Exact direct term to OnAdd diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_direct;
-				//! Exact direct term to OnDel diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_direct;
-				//! Source-evaluated term to OnAdd diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_source_term;
-				//! Source-evaluated term to OnDel diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_source_term;
-				//! Traversal relation to OnAdd diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_trav;
-				//! Traversal relation to OnDel diff observer mapping.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_trav;
-				//! Pair relation to OnAdd diff observer mapping for wildcard/variable target terms.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_pair_rel;
-				//! Pair relation to OnDel diff observer mapping for wildcard/variable target terms.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_pair_rel;
-				//! Pair target to OnAdd diff observer mapping for wildcard/variable relation terms.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_add_pair_tgt;
-				//! Pair target to OnDel diff observer mapping for wildcard/variable relation terms.
-				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_diff_observer_map_del_pair_tgt;
-				//! Full OnAdd diff observer set for call sites without precise changed-term spans.
-				cnt::darray<Entity> m_diff_observers_add_all;
-				//! Full OnDel diff observer set for call sites without precise changed-term spans.
-				cnt::darray<Entity> m_diff_observers_del_all;
-				//! Broad fallback list for OnAdd diff observers that cannot be narrowed by changed terms.
-				cnt::darray<Entity> m_diff_observers_add_global;
-				//! Broad fallback list for OnDel diff observers that cannot be narrowed by changed terms.
-				cnt::darray<Entity> m_diff_observers_del_global;
+				//! OnAdd diff observer dependency index.
+				DiffObserverIndex m_diff_index_add;
+				//! OnDel diff observer dependency index.
+				DiffObserverIndex m_diff_index_del;
 				//! Monotonically increasing stamp used for O(1) deduplication.
 				uint64_t m_current_match_stamp = 0;
+
+				GAIA_NODISCARD DiffObserverIndex& diff_index(ObserverEvent event) {
+					GAIA_ASSERT(event == ObserverEvent::OnAdd || event == ObserverEvent::OnDel);
+					return event == ObserverEvent::OnAdd ? m_diff_index_add : m_diff_index_del;
+				}
+
+				GAIA_NODISCARD const DiffObserverIndex& diff_index(ObserverEvent event) const {
+					GAIA_ASSERT(event == ObserverEvent::OnAdd || event == ObserverEvent::OnDel);
+					return event == ObserverEvent::OnAdd ? m_diff_index_add : m_diff_index_del;
+				}
 
 				GAIA_NODISCARD bool has_observers_for_term(Entity term) const {
 					const auto termKey = EntityLookupKey(term);
@@ -43702,19 +44353,9 @@ namespace gaia {
 					}
 				}
 
-				struct DiffTargetNarrowCacheEntry {
-					ObserverPlan::DiffPlan::TargetNarrowKind kind = ObserverPlan::DiffPlan::TargetNarrowKind::None;
-					Entity bindingRelation = EntityBad;
-					Entity traversalRelation = EntityBad;
-					QueryTravKind travKind = QueryTravKind::None;
-					uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
-					QueryEntityArray triggerTerms{};
-					uint8_t triggerTermCount = 0;
-					cnt::darray<Entity> targets;
-				};
-
-				static void copy_diff_target_narrow_plan(const ObserverRuntimeData& obs, DiffTargetNarrowCacheEntry& entry) {
-					entry.kind = obs.plan.diff.targetNarrowKind;
+				static void
+				copy_diff_target_narrow_plan(const ObserverRuntimeData& obs, DiffDispatcher::TargetNarrowCacheEntry& entry) {
+					entry.kind = obs.plan.diff.dispatchKind;
 					entry.bindingRelation = obs.plan.diff.bindingRelation;
 					entry.traversalRelation = obs.plan.diff.traversalRelation;
 					entry.travKind = obs.plan.diff.travKind;
@@ -43725,9 +44366,9 @@ namespace gaia {
 					}
 				}
 
-				static bool
-				same_diff_target_narrow_plan(const ObserverRuntimeData& obs, const DiffTargetNarrowCacheEntry& entry) {
-					if (obs.plan.diff.targetNarrowKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
+				static bool same_diff_target_narrow_plan(
+						const ObserverRuntimeData& obs, const DiffDispatcher::TargetNarrowCacheEntry& entry) {
+					if (obs.plan.diff.dispatchKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
 							obs.plan.diff.traversalRelation != entry.traversalRelation || obs.plan.diff.travKind != entry.travKind ||
 							obs.plan.diff.travDepth != entry.travDepth ||
 							obs.plan.diff.traversalTriggerTermCount != entry.triggerTermCount)
@@ -43807,7 +44448,7 @@ namespace gaia {
 						cnt::darray<Entity>& outTargets) {
 					if (changedSources.empty())
 						return false;
-					if (obs.plan.diff.targetNarrowKind != ObserverPlan::DiffPlan::TargetNarrowKind::BoundUpTraversal)
+					if (!obs.plan.uses_propagated_diff_targets())
 						return false;
 					if (obs.plan.diff.bindingRelation == EntityBad || obs.plan.diff.traversalRelation == EntityBad ||
 							obs.plan.diff.traversalTriggerTermCount == 0)
@@ -43859,13 +44500,16 @@ namespace gaia {
 				static bool collect_diff_targets_for_observer(
 						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedTargets,
 						cnt::darray<Entity>& outTargets) {
-					switch (obs.plan.diff.targetNarrowKind) {
-						case ObserverPlan::DiffPlan::TargetNarrowKind::None:
+					switch (obs.plan.exec_kind()) {
+						case ObserverPlan::ExecKind::DiffLocal:
 							append_valid_diff_targets(world, outTargets, changedTargets);
 							return true;
-						case ObserverPlan::DiffPlan::TargetNarrowKind::BoundUpTraversal:
+						case ObserverPlan::ExecKind::DiffPropagated:
 							return collect_source_traversal_diff_targets(world, obs, changedTerms, changedTargets, outTargets);
-						case ObserverPlan::DiffPlan::TargetNarrowKind::Unsupported:
+						case ObserverPlan::ExecKind::DiffFallback:
+							return false;
+						case ObserverPlan::ExecKind::DirectQuery:
+						case ObserverPlan::ExecKind::DirectFast:
 							return false;
 					}
 
@@ -43892,17 +44536,6 @@ namespace gaia {
 					}
 
 					return false;
-				}
-
-				static void execute_observer_targets(World& world, ObserverRuntimeData& obs, EntitySpan targets) {
-					if (targets.empty())
-						return;
-
-					Iter it;
-					it.set_world(&world);
-					it.set_group_id(0);
-					it.set_remapping_indices(0);
-					obs.exec(it, targets);
 				}
 
 				static uint64_t observer_query_hash(ObserverRuntimeData& obs) {
@@ -43935,7 +44568,8 @@ namespace gaia {
 					return true;
 				}
 
-				static int32_t find_diff_match_cache_entry(cnt::darray<DiffMatchCacheEntry>& cache, ObserverRuntimeData& obs) {
+				static int32_t
+				find_diff_match_cache_entry(cnt::darray<DiffDispatcher::MatchCacheEntry>& cache, ObserverRuntimeData& obs) {
 					auto& queryInfo = obs.query.fetch();
 					auto& queryCtx = queryInfo.ctx();
 					const auto queryHash = queryCtx.hashLookup.hash;
@@ -43951,59 +44585,6 @@ namespace gaia {
 					}
 
 					return -1;
-				}
-
-				template <typename TObserverMap>
-				void collect_observers_for_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
-					const auto it = map.find(EntityLookupKey(term));
-					if (it == map.end())
-						return;
-
-					for (auto observer: it->second) {
-						if (!world.valid(observer))
-							continue;
-						const auto& ec = world.fetch(observer);
-						if (!world.enabled(ec))
-							continue;
-
-						const auto compIdx = ec.pChunk->comp_idx(Observer);
-						auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-						if (obsHdr.lastMatchStamp == matchStamp)
-							continue;
-						obsHdr.lastMatchStamp = matchStamp;
-
-						auto* pObs = data_try(observer);
-						if (pObs == nullptr)
-							continue;
-						m_relevant_observers_tmp.push_back(pObs);
-					}
-				}
-
-				template <typename TObserverMap>
-				void collect_diff_observers_for_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
-					const auto it = map.find(EntityLookupKey(term));
-					if (it == map.end())
-						return;
-
-					for (auto observer: it->second) {
-						if (!world.valid(observer))
-							continue;
-						const auto& ec = world.fetch(observer);
-						if (!world.enabled(ec))
-							continue;
-
-						const auto compIdx = ec.pChunk->comp_idx(Observer);
-						auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-						if (obsHdr.lastMatchStamp == matchStamp)
-							continue;
-
-						auto* pObs = data_try(observer);
-						if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
-							continue;
-
-						obsHdr.lastMatchStamp = matchStamp;
-						m_relevant_observers_tmp.push_back(pObs);
-					}
 				}
 
 				static bool is_dynamic_pair_endpoint(EntityId endpoint) {
@@ -44022,156 +44603,6 @@ namespace gaia {
 					return relDynamic && tgtDynamic;
 				}
 
-				void collect_diff_observers_from_list(World& world, const cnt::darray<Entity>& observers, uint64_t matchStamp) {
-					for (auto observer: observers) {
-						if (!world.valid(observer))
-							continue;
-						const auto& ec = world.fetch(observer);
-						if (!world.enabled(ec))
-							continue;
-
-						const auto compIdx = ec.pChunk->comp_idx(Observer);
-						auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-						if (obsHdr.lastMatchStamp == matchStamp)
-							continue;
-
-						auto* pObs = data_try(observer);
-						if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
-							continue;
-
-						obsHdr.lastMatchStamp = matchStamp;
-						m_relevant_observers_tmp.push_back(pObs);
-					}
-				}
-
-				template <typename TObserverMap>
-				GAIA_NODISCARD bool has_observers_for_event_terms(const TObserverMap& map, EntitySpan terms) const {
-					for (auto term: terms) {
-						const auto it = map.find(EntityLookupKey(term));
-						if (it != map.end() && !it->second.empty())
-							return true;
-					}
-
-					return false;
-				}
-
-				template <typename TObserverMap>
-				GAIA_NODISCARD bool
-				has_observers_for_pair_relations(World& world, const TObserverMap& map, EntitySpan terms) const {
-					for (auto term: terms) {
-						if (!term.pair())
-							continue;
-
-						const auto relation = entity_from_id(world, term.id());
-						if (!world.valid(relation))
-							continue;
-
-						const auto it = map.find(EntityLookupKey(relation));
-						if (it != map.end() && !it->second.empty())
-							return true;
-					}
-
-					return false;
-				}
-
-				template <typename TObserverMap>
-				void
-				collect_observers_for_is_target(World& world, const TObserverMap& map, Entity target, uint64_t matchStamp) {
-					collect_observers_for_term(world, map, target, matchStamp);
-				}
-
-				template <typename TObserverMap>
-				GAIA_NODISCARD bool
-				has_semantic_is_observers_for_event_terms(World& world, const TObserverMap& map, EntitySpan terms) const {
-					for (auto term: terms) {
-						if (!is_semantic_is_term(term))
-							continue;
-
-						const auto target = world.get(term.gen());
-						if (!world.valid(target))
-							continue;
-
-						if (map.find(EntityLookupKey(target)) != map.end())
-							return true;
-
-						for (auto inheritedTarget: world.as_targets_trav_cache(target)) {
-							if (map.find(EntityLookupKey(inheritedTarget)) != map.end())
-								return true;
-						}
-					}
-
-					return false;
-				}
-
-				template <typename Func>
-				static void for_each_inherited_observer_term(World& world, Entity baseEntity, Func&& func) {
-					auto collect_terms = [&](Entity entity) {
-						if (!world.valid(entity))
-							return;
-
-						const auto& ec = world.fetch(entity);
-						if (ec.pArchetype == nullptr)
-							return;
-
-						for (const auto id: ec.pArchetype->ids_view()) {
-							if (id.pair() || is_wildcard(id) || !world.valid(id))
-								continue;
-							if (world.target(id, OnInstantiate) != Inherit)
-								continue;
-
-							func(id);
-						}
-					};
-
-					collect_terms(baseEntity);
-					for (const auto inheritedBase: world.as_targets_trav_cache(baseEntity))
-						collect_terms(inheritedBase);
-				}
-
-				template <typename TObserverMap>
-				GAIA_NODISCARD bool
-				has_inherited_observers_for_event_terms(World& world, const TObserverMap& map, EntitySpan terms) const {
-					for (auto term: terms) {
-						if (!is_semantic_is_term(term))
-							continue;
-
-						const auto target = world.get(term.gen());
-						if (!world.valid(target))
-							continue;
-
-						bool found = false;
-						for_each_inherited_observer_term(world, target, [&](Entity inheritedId) {
-							if (found)
-								return;
-							const auto it = map.find(EntityLookupKey(inheritedId));
-							found = it != map.end() && !it->second.empty();
-						});
-
-						if (found)
-							return true;
-					}
-
-					return false;
-				}
-
-				template <typename TObserverMap>
-				void collect_observers_for_inherited_terms(
-						World& world, const TObserverMap& map, Entity baseEntity, uint64_t matchStamp) {
-					for_each_inherited_observer_term(world, baseEntity, [&](Entity inheritedId) {
-						collect_observers_for_event_term(world, map, inheritedId, matchStamp);
-					});
-				}
-
-				template <typename TObserverMap>
-				void collect_observers_for_event_term(World& world, const TObserverMap& map, Entity term, uint64_t matchStamp) {
-					if (!is_semantic_is_term(term)) {
-						if ((world.fetch(term).flags & EntityContainerFlags::IsObserved) == 0)
-							return;
-					}
-
-					collect_observers_for_term(world, map, term, matchStamp);
-				}
-
 			public:
 				GAIA_NODISCARD bool has_observers(Entity term) const {
 					return has_observers_for_term(term);
@@ -44183,19 +44614,7 @@ namespace gaia {
 					const auto& ec = world.fetch(observer);
 					const auto compIdx = ec.pChunk->comp_idx(Observer);
 					const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-					auto* pDirectMap =
-							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_direct : &m_diff_observer_map_del_direct;
-					auto* pSourceTermMap = obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_source_term
-																																	 : &m_diff_observer_map_del_source_term;
-					auto* pTravMap =
-							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_trav : &m_diff_observer_map_del_trav;
-					auto* pPairRelMap =
-							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_pair_rel : &m_diff_observer_map_del_pair_rel;
-					auto* pPairTgtMap =
-							obs.event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_pair_tgt : &m_diff_observer_map_del_pair_tgt;
-					auto* pAll = obs.event == ObserverEvent::OnAdd ? &m_diff_observers_add_all : &m_diff_observers_del_all;
-					auto* pGlobal =
-							obs.event == ObserverEvent::OnAdd ? &m_diff_observers_add_global : &m_diff_observers_del_global;
+					auto& index = diff_index(obs.event);
 
 					switch (obs.event) {
 						case ObserverEvent::OnAdd:
@@ -44205,24 +44624,24 @@ namespace gaia {
 							return;
 					}
 
-					add_observer_to_list(*pAll, observer);
+					add_observer_to_list(index.all, observer);
 
 					bool registered = false;
 
 					if (term != EntityBad && term != All) {
-						add_observer_to_map_unique(*pDirectMap, term, observer);
+						add_observer_to_map_unique(index.direct, term, observer);
 						registered = true;
 					}
 
 					if (term != EntityBad && term != All && options.entSrc != EntityBad) {
-						add_observer_to_map_unique(*pSourceTermMap, term, observer);
+						add_observer_to_map_unique(index.sourceTerm, term, observer);
 						registered = true;
 					}
 
 					if (options.entTrav != EntityBad) {
 						if (term != EntityBad && term != All)
-							add_observer_to_map_unique(*pSourceTermMap, term, observer);
-						add_observer_to_map_unique(*pTravMap, options.entTrav, observer);
+							add_observer_to_map_unique(index.sourceTerm, term, observer);
+						add_observer_to_map_unique(index.traversalRelation, options.entTrav, observer);
 						registered = true;
 					}
 
@@ -44231,294 +44650,35 @@ namespace gaia {
 						const bool tgtDynamic = is_dynamic_pair_endpoint(term.gen());
 
 						if (relDynamic && !tgtDynamic) {
-							add_observer_to_map_unique(*pPairTgtMap, world.get(term.gen()), observer);
+							add_observer_to_map_unique(index.pairTarget, world.get(term.gen()), observer);
 							registered = true;
 						}
 
 						if (tgtDynamic && !relDynamic) {
-							add_observer_to_map_unique(*pPairRelMap, entity_from_id(world, term.id()), observer);
+							add_observer_to_map_unique(index.pairRelation, entity_from_id(world, term.id()), observer);
 							registered = true;
 						}
 					}
 
 					if (!registered || is_observer_term_globally_dynamic(term))
-						add_observer_to_list(*pGlobal, observer);
+						add_observer_to_list(index.global, observer);
 				}
 
 				GAIA_NODISCARD DiffDispatchCtx
 				prepare_diff(World& world, ObserverEvent event, EntitySpan terms, EntitySpan targetEntities = {}) {
-					DiffDispatchCtx ctx{};
-					ctx.event = event;
-
-					const auto* pDiffDirectMap =
-							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_direct : &m_diff_observer_map_del_direct;
-					const auto* pSourceTermMap = event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_source_term
-																																		 : &m_diff_observer_map_del_source_term;
-					const auto* pTravMap =
-							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_trav : &m_diff_observer_map_del_trav;
-					const auto* pPairRelMap =
-							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_pair_rel : &m_diff_observer_map_del_pair_rel;
-					const auto* pPairTgtMap =
-							event == ObserverEvent::OnAdd ? &m_diff_observer_map_add_pair_tgt : &m_diff_observer_map_del_pair_tgt;
-					const auto* pAll = event == ObserverEvent::OnAdd ? &m_diff_observers_add_all : &m_diff_observers_del_all;
-					const auto* pGlobal =
-							event == ObserverEvent::OnAdd ? &m_diff_observers_add_global : &m_diff_observers_del_global;
-
-					if (terms.empty() && pAll->empty() && pGlobal->empty())
-						return ctx;
-
-					if (!targetEntities.empty() && !terms.empty() && !has_observers_for_event_terms(*pSourceTermMap, terms) &&
-							!has_observers_for_pair_relations(world, *pTravMap, terms)) {
-						ctx.targeted = true;
-						ctx.targets.reserve(targetEntities.size());
-						append_valid_diff_targets(world, ctx.targets, targetEntities);
-						normalize_diff_targets(ctx.targets);
-					}
-
-					m_relevant_observers_tmp.clear();
-					const auto matchStamp = ++m_current_match_stamp;
-					if (terms.empty()) {
-						collect_diff_observers_from_list(world, *pAll, matchStamp);
-					} else {
-						for (auto term: terms) {
-							collect_diff_observers_for_term(world, *pDiffDirectMap, term, matchStamp);
-
-							if (!term.pair())
-								continue;
-
-							const auto relation = entity_from_id(world, term.id());
-							if (world.valid(relation)) {
-								collect_diff_observers_for_term(world, *pTravMap, relation, matchStamp);
-								collect_diff_observers_for_term(world, *pPairRelMap, relation, matchStamp);
-							}
-
-							const auto target = world.get(term.gen());
-							if (world.valid(target))
-								collect_diff_observers_for_term(world, *pPairTgtMap, target, matchStamp);
-						}
-					}
-					collect_diff_observers_from_list(world, *pGlobal, matchStamp);
-
-					if (!ctx.targeted && !targetEntities.empty() && !m_relevant_observers_tmp.empty()) {
-						cnt::darray<Entity> narrowedTargets;
-						cnt::darray<DiffTargetNarrowCacheEntry> narrowCache;
-						bool canNarrow = true;
-
-						for (auto* pObs: m_relevant_observers_tmp) {
-							if (pObs == nullptr)
-								continue;
-
-							const DiffTargetNarrowCacheEntry* pEntry = nullptr;
-							for (const auto& entry: narrowCache) {
-								if (same_diff_target_narrow_plan(*pObs, entry)) {
-									pEntry = &entry;
-									break;
-								}
-							}
-
-							if (pEntry == nullptr) {
-								narrowCache.push_back({});
-								auto& entry = narrowCache.back();
-								copy_diff_target_narrow_plan(*pObs, entry);
-
-								if (!collect_diff_targets_for_observer(world, *pObs, terms, targetEntities, entry.targets)) {
-									canNarrow = false;
-									break;
-								}
-
-								pEntry = &entry;
-							}
-
-							for (auto entity: pEntry->targets)
-								narrowedTargets.push_back(entity);
-						}
-
-						if (canNarrow) {
-							normalize_diff_targets(narrowedTargets);
-							ctx.targeted = true;
-							ctx.targets = GAIA_MOV(narrowedTargets);
-						}
-					}
-
-					if (m_relevant_observers_tmp.empty())
-						return ctx;
-
-					ctx.active = true;
-					for (auto* pObs: m_relevant_observers_tmp) {
-						ctx.observers.push_back({});
-						auto& snapshot = ctx.observers.back();
-						snapshot.pObs = pObs;
-						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
-							ctx.resetTraversalCaches = true;
-
-						auto cacheIdx = find_diff_match_cache_entry(ctx.matchesBeforeCache, *pObs);
-						if (cacheIdx == -1) {
-							ctx.matchesBeforeCache.push_back({});
-							auto& entry = ctx.matchesBeforeCache.back();
-							entry.pObsRepresentative = pObs;
-							entry.queryHash = observer_query_hash(*pObs);
-							if (ctx.targeted)
-								collect_query_target_matches(
-										world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
-							else
-								collect_query_matches(world, *pObs, entry.matches);
-							cacheIdx = (int32_t)ctx.matchesBeforeCache.size() - 1;
-						}
-
-						snapshot.matchesBeforeIdx = (uint32_t)cacheIdx;
-					}
-
-					return ctx;
+					return DiffDispatcher::prepare(*this, world, event, terms, targetEntities);
 				}
 
 				GAIA_NODISCARD DiffDispatchCtx prepare_diff_add_new(World& world, EntitySpan terms) {
-					DiffDispatchCtx ctx{};
-					ctx.event = ObserverEvent::OnAdd;
-
-					const auto* pDiffDirectMap = &m_diff_observer_map_add_direct;
-					const auto* pSourceTermMap = &m_diff_observer_map_add_source_term;
-					const auto* pTravMap = &m_diff_observer_map_add_trav;
-					const auto* pPairRelMap = &m_diff_observer_map_add_pair_rel;
-					const auto* pPairTgtMap = &m_diff_observer_map_add_pair_tgt;
-					const auto* pAll = &m_diff_observers_add_all;
-					const auto* pGlobal = &m_diff_observers_add_global;
-
-					if (terms.empty() && pAll->empty() && pGlobal->empty())
-						return ctx;
-
-					if (terms.empty() || has_observers_for_event_terms(*pSourceTermMap, terms) ||
-							has_observers_for_pair_relations(world, *pTravMap, terms)) {
-						return prepare_diff(world, ObserverEvent::OnAdd, terms);
-					}
-
-					m_relevant_observers_tmp.clear();
-					const auto matchStamp = ++m_current_match_stamp;
-					for (auto term: terms) {
-						collect_diff_observers_for_term(world, *pDiffDirectMap, term, matchStamp);
-
-						if (!term.pair())
-							continue;
-
-						const auto relation = entity_from_id(world, term.id());
-						if (world.valid(relation))
-							collect_diff_observers_for_term(world, *pPairRelMap, relation, matchStamp);
-
-						const auto target = world.get(term.gen());
-						if (world.valid(target))
-							collect_diff_observers_for_term(world, *pPairTgtMap, target, matchStamp);
-					}
-					collect_diff_observers_from_list(world, *pGlobal, matchStamp);
-
-					if (m_relevant_observers_tmp.empty())
-						return ctx;
-
-					ctx.active = true;
-					ctx.targeted = true;
-					ctx.targetsAddedAfterPrepare = true;
-					for (auto* pObs: m_relevant_observers_tmp) {
-						if (!ctx.resetTraversalCaches && observer_uses_changed_traversal_relation(world, *pObs, terms))
-							ctx.resetTraversalCaches = true;
-						ctx.observers.push_back({});
-						ctx.observers.back().pObs = pObs;
-					}
-
-					return ctx;
+					return DiffDispatcher::prepare_add_new(*this, world, terms);
 				}
 
 				void append_diff_targets(World& world, DiffDispatchCtx& ctx, EntitySpan targets) {
-					if (!ctx.active || !ctx.targeted || targets.empty())
-						return;
-
-					append_valid_diff_targets(world, ctx.targets, targets);
+					DiffDispatcher::append_targets(world, ctx, targets);
 				}
 
 				void finish_diff(World& world, DiffDispatchCtx&& ctx) {
-					if (!ctx.active)
-						return;
-
-					if (ctx.resetTraversalCaches) {
-						world.m_targetsTravCache = {};
-						world.m_srcBfsTravCache = {};
-						world.m_sourcesAllCache = {};
-						world.m_targetsAllCache = {};
-						world.m_entityToAsTargetsTravCache = {};
-						world.m_entityToAsRelationsTravCache = {};
-					}
-
-					if (ctx.targeted)
-						normalize_diff_targets(ctx.targets);
-
-					cnt::darray<DiffMatchCacheEntry> matchesAfterCache;
-					cnt::darray<Entity> delta;
-
-					for (auto& snapshot: ctx.observers) {
-						auto* pObs = snapshot.pObs;
-						if (pObs == nullptr || !world.valid(pObs->entity))
-							continue;
-
-						auto afterCacheIdx = find_diff_match_cache_entry(matchesAfterCache, *pObs);
-						if (afterCacheIdx == -1) {
-							matchesAfterCache.push_back({});
-							auto& entry = matchesAfterCache.back();
-							entry.pObsRepresentative = pObs;
-							entry.queryHash = observer_query_hash(*pObs);
-							if (ctx.targeted)
-								collect_query_target_matches(
-										world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, entry.matches);
-							else
-								collect_query_matches(world, *pObs, entry.matches);
-							afterCacheIdx = (int32_t)matchesAfterCache.size() - 1;
-						}
-
-						const auto& matchesAfter = matchesAfterCache[(uint32_t)afterCacheIdx].matches;
-
-						if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
-							execute_observer_targets(world, *pObs, EntitySpan{matchesAfter});
-							continue;
-						}
-
-						GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
-						const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
-
-						delta.clear();
-						uint32_t beforeIdx = 0;
-						uint32_t afterMatchIdx = 0;
-						while (beforeIdx < before.size() || afterMatchIdx < matchesAfter.size()) {
-							if (beforeIdx == before.size()) {
-								if (ctx.event == ObserverEvent::OnAdd)
-									delta.push_back(matchesAfter[afterMatchIdx]);
-								++afterMatchIdx;
-								continue;
-							}
-
-							if (afterMatchIdx == matchesAfter.size()) {
-								if (ctx.event == ObserverEvent::OnDel)
-									delta.push_back(before[beforeIdx]);
-								++beforeIdx;
-								continue;
-							}
-
-							const auto beforeEntity = before[beforeIdx];
-							const auto afterEntity = matchesAfter[afterMatchIdx];
-							if (beforeEntity == afterEntity) {
-								++beforeIdx;
-								++afterMatchIdx;
-								continue;
-							}
-
-							if (beforeEntity < afterEntity) {
-								if (ctx.event == ObserverEvent::OnDel)
-									delta.push_back(beforeEntity);
-								++beforeIdx;
-							} else {
-								if (ctx.event == ObserverEvent::OnAdd)
-									delta.push_back(afterEntity);
-								++afterMatchIdx;
-							}
-						}
-
-						execute_observer_targets(world, *pObs, EntitySpan{delta.data(), delta.size()});
-					}
+					DiffDispatcher::finish(*this, world, GAIA_MOV(ctx));
 				}
 
 				ObserverRuntimeData& data_add(Entity observer) {
@@ -44645,20 +44805,17 @@ namespace gaia {
 					remove_observer_from_map(m_observer_map_del);
 					remove_observer_from_map(m_observer_map_add_is);
 					remove_observer_from_map(m_observer_map_del_is);
-					remove_observer_from_map(m_diff_observer_map_add_direct);
-					remove_observer_from_map(m_diff_observer_map_del_direct);
-					remove_observer_from_map(m_diff_observer_map_add_source_term);
-					remove_observer_from_map(m_diff_observer_map_del_source_term);
-					remove_observer_from_map(m_diff_observer_map_add_trav);
-					remove_observer_from_map(m_diff_observer_map_del_trav);
-					remove_observer_from_map(m_diff_observer_map_add_pair_rel);
-					remove_observer_from_map(m_diff_observer_map_del_pair_rel);
-					remove_observer_from_map(m_diff_observer_map_add_pair_tgt);
-					remove_observer_from_map(m_diff_observer_map_del_pair_tgt);
-					remove_observer_from_list(m_diff_observers_add_all, term);
-					remove_observer_from_list(m_diff_observers_del_all, term);
-					remove_observer_from_list(m_diff_observers_add_global, term);
-					remove_observer_from_list(m_diff_observers_del_global, term);
+					auto remove_observer_from_diff_index = [&](auto& index) {
+						remove_observer_from_map(index.direct);
+						remove_observer_from_map(index.sourceTerm);
+						remove_observer_from_map(index.traversalRelation);
+						remove_observer_from_map(index.pairRelation);
+						remove_observer_from_map(index.pairTarget);
+						remove_observer_from_list(index.all, term);
+						remove_observer_from_list(index.global, term);
+					};
+					remove_observer_from_diff_index(m_diff_index_add);
+					remove_observer_from_diff_index(m_diff_index_del);
 				}
 
 				//! Called when components are added to an entity.
@@ -44667,63 +44824,7 @@ namespace gaia {
 				//! \param ents_added Span of entities added to the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_add(World& world, const Archetype& archetype, EntitySpan ents_added, EntitySpan targets) {
-					if (!archetype.has_observed_terms() && !has_observers_for_event_terms(m_observer_map_add, ents_added) &&
-							!has_semantic_is_observers_for_event_terms(world, m_observer_map_add_is, ents_added) &&
-							!has_inherited_observers_for_event_terms(world, m_observer_map_add, ents_added))
-						return;
-
-					const bool archetypeIsPrefab = archetype.has(Prefab);
-					const auto matchStamp = ++m_current_match_stamp;
-					for (auto comp: ents_added) {
-						collect_observers_for_event_term(world, m_observer_map_add, comp, matchStamp);
-						if (!is_semantic_is_term(comp))
-							continue;
-
-						const auto target = world.get(comp.gen());
-						if (!world.valid(target))
-							continue;
-
-						collect_observers_for_is_target(world, m_observer_map_add_is, target, matchStamp);
-						for (auto inheritedTarget: world.as_targets_trav_cache(target))
-							collect_observers_for_is_target(world, m_observer_map_add_is, inheritedTarget, matchStamp);
-						collect_observers_for_inherited_terms(world, m_observer_map_add, target, matchStamp);
-					}
-
-					// Fire OnAdd for observers that started matching
-					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // ObserverRuntimeData
-						if (obs.plan.uses_diff_dispatch())
-							continue;
-						QueryInfo* pQueryInfo = nullptr;
-						if (archetypeIsPrefab) {
-							pQueryInfo = &obs.query.fetch();
-							if (!pQueryInfo->matches_prefab_entities())
-								continue;
-						}
-
-						bool matches = false;
-						if (obs.plan.is_fast_positive())
-							matches = true;
-						else if (obs.plan.is_fast_negative())
-							matches = false;
-						else {
-							// Entity matches after the add completed. Trigger the event for each matching observer.
-							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
-							matches = obs.query.matches_any(queryInfo, archetype, targets);
-						}
-
-						if (matches) {
-							Iter it;
-							it.set_world(&world);
-							it.set_archetype(&archetype);
-							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
-							it.set_group_id(0);
-							it.set_remapping_indices(0);
-							obs.exec(it, targets);
-						}
-					}
-
-					m_relevant_observers_tmp.clear();
+					DirectDispatcher::on_add(*this, world, archetype, ents_added, targets);
 				}
 
 				//! Called when components are removed from an entity
@@ -44732,65 +44833,7 @@ namespace gaia {
 				//! \param ents_added Span of entities added to the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
-					// Gather the list of components to match
-					const bool archetypeIsPrefab = archetype.has(Prefab);
-					if (!archetype.has_observed_terms() && !has_observers_for_event_terms(m_observer_map_del, ents_removed) &&
-							!has_semantic_is_observers_for_event_terms(world, m_observer_map_del_is, ents_removed) &&
-							!has_inherited_observers_for_event_terms(world, m_observer_map_del, ents_removed))
-						return;
-
-					const auto matchStamp = ++m_current_match_stamp;
-					for (auto comp: ents_removed) {
-						collect_observers_for_event_term(world, m_observer_map_del, comp, matchStamp);
-						if (!is_semantic_is_term(comp))
-							continue;
-
-						const auto target = world.get(comp.gen());
-						if (!world.valid(target))
-							continue;
-
-						collect_observers_for_is_target(world, m_observer_map_del_is, target, matchStamp);
-						for (auto inheritedTarget: world.as_targets_trav_cache(target))
-							collect_observers_for_is_target(world, m_observer_map_del_is, inheritedTarget, matchStamp);
-						collect_observers_for_inherited_terms(world, m_observer_map_del, target, matchStamp);
-					}
-
-					// Fire OnDel for observers that no longer match
-					for (auto* pObs: m_relevant_observers_tmp) {
-						auto& obs = *pObs; // ObserverRuntimeData
-						if (obs.plan.uses_diff_dispatch())
-							continue;
-						QueryInfo* pQueryInfo = nullptr;
-						if (archetypeIsPrefab) {
-							pQueryInfo = &obs.query.fetch();
-							if (!pQueryInfo->matches_prefab_entities())
-								continue;
-						}
-
-						bool matches = false;
-						if (obs.plan.is_fast_positive())
-							matches = true;
-						else if (obs.plan.is_fast_negative())
-							matches = true;
-						else {
-							// Entity still matches at this point, but won't after removal completes.
-							// Trigger the event for each matching observer.
-							auto& queryInfo = pQueryInfo != nullptr ? *pQueryInfo : obs.query.fetch();
-							matches = obs.query.matches_any(queryInfo, archetype, targets);
-						}
-
-						if (matches) {
-							Iter it;
-							it.set_world(&world);
-							it.set_archetype(&archetype);
-							// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
-							it.set_group_id(0);
-							it.set_remapping_indices(0);
-							obs.exec(it, targets);
-						}
-					}
-
-					m_relevant_observers_tmp.clear();
+					DirectDispatcher::on_del(*this, world, archetype, ents_removed, targets);
 				}
 			};
 #endif
@@ -54260,6 +54303,7 @@ namespace gaia {
 					return;
 
 				data.plan.diff.enabled = true;
+				data.plan.refresh_exec_kind();
 				if (options.entTrav != EntityBad) {
 					bool hasRelation = false;
 					GAIA_FOR(data.plan.diff.traversalRelationCount) {
@@ -54276,18 +54320,19 @@ namespace gaia {
 					}
 				}
 				update_diff_target_narrow_plan(data, op, term, options);
+				data.plan.refresh_exec_kind();
 				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
 			}
 
 			void update_diff_target_narrow_plan(
 					ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				using NarrowKind = ObserverPlan::DiffPlan::TargetNarrowKind;
+				using DispatchKind = ObserverPlan::DiffPlan::DispatchKind;
 				auto& diff = data.plan.diff;
-				if (diff.targetNarrowKind == NarrowKind::Unsupported)
+				if (diff.dispatchKind == DispatchKind::GlobalFallback)
 					return;
 
 				const auto mark_unsupported = [&] {
-					diff.targetNarrowKind = NarrowKind::Unsupported;
+					diff.dispatchKind = DispatchKind::GlobalFallback;
 					diff.bindingVar = EntityBad;
 					diff.bindingRelation = EntityBad;
 					diff.traversalRelation = EntityBad;
@@ -54337,8 +54382,8 @@ namespace gaia {
 						diff.traversalTriggerTerms[diff.traversalTriggerTermCount++] = term;
 					}
 
-					if (diff.targetNarrowKind == NarrowKind::None)
-						diff.targetNarrowKind = NarrowKind::BoundUpTraversal;
+					if (diff.dispatchKind == DispatchKind::LocalTargets)
+						diff.dispatchKind = DispatchKind::PropagatedTraversal;
 					return;
 				}
 

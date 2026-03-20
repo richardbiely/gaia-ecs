@@ -204,6 +204,7 @@ namespace gaia {
 					return;
 
 				data.plan.diff.enabled = true;
+				data.plan.refresh_exec_kind();
 				if (options.entTrav != EntityBad) {
 					bool hasRelation = false;
 					GAIA_FOR(data.plan.diff.traversalRelationCount) {
@@ -220,18 +221,19 @@ namespace gaia {
 					}
 				}
 				update_diff_target_narrow_plan(data, op, term, options);
+				data.plan.refresh_exec_kind();
 				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
 			}
 
 			void update_diff_target_narrow_plan(
 					ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
-				using NarrowKind = ObserverPlan::DiffPlan::TargetNarrowKind;
+				using DispatchKind = ObserverPlan::DiffPlan::DispatchKind;
 				auto& diff = data.plan.diff;
-				if (diff.targetNarrowKind == NarrowKind::Unsupported)
+				if (diff.dispatchKind == DispatchKind::GlobalFallback)
 					return;
 
 				const auto mark_unsupported = [&] {
-					diff.targetNarrowKind = NarrowKind::Unsupported;
+					diff.dispatchKind = DispatchKind::GlobalFallback;
 					diff.bindingVar = EntityBad;
 					diff.bindingRelation = EntityBad;
 					diff.traversalRelation = EntityBad;
@@ -281,8 +283,8 @@ namespace gaia {
 						diff.traversalTriggerTerms[diff.traversalTriggerTermCount++] = term;
 					}
 
-					if (diff.targetNarrowKind == NarrowKind::None)
-						diff.targetNarrowKind = NarrowKind::BoundUpTraversal;
+					if (diff.dispatchKind == DispatchKind::LocalTargets)
+						diff.dispatchKind = DispatchKind::PropagatedTraversal;
 					return;
 				}
 

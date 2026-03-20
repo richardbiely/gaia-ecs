@@ -41,25 +41,27 @@ namespace gaia {
 
 		//! Runtime payload for observers kept out-of-line from ECS component storage.
 		struct ObserverPlan {
-			enum class ExecKind : uint8_t { DirectQuery, DirectFast, Diff };
+			enum class ExecKind : uint8_t { DirectQuery, DirectFast, DiffLocal, DiffPropagated, DiffFallback };
 			enum class FastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
 			using TObserverIterFunc = std::function<void(Iter&)>;
-			
-			struct DiffPlan {
-				enum class TargetNarrowKind : uint8_t { None, BoundUpTraversal, Unsupported };
 
-				//! Dynamic terms require full query diffing across structural changes.
-				bool enabled = false;
-				//! Optional precomputed target narrowing strategy for diff observers.
-				TargetNarrowKind targetNarrowKind = TargetNarrowKind::None;
+			struct DiffPlan {
+				enum class DispatchKind : uint8_t { LocalTargets, PropagatedTraversal, GlobalFallback };
+
+				
 				//! Bound variable used by the supported traversal/source diff narrowing shape.
 				Entity bindingVar = EntityBad;
 				//! Fixed pair relation that binds the traversal source variable.
 				Entity bindingRelation = EntityBad;
 				//! Traversal relation used by the source term.
 				Entity traversalRelation = EntityBad;
+
+				//! Chosen diff-dispatch strategy for dynamic observers.
+				DispatchKind dispatchKind = DispatchKind::LocalTargets;
 				//! Traversal direction mask used by the source term.
 				QueryTravKind travKind = QueryTravKind::None;
+				//! Dynamic terms require full query diffing across structural changes.
+				bool enabled = false;
 				//! Traversal depth cap used by the source term.
 				uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
 				//! Traversed term ids that can trigger the bound-up-traversal narrowing path.
@@ -76,19 +78,62 @@ namespace gaia {
 			FastPath fastPath = FastPath::None;
 			//! Number of terms added to the observer query.
 			uint8_t termCount = 0;
-			//! Dynamic/propgated execution metadata.
+			//! Chosen observer execution class.
+			ExecKind execKind = ExecKind::DirectQuery;
+			//! Dynamic/propagated execution metadata.
 			DiffPlan diff;
 
+			void refresh_exec_kind() {
+				if (diff.enabled) {
+					switch (diff.dispatchKind) {
+						case DiffPlan::DispatchKind::LocalTargets:
+							execKind = ExecKind::DiffLocal;
+							break;
+						case DiffPlan::DispatchKind::PropagatedTraversal:
+							execKind = ExecKind::DiffPropagated;
+							break;
+						case DiffPlan::DispatchKind::GlobalFallback:
+							execKind = ExecKind::DiffFallback;
+							break;
+					}
+				} else if (fastPath == FastPath::SinglePositiveTerm || fastPath == FastPath::SingleNegativeTerm)
+					execKind = ExecKind::DirectFast;
+				else
+					execKind = ExecKind::DirectQuery;
+			}
+
 			GAIA_NODISCARD ExecKind exec_kind() const {
-				if (diff.enabled)
-					return ExecKind::Diff;
-				if (fastPath == FastPath::SinglePositiveTerm || fastPath == FastPath::SingleNegativeTerm)
-					return ExecKind::DirectFast;
-				return ExecKind::DirectQuery;
+				return execKind;
 			}
 
 			GAIA_NODISCARD bool uses_diff_dispatch() const {
-				return exec_kind() == ExecKind::Diff;
+				switch (exec_kind()) {
+					case ExecKind::DiffLocal:
+					case ExecKind::DiffPropagated:
+					case ExecKind::DiffFallback:
+						return true;
+					case ExecKind::DirectQuery:
+					case ExecKind::DirectFast:
+						return false;
+				}
+
+				return false;
+			}
+
+			GAIA_NODISCARD bool uses_direct_dispatch() const {
+				return !uses_diff_dispatch();
+			}
+
+			GAIA_NODISCARD bool uses_local_diff_targets() const {
+				return exec_kind() == ExecKind::DiffLocal;
+			}
+
+			GAIA_NODISCARD bool uses_propagated_diff_targets() const {
+				return exec_kind() == ExecKind::DiffPropagated;
+			}
+
+			GAIA_NODISCARD bool uses_fallback_diff_dispatch() const {
+				return exec_kind() == ExecKind::DiffFallback;
 			}
 
 			GAIA_NODISCARD bool is_fast_positive() const {
@@ -128,6 +173,8 @@ namespace gaia {
 						fastPath = FastPath::Disabled;
 						break;
 				}
+
+				refresh_exec_kind();
 			}
 		};
 
