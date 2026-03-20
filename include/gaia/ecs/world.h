@@ -243,6 +243,34 @@ namespace gaia {
 					cnt::darray<Entity> global;
 				};
 
+				struct PropagatedTargetCacheKey {
+					Entity bindingRelation = EntityBad;
+					Entity traversalRelation = EntityBad;
+					Entity rootTarget = EntityBad;
+					QueryTravKind travKind = QueryTravKind::None;
+					uint8_t travDepth = QueryTermOptions::TravDepthUnlimited;
+
+					size_t hash() const {
+						size_t seed = EntityLookupKey(bindingRelation).hash();
+						seed ^= EntityLookupKey(traversalRelation).hash() + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+						seed ^= EntityLookupKey(rootTarget).hash() + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+						seed ^= size_t(travKind) + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+						seed ^= size_t(travDepth) + 0x9e3779b9u + (seed << 6u) + (seed >> 2u);
+						return seed;
+					}
+
+					bool operator==(const PropagatedTargetCacheKey& other) const {
+						return bindingRelation == other.bindingRelation && traversalRelation == other.traversalRelation &&
+									 rootTarget == other.rootTarget && travKind == other.travKind && travDepth == other.travDepth;
+					}
+				};
+
+				struct PropagatedTargetCacheEntry {
+					uint32_t bindingRelationVersion = 0;
+					uint32_t traversalRelationVersion = 0;
+					cnt::darray<Entity> targets;
+				};
+
 				struct DiffDispatcher {
 					struct Snapshot {
 						ObserverRuntimeData* pObs = nullptr;
@@ -341,8 +369,8 @@ namespace gaia {
 
 					static bool same_target_narrow_plan(const ObserverRuntimeData& obs, const TargetNarrowCacheEntry& entry) {
 						if (obs.plan.diff.dispatchKind != entry.kind || obs.plan.diff.bindingRelation != entry.bindingRelation ||
-								obs.plan.diff.traversalRelation != entry.traversalRelation || obs.plan.diff.travKind != entry.travKind ||
-								obs.plan.diff.travDepth != entry.travDepth ||
+								obs.plan.diff.traversalRelation != entry.traversalRelation ||
+								obs.plan.diff.travKind != entry.travKind || obs.plan.diff.travDepth != entry.travDepth ||
 								obs.plan.diff.traversalTriggerTermCount != entry.triggerTermCount)
 							return false;
 
@@ -484,7 +512,8 @@ namespace gaia {
 									auto& entry = narrowCache.back();
 									copy_target_narrow_plan(*pObs, entry);
 
-									if (!collect_diff_targets_for_observer(world, *pObs, terms, targetEntities, entry.targets)) {
+									if (!collect_diff_targets_for_observer(
+													registry, world, *pObs, terms, targetEntities, entry.targets)) {
 										canNarrow = false;
 										break;
 									}
@@ -1026,6 +1055,8 @@ namespace gaia {
 				DiffObserverIndex m_diff_index_add;
 				//! OnDel diff observer dependency index.
 				DiffObserverIndex m_diff_index_del;
+				//! Cached propagated observer targets keyed by supported traversal/source diff shape and changed source.
+				cnt::map<PropagatedTargetCacheKey, PropagatedTargetCacheEntry> m_propagated_target_cache;
 				//! Monotonically increasing stamp used for O(1) deduplication.
 				uint64_t m_current_match_stamp = 0;
 
@@ -1063,6 +1094,10 @@ namespace gaia {
 
 				void mark_term_observed(World& world, Entity term, bool observed) {
 					auto& ec = world.fetch(term);
+					const bool wasObserved = (ec.flags & EntityContainerFlags::IsObserved) != 0;
+					if (wasObserved == observed)
+						return;
+
 					if (observed)
 						ec.flags |= EntityContainerFlags::IsObserved;
 					else
@@ -1128,9 +1163,7 @@ namespace gaia {
 					if (!query_trav_has(travKind, QueryTravKind::Up))
 						return;
 
-					if (
-							travDepth == QueryTermOptions::TravDepthUnlimited &&
-							!query_trav_has(travKind, QueryTravKind::Down)) {
+					if (travDepth == QueryTermOptions::TravDepthUnlimited && !query_trav_has(travKind, QueryTravKind::Down)) {
 						const auto& cachedSources = world.sources_bfs_trav_cache(relation, root);
 						for (auto source: cachedSources) {
 							const auto ins = visitedNodes.insert(EntityLookupKey(source));
@@ -1172,9 +1205,49 @@ namespace gaia {
 					}
 				}
 
+				static void collect_propagated_targets_cached(
+						ObserverRegistry& registry, World& world, const ObserverRuntimeData& obs, Entity changedSource,
+						cnt::set<EntityLookupKey>& visitedSources, cnt::darray<Entity>& outTargets) {
+					const PropagatedTargetCacheKey key{
+							obs.plan.diff.bindingRelation, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind,
+							obs.plan.diff.travDepth};
+
+					auto& entry = registry.m_propagated_target_cache[key];
+					const auto bindingRelationVersion = world.rel_version(obs.plan.diff.bindingRelation);
+					const auto traversalRelationVersion = world.rel_version(obs.plan.diff.traversalRelation);
+					const bool cacheValid = entry.bindingRelationVersion == bindingRelationVersion &&
+																	entry.traversalRelationVersion == traversalRelationVersion;
+
+					if (!cacheValid) {
+						entry.bindingRelationVersion = bindingRelationVersion;
+						entry.traversalRelationVersion = traversalRelationVersion;
+						entry.targets.clear();
+
+						cnt::set<EntityLookupKey> visitedNodes;
+						cnt::darray<Entity> bindingTargets;
+						collect_traversal_descendants(
+								world, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind, obs.plan.diff.travDepth,
+								visitedNodes, bindingTargets);
+
+						for (auto bindingTarget: bindingTargets) {
+							world.sources(obs.plan.diff.bindingRelation, bindingTarget, [&](Entity source) {
+								entry.targets.push_back(source);
+							});
+						}
+
+						DiffDispatcher::normalize_targets(entry.targets);
+					}
+
+					for (auto source: entry.targets) {
+						const auto ins = visitedSources.insert(EntityLookupKey(source));
+						if (ins.second)
+							outTargets.push_back(source);
+					}
+				}
+
 				static bool collect_source_traversal_diff_targets(
-						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedSources,
-						cnt::darray<Entity>& outTargets) {
+						ObserverRegistry& registry, World& world, ObserverRuntimeData& obs, EntitySpan changedTerms,
+						EntitySpan changedSources, cnt::darray<Entity>& outTargets) {
 					if (changedSources.empty())
 						return false;
 					if (!obs.plan.uses_propagated_diff_targets())
@@ -1203,38 +1276,23 @@ namespace gaia {
 					if (!termTriggered)
 						return false;
 
-					cnt::set<EntityLookupKey> visitedNodes;
 					cnt::set<EntityLookupKey> visitedSources;
-					cnt::darray<Entity> bindingTargets;
-
 					for (auto changedSource: changedSources)
-						collect_traversal_descendants(
-								world, obs.plan.diff.traversalRelation, changedSource, obs.plan.diff.travKind, obs.plan.diff.travDepth,
-								visitedNodes, bindingTargets);
-
-					if (bindingTargets.empty())
-						return true;
-
-					for (auto bindingTarget: bindingTargets) {
-						world.sources(obs.plan.diff.bindingRelation, bindingTarget, [&](Entity source) {
-							const auto ins = visitedSources.insert(EntityLookupKey(source));
-							if (ins.second)
-								outTargets.push_back(source);
-						});
-					}
+						collect_propagated_targets_cached(registry, world, obs, changedSource, visitedSources, outTargets);
 
 					return true;
 				}
 
 				static bool collect_diff_targets_for_observer(
-						World& world, ObserverRuntimeData& obs, EntitySpan changedTerms, EntitySpan changedTargets,
-						cnt::darray<Entity>& outTargets) {
+						ObserverRegistry& registry, World& world, ObserverRuntimeData& obs, EntitySpan changedTerms,
+						EntitySpan changedTargets, cnt::darray<Entity>& outTargets) {
 					switch (obs.plan.exec_kind()) {
 						case ObserverPlan::ExecKind::DiffLocal:
 							DiffDispatcher::append_valid_targets(world, outTargets, changedTargets);
 							return true;
 						case ObserverPlan::ExecKind::DiffPropagated:
-							return collect_source_traversal_diff_targets(world, obs, changedTerms, changedTargets, outTargets);
+							return collect_source_traversal_diff_targets(
+									registry, world, obs, changedTerms, changedTargets, outTargets);
 						case ObserverPlan::ExecKind::DiffFallback:
 							return false;
 						case ObserverPlan::ExecKind::DirectQuery:

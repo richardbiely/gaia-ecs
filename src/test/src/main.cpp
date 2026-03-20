@@ -26,7 +26,9 @@ GAIA_MSVC_WARNING_DISABLE(4100)
 #define DOCTEST_CONFIG_SUPER_FAST_ASSERTS
 #include <doctest/doctest.h>
 
+#include <algorithm>
 #include <cstdio>
+#include <memory>
 #include <string>
 
 namespace rnd {
@@ -17634,6 +17636,166 @@ TEST_CASE("Observer - identical traversed observers share cached query") {
 	CHECK(observers.size() == 200);
 }
 
+TEST_CASE("Observer - identical traversed observers delete cleanly") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+
+	cnt::darr<ecs::Entity> observers;
+	const auto makeObserver = [&](ecs::ObserverEvent event) {
+		return wld.observer()
+				.event(event)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([](ecs::Iter&) {})
+				.entity();
+	};
+
+	observers.push_back(makeObserver(ecs::ObserverEvent::OnAdd));
+	observers.push_back(makeObserver(ecs::ObserverEvent::OnDel));
+	observers.push_back(makeObserver(ecs::ObserverEvent::OnAdd));
+	observers.push_back(makeObserver(ecs::ObserverEvent::OnDel));
+
+	const auto positionTerm = wld.add<Position>().entity;
+	const auto accelerationTerm = wld.add<Acceleration>().entity;
+	CHECK(wld.observers().has_observers(positionTerm));
+	CHECK(wld.observers().has_observers(accelerationTerm));
+
+	wld.del(observers[0]);
+	wld.del(observers[1]);
+	CHECK(wld.observers().has_observers(positionTerm));
+	CHECK(wld.observers().has_observers(accelerationTerm));
+
+	wld.del(observers[2]);
+	wld.del(observers[3]);
+	CHECK_FALSE(wld.observers().has_observers(positionTerm));
+	CHECK_FALSE(wld.observers().has_observers(accelerationTerm));
+}
+
+namespace {
+	template <typename TQuery>
+	cnt::darr<ecs::Entity> collect_sorted_entities(TQuery query) {
+		cnt::darr<ecs::Entity> out;
+		query.each([&](ecs::Entity entity) {
+			out.push_back(entity);
+		});
+		std::sort(out.begin(), out.end(), [](ecs::Entity left, ecs::Entity right) {
+			if (left.id() != right.id())
+				return left.id() < right.id();
+			return left.gen() < right.gen();
+		});
+		return out;
+	}
+
+	cnt::darr<ecs::Entity> sorted_entity_diff(const cnt::darr<ecs::Entity>& lhs, const cnt::darr<ecs::Entity>& rhs) {
+		cnt::darr<ecs::Entity> out;
+		out.reserve(lhs.size());
+		std::set_difference(
+				lhs.begin(), lhs.end(), rhs.begin(), rhs.end(), std::back_inserter(out),
+				[](ecs::Entity left, ecs::Entity right) {
+					if (left.id() != right.id())
+						return left.id() < right.id();
+					return left.gen() < right.gen();
+				});
+		return out;
+	}
+
+	std::string entity_list_string(const cnt::darr<ecs::Entity>& entities) {
+		std::string out = "[";
+		for (uint32_t i = 0; i < entities.size(); ++i) {
+			if (i != 0)
+				out += ", ";
+			out += std::to_string(entities[i].id());
+			out += ":";
+			out += std::to_string(entities[i].gen());
+		}
+		out += "]";
+		return out;
+	}
+
+	template <typename MutateFunc>
+	void expect_traversed_observer_matches_query_truth(
+			ecs::World& world, ecs::Entity bindingRelation, ecs::QueryTermOptions traversalOptions, MutateFunc&& mutate,
+			ecs::ObserverPlan::ExecKind expectedExecKind = ecs::ObserverPlan::ExecKind::DiffPropagated) {
+		auto termOptions = traversalOptions;
+		termOptions.src(ecs::Var0);
+
+		auto buildQuery = [&]() {
+			return world.query<false>()
+					.template all<Position>()
+					.all(ecs::Pair(bindingRelation, ecs::Var0))
+					.template all<Acceleration>(termOptions);
+		};
+
+		auto added = std::make_shared<cnt::darr<ecs::Entity>>();
+		auto removed = std::make_shared<cnt::darr<ecs::Entity>>();
+
+		const auto addObserver = world.observer()
+																 .event(ecs::ObserverEvent::OnAdd)
+																 .template all<Position>()
+																 .all(ecs::Pair(bindingRelation, ecs::Var0))
+																 .template all<Acceleration>(termOptions)
+																 .on_each([added](ecs::Iter& it) {
+																	 auto entities = it.view<ecs::Entity>();
+																	 GAIA_EACH(it) {
+																		 added->push_back(entities[i]);
+																	 }
+																 })
+																 .entity();
+		const auto delObserver = world.observer()
+																 .event(ecs::ObserverEvent::OnDel)
+																 .template all<Position>()
+																 .all(ecs::Pair(bindingRelation, ecs::Var0))
+																 .template all<Acceleration>(termOptions)
+																 .on_each([removed](ecs::Iter& it) {
+																	 auto entities = it.view<ecs::Entity>();
+																	 GAIA_EACH(it) {
+																		 removed->push_back(entities[i]);
+																	 }
+																 })
+																 .entity();
+
+		const auto& addData = world.observers().data(addObserver);
+		const auto& delData = world.observers().data(delObserver);
+		CHECK(addData.plan.exec_kind() == expectedExecKind);
+		CHECK(delData.plan.exec_kind() == expectedExecKind);
+
+		const auto before = collect_sorted_entities(buildQuery());
+		mutate();
+		const auto after = collect_sorted_entities(buildQuery());
+
+		std::sort(added->begin(), added->end(), [](ecs::Entity left, ecs::Entity right) {
+			if (left.id() != right.id())
+				return left.id() < right.id();
+			return left.gen() < right.gen();
+		});
+		std::sort(removed->begin(), removed->end(), [](ecs::Entity left, ecs::Entity right) {
+			if (left.id() != right.id())
+				return left.id() < right.id();
+			return left.gen() < right.gen();
+		});
+
+		const auto expectedAdded = sorted_entity_diff(after, before);
+		const auto expectedRemoved = sorted_entity_diff(before, after);
+
+		INFO("before=" << entity_list_string(before));
+		INFO("after=" << entity_list_string(after));
+		INFO("added=" << entity_list_string(*added));
+		INFO("expectedAdded=" << entity_list_string(expectedAdded));
+		INFO("removed=" << entity_list_string(*removed));
+		INFO("expectedRemoved=" << entity_list_string(expectedRemoved));
+
+		CHECK(*added == expectedAdded);
+		CHECK(*removed == expectedRemoved);
+		(void)addObserver;
+		(void)delObserver;
+	}
+} // namespace
+
 TEST_CASE("Observer - traversed source propagation on ancestor term changes") {
 	TestWorld twld;
 
@@ -17968,6 +18130,255 @@ TEST_CASE("Observer - traversed source propagation ignores unrelated pair relati
 	wld.add(cable, ecs::Pair(connectedToA, child));
 	CHECK(hitsA == 1);
 	CHECK(hitsB == 0);
+}
+
+TEST_CASE("Observer - propagated traversal oracle matches ancestor component diffs with many descendants") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	const auto grandChild = wld.add();
+	wld.child(childA, root);
+	wld.child(childB, root);
+	wld.child(grandChild, childA);
+
+	const auto cableA = wld.add();
+	const auto cableB = wld.add();
+	const auto cableC = wld.add();
+	wld.add<Position>(cableA);
+	wld.add<Position>(cableB);
+	wld.add<Position>(cableC);
+	wld.add(cableA, ecs::Pair(connectedTo, childA));
+	wld.add(cableB, ecs::Pair(connectedTo, childB));
+	wld.add(cableC, ecs::Pair(connectedTo, grandChild));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.add<Acceleration>(root);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del<Acceleration>(root);
+	});
+}
+
+TEST_CASE("Observer - propagated traversal oracle matches self-up closer-match transitions") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.add<Acceleration>(child);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del<Acceleration>(root);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del<Acceleration>(child);
+	});
+}
+
+TEST_CASE("Observer - propagated traversal oracle matches bounded parent traversal") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto parent = wld.add();
+	const auto leaf = wld.add();
+	wld.child(parent, root);
+	wld.child(leaf, parent);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+		wld.add<Acceleration>(root);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+		wld.add<Acceleration>(parent);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_parent(), [&] {
+		wld.del<Acceleration>(parent);
+	});
+}
+
+TEST_CASE("Observer - propagated traversal oracle matches bounded self-parent transitions") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto parent = wld.add();
+	const auto leaf = wld.add();
+	wld.child(parent, root);
+	wld.child(leaf, parent);
+	wld.add<Acceleration>(leaf);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+		wld.add<Acceleration>(parent);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+		wld.del<Acceleration>(leaf);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav_self_parent(), [&] {
+		wld.del<Acceleration>(parent);
+	});
+}
+
+TEST_CASE("Observer - propagated traversal oracle deduplicates repeated reachability paths") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto linkedTo = wld.add();
+	const auto root = wld.add();
+	const auto midA = wld.add();
+	const auto midB = wld.add();
+	const auto leaf = wld.add();
+
+	wld.add(midA, ecs::Pair(linkedTo, root));
+	wld.add(midB, ecs::Pair(linkedTo, root));
+	wld.add(leaf, ecs::Pair(linkedTo, midA));
+	wld.add(leaf, ecs::Pair(linkedTo, midB));
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.add<Acceleration>(root);
+	});
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.del<Acceleration>(root);
+	});
+}
+
+TEST_CASE("Observer - propagated traversal oracle ignores duplicate-path relation edge additions") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto linkedTo = wld.add();
+	const auto root = wld.add();
+	const auto midA = wld.add();
+	const auto midB = wld.add();
+	const auto leaf = wld.add();
+
+	wld.add<Acceleration>(root);
+	wld.add(midA, ecs::Pair(linkedTo, root));
+	wld.add(midB, ecs::Pair(linkedTo, root));
+	wld.add(leaf, ecs::Pair(linkedTo, midA));
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, leaf));
+
+	expect_traversed_observer_matches_query_truth(wld, connectedTo, ecs::QueryTermOptions{}.trav(linkedTo), [&] {
+		wld.add(leaf, ecs::Pair(linkedTo, midB));
+	});
+}
+
+TEST_CASE("Observer - unsupported traversal diff shape falls back and matches query truth") {
+	TestWorld twld;
+
+	struct Shield {};
+
+	const auto connectedTo = wld.add();
+	const auto guardedBy = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	const auto guardian = wld.add();
+	wld.child(child, root);
+	wld.child(guardian, root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+	wld.add(cable, ecs::Pair(guardedBy, guardian));
+
+	auto buildQuery = [&]() {
+		return wld.query<false>()
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.all(ecs::Pair(guardedBy, ecs::Var1))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.template all<Shield>(ecs::QueryTermOptions{}.src(ecs::Var1).trav_parent());
+	};
+
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+	const auto addObserver = wld.observer()
+															 .event(ecs::ObserverEvent::OnAdd)
+															 .template all<Position>()
+															 .all(ecs::Pair(connectedTo, ecs::Var0))
+															 .all(ecs::Pair(guardedBy, ecs::Var1))
+															 .template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+															 .template all<Shield>(ecs::QueryTermOptions{}.src(ecs::Var1).trav_parent())
+															 .on_each([&](ecs::Iter& it) {
+																 auto entities = it.view<ecs::Entity>();
+																 GAIA_EACH(it) {
+																	 added.push_back(entities[i]);
+																 }
+															 })
+															 .entity();
+	const auto delObserver = wld.observer()
+															 .event(ecs::ObserverEvent::OnDel)
+															 .template all<Position>()
+															 .all(ecs::Pair(connectedTo, ecs::Var0))
+															 .all(ecs::Pair(guardedBy, ecs::Var1))
+															 .template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+															 .template all<Shield>(ecs::QueryTermOptions{}.src(ecs::Var1).trav_parent())
+															 .on_each([&](ecs::Iter& it) {
+																 auto entities = it.view<ecs::Entity>();
+																 GAIA_EACH(it) {
+																	 removed.push_back(entities[i]);
+																 }
+															 })
+															 .entity();
+
+	CHECK(wld.observers().data(addObserver).plan.uses_fallback_diff_dispatch());
+	CHECK(wld.observers().data(delObserver).plan.uses_fallback_diff_dispatch());
+
+	const auto before = collect_sorted_entities(buildQuery());
+	wld.add<Acceleration>(root);
+	const auto middle = collect_sorted_entities(buildQuery());
+	wld.add<Shield>(root);
+	const auto after = collect_sorted_entities(buildQuery());
+
+	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+	std::sort(removed.begin(), removed.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
+	const auto expectedAddedFirst = sorted_entity_diff(middle, before);
+	const auto expectedAddedSecond = sorted_entity_diff(after, middle);
+	cnt::darr<ecs::Entity> expectedAdded = expectedAddedFirst;
+	for (auto entity: expectedAddedSecond)
+		expectedAdded.push_back(entity);
+	std::sort(expectedAdded.begin(), expectedAdded.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
+	CHECK(added == expectedAdded);
+	CHECK(removed.empty());
 }
 
 TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
