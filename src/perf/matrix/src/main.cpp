@@ -1458,6 +1458,62 @@ void BM_QueryCache_DynamicRelation_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks repeated probe reads across many identical cached changed() queries kept alive at once.
+//! count() is intentionally non-consuming for changed() queries.
+void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
+	const uint32_t queryCnt = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto e = w.add();
+	w.add<Position>(e, {1, 2, 3});
+
+	cnt::darray<ecs::Query> queries;
+	queries.reserve(queryCnt);
+	GAIA_FOR(queryCnt) queries.push_back(w.query().all<Position>().changed<Position>());
+
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		for (auto& q: queries)
+			sum += q.count();
+		total += sum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks consuming iteration across many identical cached changed() queries kept alive at once.
+//! each() is consuming for changed() queries, so the setup is rebuilt each sample.
+void BM_QueryCache_ChangedConsume_IdenticalCached(picobench::state& state) {
+	const uint32_t queryCnt = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		const auto e = w.add();
+		w.add<Position>(e, {1, 2, 3});
+
+		cnt::darray<ecs::Query> queries;
+		queries.reserve(queryCnt);
+		GAIA_FOR(queryCnt) queries.push_back(w.query().all<Position>().changed<Position>());
+
+		uint64_t total = 0;
+		state.start_timer();
+
+		for (auto& q: queries) {
+			q.each([&](const Position& p) {
+				total += (uint64_t)(p.x + p.y + p.z);
+			});
+		}
+
+		state.stop_timer();
+		dont_optimize(total);
+	}
+}
+
 //! Benchmarks repeated structural invalidation and cache refresh while entities churn between existing archetypes.
 void BM_QueryCache_Invalidate_Churn(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
@@ -5605,6 +5661,14 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS()
 				.user_data(NEntitiesMedium)
 				.label("dynamic relation warm");
+		PICOBENCH_REG(BM_QueryCache_ChangedProbe_IdenticalCached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(128)
+				.label("changed probe identical cached 128q");
+		PICOBENCH_REG(BM_QueryCache_ChangedConsume_IdenticalCached)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(128)
+				.label("changed consume identical cached 128q");
 		PICOBENCH_REG(BM_QueryCache_Invalidate_Churn)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesMedium)

@@ -41425,8 +41425,10 @@ namespace gaia {
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
 				template <bool UseFilters, typename TIter>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
+					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+
 					if constexpr (!UseFilters) {
-						if (can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
 							if (has_only_direct_or_terms(queryInfo))
 								return is_empty_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
 
@@ -41441,7 +41443,19 @@ namespace gaia {
 					}
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
-					for (const auto* pArchetype: queryInfo) {
+					const auto cacheView = queryInfo.cache_archetype_view();
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (hasRuntimeGroupFilter) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr)
+							return true;
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
+
+					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
+						const auto* pArchetype = cacheView[qi];
 						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
 							continue;
 

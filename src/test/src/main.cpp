@@ -5951,6 +5951,21 @@ void expect_exact_entities(TQuery& query, std::initializer_list<ecs::Entity> exp
 }
 
 template <typename TQuery>
+void expect_changed_probe_state(TQuery& query, uint32_t expectedCount) {
+	CHECK(query.count() == expectedCount);
+	CHECK(query.count() == expectedCount);
+	CHECK(query.empty() == (expectedCount == 0));
+	CHECK(query.empty() == (expectedCount == 0));
+}
+
+template <typename TQuery>
+void expect_changed_consume_exact(TQuery& query, std::initializer_list<ecs::Entity> expected) {
+	expect_exact_entities(query, expected);
+	CHECK(query.count() == 0);
+	CHECK(query.empty());
+}
+
+template <typename TQuery>
 void Test_Query_All_Any_Or_Semantics() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 
@@ -15402,27 +15417,17 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local reporting s
 	CHECK(q0.id() == q1.id());
 	CHECK(q0.gen() == q1.gen());
 
-	CHECK(q0.count() == 1);
-	expect_exact_entities(q0, {e});
-	CHECK(q1.count() == 1);
-	expect_exact_entities(q1, {e});
-
-	CHECK(q0.count() == 0);
-	expect_exact_entities(q0, {});
-	CHECK(q1.count() == 0);
-	expect_exact_entities(q1, {});
+	expect_changed_probe_state(q0, 1);
+	expect_changed_consume_exact(q0, {e});
+	expect_changed_probe_state(q1, 1);
+	expect_changed_consume_exact(q1, {e});
 
 	wld.set<A>(e) = {2};
 
-	CHECK(q0.count() == 1);
-	expect_exact_entities(q0, {e});
-	CHECK(q1.count() == 1);
-	expect_exact_entities(q1, {e});
-
-	CHECK(q0.count() == 0);
-	expect_exact_entities(q0, {});
-	CHECK(q1.count() == 0);
-	expect_exact_entities(q1, {});
+	expect_changed_probe_state(q0, 1);
+	expect_changed_consume_exact(q0, {e});
+	expect_changed_probe_state(q1, 1);
+	expect_changed_consume_exact(q1, {e});
 }
 
 TEST_CASE("Query Filter - cached changed query count is non-consuming and instance-local") {
@@ -15442,17 +15447,13 @@ TEST_CASE("Query Filter - cached changed query count is non-consuming and instan
 	CHECK(q0.id() == q1.id());
 	CHECK(q0.gen() == q1.gen());
 
-	CHECK(q0.count() == 1);
-	CHECK(q0.count() == 1);
-	CHECK(q1.count() == 1);
-	CHECK(q1.count() == 1);
+	expect_changed_probe_state(q0, 1);
+	expect_changed_probe_state(q1, 1);
 
-	expect_exact_entities(q0, {e});
-	CHECK(q0.count() == 0);
-	CHECK(q1.count() == 1);
+	expect_changed_consume_exact(q0, {e});
+	expect_changed_probe_state(q1, 1);
 
-	expect_exact_entities(q1, {e});
-	CHECK(q1.count() == 0);
+	expect_changed_consume_exact(q1, {e});
 }
 
 TEST_CASE("Query Filter - cached changed query empty is non-consuming and instance-local") {
@@ -15472,17 +15473,13 @@ TEST_CASE("Query Filter - cached changed query empty is non-consuming and instan
 	CHECK(q0.id() == q1.id());
 	CHECK(q0.gen() == q1.gen());
 
-	CHECK_FALSE(q0.empty());
-	CHECK_FALSE(q0.empty());
-	CHECK_FALSE(q1.empty());
-	CHECK_FALSE(q1.empty());
+	expect_changed_probe_state(q0, 1);
+	expect_changed_probe_state(q1, 1);
 
-	expect_exact_entities(q0, {e});
-	CHECK(q0.empty());
-	CHECK_FALSE(q1.empty());
+	expect_changed_consume_exact(q0, {e});
+	expect_changed_probe_state(q1, 1);
 
-	expect_exact_entities(q1, {e});
-	CHECK(q1.empty());
+	expect_changed_consume_exact(q1, {e});
 }
 
 TEST_CASE("Query Filter - cached changed queries keep instance-local var bindings") {
@@ -15527,29 +15524,24 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local var binding
 	CHECK(qEarth.id() == qMars.id());
 	CHECK(qEarth.gen() == qMars.gen());
 
-	CHECK(qEarth.count() == 1);
-	expect_exact_entities(qEarth, {shipEarth});
-	CHECK(qMars.count() == 1);
-	expect_exact_entities(qMars, {shipMars});
-
-	CHECK(qEarth.count() == 0);
-	expect_exact_entities(qEarth, {});
-	CHECK(qMars.count() == 0);
-	expect_exact_entities(qMars, {});
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {shipEarth});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {shipMars});
 
 	wld.set<Status>(shipEarth) = {3};
 
-	CHECK(qEarth.count() == 1);
-	expect_exact_entities(qEarth, {shipEarth});
-	CHECK(qMars.count() == 0);
-	expect_exact_entities(qMars, {});
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {shipEarth});
+	expect_changed_probe_state(qMars, 0);
+	expect_changed_consume_exact(qMars, {});
 
 	wld.set<Status>(shipMars) = {4};
 
-	CHECK(qEarth.count() == 0);
-	expect_exact_entities(qEarth, {});
-	CHECK(qMars.count() == 1);
-	expect_exact_entities(qMars, {shipMars});
+	expect_changed_probe_state(qEarth, 0);
+	expect_changed_consume_exact(qEarth, {});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {shipMars});
 }
 
 TEST_CASE("Query Filter - cached changed queries keep instance-local group filters") {
@@ -15587,29 +15579,84 @@ TEST_CASE("Query Filter - cached changed queries keep instance-local group filte
 	CHECK(qCarrot.id() == qSalad.id());
 	CHECK(qCarrot.gen() == qSalad.gen());
 
-	CHECK(qCarrot.count() == 2);
-	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
-	CHECK(qSalad.count() == 2);
-	expect_exact_entities(qSalad, {eSaladA, eSaladB});
-
-	CHECK(qCarrot.count() == 0);
-	expect_exact_entities(qCarrot, {});
-	CHECK(qSalad.count() == 0);
-	expect_exact_entities(qSalad, {});
+	expect_changed_probe_state(qCarrot, 2);
+	expect_changed_consume_exact(qCarrot, {eCarrotA, eCarrotB});
+	expect_changed_probe_state(qSalad, 2);
+	expect_changed_consume_exact(qSalad, {eSaladA, eSaladB});
 
 	wld.set<Position>(eCarrotA) = {10, 0, 0};
 
-	CHECK(qCarrot.count() == 2);
-	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
-	CHECK(qSalad.count() == 0);
-	expect_exact_entities(qSalad, {});
+	expect_changed_probe_state(qCarrot, 2);
+	expect_changed_consume_exact(qCarrot, {eCarrotA, eCarrotB});
+	expect_changed_probe_state(qSalad, 0);
+	expect_changed_consume_exact(qSalad, {});
 
 	wld.set<Position>(eSaladB) = {20, 0, 0};
 
-	CHECK(qCarrot.count() == 0);
-	expect_exact_entities(qCarrot, {});
-	CHECK(qSalad.count() == 2);
-	expect_exact_entities(qSalad, {eSaladA, eSaladB});
+	expect_changed_probe_state(qCarrot, 0);
+	expect_changed_consume_exact(qCarrot, {});
+	expect_changed_probe_state(qSalad, 2);
+	expect_changed_consume_exact(qSalad, {eSaladA, eSaladB});
+}
+
+TEST_CASE("Query Filter - cached changed traversed source queries keep instance-local var bindings") {
+	TestWorld twld;
+	struct Status {
+		int value;
+	};
+
+	const auto rootEarth = wld.add();
+	const auto rootMars = wld.add();
+	wld.add<Acceleration>(rootEarth);
+	wld.add<Acceleration>(rootMars);
+
+	const auto parentEarth = wld.add();
+	const auto parentMars = wld.add();
+	wld.child(parentEarth, rootEarth);
+	wld.child(parentMars, rootMars);
+
+	const auto childEarth = wld.add();
+	const auto childMars = wld.add();
+	wld.add<Status>(childEarth, {1});
+	wld.add<Status>(childMars, {2});
+	wld.child(childEarth, parentEarth);
+	wld.child(childMars, parentMars);
+
+	auto makeQuery = [&] {
+		return wld.query()
+				.template all<Status>()
+				.all(ecs::Pair(ecs::ChildOf, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.template changed<Status>();
+	};
+
+	auto qEarth = makeQuery();
+	auto qMars = makeQuery();
+
+	qEarth.set_var(ecs::Var0, parentEarth);
+	qMars.set_var(ecs::Var0, parentMars);
+
+	CHECK(qEarth.id() == qMars.id());
+	CHECK(qEarth.gen() == qMars.gen());
+
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {childEarth});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {childMars});
+
+	wld.set<Status>(childEarth) = {3};
+
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {childEarth});
+	expect_changed_probe_state(qMars, 0);
+	expect_changed_consume_exact(qMars, {});
+
+	wld.set<Status>(childMars) = {4};
+
+	expect_changed_probe_state(qEarth, 0);
+	expect_changed_consume_exact(qEarth, {});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {childMars});
 }
 
 TEST_CASE("Query Filter - systems") {
