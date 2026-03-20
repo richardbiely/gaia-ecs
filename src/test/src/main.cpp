@@ -6685,6 +6685,26 @@ void Test_Query_RuntimeParams() {
 	CHECK(qApi.count() == 2);
 	expect_exact_entities(qApi, {shipEarth, shipMars});
 
+	if constexpr (UseCachedQuery) {
+		auto qInterleavedA = wld.query()
+														 .template all<SpaceShip>()
+														 .all(ecs::Pair(dockedTo, ecs::Var0))
+														 .template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var0));
+		auto qInterleavedB = wld.query()
+														 .template all<SpaceShip>()
+														 .all(ecs::Pair(dockedTo, ecs::Var0))
+														 .template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var0));
+
+		qInterleavedA.set_var(ecs::Var0, earth);
+		qInterleavedB.set_var(ecs::Var0, mars);
+		CHECK(qInterleavedA.count() == 1);
+		expect_exact_entities(qInterleavedA, {shipEarth});
+		CHECK(qInterleavedB.count() == 1);
+		expect_exact_entities(qInterleavedB, {shipMars});
+		CHECK(qInterleavedA.count() == 1);
+		expect_exact_entities(qInterleavedA, {shipEarth});
+	}
+
 	// Named var provided explicitly before parsing the expression.
 	auto qExprNamed =
 			wld.query<UseCachedQuery>().var_name(ecs::Var0, "planet").add("SpaceShip, (DockedTo, $planet), Planet($planet)");

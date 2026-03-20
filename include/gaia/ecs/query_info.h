@@ -323,17 +323,17 @@ namespace gaia {
 			}
 
 			//! Checks runtime variable bindings used by the dynamic cache.
-			GAIA_NODISCARD bool dyn_var_bindings_changed() const {
-				const auto& ctxData = m_plan.ctx.data;
-				if (m_state.varBindingMask != ctxData.varBindingMask)
+			GAIA_NODISCARD bool dyn_var_bindings_changed(
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) const {
+				if (m_state.varBindingMask != runtimeVarBindingMask)
 					return true;
 
 				GAIA_FOR(MaxVarCnt) {
 					const auto bit = (uint8_t(1) << i);
-					if ((ctxData.varBindingMask & bit) == 0)
+					if ((runtimeVarBindingMask & bit) == 0)
 						continue;
 
-					if (m_state.varBindings[i] != ctxData.varBindings[i])
+					if (m_state.varBindings[i] != runtimeVarBindings[i])
 						return true;
 				}
 
@@ -444,11 +444,12 @@ namespace gaia {
 			}
 
 			//! Checks whether any tracked runtime input invalidates the reusable dynamic cache.
-			GAIA_NODISCARD bool dyn_inputs_changed() {
+			GAIA_NODISCARD bool
+			dyn_inputs_changed(const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				if (!can_reuse_dyn_cache())
 					return false;
 
-				if (dyn_var_bindings_changed())
+				if (dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
 					return true;
 
 				const bool relationVersionsChanged = dyn_rel_versions_changed();
@@ -466,7 +467,8 @@ namespace gaia {
 			}
 
 			//! Captures the tracked runtime inputs used by the reusable dynamic cache.
-			void snapshot_dyn_inputs() {
+			void
+			snapshot_dyn_inputs(const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				if (!can_reuse_dyn_cache())
 					return;
 
@@ -497,8 +499,8 @@ namespace gaia {
 					m_state.srcTravSnapshotOverflowed = false;
 				}
 
-				m_state.varBindings = m_plan.ctx.data.varBindings;
-				m_state.varBindingMask = m_plan.ctx.data.varBindingMask;
+				m_state.varBindings = runtimeVarBindings;
+				m_state.varBindingMask = runtimeVarBindingMask;
 			}
 
 			template <typename TType>
@@ -721,7 +723,8 @@ namespace gaia {
 					// all archetypes in the world
 					std::span<const Archetype*> allArchetypes,
 					// last matched archetype id
-					ArchetypeId archetypeLastId) {
+					ArchetypeId archetypeLastId, const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
+					uint8_t runtimeVarBindingMask) {
 				auto& w = *world();
 				auto& matchScratch = query_match_scratch_acquire(w);
 				CleanUpTmpArchetypeMatches autoCleanup(w, true);
@@ -737,7 +740,8 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) {
+				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
 					// are tracked with finer-grained version metadata.
@@ -782,8 +786,8 @@ namespace gaia {
 				ctx.as_mask_0 = ctxData.as_mask_0;
 				ctx.as_mask_1 = ctxData.as_mask_1;
 				ctx.flags = ctxData.flags;
-				ctx.varBindings = ctxData.varBindings;
-				ctx.varBindingMask = ctxData.varBindingMask;
+				ctx.varBindings = runtimeVarBindings;
+				ctx.varBindingMask = runtimeVarBindingMask;
 
 				// Run the virtual machine
 				m_plan.vm.exec(ctx);
@@ -802,7 +806,7 @@ namespace gaia {
 				sort_entities();
 				// Sort cache groups if necessary
 				sort_cache_groups();
-				snapshot_dyn_inputs();
+				snapshot_dyn_inputs(runtimeVarBindings, runtimeVarBindingMask);
 				m_state.clear_dirty();
 			}
 
@@ -811,7 +815,9 @@ namespace gaia {
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
 			//! \warning Not thread safe. No two threads can call this at the same time.
-			void match_one(const Archetype& archetype, EntitySpan targetEntities) {
+			void match_one(
+					const Archetype& archetype, EntitySpan targetEntities,
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				auto& w = *world();
 				auto& matchScratch = query_match_scratch_acquire(w);
 				CleanUpTmpArchetypeMatches autoCleanup(w, true);
@@ -827,7 +833,8 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() || dyn_inputs_changed())) ||
+				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+																 dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					// Source-based queries still take the conservative rebuild path until their inputs
@@ -856,8 +863,8 @@ namespace gaia {
 				ctx.as_mask_0 = ctxData.as_mask_0;
 				ctx.as_mask_1 = ctxData.as_mask_1;
 				ctx.flags = ctxData.flags;
-				ctx.varBindings = ctxData.varBindings;
-				ctx.varBindingMask = ctxData.varBindingMask;
+				ctx.varBindings = runtimeVarBindings;
+				ctx.varBindingMask = runtimeVarBindingMask;
 
 				// Run the virtual machine
 				m_plan.vm.exec(ctx);
@@ -871,18 +878,21 @@ namespace gaia {
 						add_archetype_to_cache(pArch, true);
 					}
 				}
-				snapshot_dyn_inputs();
+				snapshot_dyn_inputs(runtimeVarBindings, runtimeVarBindingMask);
 				m_state.clear_dirty();
 			}
 
 			void ensure_matches(
 					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
-					ArchetypeId archetypeLastId) {
-				match(entityToArchetypeMap, allArchetypes, archetypeLastId);
+					ArchetypeId archetypeLastId, const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
+					uint8_t runtimeVarBindingMask) {
+				match(entityToArchetypeMap, allArchetypes, archetypeLastId, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			void ensure_matches_one(const Archetype& archetype, EntitySpan targetEntities) {
-				match_one(archetype, targetEntities);
+			void ensure_matches_one(
+					const Archetype& archetype, EntitySpan targetEntities,
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
 			bool register_archetype(const Archetype& archetype) {
@@ -972,7 +982,10 @@ namespace gaia {
 				GAIA_ASSERT(ctxData.lastMatchedArchetypeIdx_Not.empty());
 
 				const auto* pArchetype = &archetype;
-				match(singleArchetypeLookup, std::span((const Archetype**)&pArchetype, 1), archetype.id());
+				const cnt::sarray<Entity, MaxVarCnt> noRuntimeVarBindings{};
+				match(
+						singleArchetypeLookup, std::span((const Archetype**)&pArchetype, 1), archetype.id(), noRuntimeVarBindings,
+						0);
 				ctxData.lastMatchedArchetypeIdx_All = GAIA_MOV(lastMatchedArchetypeIdx_All);
 				ctxData.lastMatchedArchetypeIdx_Or = GAIA_MOV(lastMatchedArchetypeIdx_Or);
 				ctxData.lastMatchedArchetypeIdx_Not = GAIA_MOV(lastMatchedArchetypeIdx_Not);

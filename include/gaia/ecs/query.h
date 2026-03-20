@@ -654,7 +654,6 @@ namespace gaia {
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
 								recommit(pQueryInfo->ctx());
-								apply_runtime_var_state(pQueryInfo->ctx());
 								return *pQueryInfo;
 							}
 
@@ -665,12 +664,9 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						apply_runtime_var_state(ctx);
 						auto& queryInfo =
 								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
-						recommit(queryInfo.ctx());
-						apply_runtime_var_state(queryInfo.ctx());
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
 					} else {
@@ -680,12 +676,10 @@ namespace gaia {
 							QueryCtx ctx;
 							ctx.init(m_storage.world());
 							commit(ctx);
-							apply_runtime_var_state(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
 						} else {
 							recommit(m_storage.m_queryInfo.ctx());
-							apply_runtime_var_state(m_storage.m_queryInfo.ctx());
 						}
 						return m_storage.m_queryInfo;
 					}
@@ -698,14 +692,15 @@ namespace gaia {
 						return;
 					}
 
-					queryInfo.ensure_matches(*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id());
+					queryInfo.ensure_matches(
+							*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id(), m_varBindings, m_varBindingsMask);
 					if constexpr (UseCaching) {
 						m_storage.m_queryCache->sync_archetype_cache(queryInfo);
 					}
 				}
 
 				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
-					queryInfo.ensure_matches_one(archetype, targetEntities);
+					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
@@ -938,17 +933,6 @@ namespace gaia {
 					m_varNames[idx].assign(varName);
 					m_varNamesMask |= bit;
 					return true;
-				}
-
-				void apply_runtime_var_state(QueryCtx& ctx) {
-					auto& data = ctx.data;
-					data.varBindingMask = m_varBindingsMask;
-					GAIA_FOR(8) {
-						const auto bit = (uint8_t(1) << i);
-						if ((m_varBindingsMask & bit) == 0)
-							continue;
-						data.varBindings[i] = m_varBindings[i];
-					}
 				}
 
 				template <typename T>
@@ -2696,7 +2680,7 @@ namespace gaia {
 				}
 
 				//! Checks whether any of the provided target entities matches the query semantics.
-				GAIA_NODISCARD static bool
+				GAIA_NODISCARD bool
 				matches_target_entities(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if (targetEntities.empty())
 						return false;
@@ -2715,7 +2699,7 @@ namespace gaia {
 						return false;
 					}
 
-					queryInfo.ensure_matches_one(archetype, targetEntities);
+					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 
 					bool archetypeMatched = false;
 					for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {

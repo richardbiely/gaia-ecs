@@ -629,10 +629,6 @@ namespace gaia {
 				uint16_t readWriteMask;
 				//! Query flags
 				uint8_t flags;
-				//! Runtime bindings for Var0..Var7.
-				cnt::sarray<Entity, MaxVarCnt> varBindings;
-				//! Bitmask of runtime variable bindings.
-				uint8_t varBindingMask = 0;
 				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
 				uint16_t cacheSrcTrav = 0;
 				//! Explicit dependency metadata derived from query shape.
