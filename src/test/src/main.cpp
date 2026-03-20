@@ -18495,6 +18495,111 @@ TEST_CASE("Observer - traversed source add_n matches query truth for all new ent
 	CHECK(added == created);
 }
 
+TEST_CASE("Observer - parented instantiate_n traversed source matches query truth for all new roots") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	wld.add<Acceleration>(scene);
+
+	const auto animal = wld.add();
+	wld.add<Position>(animal);
+
+	auto buildQuery = [&]() {
+		return wld.query<false>()
+				.template all<Position>()
+				.all(ecs::Pair(ecs::Parent, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_self_parent());
+	};
+
+	cnt::darr<ecs::Entity> added;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(ecs::Parent, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_self_parent())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					added.push_back(entities[i]);
+				}
+			});
+
+	const auto before = collect_sorted_entities(buildQuery());
+
+	cnt::darr<ecs::Entity> created;
+	wld.instantiate_n(animal, scene, 129, [&](ecs::Entity entity) {
+		created.push_back(entity);
+	});
+
+	const auto after = collect_sorted_entities(buildQuery());
+	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+	std::sort(created.begin(), created.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
+	const auto expectedAdded = sorted_entity_diff(after, before);
+	CHECK(added == expectedAdded);
+	CHECK(created.size() == 129);
+}
+
+TEST_CASE("Observer - many identical traversed observers each fire once for batched copy_ext_n") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto src = wld.add();
+	wld.add<Position>(src);
+	wld.add(src, ecs::Pair(connectedTo, child));
+
+	struct ObsCapture {
+		cnt::darr<ecs::Entity> hits;
+	};
+
+	cnt::darr<ObsCapture> captures(24);
+	for (auto& capture: captures) {
+		wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([&capture](ecs::Iter& it) {
+					auto entities = it.view<ecs::Entity>();
+					GAIA_EACH(it) {
+						capture.hits.push_back(entities[i]);
+					}
+				});
+	}
+
+	cnt::darr<ecs::Entity> copied;
+	wld.copy_ext_n(src, 97, [&](ecs::Entity entity) {
+		copied.push_back(entity);
+	});
+	std::sort(copied.begin(), copied.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
+	for (auto& capture: captures) {
+		std::sort(capture.hits.begin(), capture.hits.end(), [](ecs::Entity left, ecs::Entity right) {
+			if (left.id() != right.id())
+				return left.id() < right.id();
+			return left.gen() < right.gen();
+		});
+		CHECK(capture.hits == copied);
+	}
+}
+
 TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
 	TestWorld twld;
 
