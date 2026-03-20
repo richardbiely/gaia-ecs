@@ -42715,9 +42715,8 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
-				//! This is the cached-query equivalent of a cascade traversal and is intended for
-				//! relations such as ChildOf where the target is part of the archetype shape.
+				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Intended for relations such as ChildOf where the target is part of the archetype shape.
 				QueryImpl& cascade(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
@@ -42725,7 +42724,7 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 				template <typename Rel>
 				QueryImpl& cascade() {
@@ -56056,6 +56055,7 @@ namespace gaia {
 			GAIA_ASSERT(!relation.pair());
 
 			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
 			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
 				return 0;
 
@@ -56069,16 +56069,7 @@ namespace gaia {
 				if (target == EntityBad)
 					continue;
 
-				GroupId depth = 1;
-				auto curr = target;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
-					const auto next = world.target(curr, relation);
-					if (next == EntityBad || next == curr)
-						break;
-					++depth;
-					curr = next;
-				}
+				const GroupId depth = GroupId(world.targets_trav_cache(relation, target).size() + 1);
 
 				if (!found || depth < minDepth) {
 					minDepth = depth;

@@ -1032,8 +1032,8 @@ q.bfs(MyDependsOn).each([&](ecs::Entity e) {
 });
 // Repeated calls are cached and only recomputed when query/world data changes.
 
-// Configure cached query iteration to run top-down through a fragmenting hierarchy.
-// Use this for structural hierarchies such as ChildOf.
+// Configure the cached query itself to be ordered top-down by hierarchy depth.
+// Normal iteration then already runs parent-before-child for fragmenting hierarchies such as ChildOf.
 q.cascade(ecs::ChildOf).each([&](ecs::Entity e) {
   entities.push_back(e);
 });
@@ -1814,9 +1814,9 @@ q.group_by(eats, my_group_sort_func).each(...) { ... };
 
 `group_by(...)` is fully custom.
 
-Use `bfs(...)` when you want to walk the current query result in breadth-first dependency or traversal order.
+Use `bfs(...)` when you want to reorder the current query result in breadth-first dependency or traversal order.
 
-Use `cascade(...)` when you want normal cached query iteration to already run top-down for a fragmenting hierarchy such as `ChildOf`.
+Use `cascade(...)` when you want the cached query entries themselves sorted by hierarchy depth, so normal iteration already runs top-down for a fragmenting hierarchy such as `ChildOf`.
 
 ```cpp
 ecs::Query q = wld.query()

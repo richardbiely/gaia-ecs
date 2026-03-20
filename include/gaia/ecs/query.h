@@ -3748,9 +3748,8 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
-				//! This is the cached-query equivalent of a cascade traversal and is intended for
-				//! relations such as ChildOf where the target is part of the archetype shape.
+				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Intended for relations such as ChildOf where the target is part of the archetype shape.
 				QueryImpl& cascade(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
@@ -3758,7 +3757,7 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Orders cached query iteration top-down by fragmenting hierarchy depth.
+				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 				template <typename Rel>
 				QueryImpl& cascade() {

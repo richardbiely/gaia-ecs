@@ -11361,6 +11361,7 @@ namespace gaia {
 			GAIA_ASSERT(!relation.pair());
 
 			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
 			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
 				return 0;
 
@@ -11374,16 +11375,7 @@ namespace gaia {
 				if (target == EntityBad)
 					continue;
 
-				GroupId depth = 1;
-				auto curr = target;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
-					const auto next = world.target(curr, relation);
-					if (next == EntityBad || next == curr)
-						break;
-					++depth;
-					curr = next;
-				}
+				const GroupId depth = GroupId(world.targets_trav_cache(relation, target).size() + 1);
 
 				if (!found || depth < minDepth) {
 					minDepth = depth;
