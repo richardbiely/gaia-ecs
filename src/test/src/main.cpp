@@ -18519,6 +18519,56 @@ TEST_CASE("Observer - traversed source copy_ext_n fires for all new entities") {
 	CHECK(added == copied);
 }
 
+TEST_CASE("Observer - traversed source copy_ext_n with multiple matching binding pairs") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.child(childA, rootA);
+	wld.child(childB, rootB);
+	wld.add<Acceleration>(rootA);
+	wld.add<Acceleration>(rootB);
+
+	const auto src = wld.add();
+	wld.add<Position>(src);
+	wld.add(src, ecs::Pair(connectedTo, childA));
+	wld.add(src, ecs::Pair(connectedTo, childB));
+
+	cnt::darr<ecs::Entity> added;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					added.push_back(entities[i]);
+				}
+			});
+
+	cnt::darr<ecs::Entity> copied;
+	wld.copy_ext_n(src, 193, [&](ecs::Entity entity) {
+		copied.push_back(entity);
+	});
+
+	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+	std::sort(copied.begin(), copied.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
+	CHECK(added == copied);
+}
+
 TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 	TestWorld twld;
 
@@ -18573,6 +18623,56 @@ TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 
 	const auto expectedAdded = sorted_entity_diff(after, before);
 	CHECK(added == expectedAdded);
+	CHECK(added == created);
+}
+
+TEST_CASE("Observer - traversed source add_n with multiple matching binding pairs") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.child(childA, rootA);
+	wld.child(childB, rootB);
+	wld.add<Acceleration>(rootA);
+	wld.add<Acceleration>(rootB);
+
+	const auto archetypeSeed = wld.add();
+	wld.add<Position>(archetypeSeed);
+	wld.add(archetypeSeed, ecs::Pair(connectedTo, childA));
+	wld.add(archetypeSeed, ecs::Pair(connectedTo, childB));
+
+	cnt::darr<ecs::Entity> added;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedTo, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					added.push_back(entities[i]);
+				}
+			});
+
+	cnt::darr<ecs::Entity> created;
+	wld.add_n(archetypeSeed, 193, [&](ecs::Entity entity) {
+		created.push_back(entity);
+	});
+
+	std::sort(added.begin(), added.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+	std::sort(created.begin(), created.end(), [](ecs::Entity left, ecs::Entity right) {
+		if (left.id() != right.id())
+			return left.id() < right.id();
+		return left.gen() < right.gen();
+	});
+
 	CHECK(added == created);
 }
 
