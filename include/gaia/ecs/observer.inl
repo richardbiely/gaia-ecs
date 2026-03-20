@@ -79,29 +79,49 @@ namespace gaia {
 			auto* pWorld = iter.world();
 			const auto queryIds = queryInfo.ctx().data.ids_view();
 			const auto& remapping = queryInfo.ctx().data._remapping;
+			const auto queryIdCnt = (uint32_t)queryIds.size();
+			Entity termIds[ChunkHeader::MAX_COMPONENTS];
+			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+				termIds[i] = EntityBad;
+			}
+			GAIA_FOR(queryIdCnt) {
+				const auto idxBeforeRemapping = remapping[i];
+				termIds[i] = queryIds[idxBeforeRemapping];
+			}
+
+			const Archetype* pCachedArchetype = nullptr;
+			uint8_t cachedIndices[ChunkHeader::MAX_COMPONENTS];
+			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+				cachedIndices[i] = 0xFF;
+			}
+
 			for (auto e: targets) {
 				const auto& ec = pWorld->fetch(e);
-				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
-				Entity termIds[ChunkHeader::MAX_COMPONENTS];
-				GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
-					indices[i] = 0xFF;
-					termIds[i] = EntityBad;
-				}
+				if (pCachedArchetype != ec.pArchetype) {
+					pCachedArchetype = ec.pArchetype;
+					GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+						cachedIndices[i] = 0xFF;
+					}
 
-				const auto queryIdCnt = (uint32_t)queryIds.size();
-				GAIA_FOR(queryIdCnt) {
-					const auto idxBeforeRemapping = remapping[i];
-					const auto queryId = queryIds[idxBeforeRemapping];
-					auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
-					if (compIdx == BadIndex)
-						compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-					indices[i] = (uint8_t)compIdx;
-					termIds[i] = queryId;
+					auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
+					if (!indicesView.empty()) {
+						GAIA_FOR(queryIdCnt) {
+							cachedIndices[i] = indicesView[i];
+						}
+					} else {
+						GAIA_FOR(queryIdCnt) {
+							const auto queryId = termIds[i];
+							auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
+							if (compIdx == BadIndex)
+								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+							cachedIndices[i] = (uint8_t)compIdx;
+						}
+					}
 				}
 
 				iter.set_archetype(ec.pArchetype);
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
-				iter.set_remapping_indices(indices);
+				iter.set_remapping_indices(cachedIndices);
 				iter.set_term_ids(termIds);
 				on_each_func(iter);
 			}

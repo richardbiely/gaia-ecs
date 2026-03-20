@@ -1498,6 +1498,14 @@ namespace gaia {
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
+			//! Returns a cached indices mapping view for an exact archetype match, or an empty span when absent.
+			std::span<const uint8_t> try_indices_mapping_view(const Archetype* pArchetype) const {
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return indices_mapping_view(archetypeIdx);
+			}
+
 			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
 				return m_state.archetypeCache.begin();
 			}

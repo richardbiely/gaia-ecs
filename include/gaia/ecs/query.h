@@ -2834,14 +2834,20 @@ namespace gaia {
 					const auto queryIds = queryInfo.ctx().data.ids_view();
 					const auto& remapping = queryInfo.ctx().data._remapping;
 					const auto queryIdCnt = (uint32_t)queryIds.size();
+					auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
 					GAIA_FOR(queryIdCnt) {
 						const auto idxBeforeRemapping = remapping[i];
 						const auto queryId = queryIds[idxBeforeRemapping];
+						pTermIds[i] = queryId;
+						if (!indicesView.empty()) {
+							pIndices[i] = indicesView[i];
+							continue;
+						}
+
 						auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
 						if (compIdx == BadIndex)
 							compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
 						pIndices[i] = (uint8_t)compIdx;
-						pTermIds[i] = queryId;
 					}
 
 					//! Build a one-row iterator so direct-seeded execution can reuse the normal
