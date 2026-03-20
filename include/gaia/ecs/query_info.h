@@ -1294,14 +1294,14 @@ namespace gaia {
 
 			//! Returns cached group bounds for the currently selected group filter.
 			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
-			GAIA_NODISCARD const GroupData* selected_group_data() const {
-				if (m_plan.ctx.data.groupBy == EntityBad || m_plan.ctx.data.groupIdSet == 0)
+			GAIA_NODISCARD const GroupData* selected_group_data(GroupId runtimeGroupId) const {
+				if (m_plan.ctx.data.groupBy == EntityBad || runtimeGroupId == 0)
 					return nullptr;
 
-				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != m_plan.ctx.data.groupIdSet) {
+				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != runtimeGroupId) {
 					const auto cnt = m_state.archetypeGroupData.size();
 					GAIA_FOR(cnt) {
-						if (m_state.archetypeGroupData[i].groupId != m_plan.ctx.data.groupIdSet)
+						if (m_state.archetypeGroupData[i].groupId != runtimeGroupId)
 							continue;
 
 						m_state.selectedGroupData = m_state.archetypeGroupData[i];

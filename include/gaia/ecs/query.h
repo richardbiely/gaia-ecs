@@ -518,6 +518,8 @@ namespace gaia {
 				cnt::sarray<Entity, MaxVarCnt> m_varBindings;
 				//! Bitmask of variable bindings set in m_varBindings.
 				uint8_t m_varBindingsMask = 0;
+				//! Runtime-selected group id for grouped iteration.
+				GroupId m_groupIdSet = 0;
 				//! Batches used for parallel query processing
 				//! TODO: This is just temporary until a smarter system is introduced
 				cnt::darray<ChunkBatch> m_batches;
@@ -1154,8 +1156,8 @@ namespace gaia {
 					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
-					QueryCmd_SetGroupId cmd{groupId};
-					add_cmd(cmd);
+					invalidate_each_bfs_cache();
+					m_groupIdSet = groupId;
 				}
 
 				void set_group_id_inter(Entity groupId) {
@@ -1169,7 +1171,7 @@ namespace gaia {
 
 					// Make sure the component is always registered
 					const auto& desc = comp_cache_add<T>(*m_storage.world());
-					set_group_inter(desc.entity);
+					set_group_id_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -1590,9 +1592,9 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.ctx().data.groupIdSet == 0 ||
+								m_groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.ctx().data.groupIdSet);
+								data.groupId == m_groupIdSet);
 #endif
 
 						uint32_t chunkOffset = 0;
@@ -1655,9 +1657,9 @@ namespace gaia {
 						const auto& data = dataView[i];
 						GAIA_ASSERT(
 								// ... or no groupId is set...
-								queryInfo.ctx().data.groupIdSet == 0 ||
+								m_groupIdSet == 0 ||
 								// ... or the groupId must match the requested one
-								data.groupId == queryInfo.ctx().data.groupIdSet);
+								data.groupId == m_groupIdSet);
 					}
 #endif
 
@@ -1726,7 +1728,7 @@ namespace gaia {
 						return;
 
 					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = queryInfo.ctx().data.groupIdSet != 0;
+					const bool isGroupSet = m_groupIdSet != 0;
 					if (!isGroupBy || !isGroupSet) {
 						// No group requested or group filtering is currently turned off
 						const auto idxFrom = 0;
@@ -1737,7 +1739,7 @@ namespace gaia {
 							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
-						const auto* pGroupData = queryInfo.selected_group_data();
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
 						if (pGroupData == nullptr)
 							return;
 

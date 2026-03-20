@@ -13626,6 +13626,43 @@ TEST_CASE("Query - cached grouped query refreshes lazily after archetype creatio
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached grouped queries keep instance-local group filters") {
+	TestWorld twld;
+
+	auto eats = wld.add();
+	auto carrot = wld.add();
+	auto salad = wld.add();
+
+	auto eCarrotA = wld.add();
+	wld.add<Position>(eCarrotA, {1, 0, 0});
+	wld.add(eCarrotA, ecs::Pair(eats, carrot));
+
+	auto eCarrotB = wld.add();
+	wld.add<Position>(eCarrotB, {2, 0, 0});
+	wld.add(eCarrotB, ecs::Pair(eats, carrot));
+
+	auto eSaladA = wld.add();
+	wld.add<Position>(eSaladA, {3, 0, 0});
+	wld.add(eSaladA, ecs::Pair(eats, salad));
+
+	auto eSaladB = wld.add();
+	wld.add<Position>(eSaladB, {4, 0, 0});
+	wld.add(eSaladB, ecs::Pair(eats, salad));
+
+	auto qCarrot = wld.query().all<Position>().group_by(eats);
+	auto qSalad = wld.query().all<Position>().group_by(eats);
+
+	qCarrot.group_id(carrot);
+	qSalad.group_id(salad);
+
+	CHECK(qCarrot.count() == 2);
+	CHECK(qSalad.count() == 2);
+	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
+	expect_exact_entities(qSalad, {eSaladA, eSaladB});
+	CHECK(qCarrot.count() == 2);
+	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
+}
+
 TEST_CASE("Query - cached relation wildcard query survives repeated pair additions") {
 	TestWorld twld;
 	static constexpr uint32_t PairCount = 30;
