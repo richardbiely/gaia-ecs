@@ -890,6 +890,12 @@ namespace gaia {
 									world, *pObs, EntitySpan{ctx.targets.data(), ctx.targets.size()}, matchesAfter);
 						else
 							collect_query_matches(world, *pObs, matchesAfter);
+
+						if (ctx.targetsAddedAfterPrepare && ctx.event == ObserverEvent::OnAdd) {
+							execute_observer_targets(world, *pObs, EntitySpan{matchesAfter});
+							continue;
+						}
+
 						delta.clear();
 
 						const auto& before = snapshot.matchesBefore;
