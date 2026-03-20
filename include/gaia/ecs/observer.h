@@ -56,8 +56,6 @@ namespace gaia {
 			uint8_t termCount = 0;
 			//! Dynamic terms require full query diffing across structural changes.
 			bool diffDispatch = false;
-			//! Diff-dispatch observer has been linked into the event registry.
-			bool diffRegistered = false;
 
 			void add_term_descriptor(QueryOpKind op, bool allowFastPath) {
 				++termCount;

@@ -199,23 +199,19 @@ namespace gaia {
 				return false;
 			}
 
-			void enable_diff_dispatch(ObserverRuntimeData& data) {
-				if (data.diffDispatch)
+			void register_diff_term(ObserverRuntimeData& data, Entity term, const QueryTermOptions& options) {
+				if (!requires_diff_dispatch(term, options))
 					return;
 
 				data.diffDispatch = true;
-				if (!data.diffRegistered) {
-					m_world.observers().add_diff_observer(m_world, m_entity);
-					data.diffRegistered = true;
-				}
+				m_world.observers().add_diff_observer_term(m_world, m_entity, term, options);
 			}
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-				if (requires_diff_dispatch(term, QueryTermOptions{}))
-					enable_diff_dispatch(data);
+				register_diff_term(data, term, QueryTermOptions{});
 				m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
 			}
 
@@ -223,8 +219,7 @@ namespace gaia {
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
 				const auto term = m_world.add<T>().entity;
 				data.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-				if (requires_diff_dispatch(term, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, term, options);
 				m_world.observers().add(m_world, term, m_entity, options.matchKind);
 			}
 
@@ -255,8 +250,7 @@ namespace gaia {
 				options.matchKind = item.matchKind;
 
 				data.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
-				if (requires_diff_dispatch(item.id, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, item.id, options);
 				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
 				return *this;
 			}
@@ -281,8 +275,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.all(entity, options);
 				data.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
-				if (requires_diff_dispatch(entity, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -292,8 +285,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.any(entity, options);
 				data.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
-				if (requires_diff_dispatch(entity, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -303,8 +295,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
 				data.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
-				if (requires_diff_dispatch(entity, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}
@@ -314,8 +305,7 @@ namespace gaia {
 				auto& data = runtime_data();
 				data.query.no(entity, options);
 				data.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
-				if (requires_diff_dispatch(entity, options))
-					enable_diff_dispatch(data);
+				register_diff_term(data, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
 				return *this;
 			}

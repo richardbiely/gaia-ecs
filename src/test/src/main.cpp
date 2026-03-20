@@ -17348,6 +17348,47 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 		CHECK(removed[0] == cable);
 }
 
+TEST_CASE("Observer - traversed source propagation ignores unrelated pair relation changes") {
+	TestWorld twld;
+
+	const auto connectedToA = wld.add();
+	const auto connectedToB = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+
+	int hitsA = 0;
+	int hitsB = 0;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedToA, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter&) {
+				++hitsA;
+			})
+			.entity();
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.template all<Position>()
+			.all(ecs::Pair(connectedToB, ecs::Var0))
+			.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+			.on_each([&](ecs::Iter&) {
+				++hitsB;
+			})
+			.entity();
+
+	wld.add(cable, ecs::Pair(connectedToA, child));
+	CHECK(hitsA == 1);
+	CHECK(hitsB == 0);
+}
+
 TEST_CASE("Observer - Is pair uses semantic inheritance matching") {
 	TestWorld twld;
 

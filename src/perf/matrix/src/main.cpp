@@ -3973,6 +3973,52 @@ void BM_Observer_OnDel_50_8(picobench::state& state) {
 	BM_Observer_OnDel<50, 8>(state);
 }
 
+void BM_Observer_DiffPairRelFiltered_OnAdd(picobench::state& state) {
+	const uint32_t observerCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto relationHot = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		const auto cable = w.add();
+
+		w.child(child, root);
+		w.add<Acceleration>(root);
+		w.add<Position>(cable);
+
+		auto makeObserver = [&](ecs::Entity relation) {
+			w.observer()
+					.event(ecs::ObserverEvent::OnAdd)
+					.all<Position>()
+					.all(ecs::Pair(relation, ecs::Var0))
+					.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+					.on_each([&](ecs::Iter&) {
+						++hits;
+					});
+		};
+
+		if (observerCount != 0U)
+			makeObserver(relationHot);
+		GAIA_FOR2_(1, observerCount, i) {
+			(void)i;
+			makeObserver(w.add());
+		}
+
+		hits = 0;
+		state.start_timer();
+		w.add(cable, ecs::Pair(relationHot, child));
+		state.stop_timer();
+
+		dont_optimize(hits);
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // System frame benchmarks
 ////////////////////////////////////////////////////////////////////////////////
@@ -5532,6 +5578,18 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_OBS()
 				.user_data(NObserverEntities)
 				.label("on_del, 50 obs, 8 terms");
+		PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(1)
+				.label("observer diff pair-rel on_add filtered 1");
+		PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(50)
+				.label("observer diff pair-rel on_add filtered 50");
+		PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(200)
+				.label("observer diff pair-rel on_add filtered 200");
 		PICOBENCH_REG(BM_Observer_IsMatchesAny_Semantic_D2)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(1024)
