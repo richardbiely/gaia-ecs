@@ -30730,8 +30730,8 @@ namespace gaia {
 			return (uint8_t)lhs.matchKind < (uint8_t)rhs.matchKind;
 		}
 
-		template <typename TermsArray>
-		inline void canonicalize_lookup_terms(TermsArray& terms, uint32_t idsCnt) {
+		inline void canonicalize_lookup_terms(std::span<QueryTerm> terms) {
+			const auto idsCnt = (uint32_t)terms.size();
 			if (idsCnt > 0) {
 				uint32_t orCnt = 0;
 				uint32_t orIdx = BadIndex;
@@ -30753,8 +30753,8 @@ namespace gaia {
 			});
 		}
 
-		template <typename ChangedArray>
-		inline void canonicalize_lookup_changed(ChangedArray& changed, uint32_t changedCnt) {
+		inline void canonicalize_lookup_changed(std::span<Entity> changed) {
+			const auto changedCnt = (uint32_t)changed.size();
 			if (changedCnt > 1)
 				core::sort(changed.data(), changed.data() + changedCnt, SortComponentCond{});
 		}
@@ -31279,8 +31279,8 @@ namespace gaia {
 					leftTerms[i] = left._terms[i];
 					rightTerms[i] = right._terms[i];
 				}
-				canonicalize_lookup_terms(leftTerms, left.idsCnt);
-				canonicalize_lookup_terms(rightTerms, right.idsCnt);
+				canonicalize_lookup_terms(std::span<QueryTerm>{leftTerms.data(), left.idsCnt});
+				canonicalize_lookup_terms(std::span<QueryTerm>{rightTerms.data(), right.idsCnt});
 
 				{
 					const auto cnt = left.idsCnt;
@@ -31296,8 +31296,8 @@ namespace gaia {
 					leftChanged[i] = left._changed[i];
 					rightChanged[i] = right._changed[i];
 				}
-				canonicalize_lookup_changed(leftChanged, left.changedCnt);
-				canonicalize_lookup_changed(rightChanged, right.changedCnt);
+				canonicalize_lookup_changed(std::span<Entity>{leftChanged.data(), left.changedCnt});
+				canonicalize_lookup_changed(std::span<Entity>{rightChanged.data(), right.changedCnt});
 
 				{
 					const auto cnt = left.changedCnt;
@@ -31454,7 +31454,7 @@ namespace gaia {
 
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms{};
 				GAIA_FOR(ctxData.idsCnt) terms[i] = ctxData._terms[i];
-				canonicalize_lookup_terms(terms, ctxData.idsCnt);
+				canonicalize_lookup_terms(std::span<QueryTerm>{terms.data(), ctxData.idsCnt});
 
 				for (uint32_t i = 0; i < ctxData.idsCnt; ++i) {
 					const auto& pair = terms[i];
@@ -31482,7 +31482,7 @@ namespace gaia {
 
 				QueryEntityArray changed{};
 				GAIA_FOR(ctxData.changedCnt) changed[i] = ctxData._changed[i];
-				canonicalize_lookup_changed(changed, ctxData.changedCnt);
+				canonicalize_lookup_changed(std::span<Entity>{changed.data(), ctxData.changedCnt});
 
 				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)changed[i].value());
