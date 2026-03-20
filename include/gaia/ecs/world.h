@@ -752,12 +752,7 @@ namespace gaia {
 							}
 
 							if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo)) {
-								Iter it;
-								it.set_world(&world);
-								it.set_archetype(&archetype);
-								it.set_group_id(0);
-								it.set_remapping_indices(0);
-								obs.exec(it, targets);
+								SharedDispatch::execute_targets(world, obs, targets);
 							}
 						}
 
@@ -809,12 +804,7 @@ namespace gaia {
 								matches = true;
 
 							if (matches) {
-								Iter it;
-								it.set_world(&world);
-								it.set_archetype(&archetype);
-								it.set_group_id(0);
-								it.set_remapping_indices(0);
-								obs.exec(it, targets);
+								SharedDispatch::execute_targets(world, obs, targets);
 							}
 						}
 

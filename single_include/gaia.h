@@ -38559,6 +38559,7 @@ namespace gaia {
 			void register_archetype_with_queries(const Archetype* pArchetype) {
 				auto& handles = prepare_create_query_handles();
 				bool hasAnyPair = false;
+				cnt::darray_ext<Entity, 16> pairWildcardRelations;
 				for (const auto entity: pArchetype->ids_view()) {
 					add_create_query_handles(EntityLookupKey(entity), handles);
 					if (!entity.pair())
@@ -38572,7 +38573,10 @@ namespace gaia {
 					const auto rel = Entity((EntityId)entity.id(), 0, false, false, relKind);
 					const auto tgt = Entity((EntityId)entity.gen(), 0, false, false, entity.kind());
 					add_create_query_handles(EntityLookupKey(Pair(All, tgt)), handles);
-					add_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+					if (!core::has(pairWildcardRelations, rel)) {
+						pairWildcardRelations.push_back(rel);
+						add_create_query_handles(EntityLookupKey(Pair(rel, All)), handles);
+					}
 				}
 
 				if (hasAnyPair)
@@ -44095,12 +44099,7 @@ namespace gaia {
 							}
 
 							if (SharedDispatch::matches_direct_targets(obs, archetype, targets, pQueryInfo)) {
-								Iter it;
-								it.set_world(&world);
-								it.set_archetype(&archetype);
-								it.set_group_id(0);
-								it.set_remapping_indices(0);
-								obs.exec(it, targets);
+								SharedDispatch::execute_targets(world, obs, targets);
 							}
 						}
 
@@ -44152,12 +44151,7 @@ namespace gaia {
 								matches = true;
 
 							if (matches) {
-								Iter it;
-								it.set_world(&world);
-								it.set_archetype(&archetype);
-								it.set_group_id(0);
-								it.set_remapping_indices(0);
-								obs.exec(it, targets);
+								SharedDispatch::execute_targets(world, obs, targets);
 							}
 						}
 
