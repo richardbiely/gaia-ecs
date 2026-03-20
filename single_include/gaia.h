@@ -43340,6 +43340,8 @@ namespace gaia {
 			Query query;
 			//! Precomputed observer execution plan.
 			ObserverPlan plan;
+			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 
 			void exec(Iter& iter, EntitySpan targets);
 		};
@@ -43350,8 +43352,6 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
-			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
-			uint64_t lastMatchStamp = 0;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>
@@ -43608,6 +43608,7 @@ namespace gaia {
 
 					struct MatchCacheEntry {
 						ObserverRuntimeData* pObsRepresentative = nullptr;
+						QueryInfo* pQueryInfoRepresentative = nullptr;
 						uint64_t queryHash = 0;
 						cnt::darray<Entity> matches;
 					};
@@ -43765,6 +43766,8 @@ namespace gaia {
 
 						GAIA_FOR((uint32_t)cache.size()) {
 							auto& entry = cache[i];
+							if (entry.pQueryInfoRepresentative == &queryInfo)
+								return (int32_t)i;
 							if (entry.queryHash != queryHash || entry.pObsRepresentative == nullptr)
 								continue;
 
@@ -43877,6 +43880,7 @@ namespace gaia {
 								ctx.matchesBeforeCache.push_back({});
 								auto& entry = ctx.matchesBeforeCache.back();
 								entry.pObsRepresentative = pObs;
+								entry.pQueryInfoRepresentative = &pObs->query.fetch();
 								entry.queryHash = query_hash(*pObs);
 								if (ctx.targeted)
 									collect_query_target_matches(
@@ -43975,6 +43979,7 @@ namespace gaia {
 								matchesAfterCache.push_back({});
 								auto& entry = matchesAfterCache.back();
 								entry.pObsRepresentative = pObs;
+								entry.pQueryInfoRepresentative = &pObs->query.fetch();
 								entry.queryHash = query_hash(*pObs);
 								if (ctx.targeted)
 									collect_query_target_matches(
@@ -43993,7 +43998,6 @@ namespace gaia {
 
 							GAIA_ASSERT(snapshot.matchesBeforeIdx < ctx.matchesBeforeCache.size());
 							const auto& before = ctx.matchesBeforeCache[snapshot.matchesBeforeIdx].matches;
-
 							delta.clear();
 							uint32_t beforeIdx = 0;
 							uint32_t afterMatchIdx = 0;
@@ -44162,20 +44166,17 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obsHdr.lastMatchStamp == matchStamp)
-								continue;
-
 							auto* pObs = registry.data_try(observer);
 							if (pObs == nullptr)
+								continue;
+							if (pObs->lastMatchStamp == matchStamp)
 								continue;
 							if constexpr (DiffOnly) {
 								if (!pObs->plan.uses_diff_dispatch())
 									continue;
 							}
 
-							obsHdr.lastMatchStamp = matchStamp;
+							pObs->lastMatchStamp = matchStamp;
 							registry.m_relevant_observers_tmp.push_back(pObs);
 						}
 					}
@@ -44189,16 +44190,13 @@ namespace gaia {
 							if (!world.enabled(ec))
 								continue;
 
-							const auto compIdx = ec.pChunk->comp_idx(Observer);
-							auto& obsHdr = *reinterpret_cast<Observer_*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
-							if (obsHdr.lastMatchStamp == matchStamp)
-								continue;
-
 							auto* pObs = registry.data_try(observer);
 							if (pObs == nullptr || !pObs->plan.uses_diff_dispatch())
 								continue;
+							if (pObs->lastMatchStamp == matchStamp)
+								continue;
 
-							obsHdr.lastMatchStamp = matchStamp;
+							pObs->lastMatchStamp = matchStamp;
 							registry.m_relevant_observers_tmp.push_back(pObs);
 						}
 					}

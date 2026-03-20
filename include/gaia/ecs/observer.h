@@ -190,6 +190,8 @@ namespace gaia {
 			Query query;
 			//! Precomputed observer execution plan.
 			ObserverPlan plan;
+			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
+			uint64_t lastMatchStamp = 0;
 
 			void exec(Iter& iter, EntitySpan targets);
 		};
@@ -200,8 +202,6 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Event type
 			ObserverEvent event = ObserverEvent::OnAdd;
-			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
-			uint64_t lastMatchStamp = 0;
 
 			//! Disable automatic Observer_ serialization
 			template <typename Serializer>
