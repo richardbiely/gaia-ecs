@@ -4921,6 +4921,102 @@ void BM_Query_Cascade_ChildOf_EachComponent(picobench::state& state) {
 	dont_optimize(sum);
 }
 
+void BM_Query_Plain_ChildOf_Iter(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n);
+
+	auto q = w.query().all<Position>();
+	float sum = 0.0f;
+
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			sum += posView[i].x;
+		}
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Iter& it) {
+			auto posView = it.view<Position>();
+			GAIA_EACH(it) {
+				sum += posView[i].x;
+			}
+		});
+	}
+
+	dont_optimize(sum);
+}
+
+void BM_Query_Bfs_ChildOf_Iter(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n);
+
+	auto q = w.query().all<Position>();
+	float sum = 0.0f;
+
+	q.bfs(ecs::ChildOf).each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			sum += posView[i].x;
+		}
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.bfs(ecs::ChildOf).each([&](ecs::Iter& it) {
+			auto posView = it.view<Position>();
+			GAIA_EACH(it) {
+				sum += posView[i].x;
+			}
+		});
+	}
+
+	dont_optimize(sum);
+}
+
+void BM_Query_Cascade_ChildOf_Iter(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n);
+
+	auto q = w.query().all<Position>().cascade(ecs::ChildOf);
+	float sum = 0.0f;
+
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			sum += posView[i].x;
+		}
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Iter& it) {
+			auto posView = it.view<Position>();
+			GAIA_EACH(it) {
+				sum += posView[i].x;
+			}
+		});
+	}
+
+	dont_optimize(sum);
+}
+
 void BM_Hierarchy_Bfs_ChildOf_Disabled(picobench::state& state) {
 	BM_Hierarchy_Bfs<false, true>(state);
 }
@@ -5876,6 +5972,18 @@ int main(int argc, char* argv[]) {
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)
 				.label("query childof cascade each pos 10K");
+		PICOBENCH_REG(BM_Query_Plain_ChildOf_Iter)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("query childof plain iter pos 10K");
+		PICOBENCH_REG(BM_Query_Bfs_ChildOf_Iter)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("query childof bfs iter pos 10K");
+		PICOBENCH_REG(BM_Query_Cascade_ChildOf_Iter)
+				.PICO_SETTINGS_FOCUS()
+				.user_data(NEntitiesFew)
+				.label("query childof cascade iter pos 10K");
 		PICOBENCH_REG(BM_Query_Bfs_ChildOf_Disabled)
 				.PICO_SETTINGS_FOCUS()
 				.user_data(NEntitiesFew)

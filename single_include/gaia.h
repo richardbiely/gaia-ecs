@@ -39564,10 +39564,19 @@ namespace gaia {
 
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
+					struct ChunkRun {
+						const Archetype* pArchetype = nullptr;
+						Chunk* pChunk = nullptr;
+						uint16_t from = 0;
+						uint16_t to = 0;
+					};
+
 					//! Cached raw entity list for each_bfs.
 					cnt::darray<Entity> cachedInput;
 					//! Cached ordered entity list for each_bfs.
 					cnt::darray<Entity> cachedOutput;
+					//! Cached contiguous chunk-row runs for typed each_bfs fast-paths.
+					cnt::darray<ChunkRun> cachedRuns;
 					//! Cached relation used by each_bfs.
 					Entity cachedRelation = EntityBad;
 					//! Cached constraints used by each_bfs.
@@ -41967,11 +41976,28 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
 					auto& world = *queryInfo.world();
+					auto& bfsData = ensure_each_bfs_data();
 					TIter it;
 					it.set_world(&world);
 					const Archetype* pLastArchetype = nullptr;
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
+					if (!bfsData.cachedRuns.empty()) {
+						uint32_t rowCnt = 0;
+						for (const auto& run: bfsData.cachedRuns)
+							rowCnt += (uint32_t)(run.to - run.from);
+						GAIA_ASSERT(rowCnt == entities.size());
+
+						for (const auto& run: bfsData.cachedRuns) {
+							const auto& ec = ::gaia::ecs::fetch(world, run.pChunk->entity_view()[run.from]);
+							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+							it.set_chunk(run.pChunk, run.from, run.to);
+							it.set_group_id(0);
+							func(it);
+						}
+						return;
+					}
+
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
@@ -42011,54 +42037,20 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
 					if (canUseBasicInit) {
+						auto& bfsData = ensure_each_bfs_data();
 						TIter it;
 						it.set_world(&world);
-
 						const Archetype* pLastArchetype = nullptr;
-						const Archetype* pRunArchetype = nullptr;
-						Chunk* pRunChunk = nullptr;
-						uint16_t runFrom = 0;
-						uint16_t runTo = 0;
-
-						auto flush_run = [&]() {
-							if (pRunChunk == nullptr)
-								return;
-
-							if (pRunArchetype != pLastArchetype) {
-								it.set_archetype(pRunArchetype);
-								pLastArchetype = pRunArchetype;
+						for (const auto& run: bfsData.cachedRuns) {
+							if (run.pArchetype != pLastArchetype) {
+								it.set_archetype(run.pArchetype);
+								pLastArchetype = run.pArchetype;
 							}
 
-							it.set_chunk(pRunChunk, runFrom, runTo);
+							it.set_chunk(run.pChunk, run.from, run.to);
 							it.set_group_id(0);
 							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
-						};
-
-						for (const auto entity: entities) {
-							const auto& ec = ::gaia::ecs::fetch(world, entity);
-							GAIA_ASSERT(ec.pChunk != nullptr);
-
-							if (pRunChunk == nullptr) {
-								pRunArchetype = ec.pArchetype;
-								pRunChunk = ec.pChunk;
-								runFrom = ec.row;
-								runTo = (uint16_t)(ec.row + 1);
-								continue;
-							}
-
-							if (ec.pChunk == pRunChunk && ec.row == runTo) {
-								runTo = (uint16_t)(runTo + 1);
-								continue;
-							}
-
-							flush_run();
-							pRunArchetype = ec.pArchetype;
-							pRunChunk = ec.pChunk;
-							runFrom = ec.row;
-							runTo = (uint16_t)(ec.row + 1);
 						}
-
-						flush_run();
 						return;
 					}
 
@@ -43501,6 +43493,28 @@ namespace gaia {
 					bfsData.cachedConstraints = constraints;
 					bfsData.cachedRelationVersion = relationVersion;
 					bfsData.cachedEntityVersion = world.world_version();
+					bfsData.cachedRuns.clear();
+
+					{
+						const auto orderedCnt = (uint32_t)ordered.size();
+						if (orderedCnt != 0) {
+							for (uint32_t i = 0; i < orderedCnt; ++i) {
+								const auto& ec = ::gaia::ecs::fetch(world, ordered[i]);
+								if (bfsData.cachedRuns.empty()) {
+									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1)});
+									continue;
+								}
+
+								auto& run = bfsData.cachedRuns.back();
+								if (ec.pChunk == run.pChunk && ec.row == run.to) {
+									run.to = (uint16_t)(run.to + 1);
+								} else {
+									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1)});
+								}
+							}
+						}
+					}
+
 					if (!queryInfo.has_filters()) {
 						auto& chunks = bfsData.scratchChunks;
 						chunks.clear();

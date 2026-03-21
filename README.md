@@ -1245,6 +1245,8 @@ This is not recommended as a blanket default. It is most useful for read-heavy q
 
 Use `bfs(...)` when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.
 
+`bfs(...)` supports entity, typed, and iterator callbacks. Entity and typed callbacks are the best optimized paths. Iterator callbacks work as well, but can currently be slower on heavily reordered BFS results.
+
 ```cpp
 struct Time { int time; };
 

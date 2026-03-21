@@ -8781,6 +8781,168 @@ TEST_CASE("Query typed each bfs") {
 	CHECK(xs[3] == doctest::Approx(3.0f));
 }
 
+TEST_CASE("Query iterator each bfs") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {1, 0, 0});
+	wld.add<Position>(b, {2, 0, 0});
+	wld.add<Position>(c, {3, 0, 0});
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+
+	auto q = wld.query().all<Position>();
+	cnt::darray<ecs::Entity> ents;
+	cnt::darray<float> xs;
+	q.bfs(rel).each([&](ecs::Iter& it) {
+		auto entView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			ents.push_back(entView[i]);
+			xs.push_back(posView[i].x);
+		}
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(xs.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+	CHECK(xs[0] == doctest::Approx(0.0f));
+	CHECK(xs[1] == doctest::Approx(1.0f));
+	CHECK(xs[2] == doctest::Approx(2.0f));
+	CHECK(xs[3] == doctest::Approx(3.0f));
+
+	wld.del(b, {rel, root});
+	wld.add(b, {rel, c});
+
+	ents.clear();
+	xs.clear();
+	q.bfs(rel).each([&](ecs::Iter& it) {
+		auto entView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			ents.push_back(entView[i]);
+			xs.push_back(posView[i].x);
+		}
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(xs.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
+	CHECK(xs[0] == doctest::Approx(0.0f));
+	CHECK(xs[1] == doctest::Approx(1.0f));
+	CHECK(xs[2] == doctest::Approx(3.0f));
+	CHECK(xs[3] == doctest::Approx(2.0f));
+}
+
+TEST_CASE("Query typed each bfs multiple components") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {1, 0, 0});
+	wld.add<Position>(b, {2, 0, 0});
+	wld.add<Position>(c, {3, 0, 0});
+
+	wld.add<Scale>(root, {10, 0, 0});
+	wld.add<Scale>(a, {11, 0, 0});
+	wld.add<Scale>(b, {12, 0, 0});
+	wld.add<Scale>(c, {13, 0, 0});
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+
+	auto q = wld.query().all<Position>().all<Scale>();
+	cnt::darray<ecs::Entity> ents;
+	cnt::darray<float> px;
+	cnt::darray<float> sx;
+	q.bfs(rel).each([&](ecs::Entity e, const Position& pos, const Scale& scale) {
+		ents.push_back(e);
+		px.push_back(pos.x);
+		sx.push_back(scale.x);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(px.size() == 4);
+	CHECK(sx.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+	CHECK(px[0] == doctest::Approx(0.0f));
+	CHECK(px[1] == doctest::Approx(1.0f));
+	CHECK(px[2] == doctest::Approx(2.0f));
+	CHECK(px[3] == doctest::Approx(3.0f));
+	CHECK(sx[0] == doctest::Approx(10.0f));
+	CHECK(sx[1] == doctest::Approx(11.0f));
+	CHECK(sx[2] == doctest::Approx(12.0f));
+	CHECK(sx[3] == doctest::Approx(13.0f));
+}
+
+TEST_CASE("Query typed each bfs mutable components") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {1, 0, 0});
+	wld.add<Position>(b, {2, 0, 0});
+	wld.add<Position>(c, {3, 0, 0});
+
+	wld.add<Scale>(root, {10, 0, 0});
+	wld.add<Scale>(a, {11, 0, 0});
+	wld.add<Scale>(b, {12, 0, 0});
+	wld.add<Scale>(c, {13, 0, 0});
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+
+	auto q = wld.query().all<Position&>().all<Scale>();
+	cnt::darray<ecs::Entity> ents;
+	q.bfs(rel).each([&](ecs::Entity e, Position& pos, const Scale& scale) {
+		ents.push_back(e);
+		pos.x += scale.x;
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+
+	CHECK(wld.get<Position>(root).x == doctest::Approx(10.0f));
+	CHECK(wld.get<Position>(a).x == doctest::Approx(12.0f));
+	CHECK(wld.get<Position>(b).x == doctest::Approx(14.0f));
+	CHECK(wld.get<Position>(c).x == doctest::Approx(16.0f));
+}
+
 TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	TestWorld twld;
 
