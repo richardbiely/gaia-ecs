@@ -31032,8 +31032,10 @@ namespace gaia {
 					data.deps.clear();
 					if (data.sortByFunc != nullptr)
 						data.deps.add(DependencyHasSort);
-					if (data.groupBy != EntityBad)
+					if (data.groupBy != EntityBad) {
 						data.deps.add(DependencyHasGroup);
+						data.deps.add_rel(data.groupBy);
+					}
 
 					auto terms = data.terms_view();
 					const auto cnt = (uint32_t)terms.size();

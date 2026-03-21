@@ -8879,6 +8879,56 @@ TEST_CASE("Query cascade ChildOf updates after reparent") {
 	CHECK(ents[3] == grandChild);
 }
 
+TEST_CASE("Query cascade ChildOf updates when ancestor depth changes") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto parent = wld.add();
+	auto sibling = wld.add();
+	auto leaf = wld.add();
+	auto cousinGrandChild = wld.add();
+
+	wld.child(parent, root);
+	wld.child(sibling, root);
+	wld.child(leaf, parent);
+	wld.child(cousinGrandChild, sibling);
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(parent, {0, 0, 0});
+	wld.add<Position>(sibling, {0, 0, 0});
+	wld.add<Position>(leaf, {0, 0, 0});
+	wld.add<Position>(cousinGrandChild, {0, 0, 0});
+
+	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 5);
+	const bool lastIsDeepDescendant = ents[4] == leaf || ents[4] == cousinGrandChild;
+	CHECK(lastIsDeepDescendant);
+
+	wld.del(parent, ecs::Pair(ecs::ChildOf, root));
+
+	ents.clear();
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 5);
+	const bool firstIsRootLevel = ents[0] == root || ents[0] == parent;
+	CHECK(firstIsRootLevel);
+	CHECK(core::has(ents, leaf));
+	CHECK(core::has(ents, cousinGrandChild));
+
+	const auto leafIdx = core::get_index(ents, leaf);
+	const auto cousinIdx = core::get_index(ents, cousinGrandChild);
+	CHECK(leafIdx != BadIndex);
+	CHECK(cousinIdx != BadIndex);
+	CHECK(leafIdx < cousinIdx);
+}
+
 TEST_CASE("Query cascade custom relation orders entities by depth") {
 	TestWorld twld;
 
