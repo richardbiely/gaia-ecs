@@ -1900,6 +1900,17 @@ namespace gaia {
 					}
 				}
 
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_direct_entity(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
+						func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(0)]...);
+					} else {
+						func();
+					}
+				}
+
 				//------------------------------------------------
 
 				template <QueryExecType ExecType, typename Func>
@@ -2856,56 +2867,68 @@ namespace gaia {
 
 				template <typename TIter>
 				static void init_direct_entity_iter(
-						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices,
-						Entity* pTermIds) {
-					const auto& ec = ::gaia::ecs::fetch(world, entity);
+						const QueryInfo& queryInfo, const World& world, const EntityContainer& ec, TIter& it, uint8_t* pIndices,
+						Entity* pTermIds, const Archetype*& pLastArchetype) {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
 
-					GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
-						pIndices[i] = 0xFF;
-						pTermIds[i] = EntityBad;
-					}
-
-					const auto queryIds = queryInfo.ctx().data.ids_view();
-					const auto& remapping = queryInfo.ctx().data._remapping;
-					const auto queryIdCnt = (uint32_t)queryIds.size();
-					auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
-					GAIA_FOR(queryIdCnt) {
-						const auto idxBeforeRemapping = remapping[i];
-						const auto queryId = queryIds[idxBeforeRemapping];
-						pTermIds[i] = queryId;
-						if (!indicesView.empty()) {
-							pIndices[i] = indicesView[i];
-							continue;
+					if (ec.pArchetype != pLastArchetype) {
+						GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
+							pIndices[i] = 0xFF;
+							pTermIds[i] = EntityBad;
 						}
 
-						auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
-						if (compIdx == BadIndex)
-							compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-						pIndices[i] = (uint8_t)compIdx;
+						const auto queryIds = queryInfo.ctx().data.ids_view();
+						const auto& remapping = queryInfo.ctx().data._remapping;
+						const auto queryIdCnt = (uint32_t)queryIds.size();
+						auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
+						GAIA_FOR(queryIdCnt) {
+							const auto idxBeforeRemapping = remapping[i];
+							const auto queryId = queryIds[idxBeforeRemapping];
+							pTermIds[i] = queryId;
+							if (!indicesView.empty()) {
+								pIndices[i] = indicesView[i];
+								continue;
+							}
+
+							auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
+							if (compIdx == BadIndex)
+								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
+							pIndices[i] = (uint8_t)compIdx;
+						}
+
+						it.set_archetype(ec.pArchetype);
+						it.set_remapping_indices(pIndices);
+						it.set_term_ids(pTermIds);
+						pLastArchetype = ec.pArchetype;
 					}
 
-					//! Build a one-row iterator so direct-seeded execution can reuse the normal
-					//! chunk-view access path instead of per-entity world.get()/set() calls.
-					it.set_world(&world);
-					it.set_archetype(ec.pArchetype);
 					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 					it.set_group_id(0);
-					it.set_remapping_indices(pIndices);
-					it.set_term_ids(pTermIds);
 				}
 
 				template <typename TIter>
-				static void init_direct_entity_iter_basic(const World& world, Entity entity, TIter& it) {
+				static void init_direct_entity_iter(
+						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices,
+						Entity* pTermIds) {
 					const auto& ec = ::gaia::ecs::fetch(world, entity);
+					const Archetype* pLastArchetype = nullptr;
+					it.set_world(&world);
+					init_direct_entity_iter(queryInfo, world, ec, it, pIndices, pTermIds, pLastArchetype);
+				}
+
+				template <typename TIter>
+				static void init_direct_entity_iter_basic(
+						const World& world, const EntityContainer& ec, TIter& it, const Archetype*& pLastArchetype) {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
 
-					it.set_world(&world);
-					it.set_archetype(ec.pArchetype);
+					if (ec.pArchetype != pLastArchetype) {
+						it.set_archetype(ec.pArchetype);
+						pLastArchetype = ec.pArchetype;
+					}
 					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 					it.set_group_id(0);
 				}
@@ -2913,11 +2936,14 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
 					auto& world = *queryInfo.world();
+					TIter it;
+					it.set_world(&world);
+					const Archetype* pLastArchetype = nullptr;
+					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+					Entity termIds[ChunkHeader::MAX_COMPONENTS];
 					for (const auto entity: entities) {
-						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
-						Entity termIds[ChunkHeader::MAX_COMPONENTS];
-						TIter it;
-						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						const auto& ec = ::gaia::ecs::fetch(world, entity);
+						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 						func(it);
 					}
 				}
@@ -2953,16 +2979,71 @@ namespace gaia {
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
-					for (const auto entity: entities) {
+					if (canUseBasicInit) {
 						TIter it;
-						if (canUseBasicInit) {
-							init_direct_entity_iter_basic(world, entity, it);
-						} else {
-							uint8_t indices[ChunkHeader::MAX_COMPONENTS];
-							Entity termIds[ChunkHeader::MAX_COMPONENTS];
-							init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						it.set_world(&world);
+
+						const Archetype* pLastArchetype = nullptr;
+						const Archetype* pRunArchetype = nullptr;
+						Chunk* pRunChunk = nullptr;
+						uint16_t runFrom = 0;
+						uint16_t runTo = 0;
+
+						auto flush_run = [&]() {
+							if (pRunChunk == nullptr)
+								return;
+
+							if (pRunArchetype != pLastArchetype) {
+								it.set_archetype(pRunArchetype);
+								pLastArchetype = pRunArchetype;
+							}
+
+							it.set_chunk(pRunChunk, runFrom, runTo);
+							it.set_group_id(0);
+							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+						};
+
+						for (const auto entity: entities) {
+							const auto& ec = ::gaia::ecs::fetch(world, entity);
+							GAIA_ASSERT(ec.pChunk != nullptr);
+
+							if (pRunChunk == nullptr) {
+								pRunArchetype = ec.pArchetype;
+								pRunChunk = ec.pChunk;
+								runFrom = ec.row;
+								runTo = (uint16_t)(ec.row + 1);
+								continue;
+							}
+
+							if (ec.pChunk == pRunChunk && ec.row == runTo) {
+								runTo = (uint16_t)(runTo + 1);
+								continue;
+							}
+
+							flush_run();
+							pRunArchetype = ec.pArchetype;
+							pRunChunk = ec.pChunk;
+							runFrom = ec.row;
+							runTo = (uint16_t)(ec.row + 1);
 						}
-						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+
+						flush_run();
+						return;
+					}
+
+					TIter it;
+					it.set_world(&world);
+					const Archetype* pLastArchetype = nullptr;
+					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+					Entity termIds[ChunkHeader::MAX_COMPONENTS];
+					for (const auto entity: entities) {
+						const auto& ec = ::gaia::ecs::fetch(world, entity);
+						if (canUseBasicInit)
+							init_direct_entity_iter_basic(world, ec, it, pLastArchetype);
+						else
+							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+
+						run_query_on_direct_entity(it, func, core::func_type_list<T...>{});
 					}
 				}
 
