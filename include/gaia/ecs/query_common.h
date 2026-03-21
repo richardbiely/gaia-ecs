@@ -57,6 +57,8 @@ namespace gaia {
 
 		//! Number of items that can be a part of Query
 		static constexpr uint32_t MAX_ITEMS_IN_QUERY = 12U;
+		//! Maximum traversal depth.
+		static constexpr uint32_t MAX_TRAV_DEPTH = 128U;
 
 		GAIA_GCC_WARNING_PUSH()
 		// GCC is unnecessarily too strict about shadowing.
@@ -235,7 +237,7 @@ namespace gaia {
 			//! `Down` means checking traversed descendants.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
 			//! Maximum number of traversal steps.
-			//! 0 means unlimited traversal depth (bounded internally).
+			//! 0 means unlimited traversal depth (bounded internally, at most MAX_TRAV_DEPTH steps).
 			uint8_t travDepth = TravDepthUnlimited;
 			//! Match semantics for terms with special meaning, such as `Pair(Is, X)`.
 			QueryMatchKind matchKind = QueryMatchKind::Semantic;
@@ -254,7 +256,7 @@ namespace gaia {
 			//! Source traversal filter.
 			QueryTravKind travKind = QueryTravKind::Self | QueryTravKind::Up;
 			//! Maximum number of traversal steps.
-			//! 0 means unlimited traversal depth (bounded internally).
+			//! 0 means unlimited traversal depth (bounded internally, at most MAX_TRAV_DEPTH steps).
 			uint8_t travDepth = TravDepthUnlimited;
 			//! Access mode for the term.
 			//! When None, typed query terms infer read/write access from template mutability.

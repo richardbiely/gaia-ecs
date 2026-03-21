@@ -659,6 +659,7 @@ namespace gaia {
 						if (ctx.resetTraversalCaches) {
 							world.m_targetsTravCache = {};
 							world.m_srcBfsTravCache = {};
+							world.m_cascadeDepthCache = {};
 							world.m_sourcesAllCache = {};
 							world.m_targetsAllCache = {};
 							world.m_entityToAsTargetsTravCache = {};
@@ -1684,6 +1685,9 @@ namespace gaia {
 			//! Lazily built breadth-first descendant closures for unlimited source traversal.
 			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
+			//! Lazily built hierarchy levels for cached cascade ordering.
+			//! Keyed by `(relation, target)` and cleared whenever a pair edge changes.
+			mutable cnt::map<EntityLookupKey, uint32_t> m_cascadeDepthCache;
 			//! Lazily built deduped sources for wildcard source traversal on a target entity.
 			//! Keyed by `target` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_sourcesAllCache;
@@ -2080,6 +2084,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -2110,6 +2115,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -2176,6 +2182,7 @@ namespace gaia {
 				}
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -2200,6 +2207,7 @@ namespace gaia {
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -2986,6 +2994,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_cascadeDepthCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -3070,6 +3079,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
+						m_world.m_cascadeDepthCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -4305,6 +4315,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Parent);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -4885,6 +4896,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -4985,6 +4997,7 @@ namespace gaia {
 					invalidate_queries_for_rel(Is);
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_cascadeDepthCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 
@@ -6420,8 +6433,7 @@ namespace gaia {
 					return cache;
 
 				auto curr = source;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
+				GAIA_FOR(MAX_TRAV_DEPTH) {
 					const auto next = target(curr, relation);
 					if (next == EntityBad || next == curr)
 						break;
@@ -6538,8 +6550,7 @@ namespace gaia {
 					return;
 
 				auto curr = source;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
+				GAIA_FOR(MAX_TRAV_DEPTH) {
 					const auto next = target(curr, relation);
 					if (next == EntityBad || next == curr)
 						break;
@@ -6561,8 +6572,7 @@ namespace gaia {
 					return false;
 
 				auto curr = source;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
+				GAIA_FOR(MAX_TRAV_DEPTH) {
 					const auto next = target(curr, relation);
 					if (next == EntityBad || next == curr)
 						break;
@@ -6589,7 +6599,7 @@ namespace gaia {
 				if (!valid(relation) || !valid(rootTarget))
 					return cache;
 
-				cnt::darray<Entity> queue;
+				cnt::darray_ext<Entity, 32> queue;
 				queue.push_back(rootTarget);
 
 				cnt::set<EntityLookupKey> visited;
@@ -6619,6 +6629,48 @@ namespace gaia {
 				}
 
 				return cache;
+			}
+
+			//! Returns the cached fragmenting hierarchy depth used by cascade ordering for `(relation, target)`.
+			//! The returned value is `1` for direct children of a root and grows by one per ancestor level.
+			GAIA_NODISCARD uint32_t cascade_depth_cache(Entity relation, Entity sourceTarget) const {
+				const auto key = EntityLookupKey(Pair(relation, sourceTarget));
+				const auto itCache = m_cascadeDepthCache.find(key);
+				if (itCache != m_cascadeDepthCache.end())
+					return itCache->second;
+
+				if (!valid(relation) || !valid(sourceTarget))
+					return 0;
+
+				cnt::darray_ext<Entity, 32> pending;
+				auto curr = sourceTarget;
+				uint32_t depth = 0;
+				GAIA_FOR(MAX_TRAV_DEPTH) {
+					const auto currKey = EntityLookupKey(Pair(relation, curr));
+					const auto itDepth = m_cascadeDepthCache.find(currKey);
+					if (itDepth != m_cascadeDepthCache.end()) {
+						depth = itDepth->second;
+						break;
+					}
+
+					pending.push_back(curr);
+
+					const auto next = this->target(curr, relation);
+					if (next == EntityBad || next == curr) {
+						depth = 0;
+						break;
+					}
+
+					curr = next;
+				}
+
+				for (uint32_t i = (uint32_t)pending.size(); i > 0; --i) {
+					++depth;
+					m_cascadeDepthCache[EntityLookupKey(Pair(relation, pending[i - 1]))] = depth;
+				}
+
+				const auto itResult = m_cascadeDepthCache.find(key);
+				return itResult != m_cascadeDepthCache.end() ? itResult->second : 0;
 			}
 
 			template <typename Func>
@@ -7483,8 +7535,7 @@ namespace gaia {
 					return false;
 
 				auto curr = entity;
-				constexpr uint32_t MaxTraversalDepth = 2048;
-				GAIA_FOR(MaxTraversalDepth) {
+				GAIA_FOR(MAX_TRAV_DEPTH) {
 					const auto next = target(curr, relation);
 					if (next == EntityBad || next == curr)
 						break;
@@ -7715,6 +7766,7 @@ namespace gaia {
 					m_entityToAsTargetsTravCache = {};
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
+					m_cascadeDepthCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 					m_tgtToRel = {};
@@ -9649,6 +9701,7 @@ namespace gaia {
 
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
+				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -11375,7 +11428,7 @@ namespace gaia {
 				if (target == EntityBad)
 					continue;
 
-				const GroupId depth = GroupId(world.targets_trav_cache(relation, target).size() + 1);
+				const GroupId depth = GroupId(world.cascade_depth_cache(relation, target));
 
 				if (!found || depth < minDepth) {
 					minDepth = depth;

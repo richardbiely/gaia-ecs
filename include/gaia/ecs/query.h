@@ -4043,8 +4043,7 @@ namespace gaia {
 							return true;
 
 						auto curr = entity;
-						constexpr uint32_t MaxTraversalDepth = 2048;
-						GAIA_FOR(MaxTraversalDepth) {
+						GAIA_FOR(MAX_TRAV_DEPTH) {
 							const auto next = world.target(curr, relation);
 							if (next == EntityBad || next == curr)
 								break;

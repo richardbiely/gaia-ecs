@@ -945,9 +945,8 @@ namespace gaia {
 					if (!valid(w, sourceEntity))
 						return false;
 
-					constexpr uint32_t MaxTraversalDepth = 2048;
 					const uint32_t maxDepth =
-							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MAX_TRAV_DEPTH : (uint32_t)term.travDepth;
 
 					if (!cursor.initialized) {
 						cursor.initialized = true;
@@ -980,9 +979,8 @@ namespace gaia {
 					if (!valid(w, sourceEntity))
 						return false;
 
-					constexpr uint32_t MaxTraversalDepth = 2048;
 					const uint32_t maxDepth =
-							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MaxTraversalDepth : (uint32_t)term.travDepth;
+							term.travDepth == QueryTermOptions::TravDepthUnlimited ? MAX_TRAV_DEPTH : (uint32_t)term.travDepth;
 
 					if (!cursor.initialized) {
 						cursor.initialized = true;
