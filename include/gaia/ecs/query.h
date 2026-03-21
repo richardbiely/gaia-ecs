@@ -643,6 +643,7 @@ namespace gaia {
 				//! Cached run data for repeated direct-seeded semantic/inherited entity walks.
 				struct DirectSeedRunData {
 					cnt::darray<Entity> cachedEntities;
+					cnt::darray<Entity> cachedChunkOrderedEntities;
 					cnt::darray<detail::BfsChunkRun> cachedRuns;
 					Entity cachedSeedTerm = EntityBad;
 					QueryMatchKind cachedSeedMatchKind = QueryMatchKind::Semantic;
@@ -1997,6 +1998,30 @@ namespace gaia {
 					}
 				}
 
+				template <typename T>
+				GAIA_FORCEINLINE static decltype(auto) chunk_view_auto(Chunk* pChunk) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return pChunk->entity_view();
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						return pChunk->template view<FT>();
+					}
+				}
+
+				template <typename Func, typename... T>
+				GAIA_FORCEINLINE static void
+				run_query_on_chunk_rows_direct(Chunk* pChunk, uint16_t from, uint16_t to, Func& func, core::func_type_list<T...>) {
+					if constexpr (sizeof...(T) > 0) {
+						auto dataPointerTuple = std::make_tuple(chunk_view_auto<T>(pChunk)...);
+						for (uint16_t row = from; row < to; ++row)
+							func(std::get<decltype(chunk_view_auto<T>(pChunk))>(dataPointerTuple)[row]...);
+					} else {
+						for (uint16_t row = from; row < to; ++row)
+							func();
+					}
+				}
+
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
@@ -2474,30 +2499,38 @@ namespace gaia {
 
 					auto& runs = runData.cachedRuns;
 					auto& entities = runData.cachedEntities;
+					auto& chunkOrderedEntities = runData.cachedChunkOrderedEntities;
 					runs.clear();
 					entities.clear();
-
-					const Archetype* pLastArchetype = nullptr;
-					bool lastArchetypeMatched = false;
-					uint32_t entityOffset = 0;
+					chunkOrderedEntities.clear();
 
 					(void)for_each_direct_term_entity(world, seedTerm, [&](Entity entity) {
 						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
 							return true;
 
-						const auto& ec = ::gaia::ecs::fetch(world, entity);
-						if (ec.pArchetype != pLastArchetype) {
-							lastArchetypeMatched = match_direct_entity_terms(world, entity, queryInfo, seedInfo);
-							pLastArchetype = ec.pArchetype;
-						}
-
-						if (!lastArchetypeMatched)
+						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 							return true;
 
 						entities.push_back(entity);
-						append_chunk_run(runs, ec, entityOffset++);
 						return true;
 					});
+
+					chunkOrderedEntities = entities;
+					core::sort(chunkOrderedEntities, [&](Entity left, Entity right) {
+						const auto& ecLeft = ::gaia::ecs::fetch(world, left);
+						const auto& ecRight = ::gaia::ecs::fetch(world, right);
+						if (ecLeft.pArchetype != ecRight.pArchetype)
+							return ecLeft.pArchetype->id() < ecRight.pArchetype->id();
+						if (ecLeft.pChunk != ecRight.pChunk)
+							return ecLeft.pChunk < ecRight.pChunk;
+						return ecLeft.row < ecRight.row;
+					});
+
+					uint32_t entityOffset = 0;
+					for (const auto entity: chunkOrderedEntities) {
+						const auto& ec = ::gaia::ecs::fetch(world, entity);
+						append_chunk_run(runs, ec, entityOffset++);
+					}
 
 					runData.cachedSeedTerm = seedTerm.id;
 					runData.cachedSeedMatchKind = seedTerm.matchKind;
@@ -3168,6 +3201,15 @@ namespace gaia {
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
+					if constexpr ((can_use_raw_chunk_row_arg<T>() && ...)) {
+						if (canUseBasicInit) {
+							for (const auto& run: runs) {
+								run_query_on_chunk_rows_direct(run.pChunk, run.from, run.to, func, core::func_type_list<T...>{});
+							}
+							return;
+						}
+					}
+
 					if (canUseBasicInit) {
 						TIter it;
 						it.set_world(&world);
@@ -3243,6 +3285,15 @@ namespace gaia {
 
 						return false;
 					}
+				}
+
+				template <typename T>
+				GAIA_NODISCARD static constexpr bool can_use_raw_chunk_row_arg() {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return true;
+					else
+						return !std::is_lvalue_reference_v<T> || std::is_const_v<std::remove_reference_t<T>>;
 				}
 
 				template <typename TIter, typename Func, typename... T>
