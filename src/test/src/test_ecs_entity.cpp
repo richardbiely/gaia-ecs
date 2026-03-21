@@ -770,6 +770,24 @@ TEST_CASE("Entity weak - recycled ids do not resurrect stale handles") {
 	CHECK(wld.valid(recycled));
 	CHECK(weak == ecs::EntityBad);
 }
+
+TEST_CASE("Entity validity distinguishes stale handles from recycled live slots") {
+	TestWorld twld;
+
+	const auto original = wld.add();
+	const auto originalId = original.id();
+
+	wld.del(original);
+	wld.update();
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == originalId);
+	CHECK(recycled.gen() != original.gen());
+
+	CHECK_FALSE(wld.valid(original));
+	CHECK(wld.valid(recycled));
+	CHECK(wld.get_if_valid(originalId) == recycled);
+}
 #endif
 
 TEST_CASE("Add - no components") {

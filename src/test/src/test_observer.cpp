@@ -1,6 +1,5 @@
 #include "test_common.h"
 
-
 #if GAIA_OBSERVERS_ENABLED
 
 TEST_CASE("Observer - simple") {
@@ -781,6 +780,16 @@ namespace {
 		return out;
 	}
 
+	ecs::Entity recycle_same_id(ecs::World& world, ecs::Entity stale, uint32_t maxAttempts = 256) {
+		for (uint32_t i = 0; i < maxAttempts; ++i) {
+			const auto candidate = world.add();
+			if (candidate.id() == stale.id())
+				return candidate;
+		}
+
+		return ecs::EntityBad;
+	}
+
 	template <typename MutateFunc>
 	void expect_traversed_observer_changes(
 			ecs::World& world, ecs::Entity bindingRelation, ecs::QueryTermOptions traversalOptions, MutateFunc&& mutate,
@@ -1550,6 +1559,60 @@ TEST_CASE("Observer - deleting the only bound source emits removal") {
 
 	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
 		wld.del(child);
+	});
+}
+
+TEST_CASE("Observer - recycled bound source does not resurrect traversed matches") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del(child);
+		wld.update();
+
+		const auto recycled = recycle_same_id(wld, child);
+		CHECK(recycled != ecs::EntityBad);
+		if (recycled != ecs::EntityBad) {
+			CHECK(recycled.id() == child.id());
+			CHECK(recycled.gen() != child.gen());
+			wld.child(recycled, root);
+		}
+	});
+}
+
+TEST_CASE("Observer - recycled ancestor does not resurrect traversed matches") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+
+	expect_traversed_observer_changes(wld, connectedTo, ecs::QueryTermOptions{}.trav(), [&] {
+		wld.del(root);
+		wld.update();
+
+		const auto recycled = recycle_same_id(wld, root);
+		CHECK(recycled != ecs::EntityBad);
+		if (recycled != ecs::EntityBad) {
+			CHECK(recycled.id() == root.id());
+			CHECK(recycled.gen() != root.gen());
+			wld.add<Acceleration>(recycled);
+		}
 	});
 }
 

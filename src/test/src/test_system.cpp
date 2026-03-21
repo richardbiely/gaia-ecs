@@ -893,4 +893,56 @@ TEST_CASE("System - deep hierarchy skips disabled subtrees while preserving loca
 	(void)sys11;
 }
 
+TEST_CASE("System - cached direct-source query ignores recycled source ids") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	wld.add<Acceleration>(source, {1.0f, 2.0f, 3.0f});
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {4.0f, 5.0f, 6.0f});
+
+	uint32_t hits = 0;
+	cnt::darr<ecs::Entity> matched;
+	wld.system().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source)).on_each([&](ecs::Iter& it) {
+		auto entities = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			++hits;
+			matched.push_back(entities[i]);
+		}
+	});
+
+	wld.update();
+	CHECK(hits == 1);
+	CHECK(matched.size() == 1);
+	if (matched.size() == 1)
+		CHECK(matched[0] == entity);
+
+	hits = 0;
+	matched.clear();
+
+	wld.del(source);
+	wld.update();
+	CHECK(hits == 0);
+	CHECK(matched.empty());
+
+	ecs::Entity recycled = ecs::EntityBad;
+	for (uint32_t i = 0; i < 256 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == source.id())
+			recycled = candidate;
+	}
+	CHECK(recycled != ecs::EntityBad);
+	if (recycled != ecs::EntityBad)
+		CHECK(recycled.gen() != source.gen());
+	if (recycled != ecs::EntityBad)
+		wld.add<Acceleration>(recycled, {7.0f, 8.0f, 9.0f});
+
+	hits = 0;
+	matched.clear();
+	wld.update();
+	CHECK(hits == 0);
+	CHECK(matched.empty());
+}
+
 #endif

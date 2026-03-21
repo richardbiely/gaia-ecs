@@ -1,6 +1,5 @@
 #include "test_common.h"
 
-
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
 	TestDataLayoutSoA_ECS<RotationSoA>();
@@ -3296,6 +3295,37 @@ TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity
 	wld.update();
 
 	CHECK_FALSE(wld.has(e));
+}
+
+TEST_CASE("Clear removes table unique and sparse component state") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	wld.add<ecs::uni<Position>>(e, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+	wld.add<Rotation>(e, {7.0f, 8.0f, 9.0f, 10.0f});
+
+	CHECK(wld.has<ecs::uni<Position>>(e));
+	CHECK(wld.has<PositionSparse>(e));
+	CHECK(wld.has<Rotation>(e));
+
+	wld.clear(e);
+
+	CHECK(wld.has(e));
+	CHECK_FALSE(wld.has<ecs::uni<Position>>(e));
+	CHECK_FALSE(wld.has<PositionSparse>(e));
+	CHECK_FALSE(wld.has<Rotation>(e));
+
+	wld.add<ecs::uni<Position>>(e);
+	wld.add<PositionSparse>(e);
+
+	auto& posUni = wld.acc_mut(e).mut<ecs::uni<Position>>();
+	posUni = {11.0f, 12.0f, 13.0f};
+	auto& posSparse = wld.set<PositionSparse>(e);
+	posSparse = {14.0f, 15.0f, 16.0f};
+
+	CHECK(wld.get<ecs::uni<Position>>(e).x == doctest::Approx(11.0f));
+	CHECK(wld.get<PositionSparse>(e).x == doctest::Approx(14.0f));
 }
 
 TEST_CASE("EntityContainer cached entity slot across row swap and archetype move") {

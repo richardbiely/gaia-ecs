@@ -759,6 +759,91 @@ TEST_CASE("Query - variables advanced") {
 	}
 }
 
+TEST_CASE("Query - variable source ignores stale recycled handles") {
+	TestWorld twld;
+
+	struct Ship {};
+	struct PlanetTag {};
+
+	const auto earth = wld.add();
+	wld.add<PlanetTag>(earth);
+
+	const auto ship = wld.add();
+	wld.add<Ship>(ship);
+
+	auto q = wld.query().all<Ship>().all<PlanetTag>(ecs::QueryTermOptions{}.src(ecs::Var0));
+
+	q.set_var(ecs::Var0, earth);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {ship});
+
+	wld.del(earth);
+	wld.update();
+
+	ecs::Entity recycled = ecs::EntityBad;
+	cnt::darr<ecs::Entity> extras;
+	for (uint32_t i = 0; i < 64 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == earth.id())
+			recycled = candidate;
+		else
+			extras.push_back(candidate);
+	}
+
+	CHECK(recycled != ecs::EntityBad);
+	CHECK(recycled.gen() != earth.gen());
+
+	q.set_var(ecs::Var0, earth);
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+
+	wld.add<PlanetTag>(recycled);
+	q.set_var(ecs::Var0, recycled);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {ship});
+}
+
+TEST_CASE("Query - variable pair target ignores stale recycled handles") {
+	TestWorld twld;
+
+	struct Ship {};
+	struct LocatedIn {};
+
+	const auto locatedIn = wld.add<LocatedIn>().entity;
+	const auto earth = wld.add();
+	const auto ship = wld.add();
+	wld.add<Ship>(ship);
+	wld.add(ship, ecs::Pair(locatedIn, earth));
+
+	auto q = wld.query().all<Ship>().all(ecs::Pair(locatedIn, ecs::Var0));
+
+	q.set_var(ecs::Var0, earth);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {ship});
+
+	wld.del(earth);
+	wld.update();
+
+	ecs::Entity recycled = ecs::EntityBad;
+	for (uint32_t i = 0; i < 64 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == earth.id())
+			recycled = candidate;
+	}
+
+	CHECK(recycled != ecs::EntityBad);
+	CHECK(recycled.gen() != earth.gen());
+
+	q.set_var(ecs::Var0, earth);
+	CHECK(q.count() == 0);
+	expect_exact_entities(q, {});
+
+	wld.add(ship, ecs::Pair(locatedIn, recycled));
+	q.set_var(ecs::Var0, recycled);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {ship});
+}
+
 template <typename TQuery>
 void Test_Query_Variables_MultiVar() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
@@ -2711,6 +2796,103 @@ TEST_CASE("Relationship source traversal") {
 		CHECK(bfs[4] == e);
 		CHECK(bfs[5] == f);
 	}
+}
+
+TEST_CASE("Relationship traversal APIs ignore stale recycled targets") {
+	TestWorld twld;
+
+	const auto rel = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add(child, {rel, root});
+
+	wld.del(root);
+	wld.update();
+
+	ecs::Entity recycled = ecs::EntityBad;
+	for (uint32_t i = 0; i < 64 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == root.id())
+			recycled = candidate;
+	}
+	if (recycled != ecs::EntityBad)
+		CHECK(recycled.gen() != root.gen());
+
+	cnt::darr<ecs::Entity> direct;
+	wld.sources(rel, root, [&](ecs::Entity source) {
+		direct.push_back(source);
+	});
+	CHECK(direct.empty());
+
+	uint32_t directIfHits = 0;
+	wld.sources_if(rel, root, [&](ecs::Entity) {
+		++directIfHits;
+		return false;
+	});
+	CHECK(directIfHits == 0);
+
+	cnt::darr<ecs::Entity> bfs;
+	wld.sources_bfs(rel, root, [&](ecs::Entity source) {
+		bfs.push_back(source);
+	});
+	CHECK(bfs.empty());
+
+	uint32_t bfsIfHits = 0;
+	const bool stopped = wld.sources_bfs_if(rel, root, [&](ecs::Entity) {
+		++bfsIfHits;
+		return true;
+	});
+	CHECK_FALSE(stopped);
+	CHECK(bfsIfHits == 0);
+}
+
+TEST_CASE("Relationship traversal APIs ignore stale recycled relations") {
+	TestWorld twld;
+
+	const auto rel = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add(child, {rel, root});
+
+	wld.del(rel);
+	wld.update();
+
+	ecs::Entity recycled = ecs::EntityBad;
+	for (uint32_t i = 0; i < 64 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == rel.id())
+			recycled = candidate;
+	}
+	if (recycled != ecs::EntityBad)
+		CHECK(recycled.gen() != rel.gen());
+
+	CHECK(wld.target(child, rel) == ecs::EntityBad);
+
+	cnt::darr<ecs::Entity> targets;
+	wld.targets(child, rel, [&](ecs::Entity target) {
+		targets.push_back(target);
+	});
+	CHECK(targets.empty());
+
+	cnt::darr<ecs::Entity> direct;
+	wld.sources(rel, root, [&](ecs::Entity source) {
+		direct.push_back(source);
+	});
+	CHECK(direct.empty());
+
+	cnt::darr<ecs::Entity> trav;
+	wld.targets_trav(rel, child, [&](ecs::Entity target) {
+		trav.push_back(target);
+	});
+	CHECK(trav.empty());
+
+	uint32_t travIfHits = 0;
+	const bool stopped = wld.targets_trav_if(rel, child, [&](ecs::Entity) {
+		++travIfHits;
+		return false;
+	});
+	CHECK_FALSE(stopped);
+	CHECK(travIfHits == 0);
 }
 
 TEST_CASE("Relationship wildcard source traversal") {

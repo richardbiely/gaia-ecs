@@ -857,6 +857,41 @@ TEST_CASE("Add - mixed") {
 	}
 }
 
+TEST_CASE("Singleton self id lifecycle and recycled slot reuse") {
+	TestWorld twld;
+
+	const auto singleton = wld.add();
+	wld.add(singleton, singleton);
+	CHECK(wld.has(singleton, singleton));
+
+	auto qSingleton = wld.query().all(singleton);
+	CHECK(qSingleton.count() == 1);
+	expect_exact_entities(qSingleton, {singleton});
+
+	wld.del(singleton, singleton);
+	CHECK_FALSE(wld.has(singleton, singleton));
+	CHECK(qSingleton.count() == 0);
+	expect_exact_entities(qSingleton, {});
+
+	wld.add(singleton, singleton);
+	CHECK(wld.has(singleton, singleton));
+	CHECK(qSingleton.count() == 1);
+	expect_exact_entities(qSingleton, {singleton});
+
+	wld.del(singleton);
+	wld.update();
+
+	const auto replacement = wld.add();
+	CHECK_FALSE(wld.has(replacement, replacement));
+
+	wld.add(replacement, replacement);
+	CHECK(wld.has(replacement, replacement));
+
+	auto qReplacement = wld.query().all(replacement);
+	CHECK(qReplacement.count() == 1);
+	expect_exact_entities(qReplacement, {replacement});
+}
+
 TEST_CASE("Del - generic") {
 	{
 		TestWorld twld;

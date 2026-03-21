@@ -6545,7 +6545,6 @@ namespace gaia {
 			//! Disabled entities act as traversal barriers and are not yielded.
 			template <typename Func>
 			void targets_trav(Entity relation, Entity source, Func func) const {
-				GAIA_ASSERT(valid(relation));
 				if (!valid(relation) || !valid(source))
 					return;
 
@@ -6567,7 +6566,6 @@ namespace gaia {
 			//! \return True if traversal was stopped by @a func, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool targets_trav_if(Entity relation, Entity source, Func func) const {
-				GAIA_ASSERT(valid(relation));
 				if (!valid(relation) || !valid(source))
 					return false;
 
@@ -6675,7 +6673,6 @@ namespace gaia {
 
 			template <typename Func>
 			void as_relations_trav(Entity target, Func func) const {
-				GAIA_ASSERT(valid(target));
 				if (!valid(target))
 					return;
 
@@ -6686,7 +6683,6 @@ namespace gaia {
 
 			template <typename Func>
 			GAIA_NODISCARD bool as_relations_trav_if(Entity target, Func func) const {
-				GAIA_ASSERT(valid(target));
 				if (!valid(target))
 					return false;
 
@@ -6718,7 +6714,8 @@ namespace gaia {
 			//! \return Relationship target. EntityBad if there is nothing to return.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
-				GAIA_ASSERT(valid(entity));
+				if (!valid(entity))
+					return EntityBad;
 				if (relation != All && !valid(relation))
 					return EntityBad;
 
@@ -6761,7 +6758,8 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
-				GAIA_ASSERT(valid(entity));
+				if (!valid(entity))
+					return;
 				if (relation != All && !valid(relation))
 					return;
 
@@ -6861,7 +6859,6 @@ namespace gaia {
 			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources(Entity relation, Entity target, Func func) const {
-				GAIA_ASSERT(relation == All || valid(relation));
 				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
 
@@ -6919,7 +6916,6 @@ namespace gaia {
 			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources_if(Entity relation, Entity target, Func func) const {
-				GAIA_ASSERT(relation == All || valid(relation));
 				if ((relation != All && !valid(relation)) || !valid(target))
 					return;
 
@@ -7296,7 +7292,6 @@ namespace gaia {
 			//! \param func void(Entity source) functor executed for each traversed source.
 			template <typename Func>
 			void sources_bfs(Entity relation, Entity rootTarget, Func func) const {
-				GAIA_ASSERT(valid(relation));
 				if (!valid(relation) || !valid(rootTarget))
 					return;
 
@@ -7341,7 +7336,6 @@ namespace gaia {
 			//! \return True if traversal was stopped by @a func, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool sources_bfs_if(Entity relation, Entity rootTarget, Func func) const {
-				GAIA_ASSERT(valid(relation));
 				if (!valid(relation) || !valid(rootTarget))
 					return false;
 
