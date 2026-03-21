@@ -945,4 +945,40 @@ TEST_CASE("System - cached direct-source query ignores recycled source ids") {
 	CHECK(matched.empty());
 }
 
+TEST_CASE("System - direct source or term tracks source changes") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+
+	uint32_t hits = 0;
+	cnt::darr<ecs::Entity> matched;
+	wld.system().all<Position>().or_<Acceleration>(ecs::QueryTermOptions{}.src(source)).on_each([&](ecs::Iter& it) {
+		auto entities = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			++hits;
+			matched.push_back(entities[i]);
+		}
+	});
+
+	wld.update();
+	CHECK(hits == 0);
+	CHECK(matched.empty());
+
+	wld.add<Acceleration>(source, {4.0f, 5.0f, 6.0f});
+	wld.update();
+	CHECK(hits == 1);
+	CHECK(matched.size() == 1);
+	if (matched.size() == 1)
+		CHECK(matched[0] == entity);
+
+	hits = 0;
+	matched.clear();
+	wld.del<Acceleration>(source);
+	wld.update();
+	CHECK(hits == 0);
+	CHECK(matched.empty());
+}
+
 #endif

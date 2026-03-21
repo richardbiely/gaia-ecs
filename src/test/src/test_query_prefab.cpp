@@ -3859,6 +3859,69 @@ TEST_CASE("Query - cached direct-source query ignores recycled source ids") {
 	CHECK(freshQuery.count() == 1);
 }
 
+TEST_CASE("Query - direct-source query ignores recycled source ids") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	wld.add<Acceleration>(source, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	CHECK(q.count() == 1);
+
+	wld.del(source);
+	wld.update();
+
+	const auto recycled = wld.add();
+	CHECK(recycled.id() == source.id());
+	CHECK(recycled.gen() != source.gen());
+	wld.add<Acceleration>(recycled, {4, 5, 6});
+
+	CHECK(q.count() == 0);
+
+	auto freshQuery = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(recycled));
+	CHECK(freshQuery.count() == 1);
+}
+
+TEST_CASE("Query - direct-source negative term tracks source changes") {
+	TestWorld twld;
+
+	struct Blocked {};
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().no<Blocked>(ecs::QueryTermOptions{}.src(source));
+	CHECK(q.count() == 1);
+
+	wld.add<Blocked>(source);
+	CHECK(q.count() == 0);
+
+	wld.del<Blocked>(source);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - direct-source or term tracks source changes") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().or_<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	CHECK(q.count() == 0);
+
+	wld.add<Acceleration>(source, {4, 5, 6});
+	CHECK(q.count() == 1);
+
+	wld.del<Acceleration>(source);
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - cached traversed-source query after traversal changes") {
 	TestWorld twld;
 

@@ -659,6 +659,186 @@ TEST_CASE("Observer - fast path") {
 	(void)observerPairRuntime;
 }
 
+TEST_CASE("Observer - direct source term changes trigger OnAdd and OnDel") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	const auto unmatched = wld.add();
+	wld.add<Position>(matched, {1.0f, 2.0f, 3.0f});
+	wld.add<Rotation>(unmatched, {4.0f, 5.0f, 6.0f, 7.0f});
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++addHits;
+					added.push_back(entities[i]);
+				}
+			});
+
+	wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all<Position>()
+			.all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++delHits;
+					removed.push_back(entities[i]);
+				}
+			});
+
+	wld.add<Acceleration>(source, {8.0f, 9.0f, 10.0f});
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	if (added.size() == 1)
+		CHECK(added[0] == matched);
+
+	wld.del<Acceleration>(source);
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	if (removed.size() == 1)
+		CHECK(removed[0] == matched);
+}
+
+TEST_CASE("Observer - deleting a direct source emits OnDel") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	wld.add<Acceleration>(source, {1.0f, 2.0f, 3.0f});
+
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {4.0f, 5.0f, 6.0f});
+
+	uint32_t hits = 0;
+	cnt::darr<ecs::Entity> removed;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all<Position>()
+			.all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++hits;
+					removed.push_back(entities[i]);
+				}
+			});
+
+	wld.del(source);
+	CHECK(hits == 1);
+	CHECK(removed.size() == 1);
+	if (removed.size() == 1)
+		CHECK(removed[0] == matched);
+}
+
+TEST_CASE("Observer - direct source ignores recycled source ids") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1.0f, 2.0f, 3.0f});
+
+	uint32_t hits = 0;
+	cnt::darr<ecs::Entity> added;
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++hits;
+					added.push_back(entities[i]);
+				}
+			});
+
+	wld.add<Acceleration>(source, {4.0f, 5.0f, 6.0f});
+	CHECK(hits == 1);
+	CHECK(added.size() == 1);
+	if (added.size() == 1)
+		CHECK(added[0] == matched);
+
+	hits = 0;
+	added.clear();
+
+	wld.del(source);
+	wld.update();
+
+	ecs::Entity recycled = ecs::EntityBad;
+	for (uint32_t i = 0; i < 256 && recycled == ecs::EntityBad; ++i) {
+		const auto candidate = wld.add();
+		if (candidate.id() == source.id())
+			recycled = candidate;
+	}
+	CHECK(recycled != ecs::EntityBad);
+	if (recycled != ecs::EntityBad) {
+		CHECK(recycled.id() == source.id());
+		CHECK(recycled.gen() != source.gen());
+		wld.add<Acceleration>(recycled, {7.0f, 8.0f, 9.0f});
+	}
+
+	CHECK(hits == 0);
+	CHECK(added.empty());
+}
+
+TEST_CASE("Observer - direct source or term changes trigger OnAdd and OnDel") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1.0f, 2.0f, 3.0f});
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	wld.observer()
+			.event(ecs::ObserverEvent::OnAdd)
+			.all<Position>()
+			.or_<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++addHits;
+					added.push_back(entities[i]);
+				}
+			});
+
+	wld.observer()
+			.event(ecs::ObserverEvent::OnDel)
+			.all<Position>()
+			.or_<Acceleration>(ecs::QueryTermOptions{}.src(source))
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++delHits;
+					removed.push_back(entities[i]);
+				}
+			});
+
+	wld.add<Acceleration>(source, {4.0f, 5.0f, 6.0f});
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	if (added.size() == 1)
+		CHECK(added[0] == matched);
+
+	wld.del<Acceleration>(source);
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	if (removed.size() == 1)
+		CHECK(removed[0] == matched);
+}
+
 TEST_CASE("Observer - identical traversed observers share cached query") {
 	TestWorld twld;
 
@@ -2678,6 +2858,39 @@ TEST_CASE("Observer - prefab sync child removal emits no OnDel") {
 	CHECK(hits == 0);
 	CHECK(observed == ecs::EntityBad);
 	CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - prefab sync removed copied override emits no OnDel") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {4.0f, 5.0f, 6.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<Position>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del<Position>(prefab);
+	CHECK(wld.sync(prefab) == 0);
+
+	CHECK(hits == 0);
+	CHECK(observed == ecs::EntityBad);
+	CHECK(wld.has<Position>(instance));
+	const auto& pos = wld.get<Position>(instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
 
 	(void)observer;
 }
