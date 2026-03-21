@@ -41297,8 +41297,8 @@ namespace gaia {
 						return Constraints::AcceptAll;
 				}
 
-				static void append_chunk_run(
-						cnt::darray<detail::BfsChunkRun>& runs, const EntityContainer& ec, uint32_t entityOffset) {
+				static void
+				append_chunk_run(cnt::darray<detail::BfsChunkRun>& runs, const EntityContainer& ec, uint32_t entityOffset) {
 					if (runs.empty()) {
 						runs.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), entityOffset});
 						return;
@@ -41475,8 +41475,8 @@ namespace gaia {
 				}
 
 				//! Returns true when a repeated semantic/inherited seed can be cached as chunk runs.
-				GAIA_NODISCARD static bool can_use_direct_seed_run_cache(
-						const World& world, const QueryInfo& queryInfo, const QueryTerm& seedTerm) {
+				GAIA_NODISCARD static bool
+				can_use_direct_seed_run_cache(const World& world, const QueryInfo& queryInfo, const QueryTerm& seedTerm) {
 					if (!(uses_non_direct_is_matching(seedTerm) || uses_inherited_id_matching(world, seedTerm)))
 						return false;
 
@@ -41497,8 +41497,8 @@ namespace gaia {
 				}
 
 				template <typename TIter>
-				GAIA_NODISCARD std::span<const detail::BfsChunkRun> cached_direct_seed_runs(
-						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+				GAIA_NODISCARD std::span<const detail::BfsChunkRun>
+				cached_direct_seed_runs(QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
 					auto& runData = ensure_direct_seed_run_data();
 					auto& world = *queryInfo.world();
 					const auto constraints = direct_seed_constraints<TIter>();
@@ -42184,8 +42184,7 @@ namespace gaia {
 				}
 
 				template <typename TIter, typename Func>
-				void each_chunk_runs_iter(
-						QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func) {
+				void each_chunk_runs_iter(QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func) {
 					auto& world = *queryInfo.world();
 					TIter it;
 					it.set_world(&world);
@@ -42387,7 +42386,8 @@ namespace gaia {
 							seedInfo.seededAllTerm = pSeedTerm->id;
 							seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 							seedInfo.seededFromAll = true;
-							each_chunk_runs_iter<TIter>(queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func);
+							each_chunk_runs_iter<TIter>(
+									queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func);
 							return;
 						}
 					}
@@ -42412,6 +42412,14 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					bool hasInheritedTerms = false;
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (uses_inherited_id_matching(world, term)) {
+							hasInheritedTerms = true;
+							break;
+						}
+					}
+
 					if (!hasWriteTerms && !plan.preferOrSeed) {
 						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
 						if (pSeedTerm != nullptr && can_use_direct_seed_run_cache(world, queryInfo, *pSeedTerm)) {
@@ -42419,13 +42427,19 @@ namespace gaia {
 							seedInfo.seededAllTerm = pSeedTerm->id;
 							seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 							seedInfo.seededFromAll = true;
+							if (!hasInheritedTerms) {
+								each_chunk_runs<TIter>(
+										queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func,
+										core::func_type_list<T...>{});
+								return;
+							}
+
 							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							Entity argIds[] = {inherited_query_arg_id<T>(world)...};
 							for (const auto entity: entities) {
-								if constexpr (sizeof...(T) > 0)
-									invoke_inherited_query_args_by_id<T...>(
-											world, entity, argIds, func, std::index_sequence_for<T...>{});
-								else
+								if constexpr (sizeof...(T) > 0) {
+									invoke_inherited_query_args_by_id<T...>(world, entity, argIds, func, std::index_sequence_for<T...>{});
+								} else
 									func();
 							}
 							return;
@@ -42474,14 +42488,6 @@ namespace gaia {
 						walk_entities(exec_direct_entity);
 					else {
 						Entity inheritedArgIds[] = {inherited_query_arg_id<T>(world)...};
-						bool hasInheritedTerms = false;
-						for (const auto& term: queryInfo.ctx().data.terms_view()) {
-							if (uses_inherited_id_matching(world, term)) {
-								hasInheritedTerms = true;
-								break;
-							}
-						}
-
 						auto exec_entity = [&](Entity entity) {
 							if (hasInheritedTerms) {
 								invoke_inherited_query_args_by_id<T...>(
