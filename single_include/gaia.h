@@ -31599,6 +31599,14 @@ namespace gaia {
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		namespace detail {
+			struct BfsChunkRun {
+				const Archetype* pArchetype = nullptr;
+				Chunk* pChunk = nullptr;
+				uint16_t from = 0;
+				uint16_t to = 0;
+				uint32_t offset = 0;
+			};
+
 			template <typename U>
 			struct SoATermRowWriteProxy {
 				Chunk* pChunk = nullptr;
@@ -39564,19 +39572,12 @@ namespace gaia {
 
 				//! BFS-specific cache and scratch storage, allocated on-demand.
 				struct EachBfsData {
-					struct ChunkRun {
-						const Archetype* pArchetype = nullptr;
-						Chunk* pChunk = nullptr;
-						uint16_t from = 0;
-						uint16_t to = 0;
-					};
-
 					//! Cached raw entity list for each_bfs.
 					cnt::darray<Entity> cachedInput;
 					//! Cached ordered entity list for each_bfs.
 					cnt::darray<Entity> cachedOutput;
 					//! Cached contiguous chunk-row runs for typed each_bfs fast-paths.
-					cnt::darray<ChunkRun> cachedRuns;
+					cnt::darray<detail::BfsChunkRun> cachedRuns;
 					//! Cached relation used by each_bfs.
 					Entity cachedRelation = EntityBad;
 					//! Cached constraints used by each_bfs.
@@ -43501,7 +43502,7 @@ namespace gaia {
 							for (uint32_t i = 0; i < orderedCnt; ++i) {
 								const auto& ec = ::gaia::ecs::fetch(world, ordered[i]);
 								if (bfsData.cachedRuns.empty()) {
-									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1)});
+									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
 									continue;
 								}
 
@@ -43509,7 +43510,7 @@ namespace gaia {
 								if (ec.pChunk == run.pChunk && ec.row == run.to) {
 									run.to = (uint16_t)(run.to + 1);
 								} else {
-									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1)});
+									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
 								}
 							}
 						}

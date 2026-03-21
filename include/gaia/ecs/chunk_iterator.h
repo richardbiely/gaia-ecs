@@ -23,6 +23,14 @@ namespace gaia {
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		namespace detail {
+			struct BfsChunkRun {
+				const Archetype* pArchetype = nullptr;
+				Chunk* pChunk = nullptr;
+				uint16_t from = 0;
+				uint16_t to = 0;
+				uint32_t offset = 0;
+			};
+
 			template <typename U>
 			struct SoATermRowWriteProxy {
 				Chunk* pChunk = nullptr;
