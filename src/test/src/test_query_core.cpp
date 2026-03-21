@@ -3835,3 +3835,48 @@ TEST_CASE("Query - delete from cache") {
 		CHECK(cnt2 == 0);
 	}
 }
+
+TEST_CASE("Query - semantic Is cached runs refresh after descendant changes") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.as(child, root);
+	wld.add<Position>(child, {1.0f, 0.0f, 0.0f});
+
+	auto q = wld.query().all<Position>().is(root);
+	auto sum_query = [&]() {
+		uint32_t hits = 0;
+		float sum = 0.0f;
+		q.each([&](ecs::Iter& it) {
+			auto posView = it.view<Position>();
+			GAIA_EACH(it) {
+				++hits;
+				sum += posView[i].x;
+			}
+		});
+		return std::pair{hits, sum};
+	};
+
+	auto [hitsInitial, sumInitial] = sum_query();
+	CHECK(hitsInitial == 1);
+	CHECK(sumInitial == doctest::Approx(1.0f));
+
+	auto [hitsCached, sumCached] = sum_query();
+	CHECK(hitsCached == 1);
+	CHECK(sumCached == doctest::Approx(1.0f));
+
+	const auto grandchild = wld.add();
+	wld.as(grandchild, child);
+	wld.add<Position>(grandchild, {2.0f, 0.0f, 0.0f});
+
+	auto [hitsAdded, sumAdded] = sum_query();
+	CHECK(hitsAdded == 2);
+	CHECK(sumAdded == doctest::Approx(3.0f));
+
+	wld.del<Position>(child);
+
+	auto [hitsRemoved, sumRemoved] = sum_query();
+	CHECK(hitsRemoved == 1);
+	CHECK(sumRemoved == doctest::Approx(2.0f));
+}

@@ -39679,6 +39679,81 @@ namespace gaia {
 
 				EachBfsDataHolder m_eachBfsData;
 
+				//! Cached run data for repeated direct-seeded semantic/inherited entity walks.
+				struct DirectSeedRunData {
+					cnt::darray<Entity> cachedEntities;
+					cnt::darray<detail::BfsChunkRun> cachedRuns;
+					Entity cachedSeedTerm = EntityBad;
+					QueryMatchKind cachedSeedMatchKind = QueryMatchKind::Semantic;
+					Constraints cachedConstraints = Constraints::EnabledOnly;
+					uint32_t cachedRelVersion = 0;
+					uint32_t cachedWorldVersion = 0;
+					bool cacheValid = false;
+				};
+
+				struct DirectSeedRunDataHolder {
+					DirectSeedRunData* pData = nullptr;
+
+					DirectSeedRunDataHolder() = default;
+
+					~DirectSeedRunDataHolder() {
+						delete pData;
+					}
+
+					DirectSeedRunDataHolder(const DirectSeedRunDataHolder& other) {
+						if (other.pData != nullptr)
+							pData = new DirectSeedRunData(*other.pData);
+					}
+
+					DirectSeedRunDataHolder& operator=(const DirectSeedRunDataHolder& other) {
+						if (core::addressof(other) == this)
+							return *this;
+
+						if (other.pData == nullptr) {
+							delete pData;
+							pData = nullptr;
+							return *this;
+						}
+
+						if (pData == nullptr)
+							pData = new DirectSeedRunData(*other.pData);
+						else
+							*pData = *other.pData;
+
+						return *this;
+					}
+
+					DirectSeedRunDataHolder(DirectSeedRunDataHolder&& other) noexcept: pData(other.pData) {
+						other.pData = nullptr;
+					}
+
+					DirectSeedRunDataHolder& operator=(DirectSeedRunDataHolder&& other) noexcept {
+						if (core::addressof(other) == this)
+							return *this;
+
+						delete pData;
+						pData = other.pData;
+						other.pData = nullptr;
+						return *this;
+					}
+
+					GAIA_NODISCARD DirectSeedRunData* get() {
+						return pData;
+					}
+
+					GAIA_NODISCARD const DirectSeedRunData* get() const {
+						return pData;
+					}
+
+					GAIA_NODISCARD DirectSeedRunData& ensure() {
+						if (pData == nullptr)
+							pData = new DirectSeedRunData();
+						return *pData;
+					}
+				};
+
+				DirectSeedRunDataHolder m_directSeedRunData;
+
 				//--------------------------------------------------------------------------------
 			public:
 				static inline bool SilenceInvalidCacheKindAssertions = false;
@@ -39786,6 +39861,7 @@ namespace gaia {
 					}
 
 					invalidate_each_bfs_cache();
+					invalidate_direct_seed_run_cache();
 					m_cacheSrcTrav = maxItems;
 					m_storage.invalidate();
 					return *this;
@@ -39804,6 +39880,7 @@ namespace gaia {
 						return *this;
 
 					invalidate_each_bfs_cache();
+					invalidate_direct_seed_run_cache();
 					m_cacheKind = cacheKind;
 					if constexpr (UseCaching)
 						m_storage.invalidate();
@@ -39893,6 +39970,24 @@ namespace gaia {
 					auto* pBfsData = each_bfs_data();
 					if (pBfsData != nullptr)
 						pBfsData->cacheValid = false;
+				}
+
+				GAIA_NODISCARD DirectSeedRunData* direct_seed_run_data() {
+					return m_directSeedRunData.get();
+				}
+
+				GAIA_NODISCARD const DirectSeedRunData* direct_seed_run_data() const {
+					return m_directSeedRunData.get();
+				}
+
+				GAIA_NODISCARD DirectSeedRunData& ensure_direct_seed_run_data() {
+					return m_directSeedRunData.ensure();
+				}
+
+				void invalidate_direct_seed_run_cache() {
+					auto* pRunData = direct_seed_run_data();
+					if (pRunData != nullptr)
+						pRunData->cacheValid = false;
 				}
 
 				void reset_changed_filter_state() {
@@ -41132,14 +41227,13 @@ namespace gaia {
 
 				//! Detects queries that can skip archetype seeding and start directly from entity-backed term indices.
 				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
-					if (!queryInfo.has_entity_filter_terms())
-						return false;
-
 					const auto& ctxData = queryInfo.ctx().data;
 					if (ctxData.sortByFunc != nullptr || ctxData.groupBy != EntityBad)
 						return false;
 
+					const auto& world = *queryInfo.world();
 					bool hasPositiveTerm = false;
+					bool hasSeedableTerm = false;
 					for (const auto& term: ctxData.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
@@ -41147,11 +41241,16 @@ namespace gaia {
 						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
 							return false;
 
-						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or)
+						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
 							hasPositiveTerm = true;
+							if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
+									uses_in_is_matching(term) || is_adjunct_direct_term(world, term)) {
+								hasSeedableTerm = true;
+							}
+						}
 					}
 
-					return hasPositiveTerm;
+					return hasPositiveTerm && hasSeedableTerm;
 				}
 
 				//! Detects queries whose terms can be evaluated directly against concrete target entities.
@@ -41188,6 +41287,32 @@ namespace gaia {
 					return hasOr;
 				}
 
+				template <typename TIter>
+				GAIA_NODISCARD static constexpr Constraints direct_seed_constraints() {
+					if constexpr (std::is_same_v<TIter, Iter>)
+						return Constraints::EnabledOnly;
+					else if constexpr (std::is_same_v<TIter, IterDisabled>)
+						return Constraints::DisabledOnly;
+					else
+						return Constraints::AcceptAll;
+				}
+
+				static void append_chunk_run(
+						cnt::darray<detail::BfsChunkRun>& runs, const EntityContainer& ec, uint32_t entityOffset) {
+					if (runs.empty()) {
+						runs.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), entityOffset});
+						return;
+					}
+
+					auto& run = runs.back();
+					if (ec.pChunk == run.pChunk && ec.row == run.to) {
+						run.to = (uint16_t)(run.to + 1);
+						return;
+					}
+
+					runs.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), entityOffset});
+				}
+
 				struct DirectEntitySeedInfo {
 					Entity seededAllTerm = EntityBad;
 					QueryMatchKind seededAllMatchKind = QueryMatchKind::Semantic;
@@ -41216,18 +41341,21 @@ namespace gaia {
 				//! Chooses the narrowest available seed for direct non-fragmenting evaluation.
 				GAIA_NODISCARD static bool should_prefer_direct_seed_term(
 						const World& world, const QueryTerm& candidate, uint32_t candidateCount, const DirectEntitySeedPlan& plan) {
-					if (candidateCount < plan.bestAllTermCount)
-						return true;
-					if (candidateCount > plan.bestAllTermCount)
-						return false;
-					if (plan.bestAllTerm == EntityBad)
-						return true;
-
 					const bool candidateIsSemanticIs = uses_non_direct_is_matching(candidate);
 					const bool bestIsSemanticIs = plan.bestAllTermMatchKind != QueryMatchKind::Direct &&
 																				plan.bestAllTerm.pair() && plan.bestAllTerm.id() == Is.id() &&
 																				!is_wildcard(plan.bestAllTerm.gen()) &&
 																				!is_variable((EntityId)plan.bestAllTerm.gen());
+					const auto adjustedCandidateCount = candidateCount - (candidateIsSemanticIs && candidateCount > 0 ? 1U : 0U);
+					const auto adjustedBestCount =
+							plan.bestAllTermCount - (bestIsSemanticIs && plan.bestAllTermCount > 0 ? 1U : 0U);
+					if (adjustedCandidateCount < adjustedBestCount)
+						return true;
+					if (adjustedCandidateCount > adjustedBestCount)
+						return false;
+					if (plan.bestAllTerm == EntityBad)
+						return true;
+
 					if (candidateIsSemanticIs != bestIsSemanticIs)
 						return candidateIsSemanticIs;
 
@@ -41344,6 +41472,87 @@ namespace gaia {
 
 					plan.alwaysMatch = plan.pSingleAllTerm == nullptr;
 					return plan;
+				}
+
+				//! Returns true when a repeated semantic/inherited seed can be cached as chunk runs.
+				GAIA_NODISCARD static bool can_use_direct_seed_run_cache(
+						const World& world, const QueryInfo& queryInfo, const QueryTerm& seedTerm) {
+					if (!(uses_non_direct_is_matching(seedTerm) || uses_inherited_id_matching(world, seedTerm)))
+						return false;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count || term.op == QueryOpKind::Or)
+							return false;
+						if (term.op == QueryOpKind::All && term.id == seedTerm.id && term.matchKind == seedTerm.matchKind)
+							continue;
+						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term))
+							return false;
+						if (is_adjunct_direct_term(world, term))
+							return false;
+					}
+
+					return true;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD std::span<const detail::BfsChunkRun> cached_direct_seed_runs(
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+					auto& runData = ensure_direct_seed_run_data();
+					auto& world = *queryInfo.world();
+					const auto constraints = direct_seed_constraints<TIter>();
+					const auto relVersion = world_rel_version(world, Is);
+					const auto worldVersion = ::gaia::ecs::world_version(world);
+
+					if (runData.cacheValid && runData.cachedSeedTerm == seedTerm.id &&
+							runData.cachedSeedMatchKind == seedTerm.matchKind && runData.cachedConstraints == constraints &&
+							runData.cachedRelVersion == relVersion && runData.cachedWorldVersion == worldVersion) {
+						return {runData.cachedRuns.data(), runData.cachedRuns.size()};
+					}
+
+					auto& runs = runData.cachedRuns;
+					auto& entities = runData.cachedEntities;
+					runs.clear();
+					entities.clear();
+
+					const Archetype* pLastArchetype = nullptr;
+					bool lastArchetypeMatched = false;
+					uint32_t entityOffset = 0;
+
+					(void)for_each_direct_term_entity(world, seedTerm, [&](Entity entity) {
+						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							return true;
+
+						const auto& ec = ::gaia::ecs::fetch(world, entity);
+						if (ec.pArchetype != pLastArchetype) {
+							lastArchetypeMatched = match_direct_entity_terms(world, entity, queryInfo, seedInfo);
+							pLastArchetype = ec.pArchetype;
+						}
+
+						if (!lastArchetypeMatched)
+							return true;
+
+						entities.push_back(entity);
+						append_chunk_run(runs, ec, entityOffset++);
+						return true;
+					});
+
+					runData.cachedSeedTerm = seedTerm.id;
+					runData.cachedSeedMatchKind = seedTerm.matchKind;
+					runData.cachedConstraints = constraints;
+					runData.cachedRelVersion = relVersion;
+					runData.cachedWorldVersion = worldVersion;
+					runData.cacheValid = true;
+					return {runs.data(), runs.size()};
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_entities(
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+					(void)cached_direct_seed_runs<TIter>(queryInfo, seedTerm, seedInfo);
+					auto& runData = ensure_direct_seed_run_data();
+					return {runData.cachedEntities.data(), runData.cachedEntities.size()};
 				}
 
 				template <typename TIter, typename Func>
@@ -41975,30 +42184,75 @@ namespace gaia {
 				}
 
 				template <typename TIter, typename Func>
-				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
+				void each_chunk_runs_iter(
+						QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func) {
 					auto& world = *queryInfo.world();
-					auto& bfsData = ensure_each_bfs_data();
 					TIter it;
 					it.set_world(&world);
 					const Archetype* pLastArchetype = nullptr;
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
-					if (!bfsData.cachedRuns.empty()) {
-						uint32_t rowCnt = 0;
-						for (const auto& run: bfsData.cachedRuns)
-							rowCnt += (uint32_t)(run.to - run.from);
-						GAIA_ASSERT(rowCnt == entities.size());
 
-						for (const auto& run: bfsData.cachedRuns) {
-							const auto& ec = ::gaia::ecs::fetch(world, run.pChunk->entity_view()[run.from]);
-							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+					for (const auto& run: runs) {
+						const auto& ec = ::gaia::ecs::fetch(world, run.pChunk->entity_view()[run.from]);
+						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+						it.set_chunk(run.pChunk, run.from, run.to);
+						it.set_group_id(0);
+						func(it);
+					}
+				}
+
+				template <typename TIter, typename Func, typename... T>
+				void each_chunk_runs(
+						QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func,
+						[[maybe_unused]] core::func_type_list<T...>) {
+					auto& world = *queryInfo.world();
+					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
+					if (canUseBasicInit) {
+						TIter it;
+						it.set_world(&world);
+						const Archetype* pLastArchetype = nullptr;
+						for (const auto& run: runs) {
+							if (run.pArchetype != pLastArchetype) {
+								it.set_archetype(run.pArchetype);
+								pLastArchetype = run.pArchetype;
+							}
+
 							it.set_chunk(run.pChunk, run.from, run.to);
 							it.set_group_id(0);
-							func(it);
+							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
 						}
 						return;
 					}
 
+					TIter it;
+					it.set_world(&world);
+					const Archetype* pLastArchetype = nullptr;
+					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+					Entity termIds[ChunkHeader::MAX_COMPONENTS];
+					for (const auto& run: runs) {
+						const auto& ec = ::gaia::ecs::fetch(world, run.pChunk->entity_view()[run.from]);
+						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+						it.set_chunk(run.pChunk, run.from, run.to);
+						it.set_group_id(0);
+						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					}
+				}
+
+				template <typename TIter, typename Func>
+				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
+					auto& world = *queryInfo.world();
+					auto& bfsData = ensure_each_bfs_data();
+					TIter it;
+					it.set_world(&world);
+					if (!bfsData.cachedRuns.empty()) {
+						each_chunk_runs_iter<TIter>(queryInfo, bfsData.cachedRuns, func);
+						return;
+					}
+
+					const Archetype* pLastArchetype = nullptr;
+					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+					Entity termIds[ChunkHeader::MAX_COMPONENTS];
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
@@ -42037,21 +42291,9 @@ namespace gaia {
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
-					if (canUseBasicInit) {
-						auto& bfsData = ensure_each_bfs_data();
-						TIter it;
-						it.set_world(&world);
-						const Archetype* pLastArchetype = nullptr;
-						for (const auto& run: bfsData.cachedRuns) {
-							if (run.pArchetype != pLastArchetype) {
-								it.set_archetype(run.pArchetype);
-								pLastArchetype = run.pArchetype;
-							}
-
-							it.set_chunk(run.pChunk, run.from, run.to);
-							it.set_group_id(0);
-							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
-						}
+					auto& bfsData = ensure_each_bfs_data();
+					if (!bfsData.cachedRuns.empty()) {
+						each_chunk_runs<TIter>(queryInfo, bfsData.cachedRuns, func, core::func_type_list<T...>{});
 						return;
 					}
 
@@ -42113,6 +42355,7 @@ namespace gaia {
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
 					auto& world = *queryInfo.world();
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					const auto plan = direct_entity_seed_plan(world, queryInfo);
 
 					auto exec_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
@@ -42122,7 +42365,6 @@ namespace gaia {
 						func(it);
 					};
 
-					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					if (hasWriteTerms) {
 						auto& scratch = direct_query_scratch();
 						// Writable callbacks may add local overrides and reshuffle direct-term indices,
@@ -42136,6 +42378,18 @@ namespace gaia {
 							exec_entity(entity);
 						}
 						return;
+					}
+
+					if (!plan.preferOrSeed) {
+						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
+						if (pSeedTerm != nullptr && can_use_direct_seed_run_cache(world, queryInfo, *pSeedTerm)) {
+							DirectEntitySeedInfo seedInfo{};
+							seedInfo.seededAllTerm = pSeedTerm->id;
+							seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
+							seedInfo.seededFromAll = true;
+							each_chunk_runs_iter<TIter>(queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func);
+							return;
+						}
 					}
 
 					if (plan.preferOrSeed) {
@@ -42158,6 +42412,26 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
+					if (!hasWriteTerms && !plan.preferOrSeed) {
+						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
+						if (pSeedTerm != nullptr && can_use_direct_seed_run_cache(world, queryInfo, *pSeedTerm)) {
+							DirectEntitySeedInfo seedInfo{};
+							seedInfo.seededAllTerm = pSeedTerm->id;
+							seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
+							seedInfo.seededFromAll = true;
+							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
+							Entity argIds[] = {inherited_query_arg_id<T>(world)...};
+							for (const auto entity: entities) {
+								if constexpr (sizeof...(T) > 0)
+									invoke_inherited_query_args_by_id<T...>(
+											world, entity, argIds, func, std::index_sequence_for<T...>{});
+								else
+									func();
+							}
+							return;
+						}
+					}
+
 					auto exec_direct_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 						Entity termIds[ChunkHeader::MAX_COMPONENTS];

@@ -981,4 +981,49 @@ TEST_CASE("System - direct source or term tracks source changes") {
 	CHECK(matched.empty());
 }
 
+TEST_CASE("System - semantic Is cached runs refresh after descendant changes") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.as(child, root);
+	wld.add<Position>(child, {1.0f, 0.0f, 0.0f});
+
+	uint32_t hits = 0;
+	float sum = 0.0f;
+	auto sys = wld.system().all<Position>().is(root).on_each([&](const Position& pos) {
+		++hits;
+		sum += pos.x;
+	});
+
+	auto run_system = [&]() {
+		hits = 0;
+		sum = 0.0f;
+		sys.exec();
+		return std::pair{hits, sum};
+	};
+
+	auto [hitsInitial, sumInitial] = run_system();
+	CHECK(hitsInitial == 1);
+	CHECK(sumInitial == doctest::Approx(1.0f));
+
+	auto [hitsCached, sumCached] = run_system();
+	CHECK(hitsCached == 1);
+	CHECK(sumCached == doctest::Approx(1.0f));
+
+	const auto grandchild = wld.add();
+	wld.as(grandchild, child);
+	wld.add<Position>(grandchild, {2.0f, 0.0f, 0.0f});
+
+	auto [hitsAdded, sumAdded] = run_system();
+	CHECK(hitsAdded == 2);
+	CHECK(sumAdded == doctest::Approx(3.0f));
+
+	wld.del<Position>(child);
+
+	auto [hitsRemoved, sumRemoved] = run_system();
+	CHECK(hitsRemoved == 1);
+	CHECK(sumRemoved == doctest::Approx(2.0f));
+}
+
 #endif
