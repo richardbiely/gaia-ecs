@@ -29213,7 +29213,7 @@ namespace gaia {
 					return 0;
 				}
 
-				static GAIA_NODISCARD std::span<const uint8_t> pair_indices_from_buckets(
+				GAIA_NODISCARD static std::span<const uint8_t> pair_indices_from_buckets(
 						const PairCountBucket* pBuckets, uint8_t bucketCnt, const uint8_t* pIndexBuffer, EntityId id) {
 					GAIA_FOR(bucketCnt) {
 						if (pBuckets[i].id != id)
@@ -30714,7 +30714,7 @@ namespace gaia {
 			}
 		};
 
-		inline bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
+		constexpr bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
 			if (lhs.op != rhs.op)
 				return lhs.op < rhs.op;
 
@@ -41960,8 +41960,8 @@ namespace gaia {
 				}
 
 				template <typename TIter>
-				static void init_direct_entity_iter_basic(
-						const World& world, const EntityContainer& ec, TIter& it, const Archetype*& pLastArchetype) {
+				static void
+				init_direct_entity_iter_basic(const EntityContainer& ec, TIter& it, const Archetype*& pLastArchetype) {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
@@ -42063,7 +42063,7 @@ namespace gaia {
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						if (canUseBasicInit)
-							init_direct_entity_iter_basic(world, ec, it, pLastArchetype);
+							init_direct_entity_iter_basic(ec, it, pLastArchetype);
 						else
 							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 
@@ -44273,7 +44273,7 @@ namespace gaia {
 								!SharedDispatch::has_terms(index.sourceTerm, terms) &&
 								!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
 							ctx.targeted = true;
-							ctx.targets.reserve(targetEntities.size());
+							ctx.targets.reserve((uint32_t)targetEntities.size());
 							append_valid_targets(world, ctx.targets, targetEntities);
 							normalize_targets(ctx.targets);
 						}
@@ -44443,7 +44443,7 @@ namespace gaia {
 						append_valid_targets(world, ctx.targets, targets);
 					}
 
-					static void finish(ObserverRegistry& registry, World& world, Context&& ctx) {
+					static void finish(World& world, Context&& ctx) {
 						if (!ctx.active)
 							return;
 
@@ -45263,7 +45263,7 @@ namespace gaia {
 				}
 
 				void finish_diff(World& world, DiffDispatchCtx&& ctx) {
-					DiffDispatcher::finish(*this, world, GAIA_MOV(ctx));
+					DiffDispatcher::finish(world, GAIA_MOV(ctx));
 				}
 
 				ObserverRuntimeData& data_add(Entity observer) {
@@ -50021,16 +50021,14 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return EntityBad;
 
+				const auto indices = pArchetype->pair_tgt_indices(target);
+				if (indices.empty())
+					return EntityBad;
+
 				const auto ids = pArchetype->ids_view();
-				for (auto idsIdx: pArchetype->pair_tgt_indices(target)) {
-					const auto e = ids[idsIdx];
-
-					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = *ecRel.pEntity;
-					return relation;
-				}
-
-				return EntityBad;
+				const auto e = ids[indices[0]];
+				const auto& ecRel = m_recs.entities[e.id()];
+				return *ecRel.pEntity;
 			}
 
 			//! Returns the relationship relations for the @a target entity on @a entity.

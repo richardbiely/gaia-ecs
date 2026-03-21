@@ -2921,8 +2921,8 @@ namespace gaia {
 				}
 
 				template <typename TIter>
-				static void init_direct_entity_iter_basic(
-						const World& world, const EntityContainer& ec, TIter& it, const Archetype*& pLastArchetype) {
+				static void
+				init_direct_entity_iter_basic(const EntityContainer& ec, TIter& it, const Archetype*& pLastArchetype) {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
 					GAIA_ASSERT(ec.row < ec.pChunk->size());
@@ -3024,7 +3024,7 @@ namespace gaia {
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						if (canUseBasicInit)
-							init_direct_entity_iter_basic(world, ec, it, pLastArchetype);
+							init_direct_entity_iter_basic(ec, it, pLastArchetype);
 						else
 							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 

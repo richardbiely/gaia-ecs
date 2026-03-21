@@ -1,5 +1,6 @@
 // Benchmark inspired by https://github.com/abeimler/ecs_benchmark.
 
+#include "gaia/config/config_core.h"
 #define PICOBENCH_IMPLEMENT
 #include <gaia.h>
 #include <picobench/picobench.hpp>
@@ -665,7 +666,7 @@ void BM_Run(picobench::state& state) {
 }
 
 //! Prevents the compiler from optimizing away the query-mix accumulation.
-static volatile uint64_t QueryMixSink = 0;
+static uint64_t QueryMixSink = 0;
 
 //! World state reused by the app-style query-mix benchmarks.
 struct AppQueryWorkload {
@@ -750,6 +751,7 @@ void BM_QueryMix(picobench::state& state) {
 		if constexpr (IncludeSceneQuery)
 			total += qScene.count();
 		QueryMixSink += total;
+		dont_optimize(QueryMixSink);
 	}
 }
 

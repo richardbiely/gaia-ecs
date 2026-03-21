@@ -384,7 +384,7 @@ namespace gaia {
 			}
 		};
 
-		inline bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
+		constexpr bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
 			if (lhs.op != rhs.op)
 				return lhs.op < rhs.op;
 

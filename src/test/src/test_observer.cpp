@@ -1,4 +1,5 @@
 #include "test_common.h"
+#include <iterator>
 
 #if GAIA_OBSERVERS_ENABLED
 

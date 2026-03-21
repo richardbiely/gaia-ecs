@@ -248,7 +248,7 @@ namespace gaia {
 					return 0;
 				}
 
-				static GAIA_NODISCARD std::span<const uint8_t> pair_indices_from_buckets(
+				GAIA_NODISCARD static std::span<const uint8_t> pair_indices_from_buckets(
 						const PairCountBucket* pBuckets, uint8_t bucketCnt, const uint8_t* pIndexBuffer, EntityId id) {
 					GAIA_FOR(bucketCnt) {
 						if (pBuckets[i].id != id)

@@ -1873,7 +1873,6 @@ TEST_CASE("Component names") {
 
 	SUBCASE("component scope controls default paths and relative lookup") {
 		TestWorld twld;
-		const auto& cc = wld.comp_cache();
 
 		const auto gameplay = wld.add();
 		wld.name(gameplay, "gameplay");

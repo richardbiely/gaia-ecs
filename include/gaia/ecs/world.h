@@ -482,7 +482,7 @@ namespace gaia {
 								!SharedDispatch::has_terms(index.sourceTerm, terms) &&
 								!SharedDispatch::has_pair_relations(world, index.traversalRelation, terms)) {
 							ctx.targeted = true;
-							ctx.targets.reserve(targetEntities.size());
+							ctx.targets.reserve((uint32_t)targetEntities.size());
 							append_valid_targets(world, ctx.targets, targetEntities);
 							normalize_targets(ctx.targets);
 						}
@@ -652,7 +652,7 @@ namespace gaia {
 						append_valid_targets(world, ctx.targets, targets);
 					}
 
-					static void finish(ObserverRegistry& registry, World& world, Context&& ctx) {
+					static void finish(World& world, Context&& ctx) {
 						if (!ctx.active)
 							return;
 
@@ -1472,7 +1472,7 @@ namespace gaia {
 				}
 
 				void finish_diff(World& world, DiffDispatchCtx&& ctx) {
-					DiffDispatcher::finish(*this, world, GAIA_MOV(ctx));
+					DiffDispatcher::finish(world, GAIA_MOV(ctx));
 				}
 
 				ObserverRuntimeData& data_add(Entity observer) {
@@ -6230,16 +6230,14 @@ namespace gaia {
 				if (pArchetype->pairs() == 0)
 					return EntityBad;
 
+				const auto indices = pArchetype->pair_tgt_indices(target);
+				if (indices.empty())
+					return EntityBad;
+
 				const auto ids = pArchetype->ids_view();
-				for (auto idsIdx: pArchetype->pair_tgt_indices(target)) {
-					const auto e = ids[idsIdx];
-
-					const auto& ecRel = m_recs.entities[e.id()];
-					auto relation = *ecRel.pEntity;
-					return relation;
-				}
-
-				return EntityBad;
+				const auto e = ids[indices[0]];
+				const auto& ecRel = m_recs.entities[e.id()];
+				return *ecRel.pEntity;
 			}
 
 			//! Returns the relationship relations for the @a target entity on @a entity.

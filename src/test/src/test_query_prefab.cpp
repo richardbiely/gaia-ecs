@@ -1184,7 +1184,6 @@ TEST_CASE("Entity name - entity only") {
 		}
 
 		{
-			NonUniqueNameOpsGuard guard;
 			auto e1 = wld.add();
 			wld.name(e1, original.data());
 			CHECK(wld.name(e1).empty());
@@ -1300,8 +1299,6 @@ TEST_CASE("Entity name - entity only") {
 	}
 
 	SUBCASE("duplicate names are rejected") {
-		NonUniqueNameOpsGuard guard;
-
 		const auto entityA = wld.add();
 		const auto entityB = wld.add();
 
