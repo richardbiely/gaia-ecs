@@ -1,4 +1,3 @@
-#define PICOBENCH_IMPLEMENT
 #include <gaia.h>
 #include <picobench/picobench.hpp>
 
@@ -435,105 +434,53 @@ DEFINE_EACH_VIEW(5, true)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
 #define PICO_SETTINGS_2() iterations({32768}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
-#define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
+#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
+#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-int main(int argc, char* argv[]) {
-	picobench::runner r(true);
-	r.parse_cmd_line(argc, argv);
+#include "perf_registry.h"
 
-	// If picobench encounters an unknown command line argument it returns false and sets an error.
-	// Ignore this behavior.
-	// We only need to make sure to provide the custom arguments after the picobench ones.
-	if (r.error() == picobench::error_unknown_cmd_line_argument)
-		r.set_error(picobench::no_error);
-
-	// With profiling mode enabled we want to be able to pick what benchmark to run so it is easier
-	// for us to isolate the results.
-	{
-		bool profilingMode = false;
-		bool sanitizerMode = false;
-
-		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
-		for (const auto& arg: args) {
-			if (arg == "-p") {
-				profilingMode = true;
-				continue;
-			}
-			if (arg == "-s") {
-				sanitizerMode = true;
-				continue;
-			}
-		}
-
-		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
-		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
-
-		if (profilingMode) {
+void register_perf_iter_legacy(PerfRunMode mode) {
+	switch (mode) {
+		case PerfRunMode::Profiling:
 			PICOBENCH_SUITE_REG("1000 archetypes");
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("Iter, 7 comps");
-			r.run_benchmarks();
-			return 0;
-		}
-
-		if (sanitizerMode) {
+			return;
+		case PerfRunMode::Sanitizer:
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS_SANI().label("Iter, 7 comps");
-			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS_SANI().label("(u) 7 comps"); // uncached
-			r.run_benchmarks();
-			return 0;
-		}
-
-		{
+			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS_SANI().label("(u) 7 comps");
+			return;
+		case PerfRunMode::Normal:
 			PICOBENCH_SUITE_REG("1 archetype");
 			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");
 			PICOBENCH_REG(BM_Each_IterAll_1_1).PICO_SETTINGS().label("IterAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_1_1).PICO_SETTINGS().label("Iter, 1 comp");
-			PICOBENCH_REG(BM_Each_U_Iter_1_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
-
+			PICOBENCH_REG(BM_Each_U_Iter_1_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("100 archetypes");
 			PICOBENCH_REG(BM_Each_100_1).PICO_SETTINGS().label("each, 1 comp");
 			PICOBENCH_REG(BM_Each_IterAll_100_1).PICO_SETTINGS().label("IterAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_100_1).PICO_SETTINGS().label("Iter, 1 comp");
-			PICOBENCH_REG(BM_Each_U_Iter_100_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
-
+			PICOBENCH_REG(BM_Each_U_Iter_100_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("1000 archetypes");
 			PICOBENCH_REG(BM_Each_1000_1).PICO_SETTINGS().label("each, 1 comp");
 			PICOBENCH_REG(BM_Each_IterAll_1000_1).PICO_SETTINGS().label("IterAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_1000_1).PICO_SETTINGS().label("Iter, 1 comp");
-			PICOBENCH_REG(BM_Each_U_Iter_1000_1).PICO_SETTINGS().label("(u) Iter, 1 comp"); // uncached
-
+			PICOBENCH_REG(BM_Each_U_Iter_1000_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("1000 archetypes, Iter");
 			PICOBENCH_REG(BM_Each_Iter_1000_3).PICO_SETTINGS().label("3 comps");
-			PICOBENCH_REG(BM_Each_U_Iter_1000_3).PICO_SETTINGS().label("(u) 3 comps"); // uncached
+			PICOBENCH_REG(BM_Each_U_Iter_1000_3).PICO_SETTINGS().label("(u) 3 comps");
 			PICOBENCH_REG(BM_Each_Iter_1000_5).PICO_SETTINGS().label("5 comps");
-			PICOBENCH_REG(BM_Each_U_Iter_1000_5).PICO_SETTINGS().label("(u) 5 comps"); // uncached
+			PICOBENCH_REG(BM_Each_U_Iter_1000_5).PICO_SETTINGS().label("(u) 5 comps");
 			PICOBENCH_REG(BM_Each_Iter_1000_7).PICO_SETTINGS().label("7 comps");
-			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS().label("(u) 7 comps"); // uncached
-
+			PICOBENCH_REG(BM_Each_U_Iter_1000_7).PICO_SETTINGS().label("(u) 7 comps");
 			PICOBENCH_SUITE_REG("build query");
 			PICOBENCH_REG(BM_BuildQuery_1).PICO_SETTINGS_2().label("1 comp ");
-			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS_2().label("(u) 1 comp "); // uncached
+			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS_2().label("(u) 1 comp ");
 			PICOBENCH_REG(BM_BuildQuery_3).PICO_SETTINGS_2().label(" 3 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS_2().label("(u) 3 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS_2().label("(u) 3 comps");
 			PICOBENCH_REG(BM_BuildQuery_5).PICO_SETTINGS_2().label("5 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS_2().label("(u) 5 comps"); // uncached
+			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS_2().label("(u) 5 comps");
 			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS_2().label("7 comps");
-			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS_2().label("(u) 7 comps"); // uncached
-
-			// These are super fast to the point it doesn't really make sense measuring them
-			// PICOBENCH_SUITE_REG("Iter view");
-			// PICOBENCH_REG(BM_Each_View_1_false).PICO_SETTINGS_2().label("1 comp ");
-			// PICOBENCH_REG(BM_Each_View_1_true).PICO_SETTINGS_2().label("(idx) 1 comp ");
-			// PICOBENCH_REG(BM_Each_View_2_false).PICO_SETTINGS_2().label("2 comps");
-			// PICOBENCH_REG(BM_Each_View_2_true).PICO_SETTINGS_2().label("(idx) 2 comps");
-			// PICOBENCH_REG(BM_Each_View_3_false).PICO_SETTINGS_2().label("3 comps");
-			// PICOBENCH_REG(BM_Each_View_3_true).PICO_SETTINGS_2().label("(idx) view 3 comps");
-			// PICOBENCH_REG(BM_Each_View_4_false).PICO_SETTINGS_2().label("4 comps");
-			// PICOBENCH_REG(BM_Each_View_4_true).PICO_SETTINGS_2().label("(idx) view 4 comps");
-			// PICOBENCH_REG(BM_Each_View_5_false).PICO_SETTINGS_2().label("5 comps");
-			// PICOBENCH_REG(BM_Each_View_5_true).PICO_SETTINGS_2().label("(idx) 5 comps");
-		}
+			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS_2().label("(u) 7 comps");
+			return;
 	}
-
-	return r.run(0);
 }

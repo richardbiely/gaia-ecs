@@ -1,4 +1,3 @@
-#define PICOBENCH_IMPLEMENT
 #include <gaia.h>
 #include <picobench/picobench.hpp>
 
@@ -200,66 +199,30 @@ void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 #define PICO_SETTINGS() iterations({1024}).samples(3)
 #define PICO_SETTINGS_1() iterations({16}).samples(1)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) r.current_suite_name() = name;
-#define PICOBENCH_REG(func) (void)r.add_benchmark(#func, func)
+#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
+#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-int main(int argc, char* argv[]) {
-	picobench::runner r(true);
-	r.parse_cmd_line(argc, argv);
+#include "perf_registry.h"
 
-	// If picobench encounters an unknown command line argument it returns false and sets an error.
-	// Ignore this behavior.
-	// We only need to make sure to provide the custom arguments after the picobench ones.
-	if (r.error() == picobench::error_unknown_cmd_line_argument)
-		r.set_error(picobench::no_error);
-
-	// With profiling mode enabled we want to be able to pick what benchmark to run so it is easier
-	// for us to isolate the results.
-	{
-		bool profilingMode = false;
-		bool sanitizerMode = false;
-
-		const gaia::cnt::darray<std::string_view> args(argv + 1, argv + argc);
-		for (const auto& arg: args) {
-			if (arg == "-p") {
-				profilingMode = true;
-				continue;
-			}
-
-			if (arg == "-s") {
-				sanitizerMode = true;
-				continue;
-			}
-		}
-
-		GAIA_LOG_N("Profiling mode = %s", profilingMode ? "ON" : "OFF");
-		GAIA_LOG_N("Sanitizer mode = %s", sanitizerMode ? "ON" : "OFF");
-
-		if (profilingMode) {
+void register_perf_entity_legacy(PerfRunMode mode) {
+	switch (mode) {
+		case PerfRunMode::Profiling:
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");
-			r.run_benchmarks();
-			return 0;
-		}
-
-		if (sanitizerMode) {
+			return;
+		case PerfRunMode::Sanitizer:
 			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS_SANI().label("0 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
-			r.run_benchmarks();
-			return 0;
-		}
-
-		{
+			return;
+		case PerfRunMode::Normal:
 			PICOBENCH_SUITE_REG("Entity creation");
 			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS().label("0 components");
 			PICOBENCH_REG(BM_CreateEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
-
 			PICOBENCH_SUITE_REG("Entity deletion");
 			PICOBENCH_REG(BM_DeleteEntity<NEntities>).PICO_SETTINGS().label("0 components");
 			PICOBENCH_REG(BM_DeleteEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
-
 			PICOBENCH_SUITE_REG("Entity + N components - add_n");
 			PICOBENCH_REG(BM_CreateEntity_Many<NEntities>).PICO_SETTINGS().label("0 component");
 			PICOBENCH_REG(BM_CreateEntity_Many<NEntitiesMany>).PICO_SETTINGS_1().label("0 component, 1M entities");
@@ -269,7 +232,6 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<8>).PICO_SETTINGS().label("8 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<16>).PICO_SETTINGS().label("16 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");
-
 			PICOBENCH_SUITE_REG("Entity + N components - copy_n");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<2>).PICO_SETTINGS().label("2 components");
@@ -277,7 +239,6 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<8>).PICO_SETTINGS().label("8 components");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<16>).PICO_SETTINGS().label("16 components");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<30>).PICO_SETTINGS().label("30 components");
-
 			PICOBENCH_SUITE_REG("Entity + N component - add() + one-by-one components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
@@ -285,7 +246,6 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_CreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
-
 			PICOBENCH_SUITE_REG("Entity + N component - add() + bulk components");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<2>).PICO_SETTINGS().label("2 components");
@@ -293,8 +253,6 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<8>).PICO_SETTINGS().label("8 components");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<16>).PICO_SETTINGS().label("16 components");
 			PICOBENCH_REG(BM_BulkCreateEntity_With_Component<30>).PICO_SETTINGS().label("30 components");
-		}
+			return;
 	}
-
-	return r.run(0);
 }

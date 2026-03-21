@@ -73,22 +73,6 @@
       "cwd": "${workspaceFolder}",
     },
     {
-      "name": "(lldb) perf - iteration",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/iter/gaia_perf_iter",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-    },
-    {
-      "name": "(lldb) perf - entity",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/entity/gaia_perf_entity",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-    },
-    {
       "name": "(lldb) perf - mt",
       "type": "lldb",
       "request": "launch",
@@ -105,10 +89,10 @@
       "cwd": "${workspaceFolder}",
     },
     {
-      "name": "(lldb) perf - matrix",
+      "name": "(lldb) perf - perf",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/matrix/gaia_perf_matrix",
+      "program": "${workspaceFolder}/build/${input:buildType}/src/perf/perf/gaia_perf",
       "args": [],
       "cwd": "${workspaceFolder}",
     }
