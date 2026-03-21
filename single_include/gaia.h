@@ -51627,7 +51627,8 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 				const auto entityPresent = ec.pChunk->entity_view()[ec.row];
-				GAIA_ASSERT(entityExpected == entityPresent);
+				// Public validity checks can legitimately observe a recycled slot with a different generation.
+				// Treat that as stale instead of aborting.
 				if (entityExpected != entityPresent)
 					return false;
 #endif

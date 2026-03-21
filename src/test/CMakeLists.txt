@@ -1,5 +1,15 @@
 set(PROJ_NAME "gaia_test")
-add_executable(${PROJ_NAME} src/main.cpp)
+add_executable(${PROJ_NAME}
+	src/main.cpp
+	src/test_core.cpp
+	src/test_ecs_entity.cpp
+	src/test_query_core.cpp
+	src/test_query_prefab.cpp
+	src/test_mutation_runtime.cpp
+	src/test_system.cpp
+	src/test_observer.cpp
+	src/test_misc.cpp
+)
 
 # System-specific threading library
 set(THREADS_PREFER_PTHREAD_FLAG ON)
