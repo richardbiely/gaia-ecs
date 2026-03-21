@@ -561,8 +561,12 @@ namespace gaia {
 						return {sourceEntities.data(), sourceEntityCnt};
 					}
 
-					void add(DependencyFlags dependency) {
+					void set_dep_flag(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
+					}
+
+					GAIA_NODISCARD bool has_dep_flag(DependencyFlags dependency) const {
+						return (flags & dependency) != 0;
 					}
 
 					void add_rel(Entity relation) {
@@ -584,10 +588,6 @@ namespace gaia {
 					GAIA_NODISCARD bool can_reuse_src_cache() const {
 						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
-
-					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
-						return (flags & dependency) != 0;
-					}
 				};
 
 				//! Array of queried ids
@@ -604,6 +604,8 @@ namespace gaia {
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray _changed;
+				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
+				QueryEntityArray _groupDeps;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -626,6 +628,8 @@ namespace gaia {
 				uint8_t firstAny;
 				//! First OR record in pairs/ids/ops
 				uint8_t firstOr;
+				//! Number of defined group dependencies
+				uint8_t groupDepCnt = 0;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint16_t readWriteMask;
@@ -646,6 +650,32 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> changed_view() const {
 					return {_changed.data(), changedCnt};
+				}
+
+				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
+					return {_groupDeps.data(), groupDepCnt};
+				}
+
+				//! Adds a declared grouping invalidation dependency.
+				void add_group_dep(Entity relation) {
+					if (relation == EntityBad || core::has(group_deps_view(), relation))
+						return;
+
+					GAIA_ASSERT(groupDepCnt < MAX_ITEMS_IN_QUERY);
+					if (groupDepCnt < MAX_ITEMS_IN_QUERY)
+						_groupDeps[groupDepCnt++] = relation;
+				}
+
+				//! Adds all grouping invalidation relations to the dependency set.
+				void add_group_deps() {
+					deps.set_dep_flag(DependencyHasGroup);
+
+					const bool hasBuiltInGroupDep =
+							groupBy != EntityBad && (groupByFunc == group_by_func_default || groupByFunc == group_by_func_cascade);
+					if (hasBuiltInGroupDep)
+						deps.add_rel(groupBy);
+					for (auto relation: group_deps_view())
+						deps.add_rel(relation);
 				}
 
 				GAIA_NODISCARD std::span<QueryTerm> terms_view_mut() {
@@ -701,11 +731,9 @@ namespace gaia {
 					uint8_t createSelectorOrCnt = 0;
 					data.deps.clear();
 					if (data.sortByFunc != nullptr)
-						data.deps.add(DependencyHasSort);
-					if (data.groupBy != EntityBad) {
-						data.deps.add(DependencyHasGroup);
-						data.deps.add_rel(data.groupBy);
-					}
+						data.deps.set_dep_flag(DependencyHasSort);
+					if (data.groupBy != EntityBad)
+						data.add_group_deps();
 
 					auto terms = data.terms_view();
 					const auto cnt = (uint32_t)terms.size();
@@ -745,18 +773,18 @@ namespace gaia {
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &= term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
-							data.deps.add(DependencyHasWildcardTerms);
+							data.deps.set_dep_flag(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
 								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
 						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 							data.deps.add_rel(entity_from_id(*w, id.id()));
 						if (term.entTrav != EntityBad) {
 							data.deps.add_rel(term.entTrav);
-							data.deps.add(DependencyHasTraversalTerms);
+							data.deps.set_dep_flag(DependencyHasTraversalTerms);
 						}
 						if (term.src != EntityBad) {
 							hasSourceTerms = true;
-							data.deps.add(DependencyHasSourceTerms);
+							data.deps.set_dep_flag(DependencyHasSourceTerms);
 							++data.deps.sourceTermCnt;
 							if (!is_variable(term.src))
 								data.deps.add_src_entity(term.src);
@@ -764,13 +792,13 @@ namespace gaia {
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
-							data.deps.add(DependencyHasVariableTerms);
+							data.deps.set_dep_flag(DependencyHasVariableTerms);
 							isComplex = true;
 							continue;
 						}
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
-							data.deps.add(DependencyHasAdjunctTerms);
+							data.deps.set_dep_flag(DependencyHasAdjunctTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));
 							continue;
@@ -793,16 +821,16 @@ namespace gaia {
 
 						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
 							hasCreateSelector = true;
-							data.deps.add(DependencyHasPositiveTerms);
+							data.deps.set_dep_flag(DependencyHasPositiveTerms);
 							if (term.op == QueryOpKind::All)
 								createSelectorsAll[createSelectorAllCnt++] = id;
 							else
 								createSelectorsOr[createSelectorOrCnt++] = id;
 						} else if (term.op == QueryOpKind::Not) {
-							data.deps.add(DependencyHasNegativeTerms);
+							data.deps.set_dep_flag(DependencyHasNegativeTerms);
 							data.deps.exclusions[data.deps.exclusionCnt++] = id;
 						} else if (term.op == QueryOpKind::Any) {
-							data.deps.add(DependencyHasAnyTerms);
+							data.deps.set_dep_flag(DependencyHasAnyTerms);
 						}
 
 						// Build the Is mask.
@@ -898,7 +926,7 @@ namespace gaia {
 																							: CreateArchetypeMatchKind::Vm;
 
 					// Traversed-source snapshot caching is only effective for traversed source terms.
-					if (!data.deps.has(DependencyHasSourceTerms) || !data.deps.has(DependencyHasTraversalTerms))
+					if (!data.deps.has_dep_flag(DependencyHasSourceTerms) || !data.deps.has_dep_flag(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
 
 					// Calculate the component mask for simple queries
@@ -940,6 +968,8 @@ namespace gaia {
 					return false;
 				if (left.changedCnt != right.changedCnt)
 					return false;
+				if (left.groupDepCnt != right.groupDepCnt)
+					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 				if (left.cacheSrcTrav != right.cacheSrcTrav)
@@ -975,6 +1005,23 @@ namespace gaia {
 					const auto cnt = left.changedCnt;
 					GAIA_FOR(cnt) {
 						if (leftChanged[i] != rightChanged[i])
+							return false;
+					}
+				}
+
+				QueryEntityArray leftGroupDeps{};
+				QueryEntityArray rightGroupDeps{};
+				GAIA_FOR(left.groupDepCnt) {
+					leftGroupDeps[i] = left._groupDeps[i];
+					rightGroupDeps[i] = right._groupDeps[i];
+				}
+				canonicalize_lookup_changed(std::span<Entity>{leftGroupDeps.data(), left.groupDepCnt});
+				canonicalize_lookup_changed(std::span<Entity>{rightGroupDeps.data(), right.groupDepCnt});
+
+				{
+					const auto cnt = left.groupDepCnt;
+					GAIA_FOR(cnt) {
+						if (leftGroupDeps[i] != rightGroupDeps[i])
 							return false;
 					}
 				}
@@ -1159,6 +1206,21 @@ namespace gaia {
 				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)changed[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
+
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
+
+			// Explicit grouping dependencies
+			{
+				QueryLookupHash::Type hash = 0;
+
+				QueryEntityArray groupDeps{};
+				GAIA_FOR(ctxData.groupDepCnt) groupDeps[i] = ctxData._groupDeps[i];
+				canonicalize_lookup_changed(std::span<Entity>{groupDeps.data(), ctxData.groupDepCnt});
+
+				for (uint32_t i = 0; i < ctxData.groupDepCnt; ++i)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDeps[i].value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}

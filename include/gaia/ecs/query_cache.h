@@ -470,8 +470,8 @@ namespace gaia {
 						// Structural changes invalidate seed caches for structural queries.
 						// Dynamic queries reuse structural compilation state and only need their
 						// final result refreshed on the next read.
-						return info.ctx().data.deps.has(QueryCtx::DependencyHasSourceTerms) ||
-													 info.ctx().data.deps.has(QueryCtx::DependencyHasVariableTerms)
+						return (info.ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms) ||
+										info.ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms))
 											 ? QueryInfo::InvalidationKind::Result
 											 : QueryInfo::InvalidationKind::Seed;
 				}

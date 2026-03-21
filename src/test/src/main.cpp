@@ -13078,11 +13078,11 @@ TEST_CASE("Query - dependency metadata") {
 
 	auto qStructural = wld.query().all<Position>().or_<Scale>().no<Acceleration>().any<Rotation>();
 	const auto& depsStructural = qStructural.fetch().ctx().data.deps;
-	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasPositiveTerms));
-	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasNegativeTerms));
-	CHECK(depsStructural.has(ecs::QueryCtx::DependencyHasAnyTerms));
-	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasSourceTerms));
-	CHECK(!depsStructural.has(ecs::QueryCtx::DependencyHasVariableTerms));
+	CHECK(depsStructural.has_dep_flag(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsStructural.has_dep_flag(ecs::QueryCtx::DependencyHasNegativeTerms));
+	CHECK(depsStructural.has_dep_flag(ecs::QueryCtx::DependencyHasAnyTerms));
+	CHECK(!depsStructural.has_dep_flag(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(!depsStructural.has_dep_flag(ecs::QueryCtx::DependencyHasVariableTerms));
 	CHECK(depsStructural.create_selectors_view().size() == 1);
 	CHECK(depsStructural.exclusions_view().size() == 1);
 	CHECK(core::has(depsStructural.create_selectors_view(), wld.get<Position>()));
@@ -13090,31 +13090,31 @@ TEST_CASE("Query - dependency metadata") {
 
 	auto qOrOnly = wld.query().or_<Position>().or_<Scale>();
 	const auto& depsOrOnly = qOrOnly.fetch().ctx().data.deps;
-	CHECK(depsOrOnly.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsOrOnly.has_dep_flag(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsOrOnly.create_selectors_view().size() == 2);
 	CHECK(core::has(depsOrOnly.create_selectors_view(), wld.get<Position>()));
 	CHECK(core::has(depsOrOnly.create_selectors_view(), wld.get<Scale>()));
 
 	auto qSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source));
 	const auto& depsSource = qSource.fetch().ctx().data.deps;
-	CHECK(depsSource.has(ecs::QueryCtx::DependencyHasSourceTerms));
-	CHECK(!depsSource.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsSource.has_dep_flag(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(!depsSource.has_dep_flag(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsSource.create_selectors_view().empty());
 	CHECK(depsSource.src_entities_view().size() == 1);
 	CHECK(core::has(depsSource.src_entities_view(), source));
 
 	auto qVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	const auto& depsVar = qVar.fetch().ctx().data.deps;
-	CHECK(depsVar.has(ecs::QueryCtx::DependencyHasVariableTerms));
-	CHECK(!depsVar.has(ecs::QueryCtx::DependencyHasPositiveTerms));
+	CHECK(depsVar.has_dep_flag(ecs::QueryCtx::DependencyHasVariableTerms));
+	CHECK(!depsVar.has_dep_flag(ecs::QueryCtx::DependencyHasPositiveTerms));
 	CHECK(depsVar.create_selectors_view().empty());
 	CHECK(depsVar.relations_view().size() == 1);
 	CHECK(core::has(depsVar.relations_view(), rel));
 
 	auto qTrav = wld.query().all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	const auto& depsTrav = qTrav.fetch().ctx().data.deps;
-	CHECK(depsTrav.has(ecs::QueryCtx::DependencyHasSourceTerms));
-	CHECK(depsTrav.has(ecs::QueryCtx::DependencyHasTraversalTerms));
+	CHECK(depsTrav.has_dep_flag(ecs::QueryCtx::DependencyHasSourceTerms));
+	CHECK(depsTrav.has_dep_flag(ecs::QueryCtx::DependencyHasTraversalTerms));
 	CHECK(depsTrav.relations_view().size() == 1);
 	CHECK(core::has(depsTrav.relations_view(), rel));
 
@@ -13128,11 +13128,49 @@ TEST_CASE("Query - dependency metadata") {
 					return 1;
 				return 0;
 			});
-	CHECK(qSorted.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasSort));
+	CHECK(qSorted.fetch().ctx().data.deps.has_dep_flag(ecs::QueryCtx::DependencyHasSort));
 
 	auto eats = wld.add();
 	auto qGrouped = wld.query().all<Position>().group_by(eats);
-	CHECK(qGrouped.fetch().ctx().data.deps.has(ecs::QueryCtx::DependencyHasGroup));
+	const auto& depsGrouped = qGrouped.fetch().ctx().data.deps;
+	CHECK(depsGrouped.has_dep_flag(ecs::QueryCtx::DependencyHasGroup));
+	CHECK(depsGrouped.relations_view().size() == 1);
+	CHECK(core::has(depsGrouped.relations_view(), eats));
+
+	auto custom_group_by = []([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype,
+														ecs::Entity groupBy) {
+		if (archetype.pairs() > 0) {
+			auto ids = archetype.ids_view();
+			for (auto id: ids) {
+				if (!id.pair() || id.id() != groupBy.id())
+					continue;
+
+				return id.gen();
+			}
+		}
+
+		return ecs::GroupId(0);
+	};
+
+	auto qGroupedCustom = wld.query().all<Position>().group_by(eats, custom_group_by);
+	const auto& depsGroupedCustom = qGroupedCustom.fetch().ctx().data.deps;
+	CHECK(depsGroupedCustom.has_dep_flag(ecs::QueryCtx::DependencyHasGroup));
+	CHECK(depsGroupedCustom.relations_view().empty());
+
+	auto qGroupedCustomDep = wld.query().all<Position>().group_by(eats, custom_group_by).group_dep(eats);
+	const auto& depsGroupedCustomDep = qGroupedCustomDep.fetch().ctx().data.deps;
+	CHECK(depsGroupedCustomDep.has_dep_flag(ecs::QueryCtx::DependencyHasGroup));
+	CHECK(depsGroupedCustomDep.relations_view().size() == 1);
+	CHECK(core::has(depsGroupedCustomDep.relations_view(), eats));
+
+	auto parent = wld.add();
+	auto qGroupedCustomDeps =
+			wld.query().all<Position>().group_by(eats, custom_group_by).group_dep(eats).group_dep(parent);
+	const auto& depsGroupedCustomDeps = qGroupedCustomDeps.fetch().ctx().data.deps;
+	CHECK(depsGroupedCustomDeps.has_dep_flag(ecs::QueryCtx::DependencyHasGroup));
+	CHECK(depsGroupedCustomDeps.relations_view().size() == 2);
+	CHECK(core::has(depsGroupedCustomDeps.relations_view(), eats));
+	CHECK(core::has(depsGroupedCustomDeps.relations_view(), parent));
 }
 
 TEST_CASE("Query - create selectors with narrowest ALL term") {
@@ -13825,6 +13863,85 @@ TEST_CASE("Query - cached grouped query after archetype creation") {
 	CHECK(!info.cache_archetype_view().empty());
 	q.group_id(carrot);
 	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - custom grouped query refreshes on multiple group deps") {
+	TestWorld twld;
+
+	struct Marker {};
+
+	auto root = wld.add();
+	auto mid = wld.add();
+	auto parentA = wld.add();
+	auto parentB = wld.add();
+	auto leafA = wld.add();
+	auto leafB = wld.add();
+
+	wld.add(parentA, ecs::Pair(ecs::Parent, mid));
+	wld.add(mid, ecs::Pair(ecs::Parent, root));
+	wld.add(parentB, ecs::Pair(ecs::Parent, root));
+
+	wld.add(leafA, ecs::Pair(ecs::ChildOf, parentA));
+	wld.add(leafB, ecs::Pair(ecs::ChildOf, parentB));
+
+	wld.add<Position>(leafA, {0, 0, 0});
+	wld.add<Position>(leafB, {0, 0, 0});
+	wld.add<Marker>(leafA);
+	wld.add<Marker>(leafB);
+
+	auto group_by_parent_depth = []([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype,
+																	ecs::Entity groupBy) {
+		if (archetype.pairs() == 0)
+			return ecs::GroupId(0);
+
+		auto ids = archetype.ids_view();
+		for (auto id: ids) {
+			if (!id.pair() || id.id() != groupBy.id())
+				continue;
+
+			auto curr = world.get_if_valid(id.gen());
+			ecs::GroupId depth = 1;
+			constexpr uint32_t MaxTraversalDepth = 2048;
+			GAIA_FOR(MaxTraversalDepth) {
+				const auto next = world.target(curr, ecs::Parent);
+				if (next == ecs::EntityBad || next == curr)
+					break;
+				++depth;
+				curr = next;
+			}
+
+			return depth;
+		}
+
+		return ecs::GroupId(0);
+	};
+
+	auto q = wld.query()
+							 .all<Position>()
+							 .all<Marker>()
+							 .group_by(ecs::ChildOf, group_by_parent_depth)
+							 .group_dep(ecs::ChildOf)
+							 .group_dep(ecs::Parent);
+
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 2);
+	CHECK(ents[0] == leafB);
+	CHECK(ents[1] == leafA);
+
+	wld.del(parentA, ecs::Pair(ecs::Parent, mid));
+
+	ents.clear();
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 2);
+	CHECK(ents[0] == leafA);
+	CHECK(ents[1] == leafB);
 }
 
 TEST_CASE("Query - cached grouped queries with instance-local group filters") {
@@ -17775,8 +17892,12 @@ TEST_CASE("Observer - fast path") {
 	travOpts.trav(ecs::ChildOf);
 	const auto observerAllPosTrav =
 			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>(travOpts).on_each([](ecs::Iter&) {}).entity();
-	const auto observerCascade =
-			wld.observer().event(ecs::ObserverEvent::OnAdd).all<Position>().cascade(ecs::ChildOf).on_each([](ecs::Iter&) {}).entity();
+	const auto observerCascade = wld.observer()
+																	 .event(ecs::ObserverEvent::OnAdd)
+																	 .all<Position>()
+																	 .cascade(ecs::ChildOf)
+																	 .on_each([](ecs::Iter&) {})
+																	 .entity();
 
 	const auto& dataAllPos = wld.observers().data(observerAllPos);
 	const auto& dataNoPos = wld.observers().data(observerNoPos);

@@ -66,6 +66,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Query](#query)
     * [Simple query](#simple-query)
     * [Query traversal](#query-traversal)
+    * [Traversal order](#traversal-order)
     * [Query variables](query-variables)
     * [Multi-variable queries](#multi-variable-queries)
     * [Query low-level API](#query-low-level-api)
@@ -1021,22 +1022,14 @@ Note, the first Query invocation of a cached query is always slower than the sub
 ecs::Query q = w.query();
 q.all<Position>(); // Consider only entities with Position
 
+// Iterate matching entities.
+q.each([&](ecs::Entity entity) {
+  ...
+});
+
 // Fill the entities array with entities with a Position component.
 cnt::darray<ecs::Entity> entities;
 q.arr(entities);
-
-// Configure query.each() to iterate in dependency BFS levels for the given relation.
-// Pair(MyDependsOn, X) on entity E means E depends on X.
-q.bfs(MyDependsOn).each([&](ecs::Entity e) {
-  entities.push_back(e);
-});
-// Repeated calls are cached and only recomputed when query/world data changes.
-
-// Configure the cached query itself to be ordered top-down by hierarchy depth.
-// Normal iteration then already runs parent-before-child for fragmenting hierarchies such as ChildOf.
-q.cascade(ecs::ChildOf).each([&](ecs::Entity e) {
-  entities.push_back(e);
-});
 
 // Fill the positions array with position data.
 cnt::darray<Position> positions;
@@ -1248,6 +1241,94 @@ ecs::Query qTravCached = w.query()
 ```
 
 This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.
+### Traversal order
+
+Use `bfs(...)` when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.
+
+```cpp
+struct Time { int time; };
+
+ecs::Entity buyGroceries = wld.add();
+ecs::Entity boilWater = wld.add();
+ecs::Entity chopVegetables = wld.add();
+ecs::Entity cookDinner = wld.add();
+ecs::Entity setTable = wld.add();
+
+wld.add<Time>(buyGroceries, {0});
+wld.add<Time>(boilWater, {0});
+wld.add<Time>(chopVegetables, {0});
+wld.add<Time>(cookDinner, {0});
+wld.add<Time>(setTable, {0});
+
+// buyGroceries
+// ├─ boilWater
+// ├─ chopVegetables
+// └─ setTable
+// boilWater + chopVegetables -> cookDinner
+wld.add(boilWater, ecs::Pair(DependsOn, buyGroceries));
+wld.add(chopVegetables, ecs::Pair(DependsOn, buyGroceries));
+wld.add(setTable, ecs::Pair(DependsOn, buyGroceries));
+wld.add(cookDinner, ecs::Pair(DependsOn, boilWater));
+wld.add(cookDinner, ecs::Pair(DependsOn, chopVegetables));
+
+ecs::Query q = wld.query().all<Time>();
+
+// With bfs(...), query result is reordered by dependency levels:
+// buyGroceries
+// boilWater, chopVegetables, setTable
+// cookDinner
+q.bfs(DependsOn).each([&](ecs::Entity entity) {
+  ...
+});
+
+// Without bfs(...), the query does not use DependsOn for ordering.
+// Therefore, entities are iterated in undefined order.
+q.each([&](ecs::Entity entity) {
+  ... // random entity order
+});
+```
+
+Use `cascade(...)` when you want cached query iteration itself to run top-down by hierarchy depth for a fragmenting relation such as `ChildOf`.
+
+```cpp
+ecs::Entity uiRoot = wld.add();
+ecs::Entity topBar = wld.add();
+ecs::Entity inventoryPanel = wld.add();
+ecs::Entity goldLabel = wld.add();
+ecs::Entity itemList = wld.add();
+
+wld.add<Time>(uiRoot, {0});
+wld.add<Time>(topBar, {0});
+wld.add<Time>(inventoryPanel, {0});
+wld.add<Time>(goldLabel, {0});
+wld.add<Time>(itemList, {0});
+
+// uiRoot
+// ├─ topBar
+// │  └─ goldLabel
+// └─ inventoryPanel
+//    └─ itemList
+wld.child(topBar, uiRoot);
+wld.child(inventoryPanel, uiRoot);
+wld.child(goldLabel, topBar);
+wld.child(itemList, inventoryPanel);
+
+ecs::Query q = wld.query().all<Time>();
+
+// With cascade(...), query iteration becomes top-down:
+// uiRoot
+// topBar, inventoryPanel
+// goldLabel, itemList
+q.cascade(ecs::ChildOf).each([&](ecs::Entity entity) {
+  ...
+});
+
+// Without cascade(...), ChildOf does not affect the cached iteration order.
+// Parents and children do not have any defined order.
+q.each([&](ecs::Entity entity) {
+  ... // random entity order
+});
+```
 
 ### Query variables
 
@@ -1790,7 +1871,7 @@ q.group_id(carrot).each([&](ecs::Iter& it) {
 });
 ```
 
-Custom sorting function can be provided if needed.
+Custom sorting function can be provided if needed. If a custom `group_by(...)` callback depends on hierarchy or relation topology, declare that explicitly with `group_dep(...)` so cached grouping is refreshed when that relation changes.
 
 ```cpp
 ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
@@ -1810,22 +1891,6 @@ ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const 
 }
 
 q.group_by(eats, my_group_sort_func).each(...) { ... };
-```
-
-`group_by(...)` is fully custom.
-
-Use `bfs(...)` when you want to reorder the current query result in breadth-first dependency or traversal order.
-
-Use `cascade(...)` when you want the cached query entries themselves sorted by hierarchy depth, so normal iteration already runs top-down for a fragmenting hierarchy such as `ChildOf`.
-
-```cpp
-ecs::Query q = wld.query()
-  .all<Position>()
-  .cascade(ecs::ChildOf);
-
-q.each([&](ecs::Entity entity) {
-  ...
-});
 ```
 
 ### Sorting

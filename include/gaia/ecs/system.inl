@@ -261,12 +261,16 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Orders cached system query iteration top-down by fragmenting hierarchy depth.
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+			//! \param relation Fragmenting hierarchy relation
 			SystemBuilder& cascade(Entity relation = ChildOf) {
 				data().query.cascade(relation);
 				return *this;
 			}
 
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
 			SystemBuilder& cascade() {
 				data().query.template cascade<Rel>();
@@ -275,17 +279,27 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Organizes matching archetypes into groups according to the grouping function and entity.
+			//! \param entity The entity to group by.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 				data().query.group_by(entity, func);
 				return *this;
 			}
 
+			//! Organizes matching archetypes into groups according to the grouping function.
+			//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename T>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
 				data().query.group_by<T>(func);
 				return *this;
 			}
 
+			//! Organizes matching archetypes into groups according to the grouping function.
+			//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
+			//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename Rel, typename Tgt>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
 				data().query.group_by<Rel, Tgt>(func);
@@ -294,20 +308,45 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Declares an explicit relation dependency for grouped cache invalidation.
+			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+			//! \param relation Relation the group depends on.
+			SystemBuilder& group_dep(Entity relation) {
+				data().query.group_dep(relation);
+				return *this;
+			}
+
+			//! Declares an explicit relation dependency for grouped cache invalidation.
+			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+			//! \tparam Rel Relation the group depends on.
+			template <typename Rel>
+			SystemBuilder& group_dep() {
+				data().query.template group_dep<Rel>();
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			//! Selects the group to iterate over.
+			//! \param groupId The group to iterate over.
 			SystemBuilder& group_id(GroupId groupId) {
 				data().query.group_id(groupId);
 				return *this;
 			}
 
+			//! Selects the group to iterate over.
+			//! \param entity The entity to treat as a group to iterate over.
 			SystemBuilder& group_id(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				data().query.group_id(entity.id());
 				return *this;
 			}
 
+			//! Selects the group to iterate over.
+			//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 			template <typename T>
 			SystemBuilder& group_id() {
-				data().query.group_id<T>();
+				data().query.template group_id<T>();
 				return *this;
 			}
 

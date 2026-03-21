@@ -281,14 +281,14 @@ namespace gaia {
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
 				if (!deps.can_reuse_src_cache())
 					return false;
 
 				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
-				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
 					return true;
 
 				return m_plan.ctx.data.cacheSrcTrav != 0;
@@ -297,14 +297,14 @@ namespace gaia {
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
 				const auto& deps = m_plan.ctx.data.deps;
-				return !deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+				return !deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
 							 can_reuse_dyn_cache();
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
 				const auto& deps = m_plan.ctx.data.deps;
-				return deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+				return deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
 							 can_reuse_dyn_cache();
 			}
 
@@ -413,10 +413,10 @@ namespace gaia {
 			//! Checks source-driven dynamic inputs, using direct-source versions or traversed-source snapshots as needed.
 			GAIA_NODISCARD bool dyn_src_inputs_changed(bool relationVersionsChanged) {
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
-				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
 					return direct_src_versions_changed();
 
 				if (m_state.srcTravSnapshotOverflowed)
@@ -455,7 +455,7 @@ namespace gaia {
 					return true;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return relationVersionsChanged;
 
 				if (m_state.srcTravSnapshotOverflowed)
@@ -1473,7 +1473,7 @@ namespace gaia {
 			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
 			GAIA_NODISCARD bool has_entity_filter_terms() const {
 				const auto& ctxData = m_plan.ctx.data;
-				return ctxData.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
 			//! Returns true when prefab-tagged entities should participate in query results.

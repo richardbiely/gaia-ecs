@@ -30891,8 +30891,12 @@ namespace gaia {
 						return {sourceEntities.data(), sourceEntityCnt};
 					}
 
-					void add(DependencyFlags dependency) {
+					void set_dep_flag(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
+					}
+
+					GAIA_NODISCARD bool has_dep_flag(DependencyFlags dependency) const {
+						return (flags & dependency) != 0;
 					}
 
 					void add_rel(Entity relation) {
@@ -30914,10 +30918,6 @@ namespace gaia {
 					GAIA_NODISCARD bool can_reuse_src_cache() const {
 						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
-
-					GAIA_NODISCARD bool has(DependencyFlags dependency) const {
-						return (flags & dependency) != 0;
-					}
 				};
 
 				//! Array of queried ids
@@ -30934,6 +30934,8 @@ namespace gaia {
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray _changed;
+				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
+				QueryEntityArray _groupDeps;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -30956,6 +30958,8 @@ namespace gaia {
 				uint8_t firstAny;
 				//! First OR record in pairs/ids/ops
 				uint8_t firstOr;
+				//! Number of defined group dependencies
+				uint8_t groupDepCnt = 0;
 				//! Read-write mask. Bit 0 stands for component 0 in component arrays.
 				//! A set bit means write access is requested.
 				uint16_t readWriteMask;
@@ -30976,6 +30980,32 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> changed_view() const {
 					return {_changed.data(), changedCnt};
+				}
+
+				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
+					return {_groupDeps.data(), groupDepCnt};
+				}
+
+				//! Adds a declared grouping invalidation dependency.
+				void add_group_dep(Entity relation) {
+					if (relation == EntityBad || core::has(group_deps_view(), relation))
+						return;
+
+					GAIA_ASSERT(groupDepCnt < MAX_ITEMS_IN_QUERY);
+					if (groupDepCnt < MAX_ITEMS_IN_QUERY)
+						_groupDeps[groupDepCnt++] = relation;
+				}
+
+				//! Adds all grouping invalidation relations to the dependency set.
+				void add_group_deps() {
+					deps.set_dep_flag(DependencyHasGroup);
+
+					const bool hasBuiltInGroupDep =
+							groupBy != EntityBad && (groupByFunc == group_by_func_default || groupByFunc == group_by_func_cascade);
+					if (hasBuiltInGroupDep)
+						deps.add_rel(groupBy);
+					for (auto relation: group_deps_view())
+						deps.add_rel(relation);
 				}
 
 				GAIA_NODISCARD std::span<QueryTerm> terms_view_mut() {
@@ -31031,11 +31061,9 @@ namespace gaia {
 					uint8_t createSelectorOrCnt = 0;
 					data.deps.clear();
 					if (data.sortByFunc != nullptr)
-						data.deps.add(DependencyHasSort);
-					if (data.groupBy != EntityBad) {
-						data.deps.add(DependencyHasGroup);
-						data.deps.add_rel(data.groupBy);
-					}
+						data.deps.set_dep_flag(DependencyHasSort);
+					if (data.groupBy != EntityBad)
+						data.add_group_deps();
 
 					auto terms = data.terms_view();
 					const auto cnt = (uint32_t)terms.size();
@@ -31075,18 +31103,18 @@ namespace gaia {
 								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
 						canDirectCreateArchetypeMatch &= term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
-							data.deps.add(DependencyHasWildcardTerms);
+							data.deps.set_dep_flag(DependencyHasWildcardTerms);
 						const bool hasDynamicRelationUsage =
 								term.entTrav != EntityBad || term.src != EntityBad || term_has_variables(term);
 						if (id.pair() && hasDynamicRelationUsage && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 							data.deps.add_rel(entity_from_id(*w, id.id()));
 						if (term.entTrav != EntityBad) {
 							data.deps.add_rel(term.entTrav);
-							data.deps.add(DependencyHasTraversalTerms);
+							data.deps.set_dep_flag(DependencyHasTraversalTerms);
 						}
 						if (term.src != EntityBad) {
 							hasSourceTerms = true;
-							data.deps.add(DependencyHasSourceTerms);
+							data.deps.set_dep_flag(DependencyHasSourceTerms);
 							++data.deps.sourceTermCnt;
 							if (!is_variable(term.src))
 								data.deps.add_src_entity(term.src);
@@ -31094,13 +31122,13 @@ namespace gaia {
 
 						if (term_has_variables(term)) {
 							hasVariableTerms = true;
-							data.deps.add(DependencyHasVariableTerms);
+							data.deps.set_dep_flag(DependencyHasVariableTerms);
 							isComplex = true;
 							continue;
 						}
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
-							data.deps.add(DependencyHasAdjunctTerms);
+							data.deps.set_dep_flag(DependencyHasAdjunctTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));
 							continue;
@@ -31123,16 +31151,16 @@ namespace gaia {
 
 						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
 							hasCreateSelector = true;
-							data.deps.add(DependencyHasPositiveTerms);
+							data.deps.set_dep_flag(DependencyHasPositiveTerms);
 							if (term.op == QueryOpKind::All)
 								createSelectorsAll[createSelectorAllCnt++] = id;
 							else
 								createSelectorsOr[createSelectorOrCnt++] = id;
 						} else if (term.op == QueryOpKind::Not) {
-							data.deps.add(DependencyHasNegativeTerms);
+							data.deps.set_dep_flag(DependencyHasNegativeTerms);
 							data.deps.exclusions[data.deps.exclusionCnt++] = id;
 						} else if (term.op == QueryOpKind::Any) {
-							data.deps.add(DependencyHasAnyTerms);
+							data.deps.set_dep_flag(DependencyHasAnyTerms);
 						}
 
 						// Build the Is mask.
@@ -31228,7 +31256,7 @@ namespace gaia {
 																							: CreateArchetypeMatchKind::Vm;
 
 					// Traversed-source snapshot caching is only effective for traversed source terms.
-					if (!data.deps.has(DependencyHasSourceTerms) || !data.deps.has(DependencyHasTraversalTerms))
+					if (!data.deps.has_dep_flag(DependencyHasSourceTerms) || !data.deps.has_dep_flag(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
 
 					// Calculate the component mask for simple queries
@@ -31270,6 +31298,8 @@ namespace gaia {
 					return false;
 				if (left.changedCnt != right.changedCnt)
 					return false;
+				if (left.groupDepCnt != right.groupDepCnt)
+					return false;
 				if (left.readWriteMask != right.readWriteMask)
 					return false;
 				if (left.cacheSrcTrav != right.cacheSrcTrav)
@@ -31305,6 +31335,23 @@ namespace gaia {
 					const auto cnt = left.changedCnt;
 					GAIA_FOR(cnt) {
 						if (leftChanged[i] != rightChanged[i])
+							return false;
+					}
+				}
+
+				QueryEntityArray leftGroupDeps{};
+				QueryEntityArray rightGroupDeps{};
+				GAIA_FOR(left.groupDepCnt) {
+					leftGroupDeps[i] = left._groupDeps[i];
+					rightGroupDeps[i] = right._groupDeps[i];
+				}
+				canonicalize_lookup_changed(std::span<Entity>{leftGroupDeps.data(), left.groupDepCnt});
+				canonicalize_lookup_changed(std::span<Entity>{rightGroupDeps.data(), right.groupDepCnt});
+
+				{
+					const auto cnt = left.groupDepCnt;
+					GAIA_FOR(cnt) {
+						if (leftGroupDeps[i] != rightGroupDeps[i])
 							return false;
 					}
 				}
@@ -31489,6 +31536,21 @@ namespace gaia {
 				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)changed[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
+
+				hashLookup = core::hash_combine(hashLookup, hash);
+			}
+
+			// Explicit grouping dependencies
+			{
+				QueryLookupHash::Type hash = 0;
+
+				QueryEntityArray groupDeps{};
+				GAIA_FOR(ctxData.groupDepCnt) groupDeps[i] = ctxData._groupDeps[i];
+				canonicalize_lookup_changed(std::span<Entity>{groupDeps.data(), ctxData.groupDepCnt});
+
+				for (uint32_t i = 0; i < ctxData.groupDepCnt; ++i)
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDeps[i].value());
+				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -36205,7 +36267,7 @@ namespace gaia {
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
 					const auto& world = *queryCtx.w;
-					const bool hasAdjunctTerms = data.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+					const bool hasAdjunctTerms = data.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
 					auto isAdjunctDirectTerm = [&](const QueryTerm& term) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
@@ -36579,7 +36641,7 @@ namespace gaia {
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
 					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms() ||
-																						queryCtx.data.deps.has(QueryCtx::DependencyHasAdjunctTerms))) {
+																						queryCtx.data.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms))) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Seed_All;
 						(void)add_op(GAIA_MOV(op));
@@ -36943,14 +37005,14 @@ namespace gaia {
 					return false;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return true;
 
 				if (!deps.can_reuse_src_cache())
 					return false;
 
 				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
-				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
 					return true;
 
 				return m_plan.ctx.data.cacheSrcTrav != 0;
@@ -36959,14 +37021,14 @@ namespace gaia {
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
 				const auto& deps = m_plan.ctx.data.deps;
-				return !deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+				return !deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
 							 can_reuse_dyn_cache();
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
 				const auto& deps = m_plan.ctx.data.deps;
-				return deps.has(QueryCtx::DependencyHasTraversalTerms) && //
+				return deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
 							 can_reuse_dyn_cache();
 			}
 
@@ -37075,10 +37137,10 @@ namespace gaia {
 			//! Checks source-driven dynamic inputs, using direct-source versions or traversed-source snapshots as needed.
 			GAIA_NODISCARD bool dyn_src_inputs_changed(bool relationVersionsChanged) {
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return false;
 
-				if (!deps.has(QueryCtx::DependencyHasTraversalTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
 					return direct_src_versions_changed();
 
 				if (m_state.srcTravSnapshotOverflowed)
@@ -37117,7 +37179,7 @@ namespace gaia {
 					return true;
 
 				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has(QueryCtx::DependencyHasSourceTerms))
+				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return relationVersionsChanged;
 
 				if (m_state.srcTravSnapshotOverflowed)
@@ -38135,7 +38197,7 @@ namespace gaia {
 			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
 			GAIA_NODISCARD bool has_entity_filter_terms() const {
 				const auto& ctxData = m_plan.ctx.data;
-				return ctxData.deps.has(QueryCtx::DependencyHasAdjunctTerms);
+				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
 			//! Returns true when prefab-tagged entities should participate in query results.
@@ -38709,8 +38771,8 @@ namespace gaia {
 						// Structural changes invalidate seed caches for structural queries.
 						// Dynamic queries reuse structural compilation state and only need their
 						// final result refreshed on the next read.
-						return info.ctx().data.deps.has(QueryCtx::DependencyHasSourceTerms) ||
-													 info.ctx().data.deps.has(QueryCtx::DependencyHasVariableTerms)
+						return (info.ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms) ||
+										info.ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms))
 											 ? QueryInfo::InvalidationKind::Result
 											 : QueryInfo::InvalidationKind::Seed;
 				}
@@ -39053,7 +39115,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, MATCH_PREFAB };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, GROUP_DEP, MATCH_PREFAB };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -39172,6 +39234,19 @@ namespace gaia {
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
 					ctxData.groupByFunc = func; // group_by_func_default;
+				}
+			};
+
+			struct QueryCmd_GroupDep {
+				static constexpr QueryCmdType Id = QueryCmdType::GROUP_DEP;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity relation;
+
+				void exec(QueryCtx& ctx) const {
+					auto& ctxData = ctx.data;
+					GAIA_ASSERT(!relation.pair());
+					ctxData.add_group_dep(relation);
 				}
 			};
 
@@ -39438,6 +39513,12 @@ namespace gaia {
 						// GroupBy
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_GroupBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// GroupDep
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_GroupDep cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
@@ -39745,8 +39826,9 @@ namespace gaia {
 			private:
 				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
 				GAIA_NODISCARD bool uses_manual_src_trav_cache(const QueryCtx& ctx) const {
-					return m_cacheSrcTrav != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
-								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
+					return m_cacheSrcTrav != 0 && //
+								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms) && //
+								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms);
 				}
 
 				//! Returns true when the query uses the immediate structural cache layer.
@@ -40107,6 +40189,23 @@ namespace gaia {
 					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
 
 					group_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void group_dep_inter(Entity relation) {
+					GAIA_ASSERT(!relation.pair());
+					QueryCmd_GroupDep cmd{relation};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void group_dep_inter() {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
+
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
+					group_dep_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -42717,8 +42816,9 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
 				//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+				//! \param relation Fragmenting hierarchy relation
 				QueryImpl& cascade(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
@@ -42726,7 +42826,7 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 				template <typename Rel>
 				QueryImpl& cascade() {
@@ -42763,6 +42863,25 @@ namespace gaia {
 				template <typename Rel, typename Tgt>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
+
+				//------------------------------------------------
+
+				//! Declares an explicit relation dependency for grouped cache invalidation.
+				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+				//! \param relation Relation the group depends on.
+				QueryImpl& group_dep(Entity relation) {
+					group_dep_inter(relation);
+					return *this;
+				}
+
+				//! Declares an explicit relation dependency for grouped cache invalidation.
+				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+				//! \tparam Rel Relation the group depends on.
+				template <typename Rel>
+				QueryImpl& group_dep() {
+					group_dep_inter<Rel>();
 					return *this;
 				}
 
@@ -55378,13 +55497,17 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Orders cached observer query iteration top-down by fragmenting hierarchy depth.
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+			//! \param relation Fragmenting hierarchy relation
 			ObserverBuilder& cascade(Entity relation = ChildOf) {
 				validate();
 				runtime_data().query.cascade(relation);
 				return *this;
 			}
 
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
 			ObserverBuilder& cascade() {
 				validate();
@@ -55713,12 +55836,16 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Orders cached system query iteration top-down by fragmenting hierarchy depth.
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+			//! \param relation Fragmenting hierarchy relation
 			SystemBuilder& cascade(Entity relation = ChildOf) {
 				data().query.cascade(relation);
 				return *this;
 			}
 
+			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
 			SystemBuilder& cascade() {
 				data().query.template cascade<Rel>();
@@ -55727,17 +55854,27 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Organizes matching archetypes into groups according to the grouping function and entity.
+			//! \param entity The entity to group by.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 				data().query.group_by(entity, func);
 				return *this;
 			}
 
+			//! Organizes matching archetypes into groups according to the grouping function.
+			//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename T>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
 				data().query.group_by<T>(func);
 				return *this;
 			}
 
+			//! Organizes matching archetypes into groups according to the grouping function.
+			//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
+			//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
+			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename Rel, typename Tgt>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
 				data().query.group_by<Rel, Tgt>(func);
@@ -55746,20 +55883,45 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Declares an explicit relation dependency for grouped cache invalidation.
+			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+			//! \param relation Relation the group depends on.
+			SystemBuilder& group_dep(Entity relation) {
+				data().query.group_dep(relation);
+				return *this;
+			}
+
+			//! Declares an explicit relation dependency for grouped cache invalidation.
+			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+			//! \tparam Rel Relation the group depends on.
+			template <typename Rel>
+			SystemBuilder& group_dep() {
+				data().query.template group_dep<Rel>();
+				return *this;
+			}
+
+			//------------------------------------------------
+
+			//! Selects the group to iterate over.
+			//! \param groupId The group to iterate over.
 			SystemBuilder& group_id(GroupId groupId) {
 				data().query.group_id(groupId);
 				return *this;
 			}
 
+			//! Selects the group to iterate over.
+			//! \param entity The entity to treat as a group to iterate over.
 			SystemBuilder& group_id(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				data().query.group_id(entity.id());
 				return *this;
 			}
 
+			//! Selects the group to iterate over.
+			//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 			template <typename T>
 			SystemBuilder& group_id() {
-				data().query.group_id<T>();
+				data().query.template group_id<T>();
 				return *this;
 			}
 

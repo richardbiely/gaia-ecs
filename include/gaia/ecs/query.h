@@ -84,7 +84,7 @@ namespace gaia {
 
 		namespace detail {
 			//! Query command types
-			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, MATCH_PREFAB };
+			enum QueryCmdType : uint8_t { ADD_ITEM, ADD_FILTER, SORT_BY, GROUP_BY, GROUP_DEP, MATCH_PREFAB };
 
 			struct QueryCmd_AddItem {
 				static constexpr QueryCmdType Id = QueryCmdType::ADD_ITEM;
@@ -203,6 +203,19 @@ namespace gaia {
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
 					ctxData.groupByFunc = func; // group_by_func_default;
+				}
+			};
+
+			struct QueryCmd_GroupDep {
+				static constexpr QueryCmdType Id = QueryCmdType::GROUP_DEP;
+				static constexpr bool InvalidatesHash = true;
+
+				Entity relation;
+
+				void exec(QueryCtx& ctx) const {
+					auto& ctxData = ctx.data;
+					GAIA_ASSERT(!relation.pair());
+					ctxData.add_group_dep(relation);
 				}
 			};
 
@@ -469,6 +482,12 @@ namespace gaia {
 						// GroupBy
 						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
 							QueryCmd_GroupBy cmd;
+							ser::load(buffer, cmd);
+							cmd.exec(ctx);
+						},
+						// GroupDep
+						[](QuerySerBuffer& buffer, QueryCtx& ctx) {
+							QueryCmd_GroupDep cmd;
 							ser::load(buffer, cmd);
 							cmd.exec(ctx);
 						},
@@ -776,8 +795,9 @@ namespace gaia {
 			private:
 				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
 				GAIA_NODISCARD bool uses_manual_src_trav_cache(const QueryCtx& ctx) const {
-					return m_cacheSrcTrav != 0 && ctx.data.deps.has(QueryCtx::DependencyHasSourceTerms) &&
-								 ctx.data.deps.has(QueryCtx::DependencyHasTraversalTerms);
+					return m_cacheSrcTrav != 0 && //
+								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms) && //
+								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms);
 				}
 
 				//! Returns true when the query uses the immediate structural cache layer.
@@ -1138,6 +1158,23 @@ namespace gaia {
 					const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
 
 					group_by_inter({descRel.entity, descTgt.entity}, func);
+				}
+
+				//--------------------------------------------------------------------------------
+
+				void group_dep_inter(Entity relation) {
+					GAIA_ASSERT(!relation.pair());
+					QueryCmd_GroupDep cmd{relation};
+					add_cmd(cmd);
+				}
+
+				template <typename T>
+				void group_dep_inter() {
+					using UO = typename component_type_t<T>::TypeOriginal;
+					static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
+
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
+					group_dep_inter(desc.entity);
 				}
 
 				//--------------------------------------------------------------------------------
@@ -3748,8 +3785,9 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
 				//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+				//! \param relation Fragmenting hierarchy relation
 				QueryImpl& cascade(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
@@ -3757,7 +3795,7 @@ namespace gaia {
 					return *this;
 				}
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so normal iteration runs top-down.
+				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 				template <typename Rel>
 				QueryImpl& cascade() {
@@ -3794,6 +3832,25 @@ namespace gaia {
 				template <typename Rel, typename Tgt>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default) {
 					group_by_inter<Rel, Tgt>(func);
+					return *this;
+				}
+
+				//------------------------------------------------
+
+				//! Declares an explicit relation dependency for grouped cache invalidation.
+				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+				//! \param relation Relation the group depends on.
+				QueryImpl& group_dep(Entity relation) {
+					group_dep_inter(relation);
+					return *this;
+				}
+
+				//! Declares an explicit relation dependency for grouped cache invalidation.
+				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
+				//! \tparam Rel Relation the group depends on.
+				template <typename Rel>
+				QueryImpl& group_dep() {
+					group_dep_inter<Rel>();
 					return *this;
 				}
 
