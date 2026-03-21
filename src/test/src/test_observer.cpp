@@ -2895,6 +2895,39 @@ TEST_CASE("Observer - prefab sync removed copied override emits no OnDel") {
 	(void)observer;
 }
 
+TEST_CASE("Observer - prefab sync removed sparse copied override emits no OnDel") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<PositionSparse>(prefab, {4.0f, 5.0f, 6.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	uint32_t hits = 0;
+	ecs::Entity observed = ecs::EntityBad;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observed = entityView[0];
+														})
+														.entity();
+
+	wld.del<PositionSparse>(prefab);
+	CHECK(wld.sync(prefab) == 0);
+
+	CHECK(hits == 0);
+	CHECK(observed == ecs::EntityBad);
+	CHECK(wld.has<PositionSparse>(instance));
+	const auto& pos = wld.get<PositionSparse>(instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
+
+	(void)observer;
+}
+
 TEST_CASE("Observer - del runtime sparse id payload") {
 	TestWorld twld;
 

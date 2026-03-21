@@ -786,7 +786,7 @@ TEST_CASE("Entity validity distinguishes stale handles from recycled live slots"
 
 	CHECK_FALSE(wld.valid(original));
 	CHECK(wld.valid(recycled));
-	CHECK(wld.get_if_valid(originalId) == recycled);
+	CHECK(wld.try_get(originalId) == recycled);
 }
 #endif
 

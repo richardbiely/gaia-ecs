@@ -3524,6 +3524,120 @@ TEST_CASE("Prefab - sync does not delete existing child instances when prefab ch
 	CHECK(wld.get<Position>(childInstance).x == doctest::Approx(2.0f));
 }
 
+TEST_CASE("Prefab - cached exact Is query ignores recycled prefab ids after delete") {
+	TestWorld twld;
+
+	const auto recycle_same_id = [&](ecs::Entity stale) {
+		ecs::Entity recycled = ecs::EntityBad;
+		for (uint32_t i = 0; i < 256 && recycled == ecs::EntityBad; ++i) {
+			const auto candidate = wld.add();
+			if (candidate.id() == stale.id())
+				recycled = candidate;
+		}
+		return recycled;
+	};
+
+	const auto prefab = wld.prefab();
+	const auto oldInstance = wld.instantiate(prefab);
+
+	ecs::QueryTermOptions directOpts;
+	directOpts.direct();
+
+	auto q = wld.query().all(ecs::Pair(ecs::Is, prefab), directOpts);
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {oldInstance});
+
+	wld.del(prefab);
+	twld.update();
+
+	q.match_all(info);
+	CHECK(q.count() == 0);
+
+	const auto recycled = recycle_same_id(prefab);
+	CHECK(recycled != ecs::EntityBad);
+	if (recycled == ecs::EntityBad)
+		return;
+	CHECK(recycled.gen() != prefab.gen());
+
+	wld.add(recycled, ecs::Prefab);
+
+	q.match_all(info);
+	CHECK(q.count() == 0);
+
+	auto qFresh = wld.query().all(ecs::Pair(ecs::Is, recycled), directOpts);
+	CHECK(qFresh.count() == 0);
+
+	const auto newInstance = wld.instantiate(recycled);
+
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {newInstance});
+
+	CHECK(qFresh.count() == 1);
+	expect_exact_entities(qFresh, {newInstance});
+	CHECK_FALSE(wld.has_direct(oldInstance, ecs::Pair(ecs::Is, recycled)));
+}
+
+TEST_CASE("Prefab - inherited component query ignores recycled prefab ids after delete") {
+	TestWorld twld;
+
+	const auto recycle_same_id = [&](ecs::Entity stale) {
+		ecs::Entity recycled = ecs::EntityBad;
+		for (uint32_t i = 0; i < 256 && recycled == ecs::EntityBad; ++i) {
+			const auto candidate = wld.add();
+			if (candidate.id() == stale.id())
+				recycled = candidate;
+		}
+		return recycled;
+	};
+
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {1.0f, 2.0f, 3.0f});
+
+	const auto oldInstance = wld.instantiate(prefab);
+
+	auto q = wld.query().all<Position>();
+	auto& info = q.fetch();
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {oldInstance});
+
+	wld.del(prefab);
+	twld.update();
+
+	q.match_all(info);
+	CHECK(q.count() == 0);
+	CHECK_FALSE(wld.has<Position>(oldInstance));
+
+	const auto recycled = recycle_same_id(prefab);
+	CHECK(recycled != ecs::EntityBad);
+	if (recycled == ecs::EntityBad)
+		return;
+	CHECK(recycled.gen() != prefab.gen());
+
+	wld.add(recycled, ecs::Prefab);
+	wld.add<Position>(recycled, {7.0f, 8.0f, 9.0f});
+
+	q.match_all(info);
+	CHECK(q.count() == 0);
+	CHECK_FALSE(wld.has<Position>(oldInstance));
+
+	const auto newInstance = wld.instantiate(recycled);
+
+	q.match_all(info);
+	CHECK(q.count() == 1);
+	expect_exact_entities(q, {newInstance});
+	CHECK_FALSE(wld.has<Position>(oldInstance));
+	CHECK(wld.get<Position>(newInstance).x == doctest::Approx(7.0f));
+	CHECK(wld.get<Position>(newInstance).y == doctest::Approx(8.0f));
+	CHECK(wld.get<Position>(newInstance).z == doctest::Approx(9.0f));
+}
+
 TEST_CASE("Prefab - instantiate with non-prefab Parent children excluded") {
 	TestWorld twld;
 
@@ -3905,6 +4019,34 @@ TEST_CASE("Query - direct-source negative term tracks source changes") {
 	CHECK(q.count() == 1);
 }
 
+TEST_CASE("Query - cached direct-source negative term tracks source changes") {
+	TestWorld twld;
+
+	struct Blocked {};
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().no<Blocked>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(q.count() == 1);
+
+	wld.add<Blocked>(source);
+	q.match_all(info);
+	const auto revB = info.reverse_index_revision();
+	CHECK(revB != revA);
+	CHECK(q.count() == 0);
+
+	wld.del<Blocked>(source);
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() != revB);
+	CHECK(q.count() == 1);
+}
+
 TEST_CASE("Query - direct-source or term tracks source changes") {
 	TestWorld twld;
 
@@ -3919,6 +4061,32 @@ TEST_CASE("Query - direct-source or term tracks source changes") {
 	CHECK(q.count() == 1);
 
 	wld.del<Acceleration>(source);
+	CHECK(q.count() == 0);
+}
+
+TEST_CASE("Query - cached direct-source or term tracks source changes") {
+	TestWorld twld;
+
+	const auto source = wld.add();
+	const auto matched = wld.add();
+	wld.add<Position>(matched, {1, 2, 3});
+
+	auto q = wld.query().all<Position>().or_<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revA = info.reverse_index_revision();
+	CHECK(q.count() == 0);
+
+	wld.add<Acceleration>(source, {4, 5, 6});
+	q.match_all(info);
+	const auto revB = info.reverse_index_revision();
+	CHECK(revB != revA);
+	CHECK(q.count() == 1);
+
+	wld.del<Acceleration>(source);
+	q.match_all(info);
+	CHECK(info.reverse_index_revision() != revB);
 	CHECK(q.count() == 0);
 }
 
@@ -4870,7 +5038,7 @@ TEST_CASE("Query - custom grouped query refreshes on multiple group deps") {
 			if (!id.pair() || id.id() != groupBy.id())
 				continue;
 
-			auto curr = world.get_if_valid(id.gen());
+			auto curr = world.try_get(id.gen());
 			ecs::GroupId depth = 1;
 			constexpr uint32_t MaxTraversalDepth = 2048;
 			GAIA_FOR(MaxTraversalDepth) {

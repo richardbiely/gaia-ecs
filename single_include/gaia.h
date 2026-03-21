@@ -46544,7 +46544,7 @@ namespace gaia {
 							auto rel = Entity(
 									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
 									(EntityKind)ecRel.data.kind);
-							auto tgt = m_world.get_if_valid(entity.gen());
+							auto tgt = m_world.try_get(entity.gen());
 							if (tgt == EntityBad)
 								return false;
 
@@ -46695,8 +46695,8 @@ namespace gaia {
 					if (!entity.pair())
 						return;
 
-					const auto rel = m_world.get_if_valid(entity.id());
-					const auto tgt = m_world.get_if_valid(entity.gen());
+					const auto rel = m_world.try_get(entity.id());
+					const auto tgt = m_world.try_get(entity.gen());
 					if (rel == EntityBad || tgt == EntityBad)
 						return;
 
@@ -46794,7 +46794,7 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto e = m_world.get_if_valid(entity.gen());
+						auto e = m_world.try_get(entity.gen());
 						if (e == EntityBad)
 							return false;
 
@@ -46819,8 +46819,8 @@ namespace gaia {
 					}
 
 					if (isDontFragmentPair) {
-						const auto relation = m_world.get_if_valid(entity.id());
-						const auto target = m_world.get_if_valid(entity.gen());
+						const auto relation = m_world.try_get(entity.id());
+						const auto target = m_world.try_get(entity.gen());
 						if (relation == EntityBad || target == EntityBad)
 							return false;
 
@@ -46844,6 +46844,20 @@ namespace gaia {
 				void handle_del(Entity entity) {
 					if (entity.pair() && !m_world.valid(entity)) {
 						if (m_pArchetype->has(entity)) {
+							const auto relation = m_world.try_get(entity.id());
+							if (relation != EntityBad) {
+								m_world.touch_rel_version(relation);
+								m_world.invalidate_queries_for_rel(relation);
+								m_world.m_targetsTravCache = {};
+								m_world.m_srcBfsTravCache = {};
+								m_world.m_cascadeDepthCache = {};
+								m_world.m_sourcesAllCache = {};
+								m_world.m_targetsAllCache = {};
+							}
+
+							if (entity.id() == Is.id())
+								m_world.unlink_stale_is_relations_by_target_id(m_entity, entity.gen());
+
 							m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
 							note_graph_edge(entity, false);
 						}
@@ -46880,47 +46894,15 @@ namespace gaia {
 
 					// Update the Is relationship base counter if necessary
 					if (entity.pair() && entity.id() == Is.id()) {
-						auto e = m_world.get_if_valid(entity.gen());
+						auto e = m_world.try_get(entity.gen());
 						if (e != EntityBad) {
-							EntityLookupKey entityKey(m_entity);
-							EntityLookupKey eKey(e);
-
-							// Cached queries might need to be invalidated.
-							m_world.invalidate_queries_for_entity({Is, e});
-
-							// m_entity -> {..., e}
-							{
-								const auto it = m_world.m_entityToAsTargets.find(entityKey);
-								GAIA_ASSERT(it != m_world.m_entityToAsTargets.end());
-								auto& set = it->second;
-								GAIA_ASSERT(!set.empty());
-								set.erase(eKey);
-
-								// Remove the record if it is not referenced anymore
-								if (set.empty())
-									m_world.m_entityToAsTargets.erase(it);
-							}
-							m_world.m_entityToAsTargetsTravCache = {};
-
-							// e -> {..., m_entity}
-							{
-								const auto it = m_world.m_entityToAsRelations.find(eKey);
-								GAIA_ASSERT(it != m_world.m_entityToAsRelations.end());
-								auto& set = it->second;
-								GAIA_ASSERT(!set.empty());
-								set.erase(entityKey);
-
-								// Remove the record if it is not referenced anymore
-								if (set.empty())
-									m_world.m_entityToAsRelations.erase(it);
-							}
-							m_world.m_entityToAsRelationsTravCache = {};
+							m_world.unlink_live_is_relation(m_entity, e);
 						}
 					}
 
 					if (isDontFragmentPair) {
-						const auto relation = m_world.get_if_valid(entity.id());
-						const auto target = m_world.get_if_valid(entity.gen());
+						const auto relation = m_world.try_get(entity.id());
+						const auto target = m_world.try_get(entity.gen());
 						if (relation != EntityBad && target != EntityBad)
 							(void)m_world.exclusive_adjunct_del(m_entity, relation, target);
 					} else {
@@ -47535,7 +47517,7 @@ namespace gaia {
 			}
 
 			//! Returns the entity for @a id when it is still live, or EntityBad for stale cleanup-time ids.
-			GAIA_NODISCARD Entity get_if_valid(EntityId id) const {
+			GAIA_NODISCARD Entity try_get(EntityId id) const {
 				return valid_entity_id(id) ? get(id) : EntityBad;
 			}
 
@@ -53471,9 +53453,9 @@ namespace gaia {
 				};
 
 				if (entity.id() != All.id()) {
-					invalidate_relation(get_if_valid(entity.id()));
+					invalidate_relation(try_get(entity.id()));
 				} else if (entity.gen() != All.id()) {
-					const auto target = get_if_valid(entity.gen());
+					const auto target = try_get(entity.gen());
 					if (target != EntityBad) {
 						if (const auto* pRelations = relations(target)) {
 							for (auto relationKey: *pRelations)
@@ -53490,6 +53472,59 @@ namespace gaia {
 				m_cascadeDepthCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
+			}
+
+			void unlink_live_is_relation(Entity source, Entity target) {
+				const auto sourceKey = EntityLookupKey(source);
+				const auto targetKey = EntityLookupKey(target);
+
+				invalidate_queries_for_entity({Is, target});
+
+				if (const auto itTargets = m_entityToAsTargets.find(sourceKey); itTargets != m_entityToAsTargets.end()) {
+					itTargets->second.erase(targetKey);
+					if (itTargets->second.empty())
+						m_entityToAsTargets.erase(itTargets);
+				}
+				m_entityToAsTargetsTravCache = {};
+
+				if (const auto itRelations = m_entityToAsRelations.find(targetKey);
+						itRelations != m_entityToAsRelations.end()) {
+					itRelations->second.erase(sourceKey);
+					if (itRelations->second.empty())
+						m_entityToAsRelations.erase(itRelations);
+				}
+				m_entityToAsRelationsTravCache = {};
+			}
+
+			void unlink_stale_is_relations_by_target_id(Entity source, EntityId targetId) {
+				const auto sourceKey = EntityLookupKey(source);
+				const auto itTargets = m_entityToAsTargets.find(sourceKey);
+				if (itTargets == m_entityToAsTargets.end())
+					return;
+
+				cnt::darray_ext<EntityLookupKey, 4> removedTargets;
+				for (auto targetKey: itTargets->second) {
+					if (targetKey.entity().id() == targetId)
+						removedTargets.push_back(targetKey);
+				}
+
+				for (auto targetKey: removedTargets) {
+					invalidate_queries_for_structural_entity(EntityLookupKey(Pair{Is, targetKey.entity()}));
+					itTargets->second.erase(targetKey);
+
+					const auto itRelations = m_entityToAsRelations.find(targetKey);
+					if (itRelations != m_entityToAsRelations.end()) {
+						itRelations->second.erase(sourceKey);
+						if (itRelations->second.empty())
+							m_entityToAsRelations.erase(itRelations);
+					}
+				}
+
+				if (itTargets->second.empty())
+					m_entityToAsTargets.erase(itTargets);
+
+				m_entityToAsTargetsTravCache = {};
+				m_entityToAsRelationsTravCache = {};
 			}
 
 			template <typename Func>
@@ -53579,12 +53614,12 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get_if_valid(entity.id());
-						const auto target = get_if_valid(entity.gen());
+						const auto relation = try_get(entity.id());
+						const auto target = try_get(entity.gen());
 						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
 							req_del_adjunct_pair(relation, target);
 					} else {
-						const auto target = get_if_valid(entity.gen());
+						const auto target = try_get(entity.gen());
 						if (target == EntityBad)
 							goto skip_req_del_all_target;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
@@ -53639,12 +53674,12 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get_if_valid(entity.id());
-						const auto target = get_if_valid(entity.gen());
+						const auto relation = try_get(entity.id());
+						const auto target = try_get(entity.gen());
 						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
 							req_del_adjunct_pair(relation, target);
 					} else {
-						const auto target = get_if_valid(entity.gen());
+						const auto target = try_get(entity.gen());
 						if (target == EntityBad)
 							goto skip_req_del_all_target_cond;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
@@ -53668,7 +53703,7 @@ namespace gaia {
 
 				cnt::darray<Entity> cascadeTargets;
 				if (entity.pair() && entity.id() == All.id()) {
-					const auto target = get_if_valid(entity.gen());
+					const auto target = try_get(entity.gen());
 					if (target != EntityBad)
 						collect_delete_cascade_direct_sources(target, cond, cascadeTargets);
 				}
@@ -53704,12 +53739,12 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get_if_valid(entity.id());
-						const auto target = get_if_valid(entity.gen());
+						const auto relation = try_get(entity.id());
+						const auto target = try_get(entity.gen());
 						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
 							rem_adjunct_pair(relation, target);
 					} else {
-						const auto target = get_if_valid(entity.gen());
+						const auto target = try_get(entity.gen());
 						if (target == EntityBad)
 							goto skip_rem_all_target;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
@@ -53795,6 +53830,38 @@ namespace gaia {
 					if (pArchetype->is_req_del())
 						continue;
 
+					if (entity.pair()) {
+						cnt::darray_ext<Entity, 16> removedIsTargets;
+						for (auto id: pArchetype->ids_view()) {
+							bool matches = false;
+							if (entity.id() == All.id() && entity.gen() == All.id())
+								matches = id.pair();
+							else if (entity.id() == All.id())
+								matches = id.pair() && id.gen() == entity.gen();
+							else if (entity.gen() == All.id())
+								matches = id.pair() && id.id() == entity.id();
+							else
+								matches = id == entity;
+
+							if (!matches || !id.pair() || id.id() != Is.id())
+								continue;
+
+							const auto target = try_get(id.gen());
+							if (target != EntityBad)
+								removedIsTargets.push_back(target);
+						}
+
+						if (!removedIsTargets.empty()) {
+							for (const auto* pChunk: pArchetype->chunks()) {
+								auto entities = pChunk->entity_view();
+								GAIA_EACH(entities) {
+									for (const auto target: removedIsTargets)
+										unlink_live_is_relation(entities[i], target);
+								}
+							}
+						}
+					}
+
 					auto* pDstArchetype = calc_dst_archetype(pArchetype, entity);
 					if (pDstArchetype != nullptr)
 						move_to_archetype(*pArchetype, *pDstArchetype);
@@ -53827,12 +53894,12 @@ namespace gaia {
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
-						const auto relation = get_if_valid(entity.id());
-						const auto target = get_if_valid(entity.gen());
+						const auto relation = try_get(entity.id());
+						const auto target = try_get(entity.gen());
 						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
 							rem_adjunct_pair(relation, target);
 					} else {
-						const auto target = get_if_valid(entity.gen());
+						const auto target = try_get(entity.gen());
 						if (target == EntityBad)
 							goto skip_rem_all_target_cond;
 						for (const auto& [relKey, store]: m_exclusiveAdjunctByRel) {
@@ -53958,7 +54025,7 @@ namespace gaia {
 						return;
 					}
 
-					const auto tgt = get_if_valid(entity.gen());
+					const auto tgt = try_get(entity.gen());
 					const bool hasLiveTarget = tgt != EntityBad;
 					if (hasLiveTarget) {
 						const auto& ecTgt = fetch(tgt);
