@@ -1587,7 +1587,7 @@ q.each([](ecs::IterAll& it) {
   // GAIA_EACH(it) translates to: for (uint32_t i=0; i<it.size(); ++i)
   GAIA_EACH(it) {
     if (!it.enabled(i))
-      return;
+      continue;
     p[i].x += 1.f;
   }
 
