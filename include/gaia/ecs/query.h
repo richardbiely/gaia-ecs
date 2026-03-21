@@ -2897,6 +2897,75 @@ namespace gaia {
 					it.set_term_ids(pTermIds);
 				}
 
+				template <typename TIter>
+				static void init_direct_entity_iter_basic(const World& world, Entity entity, TIter& it) {
+					const auto& ec = ::gaia::ecs::fetch(world, entity);
+					GAIA_ASSERT(ec.pArchetype != nullptr);
+					GAIA_ASSERT(ec.pChunk != nullptr);
+					GAIA_ASSERT(ec.row < ec.pChunk->size());
+
+					it.set_world(&world);
+					it.set_archetype(ec.pArchetype);
+					it.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+					it.set_group_id(0);
+				}
+
+				template <typename TIter, typename Func>
+				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
+					auto& world = *queryInfo.world();
+					for (const auto entity: entities) {
+						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+						Entity termIds[ChunkHeader::MAX_COMPONENTS];
+						TIter it;
+						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						func(it);
+					}
+				}
+
+				template <typename T>
+				GAIA_NODISCARD static bool can_use_direct_bfs_chunk_term_eval(World& world, const QueryInfo& queryInfo) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return true;
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value)
+							return false;
+						const auto id = comp_cache(world).template get<FT>().entity;
+						for (const auto& term: queryInfo.ctx().data.terms_view()) {
+							if (term.id != id)
+								continue;
+							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+								return false;
+							if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
+									is_adjunct_direct_term(world, term))
+								return false;
+							return true;
+						}
+
+						return false;
+					}
+				}
+
+				template <typename TIter, typename Func, typename... T>
+				void each_direct_entities(
+						QueryInfo& queryInfo, std::span<const Entity> entities, Func func,
+						[[maybe_unused]] core::func_type_list<T...>) {
+					auto& world = *queryInfo.world();
+					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
+					for (const auto entity: entities) {
+						TIter it;
+						if (canUseBasicInit) {
+							init_direct_entity_iter_basic(world, entity, it);
+						} else {
+							uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+							Entity termIds[ChunkHeader::MAX_COMPONENTS];
+							init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						}
+						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					}
+				}
+
 				template <typename T>
 				static Entity inherited_query_arg_id(World& world) {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -2926,6 +2995,12 @@ namespace gaia {
 				static void invoke_inherited_query_args_by_id(
 						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+				}
+
+				template <typename... T, typename Func, size_t... I>
+				static void invoke_query_args_by_id(
+						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
+					func(world_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
@@ -4074,25 +4149,12 @@ namespace gaia {
 					}
 				}
 
-				//! Iterates entities matching the query ordered in dependency BFS levels.
-				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
-				//! Systems depending on no other matched system are first, then their dependents level-by-level.
-				//! Nodes on the same level are ordered by entity id.
-				//! \param func Callable invoked for each ordered entity.
-				//! \param relation Dependency relation
-				//! \param constraints QueryImpl constraints
-				template <typename Func>
-				void each_bfs(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
-					static_assert(
-							std::is_invocable_v<Func, const Entity&>,
-							"each_bfs requires a callable with signature void(const Entity&)");
-
+				GAIA_NODISCARD std::span<const Entity> ordered_entities_bfs(
+						QueryInfo& queryInfo, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
 					auto& bfsData = ensure_each_bfs_data();
 					auto& world = *m_storage.world();
 					const uint32_t relationVersion = world.rel_version(relation);
 					const uint32_t worldVersion = world.world_version();
-					auto& queryInfo = fetch();
-					match_all(queryInfo);
 
 					const bool needsTraversalBarrierState = constraints == Constraints::EnabledOnly && world.valid(relation);
 					auto survives_disabled_barrier = [&](Entity entity) {
@@ -4145,9 +4207,7 @@ namespace gaia {
 						}
 
 						if (sameChunks && !chunkChanged) {
-							for (auto entity: bfsData.cachedOutput)
-								func(entity);
-							return;
+							return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
 						}
 					}
 
@@ -4155,7 +4215,7 @@ namespace gaia {
 					entities.clear();
 					arr(entities, constraints);
 					if (entities.empty())
-						return;
+						return {};
 
 					if (needsTraversalBarrierState) {
 						uint32_t writeIdx = 0;
@@ -4168,7 +4228,7 @@ namespace gaia {
 						}
 						entities.resize(writeIdx);
 						if (entities.empty())
-							return;
+							return {};
 					}
 
 					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
@@ -4184,9 +4244,7 @@ namespace gaia {
 						}
 
 						if (sameInput) {
-							for (auto entity: bfsData.cachedOutput)
-								func(entity);
-							return;
+							return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
 						}
 					}
 
@@ -4349,8 +4407,50 @@ namespace gaia {
 						bfsData.cachedChunks.clear();
 					bfsData.cacheValid = true;
 
-					for (auto entity: bfsData.cachedOutput)
-						func(entity);
+					return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
+				}
+
+				//! Iterates entities matching the query ordered in dependency BFS levels.
+				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
+				//! Systems depending on no other matched system are first, then their dependents level-by-level.
+				//! Nodes on the same level are ordered by entity id.
+				//! \param func Callable invoked for each ordered entity.
+				//! \param relation Dependency relation
+				//! \param constraints QueryImpl constraints
+				template <typename Func>
+				void each_bfs(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					const auto ordered = ordered_entities_bfs(queryInfo, relation, constraints);
+
+					if constexpr (std::is_invocable_v<Func, IterAll&>) {
+						each_direct_entities_iter<IterAll>(queryInfo, ordered, func);
+					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
+						each_direct_entities_iter<Iter>(queryInfo, ordered, func);
+					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
+						each_direct_entities_iter<IterDisabled>(queryInfo, ordered, func);
+					} else if constexpr (std::is_invocable_v<Func, const Entity&> || std::is_invocable_v<Func, Entity>) {
+						for (const auto entity: ordered)
+							func(entity);
+					} else {
+						using InputArgs = decltype(core::func_args(&Func::operator()));
+						GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+						GAIA_ASSERT(can_use_direct_target_eval(queryInfo));
+						if (!can_use_direct_target_eval(queryInfo))
+							return;
+
+						switch (constraints) {
+							case Constraints::EnabledOnly:
+								each_direct_entities<Iter>(queryInfo, ordered, func, InputArgs{});
+								break;
+							case Constraints::DisabledOnly:
+								each_direct_entities<IterDisabled>(queryInfo, ordered, func, InputArgs{});
+								break;
+							case Constraints::AcceptAll:
+								each_direct_entities<IterAll>(queryInfo, ordered, func, InputArgs{});
+								break;
+						}
+					}
 				}
 
 				//------------------------------------------------

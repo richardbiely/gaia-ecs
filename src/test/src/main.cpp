@@ -8742,6 +8742,45 @@ TEST_CASE("Query entity each bfs") {
 	CHECK(ents[3] == b);
 }
 
+TEST_CASE("Query typed each bfs") {
+	TestWorld twld;
+
+	auto rel = wld.add();
+
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {1, 0, 0});
+	wld.add<Position>(b, {2, 0, 0});
+	wld.add<Position>(c, {3, 0, 0});
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+
+	auto q = wld.query().all<Position>();
+	cnt::darray<ecs::Entity> ents;
+	cnt::darray<float> xs;
+	q.bfs(rel).each([&](ecs::Entity e, const Position& pos) {
+		ents.push_back(e);
+		xs.push_back(pos.x);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(xs.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == a);
+	CHECK(ents[2] == b);
+	CHECK(ents[3] == c);
+	CHECK(xs[0] == doctest::Approx(0.0f));
+	CHECK(xs[1] == doctest::Approx(1.0f));
+	CHECK(xs[2] == doctest::Approx(2.0f));
+	CHECK(xs[3] == doctest::Approx(3.0f));
+}
+
 TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	TestWorld twld;
 
