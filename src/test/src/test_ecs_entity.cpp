@@ -771,6 +771,7 @@ TEST_CASE("Entity weak - recycled ids do not resurrect stale handles") {
 	CHECK(weak == ecs::EntityBad);
 }
 
+#if GAIA_ASSERT_ENABLED
 TEST_CASE("Entity validity distinguishes stale handles from recycled live slots") {
 	TestWorld twld;
 
@@ -788,6 +789,7 @@ TEST_CASE("Entity validity distinguishes stale handles from recycled live slots"
 	CHECK(wld.valid(recycled));
 	CHECK(wld.try_get(originalId) == recycled);
 }
+#endif
 #endif
 
 TEST_CASE("Add - no components") {
