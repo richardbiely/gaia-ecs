@@ -1183,6 +1183,8 @@ TEST_CASE("Entity name - entity only") {
 			verify(0);
 		}
 
+		// Add new entity and try settin the same name again.
+		// The request will be ignored because names are unique.
 		{
 			auto e1 = wld.add();
 			wld.name(e1, original.data());

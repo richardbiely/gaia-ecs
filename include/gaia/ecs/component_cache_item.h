@@ -348,19 +348,53 @@ namespace gaia {
 				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
 				GAIA_ASSERT(nameTmpLen < MaxNameLength);
-				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen + 1);
+				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen);
 				nameTmp[ct_name.size()] = 0;
 
-				// Remove "class " or "struct " substrings from the string
-				const uint32_t NSubstrings = 2;
-				const char* to_remove[NSubstrings] = {"class ", "struct "};
-				const uint32_t to_remove_len[NSubstrings] = {6, 7};
+				auto strip_prefix = [&](const char* prefix, uint32_t prefixLen) {
+					if (nameTmpLen <= prefixLen || strncmp(nameTmp, prefix, prefixLen) != 0)
+						return;
+
+					memmove(nameTmp, nameTmp + prefixLen, nameTmpLen - prefixLen + 1);
+					nameTmpLen -= prefixLen;
+				};
+
+				strip_prefix("const ", 6);
+
+				const uint32_t NSubstrings = 3;
+				const char* to_remove[NSubstrings] = {"class ", "struct ", "enum "};
+				const uint32_t to_remove_len[NSubstrings] = {6, 7, 5};
 				GAIA_FOR(NSubstrings) {
-					const auto& str = to_remove[i];
+					strip_prefix(to_remove[i], to_remove_len[i]);
+				}
+
+				while (nameTmpLen > 0) {
+					const auto ch = nameTmp[nameTmpLen - 1];
+					if (ch != ' ' && ch != '&' && ch != '*')
+						break;
+
+					nameTmp[--nameTmpLen] = 0;
+				}
+
+				if (nameTmpLen > 6 && strncmp(nameTmp + nameTmpLen - 6, " const", 6) == 0) {
+					nameTmpLen -= 6;
+					nameTmp[nameTmpLen] = 0;
+				}
+
+				// Normalization template names by removing keywords when they appear as template argument
+				// prefixes instead of as part of a longer identifier.
+				GAIA_FOR(NSubstrings) {
+					const auto* str = to_remove[i];
 					const auto len = to_remove_len[i];
 
 					auto* pos = nameTmp;
 					while ((pos = strstr(pos, str)) != nullptr) {
+						const bool isBoundary = pos == nameTmp || pos[-1] == '<' || pos[-1] == ',' || pos[-1] == ' ';
+						if (!isBoundary) {
+							++pos;
+							continue;
+						}
+
 						const auto tailMaxLen = (size_t)(MaxNameLength - (uint32_t)(pos + len - nameTmp));
 						memmove(pos, pos + len, GAIA_STRLEN(pos + len, tailMaxLen) + 1);
 						nameTmpLen -= len;

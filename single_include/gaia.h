@@ -25429,19 +25429,53 @@ namespace gaia {
 				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
 				GAIA_ASSERT(nameTmpLen < MaxNameLength);
-				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen + 1);
+				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen);
 				nameTmp[ct_name.size()] = 0;
 
-				// Remove "class " or "struct " substrings from the string
-				const uint32_t NSubstrings = 2;
-				const char* to_remove[NSubstrings] = {"class ", "struct "};
-				const uint32_t to_remove_len[NSubstrings] = {6, 7};
+				auto strip_prefix = [&](const char* prefix, uint32_t prefixLen) {
+					if (nameTmpLen <= prefixLen || strncmp(nameTmp, prefix, prefixLen) != 0)
+						return;
+
+					memmove(nameTmp, nameTmp + prefixLen, nameTmpLen - prefixLen + 1);
+					nameTmpLen -= prefixLen;
+				};
+
+				strip_prefix("const ", 6);
+
+				const uint32_t NSubstrings = 3;
+				const char* to_remove[NSubstrings] = {"class ", "struct ", "enum "};
+				const uint32_t to_remove_len[NSubstrings] = {6, 7, 5};
 				GAIA_FOR(NSubstrings) {
-					const auto& str = to_remove[i];
+					strip_prefix(to_remove[i], to_remove_len[i]);
+				}
+
+				while (nameTmpLen > 0) {
+					const auto ch = nameTmp[nameTmpLen - 1];
+					if (ch != ' ' && ch != '&' && ch != '*')
+						break;
+
+					nameTmp[--nameTmpLen] = 0;
+				}
+
+				if (nameTmpLen > 6 && strncmp(nameTmp + nameTmpLen - 6, " const", 6) == 0) {
+					nameTmpLen -= 6;
+					nameTmp[nameTmpLen] = 0;
+				}
+
+				// Normalization template names by removing keywords when they appear as template argument
+				// prefixes instead of as part of a longer identifier.
+				GAIA_FOR(NSubstrings) {
+					const auto* str = to_remove[i];
 					const auto len = to_remove_len[i];
 
 					auto* pos = nameTmp;
 					while ((pos = strstr(pos, str)) != nullptr) {
+						const bool isBoundary = pos == nameTmp || pos[-1] == '<' || pos[-1] == ',' || pos[-1] == ' ';
+						if (!isBoundary) {
+							++pos;
+							continue;
+						}
+
 						const auto tailMaxLen = (size_t)(MaxNameLength - (uint32_t)(pos + len - nameTmp));
 						memmove(pos, pos + len, GAIA_STRLEN(pos + len, tailMaxLen) + 1);
 						nameTmpLen -= len;
@@ -25547,6 +25581,9 @@ namespace gaia {
 			//! Lookup of component items by their exact path name.
 			//! Ambiguous paths are stored with nullptr and treated as lookup misses.
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByPath;
+			//! Lookup of component items by their unique short symbol name (leaf after the last `::`).
+			//! Ambiguous short names are stored with nullptr and treated as lookup misses.
+			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByShortSymbol;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 			//! Runtime component descriptor id generator.
@@ -25568,6 +25605,7 @@ namespace gaia {
 				m_itemByDescId.clear();
 				m_compBySymbol.clear();
 				m_compByPath.clear();
+				m_compByShortSymbol.clear();
 				m_compByEntity.clear();
 			}
 
@@ -25701,6 +25739,14 @@ namespace gaia {
 			void rebuild_resolved_name_maps() {
 				rebuild_lookup_map(m_compByPath, [](const ComponentCacheItem& item) {
 					return item.path.view();
+				});
+				rebuild_lookup_map(m_compByShortSymbol, [&](const ComponentCacheItem& item) {
+					if (is_internal_symbol(symbol_name(item)))
+						return util::str_view{};
+
+					const auto shortName = short_name_key(item);
+					return shortName.str() != nullptr && shortName.len() != 0 ? util::str_view(shortName.str(), shortName.len())
+																																		: util::str_view{};
 				});
 			}
 
@@ -26001,6 +26047,21 @@ namespace gaia {
 				return it != m_compByPath.end() ? it->second : nullptr;
 			}
 
+			//! Searches for the component cache item by its unique short symbol name.
+			//! The short name is the leaf segment after the last `::` in the registered symbol.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found and unique, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* short_symbol(const char* name, uint32_t len = 0) const noexcept {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+
+				const auto it = m_compByShortSymbol.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
+				return it != m_compByShortSymbol.end() ? it->second : nullptr;
+			}
+
 			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
 			}
@@ -26009,8 +26070,13 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
 			}
 
+			GAIA_NODISCARD ComponentCacheItem* short_symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->short_symbol(name, len));
+			}
+
 			//! Resolves a component name within component metadata lookup only.
-			//! Exact registered symbol lookup is attempted first, then exact path lookup.
+			//! Exact registered symbol lookup is attempted first, then exact path lookup,
+			//! then unique short-symbol lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
@@ -26020,6 +26086,8 @@ namespace gaia {
 					return pItem;
 				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
+				if (const auto* pItem = short_symbol(name, len); pItem != nullptr)
+					return pItem;
 				return nullptr;
 			}
 
@@ -26027,7 +26095,7 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
 			}
 
-			//! Collects all component items that match @a name as an exact symbol or exact path.
+			//! Collects all component items that match @a name as an exact symbol, exact path or short symbol.
 			//! This is primarily useful for low-level component metadata diagnostics.
 			//! \param name Lookup string.
 			//! \param[out] out Output array cleared and then filled with unique matching component items.
@@ -26052,6 +26120,7 @@ namespace gaia {
 				};
 
 				push_unique(symbol(name, l));
+				push_unique(short_symbol(name, l));
 
 				if (const auto* pItem = path(name, l); pItem != nullptr) {
 					push_unique(pItem);
@@ -47234,7 +47303,7 @@ namespace gaia {
 			//! Resolves a component name using world-aware scope rules.
 			//! Exact path lookup is used for dotted names. Unqualified names first search the current
 			//! component scope and its parents, then each configured lookup path scope in order, and
-			//! finally fall back to exact symbol, path and alias lookup.
+			//! finally fall back to exact symbol, path, unique short-symbol and alias lookup.
 			//! \param name Component name to resolve.
 			//! \param len Name length. If zero, the length is calculated.
 			//! \return Matching component cache item, or nullptr when no match exists.
@@ -47274,6 +47343,10 @@ namespace gaia {
 				if (!isPath) {
 					if (const auto* pItem = m_compCache.path(name, l); pItem != nullptr)
 						return pItem;
+					if (!isSymbol) {
+						if (const auto* pItem = m_compCache.short_symbol(name, l); pItem != nullptr)
+							return pItem;
+					}
 				}
 
 				const auto aliasEntity = alias(name, l);
@@ -49653,10 +49726,23 @@ namespace gaia {
 					}
 				}
 
-				cnt::darray<const ComponentCacheItem*> items;
-				m_compCache.resolve(items, name, l);
-				for (const auto* pItem: items)
+				if (const auto* pItem = m_compCache.symbol(name, l); pItem != nullptr)
 					push_unique(pItem->entity);
+
+				if (const auto* pItem = m_compCache.path(name, l); pItem != nullptr) {
+					push_unique(pItem->entity);
+				} else {
+					const auto needle = util::str_view(name, l);
+					m_compCache.for_each_item([&](const ComponentCacheItem& item) {
+						if (item.path.view() == needle)
+							push_unique(item.entity);
+					});
+				}
+
+				if (out.empty() && memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
+					if (const auto* pItem = m_compCache.short_symbol(name, l); pItem != nullptr)
+						push_unique(pItem->entity);
+				}
 
 				push_unique(alias(name, l));
 			}

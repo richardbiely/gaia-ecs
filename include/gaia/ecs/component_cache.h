@@ -37,6 +37,9 @@ namespace gaia {
 			//! Lookup of component items by their exact path name.
 			//! Ambiguous paths are stored with nullptr and treated as lookup misses.
 			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByPath;
+			//! Lookup of component items by their unique short symbol name (leaf after the last `::`).
+			//! Ambiguous short names are stored with nullptr and treated as lookup misses.
+			cnt::map<ComponentCacheItem::SymbolLookupKey, const ComponentCacheItem*> m_compByShortSymbol;
 			//! Lookup of component items by their entity.
 			cnt::map<EntityLookupKey, const ComponentCacheItem*> m_compByEntity;
 			//! Runtime component descriptor id generator.
@@ -58,6 +61,7 @@ namespace gaia {
 				m_itemByDescId.clear();
 				m_compBySymbol.clear();
 				m_compByPath.clear();
+				m_compByShortSymbol.clear();
 				m_compByEntity.clear();
 			}
 
@@ -191,6 +195,14 @@ namespace gaia {
 			void rebuild_resolved_name_maps() {
 				rebuild_lookup_map(m_compByPath, [](const ComponentCacheItem& item) {
 					return item.path.view();
+				});
+				rebuild_lookup_map(m_compByShortSymbol, [&](const ComponentCacheItem& item) {
+					if (is_internal_symbol(symbol_name(item)))
+						return util::str_view{};
+
+					const auto shortName = short_name_key(item);
+					return shortName.str() != nullptr && shortName.len() != 0 ? util::str_view(shortName.str(), shortName.len())
+																																		: util::str_view{};
 				});
 			}
 
@@ -491,6 +503,21 @@ namespace gaia {
 				return it != m_compByPath.end() ? it->second : nullptr;
 			}
 
+			//! Searches for the component cache item by its unique short symbol name.
+			//! The short name is the leaf segment after the last `::` in the registered symbol.
+			//! \param name A null-terminated string.
+			//! \param len String length. If zero, the length is calculated.
+			//! \return Component cache item if found and unique, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* short_symbol(const char* name, uint32_t len = 0) const noexcept {
+				GAIA_ASSERT(name != nullptr);
+
+				const auto l = len == 0 ? (uint32_t)GAIA_STRLEN(name, ComponentCacheItem::MaxNameLength) : len;
+				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
+
+				const auto it = m_compByShortSymbol.find(ComponentCacheItem::SymbolLookupKey(name, l, 0));
+				return it != m_compByShortSymbol.end() ? it->second : nullptr;
+			}
+
 			GAIA_NODISCARD ComponentCacheItem* symbol(const char* name, uint32_t len = 0) noexcept {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->symbol(name, len));
 			}
@@ -499,8 +526,13 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->path(name, len));
 			}
 
+			GAIA_NODISCARD ComponentCacheItem* short_symbol(const char* name, uint32_t len = 0) noexcept {
+				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->short_symbol(name, len));
+			}
+
 			//! Resolves a component name within component metadata lookup only.
-			//! Exact registered symbol lookup is attempted first, then exact path lookup.
+			//! Exact registered symbol lookup is attempted first, then exact path lookup,
+			//! then unique short-symbol lookup.
 			//! \param name A null-terminated string.
 			//! \param len String length. If zero, the length is calculated.
 			//! \return Component cache item if found, nullptr otherwise.
@@ -510,6 +542,8 @@ namespace gaia {
 					return pItem;
 				if (const auto* pItem = path(name, len); pItem != nullptr)
 					return pItem;
+				if (const auto* pItem = short_symbol(name, len); pItem != nullptr)
+					return pItem;
 				return nullptr;
 			}
 
@@ -517,7 +551,7 @@ namespace gaia {
 				return const_cast<ComponentCacheItem*>(const_cast<const ComponentCache*>(this)->resolve(name, len));
 			}
 
-			//! Collects all component items that match @a name as an exact symbol or exact path.
+			//! Collects all component items that match @a name as an exact symbol, exact path or short symbol.
 			//! This is primarily useful for low-level component metadata diagnostics.
 			//! \param name Lookup string.
 			//! \param[out] out Output array cleared and then filled with unique matching component items.
@@ -542,6 +576,7 @@ namespace gaia {
 				};
 
 				push_unique(symbol(name, l));
+				push_unique(short_symbol(name, l));
 
 				if (const auto* pItem = path(name, l); pItem != nullptr) {
 					push_unique(pItem);

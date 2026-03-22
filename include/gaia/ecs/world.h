@@ -3652,7 +3652,7 @@ namespace gaia {
 			//! Resolves a component name using world-aware scope rules.
 			//! Exact path lookup is used for dotted names. Unqualified names first search the current
 			//! component scope and its parents, then each configured lookup path scope in order, and
-			//! finally fall back to exact symbol, path and alias lookup.
+			//! finally fall back to exact symbol, path, unique short-symbol and alias lookup.
 			//! \param name Component name to resolve.
 			//! \param len Name length. If zero, the length is calculated.
 			//! \return Matching component cache item, or nullptr when no match exists.
@@ -3692,6 +3692,10 @@ namespace gaia {
 				if (!isPath) {
 					if (const auto* pItem = m_compCache.path(name, l); pItem != nullptr)
 						return pItem;
+					if (!isSymbol) {
+						if (const auto* pItem = m_compCache.short_symbol(name, l); pItem != nullptr)
+							return pItem;
+					}
 				}
 
 				const auto aliasEntity = alias(name, l);
@@ -6071,10 +6075,23 @@ namespace gaia {
 					}
 				}
 
-				cnt::darray<const ComponentCacheItem*> items;
-				m_compCache.resolve(items, name, l);
-				for (const auto* pItem: items)
+				if (const auto* pItem = m_compCache.symbol(name, l); pItem != nullptr)
 					push_unique(pItem->entity);
+
+				if (const auto* pItem = m_compCache.path(name, l); pItem != nullptr) {
+					push_unique(pItem->entity);
+				} else {
+					const auto needle = util::str_view(name, l);
+					m_compCache.for_each_item([&](const ComponentCacheItem& item) {
+						if (item.path.view() == needle)
+							push_unique(item.entity);
+					});
+				}
+
+				if (out.empty() && memchr(name, '.', l) == nullptr && memchr(name, ':', l) == nullptr) {
+					if (const auto* pItem = m_compCache.short_symbol(name, l); pItem != nullptr)
+						push_unique(pItem->entity);
+				}
 
 				push_unique(alias(name, l));
 			}
