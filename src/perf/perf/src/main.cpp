@@ -3,7 +3,7 @@
 #include <picobench/picobench.hpp>
 #include <string_view>
 
-#include "perf_registry.h"
+#include "registry.h"
 
 int main(int argc, char* argv[]) {
 	bool profilingMode = false;
@@ -34,17 +34,17 @@ int main(int argc, char* argv[]) {
 	const auto mode =
 			profilingMode ? PerfRunMode::Profiling : (sanitizerMode ? PerfRunMode::Sanitizer : PerfRunMode::Normal);
 
-	register_perf_matrix_entity_lifecycle(mode);
-	register_perf_matrix_structural_changes(mode);
-	register_perf_matrix_query_hot_path(mode);
-	register_perf_matrix_fragmented(mode);
-	register_perf_matrix_observers(mode);
-	register_perf_matrix_systems(mode);
-	register_perf_matrix_mixed(mode);
-	register_perf_matrix_parent(mode);
-	register_perf_matrix_sparse(mode);
-	register_perf_entity_legacy(mode);
-	register_perf_iter_legacy(mode);
+	register_entity_lifecycle(mode);
+	register_structural_changes(mode);
+	register_query_hot_path(mode);
+	register_fragmented(mode);
+	register_observers(mode);
+	register_systems(mode);
+	register_mixed(mode);
+	register_parent(mode);
+	register_sparse(mode);
+	register_legacy_entity(mode);
+	register_legacy_iter(mode);
 
 	picobench::runner r;
 	r.parse_cmd_line((int)picobenchArgs.size(), picobenchArgs.data());

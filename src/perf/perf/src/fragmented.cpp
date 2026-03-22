@@ -1,5 +1,5 @@
-#include "perf_matrix_common.h"
-#include "perf_registry.h"
+#include "common.h"
+#include "registry.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Fragmented archetypes
@@ -168,7 +168,7 @@ void BM_QueryBuild_Uncached_4(picobench::state& state) {
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
 #define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-void register_perf_matrix_fragmented(PerfRunMode mode) {
+void register_fragmented(PerfRunMode mode) {
 	switch (mode) {
 		case PerfRunMode::Profiling:
 			PICOBENCH_SUITE_REG("Profile picks");

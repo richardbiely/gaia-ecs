@@ -1,5 +1,5 @@
-#include "perf_matrix_common.h"
-#include "perf_registry.h"
+#include "common.h"
+#include "registry.h"
 
 void BM_MixedFrame_Churn(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
@@ -61,7 +61,7 @@ void BM_MixedFrame_Churn(picobench::state& state) {
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
 #define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-void register_perf_matrix_mixed(PerfRunMode mode) {
+void register_mixed(PerfRunMode mode) {
 	switch (mode) {
 		case PerfRunMode::Profiling:
 			PICOBENCH_SUITE_REG("Profile picks");

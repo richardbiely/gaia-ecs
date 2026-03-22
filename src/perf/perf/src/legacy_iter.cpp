@@ -437,9 +437,9 @@ DEFINE_EACH_VIEW(5, true)
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
 #define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-#include "perf_registry.h"
+#include "registry.h"
 
-void register_perf_iter_legacy(PerfRunMode mode) {
+void register_legacy_iter(PerfRunMode mode) {
 	switch (mode) {
 		case PerfRunMode::Profiling:
 			PICOBENCH_SUITE_REG("1000 archetypes");

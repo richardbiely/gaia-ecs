@@ -1,5 +1,5 @@
-#include "perf_matrix_common.h"
-#include "perf_registry.h"
+#include "common.h"
+#include "registry.h"
 
 template <bool DontFragment>
 void setup_sparse_component_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
@@ -325,7 +325,7 @@ void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
 #define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-void register_perf_matrix_sparse(PerfRunMode mode) {
+void register_sparse(PerfRunMode mode) {
 	if (mode != PerfRunMode::Normal)
 		return;
 

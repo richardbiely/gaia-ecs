@@ -202,9 +202,9 @@ void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 #define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
 #define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
 
-#include "perf_registry.h"
+#include "registry.h"
 
-void register_perf_entity_legacy(PerfRunMode mode) {
+void register_legacy_entity(PerfRunMode mode) {
 	switch (mode) {
 		case PerfRunMode::Profiling:
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");

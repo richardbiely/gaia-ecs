@@ -37,11 +37,10 @@ jobs:
             sani_type_option: "'MemoryWithOrigins'"
         build_type: [RelWithDebInfo, Debug]
         target:
-          - { path: "entity/gaia_perf_entity" }
-          - { path: "iter/gaia_perf_iter" }
-          - { path: "duel/gaia_perf_duel" }
-          - { path: "app/gaia_perf_app" }
-          - { path: "mt/gaia_perf_mt" }
+          - { path: "duel/gaia_duel" }
+          - { path: "app/gaia_app" }
+          - { path: "mt/gaia_mt" }
+          - { path: "perf/gaia_perf" }
     runs-on: ubuntu-latest
 
     steps:
