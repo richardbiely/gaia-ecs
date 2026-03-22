@@ -314,6 +314,7 @@ if(NOT EMSCRIPTEN)
     )
   endif()
 
+  # Benchmark
   if(GAIA_BUILD_BENCHMARK)
     if(IS_FETCH_AVAILABLE)
       find_package(picobench CONFIG QUIET 2.8.0)
@@ -328,15 +329,23 @@ if(NOT EMSCRIPTEN)
         FetchContent_MakeAvailable(picobench)
       endif()
     endif()
+
+    add_subdirectory(perf)
   endif()
 
+  # Unit test
   if(GAIA_BUILD_UNITTEST)
     if(IS_FETCH_AVAILABLE)
       if(NOT doctest_FOUND)
+        # FetchContent_Declare(
+        # doctest
+        # GIT_REPOSITORY "https://github.com/onqtam/doctest.git"
+        # GIT_TAG v2.4.12
+        # )
         FetchContent_Declare(
           doctest
-          GIT_REPOSITORY "https://github.com/onqtam/doctest.git"
-          GIT_TAG v2.4.12
+          GIT_REPOSITORY "https://github.com/doctest/doctest.git"
+          GIT_TAG 32801043157b20e0d97faf9272f404b3c8d82a8
         )
 
         FetchContent_MakeAvailable(doctest)
@@ -344,16 +353,8 @@ if(NOT EMSCRIPTEN)
     else()
       find_package(doctest CONFIG REQUIRED 2.4.12)
     endif()
-  endif()
 
-  # Unit test
-  if(GAIA_BUILD_UNITTEST)
     add_subdirectory(test)
-  endif()
-
-  # Benchmark
-  if(GAIA_BUILD_BENCHMARK)
-    add_subdirectory(perf)
   endif()
 endif()
 
