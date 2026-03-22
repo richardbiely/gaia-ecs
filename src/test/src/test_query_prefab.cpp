@@ -1179,7 +1179,7 @@ TEST_CASE("Entity name - entity only") {
 			CHECK(wld.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
-			GAIA_STRCPY(tmp, MaxLen, original.data());
+			GAIA_STRCPY(tmp, original.size() + 1, original.data());
 			verify(0);
 		}
 
@@ -1187,7 +1187,7 @@ TEST_CASE("Entity name - entity only") {
 		// The request will be ignored because names are unique.
 		{
 			auto e1 = wld.add();
-			wld.name(e1, original.data());
+			wld.name(e1, original.data(), original.size());
 			CHECK(wld.name(e1).empty());
 			CHECK(wld.get(original.data(), original.size()) == e);
 		}
@@ -1196,7 +1196,7 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 		CHECK(wld.name(e).empty());
 
-		wld.name(e, original.data());
+		wld.name(e, original.data(), original.size());
 		wld.del(e);
 		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 	}
@@ -1228,7 +1228,7 @@ TEST_CASE("Entity name - entity only") {
 		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 		CHECK(wld.name(e).empty());
 
-		wld.name_raw(e, original.data());
+		wld.name_raw(e, original.data(), original.size());
 		wld.del(e);
 		CHECK(wld.get(original.data(), original.size()) == ecs::EntityBad);
 	}

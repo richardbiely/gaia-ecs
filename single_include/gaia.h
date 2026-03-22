@@ -1135,8 +1135,8 @@ namespace gaia {
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
-		strncpy_s((var), (text), (size_t)-1);                                                                              \
-		(void)max_len
+		strncpy_s((var), (text), (max_len));                                                                               \
+		(var)[(max_len) - 1] = 0;
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 	#define GAIA_STRLEN(var, max_len) strnlen_s((var), (max_len))
 #else

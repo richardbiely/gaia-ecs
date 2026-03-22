@@ -20,8 +20,8 @@ namespace gaia {
 
 #if GAIA_COMPILER_MSVC || GAIA_PLATFORM_WINDOWS
 	#define GAIA_STRCPY(var, max_len, text)                                                                              \
-		strncpy_s((var), (text), (size_t)-1);                                                                              \
-		(void)max_len
+		strncpy_s((var), (text), (max_len));                                                                               \
+		(var)[(max_len) - 1] = 0;
 	#define GAIA_STRFMT(var, max_len, fmt, ...) sprintf_s((var), (max_len), fmt, __VA_ARGS__)
 	#define GAIA_STRLEN(var, max_len) strnlen_s((var), (max_len))
 #else
@@ -561,10 +561,11 @@ namespace gaia {
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
-				if constexpr ((std::is_invocable_v<
-													 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
-													 std::integral_constant<decltype(FirstIdx), Is>> &&
-											 ...))
+				if constexpr (
+						(std::is_invocable_v<
+								 Func&&, decltype(std::tuple_element_t<FirstIdx + Is, Tuple>{}),
+								 std::integral_constant<decltype(FirstIdx), Is>> &&
+						 ...))
 					// func(Args&& arg, uint32_t idx)
 					(func(
 							 std::tuple_element_t<FirstIdx + Is, Tuple>{},
@@ -577,10 +578,10 @@ namespace gaia {
 
 			template <auto FirstIdx, typename Tuple, typename Func, auto... Is>
 			void each_tuple_impl(Tuple&& tuple, Func func, std::integer_sequence<decltype(FirstIdx), Is...> /*no_name*/) {
-				if constexpr ((std::is_invocable_v<
-													 Func&&, decltype(std::get<FirstIdx + Is>(tuple)),
-													 std::integral_constant<decltype(FirstIdx), Is>> &&
-											 ...))
+				if constexpr (
+						(std::is_invocable_v<
+								 Func&&, decltype(std::get<FirstIdx + Is>(tuple)), std::integral_constant<decltype(FirstIdx), Is>> &&
+						 ...))
 					// func(Args&& arg, uint32_t idx)
 					(func(std::get<FirstIdx + Is>(tuple), std::integral_constant<decltype(FirstIdx), FirstIdx + Is>{}), ...);
 				else
