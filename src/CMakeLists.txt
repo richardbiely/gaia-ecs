@@ -295,62 +295,6 @@ if(NOT EMSCRIPTEN)
     endif()
   endif()
 
-  # Amalgamate currently does not build for Win+ARM properly because it requires the __cpuid intrinsic
-  # if(GAIA_GENERATE_SINGLE_HEADER AND NOT (WIN32 AND IsARM))
-  if(GAIA_GENERATE_SINGLE_HEADER)
-    if(IS_FETCH_AVAILABLE)
-      find_package(amalgamate CONFIG QUIET 0.99.0)
-
-      if(NOT amalgamate_FOUND)
-        FetchContent_Declare(
-          amalgamate
-          GIT_REPOSITORY https://github.com/rindeal/Amalgamate.git
-          GIT_TAG v0.99.0
-          GIT_SHALLOW TRUE
-          GIT_SUBMODULES_RECURSE TRUE
-        )
-
-        FetchContent_MakeAvailable(amalgamate)
-      endif()
-    else()
-      find_package(amalgamate CONFIG REQUIRED 0.99.0)
-    endif()
-
-    # Add a custom target to build amalgamate
-    if(UNIX)
-      message(STATUS "Building amalgamate for Unix platform in: " ${amalgamate_SOURCE_DIR})
-
-      add_custom_target(build_amalgamate ALL
-        WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
-        COMMAND make
-      )
-    elseif(WIN32)
-      message(STATUS "Building amalgamate for Windows platform in: " ${amalgamate_SOURCE_DIR})
-      add_custom_target(build_amalgamate ALL
-        WORKING_DIRECTORY ${amalgamate_SOURCE_DIR}
-        COMMAND build.bat
-      )
-
-    else()
-      message(SEND_ERROR "Unsupported platform. Building amalgamate won't be possible")
-    endif()
-
-    add_custom_target(generate_single_header ALL)
-
-    if(WIN32)
-      set(generate_single_header_path "make_single_header.bat")
-    else()
-      set(generate_single_header_path "./make_single_header.sh")
-    endif()
-
-    add_custom_command(
-      TARGET generate_single_header POST_BUILD
-      COMMAND ${generate_single_header_path} ${amalgamate_SOURCE_DIR}
-      WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-      COMMENT "Merging files into a single header"
-    )
-  endif()
-
   if(GAIA_GENERATE_CC)
     add_custom_target(generate_compile_commands ALL)
     add_custom_command(

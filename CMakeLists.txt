@@ -29,6 +29,7 @@ message(STATUS "CPU: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "*************************************************************")
 
 include("${CMAKE_CURRENT_LIST_DIR}/pkg/cmake/sanitizers.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/pkg/cmake/single_header.cmake")
 
 # CPU
 string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" lower_processor)
@@ -57,7 +58,6 @@ option(GAIA_BUILD_UNITTEST "Build unit test." OFF)
 option(GAIA_BUILD_BENCHMARK "Build benchmark." OFF)
 option(GAIA_BUILD_EXAMPLES "Build examples." OFF)
 option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-build step." OFF)
-option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." OFF)
 option(GAIA_GENERATE_PACKAGES "Generate packages" OFF)
 option(GAIA_GENERATE_DOCS "Build documentation" OFF)
 
