@@ -41945,13 +41945,18 @@ namespace gaia {
 							}
 
 							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
-							Entity argIds[] = {inherited_query_arg_id<T>(world)...};
-							for (const auto entity: entities) {
-								if constexpr (sizeof...(T) > 0) {
+							if constexpr (sizeof...(T) > 0) {
+								Entity argIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
+								for (const auto entity: entities) {
 									invoke_inherited_query_args_by_id<T...>(world, entity, argIds, func, std::index_sequence_for<T...>{});
-								} else
+								}
+							} else {
+								for (const auto entity: entities) {
+									(void)entity;
 									func();
+								}
 							}
+
 							return;
 						}
 					}
@@ -41997,7 +42002,7 @@ namespace gaia {
 					if constexpr (!needsInheritedArgIds)
 						walk_entities(exec_direct_entity);
 					else {
-						Entity inheritedArgIds[] = {inherited_query_arg_id<T>(world)...};
+						Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1] = {inherited_query_arg_id<T>(world)...};
 						auto exec_entity = [&](Entity entity) {
 							if (hasInheritedTerms) {
 								invoke_inherited_query_args_by_id<T...>(
