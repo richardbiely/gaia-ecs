@@ -3538,16 +3538,19 @@ cmake -DCMAKE_BUILD_TYPE=Release -DGAIA_USE_SANITIZER=address -S . -B "build"
 ```
 
 ### Single-header
-**Gaia-ECS** is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using. To generate the header we use a wonderful Python tool [Quom](https://github.com/Viatorus/quom).
+**Gaia-ECS** is shipped also as a [single header file](https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h) which you can simply drop into your project and start using.
 
-To generate the header use the following command inside your root directory.
+To generate the amalgamated header use the following command inside your root directory on Unix:
 ```bash
-quom ./include/gaia.h ./single_include/gaia.h -I ./include
+./make_single_header.sh [clang-format-executable]
 ```
 
-You can also use the attached make_single_header.sh or create your script for your platform.
+On Windows you can call:
+```bash
+./make_single_header.bat [clang-format-executable] 
+```
 
-Creation of the single header can be automated via -GAIA_GENERATE_SINGLE_HEADER.
+Creation of the single header can be automated via -GAIA_GENERATE_SINGLE_HEADER=ON  (OFF by default).
 
 # Repository structure
 
@@ -3580,8 +3583,7 @@ Project name | Description
 -|-
 [Duel](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/duel)|Compares various coding approaches — basic OOP with scattered heap data, OOP with allocators to control memory fragmentation, and different data-oriented designs—against our ECS framework. Data-oriented performance (DOD) is the target we aim to match or approach, as it represents the fastest achievable level.
 [App](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/app)|Somewhat similar to Duel but measures in a more complex scenario. Inspired by [ECS benchmark](https://github.com/abeimler/ecs_benchmark).
-[Iteration](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/iter)|Covers iteration performance with different numbers of entities and archetypes.
-[Entity](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/entity)|Focuses on performance of creating and removing entities and components of various sizes.
+[Perf](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/perf)|Measures performance of various parts of the project.
 [Multithreading](https://github.com/richardbiely/gaia-ecs/tree/main/src/perf/mt)|Measures performance of the job system.
 
 ## Profiling
