@@ -16397,6 +16397,7 @@ namespace gaia {
 
 		public:
 			sparse_iterator(value_type* pDense): m_pDense(pDense) {}
+			sparse_iterator(const value_type* pDense): m_pDense(const_cast<value_type*>(pDense)) {}
 
 			value_type operator*() const {
 				const auto sid = *m_pDense;
