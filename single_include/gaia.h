@@ -20651,6 +20651,8 @@ namespace gaia {
 				}
 			};
 
+			//! Per-thread wait node. A thread can only be waiting on a single futex at a time.
+			//! Do NOT call Futex::wait() from the same thread concurrently (e.g. via fibers or coroutines).
 			inline thread_local FutexWaitNode t_WaitNode;
 
 		} // namespace detail
@@ -20659,7 +20661,7 @@ namespace gaia {
 		//! Only wait and wake are implemented.
 		//!
 		//! The main advantage of futex is performance. It avoids kernel involvement in uncontended cases.
-		//! When there’s no contention, futexes allow threads to lock and unlock in userspace without entering
+		//! When there's no contention, futexes allow threads to lock and unlock in userspace without entering
 		//! the kernel, making operations significantly faster and reducing context-switch overhead.
 		//! Only when there is contention does a futex use the kernel to put threads to sleep and wake them up,
 		//! resulting in a hybrid model that is more efficient than mutexes, which always require kernel calls.
@@ -20678,6 +20680,8 @@ namespace gaia {
 			//! \param pFutexValue Target futex
 			//! \param expected Expected futex value
 			//! \param waitMask Mask of waiters to wait for
+			//! \warning A thread can only be in one wait() at a time. Do not call this
+			//!          concurrently from the same thread (e.g. via fibers or coroutines).
 			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
 				GAIA_PROF_SCOPE(futex::wait);
 
@@ -20707,7 +20711,7 @@ namespace gaia {
 
 			//! Wakes up to @a wakeCount waiters whose @a waitMask matches @a wakeMask.
 			//! \param pFutexValue Target futex
-			//! \param wakeCount How many waiters are supposed to make up
+			//! \param wakeCount How many waiters are supposed to wake up
 			//! \param wakeMask Mask of callers to wake
 			static uint32_t
 			wake(const std::atomic_uint32_t* pFutexValue, uint32_t wakeCount, uint32_t wakeMask = detail::WaitMaskAny) {
