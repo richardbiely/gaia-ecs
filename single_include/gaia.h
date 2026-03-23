@@ -24020,6 +24020,12 @@ namespace gaia {
 					std::bool_constant<
 							// SoA types need to be trivial. No restrictions otherwise.
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
+
+			template <typename T>
+			struct is_component_storage_valid:
+					std::bool_constant<
+							// Sparse storage currently supports only AoS payloads.
+							!(mem::is_soa_layout_v<T> && storage_type_v<T> == DataStorageType::Sparse)> {};
 		} // namespace detail
 
 		//----------------------------------------------------------------------
@@ -24034,6 +24040,10 @@ namespace gaia {
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
+			static_assert(detail::is_component_type_valid<U>::value, "SoA components must be trivially copyable");
+			static_assert(
+					detail::is_component_storage_valid<U>::value,
+					"SoA components can't use GAIA_STORAGE(Sparse). SoA layouts are currently stored only in archetype chunks.");
 		}
 
 		//----------------------------------------------------------------------

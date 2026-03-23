@@ -472,6 +472,9 @@ Rule of thumb:
 - use `Sparse + DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
 - avoid out-of-line storage for components like `Position` or `Velocity` unless profiling clearly justifies it
 
+>**NOTE:<br/>** 
+SoA components do not support out-of-line storage and they stay chunk-backed. `GAIA_LAYOUT(SoA)` can not be combined with `GAIA_STORAGE(Sparse)`.<br/>
+
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
 

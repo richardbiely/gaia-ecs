@@ -106,9 +106,18 @@ struct PositionSoA {
 	GAIA_LAYOUT(SoA);
 	float x, y, z;
 };
+static_assert(ecs::detail::is_component_storage_valid<PositionSoA>::value);
 inline bool operator==(const PositionSoA& a, const PositionSoA& b) {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
+
+struct PositionSoASparse {
+	GAIA_LAYOUT(SoA);
+	GAIA_STORAGE(Sparse);
+	float x, y, z;
+};
+static_assert(ecs::storage_type_v<PositionSoASparse> == ecs::DataStorageType::Sparse);
+static_assert(!ecs::detail::is_component_storage_valid<PositionSoASparse>::value);
 
 struct PositionSoA8 {
 	GAIA_LAYOUT(SoA8);
