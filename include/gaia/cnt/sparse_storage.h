@@ -1103,7 +1103,11 @@ namespace gaia {
 					return false;
 
 				const auto did = uint32_t(sid & page_mask);
-				const auto id = m_pages[pid].get_id(did);
+				const auto& page = m_pages[pid];
+				if (!page.allocated())
+					return false;
+
+				const auto id = page.get_id(did);
 				return id != detail::InvalidDenseId;
 			}
 
@@ -1165,11 +1169,13 @@ namespace gaia {
 				const auto did = uint32_t(sid & page_mask);
 
 				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
+				const auto pidPrev = uint32_t(sidPrev >> to_page_index);
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
-				page.set_id(didPrev) = id;
+				auto& pagePrev = m_pages[pidPrev];
+				pagePrev.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;
 				page.del_data(did);
 				m_dense[id] = sidPrev;
@@ -1457,11 +1463,13 @@ namespace gaia {
 					return;
 
 				const auto sidPrev = std::as_const(m_dense)[m_cnt - 1];
+				const auto pidPrev = uint32_t(sidPrev >> to_page_index);
 				const auto didPrev = uint32_t(sidPrev & page_mask);
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
-				page.set_id(didPrev) = id;
+				auto& pagePrev = m_pages[pidPrev];
+				pagePrev.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;
 				m_dense[id] = sidPrev;
 				m_dense.resize(m_cnt - 1);
