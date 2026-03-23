@@ -3204,6 +3204,35 @@ TEST_CASE("Sparse DontFragment component and adjunct storage") {
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("DontFragment table component uses out-of-line storage") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<Position>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<Position>(e);
+	CHECK(wld.has<Position>(e));
+	CHECK(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	auto& pos = wld.set<Position>(e);
+	pos = {1.0f, 2.0f, 3.0f};
+
+	const auto& posConst = wld.get<Position>(e);
+	CHECK(posConst.x == doctest::Approx(1.0f));
+	CHECK(posConst.y == doctest::Approx(2.0f));
+	CHECK(posConst.z == doctest::Approx(3.0f));
+
+	wld.del<Position>(e);
+	CHECK_FALSE(wld.has<Position>(e));
+	CHECK_FALSE(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
 TEST_CASE("Sparse DontFragment component runtime object add with value") {
 	TestWorld twld;
 
@@ -3252,6 +3281,168 @@ TEST_CASE("Sparse DontFragment component direct query terms are evaluated as ent
 	expect_exact_entities(qOr, {eA, eC});
 }
 
+TEST_CASE("DontFragment table component direct query terms are evaluated as entity filters") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<Position>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+
+	wld.add<Rotation>(eA);
+	wld.add<Rotation>(eB);
+	wld.add<Rotation>(eC);
+	wld.add<Scale>(eC);
+
+	wld.add<Position>(eA);
+
+	auto qAll = wld.query().all<Rotation>().all<Position>();
+	CHECK(qAll.count() == 1);
+	expect_exact_entities(qAll, {eA});
+
+	auto qNo = wld.query().all<Rotation>().no<Position>();
+	CHECK(qNo.count() == 2);
+	expect_exact_entities(qNo, {eB, eC});
+
+	auto qOr = wld.query().or_<Position>().or_<Scale>();
+	CHECK(qOr.count() == 2);
+	expect_exact_entities(qOr, {eA, eC});
+}
+
+TEST_CASE("Sparse component uses out-of-line storage and still fragments") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<PositionSparse>(e, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.has<PositionSparse>(e));
+	CHECK(wld.has(e, compItem.entity));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
+	CHECK(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	auto q = wld.query().all<PositionSparse&>();
+	uint32_t hits = 0;
+	q.each([&](PositionSparse& pos) {
+		pos.x += 1.0f;
+		++hits;
+	});
+	CHECK(hits == 1);
+	CHECK(wld.get<PositionSparse>(e).x == doctest::Approx(2.0f));
+
+	wld.del<PositionSparse>(e);
+	CHECK_FALSE(wld.has<PositionSparse>(e));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
+	TestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	const auto prefab = wld.prefab();
+	wld.add<PositionSparse>(prefab, {4.0f, 5.0f, 6.0f});
+
+	const auto instance = wld.instantiate(prefab);
+
+	CHECK(wld.has<PositionSparse>(instance));
+	CHECK(wld.fetch(instance).pArchetype->has(compItem.entity));
+
+	const auto& pos = wld.get<PositionSparse>(instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
+}
+
+TEST_CASE("Sparse prefab sync keeps copied out-of-line payload after prefab delete") {
+	TestWorld twld;
+
+	const auto prefab = wld.prefab();
+	wld.add<PositionSparse>(prefab, {4.0f, 5.0f, 6.0f});
+	const auto instance = wld.instantiate(prefab);
+
+	wld.del<PositionSparse>(prefab);
+	CHECK(wld.sync(prefab) == 0);
+
+	CHECK(wld.has<PositionSparse>(instance));
+	const auto& pos = wld.get<PositionSparse>(instance);
+	CHECK(pos.x == doctest::Approx(4.0f));
+	CHECK(pos.y == doctest::Approx(5.0f));
+	CHECK(pos.z == doctest::Approx(6.0f));
+}
+
+TEST_CASE("Chunk-backed query view keeps contiguous data access") {
+	TestWorld twld;
+
+	const auto e0 = wld.add();
+	const auto e1 = wld.add();
+	wld.add<Position>(e0, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(e1, {4.0f, 5.0f, 6.0f});
+
+	auto q = wld.query().all<Position>();
+	uint32_t hits = 0;
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.view<Position>();
+		CHECK(posView.data() != nullptr);
+		CHECK(posView.size() == 2);
+		CHECK(posView.data()[0].x == doctest::Approx(1.0f));
+		CHECK(posView.data()[1].x == doctest::Approx(4.0f));
+		++hits;
+	});
+	CHECK(hits == 1);
+}
+
+TEST_CASE("Out-of-line query view does not expose contiguous data") {
+	TestWorld twld;
+
+	const auto e = wld.add();
+	wld.add<PositionSparse>(e, {1.0f, 2.0f, 3.0f});
+
+	auto q = wld.query().all<PositionSparse>();
+	uint32_t hits = 0;
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.view<PositionSparse>();
+		CHECK(posView.data() == nullptr);
+		CHECK(posView.size() == 1);
+		CHECK(posView[0].x == doctest::Approx(1.0f));
+		CHECK(posView[0].y == doctest::Approx(2.0f));
+		CHECK(posView[0].z == doctest::Approx(3.0f));
+		++hits;
+	});
+	CHECK(hits == 1);
+}
+
+TEST_CASE("Chunk-backed sview_mut keeps contiguous data access") {
+	TestWorld twld;
+
+	const auto e0 = wld.add();
+	const auto e1 = wld.add();
+	wld.add<Position>(e0, {1.0f, 2.0f, 3.0f});
+	wld.add<Position>(e1, {4.0f, 5.0f, 6.0f});
+
+	auto q = wld.query().all<Position&>();
+	uint32_t hits = 0;
+	q.each([&](ecs::Iter& it) {
+		auto posView = it.sview_mut<Position>();
+		auto posTermView = it.sview_mut<Position>(0);
+		CHECK(posView.data() != nullptr);
+		CHECK(posTermView.data() != nullptr);
+		CHECK(posView.data() == posTermView.data());
+		CHECK(posView.size() == 2);
+		CHECK(posTermView.size() == 2);
+
+		posView[0].x += 10.0f;
+		posTermView[1].x += 20.0f;
+		++hits;
+	});
+
+	CHECK(hits == 1);
+	CHECK(wld.get<Position>(e0).x == doctest::Approx(11.0f));
+	CHECK(wld.get<Position>(e1).x == doctest::Approx(24.0f));
+}
+
 TEST_CASE("Sparse DontFragment runtime-registered component typed object access") {
 	TestWorld twld;
 
@@ -3265,6 +3456,62 @@ TEST_CASE("Sparse DontFragment runtime-registered component typed object access"
 	wld.add(e, runtimeComp.entity, Position{7.0f, 8.0f, 9.0f});
 	CHECK(wld.has(e, runtimeComp.entity));
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+
+	auto& posMut = wld.set<Position>(e, runtimeComp.entity);
+	posMut = {10.0f, 11.0f, 12.0f};
+
+	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
+	CHECK(pos.x == doctest::Approx(10.0f));
+	CHECK(pos.y == doctest::Approx(11.0f));
+	CHECK(pos.z == doctest::Approx(12.0f));
+
+	wld.del(e, runtimeComp.entity);
+	CHECK_FALSE(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Sparse runtime-registered component uses out-of-line storage and still fragments") {
+	TestWorld twld;
+
+	const auto& runtimeComp = wld.add(
+			"Runtime_Sparse_Fragmenting_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, runtimeComp.entity, Position{7.0f, 8.0f, 9.0f});
+	CHECK(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
+	CHECK(wld.fetch(e).pArchetype->has(runtimeComp.entity));
+
+	auto& posMut = wld.set<Position>(e, runtimeComp.entity);
+	posMut = {10.0f, 11.0f, 12.0f};
+
+	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
+	CHECK(pos.x == doctest::Approx(10.0f));
+	CHECK(pos.y == doctest::Approx(11.0f));
+	CHECK(pos.z == doctest::Approx(12.0f));
+
+	wld.del(e, runtimeComp.entity);
+	CHECK_FALSE(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("DontFragment runtime-registered table component typed object access") {
+	TestWorld twld;
+
+	const auto& runtimeComp = wld.add(
+			"Runtime_Table_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Table, (uint32_t)alignof(Position));
+	wld.add(runtimeComp.entity, ecs::DontFragment);
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, runtimeComp.entity, Position{7.0f, 8.0f, 9.0f});
+	CHECK(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+	CHECK_FALSE(wld.fetch(e).pArchetype->has(runtimeComp.entity));
 
 	auto& posMut = wld.set<Position>(e, runtimeComp.entity);
 	posMut = {10.0f, 11.0f, 12.0f};

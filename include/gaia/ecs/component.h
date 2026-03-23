@@ -50,6 +50,20 @@ namespace gaia {
 		template <typename T>
 		inline constexpr DataStorageType storage_type_v = detail::storage_type<T>::value;
 
+		//! True when the component payload is stored inside archetype chunks.
+		//! Sparse AoS components are the notable false case: their id may still fragment,
+		//! but the payload itself lives in the world-side sparse store.
+		GAIA_NODISCARD constexpr bool component_has_inline_data(Component component) noexcept {
+			return component.size() != 0U && (component.storage_type() != DataStorageType::Sparse || component.soa() != 0U);
+		}
+
+		//! True when the component payload is stored outside archetype chunks.
+		//! Today this is used by sparse AoS components, regardless of whether the id
+		//! itself remains fragmenting or is marked DontFragment.
+		GAIA_NODISCARD constexpr bool component_has_out_of_line_data(Component component) noexcept {
+			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
+		}
+
 		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------

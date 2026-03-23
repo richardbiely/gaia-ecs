@@ -26,7 +26,8 @@ namespace gaia {
 		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_term_uses_inherit_policy(const World& world, Entity term);
 		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
-		GAIA_NODISCARD bool world_is_sparse_dont_fragment_component(const World& world, Entity component);
+		GAIA_NODISCARD bool world_is_out_of_line_component(const World& world, Entity component);
+		GAIA_NODISCARD bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_count_in_term_entities(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities_direct(const World& world, Entity term);
@@ -752,7 +753,7 @@ namespace gaia {
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
-								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
+								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(*w, id)));
 						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
 					}
 
@@ -770,7 +771,7 @@ namespace gaia {
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
-								 (!id.pair() && world_is_sparse_dont_fragment_component(*w, id)));
+								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(*w, id)));
 						canDirectCreateArchetypeMatch &= term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.set_dep_flag(DependencyHasWildcardTerms);

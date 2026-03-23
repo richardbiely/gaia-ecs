@@ -2129,7 +2129,7 @@ namespace gaia {
 
 					const auto id = term.id;
 					return (id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
-								 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
 				}
 
 				//! Returns true when a term uses semantic `Is` matching rather than direct storage matching.
@@ -2948,7 +2948,7 @@ namespace gaia {
 						const bool isInheritedTerm = uses_inherited_id_matching(world, term);
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
-								(!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+								(!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
 						const bool needsEntityFilter =
 								isAdjunctTerm || isDirectIsTerm || isInheritedTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
@@ -3135,6 +3135,12 @@ namespace gaia {
 								pIndices[i] = indicesView[i];
 								continue;
 							}
+							if (!queryId.pair() && world_is_out_of_line_component(world, queryId)) {
+								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
+								GAIA_ASSERT(compIdx != BadIndex);
+								pIndices[i] = 0xFF;
+								continue;
+							}
 
 							auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
 							if (compIdx == BadIndex)
@@ -3272,6 +3278,8 @@ namespace gaia {
 						if constexpr (is_pair<FT>::value)
 							return false;
 						const auto id = comp_cache(world).template get<FT>().entity;
+						if (world_is_out_of_line_component(world, id))
+							return false;
 						for (const auto& term: queryInfo.ctx().data.terms_view()) {
 							if (term.id != id)
 								continue;
@@ -3453,8 +3461,7 @@ namespace gaia {
 									invoke_inherited_query_args_by_id<T...>(world, entity, argIds, func, std::index_sequence_for<T...>{});
 								}
 							} else {
-								for (const auto entity: entities)
-								{
+								for (const auto entity: entities) {
 									(void)entity;
 									func();
 								}

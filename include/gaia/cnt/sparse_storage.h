@@ -1104,6 +1104,8 @@ namespace gaia {
 
 				const auto did = uint32_t(sid & page_mask);
 				const auto& page = m_pages[pid];
+				// Empty pages release their internal buffers but remain in m_pages until the
+				// outer page array is compacted. Treat such slots as missing.
 				if (!page.allocated())
 					return false;
 
@@ -1174,6 +1176,7 @@ namespace gaia {
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
+				// The swapped-in dense item may live on a different sparse page.
 				auto& pagePrev = m_pages[pidPrev];
 				pagePrev.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;
@@ -1468,6 +1471,7 @@ namespace gaia {
 
 				auto& page = m_pages[pid];
 				const auto id = page.get_id(did);
+				// The swapped-in dense item may live on a different sparse page.
 				auto& pagePrev = m_pages[pidPrev];
 				pagePrev.set_id(didPrev) = id;
 				page.set_id(did) = detail::InvalidDenseId;

@@ -116,7 +116,7 @@ namespace gaia {
 					const auto recs_cnt = recs.size();
 					GAIA_FOR(recs_cnt) {
 						const auto& rec = recs[i];
-						if (rec.comp.size() == 0)
+						if (!component_has_inline_data(rec.comp))
 							continue;
 
 						const auto e = m_records.pCompEntities[i];
@@ -510,7 +510,7 @@ namespace gaia {
 				{
 					for (const auto& rec: comp_rec_view()) {
 						// Skip the component if there's no size associated with it
-						if (rec.comp.size() == 0)
+						if (!component_has_inline_data(rec.comp))
 							continue;
 
 						rec.pItem->save(s, rec.pData, 0, cnt, cap);
@@ -550,7 +550,7 @@ namespace gaia {
 				{
 					for (const auto& rec: comp_rec_view()) {
 						// Skip the component if there's no size associated with it
-						if (rec.comp.size() == 0)
+						if (!component_has_inline_data(rec.comp))
 							continue;
 
 						rec.pItem->load(s, rec.pData, 0, cnt, cap);
@@ -839,7 +839,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (rec.comp.size() == 0U)
+					if (!component_has_inline_data(rec.comp))
 						continue;
 
 					const auto* pSrc = (const void*)pSrcChunk->comp_ptr_mut(i);
@@ -871,7 +871,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (rec.comp.size() == 0U)
+					if (!component_has_inline_data(rec.comp))
 						continue;
 
 					const auto* pSrc = (const void*)pSrcChunk->comp_ptr(i);
@@ -909,7 +909,7 @@ namespace gaia {
 
 					if (oldId == newId) {
 						const auto& rec = dstRecs[j];
-						if (rec.comp.size() != 0U) {
+						if (component_has_inline_data(rec.comp)) {
 							auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 							GAIA_FOR_(dstCount, rowOffset) {
@@ -957,7 +957,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (rec.comp.size() == 0U)
+					if (!component_has_inline_data(rec.comp))
 						continue;
 
 					auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
@@ -996,7 +996,7 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& rec = dstRecs[j];
-							if (rec.comp.size() != 0U) {
+							if (component_has_inline_data(rec.comp)) {
 								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 								rec.pItem->ctor_copy(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
@@ -1059,7 +1059,7 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& rec = dstRecs[j];
-							if (rec.comp.size() != 0U) {
+							if (component_has_inline_data(rec.comp)) {
 								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 								rec.pItem->ctor_move(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
@@ -1129,7 +1129,7 @@ namespace gaia {
 					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recView[i];
-						if (rec.comp.size() == 0U)
+						if (!component_has_inline_data(rec.comp))
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i);
@@ -1147,7 +1147,7 @@ namespace gaia {
 					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recView[i];
-						if (rec.comp.size() == 0U)
+						if (!component_has_inline_data(rec.comp))
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i, rowA);
@@ -1220,7 +1220,7 @@ namespace gaia {
 				auto recView = comp_rec_view();
 				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recView[i];
-					if (rec.comp.size() == 0U)
+					if (!component_has_inline_data(rec.comp))
 						continue;
 
 					GAIA_ASSERT(rec.pData == comp_ptr_mut(i));
@@ -1265,7 +1265,7 @@ namespace gaia {
 				auto recViewA = pChunkA->comp_rec_view();
 				GAIA_FOR(pChunkA->m_header.genEntities) {
 					const auto& recA = recViewA[i];
-					if (recA.comp.size() == 0U)
+					if (!component_has_inline_data(recA.comp))
 						continue;
 
 					auto* pDataA = pChunkA->comp_rec_view()[i].pData;
@@ -1347,7 +1347,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
-				if (item.func_ctor == nullptr)
+				if (item.func_ctor == nullptr || !component_has_inline_data(item.comp))
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::call_ctor);
@@ -1366,6 +1366,8 @@ namespace gaia {
 				auto recs = comp_rec_view();
 				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recs[i];
+					if (!component_has_inline_data(rec.comp))
+						continue;
 
 					const auto* pItem = rec.pItem;
 					if (pItem == nullptr || pItem->func_ctor == nullptr)
@@ -1387,6 +1389,8 @@ namespace gaia {
 				const auto recs_cnt = recs.size();
 				GAIA_FOR(recs_cnt) {
 					const auto& rec = recs[i];
+					if (!component_has_inline_data(rec.comp))
+						continue;
 
 					const auto* pItem = rec.pItem;
 					if (pItem == nullptr || pItem->func_dtor == nullptr)

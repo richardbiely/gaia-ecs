@@ -24,7 +24,7 @@ You get complex queries with relationship traversal, per-component AoS/SoA layou
 
 ***Highlights:***
 * Clean, safe API — no boilerplate, no footguns
-* Two storage strategies — archetype/chunk for cache-friendly iteration, sparse for low-cost frequent modification 
+* Hybrid storage model — archetype/chunk for fast iteration, optional out-of-line storage for low-cost frequent modification
 * Expressive queries: [relationships](#relationships), wildcards, hierarchy traversal (DFS/BFS), variables
 * Per-component [AoS or SoA data layout](#data-layouts) with minimal code changes
 * Integrated [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
@@ -144,13 +144,13 @@ The three building blocks are:
 A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.
 
 ## Implementation
-**Gaia-ECS** is a hybrid ECS combining archetype-based and sparse storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows. Components that change frequently or require pointer stability can instead opt into sparse storage, where they live outside archetypes entirely and never move in memory.
+**Gaia-ECS** is a hybrid ECS combining archetype-based storage with optional out-of-line component payload storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
 
 Each archetype is made up of chunks: fixed-size blocks of memory sized so that a full chunk fits in L1 cache on most CPUs. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.
 
-The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing components requires moving data between archetypes — mitigated here by an archetype graph, support for batched component changes,
+The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing fragmenting ids requires moving data between archetypes — mitigated here by an archetype graph and support for batched component changes.
 
-For components that are added and removed frequently, or where pointer stability is required, Gaia-ECS also supports sparse storage. Opting a component into sparse storage stores it outside the chunk layout in a packed array or sparse set. Components in sparse storage never move in memory, so add/remove operations are fast and do not trigger archetype migrations.
+Gaia-ECS also supports selected component data living outside chunk columns when a different tradeoff is needed. That keeps the main archetype path optimized for dense iteration while still allowing more dynamic, optional, or less cache-sensitive data to use a different storage path.
 
 Queries are compiled into bytecode and executed by an internal virtual machine, ensuring only the complexity your query actually needs is paid for.
 
@@ -331,7 +331,7 @@ w.get("gameplay.render.Position");
 // positionComp
 
 w.get("Position");
-// ecs::EntityBad unless lookup happens from the right scope
+// positionComp if "Position" is globally unique, otherwise the closest scoped match wins and ambiguous global short names do not resolve
 
 w.alias(positionComp, "RenderPosition");
 w.get("RenderPosition");
@@ -348,9 +348,9 @@ The scope entity and its `ChildOf` ancestors should have names, because Gaia-ECS
 
 For example, registering `Position` while the current component scope is the entity path `gameplay.render` gives the component the path name `gameplay.render.Position`.
 
-Unqualified component lookup checks the active scope first, then walks up parent scopes, then searches each lookup-path scope in order while also walking up its parents, then falls back to global exact symbol lookup, then global path lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`, and a lookup path such as `{tools, render}` can prefer `gameplay.tools.Device` before falling back to `gameplay.Device`.
+Unqualified component lookup checks the active scope first, then walks up parent scopes, then searches each lookup-path scope in order while also walking up its parents, then falls back to global exact symbol lookup, global path lookup, global unique short-symbol lookup, and finally alias lookup. That means a lookup from `gameplay.render` can still find `gameplay.Position` when there is no closer match in `gameplay.render`, a lookup path such as `{tools, render}` can prefer `gameplay.tools.Device` before falling back to `gameplay.Device`, and a bare `"Position"` can resolve globally when that short symbol is unique.
 
-String queries follow the same rules, but they capture the active scope and lookup path when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` or `w.lookup_path(scopes); q.add("Position");` resolve `Position` while `add(...)` runs, store the resulting component id in the query, and will not be rewritten later if the scope or component naming metadata changes.
+String queries follow the same rules, but they capture the active scope and lookup path when the query expression is parsed. In practice that means `w.scope(render, [&] { q.add("Position"); });` or `w.lookup_path(scopes); q.add("Position");` resolve `Position` while `add(...)` runs, store the resulting component id in the query, and will not be rewritten later if the scope or component naming metadata changes. If a query uses a bare short name such as `"Position"`, that global fallback only works when the short symbol is unique.
 
 Scoped component registration looks like this:
 
@@ -409,7 +409,7 @@ w.scope(renderModule, [&] {
 });
 
 const auto positionComp = w.get("Position");
-// returns: the component entity registered under "gameplay.render.Position"
+// returns: the component entity registered under "gameplay.render.Position" in this example because the short name is unique
 
 const auto velocityComp = w.get("gameplay.render.Velocity");
 // returns: the component entity registered under "gameplay.render.Velocity"
@@ -418,30 +418,13 @@ const auto velocityComp = w.get("gameplay.render.Velocity");
 `World::module(...)` only creates or finds the scope hierarchy. `World::scope(...)` is the step that makes registration and relative lookup happen inside that scope.
 
 ### Non-fragmenting and sparse components
+
 By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
 
-Gaia-ECS also supports non-fragmenting storage for sparse components and selected relationships.
-
-There are two separate choices here:
+If this is undesired, there is also an option to use sparse storage. There are two options:
 
 - `GAIA_STORAGE(Sparse)`
-  - the component uses sparse storage
-- `ecs::DontFragment`
-  - adding or removing that component does not move the entity between archetypes
-
-What sparse storage means in practice:
-- the component is stored in a separate sparse store, not as a dense archetype column
-- looking it up by entity is natural and cheap
-- adding and removing it is usually much cheaper than moving an entity between archetypes
-- iterating it is usually less cache-friendly than iterating a normal fragmenting component in a chunk
-
-You usually use them together:
-- `Sparse` keeps the component cheap to add and remove
-- `DontFragment` keeps that churn out of archetypes
-
-Think of it like this:
-- regular fragmenting component = best for dense iteration
-- sparse non-fragmenting component = best for optional, state-like, frequently changing data
+- `DontFragment`
 
 To use a non-fragmenting sparse component:
 
@@ -462,34 +445,32 @@ w.add<Cooldown>(e);
 w.set<Cooldown>(e).value = 1.5f;
 ```
 
-When to use non-fragmenting sparse components:
-- the component is optional
-- the component is added and removed often
-- the component behaves more like state than core identity
-- you want to avoid creating many archetypes that differ only by that component
+That gives four practical outcomes:
 
-When not to use them:
-- the component is present on most entities
-- the component is hot in tight iteration loops
-- you want the fastest possible structural query execution
+- default:
+  - payload stored in chunks (memory address can change)
+  - the id lives in the archetype (add/del fragments)
+  - best for core simulation data, dense iteration, and structural queries
 
-Tradeoff summary:
-- `Sparse + DontFragment` is typically much faster for per-entity add/remove
-- normal fragmenting components are still better for dense iteration
-- whole-entity cleanup is not necessarily faster, because sparse side storage still needs to be cleaned up
+- `Sparse`:
+  - payload stored out-of-line (stable memory address)
+  - the id lives in the archetype (add/del fragments)
+  - good when the payload should stay out of chunks but the component should remain structurally visible
 
-Good examples:
-- cooldowns
-- temporary status effects
-- optional markers that change often
-- editor/runtime state that should not reshape archetypes
+- `DontFragment`:
+  - payload stored out-of-line (stable memory address)
+  - the id does not live in the archetype (add/del does not fragment)
 
-Less suitable examples:
-- `Position`
-- `Velocity`
-- data that exists on most entities and is read every frame
+- `Sparse + DontFragment`:
+  - payload stored out-of-line (stable memory address)
+  - the id does not live in the archetype (add/del does not fragment)
+  - the usual choice for optional, state-like, or frequently toggled data
 
-Use non-fragmenting sparse components for volatile or optional data. Keep core simulation data fragmenting unless profiling says otherwise.
+Rule of thumb:
+- keep hot, common, frequently iterated data fragmenting and chunk-stored
+- use plain `Sparse` when the payload should live out-of-line but the component should still participate in structural matching
+- use `Sparse + DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
+- avoid out-of-line storage for components like `Position` or `Velocity` unless profiling clearly justifies it
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
@@ -575,8 +556,8 @@ w.del(e, velocity);
 ```
 
 When adding components following restrictions apply:
-* There can be at most 32 components per entity. If you need more you can merge some of your components, or even rethink the strategy because too many components usually implies design issues (e.g. object-oriented thinking or using real-life abstractions when handling ECS entities and components).
-* Maximum size of a component is 4095 bytes. This is because internally chunks of 8 kiB or 16 kiB are used to store data. Therefore, components can not get too big. If this is not enough for you, inside your component you simply store a reference to data that you hold outside of ECS. Note, this restriction applies only to components stored in archetypes. In the future when more storage types are introduced this restriction won't apply to them.
+* There can be at most 32 ids in an entity's archetype (components, tags and relationships stored in archetype chunks). Components marked with `ecs::DontFragment` and stored outside archetypes do not consume these slots. If you need more archetype-resident ids you can merge some of your components, or rethink the strategy because too many fragmenting ids usually implies design issues (e.g. object-oriented thinking or mirroring real-life abstractions too directly in ECS).
+* Maximum size of a registered component type is currently 4095 bytes. This limit comes from the component metadata and chunk layout used internally. If this is not enough for you, store a pointer or handle to data that lives outside ECS. Note, this limit is still enforced today even for components that use sparse storage.
 * [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
 * Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
 

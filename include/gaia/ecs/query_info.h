@@ -1167,6 +1167,13 @@ namespace gaia {
 				GAIA_FOR(cnt) {
 					const auto idxBeforeRemapping = m_plan.ctx.data._remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
+					if (!queryId.pair() && world_is_out_of_line_component(*world(), queryId)) {
+						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+						GAIA_ASSERT(compIdx != BadIndex);
+						cacheData.indices[i] = 0xFF;
+						continue;
+					}
+
 					auto compIdx = world_component_index_comp_idx(*world(), *pArchetype, queryId);
 					if (compIdx == BadIndex) {
 						// Wildcard/semantic terms are not represented by an exact component index entry.

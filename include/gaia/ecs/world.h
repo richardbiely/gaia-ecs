@@ -1877,36 +1877,45 @@ namespace gaia {
 							 (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
-			GAIA_NODISCARD bool is_sparse_dont_fragment_component(Entity component) const {
+			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
 				if (!valid(component) || component.pair() || component.entity())
 					return false;
 
-				const auto& ec = fetch(component);
-				if ((ec.flags & EntityContainerFlags::IsDontFragment) == 0)
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
 					return false;
 
-				const auto* pItem = comp_cache().find(component);
-				return pItem != nullptr && pItem->comp.storage_type() == DataStorageType::Sparse;
+				const auto& ec = fetch(component);
+				// Sparse AoS payloads live out-of-line even if the component still fragments.
+				// DontFragment uses that same storage model but also removes the id from archetype identity.
+				return component_has_out_of_line_data(pItem->comp) || (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
-			//! Sparse non-fragmenting storage currently supports only plain generic components.
+			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
+				if (!is_out_of_line_component(component))
+					return false;
+
+				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
+			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
 			template <typename T>
-			GAIA_NODISCARD static constexpr bool supports_sparse_component() {
+			GAIA_NODISCARD static constexpr bool supports_out_of_line_component() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
 			}
 
 			template <typename T>
-			GAIA_NODISCARD bool can_use_sparse_component(Entity object) const {
-				if constexpr (!supports_sparse_component<T>())
+			GAIA_NODISCARD bool can_use_out_of_line_component(Entity object) const {
+				if constexpr (!supports_out_of_line_component<T>())
 					return false;
 				else {
 					if (object.pair())
 						return false;
 
 					const auto* pItem = comp_cache().find(object);
-					if (pItem == nullptr || pItem->entity != object || !is_sparse_dont_fragment_component(object))
+					if (pItem == nullptr || pItem->entity != object || !is_out_of_line_component(object))
 						return false;
 
 					using U = typename actual_type_t<T>::Type;
@@ -2374,6 +2383,7 @@ namespace gaia {
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
+						cleanup_deleted_out_of_line_components();
 
 						m_pArchetypeSrc = ec.pArchetype;
 						m_pChunkSrc = ec.pChunk;
@@ -2419,6 +2429,7 @@ namespace gaia {
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
 						m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
+						cleanup_deleted_out_of_line_components();
 					}
 
 					// Finalize the builder by reseting the archetype pointer
@@ -2716,10 +2727,22 @@ namespace gaia {
 					}
 	#endif
 
-					tl_del_comps.clear();
-
 					m_world.unlock();
 #endif
+				}
+
+				void cleanup_deleted_out_of_line_components() {
+					for (auto entity: tl_del_comps) {
+						if (entity.pair() || !m_world.is_out_of_line_component(entity) ||
+								m_world.is_non_fragmenting_out_of_line_component(entity))
+							continue;
+
+						const auto it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(entity));
+						if (it != m_world.m_sparseComponentsByComp.end())
+							it->second.func_del(it->second.pStore, m_entity);
+					}
+
+					tl_del_comps.clear();
 				}
 
 				bool handle_add_entity(Entity entity) {
@@ -3871,8 +3894,9 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
-					if (pItem != nullptr && pItem->entity == object && is_sparse_dont_fragment_component(object))
-						GAIA_ASSERT2(false, "Sparse runtime components require an explicit typed value when added by entity id");
+					if (pItem != nullptr && pItem->entity == object && is_out_of_line_component(object))
+						GAIA_ASSERT2(
+								false, "Out-of-line runtime components require an explicit typed value when added by entity id");
 				}
 #endif
 				EntityBuilder(*this, entity).add(object);
@@ -3896,8 +3920,13 @@ namespace gaia {
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component<FT>()) {
-					if (is_sparse_dont_fragment_component(item.entity)) {
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity)) {
+						if (!is_non_fragmenting_out_of_line_component(item.entity)) {
+							(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+							EntityBuilder(*this, entity).add<T>();
+							return;
+						}
 #if GAIA_OBSERVERS_ENABLED
 						auto addDiffCtx = m_observers.prepare_diff(
 								*this, ObserverEvent::OnAdd, EntitySpan{&item.entity, 1}, EntitySpan{&entity, 1});
@@ -3925,15 +3954,30 @@ namespace gaia {
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
 
-				if constexpr (supports_sparse_component<typename component_type_t<T>::TypeFull>()) {
+				if constexpr (supports_out_of_line_component<typename component_type_t<T>::TypeFull>()) {
 					using FT = typename component_type_t<T>::TypeFull;
-					if (can_use_sparse_component<FT>(object)) {
+					if (can_use_out_of_line_component<FT>(object)) {
+						auto& data = sparse_component_store_mut<FT>(object).add(entity);
+						data = GAIA_FWD(value);
+
+						if (!is_non_fragmenting_out_of_line_component(object)) {
+#if GAIA_OBSERVERS_ENABLED
+							auto addDiffCtx =
+									m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
+#endif
+							EntityBuilder eb(*this, entity);
+							eb.add_inter_init(object);
+							eb.commit();
+							notify_add_single(entity, object);
+#if GAIA_OBSERVERS_ENABLED
+							m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
+							return;
+						}
 #if GAIA_OBSERVERS_ENABLED
 						auto addDiffCtx =
 								m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
 #endif
-						auto& data = sparse_component_store_mut<FT>(object).add(entity);
-						data = GAIA_FWD(value);
 						notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
 						m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
@@ -3961,6 +4005,31 @@ namespace gaia {
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (!is_pair<FT>::value && supports_out_of_line_component<FT>()) {
+					const auto& item = add<FT>();
+					if (is_out_of_line_component(item.entity)) {
+						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
+						data = GAIA_FWD(value);
+
+						if (!is_non_fragmenting_out_of_line_component(item.entity)) {
+							EntityBuilder builder(*this, entity);
+							builder.add(item.entity);
+							builder.commit();
+							return;
+						}
+#if GAIA_OBSERVERS_ENABLED
+						auto addDiffCtx = m_observers.prepare_diff(
+								*this, ObserverEvent::OnAdd, EntitySpan{&item.entity, 1}, EntitySpan{&entity, 1});
+#endif
+						notify_add_single(entity, item.entity);
+#if GAIA_OBSERVERS_ENABLED
+						m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
+						return;
+					}
+				}
+
 				EntityBuilder builder(*this, entity);
 				auto object = builder.register_component<T>();
 				builder.add(object);
@@ -3992,8 +4061,8 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 
-				if constexpr (supports_sparse_component<FT>()) {
-					if (is_sparse_dont_fragment_component(item.entity)) {
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity)) {
 						if (has_direct(entity, item.entity))
 							return false;
 
@@ -4005,6 +4074,12 @@ namespace gaia {
 						GAIA_ASSERT(pStore != nullptr);
 						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
 						data = pStore->get(inheritedOwner);
+
+						if (!is_non_fragmenting_out_of_line_component(item.entity)) {
+							EntityBuilder eb(*this, entity);
+							eb.add_inter_init(item.entity);
+							eb.commit();
+						}
 						return true;
 					}
 				}
@@ -4019,8 +4094,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 
-				if constexpr (supports_sparse_component<FT>()) {
-					if (can_use_sparse_component<FT>(object)) {
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object)) {
 						if (has_direct(entity, object))
 							return false;
 
@@ -4032,6 +4107,12 @@ namespace gaia {
 						GAIA_ASSERT(pStore != nullptr);
 						auto& data = sparse_component_store_mut<FT>(object).add(entity);
 						data = pStore->get(inheritedOwner);
+
+						if (!is_non_fragmenting_out_of_line_component(object)) {
+							EntityBuilder eb(*this, entity);
+							eb.add_inter_init(object);
+							eb.commit();
+						}
 						return true;
 					}
 				}
@@ -4165,13 +4246,9 @@ namespace gaia {
 					Chunk::copy_entity_data(srcEntity, dstEntity, m_recs);
 				}
 
-				const auto sparseIdsWritten = copy_sparse_entity_data(
-						srcEntity, dstEntity,
-						[](Entity) {
-							return true;
-						},
-						pAddedIds + archetypeIdCount);
-				GAIA_ASSERT(sparseIdsWritten == sparseIdCount);
+				(void)copy_sparse_entity_data(srcEntity, dstEntity, [](Entity) {
+					return true;
+				});
 				m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{&dstEntity, 1});
 
 				m_observers.on_add(*this, *pDstArchetype, EntitySpan{pAddedIds, addedIdCount}, EntitySpan{&dstEntity, 1});
@@ -4655,7 +4732,8 @@ namespace gaia {
 				uint32_t count = 0;
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
-					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
+					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp) ||
+							!is_non_fragmenting_out_of_line_component(comp))
 						continue;
 					++count;
 				}
@@ -4667,7 +4745,8 @@ namespace gaia {
 			void write_copied_sparse_ids(Entity srcEntity, Func&& shouldCopySparse, Entity* pDst) const {
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
-					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp))
+					if (!store.func_has(store.pStore, srcEntity) || !shouldCopySparse(comp) ||
+							!is_non_fragmenting_out_of_line_component(comp))
 						continue;
 					*pDst++ = comp;
 				}
@@ -4687,13 +4766,21 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
 					if (pItem != nullptr && pItem->entity == object) {
-						if (is_sparse_dont_fragment_component(object)) {
+						if (is_out_of_line_component(object)) {
 							const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 							if (itSparseStore == m_sparseComponentsByComp.end())
 								return false;
 
 							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
-							return itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, entity, inheritedOwner);
+							if (!itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, entity, inheritedOwner))
+								return false;
+
+							if (!is_non_fragmenting_out_of_line_component(object)) {
+								EntityBuilder eb(*this, entity);
+								eb.add_inter_init(object);
+								eb.commit();
+							}
+							return true;
 						}
 
 						if (pItem->comp.size() != 0U) {
@@ -4730,12 +4817,22 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
 					if (pItem != nullptr && pItem->entity == object) {
-						if (is_sparse_dont_fragment_component(object)) {
+						if (is_out_of_line_component(object)) {
 							const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 							if (itSparseStore == m_sparseComponentsByComp.end())
 								return false;
 
 							GAIA_ASSERT(itSparseStore->second.func_copy_entity != nullptr);
+							if (!is_non_fragmenting_out_of_line_component(object)) {
+								if (!itSparseStore->second.func_copy_entity(itSparseStore->second.pStore, dstEntity, srcEntity))
+									return false;
+
+								EntityBuilder eb(*this, dstEntity);
+								eb.add_inter_init(object);
+								eb.commit();
+								notify_add_single(dstEntity, object);
+								return true;
+							}
 #if GAIA_OBSERVERS_ENABLED
 							auto addDiffCtx = m_observers.prepare_diff(
 									*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&dstEntity, 1});
@@ -4817,7 +4914,8 @@ namespace gaia {
 
 				for (const auto& [compKey, store]: m_sparseComponentsByComp) {
 					const auto comp = compKey.entity();
-					if (!store.func_has(store.pStore, prefabEntity) || !instantiate_copies_id(comp))
+					if (!store.func_has(store.pStore, prefabEntity) || !instantiate_copies_id(comp) ||
+							!is_out_of_line_component(comp))
 						continue;
 					outCopiedSparseIds.push_back(comp);
 				}
@@ -4829,8 +4927,10 @@ namespace gaia {
 				for (const auto id: pDstArchetype->ids_view())
 					outAddedIds.push_back(id);
 
-				for (const auto comp: copiedSparseIds)
-					outAddedIds.push_back(comp);
+				for (const auto comp: copiedSparseIds) {
+					if (is_non_fragmenting_out_of_line_component(comp))
+						outAddedIds.push_back(comp);
+				}
 			}
 
 			template <typename T>
@@ -4847,8 +4947,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD Entity instantiate_prefab_node_inter(
-					Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance, EntitySpan addedIds,
-					EntitySpan addHookIds) {
+					Entity prefabEntity, Archetype* pDstArchetype, Entity parentInstance, EntitySpan copiedSparseIds,
+					EntitySpan addedIds, EntitySpan addHookIds) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
 				GAIA_ASSERT(has_direct(prefabEntity, Prefab));
@@ -4872,8 +4972,10 @@ namespace gaia {
 
 				ecDst.flags |= EntityContainerFlags::HasAliasOf;
 
-				(void)copy_sparse_entity_data(
-						prefabEntity, instance, addedIds.subspan((uint32_t)pDstArchetype->ids_view().size()));
+				// Keep payload copy and observer/add-id reporting separate:
+				// fragmenting sparse payloads must still be copied here even though their id is
+				// already present in the destination archetype and therefore absent from addedIds tail.
+				(void)copy_sparse_entity_data(prefabEntity, instance, copiedSparseIds);
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{&instance, 1});
 #endif
@@ -4932,7 +5034,8 @@ namespace gaia {
 				collect_prefab_added_ids(pDstArchetype, EntitySpan{copiedSparseIds}, addedIds);
 				collect_prefab_add_hook_ids(EntitySpan{addedIds}, addHookIds);
 				return instantiate_prefab_node_inter(
-						prefabEntity, pDstArchetype, parentInstance, EntitySpan{addedIds}, EntitySpan{addHookIds});
+						prefabEntity, pDstArchetype, parentInstance, EntitySpan{copiedSparseIds}, EntitySpan{addedIds},
+						EntitySpan{addHookIds});
 			}
 
 			template <typename Func>
@@ -5243,8 +5346,8 @@ namespace gaia {
 						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
 							const auto parent = spawned[plan[planIdx].parentIdx];
 							spawned[planIdx] = instantiate_prefab_node_inter(
-									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].addedIds},
-									EntitySpan{plan[planIdx].addHookIds});
+									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].copiedSparseIds},
+									EntitySpan{plan[planIdx].addedIds}, EntitySpan{plan[planIdx].addHookIds});
 						}
 
 						push_copy_iter_group(func, group, roots[rootIdx]);
@@ -5272,8 +5375,8 @@ namespace gaia {
 						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
 							const auto parent = spawned[plan[planIdx].parentIdx];
 							spawned[planIdx] = instantiate_prefab_node_inter(
-									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].addedIds},
-									EntitySpan{plan[planIdx].addHookIds});
+									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].copiedSparseIds},
+									EntitySpan{plan[planIdx].addedIds}, EntitySpan{plan[planIdx].addHookIds});
 						}
 
 						func(roots[rootIdx]);
@@ -5314,6 +5417,14 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 					if (itSparseStore != m_sparseComponentsByComp.end()) {
+						if (!is_non_fragmenting_out_of_line_component(object)) {
+							{
+								EntityBuilder eb(*this, entity);
+								eb.del(object);
+							}
+							itSparseStore->second.func_del(itSparseStore->second.pStore, entity);
+							return;
+						}
 #if GAIA_OBSERVERS_ENABLED
 						auto delDiffCtx =
 								m_observers.prepare_diff(*this, ObserverEvent::OnDel, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
@@ -5349,9 +5460,9 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 
-				if constexpr (supports_sparse_component<FT>()) {
+				if constexpr (supports_out_of_line_component<FT>()) {
 					if (const auto* pItem = comp_cache().template find<FT>();
-							pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+							pItem != nullptr && is_out_of_line_component(pItem->entity)) {
 						if (sparse_component_store<FT>(pItem->entity) != nullptr)
 							del(entity, pItem->entity);
 						return;
@@ -5438,9 +5549,9 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				if constexpr (supports_sparse_component<T>()) {
+				if constexpr (supports_out_of_line_component<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
-					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity))
+					if (pItem != nullptr && is_out_of_line_component(pItem->entity))
 						return;
 				}
 
@@ -5479,8 +5590,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component<FT>()) {
-					if (is_sparse_dont_fragment_component(item.entity))
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity))
 						return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				}
 				return acc_mut(entity).mut<T>();
@@ -5491,8 +5602,8 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_sparse_component<FT>()) {
-					if (can_use_sparse_component<FT>(object))
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object))
 						return sparse_component_store_mut<FT>(object).mut(entity);
 				}
 				return acc_mut(entity).mut<T>(object);
@@ -5509,8 +5620,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component<FT>()) {
-					if (is_sparse_dont_fragment_component(item.entity))
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity))
 						return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				}
 				return acc_mut(entity).smut<T>();
@@ -5521,8 +5632,8 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) sset(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_sparse_component<FT>()) {
-					if (can_use_sparse_component<FT>(object))
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object))
 						return sparse_component_store_mut<FT>(object).mut(entity);
 				}
 				return acc_mut(entity).smut<T>(object);
@@ -5582,9 +5693,9 @@ namespace gaia {
 						return comp_cache().template get<FT>().entity;
 					}
 				}();
-				if constexpr (supports_sparse_component<FT>()) {
+				if constexpr (supports_out_of_line_component<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+					if (pItem != nullptr && is_out_of_line_component(pItem->entity)) {
 						const auto* pStore = sparse_component_store<FT>(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
 						if (pStore->has(entity))
@@ -5609,8 +5720,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity, Entity object) const {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_sparse_component<FT>()) {
-					if (can_use_sparse_component<FT>(object)) {
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object)) {
 						const auto* pStore = sparse_component_store<FT>(object);
 						GAIA_ASSERT(pStore != nullptr);
 						if (pStore->has(entity))
@@ -5936,9 +6047,9 @@ namespace gaia {
 				if (compEntity == EntityBad)
 					return false;
 
-				if constexpr (supports_sparse_component<FT>()) {
+				if constexpr (supports_out_of_line_component<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && is_sparse_dont_fragment_component(pItem->entity)) {
+					if (pItem != nullptr && is_out_of_line_component(pItem->entity)) {
 						const auto* pStore = sparse_component_store<FT>(pItem->entity);
 						return pStore != nullptr && (pStore->has(entity) || inherited_id_owner(entity, compEntity) != EntityBad);
 					}
@@ -7071,7 +7182,7 @@ namespace gaia {
 					return pSources != nullptr ? (uint32_t)pSources->size() : 0;
 				}
 
-				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					return it != m_sparseComponentsByComp.end() ? it->second.func_count(it->second.pStore) : 0;
 				}
@@ -7146,7 +7257,7 @@ namespace gaia {
 					return;
 				}
 
-				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					if (it != m_sparseComponentsByComp.end())
 						it->second.func_collect_entities(it->second.pStore, out);
@@ -7228,7 +7339,7 @@ namespace gaia {
 					return true;
 				}
 
-				if (!term.pair() && is_sparse_dont_fragment_component(term)) {
+				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					if (it == m_sparseComponentsByComp.end())
 						return true;
@@ -11625,8 +11736,12 @@ namespace gaia {
 			return world.is_exclusive_dont_fragment_relation(relation);
 		}
 
-		inline bool world_is_sparse_dont_fragment_component(const World& world, Entity component) {
-			return world.is_sparse_dont_fragment_component(component);
+		inline bool world_is_out_of_line_component(const World& world, Entity component) {
+			return world.is_out_of_line_component(component);
+		}
+
+		inline bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component) {
+			return world.is_non_fragmenting_out_of_line_component(component);
 		}
 
 		inline uint32_t world_count_direct_term_entities(const World& world, Entity term) {
@@ -11793,7 +11908,7 @@ namespace gaia {
 						(void)world.template override<Arg>(entity, termId);
 				}
 
-				return world.acc_mut(entity).template mut<Arg>(termId);
+				return world.template set<Arg>(entity, termId);
 			} else
 				return world.template get<Arg>(entity, termId);
 		}

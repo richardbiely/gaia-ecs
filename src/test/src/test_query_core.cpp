@@ -335,6 +335,44 @@ TEST_CASE("Query - all/any/or semantics") {
 }
 
 template <typename TQuery>
+void Test_Query_Local_Short_Name_Ambiguity() {
+	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+
+	TestWorld twld;
+
+	struct Rack {
+		struct Device {};
+	};
+	struct Bus {
+		struct Device {};
+	};
+
+	const auto rackEntity = wld.add();
+	const auto busEntity = wld.add();
+	wld.add<typename Rack::Device>(rackEntity);
+	wld.add<typename Bus::Device>(busEntity);
+
+	CHECK(wld.get("Device") == ecs::EntityBad);
+
+	auto qRack = wld.query<UseCachedQuery>().template all<typename Rack::Device>();
+	CHECK(qRack.count() == 1);
+	expect_exact_entities(qRack, {rackEntity});
+
+	auto qBus = wld.query<UseCachedQuery>().template all<typename Bus::Device>();
+	CHECK(qBus.count() == 1);
+	expect_exact_entities(qBus, {busEntity});
+}
+
+TEST_CASE("Query - local short-name ambiguity") {
+	SUBCASE("Cached query") {
+		Test_Query_Local_Short_Name_Ambiguity<ecs::Query>();
+	}
+	SUBCASE("Non-cached query") {
+		Test_Query_Local_Short_Name_Ambiguity<ecs::QueryUncached>();
+	}
+}
+
+template <typename TQuery>
 void Test_Query_Variables() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
 

@@ -31,6 +31,169 @@ namespace gaia {
 				uint32_t offset = 0;
 			};
 
+			//! Lightweight term view that can read either contiguous chunk data or a world-backed
+			//! out-of-line payload resolved by entity id.
+			template <typename U>
+			struct EntityTermViewGet {
+				enum class Mode : uint8_t { Chunk, Pointer, Entity };
+
+				const Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				const U* pData = nullptr;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+				Mode mode = Mode::Chunk;
+
+				static EntityTermViewGet chunk(const Chunk* pChunk, World* pWorld, uint32_t idxBase, uint32_t cnt) {
+					return {pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::Chunk};
+				}
+
+				static EntityTermViewGet pointer(const Chunk* pChunk, World* pWorld, const U* pData, uint32_t cnt) {
+					return {pChunk, pWorld, pData, EntityBad, 0, cnt, Mode::Pointer};
+				}
+
+				static EntityTermViewGet entity(const Chunk* pChunk, World* pWorld, Entity id, uint32_t idxBase, uint32_t cnt) {
+					return {pChunk, pWorld, nullptr, id, idxBase, cnt, Mode::Entity};
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					switch (mode) {
+						case Mode::Chunk:
+							return pChunk->template view<U>()[idxBase + (uint32_t)idx];
+						case Mode::Pointer:
+							return pData[idx];
+						case Mode::Entity: {
+							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+							return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+						}
+					}
+
+					GAIA_ASSERT(false);
+					return pData[0];
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					switch (mode) {
+						case Mode::Chunk:
+							return reinterpret_cast<const U*>(pChunk->template view<U>().data()) + idxBase;
+						case Mode::Pointer:
+							return pData;
+						case Mode::Entity:
+							return nullptr;
+					}
+
+					GAIA_ASSERT(false);
+					return nullptr;
+				}
+			};
+
+			//! Mutable counterpart to EntityTermViewGet. For chunk-backed terms it preserves the
+			//! usual versioning behavior; for out-of-line terms it forwards to the world store.
+			template <typename U>
+			struct EntityTermViewSet {
+				enum class Mode : uint8_t { ChunkVersioned, ChunkSilent, Pointer, Entity };
+
+				Chunk* pChunk = nullptr;
+				World* pWorld = nullptr;
+				U* pData = nullptr;
+				Entity id = EntityBad;
+				uint32_t idxBase = 0;
+				uint32_t cnt = 0;
+				Mode mode = Mode::ChunkVersioned;
+
+				static EntityTermViewSet chunk(Chunk* pChunk, World* pWorld, uint32_t idxBase, uint32_t cnt, bool updateVersion) {
+					return updateVersion
+								   ? EntityTermViewSet{pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::ChunkVersioned}
+								   : EntityTermViewSet{pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::ChunkSilent};
+				}
+
+				static EntityTermViewSet pointer(Chunk* pChunk, World* pWorld, U* pData, uint32_t cnt) {
+					return {pChunk, pWorld, pData, EntityBad, 0, cnt, Mode::Pointer};
+				}
+
+				static EntityTermViewSet entity(Chunk* pChunk, World* pWorld, Entity id, uint32_t idxBase, uint32_t cnt) {
+					return {pChunk, pWorld, nullptr, id, idxBase, cnt, Mode::Entity};
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
+					GAIA_ASSERT(idx < cnt);
+					switch (mode) {
+						case Mode::ChunkVersioned:
+							return pChunk->template view_mut<U>()[idxBase + (uint32_t)idx];
+						case Mode::ChunkSilent:
+							return pChunk->template sview_mut<U>()[idxBase + (uint32_t)idx];
+						case Mode::Pointer:
+							return pData[idx];
+						case Mode::Entity: {
+							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+							return world_query_entity_arg_by_id<U&>(*pWorld, entity, id);
+						}
+					}
+
+					GAIA_ASSERT(false);
+					return pData[0];
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					switch (mode) {
+						case Mode::ChunkVersioned:
+						case Mode::ChunkSilent:
+							return pChunk->template view<U>()[idxBase + (uint32_t)idx];
+						case Mode::Pointer:
+							return pData[idx];
+						case Mode::Entity: {
+							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+							return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+						}
+					}
+
+					GAIA_ASSERT(false);
+					return pData[0];
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD U* data() noexcept {
+					switch (mode) {
+						case Mode::ChunkVersioned:
+							return reinterpret_cast<U*>(pChunk->template view_mut<U>().data()) + idxBase;
+						case Mode::ChunkSilent:
+							return reinterpret_cast<U*>(pChunk->template sview_mut<U>().data()) + idxBase;
+						case Mode::Pointer:
+							return pData;
+						case Mode::Entity:
+							return nullptr;
+					}
+
+					GAIA_ASSERT(false);
+					return nullptr;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					switch (mode) {
+						case Mode::ChunkVersioned:
+						case Mode::ChunkSilent:
+							return reinterpret_cast<const U*>(pChunk->template view<U>().data()) + idxBase;
+						case Mode::Pointer:
+							return pData;
+						case Mode::Entity:
+							return nullptr;
+					}
+
+					GAIA_ASSERT(false);
+					return nullptr;
+				}
+			};
+
 			template <typename U>
 			struct SoATermRowWriteProxy {
 				Chunk* pChunk = nullptr;
@@ -338,13 +501,44 @@ namespace gaia {
 					return cmd_buffer_mt_get(*pWorld);
 				}
 
+				template <typename T>
+				GAIA_NODISCARD bool uses_out_of_line_component() const {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return false;
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value || mem::is_soa_layout_v<Arg>)
+							return false;
+						else {
+							const auto* pItem = comp_cache(*world()).template find<FT>();
+							// Type-based iteration switches to the world/store path as soon as the
+							// payload stops being chunk-backed, even if the id still fragments.
+							return pItem != nullptr && world_is_out_of_line_component(*world(), pItem->entity);
+						}
+					}
+				}
+
 				//! Returns a read-only entity or component view.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view() const {
-					return m_pChunk->view<T>(from(), to());
+					using U = typename actual_type_t<T>::Type;
+					if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
+						return m_pChunk->view<T>(from(), to());
+					else {
+						Entity id = EntityBad;
+						if (uses_out_of_line_component<T>()) {
+							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+							using FT = typename component_type_t<Arg>::TypeFull;
+							id = comp_cache(*world()).template get<FT>().entity;
+						}
+						if (id != EntityBad)
+							return EntityTermViewGet<U>::entity(m_pChunk, const_cast<World*>(world()), id, from(), size());
+						return EntityTermViewGet<U>::chunk(m_pChunk, const_cast<World*>(world()), from(), size());
+					}
 				}
 
 				template <typename T>
@@ -366,6 +560,10 @@ namespace gaia {
 						return SoATermViewGet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
 						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
+						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
+							return EntityTermViewGet<U>::entity(m_pChunk, const_cast<World*>(world()), id, from(), size());
+
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -373,12 +571,12 @@ namespace gaia {
 							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
 							const auto& data = world_query_entity_arg_by_id<const U&>(*world(), entity, id);
-							return m_pChunk->view_raw<T>((const void*)&data, 1);
+							return EntityTermViewGet<U>::pointer(m_pChunk, const_cast<World*>(world()), &data, 1);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_raw<T>(pData, to() - from());
+						auto* pData = reinterpret_cast<const U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
+						return EntityTermViewGet<U>::pointer(m_pChunk, const_cast<World*>(world()), pData, size());
 					}
 				}
 
@@ -388,7 +586,21 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
-					return m_pChunk->view_mut<T>(from(), to());
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+					if constexpr (mem::is_soa_layout_v<U>)
+						return m_pChunk->view_mut<T>(from(), to());
+					else {
+						Entity id = EntityBad;
+						if (uses_out_of_line_component<T>()) {
+							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+							using FT = typename component_type_t<Arg>::TypeFull;
+							id = comp_cache(*world()).template get<FT>().entity;
+						}
+						if (id != EntityBad)
+							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
+						return EntityTermViewSet<U>::chunk(m_pChunk, world(), from(), size(), true);
+					}
 				}
 
 				template <typename T>
@@ -413,6 +625,10 @@ namespace gaia {
 						return SoATermViewSet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
 						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
+						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
+							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
+
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -420,14 +636,14 @@ namespace gaia {
 							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
 							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							return m_pChunk->view_mut_raw<T>((void*)&data, 1);
+							return EntityTermViewSet<U>::pointer(m_pChunk, world(), &data, 1);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 
 						m_pChunk->update_world_version(compIdx);
 
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, to() - from());
+						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
+						return EntityTermViewSet<U>::pointer(m_pChunk, world(), pData, size());
 					}
 				}
 
@@ -438,7 +654,21 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
-					return m_pChunk->sview_mut<T>(from(), to());
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
+					if constexpr (mem::is_soa_layout_v<U>)
+						return m_pChunk->sview_mut<T>(from(), to());
+					else {
+						Entity id = EntityBad;
+						if (uses_out_of_line_component<T>()) {
+							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+							using FT = typename component_type_t<Arg>::TypeFull;
+							id = comp_cache(*world()).template get<FT>().entity;
+						}
+						if (id != EntityBad)
+							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
+						return EntityTermViewSet<U>::chunk(m_pChunk, world(), from(), size(), false);
+					}
 				}
 
 				template <typename T>
@@ -462,6 +692,10 @@ namespace gaia {
 						return SoATermViewSet<U>{m_pChunk, world(), EntityBad, EntityBad, from(), size()};
 					} else {
 						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
+						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
+							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
+
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -469,12 +703,12 @@ namespace gaia {
 							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
 							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							return m_pChunk->view_mut_raw<T>((void*)&data, 1);
+							return EntityTermViewSet<U>::pointer(m_pChunk, world(), &data, 1);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
-						auto* pData = m_pChunk->comp_ptr_mut(compIdx, from());
-						return m_pChunk->view_mut_raw<T>(pData, to() - from());
+						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
+						return EntityTermViewSet<U>::pointer(m_pChunk, world(), pData, size());
 					}
 				}
 
@@ -493,7 +727,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					return m_pChunk->view_auto<T>(from(), to());
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return view_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view based on the requested type.
@@ -504,7 +742,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					return m_pChunk->sview_auto<T>(from(), to());
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.

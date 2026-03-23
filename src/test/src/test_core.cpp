@@ -1622,6 +1622,41 @@ TEST_CASE("Containers - sparse_storage") {
 	}
 }
 
+TEST_CASE("Containers - sparse_storage empty page reuse and cross-page delete remap") {
+	SUBCASE("trivial payload") {
+		cnt::sparse_storage<SparseTestItem> arr;
+
+		arr.add(SparseTestItem{1, 11});
+		arr.del(1);
+		CHECK_FALSE(arr.has(1));
+
+		// Reusing an id on a page that just became empty must not touch freed page storage.
+		arr.add(SparseTestItem{1, 22});
+		CHECK(arr.has(1));
+		CHECK(arr[1].data == 22);
+
+		arr.add(SparseTestItem{5000, 33});
+		arr.del(1);
+		CHECK(arr.has(5000));
+		CHECK(arr[5000].data == 33);
+	}
+
+	SUBCASE("tag payload") {
+		cnt::sparse_storage<Empty> arr;
+
+		arr.add(1);
+		arr.del(1);
+		CHECK_FALSE(arr.has(1));
+
+		arr.add(1);
+		CHECK(arr.has(1));
+
+		arr.add(5000);
+		arr.del(1);
+		CHECK(arr.has(5000));
+	}
+}
+
 template <typename Container>
 void paged_storage_test(uint32_t N) {
 	using cont_item = typename Container::value_type;

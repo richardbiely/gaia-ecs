@@ -384,7 +384,7 @@ namespace gaia {
 			static bool est_max_entities_per_chunk(
 					const ComponentCache& cc, uint32_t offs, ComponentSpan comps, uint32_t cap, uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
-					if (comp.alig() == 0)
+					if (!component_has_inline_data(comp))
 						continue;
 
 					const auto& desc = cc.get(comp.id());
@@ -411,10 +411,10 @@ namespace gaia {
 					const auto comp = comps[i];
 					const auto compIdx = i;
 
-					const auto alig = comp.alig();
-					if (alig == 0) {
+					if (!component_has_inline_data(comp)) {
 						ofs[compIdx] = {};
 					} else {
+						const auto alig = comp.alig();
 						currOff = mem::align(currOff, alig);
 						ofs[compIdx] = (ChunkDataOffset)currOff;
 

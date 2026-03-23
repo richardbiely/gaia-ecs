@@ -33,25 +33,25 @@ namespace gaia {
 
 		struct GAIA_API Component final {
 			static constexpr uint32_t IdMask = IdentifierIdBad;
-			static constexpr uint32_t MaxAlignment_Bits = 10;
-			static constexpr uint32_t MaxAlignment = (1U << MaxAlignment_Bits) - 1;
 			static constexpr uint32_t MaxComponentSize_Bits = 13;
 			static constexpr uint32_t MaxComponentSizeInBytes = (1 << MaxComponentSize_Bits) - 1;
+			static constexpr uint32_t MaxAlignment_Bits = MaxComponentSize_Bits;
+			static constexpr uint32_t MaxAlignment = MaxComponentSizeInBytes;
 
 			struct InternalData {
 				//! Index in the entity array
 				// detail::ComponentDescId id;
 				uint32_t id;
-				//! Component is SoA
-				IdentifierData soa : meta::StructToTupleMaxTypes_Bits;
 				//! Component size
 				IdentifierData size : MaxComponentSize_Bits;
 				//! Component alignment
 				IdentifierData alig : MaxAlignment_Bits;
 				//! Component storage kind. 0 = table, 1 = sparse.
 				IdentifierData storage : 1;
+				//! Component is SoA
+				IdentifierData soa : meta::StructToTupleMaxTypes_Bits;
 				//! Unused part
-				IdentifierData unused : 4;
+				IdentifierData unused : 1;
 			};
 			static_assert(sizeof(InternalData) == sizeof(Identifier));
 

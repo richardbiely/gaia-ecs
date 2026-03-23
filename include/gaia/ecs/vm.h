@@ -3640,7 +3640,7 @@ namespace gaia {
 
 						const auto id = term.id;
 						return (id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
-									 (!id.pair() && world_is_sparse_dont_fragment_component(world, id));
+									 (!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
 					};
 
 					QueryTermSpan terms = data.terms_view_mut();
