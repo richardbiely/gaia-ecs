@@ -3918,3 +3918,240 @@ TEST_CASE("Query - semantic Is cached runs refresh after descendant changes") {
 	CHECK(hitsRemoved == 1);
 	CHECK(sumRemoved == doctest::Approx(2.0f));
 }
+
+TEST_CASE("Query - Iter direct chunk-backed AoS accessors") {
+	TestWorld twld;
+
+	auto e0 = wld.add();
+	auto e1 = wld.add();
+	wld.add<Position>(e0, {1, 2, 3});
+	wld.add<Acceleration>(e0, {10, 20, 30});
+	wld.add<Position>(e1, {4, 5, 6});
+	wld.add<Acceleration>(e1, {40, 50, 60});
+
+	float readX = 0.0f;
+	float readAx = 0.0f;
+	auto qRead = wld.query().all<Position>().all<Acceleration>();
+	qRead.each([&](ecs::Iter& it) {
+		auto posView = it.view_direct<Position>();
+		auto accView = it.view_direct<Acceleration>(1);
+		GAIA_EACH(it) {
+			readX += posView[i].x;
+			readAx += accView[i].x;
+		}
+	});
+
+	auto qWrite = wld.query().all<Position&>().all<Acceleration>();
+	qWrite.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut_direct<Position>();
+		auto posViewByTerm = it.view_mut_direct<Position>(0);
+		auto accView = it.view_direct<Acceleration>(1);
+		GAIA_EACH(it) {
+			posView[i].x += accView[i].x;
+			posViewByTerm[i].y += accView[i].y;
+		}
+	});
+
+	auto qScratch = wld.query().all<Position&>();
+	qScratch.each([&](ecs::Iter& it) {
+		auto posView = it.sview_mut_direct<Position>();
+		auto posViewByTerm = it.sview_mut_direct<Position>(0);
+		GAIA_EACH(it) {
+			posView[i].z += 1.0f;
+			posViewByTerm[i].z += 1.0f;
+		}
+	});
+
+	CHECK(readX == doctest::Approx(5.0f));
+	CHECK(readAx == doctest::Approx(50.0f));
+
+	const auto p0 = wld.get<Position>(e0);
+	CHECK(p0.x == doctest::Approx(11.0f));
+	CHECK(p0.y == doctest::Approx(22.0f));
+	CHECK(p0.z == doctest::Approx(5.0f));
+
+	const auto p1 = wld.get<Position>(e1);
+	CHECK(p1.x == doctest::Approx(44.0f));
+	CHECK(p1.y == doctest::Approx(55.0f));
+	CHECK(p1.z == doctest::Approx(8.0f));
+}
+
+TEST_CASE("Query - Iter direct chunk-backed SoA accessors") {
+	TestWorld twld;
+
+	auto e0 = wld.add();
+	auto e1 = wld.add();
+	wld.add<PositionSoA>(e0, {1, 2, 3});
+	wld.add<RotationSoA>(e0, {10, 20, 30, 40});
+	wld.add<PositionSoA>(e1, {4, 5, 6});
+	wld.add<RotationSoA>(e1, {50, 60, 70, 80});
+
+	float readX = 0.0f;
+	float readW = 0.0f;
+	auto qRead = wld.query().all<PositionSoA>().all<RotationSoA>();
+	qRead.each([&](ecs::Iter& it) {
+		auto posView = it.view_direct<PositionSoA>();
+		auto rotView = it.view_direct<RotationSoA>(1);
+		auto xs = posView.template get<0>();
+		auto ws = rotView.template get<3>();
+		GAIA_EACH(it) {
+			readX += xs[i];
+			readW += ws[i];
+		}
+	});
+
+	auto qWriteRows = wld.query().all<PositionSoA&>().all<RotationSoA>();
+	qWriteRows.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut_direct<PositionSoA>();
+		auto rotView = it.view_direct<RotationSoA>(1);
+		auto ws = rotView.template get<3>();
+		GAIA_EACH(it) {
+			auto row = (PositionSoA)posView[i];
+			row.x += ws[i];
+			row.z += 1.0f;
+			posView[i] = row;
+		}
+	});
+
+	auto qWriteFields = wld.query().all<PositionSoA&>();
+	qWriteFields.each([&](ecs::Iter& it) {
+		auto posView = it.view_mut_direct<PositionSoA>(0);
+		auto ys = posView.template set<1>();
+		GAIA_EACH(it) {
+			ys[i] += 10.0f;
+		}
+	});
+
+	auto qScratch = wld.query().all<PositionSoA&>();
+	qScratch.each([&](ecs::Iter& it) {
+		auto posView = it.sview_mut_direct<PositionSoA>(0);
+		auto zs = posView.template set<2>();
+		GAIA_EACH(it) {
+			zs[i] += 2.0f;
+		}
+	});
+
+	CHECK(readX == doctest::Approx(5.0f));
+	CHECK(readW == doctest::Approx(120.0f));
+
+	const auto p0 = wld.get<PositionSoA>(e0);
+	CHECK(p0.x == doctest::Approx(41.0f));
+	CHECK(p0.y == doctest::Approx(12.0f));
+	CHECK(p0.z == doctest::Approx(6.0f));
+
+	const auto p1 = wld.get<PositionSoA>(e1);
+	CHECK(p1.x == doctest::Approx(84.0f));
+	CHECK(p1.y == doctest::Approx(15.0f));
+	CHECK(p1.z == doctest::Approx(9.0f));
+}
+
+TEST_CASE("Query - Iter auto view accessors") {
+	SUBCASE("AoS") {
+		TestWorld twld;
+
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		wld.add<Position>(e0, {1, 2, 3});
+		wld.add<Acceleration>(e0, {10, 20, 30});
+		wld.add<Position>(e1, {4, 5, 6});
+		wld.add<Acceleration>(e1, {40, 50, 60});
+
+		float readX = 0.0f;
+		float readAx = 0.0f;
+		auto qRead = wld.query().all<Position>().all<Acceleration>();
+		qRead.each([&](ecs::Iter& it) {
+			auto posView = it.view_auto<Position>();
+			auto accView = it.view_auto_direct<Acceleration>();
+			GAIA_EACH(it) {
+				readX += posView[i].x;
+				readAx += accView[i].x;
+			}
+		});
+
+		auto qWrite = wld.query().all<Position&>().all<Acceleration>();
+		qWrite.each([&](ecs::Iter& it) {
+			auto posView = it.view_auto<Position&>();
+			auto posViewDirect = it.view_auto_direct<Position&>();
+			auto posScratch = it.sview_auto<Position&>();
+			auto posScratchDirect = it.sview_auto_direct<Position&>();
+			auto accView = it.view_auto<Acceleration>();
+			GAIA_EACH(it) {
+				posView[i].x += accView[i].x;
+				posViewDirect[i].y += accView[i].y;
+				posScratch[i].z += 1.0f;
+				posScratchDirect[i].z += 1.0f;
+			}
+		});
+
+		CHECK(readX == doctest::Approx(5.0f));
+		CHECK(readAx == doctest::Approx(50.0f));
+
+		const auto p0 = wld.get<Position>(e0);
+		CHECK(p0.x == doctest::Approx(11.0f));
+		CHECK(p0.y == doctest::Approx(22.0f));
+		CHECK(p0.z == doctest::Approx(5.0f));
+
+		const auto p1 = wld.get<Position>(e1);
+		CHECK(p1.x == doctest::Approx(44.0f));
+		CHECK(p1.y == doctest::Approx(55.0f));
+		CHECK(p1.z == doctest::Approx(8.0f));
+	}
+
+	SUBCASE("SoA") {
+		TestWorld twld;
+
+		auto e0 = wld.add();
+		auto e1 = wld.add();
+		wld.add<PositionSoA>(e0, {1, 2, 3});
+		wld.add<RotationSoA>(e0, {10, 20, 30, 40});
+		wld.add<PositionSoA>(e1, {4, 5, 6});
+		wld.add<RotationSoA>(e1, {50, 60, 70, 80});
+
+		float readX = 0.0f;
+		float readW = 0.0f;
+		auto qRead = wld.query().all<PositionSoA>().all<RotationSoA>();
+		qRead.each([&](ecs::Iter& it) {
+			auto posView = it.view_auto<PositionSoA>();
+			auto rotView = it.view_auto_direct<RotationSoA>();
+			auto xs = posView.template get<0>();
+			auto ws = rotView.template get<3>();
+			GAIA_EACH(it) {
+				readX += xs[i];
+				readW += ws[i];
+			}
+		});
+
+		auto qWrite = wld.query().all<PositionSoA&>().all<RotationSoA>();
+		qWrite.each([&](ecs::Iter& it) {
+			auto posView = it.view_auto<PositionSoA&>();
+			auto posViewDirect = it.view_auto_direct<PositionSoA&>();
+			auto posScratch = it.sview_auto<PositionSoA&>();
+			auto posScratchDirect = it.sview_auto_direct<PositionSoA&>();
+			auto rotView = it.view_auto<RotationSoA>();
+			auto ws = rotView.template get<3>();
+			auto xs = posView.template set<0>();
+			auto ys = posViewDirect.template set<1>();
+			auto zs = posScratch.template set<2>();
+			auto xsDirect = posScratchDirect.template set<0>();
+			GAIA_EACH(it) {
+				xs[i] += ws[i];
+				ys[i] += 10.0f;
+				zs[i] += 1.0f;
+				xsDirect[i] += 2.0f;
+			}
+		});
+
+		CHECK(readX == doctest::Approx(5.0f));
+		CHECK(readW == doctest::Approx(120.0f));
+
+		const auto p0 = wld.get<PositionSoA>(e0);
+		CHECK(p0.x == doctest::Approx(43.0f));
+		CHECK(p0.y == doctest::Approx(12.0f));
+		CHECK(p0.z == doctest::Approx(4.0f));
+
+		const auto p1 = wld.get<PositionSoA>(e1);
+		CHECK(p1.x == doctest::Approx(86.0f));
+		CHECK(p1.y == doctest::Approx(15.0f));
+		CHECK(p1.z == doctest::Approx(7.0f));
+	}
+}

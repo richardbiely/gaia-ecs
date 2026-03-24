@@ -1931,7 +1931,11 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					auto& queryInfo = fetch();
-					run_query_on_chunk(queryInfo, it, func, types);
+					auto& world = *const_cast<World*>(queryInfo.world());
+					if (can_use_direct_chunk_term_eval<T...>(world, queryInfo))
+						run_query_on_chunk_direct(it, func, types);
+					else
+						run_query_on_chunk(queryInfo, it, func, types);
 				}
 
 				template <typename TIter, typename Func, typename... T>
@@ -1987,9 +1991,11 @@ namespace gaia {
 					const auto cnt = it.size();
 
 					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
+						auto dataPointerTuple = std::make_tuple(it.template view_auto_direct<T>()...);
 						GAIA_FOR(cnt) {
-							func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+							func(
+									std::get<decltype(it.template view_auto_direct<T>())>(
+											dataPointerTuple)[it.template acc_index<T>(i)]...);
 						}
 					} else {
 						GAIA_FOR(cnt) {
@@ -2033,7 +2039,42 @@ namespace gaia {
 					}
 				}
 
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_direct_entity_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					if constexpr (sizeof...(T) > 0) {
+						auto dataPointerTuple = std::make_tuple(it.template view_auto_direct<T>()...);
+						func(
+								std::get<decltype(it.template view_auto_direct<T>())>(
+										dataPointerTuple)[it.template acc_index<T>(0)]...);
+					} else {
+						func();
+					}
+				}
+
 				//------------------------------------------------
+
+				template <QueryExecType ExecType, typename Func, typename... T>
+				void each_inter(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						GAIA_PROF_SCOPE(query_func);
+						each_direct_inter<Iter>(queryInfo, func, core::func_type_list<T...>{});
+						return;
+					}
+
+					auto& world = *const_cast<World*>(queryInfo.world());
+					if (can_use_direct_chunk_term_eval<T...>(world, queryInfo)) {
+						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
+							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+						});
+					} else {
+						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+							GAIA_PROF_SCOPE(query_func);
+							run_query_on_chunk(queryInfo, it, func, core::func_type_list<T...>{});
+						});
+					}
+				}
 
 				template <QueryExecType ExecType, typename Func>
 				void each_inter(QueryInfo& queryInfo, Func func) {
@@ -2057,16 +2098,7 @@ namespace gaia {
 					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 #endif
 
-					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-						GAIA_PROF_SCOPE(query_func);
-						each_direct_inter<Iter>(queryInfo, func, InputArgs{});
-						return;
-					}
-
-					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
-						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(queryInfo, it, func, InputArgs{});
-					});
+					each_inter<ExecType>(queryInfo, func, InputArgs{});
 				}
 
 				template <
@@ -3295,6 +3327,17 @@ namespace gaia {
 					}
 				}
 
+				template <typename... T>
+				GAIA_NODISCARD static bool can_use_direct_chunk_term_eval(World& world, const QueryInfo& queryInfo) {
+					if (queryInfo.has_entity_filter_terms())
+						return false;
+
+					if constexpr (sizeof...(T) == 0)
+						return true;
+					else
+						return (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
+				}
+
 				template <typename T>
 				GAIA_NODISCARD static constexpr bool can_use_raw_chunk_row_arg() {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -3328,7 +3371,10 @@ namespace gaia {
 						else
 							init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 
-						run_query_on_direct_entity(it, func, core::func_type_list<T...>{});
+						if (canUseBasicInit)
+							run_query_on_direct_entity_direct(it, func, core::func_type_list<T...>{});
+						else
+							run_query_on_direct_entity(it, func, core::func_type_list<T...>{});
 					}
 				}
 
