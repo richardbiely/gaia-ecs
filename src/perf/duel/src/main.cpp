@@ -101,7 +101,7 @@ void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 			w.add<VelocitySoA>(e, {0, 0, 1});
 		else
 			w.add<Velocity>(e, {0, 0, 1});
-		w.copy_n(e, N / 4 - 1);
+		w.copy_n(e, (N / 4) - 1);
 	}
 	{
 		auto e = w.add();
@@ -116,7 +116,7 @@ void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 		else
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
-		w.copy_n(e, N / 4 - 1);
+		w.copy_n(e, (N / 4) - 1);
 	}
 	{
 		auto e = w.add();
@@ -132,7 +132,7 @@ void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 			w.add<Velocity>(e, {0, 0, 1});
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
-		w.copy_n(e, N / 4 - 1);
+		w.copy_n(e, (N / 4) - 1);
 	}
 	{
 		auto e = w.add();
@@ -149,7 +149,7 @@ void CreateECSEntities_Dynamic(ecs::World& w, uint32_t N) {
 		w.add<Direction>(e, {0, 0, 1});
 		w.add<Health>(e, {100, 100});
 		w.add<IsEnemy>(e, {false});
-		w.copy_n(e, N / 4 - 1);
+		w.copy_n(e, (N / 4) - 1);
 	}
 }
 
@@ -1538,6 +1538,7 @@ int main(int argc, char* argv[]) {
 			// GaiaECS performance.
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
+			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().user_data(NMany).label("Default Many");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().label("Iter");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().user_data(NMany).label("Iter Many");
 			PICOBENCH_REG(BM_ECS_Iter_Dir).PICO_SETTINGS().label("Iter_Dir");
