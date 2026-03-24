@@ -868,12 +868,14 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view.
+				//! Returns a read-only entity or component view that can resolve non-direct storage.
+				//! This is the fallback accessor for terms that may come from outside the chunk column,
+				//! such as inherited, sparse, out-of-line, or other entity-backed storage.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
-				GAIA_NODISCARD auto view() const {
+				GAIA_NODISCARD auto view_any() const {
 					using U = typename actual_type_t<T>::Type;
 					if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 						return m_pChunk->view<T>(from(), to());
@@ -894,14 +896,15 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view for a remapped term index.
-				//! Supports both chunk-backed and entity-backed terms resolved during query matching.
+				//! Returns a read-only entity or component view for a remapped term index that can resolve non-direct storage.
+				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage
+				//! instead of a dense chunk column.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-only access
 				template <typename T>
-				GAIA_NODISCARD auto view(uint32_t termIdx) {
+				GAIA_NODISCARD auto view_any(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -941,14 +944,16 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view for direct chunk-backed access.
-				//! Skips runtime storage dispatch and therefore must only be used when the term is known
-				//! to resolve to chunk-backed storage for the current iterator range.
+				//! Returns a read-only entity or component view for the owned chunk-backed fast path.
+				//! This assumes the resolved term is stored directly in the current chunk range and therefore
+				//! skips all non-direct dispatch.
+				//! Use view_any() when the term may resolve to inherited, sparse, out-of-line, or otherwise
+				//! entity-backed storage.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct read-only entity or component view
 				template <typename T>
-				GAIA_NODISCARD auto view_direct() const {
+				GAIA_NODISCARD auto view() const {
 					using U = typename actual_type_t<T>::Type;
 					if constexpr (std::is_same_v<U, Entity>)
 						return m_pChunk->view<T>(from(), to());
@@ -961,14 +966,16 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view for a remapped direct term.
-				//! The caller is responsible for passing a term index that maps to a chunk-backed column.
+				//! Returns a read-only entity or component view for a remapped owned chunk-backed term.
+				//! The caller is responsible for passing a term index that maps to a dense chunk column.
+				//! Use view_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or other
+				//! non-direct storage.
 				//! \warning Passing a non-mapped or entity-backed term index is invalid.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Direct read-only entity or component view
 				template <typename T>
-				GAIA_NODISCARD auto view_direct(uint32_t termIdx) const {
+				GAIA_NODISCARD auto view(uint32_t termIdx) const {
 					using U = typename actual_type_t<T>::Type;
 					const auto compIdx = m_pCompIdxMapping[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
@@ -981,12 +988,14 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable entity or component view.
+				//! Returns a mutable entity or component view that can resolve non-direct storage.
+				//! This is the fallback accessor for inherited, sparse, out-of-line, or other entity-backed
+				//! terms that are not guaranteed to be backed by the current chunk column.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut() {
+				GAIA_NODISCARD auto view_mut_any() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -1007,14 +1016,60 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable entity or component view for a remapped term index.
+				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
+				//! Updates world versioning through the underlying chunk view and skips all non-direct dispatch.
+				//! Use view_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! entity-backed storage.
+				//! \tparam T Component or Entity
+				//! \return Direct entity or component view with read-write access
+				template <typename T>
+				GAIA_NODISCARD auto view_mut() {
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+					if constexpr (mem::is_soa_layout_v<U>) {
+						auto view = m_pChunk->view_mut<T>(from(), to());
+						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
+					} else {
+						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<T>(from(), to()).data());
+						return EntityTermViewSetPointer<U>{pData, size()};
+					}
+				}
+
+				//! Returns a mutable entity or component view for a remapped owned chunk-backed term.
+				//! Updates world versioning for the selected chunk column before handing out mutable access.
+				//! Use view_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! other non-direct storage.
+				//! \warning Passing a non-mapped or entity-backed term index is invalid.
+				//! \tparam T Component or Entity
+				//! \param termIdx Query term index
+				//! \return Direct entity or component view with read-write access
+				template <typename T>
+				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx != 0xFF);
+
+					if constexpr (mem::is_soa_layout_v<U>) {
+						m_pChunk->update_world_version(compIdx);
+						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
+					} else {
+						m_pChunk->update_world_version(compIdx);
+						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
+						return EntityTermViewSetPointer<U>{pData, size()};
+					}
+				}
+
+				//! Returns a mutable entity or component view for a remapped term index that can resolve non-direct storage.
+				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
+				//! storage instead of a dense chunk column.
 				//! Updates world versioning for chunk-backed terms before handing out mutable access.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
+				GAIA_NODISCARD auto view_mut_any(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1023,9 +1078,11 @@ namespace gaia {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
 
-							const auto* pEntities = m_pChunk->entity_view().data() + from();
+							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							(void)world_query_entity_arg_by_id<U&>(*world(), pEntities[0], id);
+							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
+							const auto* pEntities = ec.pChunk->entity_view().data() + ec.row;
 							return SoATermViewSet<U>{nullptr, 0, pEntities, world(), id, 0, 1};
 						}
 
@@ -1057,54 +1114,15 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable entity or component view for direct chunk-backed access.
-				//! Updates world versioning through the underlying chunk view and avoids runtime storage dispatch.
-				//! \warning This must only be used when the term is known to resolve to chunk-backed storage.
-				//! \tparam T Component or Entity
-				//! \return Direct entity or component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto view_mut_direct() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut_direct is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>) {
-						auto view = m_pChunk->view_mut<T>(from(), to());
-						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
-					} else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<T>(from(), to()).data());
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
-				}
-
-				//! Returns a mutable entity or component view for a remapped direct term.
-				//! Updates world versioning for the selected chunk column and skips runtime storage dispatch.
-				//! \warning Passing a non-mapped or entity-backed term index is invalid.
-				//! \tparam T Component or Entity
-				//! \param termIdx Query term index
-				//! \return Direct entity or component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto view_mut_direct(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut_direct is forbidden");
-					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx != 0xFF);
-
-					if constexpr (mem::is_soa_layout_v<U>) {
-						m_pChunk->update_world_version(compIdx);
-						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
-					} else {
-						m_pChunk->update_world_version(compIdx);
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
-				}
-
-				//! Returns a mutable component view.
+				//! Returns a mutable component view that can resolve non-direct storage.
+				//! This is the fallback accessor for inherited, sparse, out-of-line, or other entity-backed
+				//! terms that are not guaranteed to be backed by the current chunk column.
 				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut() {
+				GAIA_NODISCARD auto sview_mut_any() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -1125,14 +1143,58 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable component view for a remapped term index.
+				//! Returns a mutable component view for the owned chunk-backed fast path.
+				//! Doesn't update the world version when the access is acquired and skips all non-direct dispatch.
+				//! Use sview_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! entity-backed storage.
+				//! \tparam T Component
+				//! \return Direct component view with read-write access
+				template <typename T>
+				GAIA_NODISCARD auto sview_mut() {
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
+					if constexpr (mem::is_soa_layout_v<U>) {
+						auto view = m_pChunk->sview_mut<T>(from(), to());
+						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
+					} else {
+						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
+						return EntityTermViewSetPointer<U>{pData, size()};
+					}
+				}
+
+				//! Returns a mutable component view for a remapped owned chunk-backed term.
+				//! Doesn't update the world version when the access is acquired.
+				//! Use sview_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! other non-direct storage.
+				//! \warning Passing a non-mapped or entity-backed term index is invalid.
+				//! \tparam T Component
+				//! \param termIdx Query term index
+				//! \return Direct component view with read-write access
+				template <typename T>
+				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
+					using U = typename actual_type_t<T>::Type;
+					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
+					const auto compIdx = m_pCompIdxMapping[termIdx];
+					GAIA_ASSERT(compIdx != 0xFF);
+
+					if constexpr (mem::is_soa_layout_v<U>)
+						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
+					else {
+						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
+						return EntityTermViewSetPointer<U>{pData, size()};
+					}
+				}
+
+				//! Returns a mutable component view for a remapped term index that can resolve non-direct storage.
+				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
+				//! storage instead of a dense chunk column.
 				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component
 				//! \param termIdx Query term index
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
+				GAIA_NODISCARD auto sview_mut_any(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1141,9 +1203,11 @@ namespace gaia {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
 
-							const auto* pEntities = m_pChunk->entity_view().data() + from();
+							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							(void)world_query_entity_arg_by_id<U&>(*world(), pEntities[0], id);
+							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
+							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
+							const auto* pEntities = ec.pChunk->entity_view().data() + ec.row;
 							return SoATermViewSet<U>{nullptr, 0, pEntities, world(), id, 0, 1};
 						}
 
@@ -1172,45 +1236,6 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable component view for direct chunk-backed access.
-				//! Doesn't update the world version when the access is acquired and skips runtime storage dispatch.
-				//! \warning This must only be used when the term is known to resolve to chunk-backed storage.
-				//! \tparam T Component
-				//! \return Direct component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto sview_mut_direct() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut_direct is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>) {
-						auto view = m_pChunk->sview_mut<T>(from(), to());
-						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
-					} else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
-				}
-
-				//! Returns a mutable component view for a remapped direct term.
-				//! Doesn't update the world version when the access is acquired and skips runtime storage dispatch.
-				//! \warning Passing a non-mapped or entity-backed term index is invalid.
-				//! \tparam T Component
-				//! \param termIdx Query term index
-				//! \return Direct component view with read-write access
-				template <typename T>
-				GAIA_NODISCARD auto sview_mut_direct(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut_direct is forbidden");
-					const auto compIdx = m_pCompIdxMapping[termIdx];
-					GAIA_ASSERT(compIdx != 0xFF);
-
-					if constexpr (mem::is_soa_layout_v<U>)
-						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
-					else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
-				}
-
 				//! Marks the component @a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
@@ -1219,11 +1244,13 @@ namespace gaia {
 					m_pChunk->modify<T, TriggerHooks>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view based on the requested type.
-				//! Value and const types are considered immutable. Anything else is mutable.
+				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
+				//! Value and const types are treated as immutable. Mutable references select the mutable path.
+				//! Use view_auto_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! non-direct storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
-				//! \return Entity or component view
+				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
@@ -1233,27 +1260,45 @@ namespace gaia {
 						return view<T>();
 				}
 
-				//! Returns either view_direct() or view_mut_direct() based on the requested type.
-				//! Value and const types are treated as immutable. Mutable references select the mutable path.
+				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
+				//! Value and const types are considered immutable. Anything else is mutable.
+				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
-				//! \warning This must only be used when the term is known to resolve to chunk-backed storage.
 				//! \tparam T Component or Entity
-				//! \return Direct entity or component view
+				//! \return Entity or component view
 				template <typename T>
-				GAIA_NODISCARD auto view_auto_direct() {
+				GAIA_NODISCARD auto view_auto_any() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
 					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut_direct<T>();
+						return view_mut_any<T>();
 					else
-						return view_direct<T>();
+						return view_any<T>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view based on the requested type.
+				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
 				//! Value and const types are considered immutable. Anything else is mutable.
+				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage.
 				//! Doesn't update the world version when read-write access is acquired.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
+				template <typename T>
+				GAIA_NODISCARD auto sview_auto_any() {
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_mut_any<T>();
+					else
+						return view_any<T>();
+				}
+
+				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
+				//! Value and const types are treated as immutable. Mutable references select the mutable path.
+				//! Doesn't update the world version when read-write access is acquired.
+				//! Use sview_auto_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! non-direct storage.
+				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \tparam T Component or Entity
+				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
@@ -1261,22 +1306,6 @@ namespace gaia {
 						return sview_mut<T>();
 					else
 						return view<T>();
-				}
-
-				//! Returns either sview_direct() or sview_mut_direct() based on the requested type.
-				//! Value and const types are treated as immutable. Mutable references select the mutable path.
-				//! Doesn't update the world version when read-write access is acquired.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
-				//! \warning This must only be used when the term is known to resolve to chunk-backed storage.
-				//! \tparam T Component or Entity
-				//! \return Direct entity or component view
-				template <typename T>
-				GAIA_NODISCARD auto sview_auto_direct() {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut_direct<T>();
-					else
-						return view_direct<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
@@ -1347,6 +1376,14 @@ namespace gaia {
 						return idx + from();
 					else
 						return idx;
+				}
+
+				//! Returns the local row index for direct iterator views.
+				//! Direct views already encode the iterator row base, so no additional adjustment is needed.
+				template <typename T>
+				uint32_t acc_index_direct(uint32_t idx) const noexcept {
+					(void)sizeof(typename actual_type_t<T>::Type);
+					return idx;
 				}
 
 			protected:

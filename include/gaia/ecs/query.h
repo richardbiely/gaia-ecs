@@ -1950,7 +1950,7 @@ namespace gaia {
 						// Translates to:
 						//  	auto p = it.view_mut_inter<Position, true>();
 						//		auto v = it.view_inter<Velocity>();
-						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
+						auto dataPointerTuple = std::make_tuple(it.template view_auto_any<T>()...);
 
 						// Iterate over each entity in the chunk.
 						// Translates to:
@@ -1958,14 +1958,18 @@ namespace gaia {
 
 						if (!hasEntityFilters) {
 							GAIA_FOR(cnt) {
-								func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+								func(
+										std::get<decltype(it.template view_auto_any<T>())>(
+												dataPointerTuple)[it.template acc_index<T>(i)]...);
 							}
 						} else {
 							const auto entities = it.template view<Entity>();
 							GAIA_FOR(cnt) {
 								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
 									continue;
-								func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(i)]...);
+								func(
+										std::get<decltype(it.template view_auto_any<T>())>(
+												dataPointerTuple)[it.template acc_index<T>(i)]...);
 							}
 						}
 					} else {
@@ -1991,11 +1995,11 @@ namespace gaia {
 					const auto cnt = it.size();
 
 					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto_direct<T>()...);
+						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
 						GAIA_FOR(cnt) {
 							func(
-									std::get<decltype(it.template view_auto_direct<T>())>(
-											dataPointerTuple)[it.template acc_index<T>(i)]...);
+									std::get<decltype(it.template view_auto<T>())>(
+											dataPointerTuple)[it.template acc_index_direct<T>(i)]...);
 						}
 					} else {
 						GAIA_FOR(cnt) {
@@ -2032,8 +2036,8 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
-						func(std::get<decltype(it.template view_auto<T>())>(dataPointerTuple)[it.template acc_index<T>(0)]...);
+						auto dataPointerTuple = std::make_tuple(it.template view_auto_any<T>()...);
+						func(std::get<decltype(it.template view_auto_any<T>())>(dataPointerTuple)[it.template acc_index<T>(0)]...);
 					} else {
 						func();
 					}
@@ -2043,10 +2047,10 @@ namespace gaia {
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto_direct<T>()...);
+						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
 						func(
-								std::get<decltype(it.template view_auto_direct<T>())>(
-										dataPointerTuple)[it.template acc_index<T>(0)]...);
+								std::get<decltype(it.template view_auto<T>())>(
+										dataPointerTuple)[it.template acc_index_direct<T>(0)]...);
 					} else {
 						func();
 					}

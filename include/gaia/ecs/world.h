@@ -7932,19 +7932,14 @@ namespace gaia {
 					return false;
 
 				// The entity in the chunk must match the index in the entity container
-				auto* pChunk = ec.pChunk;
+				const auto* pChunk = ec.pChunk;
 				if (pChunk == nullptr || ec.row >= pChunk->size())
 					return false;
 
-#if GAIA_ASSERT_ENABLED
-				const auto entityPresent = ec.pChunk->entity_view()[ec.row];
+				const auto entityPresent = pChunk->entity_view()[ec.row];
 				// Public validity checks can legitimately observe a recycled slot with a different generation.
 				// Treat that as stale instead of aborting.
-				if (entityExpected != entityPresent)
-					return false;
-#endif
-
-				return true;
+				return entityExpected == entityPresent;
 			}
 
 			//! Checks if the pair \param entity is valid.

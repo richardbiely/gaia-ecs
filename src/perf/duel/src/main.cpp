@@ -229,6 +229,96 @@ void BM_ECS_Iter(picobench::state& state) {
 
 	w.system().name("update_pos").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
+		auto p = it.view_mut_any<Position>(0);
+		auto v = it.view_any<Velocity>(1);
+#else
+		auto p = it.view_mut_any<Position>();
+		auto v = it.view_any<Velocity>();
+#endif
+		const float cdt = dt;
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			p[i].x += v[i].x * cdt;
+			p[i].y += v[i].y * cdt;
+			p[i].z += v[i].z * cdt;
+		}
+	});
+
+	w.system().name("handle_collision").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto p = it.view_mut_any<Position>(0);
+		auto v = it.view_mut_any<Velocity>(1);
+#else
+		auto p = it.view_mut_any<Position>();
+		auto v = it.view_mut_any<Velocity>();
+#endif
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (p[i].y < 0.0f) {
+				p[i].y = 0.0f;
+				v[i].y = 0.0f;
+			}
+		}
+	});
+
+	w.system().name("apply_gravity").all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto v = it.view_mut_any<Velocity>(0);
+#else
+		auto v = it.view_mut_any<Velocity>();
+#endif
+		const float cdt = dt;
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			v[i].y += 9.81f * cdt;
+		}
+	});
+
+	w.system().name("calc_alive").all<Health>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+		auto h = it.view_any<Health>(0);
+#else
+		auto h = it.view_any<Health>();
+#endif
+		uint32_t aliveUnits = 0;
+
+		const auto cnt = it.size();
+		GAIA_FOR(cnt) {
+			if (h[i].value > 0)
+				++aliveUnits;
+		}
+		gaia::dont_optimize(aliveUnits);
+	});
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+
+		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
+		for (uint32_t i = 0; i < 10; ++i)
+			w.systems_run();
+	}
+
+	srand(0);
+	for (auto _: state) {
+		(void)_;
+		dt = CalculateDelta(state);
+		w.systems_run();
+	}
+}
+
+void BM_ECS_Iter_Dir(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WithSystems);
+
+	ecs::World w;
+
+	w.system().name("update_pos").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
 		auto p = it.view_mut<Position>(0);
 		auto v = it.view<Velocity>(1);
 #else
@@ -312,66 +402,78 @@ void BM_ECS_Iter(picobench::state& state) {
 	}
 }
 
-void BM_ECS_Iter_Dir(picobench::state& state) {
-	GAIA_PROF_SCOPE(BM_ECS_WithSystems);
+void BM_ECS_Iter_SoA(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_Iter_SoA);
 
 	ecs::World w;
 
-	w.system().name("update_pos").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("update_pos").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_direct<Position>(0);
-		auto v = it.view_direct<Velocity>(1);
+		auto p = it.view_mut_any<PositionSoA>(0);
+		auto v = it.view_any<VelocitySoA>(1);
 #else
-		auto p = it.view_mut_direct<Position>();
-		auto v = it.view_direct<Velocity>();
+		auto p = it.view_mut_any<PositionSoA>();
+		auto v = it.view_any<VelocitySoA>();
 #endif
 		const float cdt = dt;
 
+		auto ppx = p.set<0>();
+		auto ppy = p.set<1>();
+		auto ppz = p.set<2>();
+
+		auto vvx = v.get<0>();
+		auto vvy = v.get<1>();
+		auto vvz = v.get<2>();
+
 		const auto cnt = it.size();
 		GAIA_FOR(cnt) {
-			p[i].x += v[i].x * cdt;
-			p[i].y += v[i].y * cdt;
-			p[i].z += v[i].z * cdt;
+			ppx[i] += vvx[i] * cdt;
+			ppy[i] += vvy[i] * cdt;
+			ppz[i] += vvz[i] * cdt;
 		}
 	});
 
-	w.system().name("handle_collision").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("handle_collision").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_direct<Position>(0);
-		auto v = it.view_mut_direct<Velocity>(1);
+		auto p = it.view_mut_any<PositionSoA>(0);
+		auto v = it.view_mut_any<VelocitySoA>(1);
 #else
-		auto p = it.view_mut_direct<Position>();
-		auto v = it.view_mut_direct<Velocity>();
+		auto p = it.view_mut_any<PositionSoA>();
+		auto v = it.view_mut_any<VelocitySoA>();
 #endif
+		auto ppy = p.set<1>();
+		auto vvy = v.set<1>();
 
 		const auto cnt = it.size();
 		GAIA_FOR(cnt) {
-			if (p[i].y < 0.0f) {
-				p[i].y = 0.0f;
-				v[i].y = 0.0f;
+			if (ppy[i] < 0.0f) {
+				ppy[i] = 0.0f;
+				vvy[i] = 0.0f;
 			}
 		}
 	});
 
-	w.system().name("apply_gravity").all<Velocity>().on_each([](ecs::Iter& it) {
+	w.system().name("apply_gravity").all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto v = it.view_mut_direct<Velocity>(0);
+		auto v = it.view_mut_any<VelocitySoA>(0);
 #else
-		auto v = it.view_mut_direct<Velocity>();
+		auto v = it.view_mut_any<VelocitySoA>();
 #endif
 		const float cdt = dt;
 
+		auto vvy = v.set<1>();
+
 		const auto cnt = it.size();
 		GAIA_FOR(cnt) {
-			v[i].y += 9.81f * cdt;
+			vvy[i] += 9.81f * cdt;
 		}
 	});
 
 	w.system().name("calc_alive").all<Health>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto h = it.view_direct<Health>(0);
+		auto h = it.view_any<Health>(0);
 #else
-		auto h = it.view_direct<Health>();
+		auto h = it.view_any<Health>();
 #endif
 		uint32_t aliveUnits = 0;
 
@@ -385,9 +487,9 @@ void BM_ECS_Iter_Dir(picobench::state& state) {
 
 	{
 		GAIA_PROF_SCOPE(setup);
-		Register_ESC_Components<false>(w);
-		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		Register_ESC_Components<true>(w);
+		CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
@@ -402,7 +504,7 @@ void BM_ECS_Iter_Dir(picobench::state& state) {
 	}
 }
 
-void BM_ECS_Iter_SoA(picobench::state& state) {
+void BM_ECS_Iter_SoA_Dir(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_Iter_SoA);
 
 	ecs::World w;
@@ -474,108 +576,6 @@ void BM_ECS_Iter_SoA(picobench::state& state) {
 		auto h = it.view<Health>(0);
 #else
 		auto h = it.view<Health>();
-#endif
-		uint32_t aliveUnits = 0;
-
-		const auto cnt = it.size();
-		GAIA_FOR(cnt) {
-			if (h[i].value > 0)
-				++aliveUnits;
-		}
-		gaia::dont_optimize(aliveUnits);
-	});
-
-	{
-		GAIA_PROF_SCOPE(setup);
-		Register_ESC_Components<true>(w);
-		CreateECSEntities_Static<true>(w, (uint32_t)state.user_data() / 2);
-		CreateECSEntities_Dynamic<true>(w, (uint32_t)state.user_data() / 2);
-
-		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
-		for (uint32_t i = 0; i < 10; ++i)
-			w.systems_run();
-	}
-
-	srand(0);
-	for (auto _: state) {
-		(void)_;
-		dt = CalculateDelta(state);
-		w.systems_run();
-	}
-}
-
-void BM_ECS_Iter_SoA_Dir(picobench::state& state) {
-	GAIA_PROF_SCOPE(BM_ECS_Iter_SoA);
-
-	ecs::World w;
-
-	w.system().name("update_pos").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_direct<PositionSoA>(0);
-		auto v = it.view_direct<VelocitySoA>(1);
-#else
-		auto p = it.view_mut_direct<PositionSoA>();
-		auto v = it.view_direct<VelocitySoA>();
-#endif
-		const float cdt = dt;
-
-		auto ppx = p.set<0>();
-		auto ppy = p.set<1>();
-		auto ppz = p.set<2>();
-
-		auto vvx = v.get<0>();
-		auto vvy = v.get<1>();
-		auto vvz = v.get<2>();
-
-		const auto cnt = it.size();
-		GAIA_FOR(cnt) {
-			ppx[i] += vvx[i] * cdt;
-			ppy[i] += vvy[i] * cdt;
-			ppz[i] += vvz[i] * cdt;
-		}
-	});
-
-	w.system().name("handle_collision").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_direct<PositionSoA>(0);
-		auto v = it.view_mut_direct<VelocitySoA>(1);
-#else
-		auto p = it.view_mut_direct<PositionSoA>();
-		auto v = it.view_mut_direct<VelocitySoA>();
-#endif
-		auto ppy = p.set<1>();
-		auto vvy = v.set<1>();
-
-		const auto cnt = it.size();
-		GAIA_FOR(cnt) {
-			if (ppy[i] < 0.0f) {
-				ppy[i] = 0.0f;
-				vvy[i] = 0.0f;
-			}
-		}
-	});
-
-	w.system().name("apply_gravity").all<VelocitySoA>().on_each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-		auto v = it.view_mut_direct<VelocitySoA>(0);
-#else
-		auto v = it.view_mut_direct<VelocitySoA>();
-#endif
-		const float cdt = dt;
-
-		auto vvy = v.set<1>();
-
-		const auto cnt = it.size();
-		GAIA_FOR(cnt) {
-			vvy[i] += 9.81f * cdt;
-		}
-	});
-
-	w.system().name("calc_alive").all<Health>().on_each([](ecs::Iter& it) {
-#if ECS_ITER_COMPIDX_CACHING
-		auto h = it.view_direct<Health>(0);
-#else
-		auto h = it.view_direct<Health>();
 #endif
 		uint32_t aliveUnits = 0;
 

@@ -302,7 +302,7 @@ TEST_CASE("Observer - add sparse with value payload") {
 											 .on_each([&](ecs::Iter& it) {
 												 ++hits;
 												 auto entityView = it.view<ecs::Entity>();
-												 auto posView = it.view<PositionSparse>();
+												 auto posView = it.view_any<PositionSparse>();
 												 observedEntity = entityView[0];
 												 pos = posView[0];
 											 })
@@ -332,7 +332,7 @@ TEST_CASE("Observer - del sparse with value payload") {
 											 .on_each([&](ecs::Iter& it) {
 												 ++hits;
 												 auto entityView = it.view<ecs::Entity>();
-												 auto posView = it.view<PositionSparse>();
+												 auto posView = it.view_any<PositionSparse>();
 												 observedEntity = entityView[0];
 												 pos = posView[0];
 											 })
@@ -371,7 +371,7 @@ TEST_CASE("Observer - copy_ext sparse payload") {
 												 iterSize = it.size();
 												 auto entityView = it.view<ecs::Entity>();
 												 observedEntity = entityView[0];
-												 auto posView = it.view<PositionSparse>();
+												 auto posView = it.view_any<PositionSparse>();
 												 pos = posView[0];
 											 })
 											 .entity();
@@ -465,7 +465,7 @@ TEST_CASE("Observer - copy_ext_n sparse payload") {
 												 ++hits;
 												 seen += it.size();
 												 auto entityView = it.view<ecs::Entity>();
-												 auto posView = it.view<PositionSparse>();
+												 auto posView = it.view_any<PositionSparse>();
 												 GAIA_EACH(it) {
 													 observedEntities.push_back(entityView[i]);
 													 const auto pos = posView[i];
@@ -2587,7 +2587,7 @@ TEST_CASE("Observer - prefab sync sparse copied data matches existing instances"
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
-															auto posView = it.view<PositionSparse>();
+															auto posView = it.view_any<PositionSparse>();
 															observed = entityView[0];
 															pos = posView[0];
 														})
@@ -2628,7 +2628,7 @@ TEST_CASE("Observer - inherited prefab data matches on delete from prefab") {
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
-															auto posView = it.view<Position>(0);
+															auto posView = it.view_any<Position>(0);
 															observed = entityView[0];
 															pos = posView[0];
 														})
@@ -2667,7 +2667,7 @@ TEST_CASE("Observer - inherited sparse prefab data matches on delete from prefab
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
-															auto posView = it.view<PositionSparse>(0);
+															auto posView = it.view_any<PositionSparse>(0);
 															observed = entityView[0];
 															pos = posView[0];
 														})
@@ -2944,7 +2944,7 @@ TEST_CASE("Observer - del runtime sparse id payload") {
 														.on_each([&](ecs::Iter& it) {
 															++hits;
 															auto entityView = it.view<ecs::Entity>();
-															auto posView = it.view<PositionSparse>(0);
+															auto posView = it.view_any<PositionSparse>(0);
 															observedEntity = entityView[0];
 															pos = posView[0];
 														})

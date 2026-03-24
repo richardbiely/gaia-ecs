@@ -3933,8 +3933,8 @@ TEST_CASE("Query - Iter direct chunk-backed AoS accessors") {
 	float readAx = 0.0f;
 	auto qRead = wld.query().all<Position>().all<Acceleration>();
 	qRead.each([&](ecs::Iter& it) {
-		auto posView = it.view_direct<Position>();
-		auto accView = it.view_direct<Acceleration>(1);
+		auto posView = it.view<Position>();
+		auto accView = it.view<Acceleration>(1);
 		GAIA_EACH(it) {
 			readX += posView[i].x;
 			readAx += accView[i].x;
@@ -3943,9 +3943,9 @@ TEST_CASE("Query - Iter direct chunk-backed AoS accessors") {
 
 	auto qWrite = wld.query().all<Position&>().all<Acceleration>();
 	qWrite.each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_direct<Position>();
-		auto posViewByTerm = it.view_mut_direct<Position>(0);
-		auto accView = it.view_direct<Acceleration>(1);
+		auto posView = it.view_mut<Position>();
+		auto posViewByTerm = it.view_mut<Position>(0);
+		auto accView = it.view<Acceleration>(1);
 		GAIA_EACH(it) {
 			posView[i].x += accView[i].x;
 			posViewByTerm[i].y += accView[i].y;
@@ -3954,8 +3954,8 @@ TEST_CASE("Query - Iter direct chunk-backed AoS accessors") {
 
 	auto qScratch = wld.query().all<Position&>();
 	qScratch.each([&](ecs::Iter& it) {
-		auto posView = it.sview_mut_direct<Position>();
-		auto posViewByTerm = it.sview_mut_direct<Position>(0);
+		auto posView = it.sview_mut<Position>();
+		auto posViewByTerm = it.sview_mut<Position>(0);
 		GAIA_EACH(it) {
 			posView[i].z += 1.0f;
 			posViewByTerm[i].z += 1.0f;
@@ -3990,8 +3990,8 @@ TEST_CASE("Query - Iter direct chunk-backed SoA accessors") {
 	float readW = 0.0f;
 	auto qRead = wld.query().all<PositionSoA>().all<RotationSoA>();
 	qRead.each([&](ecs::Iter& it) {
-		auto posView = it.view_direct<PositionSoA>();
-		auto rotView = it.view_direct<RotationSoA>(1);
+		auto posView = it.view<PositionSoA>();
+		auto rotView = it.view<RotationSoA>(1);
 		auto xs = posView.template get<0>();
 		auto ws = rotView.template get<3>();
 		GAIA_EACH(it) {
@@ -4002,8 +4002,8 @@ TEST_CASE("Query - Iter direct chunk-backed SoA accessors") {
 
 	auto qWriteRows = wld.query().all<PositionSoA&>().all<RotationSoA>();
 	qWriteRows.each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_direct<PositionSoA>();
-		auto rotView = it.view_direct<RotationSoA>(1);
+		auto posView = it.view_mut<PositionSoA>();
+		auto rotView = it.view<RotationSoA>(1);
 		auto ws = rotView.template get<3>();
 		GAIA_EACH(it) {
 			auto row = (PositionSoA)posView[i];
@@ -4015,7 +4015,7 @@ TEST_CASE("Query - Iter direct chunk-backed SoA accessors") {
 
 	auto qWriteFields = wld.query().all<PositionSoA&>();
 	qWriteFields.each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_direct<PositionSoA>(0);
+		auto posView = it.view_mut<PositionSoA>(0);
 		auto ys = posView.template set<1>();
 		GAIA_EACH(it) {
 			ys[i] += 10.0f;
@@ -4024,7 +4024,7 @@ TEST_CASE("Query - Iter direct chunk-backed SoA accessors") {
 
 	auto qScratch = wld.query().all<PositionSoA&>();
 	qScratch.each([&](ecs::Iter& it) {
-		auto posView = it.sview_mut_direct<PositionSoA>(0);
+		auto posView = it.sview_mut<PositionSoA>(0);
 		auto zs = posView.template set<2>();
 		GAIA_EACH(it) {
 			zs[i] += 2.0f;
@@ -4061,7 +4061,7 @@ TEST_CASE("Query - Iter auto view accessors") {
 		auto qRead = wld.query().all<Position>().all<Acceleration>();
 		qRead.each([&](ecs::Iter& it) {
 			auto posView = it.view_auto<Position>();
-			auto accView = it.view_auto_direct<Acceleration>();
+			auto accView = it.view_auto<Acceleration>();
 			GAIA_EACH(it) {
 				readX += posView[i].x;
 				readAx += accView[i].x;
@@ -4070,10 +4070,10 @@ TEST_CASE("Query - Iter auto view accessors") {
 
 		auto qWrite = wld.query().all<Position&>().all<Acceleration>();
 		qWrite.each([&](ecs::Iter& it) {
-			auto posView = it.view_auto<Position&>();
-			auto posViewDirect = it.view_auto_direct<Position&>();
-			auto posScratch = it.sview_auto<Position&>();
-			auto posScratchDirect = it.sview_auto_direct<Position&>();
+			auto posView = it.view_auto_any<Position&>();
+			auto posViewDirect = it.view_auto<Position&>();
+			auto posScratch = it.sview_auto_any<Position&>();
+			auto posScratchDirect = it.sview_auto<Position&>();
 			auto accView = it.view_auto<Acceleration>();
 			GAIA_EACH(it) {
 				posView[i].x += accView[i].x;
@@ -4111,8 +4111,8 @@ TEST_CASE("Query - Iter auto view accessors") {
 		float readW = 0.0f;
 		auto qRead = wld.query().all<PositionSoA>().all<RotationSoA>();
 		qRead.each([&](ecs::Iter& it) {
-			auto posView = it.view_auto<PositionSoA>();
-			auto rotView = it.view_auto_direct<RotationSoA>();
+			auto posView = it.view_auto_any<PositionSoA>();
+			auto rotView = it.view_auto<RotationSoA>();
 			auto xs = posView.template get<0>();
 			auto ws = rotView.template get<3>();
 			GAIA_EACH(it) {
@@ -4123,11 +4123,11 @@ TEST_CASE("Query - Iter auto view accessors") {
 
 		auto qWrite = wld.query().all<PositionSoA&>().all<RotationSoA>();
 		qWrite.each([&](ecs::Iter& it) {
-			auto posView = it.view_auto<PositionSoA&>();
-			auto posViewDirect = it.view_auto_direct<PositionSoA&>();
-			auto posScratch = it.sview_auto<PositionSoA&>();
-			auto posScratchDirect = it.sview_auto_direct<PositionSoA&>();
-			auto rotView = it.view_auto<RotationSoA>();
+			auto posView = it.view_auto_any<PositionSoA&>();
+			auto posViewDirect = it.view_auto<PositionSoA&>();
+			auto posScratch = it.sview_auto_any<PositionSoA&>();
+			auto posScratchDirect = it.sview_auto<PositionSoA&>();
+			auto rotView = it.view_auto_any<RotationSoA>();
 			auto ws = rotView.template get<3>();
 			auto xs = posView.template set<0>();
 			auto ys = posViewDirect.template set<1>();

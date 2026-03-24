@@ -1313,7 +1313,7 @@ void BM_Query_PrefabInherited_Read_Iter(picobench::state& state) {
 		(void)_;
 		uint64_t sum = 0;
 		q.each([&](ecs::Iter& it) {
-			auto posView = it.view<Position>(1);
+			auto posView = it.view_any<Position>(1);
 			GAIA_EACH(it) {
 				sum += (uint64_t)(posView[i].x + posView[i].y + posView[i].z);
 			}

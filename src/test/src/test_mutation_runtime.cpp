@@ -1345,7 +1345,7 @@ TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.sview_mut_direct<Position>(0);
+			auto posView = it.sview_mut<Position>(0);
 			GAIA_EACH(it) {
 				posView[i].x += 10.0f;
 			}
@@ -1358,7 +1358,7 @@ TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.view_mut_direct<Position>(0);
+			auto posView = it.view_mut<Position>(0);
 			GAIA_EACH(it) {
 				posView[i].y += 20.0f;
 			}
@@ -1393,7 +1393,7 @@ TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.sview_mut_direct<PositionSoA>(0);
+			auto posView = it.sview_mut<PositionSoA>(0);
 			auto xs = posView.template set<0>();
 			GAIA_EACH(it) {
 				xs[i] += 10.0f;
@@ -1407,7 +1407,7 @@ TEST_CASE("Query Filter - Iter direct mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.view_mut_direct<PositionSoA>(0);
+			auto posView = it.view_mut<PositionSoA>(0);
 			auto ys = posView.template set<1>();
 			GAIA_EACH(it) {
 				ys[i] += 20.0f;
@@ -1445,8 +1445,8 @@ TEST_CASE("Query Filter - Iter auto mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.sview_auto<Position&>();
-			auto posViewDirect = it.sview_auto_direct<Position&>();
+			auto posView = it.sview_auto_any<Position&>();
+			auto posViewDirect = it.sview_auto<Position&>();
 			GAIA_EACH(it) {
 				posView[i].x += 10.0f;
 				posViewDirect[i].y += 10.0f;
@@ -1460,8 +1460,8 @@ TEST_CASE("Query Filter - Iter auto mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.view_auto<Position&>();
-			auto posViewDirect = it.view_auto_direct<Position&>();
+			auto posView = it.view_auto_any<Position&>();
+			auto posViewDirect = it.view_auto<Position&>();
 			GAIA_EACH(it) {
 				posView[i].x += 20.0f;
 				posViewDirect[i].y += 20.0f;
@@ -1497,8 +1497,8 @@ TEST_CASE("Query Filter - Iter auto mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.sview_auto<PositionSoA&>();
-			auto posViewDirect = it.sview_auto_direct<PositionSoA&>();
+			auto posView = it.sview_auto_any<PositionSoA&>();
+			auto posViewDirect = it.sview_auto<PositionSoA&>();
 			auto xs = posView.template set<0>();
 			auto ys = posViewDirect.template set<1>();
 			GAIA_EACH(it) {
@@ -1514,8 +1514,8 @@ TEST_CASE("Query Filter - Iter auto mutable views track changes correctly") {
 		CHECK(cnt == 0);
 
 		qMut.each([&](ecs::Iter& it) {
-			auto posView = it.view_auto<PositionSoA&>();
-			auto posViewDirect = it.view_auto_direct<PositionSoA&>();
+			auto posView = it.view_auto_any<PositionSoA&>();
+			auto posViewDirect = it.view_auto<PositionSoA&>();
 			auto xs = posView.template set<0>();
 			auto ys = posViewDirect.template set<1>();
 			GAIA_EACH(it) {

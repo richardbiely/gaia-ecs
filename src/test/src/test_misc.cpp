@@ -3403,7 +3403,7 @@ TEST_CASE("Out-of-line query view does not expose contiguous data") {
 	auto q = wld.query().all<PositionSparse>();
 	uint32_t hits = 0;
 	q.each([&](ecs::Iter& it) {
-		auto posView = it.view<PositionSparse>();
+		auto posView = it.view_any<PositionSparse>();
 		CHECK(posView.data() == nullptr);
 		CHECK(posView.size() == 1);
 		CHECK(posView[0].x == doctest::Approx(1.0f));
