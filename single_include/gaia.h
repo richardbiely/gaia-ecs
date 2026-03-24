@@ -40170,7 +40170,8 @@ namespace gaia {
 
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
-								recommit(pQueryInfo->ctx());
+								if GAIA_UNLIKELY (m_storage.m_q.serId != QueryIdBad)
+									recommit(pQueryInfo->ctx());
 								return *pQueryInfo;
 							}
 
@@ -40195,7 +40196,7 @@ namespace gaia {
 							commit(ctx);
 							m_storage.m_queryInfo =
 									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
-						} else {
+						} else if GAIA_UNLIKELY (m_storage.m_queryInfo.ctx().q.serId != QueryIdBad) {
 							recommit(m_storage.m_queryInfo.ctx());
 						}
 						return m_storage.m_queryInfo;
