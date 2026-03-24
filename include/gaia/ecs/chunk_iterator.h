@@ -223,6 +223,7 @@ namespace gaia {
 				using view_policy = mem::auto_view_policy_get<U>;
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::const_value_type;
 
+				const value_type* pData = nullptr;
 				const Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				Entity entity = EntityBad;
@@ -232,6 +233,9 @@ namespace gaia {
 
 				GAIA_NODISCARD value_type operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
+					if (pData != nullptr)
+						return pData[idx];
+
 					if (pChunk != nullptr)
 						return pChunk->template view<U>().template get<Item>()[idxBase + idx];
 
@@ -249,6 +253,7 @@ namespace gaia {
 				using view_policy = mem::auto_view_policy_set<U>;
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::value_type;
 
+				value_type* pData = nullptr;
 				Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				Entity entity = EntityBad;
@@ -257,6 +262,7 @@ namespace gaia {
 				uint32_t cnt = 0;
 
 				struct ElementProxy {
+					value_type* pData = nullptr;
 					Chunk* pChunk = nullptr;
 					World* pWorld = nullptr;
 					Entity entity = EntityBad;
@@ -264,6 +270,9 @@ namespace gaia {
 					uint32_t idx = 0;
 
 					GAIA_NODISCARD operator value_type() const {
+						if (pData != nullptr)
+							return pData[idx];
+
 						if (pChunk != nullptr)
 							return pChunk->template view<U>().template get<Item>()[idx];
 
@@ -272,6 +281,11 @@ namespace gaia {
 					}
 
 					ElementProxy& operator=(const value_type& value) {
+						if (pData != nullptr) {
+							pData[idx] = value;
+							return *this;
+						}
+
 						if (pChunk != nullptr) {
 							pChunk->template sview_mut<U>().template set<Item>()[idx] = value;
 							return *this;
@@ -311,7 +325,7 @@ namespace gaia {
 
 				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					return ElementProxy{pChunk, pWorld, entity, id, idxBase + (uint32_t)idx};
+					return ElementProxy{pData, pChunk, pWorld, entity, id, idxBase + (uint32_t)idx};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -338,7 +352,12 @@ namespace gaia {
 
 				template <size_t Item>
 				GAIA_NODISCARD auto get() const {
-					return SoATermFieldReadProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+					if (pChunk != nullptr) {
+						const auto field = pChunk->template view<U>().template get<Item>();
+						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+					}
+
+					return SoATermFieldReadProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -370,12 +389,22 @@ namespace gaia {
 
 				template <size_t Item>
 				GAIA_NODISCARD auto get() const {
-					return SoATermFieldReadProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+					if (pChunk != nullptr) {
+						const auto field = pChunk->template view<U>().template get<Item>();
+						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+					}
+
+					return SoATermFieldReadProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
 				}
 
 				template <size_t Item>
 				GAIA_NODISCARD auto set() {
-					return SoATermFieldWriteProxy<U, Item>{pChunk, pWorld, entity, id, idxBase, cnt};
+					if (pChunk != nullptr) {
+						auto field = pChunk->template sview_mut<U>().template set<Item>();
+						return SoATermFieldWriteProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+					}
+
+					return SoATermFieldWriteProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
