@@ -35,43 +35,28 @@ namespace gaia {
 			//! out-of-line payload resolved by entity id.
 			template <typename U>
 			struct EntityTermViewGet {
-				enum class Mode : uint8_t { Chunk, Pointer, Entity };
-
 				const Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				const U* pData = nullptr;
 				Entity id = EntityBad;
 				uint32_t idxBase = 0;
 				uint32_t cnt = 0;
-				Mode mode = Mode::Chunk;
-
-				static EntityTermViewGet chunk(const Chunk* pChunk, World* pWorld, uint32_t idxBase, uint32_t cnt) {
-					return {pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::Chunk};
-				}
 
 				static EntityTermViewGet pointer(const Chunk* pChunk, World* pWorld, const U* pData, uint32_t cnt) {
-					return {pChunk, pWorld, pData, EntityBad, 0, cnt, Mode::Pointer};
+					return {pChunk, pWorld, pData, EntityBad, 0, cnt};
 				}
 
 				static EntityTermViewGet entity(const Chunk* pChunk, World* pWorld, Entity id, uint32_t idxBase, uint32_t cnt) {
-					return {pChunk, pWorld, nullptr, id, idxBase, cnt, Mode::Entity};
+					return {pChunk, pWorld, nullptr, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					switch (mode) {
-						case Mode::Chunk:
-							return pChunk->template view<U>()[idxBase + (uint32_t)idx];
-						case Mode::Pointer:
-							return pData[idx];
-						case Mode::Entity: {
-							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
-							return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
-						}
-					}
+					if (pData != nullptr)
+						return pData[idx];
 
-					GAIA_ASSERT(false);
-					return pData[0];
+					const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -79,17 +64,7 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD const U* data() const noexcept {
-					switch (mode) {
-						case Mode::Chunk:
-							return reinterpret_cast<const U*>(pChunk->template view<U>().data()) + idxBase;
-						case Mode::Pointer:
-							return pData;
-						case Mode::Entity:
-							return nullptr;
-					}
-
-					GAIA_ASSERT(false);
-					return nullptr;
+					return pData;
 				}
 			};
 
@@ -97,65 +72,37 @@ namespace gaia {
 			//! usual versioning behavior; for out-of-line terms it forwards to the world store.
 			template <typename U>
 			struct EntityTermViewSet {
-				enum class Mode : uint8_t { ChunkVersioned, ChunkSilent, Pointer, Entity };
-
 				Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				U* pData = nullptr;
 				Entity id = EntityBad;
 				uint32_t idxBase = 0;
 				uint32_t cnt = 0;
-				Mode mode = Mode::ChunkVersioned;
-
-				static EntityTermViewSet chunk(Chunk* pChunk, World* pWorld, uint32_t idxBase, uint32_t cnt, bool updateVersion) {
-					return updateVersion
-								   ? EntityTermViewSet{pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::ChunkVersioned}
-								   : EntityTermViewSet{pChunk, pWorld, nullptr, EntityBad, idxBase, cnt, Mode::ChunkSilent};
-				}
 
 				static EntityTermViewSet pointer(Chunk* pChunk, World* pWorld, U* pData, uint32_t cnt) {
-					return {pChunk, pWorld, pData, EntityBad, 0, cnt, Mode::Pointer};
+					return {pChunk, pWorld, pData, EntityBad, 0, cnt};
 				}
 
 				static EntityTermViewSet entity(Chunk* pChunk, World* pWorld, Entity id, uint32_t idxBase, uint32_t cnt) {
-					return {pChunk, pWorld, nullptr, id, idxBase, cnt, Mode::Entity};
+					return {pChunk, pWorld, nullptr, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
 					GAIA_ASSERT(idx < cnt);
-					switch (mode) {
-						case Mode::ChunkVersioned:
-							return pChunk->template view_mut<U>()[idxBase + (uint32_t)idx];
-						case Mode::ChunkSilent:
-							return pChunk->template sview_mut<U>()[idxBase + (uint32_t)idx];
-						case Mode::Pointer:
-							return pData[idx];
-						case Mode::Entity: {
-							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
-							return world_query_entity_arg_by_id<U&>(*pWorld, entity, id);
-						}
-					}
+					if (pData != nullptr)
+						return pData[idx];
 
-					GAIA_ASSERT(false);
-					return pData[0];
+					const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+					return world_query_entity_arg_by_id<U&>(*pWorld, entity, id);
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					switch (mode) {
-						case Mode::ChunkVersioned:
-						case Mode::ChunkSilent:
-							return pChunk->template view<U>()[idxBase + (uint32_t)idx];
-						case Mode::Pointer:
-							return pData[idx];
-						case Mode::Entity: {
-							const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
-							return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
-						}
-					}
+					if (pData != nullptr)
+						return static_cast<const U&>(pData[idx]);
 
-					GAIA_ASSERT(false);
-					return pData[0];
+					const auto entity = pChunk->entity_view()[idxBase + (uint32_t)idx];
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -163,34 +110,11 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD U* data() noexcept {
-					switch (mode) {
-						case Mode::ChunkVersioned:
-							return reinterpret_cast<U*>(pChunk->template view_mut<U>().data()) + idxBase;
-						case Mode::ChunkSilent:
-							return reinterpret_cast<U*>(pChunk->template sview_mut<U>().data()) + idxBase;
-						case Mode::Pointer:
-							return pData;
-						case Mode::Entity:
-							return nullptr;
-					}
-
-					GAIA_ASSERT(false);
-					return nullptr;
+					return pData;
 				}
 
 				GAIA_NODISCARD const U* data() const noexcept {
-					switch (mode) {
-						case Mode::ChunkVersioned:
-						case Mode::ChunkSilent:
-							return reinterpret_cast<const U*>(pChunk->template view<U>().data()) + idxBase;
-						case Mode::Pointer:
-							return pData;
-						case Mode::Entity:
-							return nullptr;
-					}
-
-					GAIA_ASSERT(false);
-					return nullptr;
+					return pData;
 				}
 			};
 
@@ -224,7 +148,6 @@ namespace gaia {
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::const_value_type;
 
 				const value_type* pData = nullptr;
-				const Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				Entity entity = EntityBad;
 				Entity id = EntityBad;
@@ -235,9 +158,6 @@ namespace gaia {
 					GAIA_ASSERT(idx < cnt);
 					if (pData != nullptr)
 						return pData[idx];
-
-					if (pChunk != nullptr)
-						return pChunk->template view<U>().template get<Item>()[idxBase + idx];
 
 					const U value = world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 					return std::get<Item>(meta::struct_to_tuple(value));
@@ -254,7 +174,6 @@ namespace gaia {
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::value_type;
 
 				value_type* pData = nullptr;
-				Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				Entity entity = EntityBad;
 				Entity id = EntityBad;
@@ -263,7 +182,6 @@ namespace gaia {
 
 				struct ElementProxy {
 					value_type* pData = nullptr;
-					Chunk* pChunk = nullptr;
 					World* pWorld = nullptr;
 					Entity entity = EntityBad;
 					Entity id = EntityBad;
@@ -273,9 +191,6 @@ namespace gaia {
 						if (pData != nullptr)
 							return pData[idx];
 
-						if (pChunk != nullptr)
-							return pChunk->template view<U>().template get<Item>()[idx];
-
 						const U value = world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 						return std::get<Item>(meta::struct_to_tuple(value));
 					}
@@ -283,11 +198,6 @@ namespace gaia {
 					ElementProxy& operator=(const value_type& value) {
 						if (pData != nullptr) {
 							pData[idx] = value;
-							return *this;
-						}
-
-						if (pChunk != nullptr) {
-							pChunk->template sview_mut<U>().template set<Item>()[idx] = value;
 							return *this;
 						}
 
@@ -325,7 +235,7 @@ namespace gaia {
 
 				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					return ElementProxy{pData, pChunk, pWorld, entity, id, idxBase + (uint32_t)idx};
+					return ElementProxy{pData, pWorld, entity, id, idxBase + (uint32_t)idx};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -354,10 +264,10 @@ namespace gaia {
 				GAIA_NODISCARD auto get() const {
 					if (pChunk != nullptr) {
 						const auto field = pChunk->template view<U>().template get<Item>();
-						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, pWorld, entity, id, 0, cnt};
 					}
 
-					return SoATermFieldReadProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
+					return SoATermFieldReadProxy<U, Item>{nullptr, pWorld, entity, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -391,20 +301,20 @@ namespace gaia {
 				GAIA_NODISCARD auto get() const {
 					if (pChunk != nullptr) {
 						const auto field = pChunk->template view<U>().template get<Item>();
-						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+						return SoATermFieldReadProxy<U, Item>{field.data() + idxBase, pWorld, entity, id, 0, cnt};
 					}
 
-					return SoATermFieldReadProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
+					return SoATermFieldReadProxy<U, Item>{nullptr, pWorld, entity, id, idxBase, cnt};
 				}
 
 				template <size_t Item>
 				GAIA_NODISCARD auto set() {
 					if (pChunk != nullptr) {
 						auto field = pChunk->template sview_mut<U>().template set<Item>();
-						return SoATermFieldWriteProxy<U, Item>{field.data() + idxBase, nullptr, pWorld, entity, id, 0, cnt};
+						return SoATermFieldWriteProxy<U, Item>{field.data() + idxBase, pWorld, entity, id, 0, cnt};
 					}
 
-					return SoATermFieldWriteProxy<U, Item>{nullptr, pChunk, pWorld, entity, id, idxBase, cnt};
+					return SoATermFieldWriteProxy<U, Item>{nullptr, pWorld, entity, id, idxBase, cnt};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -564,9 +474,12 @@ namespace gaia {
 							using FT = typename component_type_t<Arg>::TypeFull;
 							id = comp_cache(*world()).template get<FT>().entity;
 						}
+
 						if (id != EntityBad)
 							return EntityTermViewGet<U>::entity(m_pChunk, const_cast<World*>(world()), id, from(), size());
-						return EntityTermViewGet<U>::chunk(m_pChunk, const_cast<World*>(world()), from(), size());
+
+						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<U>().data()) + from();
+						return EntityTermViewGet<U>::pointer(m_pChunk, const_cast<World*>(world()), pData, size());
 					}
 				}
 
@@ -626,9 +539,12 @@ namespace gaia {
 							using FT = typename component_type_t<Arg>::TypeFull;
 							id = comp_cache(*world()).template get<FT>().entity;
 						}
+
 						if (id != EntityBad)
 							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
-						return EntityTermViewSet<U>::chunk(m_pChunk, world(), from(), size(), true);
+
+						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<U>().data()) + from();
+						return EntityTermViewSet<U>::pointer(m_pChunk, world(), pData, size());
 					}
 				}
 
@@ -694,9 +610,12 @@ namespace gaia {
 							using FT = typename component_type_t<Arg>::TypeFull;
 							id = comp_cache(*world()).template get<FT>().entity;
 						}
+
 						if (id != EntityBad)
 							return EntityTermViewSet<U>::entity(m_pChunk, world(), id, from(), size());
-						return EntityTermViewSet<U>::chunk(m_pChunk, world(), from(), size(), false);
+
+						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<U>().data()) + from();
+						return EntityTermViewSet<U>::pointer(m_pChunk, world(), pData, size());
 					}
 				}
 
