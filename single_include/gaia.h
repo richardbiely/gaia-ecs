@@ -32564,6 +32564,16 @@ namespace gaia {
 					return (uint16_t)(to() - from());
 				}
 
+				//! Returns the first row covered by the iterator in the current chunk.
+				GAIA_NODISCARD uint16_t row_begin() const noexcept {
+					return from();
+				}
+
+				//! Returns one-past-the-end row covered by the iterator in the current chunk.
+				GAIA_NODISCARD uint16_t row_end() const noexcept {
+					return to();
+				}
+
 				//! Returns the absolute index that should be used to access an item in the chunk.
 				//! AoS indices map directly, SoA indices need some adjustments because the view is
 				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
@@ -40909,9 +40919,36 @@ namespace gaia {
 					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
-					// We only have one chunk to process
+					TIter it;
+					it.set_world(pWorld);
+
+					const Archetype* pLastArchetype = nullptr;
+					const uint8_t* pLastIndices = nullptr;
+					GroupId lastGroupId = GroupIdMax;
+
+					const auto apply_batch = [&](const ChunkBatch& batch) {
+						if (batch.pArchetype != pLastArchetype) {
+							it.set_archetype(batch.pArchetype);
+							pLastArchetype = batch.pArchetype;
+						}
+
+						if (batch.pIndicesMapping != pLastIndices) {
+							it.set_remapping_indices(batch.pIndicesMapping);
+							pLastIndices = batch.pIndicesMapping;
+						}
+
+						if (batch.groupId != lastGroupId) {
+							it.set_group_id(batch.groupId);
+							lastGroupId = batch.groupId;
+						}
+
+						it.set_chunk(batch.pChunk, batch.from, batch.to);
+						func(it);
+					};
+
+					// We only have one chunk to process.
 					if GAIA_UNLIKELY (chunkCnt == 1) {
-						run_query_func<Func, TIter>(pWorld, func, batches[0]);
+						apply_batch(batches[0]);
 						return;
 					}
 
@@ -40924,15 +40961,15 @@ namespace gaia {
 					// Let us be conservative for now and go with T2. That means we will try to keep our data at
 					// least in L3 cache or higher.
 					gaia::prefetch(batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-					run_query_func<Func, TIter>(pWorld, func, batches[0]);
+					apply_batch(batches[0]);
 
 					uint32_t chunkIdx = 1;
 					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
 						gaia::prefetch(batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
-						run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
+						apply_batch(batches[chunkIdx]);
 					}
 
-					run_query_func<Func, TIter>(pWorld, func, batches[chunkIdx]);
+					apply_batch(batches[chunkIdx]);
 				}
 
 				//------------------------------------------------
@@ -40942,14 +40979,14 @@ namespace gaia {
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
-					// We are batching by chunks. Some of them might contain only few items but this state is only
-					// temporary because defragmentation runs constantly and keeps things clean.
-					ChunkBatchArray chunkBatches;
-
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto sortView = queryInfo.cache_sort_view();
 
 					lock(*m_storage.world());
+
+					// We are batching by chunks. Some of them might contain only few items but this state is only
+					// temporary because defragmentation runs constantly and keeps things clean.
+					ChunkBatchArray chunkBatches;
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
@@ -41416,20 +41453,7 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-					const auto cnt = it.size();
-
-					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
-						GAIA_FOR(cnt) {
-							func(
-									std::get<decltype(it.template view_auto<T>())>(
-											dataPointerTuple)[it.template acc_index_direct<T>(i)]...);
-						}
-					} else {
-						GAIA_FOR(cnt) {
-							func();
-						}
-					}
+					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
 				}
 
 				template <typename T>
@@ -41439,7 +41463,10 @@ namespace gaia {
 						return pChunk->entity_view();
 					else {
 						using FT = typename component_type_t<Arg>::TypeFull;
-						return pChunk->template view<FT>();
+						if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+							return pChunk->template view_mut<FT>();
+						else
+							return pChunk->template view<FT>();
 					}
 				}
 
@@ -41470,14 +41497,7 @@ namespace gaia {
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-					if constexpr (sizeof...(T) > 0) {
-						auto dataPointerTuple = std::make_tuple(it.template view_auto<T>()...);
-						func(
-								std::get<decltype(it.template view_auto<T>())>(
-										dataPointerTuple)[it.template acc_index_direct<T>(0)]...);
-					} else {
-						func();
-					}
+					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
 				}
 
 				//------------------------------------------------
@@ -42669,9 +42689,8 @@ namespace gaia {
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
 					if constexpr ((can_use_raw_chunk_row_arg<T>() && ...)) {
 						if (canUseBasicInit) {
-							for (const auto& run: runs) {
+							for (const auto& run: runs)
 								run_query_on_chunk_rows_direct(run.pChunk, run.from, run.to, func, core::func_type_list<T...>{});
-							}
 							return;
 						}
 					}

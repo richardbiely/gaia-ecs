@@ -1365,6 +1365,16 @@ namespace gaia {
 					return (uint16_t)(to() - from());
 				}
 
+				//! Returns the first row covered by the iterator in the current chunk.
+				GAIA_NODISCARD uint16_t row_begin() const noexcept {
+					return from();
+				}
+
+				//! Returns one-past-the-end row covered by the iterator in the current chunk.
+				GAIA_NODISCARD uint16_t row_end() const noexcept {
+					return to();
+				}
+
 				//! Returns the absolute index that should be used to access an item in the chunk.
 				//! AoS indices map directly, SoA indices need some adjustments because the view is
 				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
