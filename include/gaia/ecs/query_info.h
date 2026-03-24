@@ -715,10 +715,6 @@ namespace gaia {
 					// last matched archetype id
 					ArchetypeId archetypeLastId, const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
 					uint8_t runtimeVarBindingMask) {
-				auto& w = *world();
-				auto& matchScratch = query_match_scratch_acquire(w);
-				CleanUpTmpArchetypeMatches autoCleanup(w, true);
-
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary
@@ -759,6 +755,10 @@ namespace gaia {
 				m_state.lastArchetypeId = archetypeLastId;
 
 				GAIA_PROF_SCOPE(queryinfo::match);
+
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				// Prepare the context
 				vm::MatchingCtx ctx{};
@@ -808,10 +808,6 @@ namespace gaia {
 			void match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
-				auto& w = *world();
-				auto& matchScratch = query_match_scratch_acquire(w);
-				CleanUpTmpArchetypeMatches autoCleanup(w, true);
-
 				auto& ctxData = m_plan.ctx.data;
 
 				// Recompile if necessary
@@ -835,6 +831,10 @@ namespace gaia {
 				}
 
 				GAIA_PROF_SCOPE(queryinfo::match1);
+
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				// Prepare the context
 				vm::MatchingCtx ctx{};
