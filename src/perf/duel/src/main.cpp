@@ -301,14 +301,14 @@ void BM_ECS_WithSystems_Iter(picobench::state& state) {
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
-			w.update();
+			w.systems_run();
 	}
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
-		w.update();
+		w.systems_run();
 	}
 }
 
@@ -403,14 +403,14 @@ void BM_ECS_WithSystems_Iter_SoA(picobench::state& state) {
 
 		/* We want to benchmark the hot-path. In real-world scenarios queries are cached so cache them now */
 		for (uint32_t i = 0; i < 10; ++i)
-			w.update();
+			w.systems_run();
 	}
 
 	srand(0);
 	for (auto _: state) {
 		(void)_;
 		dt = CalculateDelta(state);
-		w.update();
+		w.systems_run();
 	}
 }
 
@@ -1307,15 +1307,15 @@ int main(int argc, char* argv[]) {
 		}
 
 		{
-			PICOBENCH_SUITE_REG("OOP");
-			// Ordinary coding style.
-			PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
-			PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
+			// PICOBENCH_SUITE_REG("OOP");
+			// // Ordinary coding style.
+			// PICOBENCH_REG(BM_NonECS<false>).PICO_SETTINGS().label("Default");
+			// PICOBENCH_REG(BM_NonECS<true>).PICO_SETTINGS().label("Default2");
 
-			// Ordinary coding style with optimized memory layout (imagine using custom allocators
-			// to keep things close and tidy in memory).
-			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
-			PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
+			// // Ordinary coding style with optimized memory layout (imagine using custom allocators
+			// // to keep things close and tidy in memory).
+			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<false>).PICO_SETTINGS().label("OptimizedMemLayout");
+			// PICOBENCH_REG(BM_NonECS_BetterMemoryLayout<true>).PICO_SETTINGS().label("OptimizedMemLayout2");
 
 			// Memory organized in DoD style.
 			// Performance target BM_ECS_WithSystems_Iter.
