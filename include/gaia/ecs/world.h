@@ -747,6 +747,9 @@ namespace gaia {
 					static void on_add(
 							ObserverRegistry& registry, World& world, const Archetype& archetype, EntitySpan entsAdded,
 							EntitySpan targets) {
+						if GAIA_UNLIKELY (world.tearing_down())
+							return;
+
 						if (!archetype.has_observed_terms() && !SharedDispatch::has_terms(registry.m_observer_map_add, entsAdded) &&
 								!SharedDispatch::has_semantic_is_terms(world, registry.m_observer_map_add_is, entsAdded) &&
 								!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_add, entsAdded))
@@ -794,6 +797,9 @@ namespace gaia {
 					static void on_del(
 							ObserverRegistry& registry, World& world, const Archetype& archetype, EntitySpan entsRemoved,
 							EntitySpan targets) {
+						if GAIA_UNLIKELY (world.tearing_down())
+							return;
+
 						const bool archetypeIsPrefab = archetype.has(Prefab);
 						if (!archetype.has_observed_terms() &&
 								!SharedDispatch::has_terms(registry.m_observer_map_del, entsRemoved) &&
@@ -1460,10 +1466,14 @@ namespace gaia {
 
 				GAIA_NODISCARD DiffDispatchCtx
 				prepare_diff(World& world, ObserverEvent event, EntitySpan terms, EntitySpan targetEntities = {}) {
+					if GAIA_UNLIKELY (world.tearing_down())
+						return {};
 					return DiffDispatcher::prepare(*this, world, event, terms, targetEntities);
 				}
 
 				GAIA_NODISCARD DiffDispatchCtx prepare_diff_add_new(World& world, EntitySpan terms) {
+					if GAIA_UNLIKELY (world.tearing_down())
+						return {};
 					return DiffDispatcher::prepare_add_new(*this, world, terms);
 				}
 
@@ -1472,7 +1482,29 @@ namespace gaia {
 				}
 
 				void finish_diff(World& world, DiffDispatchCtx&& ctx) {
+					if GAIA_UNLIKELY (world.tearing_down())
+						return;
 					DiffDispatcher::finish(world, GAIA_MOV(ctx));
+				}
+
+				void teardown() {
+					for (auto& it: m_observer_data) {
+						auto& obs = it.second;
+						obs.on_each_func = {};
+						obs.query = {};
+						obs.plan = {};
+						obs.lastMatchStamp = 0;
+					}
+
+					m_relevant_observers_tmp = {};
+					m_observer_data = {};
+					m_observer_map_add = {};
+					m_observer_map_del = {};
+					m_observer_map_add_is = {};
+					m_observer_map_del_is = {};
+					m_diff_index_add = {};
+					m_diff_index_del = {};
+					m_propagated_target_cache = {};
 				}
 
 				ObserverRuntimeData& data_add(Entity observer) {
@@ -1761,6 +1793,8 @@ namespace gaia {
 			CommandBufferST* m_pCmdBufferST;
 			//! Command buffer for commands executed from a locked world. Thread-safe
 			CommandBufferMT* m_pCmdBufferMT;
+			//! Runtime callbacks have been shut down and must not execute anymore.
+			bool m_teardownActive = false;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
 			//! Scratch ordered-system list reused by systems_run() to avoid per-frame allocations.
@@ -1796,6 +1830,7 @@ namespace gaia {
 			}
 
 			~World() {
+				teardown();
 				done();
 				cmd_buffer_destroy(*m_pCmdBufferST);
 				cmd_buffer_destroy(*m_pCmdBufferMT);
@@ -2664,6 +2699,12 @@ namespace gaia {
 				//! \param newArchetype New archetype we belong to
 				void trigger_add_hooks(const Archetype& newArchetype) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+					if GAIA_UNLIKELY (m_world.tearing_down()) {
+						tl_new_comps.clear();
+						(void)newArchetype;
+						return;
+					}
+
 					m_world.lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
@@ -2699,6 +2740,12 @@ namespace gaia {
 				//! \param newArchetype New archetype we belong to
 				void trigger_del_hooks(const Archetype& newArchetype) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+					if GAIA_UNLIKELY (m_world.tearing_down()) {
+						tl_del_comps.clear();
+						(void)newArchetype;
+						return;
+					}
+
 					m_world.notify_inherited_del_dependents(m_entity, std::span<Entity>{tl_del_comps});
 					m_world.lock();
 
@@ -4430,6 +4477,9 @@ namespace gaia {
 
 			void notify_add_single(Entity entity, Entity object) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				if GAIA_UNLIKELY (tearing_down())
+					return;
+
 				const auto& ec = fetch(entity);
 
 				lock();
@@ -4456,6 +4506,9 @@ namespace gaia {
 
 			void notify_del_single(Entity entity, Entity object) {
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
+				if GAIA_UNLIKELY (tearing_down())
+					return;
+
 				const auto& ec = fetch(entity);
 
 				lock();
@@ -4995,22 +5048,27 @@ namespace gaia {
 				invalidate_queries_for_entity({Is, prefabEntity});
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
-				lock();
+				if GAIA_UNLIKELY (tearing_down()) {
+					(void)pDstArchetype;
+					(void)addedIds;
+				} else {
+					lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				for (const auto id: addHookIds) {
-					const auto& item = comp_cache().get(id);
-					const auto& hooks = ComponentCache::hooks(item);
-					GAIA_ASSERT(hooks.func_add != nullptr);
-					hooks.func_add(*this, item, instance);
-				}
+					for (const auto id: addHookIds) {
+						const auto& item = comp_cache().get(id);
+						const auto& hooks = ComponentCache::hooks(item);
+						GAIA_ASSERT(hooks.func_add != nullptr);
+						hooks.func_add(*this, item, instance);
+					}
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
-				m_observers.on_add(*this, *pDstArchetype, addedIds, EntitySpan{&instance, 1});
+					m_observers.on_add(*this, *pDstArchetype, addedIds, EntitySpan{&instance, 1});
 	#endif
 
-				unlock();
+					unlock();
+				}
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
@@ -5100,28 +5158,35 @@ namespace gaia {
 					invalidate_queries_for_entity({Is, node.prefab});
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
-					lock();
+					if GAIA_UNLIKELY (tearing_down()) {
+						(void)entities;
+						(void)originalChunkSize;
+						(void)toCreate;
+					} else {
+						lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-					for (const auto id: node.addHookIds) {
-						const auto& item = comp_cache().get(id);
-						const auto& hooks = ComponentCache::hooks(item);
-						GAIA_ASSERT(hooks.func_add != nullptr);
+						for (const auto id: node.addHookIds) {
+							const auto& item = comp_cache().get(id);
+							const auto& hooks = ComponentCache::hooks(item);
+							GAIA_ASSERT(hooks.func_add != nullptr);
 
-						GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
-							hooks.func_add(*this, item, entities[rowIdx]);
+							GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+								hooks.func_add(*this, item, entities[rowIdx]);
+							}
 						}
-					}
 	#endif
 
 	#if GAIA_OBSERVERS_ENABLED
-					m_observers.append_diff_targets(*this, addDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
-					m_observers.on_add(
-							*this, *pDstArchetype, EntitySpan{node.addedIds},
-							EntitySpan{entities.data() + originalChunkSize, toCreate});
+						m_observers.append_diff_targets(
+								*this, addDiffCtx, EntitySpan{entities.data() + originalChunkSize, toCreate});
+						m_observers.on_add(
+								*this, *pDstArchetype, EntitySpan{node.addedIds},
+								EntitySpan{entities.data() + originalChunkSize, toCreate});
 	#endif
 
-					unlock();
+						unlock();
+					}
 #endif
 
 					if (parentInstance != EntityBad)
@@ -7771,6 +7836,47 @@ namespace gaia {
 				GAIA_PROF_FRAME();
 			}
 
+			//! Performs world shutdown maintenance without running systems or observers.
+			//! Runtime callbacks are shut down in-place first, then deferred entity/chunk/archetype
+			//! cleanup is drained until no more pending teardown work remains.
+			void teardown() {
+				if GAIA_UNLIKELY (m_teardownActive)
+					return;
+				m_teardownActive = true;
+
+				GAIA_PROF_SCOPE(World::teardown);
+
+#if GAIA_SYSTEMS_ENABLED
+				systems_done();
+#endif
+
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.teardown();
+#endif
+
+				for (;;) {
+					const auto prevReqArchetypes = m_reqArchetypesToDel.size();
+					const auto prevReqEntities = m_reqEntitiesToDel.size();
+					const auto prevChunks = m_chunksToDel.size();
+					const auto prevArchetypes = m_archetypesToDel.size();
+
+					del_finalize();
+					gc();
+
+					if (m_reqArchetypesToDel.empty() && m_reqEntitiesToDel.empty() && m_chunksToDel.empty() &&
+							m_archetypesToDel.empty())
+						break;
+
+					const bool madeProgress = m_reqArchetypesToDel.size() != prevReqArchetypes ||
+																		m_reqEntitiesToDel.size() != prevReqEntities ||
+																		m_chunksToDel.size() != prevChunks || m_archetypesToDel.size() != prevArchetypes;
+					if (!madeProgress)
+						break;
+				}
+
+				util::log_flush();
+			}
+
 			//! Clears the world so that all its entities and components are released
 			void cleanup() {
 				cleanup_inter();
@@ -8032,10 +8138,20 @@ namespace gaia {
 				--m_structuralChangesLocked;
 			}
 
+#if GAIA_SYSTEMS_ENABLED
+			void systems_done();
+#endif
+
 		public:
 			//! Checks if the chunk is locked for structural changes.
 			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
+			}
+
+			//! Returns true while the world is draining teardown work and normal runtime callbacks
+			//! must not execute.
+			GAIA_NODISCARD bool tearing_down() const {
+				return m_teardownActive;
 			}
 
 		private:
@@ -11699,6 +11815,9 @@ namespace gaia {
 		}
 
 		inline void World::systems_run() {
+			if GAIA_UNLIKELY (tearing_down())
+				return;
+
 			m_orderedSystemsScratch.clear();
 			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
 				m_orderedSystemsScratch.push_back(systemEntity);
@@ -11714,6 +11833,46 @@ namespace gaia {
 				auto& sys = ss.smut<ecs::System_>();
 				sys.exec();
 			}
+		}
+
+		inline void World::systems_done() {
+			m_orderedSystemsScratch.clear();
+			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
+				m_orderedSystemsScratch.push_back(systemEntity);
+			});
+
+			// Wait for every outstanding system job before mutating any system runtime state.
+			// This keeps dependency chains intact while jobs are still live.
+			for (auto entity: m_orderedSystemsScratch) {
+				if (!valid(entity) || !has(entity, System))
+					continue;
+
+				auto ss = acc_mut(entity);
+				auto& sys = ss.smut<ecs::System_>();
+				if (sys.jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					tp.wait(sys.jobHandle);
+				}
+			}
+
+			// With all system jobs complete we can release their runtime state safely.
+			for (auto entity: m_orderedSystemsScratch) {
+				if (!valid(entity) || !has(entity, System))
+					continue;
+
+				auto ss = acc_mut(entity);
+				auto& sys = ss.smut<ecs::System_>();
+				if (sys.jobHandle != (mt::JobHandle)mt::JobNull_t{}) {
+					auto& tp = mt::ThreadPool::get();
+					tp.del(sys.jobHandle);
+					sys.jobHandle = mt::JobNull;
+				}
+				sys.on_each_func = {};
+				sys.query = {};
+			}
+
+			m_systemsQuery = {};
+			m_orderedSystemsScratch.clear();
 		}
 
 		inline SystemBuilder World::system() {

@@ -1,7 +1,5 @@
 #include "test_common.h"
 
-#if GAIA_SYSTEMS_ENABLED
-
 TEST_CASE("System - simple") {
 	uint32_t sys1_cnt = 0;
 	uint32_t sys2_cnt = 0;
@@ -109,6 +107,45 @@ TEST_CASE("System - dependency BFS order") {
 		CHECK(order[2] == 'B');
 		CHECK(order[3] == 'C');
 	}
+}
+
+TEST_CASE("World - teardown removes runtime callbacks without executing them") {
+	ecs::World world;
+	uint32_t sysCnt = 0;
+	uint32_t obsCnt = 0;
+
+	const auto systemEntity = world.system()
+																.all<Position>()
+																.on_each([&](Position) {
+																	++sysCnt;
+																})
+																.entity();
+
+	const auto observerEntity = world.observer()
+																	.event(ecs::ObserverEvent::OnAdd)
+																	.all<Position>()
+																	.on_each([&](ecs::Iter& it) {
+																		obsCnt += (uint32_t)it.size();
+																	})
+																	.entity();
+
+	const auto entityA = world.add();
+	world.add<Position>(entityA);
+
+	CHECK(world.valid(systemEntity));
+	CHECK(world.valid(observerEntity));
+	CHECK(obsCnt == 1);
+	CHECK(sysCnt == 0);
+
+	world.teardown();
+	world.teardown();
+
+	const auto entityB = world.add();
+	world.add<Position>(entityB);
+	world.update();
+
+	CHECK(sysCnt == 0);
+	CHECK(obsCnt == 1);
 }
 
 TEST_CASE("System - cascade query order") {
@@ -1025,5 +1062,3 @@ TEST_CASE("System - semantic Is cached runs refresh after descendant changes") {
 	CHECK(hitsRemoved == 1);
 	CHECK(sumRemoved == doctest::Approx(2.0f));
 }
-
-#endif

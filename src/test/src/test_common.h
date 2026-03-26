@@ -4,10 +4,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 #include <type_traits>
-#if GAIA_SYSTEMS_ENABLED
-	#include <mutex>
-#endif
 
 #define GAIA_ENABLE_HOOKS 1
 #define GAIA_ENABLE_SET_HOOKS 1
@@ -60,8 +58,8 @@ using namespace gaia;
 #define wld twld.m_w
 
 //! World wrapper for test purposes.
-//! Upon destruction it performs world update several times to make sure there are no issues
-//! with the update function no matter what the unit test does.
+//! The wrapped world handles teardown on destruction; tests can still call update()
+//! repeatedly when they want to flush regular frame maintenance explicitly.
 struct TestWorld {
 	ecs::World m_w;
 
@@ -70,10 +68,6 @@ struct TestWorld {
 	TestWorld(ecs::World&& world) = delete;
 	TestWorld& operator=(const ecs::World& world) = delete;
 	TestWorld& operator=(ecs::World&& world) = delete;
-
-	~TestWorld() {
-		update();
-	}
 
 	void update() {
 		GAIA_FOR(100) m_w.update();
