@@ -45,7 +45,7 @@
 
 //! If enabled, observers are enabled
 #ifndef GAIA_OBSERVERS_ENABLED
-	#define GAIA_OBSERVERS_ENABLED 1
+	#define GAIA_OBSERVERS_ENABLED 0
 #endif
 
 //! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
