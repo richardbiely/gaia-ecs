@@ -1179,7 +1179,9 @@ TEST_CASE("Entity name - entity only") {
 			CHECK(wld.get(tmp) == ecs::EntityBad);
 
 			// Change the name back
-			GAIA_STRCPY(tmp, original.size() + 1, original.data());
+			GAIA_ASSERT(original.size() < MaxLen);
+			memcpy(tmp, original.data(), original.size());
+			tmp[original.size()] = 0;
 			verify(0);
 		}
 
@@ -1220,7 +1222,9 @@ TEST_CASE("Entity name - entity only") {
 
 		{
 			// Change the name back
-			GAIA_STRCPY(tmp, MaxLen, original.data());
+			GAIA_ASSERT(original.size() < MaxLen);
+			memcpy(tmp, original.data(), original.size());
+			tmp[original.size()] = 0;
 			verify(0);
 		}
 
