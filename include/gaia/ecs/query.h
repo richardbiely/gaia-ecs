@@ -230,11 +230,13 @@ namespace gaia {
 
 			template <bool Cached>
 			struct QueryImplStorage {
-				World* m_world{};
+				World* m_world = nullptr;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
-				QueryCache* m_queryCache{};
+				QueryCache* m_pCache = nullptr;
+				//! Hot cached query pointer. Validated against m_identity.handle before use.
+				QueryInfo* m_pInfo = nullptr;
 				//! Query identity
-				QueryIdentity m_q{};
+				QueryIdentity m_identity{};
 				bool m_destroyed = false;
 
 			public:
@@ -246,24 +248,28 @@ namespace gaia {
 
 				QueryImplStorage(QueryImplStorage&& other) {
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
-					other.m_q = {};
+					other.m_pInfo = nullptr;
+					other.m_identity = {};
 					other.m_destroyed = false;
 				}
 				QueryImplStorage& operator=(QueryImplStorage&& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
-					other.m_q = {};
+					other.m_pInfo = nullptr;
+					other.m_identity = {};
 					other.m_destroyed = false;
 
 					return *this;
@@ -271,14 +277,17 @@ namespace gaia {
 
 				QueryImplStorage(const QueryImplStorage& other) {
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
 					if (!m_destroyed) {
-						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						auto* pInfo = try_query_info_fast();
+						if (pInfo == nullptr)
+							pInfo = m_pCache->try_get(m_identity.handle);
 						if (pInfo != nullptr)
 							pInfo->add_ref();
 					}
@@ -287,14 +296,17 @@ namespace gaia {
 					GAIA_ASSERT(core::addressof(other) != this);
 
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
 					if (!m_destroyed) {
-						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						auto* pInfo = try_query_info_fast();
+						if (pInfo == nullptr)
+							pInfo = m_pCache->try_get(m_identity.handle);
 						if (pInfo != nullptr)
 							pInfo->add_ref();
 					}
@@ -307,20 +319,23 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
-					return m_q.ser_buffer(m_world);
+					return m_identity.ser_buffer(m_world);
 				}
 				void ser_buffer_reset() {
-					return m_q.ser_buffer_reset(m_world);
+					return m_identity.ser_buffer_reset(m_world);
 				}
 
 				void init(World* world, QueryCache* queryCache) {
 					m_world = world;
-					m_queryCache = queryCache;
+					m_pCache = queryCache;
+					m_pInfo = nullptr;
 				}
 
 				//! Release any data allocated by the query
 				void reset() {
-					auto& info = m_queryCache->get(m_q.handle);
+					auto* pInfo = try_query_info_fast();
+					GAIA_ASSERT(pInfo != nullptr);
+					auto& info = *pInfo;
 					info.reset();
 				}
 
@@ -331,28 +346,44 @@ namespace gaia {
 				//! Try delete the query from query cache
 				GAIA_NODISCARD bool try_del_from_cache() {
 					if (!m_destroyed)
-						m_queryCache->del(m_q.handle);
+						m_pCache->del(m_identity.handle);
 
 					// Don't allow multiple calls to destroy to break the reference counter.
 					// One object is only allowed to destroy once.
+					m_pInfo = nullptr;
 					m_destroyed = true;
 					return false;
 				}
 
 				//! Invalidates the query handle
 				void invalidate() {
-					m_q.handle = {};
+					m_pInfo = nullptr;
+					m_identity.handle = {};
+				}
+
+				GAIA_NODISCARD QueryInfo* try_query_info_fast() const {
+					if (m_pInfo == nullptr || m_identity.handle.id() == QueryIdBad || m_pCache == nullptr)
+						return nullptr;
+
+					auto* pInfo = m_pCache->try_get(m_identity.handle);
+					return pInfo == m_pInfo ? pInfo : nullptr;
+				}
+
+				void cache_query_info(QueryInfo& queryInfo) {
+					m_pInfo = &queryInfo;
 				}
 
 				//! Returns true if the query is found in the query cache.
 				GAIA_NODISCARD bool is_cached() const {
-					auto* pInfo = m_queryCache->try_get(m_q.handle);
+					auto* pInfo = try_query_info_fast();
+					if (pInfo == nullptr)
+						pInfo = m_pCache->try_get(m_identity.handle);
 					return pInfo != nullptr;
 				}
 
 				//! Returns true if the query is ready to be used.
 				GAIA_NODISCARD bool is_initialized() const {
-					return m_world != nullptr && m_queryCache != nullptr;
+					return m_world != nullptr && m_pCache != nullptr;
 				}
 			};
 
@@ -362,7 +393,7 @@ namespace gaia {
 
 				QueryImplStorage() {
 					m_queryInfo.idx = QueryIdBad;
-					m_queryInfo.data.gen = QueryIdBad;
+					m_queryInfo.gen = QueryIdBad;
 				}
 
 				GAIA_NODISCARD World* world() {
@@ -731,12 +762,15 @@ namespace gaia {
 
 						// If queryId is set it means QueryInfo was already created.
 						// This is the common case for cached queries.
-						if GAIA_LIKELY (m_storage.m_q.handle.id() != QueryIdBad) {
-							auto* pQueryInfo = m_storage.m_queryCache->try_get(m_storage.m_q.handle);
+						if GAIA_LIKELY (m_storage.m_identity.handle.id() != QueryIdBad) {
+							auto* pQueryInfo = m_storage.try_query_info_fast();
+							if GAIA_UNLIKELY (pQueryInfo == nullptr)
+								pQueryInfo = m_storage.m_pCache->try_get(m_storage.m_identity.handle);
 
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
-								if GAIA_UNLIKELY (m_storage.m_q.serId != QueryIdBad)
+								m_storage.cache_query_info(*pQueryInfo);
+								if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad)
 									recommit(pQueryInfo->ctx());
 								return *pQueryInfo;
 							}
@@ -748,9 +782,9 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo =
-								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
-						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
+						auto& queryInfo = m_storage.m_pCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
+						m_storage.m_identity.handle = QueryInfo::handle(queryInfo);
+						m_storage.cache_query_info(queryInfo);
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
 					} else {
@@ -779,7 +813,7 @@ namespace gaia {
 					queryInfo.ensure_matches(
 							*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id(), m_varBindings, m_varBindingsMask);
 					if constexpr (UseCaching) {
-						m_storage.m_queryCache->sync_archetype_cache(queryInfo);
+						m_storage.m_pCache->sync_archetype_cache(queryInfo);
 					}
 				}
 
@@ -1307,7 +1341,7 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_q.handle.id() == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_identity.handle.id() == QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.idx == QueryIdBad);
 					}
@@ -2121,10 +2155,10 @@ namespace gaia {
 						typename std::enable_if<FuncEnabled>::type* = nullptr>
 				void each_inter(QueryId queryId, Func func) {
 					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+					GAIA_ASSERT(m_storage.m_pCache != nullptr);
 					GAIA_ASSERT(queryId != QueryIdBad);
 
-					auto& queryInfo = m_storage.m_queryCache->get(queryId);
+					auto& queryInfo = m_storage.m_pCache->get(queryId);
 					each_inter(queryInfo, func);
 				}
 
@@ -3695,12 +3729,12 @@ namespace gaia {
 
 				GAIA_NODISCARD QueryId id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
-					return m_storage.m_q.handle.id();
+					return m_storage.m_identity.handle.id();
 				}
 
 				GAIA_NODISCARD uint32_t gen() const {
 					static_assert(UseCaching, "gen() can be used only with cached queries");
-					return m_storage.m_q.handle.gen();
+					return m_storage.m_identity.handle.gen();
 				}
 
 				//------------------------------------------------

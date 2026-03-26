@@ -56,7 +56,7 @@ namespace gaia {
 			IsDontFragment = 1 << 15,
 		};
 
-		struct EntityContainer: cnt::ilist_item_base {
+		struct EntityContainer {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
@@ -138,27 +138,10 @@ namespace gaia {
 			}
 		};
 
-#if GAIA_USE_PAGED_ENTITY_CONTAINER
-		struct EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
-			void add_item(EntityContainer&& container) {
-				this->add(GAIA_MOV(container));
-			}
-
-			void del_item([[maybe_unused]] EntityContainer& container) {
-				// TODO: This would also invalidate the ilist item itself. Don't use for now
-				// this->del(container);
-			}
-		};
-#endif
-
 		struct EntityContainers {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
-#if GAIA_USE_PAGED_ENTITY_CONTAINER
-			cnt::ilist<EntityContainer, Entity, EntityContainer_paged_ilist_storage> entities;
-#else
-			cnt::ilist<EntityContainer, Entity> entities;
-#endif
+			cnt::paged_ilist<EntityContainer, Entity> entities;
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
@@ -175,6 +158,19 @@ namespace gaia {
 									 : entities[entity.id()];
 			}
 		};
+
+	} // namespace ecs
+
+	namespace cnt {
+		template <>
+		struct ilist_handle_traits<ecs::Entity> {
+			static ecs::Entity make(uint32_t id, uint32_t gen, const ecs::Entity& prev) {
+				return ecs::Entity((ecs::EntityId)id, gen, prev.entity(), prev.pair(), prev.kind());
+			}
+		};
+	} // namespace cnt
+
+	namespace ecs {
 
 #if GAIA_USE_SAFE_ENTITY
 		//! SafeEntity is a wrapper over Entity that makes sure that so long it is around

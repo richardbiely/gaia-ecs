@@ -3,6 +3,7 @@
 
 #include "gaia/cnt/darray.h"
 #include "gaia/cnt/map.h"
+#include "gaia/cnt/paged_storage.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/id.h"
@@ -10,6 +11,15 @@
 #include "gaia/ecs/query_info.h"
 
 namespace gaia {
+	namespace cnt {
+		template <>
+		struct to_page_storage_id<ecs::QueryInfo> {
+			static page_storage_id get(const ecs::QueryInfo& item) noexcept {
+				return item.idx;
+			}
+		};
+	} // namespace cnt
+
 	namespace ecs {
 		class QueryLookupKey {
 			QueryLookupHash m_hash;
@@ -83,13 +93,9 @@ namespace gaia {
 				uint32_t syncedRevision = 0;
 			};
 
-			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
-			// TODO: Make m_queryArr allocate data in pages.
-			//       Currently ilist always uses a darray internally which keeps growing, making
-			//       it not suitable for this particular use case.
-			//       QueryInfo is quite big and we do not want to copy a lot of data every time
-			//       resizing is necessary.
-			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
+			cnt::map<QueryLookupKey, QueryInfo*> m_pCache;
+			//! QueryInfo records are kept in paged storage so growth does not relocate live queries.
+			cnt::paged_ilist<QueryInfo, QueryHandle> m_queryArr;
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
@@ -129,16 +135,15 @@ namespace gaia {
 				if (handle.id() == QueryIdBad)
 					return false;
 
-				// Entity ID has to fit inside the entity array
-				if (handle.id() >= m_queryArr.size())
+				if (!m_queryArr.has(handle.id()))
 					return false;
 
 				const auto& h = m_queryArr[handle.id()];
-				return h.idx == handle.id() && h.data.gen == handle.gen();
+				return h.idx == handle.id() && h.gen == handle.gen();
 			}
 
 			void clear() {
-				m_queryCache.clear();
+				m_pCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
 				m_relationToQuery.clear();
@@ -170,7 +175,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.data.gen == handle.gen());
+				GAIA_ASSERT(info.gen == handle.gen());
 				return &info;
 			}
 
@@ -182,7 +187,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.data.gen == handle.gen());
+				GAIA_ASSERT(info.gen == handle.gen());
 				return info;
 			}
 
@@ -198,13 +203,12 @@ namespace gaia {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
-				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
+				auto ret = m_pCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx), nullptr);
 				if (!ret.second) {
-					const auto idx = ret.first->second;
-					auto& info = m_queryArr[idx];
-					GAIA_ASSERT(idx == info.idx);
-					info.add_ref();
-					return info;
+					auto* pInfo = ret.first->second;
+					GAIA_ASSERT(pInfo != nullptr);
+					pInfo->add_ref();
+					return *pInfo;
 				}
 
 				// No record exists, let us create a new one
@@ -214,11 +218,12 @@ namespace gaia {
 				creationCtx.allArchetypes = allArchetypes;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
-				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer
+				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_pCache.emplace above is no longer
 				// going to be valid. Therefore we swap the map key with a one with a valid pointer.
 				auto& info = get(handle);
 				info.add_ref();
-				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), info.idx));
+				ret.first->second = &info;
+				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), &info));
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
@@ -246,9 +251,9 @@ namespace gaia {
 				unregister_query_archetypes(handle);
 
 				// If this was the last reference to the query, we can safely remove it
-				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
-				GAIA_ASSERT(it != m_queryCache.end());
-				m_queryCache.erase(it);
+				auto it = m_pCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
+				GAIA_ASSERT(it != m_pCache.end());
+				m_pCache.erase(it);
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
@@ -261,11 +266,11 @@ namespace gaia {
 				return true;
 			}
 
-			cnt::darray<QueryInfo>::iterator begin() {
+			auto begin() {
 				return m_queryArr.begin();
 			}
 
-			cnt::darray<QueryInfo>::iterator end() {
+			auto end() {
 				return m_queryArr.end();
 			}
 

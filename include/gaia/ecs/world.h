@@ -1854,10 +1854,8 @@ namespace gaia {
 			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
 				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
 					return true;
-				if (ec.pArchetype != nullptr && ec.pArchetype->is_req_del())
-					return true;
-
-				return false;
+				GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
+				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
 
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
@@ -5786,7 +5784,7 @@ namespace gaia {
 				// Regular entity
 				{
 					// Entity ID has to fit inside the entity array
-					if (entity.id() >= m_recs.entities.size())
+					if (entity.id() >= m_recs.entities.size() || !m_recs.entities.has(entity.id()))
 						return false;
 
 					// Index of the entity must fit inside the chunk
@@ -7242,6 +7240,8 @@ namespace gaia {
 							const auto target = pStore->srcToTgt[i];
 							if (target == EntityBad)
 								continue;
+							if (!m_recs.entities.has(i))
+								continue;
 							out.push_back(EntityContainer::handle(m_recs.entities[i]));
 						}
 						return;
@@ -7321,6 +7321,8 @@ namespace gaia {
 						GAIA_FOR(cnt) {
 							const auto target = pStore->srcToTgt[i];
 							if (target == EntityBad)
+								continue;
+							if (!m_recs.entities.has(i))
 								continue;
 							if (!func(ctx, EntityContainer::handle(m_recs.entities[i])))
 								return false;
@@ -7814,10 +7816,10 @@ namespace gaia {
 					GAIA_LOG_N("  --> %u", (uint32_t)m_recs.entities.get_next_free_item());
 
 					uint32_t iters = 0;
-					auto fe = m_recs.entities[m_recs.entities.get_next_free_item()].idx;
+					auto fe = m_recs.entities.next_free(m_recs.entities.get_next_free_item());
 					while (fe != IdentifierIdBad) {
-						GAIA_LOG_N("  --> %u", m_recs.entities[fe].idx);
-						fe = m_recs.entities[fe].idx;
+						GAIA_LOG_N("  --> %u", m_recs.entities.next_free(fe));
+						fe = m_recs.entities.next_free(fe);
 						++iters;
 						if (iters > m_recs.entities.get_free_items())
 							break;
@@ -7928,6 +7930,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
+				if ((ec.flags & EntityContainerFlags::Load) != 0) {
+					return entityExpected.id() == ec.idx && entityExpected.gen() == ec.data.gen &&
+								 entityExpected.entity() == (bool)ec.data.ent && entityExpected.pair() == (bool)ec.data.pair &&
+								 entityExpected.kind() == (EntityKind)ec.data.kind;
+				}
+
 				if (is_req_del(ec))
 					return false;
 
@@ -7978,8 +7986,11 @@ namespace gaia {
 				if (entity.id() >= m_recs.entities.size())
 					return false;
 
-				const auto& ec = m_recs.entities[entity.id()];
-				return valid(ec, entity);
+				const auto* pEc = m_recs.entities.try_get(entity.id());
+				if (pEc == nullptr)
+					return false;
+
+				return valid(*pEc, entity);
 			}
 
 			//! Checks if the entity with id \param entityId is valid.
@@ -7993,7 +8004,11 @@ namespace gaia {
 				if (entityId >= m_recs.entities.size())
 					return false;
 
-				const auto& ec = m_recs.entities[entityId];
+				const auto* pEc = m_recs.entities.try_get(entityId);
+				if (pEc == nullptr)
+					return false;
+
+				const auto& ec = *pEc;
 				if (ec.data.pair != 0)
 					return false;
 
@@ -8024,7 +8039,7 @@ namespace gaia {
 			}
 
 		private:
-			static constexpr uint32_t WorldSerializerVersion = 1;
+			static constexpr uint32_t WorldSerializerVersion = 2;
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 
 			void save_to(ser::serializer s) const {
@@ -8063,8 +8078,14 @@ namespace gaia {
 					const auto newEntities = recEntities - lastCoreComponentId;
 					s.save(newEntities);
 					GAIA_FOR2(lastCoreComponentId, recEntities) {
-						const auto& ec = m_recs.entities[i];
-						saveEntityContainer(ec);
+						const bool isAlive = m_recs.entities.has(i);
+						s.save(isAlive);
+						if (isAlive)
+							saveEntityContainer(m_recs.entities[i]);
+						else {
+							s.save(m_recs.entities.handle(i).val);
+							s.save(m_recs.entities.next_free(i));
+						}
 					}
 
 					{
@@ -8265,10 +8286,21 @@ namespace gaia {
 					uint32_t newEntities = 0;
 					s.load(newEntities);
 					GAIA_FOR(newEntities) {
-						EntityContainer ec;
-						loadEntityContainer(ec);
-
-						m_recs.entities.m_items.add_item(GAIA_MOV(ec));
+						bool isAlive = false;
+						s.load(isAlive);
+						if (isAlive) {
+							EntityContainer ec{};
+							loadEntityContainer(ec);
+							m_recs.entities.add_live(GAIA_MOV(ec));
+						} else {
+							Identifier id = IdentifierBad;
+							uint32_t nextFreeIdx = Entity::IdMask;
+							s.load(id);
+							s.load(nextFreeIdx);
+							auto entity = Entity(id);
+							GAIA_ASSERT(entity.id() == lastCoreComponentId + i);
+							m_recs.entities.add_free(entity, nextFreeIdx);
+						}
 					}
 
 					uint32_t pairsCnt = 0;
@@ -8325,8 +8357,12 @@ namespace gaia {
 				// Now we need to convert it back to the pointer.
 				{
 					for (auto& ec: m_recs.entities) {
-						if ((ec.flags & EntityContainerFlags::Load) == 0)
+						if (ec.idx < lastCoreComponentId) {
+							GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
 							continue;
+						}
+
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
 						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
@@ -8335,11 +8371,15 @@ namespace gaia {
 						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
 						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
 					}
+
 					for (auto& pair: m_recs.pairs) {
 						auto& ec = pair.second;
 
+						// Core pairs remain in-world during load and were not serialized into the stream.
 						if ((ec.flags & EntityContainerFlags::Load) == 0)
 							continue;
+
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
 						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
@@ -8350,6 +8390,15 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_ASSERT_ENABLED
+				for (const auto& ec: m_recs.entities) {
+					GAIA_ASSERT(ec.idx < m_recs.entities.size());
+					GAIA_ASSERT(m_recs.entities.handle(ec.idx) == EntityContainer::handle(ec));
+					GAIA_ASSERT(ec.pArchetype != nullptr);
+					GAIA_ASSERT(ec.pChunk != nullptr);
+					GAIA_ASSERT(ec.pEntity != nullptr);
+				}
+#endif
 				// Entity names
 				{
 					m_nameToEntity = {};
@@ -8412,12 +8461,11 @@ namespace gaia {
 				// Entity aliases
 				{
 					m_aliasToEntity = {};
-					GAIA_FOR((uint32_t)m_recs.entities.size()) {
-						const auto entity = get((EntityId)i);
-						if (!valid(entity) || entity.pair())
+					for (auto& ec: m_recs.entities) {
+						const auto entity = EntityContainer::handle(ec);
+						if (entity.pair())
 							continue;
 
-						const auto& ec = m_recs.entities[i];
 						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
 						if (compIdx == BadIndex)
 							continue;
@@ -8550,6 +8598,22 @@ namespace gaia {
 				GAIA_ASSERT(!pArchetype->dying() || pArchetype->is_req_del());
 
 				unreg_archetype(pArchetype);
+				for (auto& ec: m_recs.entities) {
+					if (ec.pArchetype != pArchetype)
+						continue;
+
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
+				}
+				for (auto& [_, ec]: m_recs.pairs) {
+					if (ec.pArchetype != pArchetype)
+						continue;
+
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
+				}
 				Archetype::destroy(pArchetype);
 			}
 
@@ -8944,8 +9008,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pair.id() < m_recs.entities.size());
 				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
-				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
-				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+				const auto first = m_recs.entities.handle(pair.id());
+				const auto second = m_recs.entities.handle(pair.gen());
 
 				del_entity_query_pair(Pair(All, second), pArchetypeToRemove);
 				del_entity_query_pair(Pair(first, All), pArchetypeToRemove);
@@ -8957,8 +9021,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pair.id() < m_recs.entities.size());
 				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
-				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
-				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+				const auto first = m_recs.entities.handle(pair.id());
+				const auto second = m_recs.entities.handle(pair.gen());
 
 				del_entity_query_pair(Pair(All, second), entityToRemove);
 				del_entity_query_pair(Pair(first, All), entityToRemove);
@@ -10620,8 +10684,8 @@ namespace gaia {
 						// lookup keys from the stored entity records instead of calling get().
 						GAIA_ASSERT(entity.id() < m_recs.entities.size());
 						GAIA_ASSERT(entity.gen() < m_recs.entities.size());
-						auto rel = EntityContainer::handle(m_recs.entities[entity.id()]);
-						auto tgt = EntityContainer::handle(m_recs.entities[entity.gen()]);
+						auto rel = m_recs.entities.handle(entity.id());
+						auto tgt = m_recs.entities.handle(entity.gen());
 
 						delPair(m_relToTgt, rel, tgt);
 						delPair(m_relToTgt, All, tgt);
@@ -10630,7 +10694,8 @@ namespace gaia {
 					}
 				} else {
 					// Update the container record
-					auto& ec = m_recs.entities.free(entity);
+					auto ec = m_recs.entities[entity.id()];
+					m_recs.entities.free(entity);
 
 					// Remove all outgoing non-fragmenting sparse components from this entity.
 					del_sparse_components(entity);

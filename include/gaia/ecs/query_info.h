@@ -77,8 +77,14 @@ namespace gaia {
 			std::span<const Archetype*> allArchetypes;
 		};
 
-		class QueryInfo: public cnt::ilist_item {
+		class QueryInfo {
 		public:
+			//! Allocated items: index in the query slot list.
+			//! Deleted items: index of the next deleted item in the slot list.
+			uint32_t idx = 0;
+			//! Generation ID of the query slot.
+			uint32_t gen = 0;
+
 			//! Query matching result
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 
@@ -600,7 +606,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = id;
-				info.data.gen = 0;
+				info.gen = 0;
 
 				info.m_plan.ctx = GAIA_MOV(ctx);
 				info.m_plan.ctx.q.handle = {id, 0};
@@ -621,7 +627,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = idx;
-				info.data.gen = gen;
+				info.gen = gen;
 
 				info.m_plan.ctx = GAIA_MOV(queryCtx);
 				info.m_plan.ctx.q.handle = {idx, gen};
@@ -633,7 +639,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
-				return QueryHandle(info.idx, info.data.gen);
+				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process

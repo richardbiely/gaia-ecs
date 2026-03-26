@@ -2055,6 +2055,14 @@ TEST_CASE("Containers - ilist") {
 
 		EntityContainer() = default;
 		EntityContainer(uint32_t index, uint32_t generation): cnt::ilist_item(index, generation) {}
+
+		GAIA_NODISCARD static EntityContainer create(uint32_t index, uint32_t generation, void*) {
+			return EntityContainer(index, generation);
+		}
+
+		GAIA_NODISCARD static ecs::Entity handle(const EntityContainer& item) {
+			return ecs::Entity(item.idx, item.data.gen);
+		}
 	};
 	SUBCASE("0 -> 1 -> 2") {
 		cnt::ilist<EntityContainer, ecs::Entity> il;
@@ -3125,3 +3133,176 @@ TEST_CASE("Sort ascending") {
 }
 
 //-----------------------------------------------------------------
+
+namespace {
+	struct ListHandle {
+		static constexpr uint32_t IdMask = uint32_t(-1);
+
+		uint32_t m_id = IdMask;
+		uint32_t m_gen = 0;
+
+		ListHandle() = default;
+		ListHandle(uint32_t id, uint32_t gen): m_id(id), m_gen(gen) {}
+
+		GAIA_NODISCARD uint32_t id() const noexcept {
+			return m_id;
+		}
+		GAIA_NODISCARD uint32_t gen() const noexcept {
+			return m_gen;
+		}
+
+		GAIA_NODISCARD bool operator==(const ListHandle& other) const noexcept {
+			return m_id == other.m_id && m_gen == other.m_gen;
+		}
+		GAIA_NODISCARD bool operator!=(const ListHandle& other) const noexcept {
+			return !(*this == other);
+		}
+	};
+
+	struct ListItemCtx {
+		uint32_t value = 0;
+	};
+
+	struct ListItem {
+		uint32_t idx = 0;
+		struct ItemData {
+			uint32_t gen = 0;
+		} data;
+		uint32_t value = 0;
+
+		ListItem() = default;
+		ListItem(uint32_t index, uint32_t generation): idx(index) {
+			data.gen = generation;
+		}
+
+		GAIA_NODISCARD static ListItem create(uint32_t index, uint32_t generation, void* pCtx) {
+			ListItem item(index, generation);
+			if (pCtx != nullptr)
+				item.value = ((ListItemCtx*)pCtx)->value;
+			return item;
+		}
+
+		GAIA_NODISCARD static ListHandle handle(const ListItem& item) {
+			return ListHandle(item.idx, item.data.gen);
+		}
+	};
+} // namespace
+
+TEST_CASE("ilist - slot reuse bumps generation") {
+	cnt::ilist<ListItem, ListHandle> list;
+	list.reserve(8);
+
+	ListItemCtx ctx0{10};
+	ListItemCtx ctx1{20};
+	ListItemCtx ctx2{30};
+	const auto h0 = list.alloc(&ctx0);
+	const auto h1 = list.alloc(&ctx1);
+	const auto h2 = list.alloc(&ctx2);
+
+	CHECK(h0 == ListHandle(0, 0));
+	CHECK(h1 == ListHandle(1, 0));
+	CHECK(h2 == ListHandle(2, 0));
+	CHECK(list.item_count() == 3);
+
+	const auto& dead1 = list.free(h1);
+	CHECK(dead1.data.gen == 1);
+	CHECK(dead1.idx == ListHandle::IdMask);
+	CHECK(list.get_free_items() == 1);
+	list.validate();
+
+	const auto& dead2 = list.free(h2);
+	CHECK(dead2.data.gen == 1);
+	CHECK(dead2.idx == 1);
+	CHECK(list.get_next_free_item() == 2);
+	CHECK(list.get_free_items() == 2);
+	list.validate();
+
+	ListItemCtx ctx3{40};
+	const auto h3 = list.alloc(&ctx3);
+	CHECK(h3 == ListHandle(2, 1));
+	CHECK(list[h3.id()].value == 40);
+
+	ListItemCtx ctx4{50};
+	const auto h4 = list.alloc(&ctx4);
+	CHECK(h4 == ListHandle(1, 1));
+	CHECK(list[h4.id()].value == 50);
+	CHECK(list.get_free_items() == 0);
+	CHECK(list.item_count() == 3);
+	list.validate();
+}
+
+TEST_CASE("paged_ilist - restore preserves free list metadata") {
+	cnt::paged_ilist<ListItem, ListHandle> list;
+
+	list.add_free(ListHandle(9, 5), ListHandle::IdMask);
+	list.add_free(ListHandle(4, 2), 9);
+	list.m_nextFreeIdx = 4;
+	list.m_freeItems = 2;
+
+	auto live = ListItem::create(11, 3, nullptr);
+	live.value = 77;
+	list.add_live(GAIA_MOV(live));
+
+	CHECK(list.size() == 12);
+	CHECK_FALSE(list.has(4));
+	CHECK_FALSE(list.has(9));
+	CHECK(list.has(11));
+	CHECK(list.handle(4) == ListHandle(4, 2));
+	CHECK(list.handle(9) == ListHandle(9, 5));
+	CHECK(list.next_free(4) == 9);
+	CHECK(list.next_free(9) == ListHandle::IdMask);
+	CHECK(list[11].value == 77);
+	list.validate();
+
+	ListItemCtx ctx0{100};
+	const auto h0 = list.alloc(&ctx0);
+	CHECK(h0 == ListHandle(4, 2));
+	CHECK(list[4].value == 100);
+
+	ListItemCtx ctx1{200};
+	const auto h1 = list.alloc(&ctx1);
+	CHECK(h1 == ListHandle(9, 5));
+	CHECK(list[9].value == 200);
+	CHECK(list.get_free_items() == 0);
+	list.validate();
+}
+
+TEST_CASE("paged_ilist - iterates only live items across pages") {
+	cnt::paged_ilist<ListItem, ListHandle> list;
+	cnt::darray<ListHandle> handles;
+	constexpr uint32_t ItemCount = 600;
+	handles.reserve(ItemCount);
+
+	GAIA_FOR(ItemCount) {
+		ListItemCtx ctx{i + 1};
+		handles.push_back(list.alloc(&ctx));
+	}
+
+	uint32_t expectedLive = ItemCount;
+	uint64_t expectedSum = (uint64_t)ItemCount * (ItemCount + 1) / 2;
+
+	GAIA_FOR(ItemCount) {
+		if ((i % 3) != 0)
+			continue;
+
+		list.free(handles[i]);
+		--expectedLive;
+		expectedSum -= (uint64_t)(i + 1);
+		CHECK_FALSE(list.has(handles[i]));
+		CHECK(list.try_get(handles[i].id()) == nullptr);
+	}
+	list.validate();
+
+	uint32_t actualLive = 0;
+	uint64_t actualSum = 0;
+	for (const auto& item: list) {
+		++actualLive;
+		actualSum += item.value;
+	}
+
+	CHECK(list.item_count() == expectedLive);
+	CHECK(actualLive == expectedLive);
+	CHECK(actualSum == expectedSum);
+	CHECK(list.has(handles[1]));
+	CHECK(list.try_get(handles[1].id()) != nullptr);
+}

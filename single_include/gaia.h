@@ -731,12 +731,6 @@ namespace gaia {
 	#define GAIA_OBSERVERS_ENABLED 1
 #endif
 
-//! If enabled, entities are stored in paged-storage. This way, the cost of adding any number of entities
-//! is always the same. Blocks of fixed size and stable memory address  are allocated for entity records.
-#ifndef GAIA_USE_PAGED_ENTITY_CONTAINER
-	#define GAIA_USE_PAGED_ENTITY_CONTAINER 1
-#endif
-
 //! If enabled, hooks are enabled for components. Any time a new component is added to, or removed from
 //! an entity, they can be triggered. Set hooks for when component value is changed are possible, too.
 #ifndef GAIA_ENABLE_HOOKS
@@ -9356,14 +9350,119 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 
 namespace gaia {
 	namespace cnt {
-		struct ilist_item_base {};
+		template <typename TListItem>
+		struct ilist_item_traits;
 
-		struct ilist_item: public ilist_item_base {
+		namespace detail {
+			template <typename T, typename = void>
+			struct ilist_has_idx_member: std::false_type {};
+			template <typename T>
+			struct ilist_has_idx_member<T, std::void_t<decltype(std::declval<T&>().idx)>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_gen_member: std::false_type {};
+			template <typename T>
+			struct ilist_has_gen_member<T, std::void_t<decltype(std::declval<T&>().gen)>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_data_gen_member: std::false_type {};
+			template <typename T>
+			struct ilist_has_data_gen_member<T, std::void_t<decltype(std::declval<T&>().data.gen)>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_id_mask: std::false_type {};
+			template <typename T>
+			struct ilist_has_id_mask<T, std::void_t<decltype(T::IdMask)>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_handle_id: std::false_type {};
+			template <typename T>
+			struct ilist_has_handle_id<T, std::void_t<decltype(std::declval<const T&>().id())>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_handle_gen: std::false_type {};
+			template <typename T>
+			struct ilist_has_handle_gen<T, std::void_t<decltype(std::declval<const T&>().gen())>>: std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_has_create: std::false_type {};
+			template <typename T>
+			struct ilist_has_create<
+					T, std::void_t<decltype(T::create(std::declval<uint32_t>(), std::declval<uint32_t>(), (void*)nullptr))>>:
+					std::true_type {};
+
+			template <typename T, typename THandle, typename = void>
+			struct ilist_has_handle: std::false_type {};
+			template <typename T, typename THandle>
+			struct ilist_has_handle<T, THandle, std::void_t<decltype(T::handle(std::declval<const T&>()))>>:
+					std::bool_constant<std::is_convertible_v<decltype(T::handle(std::declval<const T&>())), THandle>> {};
+
+			template <typename T, typename = void>
+			struct ilist_traits_has_idx: std::false_type {};
+			template <typename T>
+			struct ilist_traits_has_idx<T, std::void_t<decltype(ilist_item_traits<T>::idx(std::declval<const T&>()))>>:
+					std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_traits_has_set_idx: std::false_type {};
+			template <typename T>
+			struct ilist_traits_has_set_idx<
+					T, std::void_t<decltype(ilist_item_traits<T>::set_idx(std::declval<T&>(), std::declval<uint32_t>()))>>:
+					std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_traits_has_gen: std::false_type {};
+			template <typename T>
+			struct ilist_traits_has_gen<T, std::void_t<decltype(ilist_item_traits<T>::gen(std::declval<const T&>()))>>:
+					std::true_type {};
+
+			template <typename T, typename = void>
+			struct ilist_traits_has_set_gen: std::false_type {};
+			template <typename T>
+			struct ilist_traits_has_set_gen<
+					T, std::void_t<decltype(ilist_item_traits<T>::set_gen(std::declval<T&>(), std::declval<uint32_t>()))>>:
+					std::true_type {};
+		} // namespace detail
+
+		template <typename TListItem>
+		struct ilist_item_traits {
+			static_assert(
+					detail::ilist_has_idx_member<TListItem>::value,
+					"ilist item type must expose idx or specialize ilist_item_traits");
+			static_assert(
+					detail::ilist_has_gen_member<TListItem>::value || detail::ilist_has_data_gen_member<TListItem>::value,
+					"ilist item type must expose gen/data.gen or specialize ilist_item_traits");
+
+			GAIA_NODISCARD static uint32_t idx(const TListItem& item) noexcept {
+				return (uint32_t)item.idx;
+			}
+
+			static void set_idx(TListItem& item, uint32_t value) noexcept {
+				item.idx = value;
+			}
+
+			GAIA_NODISCARD static uint32_t gen(const TListItem& item) noexcept {
+				if constexpr (detail::ilist_has_gen_member<TListItem>::value)
+					return (uint32_t)item.gen;
+				else
+					return (uint32_t)item.data.gen;
+			}
+
+			static void set_gen(TListItem& item, uint32_t value) noexcept {
+				if constexpr (detail::ilist_has_gen_member<TListItem>::value)
+					item.gen = value;
+				else
+					item.data.gen = value;
+			}
+		};
+
+		struct ilist_item {
 			struct ItemData {
 				//! Generation ID
 				uint32_t gen;
@@ -9422,8 +9521,8 @@ namespace gaia {
 		//! together through an internal indexing mechanism. To the outside world they are
 		//! presented as \tparam TItemHandle. All items are stored in a container instance
 		//! of the type \tparam TInternalStorage.
-		//! \tparam TListItem needs to have idx and gen variables and expose a constructor
-		//! that initializes them.
+		//! \tparam TListItem needs to expose slot metadata through ilist_item_traits<TListItem>
+		//!         and expose a constructor that initializes the slot index and generation.
 		template <typename TListItem, typename TItemHandle, typename TInternalStorage = darray_ilist_storage<TListItem>>
 		struct ilist {
 			using internal_storage = TInternalStorage;
@@ -9441,7 +9540,21 @@ namespace gaia {
 			using const_iterator = typename internal_storage::const_iterator;
 			using iterator_category = typename internal_storage::iterator_category;
 
-			static_assert(std::is_base_of<ilist_item_base, TListItem>::value);
+			static_assert(detail::ilist_traits_has_idx<TListItem>::value, "ilist_item_traits<T> must expose idx(const T&)");
+			static_assert(
+					detail::ilist_traits_has_set_idx<TListItem>::value, "ilist_item_traits<T> must expose set_idx(T&, uint32_t)");
+			static_assert(detail::ilist_traits_has_gen<TListItem>::value, "ilist_item_traits<T> must expose gen(const T&)");
+			static_assert(
+					detail::ilist_traits_has_set_gen<TListItem>::value, "ilist_item_traits<T> must expose set_gen(T&, uint32_t)");
+			static_assert(
+					detail::ilist_has_create<TListItem>::value,
+					"ilist item type must expose static create(index, generation, ctx)");
+			static_assert(
+					detail::ilist_has_handle<TListItem, TItemHandle>::value,
+					"ilist item type must expose static handle(const item) returning the handle type");
+			static_assert(detail::ilist_has_id_mask<TItemHandle>::value, "ilist handle type must expose IdMask");
+			static_assert(detail::ilist_has_handle_id<TItemHandle>::value, "ilist handle type must expose id()");
+			static_assert(detail::ilist_has_handle_gen<TItemHandle>::value, "ilist handle type must expose gen()");
 			//! Implicit list items
 			internal_storage m_items;
 			//! Index of the next item to recycle
@@ -9547,8 +9660,8 @@ namespace gaia {
 				--m_freeItems;
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
-				m_nextFreeIdx = j.idx;
-				j = TListItem::create(index, j.data.gen, ctx);
+				m_nextFreeIdx = ilist_item_traits<TListItem>::idx(j);
+				j = TListItem::create(index, ilist_item_traits<TListItem>::gen(j), ctx);
 				return TListItem::handle(j);
 			}
 
@@ -9577,8 +9690,8 @@ namespace gaia {
 				--m_freeItems;
 				const auto index = m_nextFreeIdx;
 				auto& j = m_items[m_nextFreeIdx];
-				m_nextFreeIdx = j.idx;
-				return {index, m_items[index].data.gen};
+				m_nextFreeIdx = ilist_item_traits<TListItem>::idx(j);
+				return {index, ilist_item_traits<TListItem>::gen(m_items[index])};
 			}
 
 			//! Invalidates @a handle.
@@ -9590,10 +9703,10 @@ namespace gaia {
 
 				// Update our implicit list
 				if GAIA_UNLIKELY (m_freeItems == 0)
-					item.idx = TItemHandle::IdMask;
+					ilist_item_traits<TListItem>::set_idx(item, TItemHandle::IdMask);
 				else
-					item.idx = m_nextFreeIdx;
-				++item.data.gen;
+					ilist_item_traits<TListItem>::set_idx(item, m_nextFreeIdx);
+				ilist_item_traits<TListItem>::set_gen(item, ilist_item_traits<TListItem>::gen(item) + 1);
 
 				m_nextFreeIdx = handle.id();
 				++m_freeItems;
@@ -9615,12 +9728,618 @@ namespace gaia {
 				while (freeItems > 0) {
 					GAIA_ASSERT(nextFreeItem < m_items.size() && "Item recycle list broken!");
 
-					nextFreeItem = m_items[nextFreeItem].idx;
+					nextFreeItem = ilist_item_traits<TListItem>::idx(m_items[nextFreeItem]);
 					--freeItems;
 				}
 
 				// At this point the index of the last item in list should
 				// point to -1 because that's the tail of our implicit list.
+				GAIA_ASSERT(nextFreeItem == TItemHandle::IdMask);
+			}
+		};
+
+		template <typename TItemHandle, typename = void>
+		struct ilist_handle_traits {
+			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle&) {
+				return TItemHandle(id, gen);
+			}
+		};
+
+		template <typename TListItem, typename TItemHandle>
+		struct paged_ilist;
+
+		//! Forward iterator used by paged_ilist.
+		//! Kept outside the container template so the container body stays smaller to compile.
+		//! \tparam TPagedIList Owning paged_ilist type.
+		//! \tparam IsConst Whether the iterator yields const references.
+		template <typename TPagedIList, bool IsConst>
+		class paged_ilist_iterator {
+			using owner_type = std::conditional_t<IsConst, const TPagedIList, TPagedIList>;
+			using owner_pointer = owner_type*;
+
+			owner_pointer m_pOwner = nullptr;
+			typename TPagedIList::size_type m_index = 0;
+
+			void skip_dead() {
+				while (m_pOwner != nullptr && m_index < m_pOwner->size() && !m_pOwner->has(m_index))
+					++m_index;
+			}
+
+		public:
+			using value_type = typename TPagedIList::value_type;
+			using reference =
+					std::conditional_t<IsConst, typename TPagedIList::const_reference, typename TPagedIList::reference>;
+			using pointer = std::conditional_t<IsConst, typename TPagedIList::const_pointer, typename TPagedIList::pointer>;
+			using difference_type = typename TPagedIList::difference_type;
+			using iterator_category = core::forward_iterator_tag;
+
+			paged_ilist_iterator() = default;
+			paged_ilist_iterator(owner_pointer pOwner, typename TPagedIList::size_type index):
+					m_pOwner(pOwner), m_index(index) {
+				skip_dead();
+			}
+
+			GAIA_NODISCARD reference operator*() const {
+				return (*m_pOwner)[m_index];
+			}
+
+			GAIA_NODISCARD pointer operator->() const {
+				return &(*m_pOwner)[m_index];
+			}
+
+			paged_ilist_iterator& operator++() {
+				++m_index;
+				skip_dead();
+				return *this;
+			}
+
+			paged_ilist_iterator operator++(int) {
+				auto tmp = *this;
+				++(*this);
+				return tmp;
+			}
+
+			GAIA_NODISCARD bool operator==(const paged_ilist_iterator& other) const {
+				return m_pOwner == other.m_pOwner && m_index == other.m_index;
+			}
+
+			GAIA_NODISCARD bool operator!=(const paged_ilist_iterator& other) const {
+				return !(*this == other);
+			}
+		};
+
+		//! Paged implicit list with page-local slot metadata and lazily allocated page payloads.
+		//! Live slots own payload objects. Dead slots keep only handle and free-list metadata, which
+		//! allows payload storage for fully empty pages to be released.
+		//! \tparam TListItem Payload type stored in the list. Must expose slot metadata
+		//!         through ilist_item_traits<TListItem> and ilist-compatible create()/handle() helpers.
+		//! \tparam TItemHandle External handle type exposing id(), gen(), and IdMask.
+		template <typename TListItem, typename TItemHandle>
+		struct paged_ilist {
+			using value_type = TListItem;
+			using reference = TListItem&;
+			using const_reference = const TListItem&;
+			using pointer = TListItem*;
+			using const_pointer = const TListItem*;
+			using difference_type = std::ptrdiff_t;
+			using size_type = uint32_t;
+			using iterator_category = core::forward_iterator_tag;
+
+			static_assert(detail::ilist_traits_has_idx<TListItem>::value, "ilist_item_traits<T> must expose idx(const T&)");
+			static_assert(
+					detail::ilist_traits_has_set_idx<TListItem>::value, "ilist_item_traits<T> must expose set_idx(T&, uint32_t)");
+			static_assert(detail::ilist_traits_has_gen<TListItem>::value, "ilist_item_traits<T> must expose gen(const T&)");
+			static_assert(
+					detail::ilist_traits_has_set_gen<TListItem>::value, "ilist_item_traits<T> must expose set_gen(T&, uint32_t)");
+			static_assert(
+					detail::ilist_has_create<TListItem>::value,
+					"paged_ilist item type must expose static create(index, generation, ctx)");
+			static_assert(
+					detail::ilist_has_handle<TListItem, TItemHandle>::value,
+					"paged_ilist item type must expose static handle(const item) returning the handle type");
+			static_assert(detail::ilist_has_id_mask<TItemHandle>::value, "paged_ilist handle type must expose IdMask");
+			static_assert(detail::ilist_has_handle_id<TItemHandle>::value, "paged_ilist handle type must expose id()");
+			static_assert(detail::ilist_has_handle_gen<TItemHandle>::value, "paged_ilist handle type must expose gen()");
+
+		private:
+			static constexpr size_type target_payload_bytes() noexcept {
+				return 16384;
+			}
+
+			static constexpr size_type min_page_capacity() noexcept {
+				return 8;
+			}
+
+			static constexpr size_type max_page_capacity() noexcept {
+				return 256;
+			}
+
+			static constexpr size_type calc_page_capacity() noexcept {
+				const size_type payloadItemBytes = sizeof(TListItem) == 0 ? 1U : (size_type)sizeof(TListItem);
+				const size_type desired = target_payload_bytes() / payloadItemBytes;
+				if (desired < min_page_capacity())
+					return min_page_capacity();
+				if (desired > max_page_capacity())
+					return max_page_capacity();
+				return desired;
+			}
+
+			static constexpr size_type PageCapacity = calc_page_capacity();
+
+			struct page_type {
+				using alive_mask_type = cnt::bitset<PageCapacity>;
+				using storage_type = mem::raw_data_holder<TListItem, sizeof(TListItem) * PageCapacity>;
+
+				alive_mask_type aliveMask;
+				TItemHandle handles[PageCapacity]{};
+				uint32_t nextFree[PageCapacity];
+				uint32_t liveCount = 0;
+				storage_type* pStorage = nullptr;
+
+				page_type() {
+					GAIA_FOR(PageCapacity)
+					nextFree[i] = TItemHandle::IdMask;
+				}
+
+				~page_type() {
+					clear();
+				}
+
+				page_type(const page_type&) = delete;
+				page_type& operator=(const page_type&) = delete;
+
+				page_type(page_type&& other) noexcept:
+						aliveMask(other.aliveMask), liveCount(other.liveCount), pStorage(other.pStorage) {
+					GAIA_FOR(PageCapacity) {
+						handles[i] = other.handles[i];
+						nextFree[i] = other.nextFree[i];
+					}
+
+					other.aliveMask.reset();
+					other.liveCount = 0;
+					other.pStorage = nullptr;
+				}
+
+				page_type& operator=(page_type&& other) noexcept {
+					GAIA_ASSERT(core::addressof(other) != this);
+
+					clear();
+					aliveMask = other.aliveMask;
+					liveCount = other.liveCount;
+					pStorage = other.pStorage;
+					GAIA_FOR(PageCapacity) {
+						handles[i] = other.handles[i];
+						nextFree[i] = other.nextFree[i];
+					}
+
+					other.aliveMask.reset();
+					other.liveCount = 0;
+					other.pStorage = nullptr;
+					return *this;
+				}
+
+				GAIA_NODISCARD pointer data() noexcept {
+					return pStorage == nullptr ? nullptr : reinterpret_cast<pointer>((uint8_t*)*pStorage);
+				}
+
+				GAIA_NODISCARD const_pointer data() const noexcept {
+					return pStorage == nullptr ? nullptr : reinterpret_cast<const_pointer>((const uint8_t*)*pStorage);
+				}
+
+				GAIA_NODISCARD pointer ptr(size_type slot) noexcept {
+					GAIA_ASSERT(slot < PageCapacity);
+					GAIA_ASSERT(pStorage != nullptr);
+					return data() + slot;
+				}
+
+				GAIA_NODISCARD const_pointer ptr(size_type slot) const noexcept {
+					GAIA_ASSERT(slot < PageCapacity);
+					GAIA_ASSERT(pStorage != nullptr);
+					return data() + slot;
+				}
+
+				void ensure_storage() {
+					if GAIA_LIKELY (pStorage != nullptr)
+						return;
+
+					constexpr auto StorageAlignment =
+							alignof(storage_type) < sizeof(void*) ? sizeof(void*) : alignof(storage_type);
+					pStorage = mem::AllocHelper::alloc_alig<storage_type>("PagedIListPage", StorageAlignment);
+				}
+
+				void maybe_release_storage() {
+					if (liveCount != 0 || pStorage == nullptr)
+						return;
+
+					mem::AllocHelper::free_alig("PagedIListPage", pStorage);
+					pStorage = nullptr;
+				}
+
+				void clear() {
+					if (pStorage != nullptr) {
+						for (auto slot: aliveMask)
+							core::call_dtor(ptr(slot));
+						mem::AllocHelper::free_alig("PagedIListPage", pStorage);
+						pStorage = nullptr;
+					}
+
+					aliveMask.reset();
+					liveCount = 0;
+					GAIA_FOR(PageCapacity)
+					nextFree[i] = TItemHandle::IdMask;
+				}
+
+				template <typename... Args>
+				void construct(size_type slot, Args&&... args) {
+					GAIA_ASSERT(slot < PageCapacity);
+					ensure_storage();
+					core::call_ctor(ptr(slot), GAIA_FWD(args)...);
+					aliveMask.set(slot);
+					++liveCount;
+				}
+
+				void destroy(size_type slot) {
+					GAIA_ASSERT(slot < PageCapacity);
+					GAIA_ASSERT(aliveMask.test(slot));
+					core::call_dtor(ptr(slot));
+					aliveMask.reset(slot);
+					GAIA_ASSERT(liveCount > 0);
+					--liveCount;
+					maybe_release_storage();
+				}
+			};
+
+			cnt::darray<page_type*> m_pages;
+			size_type m_size = 0;
+
+		public:
+			size_type m_nextFreeIdx = (size_type)-1;
+			size_type m_freeItems = 0;
+
+		private:
+			GAIA_NODISCARD static constexpr size_type page_index(size_type index) noexcept {
+				return index / PageCapacity;
+			}
+
+			GAIA_NODISCARD static constexpr size_type slot_index(size_type index) noexcept {
+				return index % PageCapacity;
+			}
+
+			GAIA_NODISCARD static constexpr size_type page_count_for_slots(size_type slotCnt) noexcept {
+				return slotCnt == 0 ? 0U : (slotCnt + PageCapacity - 1) / PageCapacity;
+			}
+
+			void clear_pages() {
+				for (auto* pPage: m_pages) {
+					if (pPage == nullptr)
+						continue;
+					delete pPage;
+				}
+				m_pages.clear();
+			}
+
+			void ensure_page_count(size_type slotCnt) {
+				const auto pageCnt = page_count_for_slots(slotCnt);
+				if (pageCnt > (size_type)m_pages.size())
+					m_pages.resize(pageCnt, nullptr);
+			}
+
+			GAIA_NODISCARD page_type& ensure_page(size_type index) {
+				ensure_page_count(index + 1);
+				auto*& pPage = m_pages[page_index(index)];
+				if (pPage == nullptr)
+					pPage = new page_type();
+				return *pPage;
+			}
+
+			GAIA_NODISCARD page_type* try_page(size_type index) noexcept {
+				const auto pageIdx = page_index(index);
+				if (pageIdx >= (size_type)m_pages.size())
+					return nullptr;
+				return m_pages[pageIdx];
+			}
+
+			GAIA_NODISCARD const page_type* try_page(size_type index) const noexcept {
+				const auto pageIdx = page_index(index);
+				if (pageIdx >= (size_type)m_pages.size())
+					return nullptr;
+				return m_pages[pageIdx];
+			}
+
+			GAIA_NODISCARD reference slot_ref(size_type index) {
+				auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				return *pPage->ptr(slot_index(index));
+			}
+
+			GAIA_NODISCARD const_reference slot_ref(size_type index) const {
+				auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				return *pPage->ptr(slot_index(index));
+			}
+
+		public:
+			using iterator = paged_ilist_iterator<paged_ilist, false>;
+			using const_iterator = paged_ilist_iterator<paged_ilist, true>;
+
+			~paged_ilist() {
+				clear_pages();
+			}
+
+			paged_ilist() = default;
+			paged_ilist(const paged_ilist&) = delete;
+			paged_ilist& operator=(const paged_ilist&) = delete;
+			paged_ilist(paged_ilist&& other) noexcept:
+					m_pages(GAIA_MOV(other.m_pages)), m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx),
+					m_freeItems(other.m_freeItems) {
+				other.m_size = 0;
+				other.m_nextFreeIdx = (size_type)-1;
+				other.m_freeItems = 0;
+			}
+			paged_ilist& operator=(paged_ilist&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+				clear_pages();
+				m_pages = GAIA_MOV(other.m_pages);
+				m_size = other.m_size;
+				m_nextFreeIdx = other.m_nextFreeIdx;
+				m_freeItems = other.m_freeItems;
+
+				other.m_size = 0;
+				other.m_nextFreeIdx = (size_type)-1;
+				other.m_freeItems = 0;
+				return *this;
+			}
+
+			GAIA_NODISCARD pointer data() noexcept {
+				return nullptr;
+			}
+
+			GAIA_NODISCARD const_pointer data() const noexcept {
+				return nullptr;
+			}
+
+			GAIA_NODISCARD bool has(size_type index) const noexcept {
+				if (index >= m_size)
+					return false;
+
+				const auto* pPage = try_page(index);
+				return pPage != nullptr && pPage->aliveMask.test(slot_index(index));
+			}
+
+			GAIA_NODISCARD bool has(TItemHandle handle) const noexcept {
+				return has(handle.id()) && this->handle(handle.id()) == handle;
+			}
+
+			GAIA_NODISCARD TItemHandle handle(size_type index) const noexcept {
+				GAIA_ASSERT(index < m_size);
+				const auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				return pPage->handles[slot_index(index)];
+			}
+
+			GAIA_NODISCARD uint32_t generation(size_type index) const noexcept {
+				return handle(index).gen();
+			}
+
+			GAIA_NODISCARD uint32_t next_free(size_type index) const noexcept {
+				GAIA_ASSERT(index < m_size);
+				const auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				return pPage->nextFree[slot_index(index)];
+			}
+
+			GAIA_NODISCARD reference operator[](size_type index) {
+				GAIA_ASSERT(has(index));
+				return slot_ref(index);
+			}
+
+			GAIA_NODISCARD const_reference operator[](size_type index) const {
+				GAIA_ASSERT(has(index));
+				return slot_ref(index);
+			}
+
+			void clear() {
+				clear_pages();
+				m_size = 0;
+				m_nextFreeIdx = (size_type)-1;
+				m_freeItems = 0;
+			}
+
+			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
+				return m_nextFreeIdx;
+			}
+
+			GAIA_NODISCARD size_type get_free_items() const noexcept {
+				return m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type item_count() const noexcept {
+				return m_size - m_freeItems;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_size;
+			}
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return m_size == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return (size_type)m_pages.capacity() * PageCapacity;
+			}
+
+			//! Returns an iterator over live payload objects only.
+			GAIA_NODISCARD iterator begin() noexcept {
+				return iterator(this, 0);
+			}
+
+			GAIA_NODISCARD const_iterator begin() const noexcept {
+				return const_iterator(this, 0);
+			}
+
+			GAIA_NODISCARD const_iterator cbegin() const noexcept {
+				return const_iterator(this, 0);
+			}
+
+			GAIA_NODISCARD iterator end() noexcept {
+				return iterator(this, m_size);
+			}
+
+			GAIA_NODISCARD const_iterator end() const noexcept {
+				return const_iterator(this, m_size);
+			}
+
+			GAIA_NODISCARD const_iterator cend() const noexcept {
+				return const_iterator(this, m_size);
+			}
+
+			void reserve(size_type cap) {
+				m_pages.reserve(page_count_for_slots(cap));
+			}
+
+			GAIA_NODISCARD pointer try_get(size_type index) noexcept {
+				if (!has(index))
+					return nullptr;
+				return &slot_ref(index);
+			}
+
+			GAIA_NODISCARD const_pointer try_get(size_type index) const noexcept {
+				if (!has(index))
+					return nullptr;
+				return &slot_ref(index);
+			}
+
+			//! Restores a live slot with a preassigned id/generation.
+			void add_live(TListItem&& item) {
+				const auto index = (size_type)ilist_item_traits<TListItem>::idx(item);
+				auto& page = ensure_page(index);
+				const auto slot = slot_index(index);
+				const bool existed = index < m_size;
+				const bool wasAlive = existed && page.aliveMask.test(slot);
+				const bool wasFree = existed && !wasAlive;
+
+				if (index >= m_size)
+					m_size = index + 1;
+				else if (wasAlive)
+					page.destroy(slot);
+				else if (wasFree && m_freeItems > 0)
+					--m_freeItems;
+
+				page.construct(slot, GAIA_MOV(item));
+				page.handles[slot] = TListItem::handle(*page.ptr(slot));
+				page.nextFree[slot] = TItemHandle::IdMask;
+			}
+
+			//! Restores a free slot with a preassigned id/generation and freelist link.
+			void add_free(TItemHandle handle, uint32_t nextFreeIdx) {
+				const auto index = (size_type)handle.id();
+				auto& page = ensure_page(index);
+				const auto slot = slot_index(index);
+				const bool existed = index < m_size;
+				const bool wasAlive = existed && page.aliveMask.test(slot);
+				const bool wasFree = existed && !wasAlive;
+
+				if (index >= m_size)
+					m_size = index + 1;
+				else if (wasAlive)
+					page.destroy(slot);
+
+				page.handles[slot] = handle;
+				page.nextFree[slot] = nextFreeIdx;
+				if (!wasFree)
+					++m_freeItems;
+				if (m_nextFreeIdx == (size_type)-1)
+					m_nextFreeIdx = index;
+			}
+
+			//! Restores a free slot with a preassigned id/generation and freelist link.
+			void add_free(size_type index, uint32_t generation, uint32_t nextFreeIdx) {
+				add_free(ilist_handle_traits<TItemHandle>::make(index, generation, TItemHandle{}), nextFreeIdx);
+			}
+
+			//! Allocates a new item in the list
+			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
+				size_type index = 0;
+				uint32_t generation = 0;
+
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
+					index = m_size;
+					GAIA_ASSERT(index < TItemHandle::IdMask && "Trying to allocate too many items!");
+					++m_size;
+				} else {
+					GAIA_ASSERT(m_nextFreeIdx < m_size && "Item recycle list broken!");
+					index = m_nextFreeIdx;
+					auto& page = ensure_page(index);
+					const auto slot = slot_index(index);
+					m_nextFreeIdx = page.nextFree[slot];
+					page.nextFree[slot] = TItemHandle::IdMask;
+					generation = page.handles[slot].gen();
+					--m_freeItems;
+				}
+
+				auto& page = ensure_page(index);
+				const auto slot = slot_index(index);
+				page.construct(slot, TListItem::create(index, generation, ctx));
+				page.handles[slot] = TListItem::handle(*page.ptr(slot));
+				page.nextFree[slot] = TItemHandle::IdMask;
+				return page.handles[slot];
+			}
+
+			//! Allocates a new item in the list
+			GAIA_NODISCARD TItemHandle alloc() {
+				size_type index = 0;
+				uint32_t generation = 0;
+
+				if GAIA_UNLIKELY (m_freeItems == 0U) {
+					index = m_size;
+					GAIA_ASSERT(index < TItemHandle::IdMask && "Trying to allocate too many items!");
+					++m_size;
+				} else {
+					GAIA_ASSERT(m_nextFreeIdx < m_size && "Item recycle list broken!");
+					index = m_nextFreeIdx;
+					auto& page = ensure_page(index);
+					const auto slot = slot_index(index);
+					m_nextFreeIdx = page.nextFree[slot];
+					page.nextFree[slot] = TItemHandle::IdMask;
+					generation = page.handles[slot].gen();
+					--m_freeItems;
+				}
+
+				auto& page = ensure_page(index);
+				const auto slot = slot_index(index);
+				page.construct(slot, TListItem(index, generation));
+				page.handles[slot] = ilist_handle_traits<TItemHandle>::make(index, generation, TItemHandle{});
+				page.nextFree[slot] = TItemHandle::IdMask;
+				return page.handles[slot];
+			}
+
+			void free(TItemHandle handle) {
+				GAIA_ASSERT(has(handle));
+
+				auto& page = ensure_page(handle.id());
+				const auto slot = slot_index(handle.id());
+				page.destroy(slot);
+				page.handles[slot] = ilist_handle_traits<TItemHandle>::make(handle.id(), handle.gen() + 1, page.handles[slot]);
+				page.nextFree[slot] = m_freeItems == 0 ? TItemHandle::IdMask : m_nextFreeIdx;
+				m_nextFreeIdx = handle.id();
+				++m_freeItems;
+			}
+
+			void validate() const {
+				if (m_freeItems == 0)
+					return;
+
+				auto freeItems = m_freeItems;
+				auto nextFreeItem = m_nextFreeIdx;
+				while (freeItems > 0) {
+					GAIA_ASSERT(nextFreeItem < m_size && "Item recycle list broken!");
+					GAIA_ASSERT(!has(nextFreeItem));
+
+					nextFreeItem = next_free(nextFreeItem);
+					--freeItems;
+				}
+
 				GAIA_ASSERT(nextFreeItem == TItemHandle::IdMask);
 			}
 		};
@@ -26295,7 +27014,7 @@ namespace gaia {
 			IsDontFragment = 1 << 15,
 		};
 
-		struct EntityContainer: cnt::ilist_item_base {
+		struct EntityContainer {
 			//! Allocated items: Index in the list.
 			//! Deleted items: Index of the next deleted item in the list.
 			uint32_t idx;
@@ -26377,27 +27096,10 @@ namespace gaia {
 			}
 		};
 
-#if GAIA_USE_PAGED_ENTITY_CONTAINER
-		struct EntityContainer_paged_ilist_storage: public cnt::page_storage<EntityContainer> {
-			void add_item(EntityContainer&& container) {
-				this->add(GAIA_MOV(container));
-			}
-
-			void del_item([[maybe_unused]] EntityContainer& container) {
-				// TODO: This would also invalidate the ilist item itself. Don't use for now
-				// this->del(container);
-			}
-		};
-#endif
-
 		struct EntityContainers {
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
-#if GAIA_USE_PAGED_ENTITY_CONTAINER
-			cnt::ilist<EntityContainer, Entity, EntityContainer_paged_ilist_storage> entities;
-#else
-			cnt::ilist<EntityContainer, Entity> entities;
-#endif
+			cnt::paged_ilist<EntityContainer, Entity> entities;
 			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
 			//! pair ids are huge numbers.
 			cnt::map<EntityLookupKey, EntityContainer> pairs;
@@ -26414,6 +27116,19 @@ namespace gaia {
 									 : entities[entity.id()];
 			}
 		};
+
+	} // namespace ecs
+
+	namespace cnt {
+		template <>
+		struct ilist_handle_traits<ecs::Entity> {
+			static ecs::Entity make(uint32_t id, uint32_t gen, const ecs::Entity& prev) {
+				return ecs::Entity((ecs::EntityId)id, gen, prev.entity(), prev.pair(), prev.kind());
+			}
+		};
+	} // namespace cnt
+
+	namespace ecs {
 
 #if GAIA_USE_SAFE_ENTITY
 		//! SafeEntity is a wrapper over Entity that makes sure that so long it is around
@@ -37201,8 +37916,14 @@ namespace gaia {
 			std::span<const Archetype*> allArchetypes;
 		};
 
-		class QueryInfo: public cnt::ilist_item {
+		class QueryInfo {
 		public:
+			//! Allocated items: index in the query slot list.
+			//! Deleted items: index of the next deleted item in the slot list.
+			uint32_t idx = 0;
+			//! Generation ID of the query slot.
+			uint32_t gen = 0;
+
 			//! Query matching result
 			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
 
@@ -37724,7 +38445,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = id;
-				info.data.gen = 0;
+				info.gen = 0;
 
 				info.m_plan.ctx = GAIA_MOV(ctx);
 				info.m_plan.ctx.q.handle = {id, 0};
@@ -37745,7 +38466,7 @@ namespace gaia {
 
 				QueryInfo info;
 				info.idx = idx;
-				info.data.gen = gen;
+				info.gen = gen;
 
 				info.m_plan.ctx = GAIA_MOV(queryCtx);
 				info.m_plan.ctx.q.handle = {idx, gen};
@@ -37757,7 +38478,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
-				return QueryHandle(info.idx, info.data.gen);
+				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
@@ -38716,6 +39437,15 @@ namespace gaia {
 } // namespace gaia
 
 namespace gaia {
+	namespace cnt {
+		template <>
+		struct to_page_storage_id<ecs::QueryInfo> {
+			static page_storage_id get(const ecs::QueryInfo& item) noexcept {
+				return item.idx;
+			}
+		};
+	} // namespace cnt
+
 	namespace ecs {
 		class QueryLookupKey {
 			QueryLookupHash m_hash;
@@ -38789,13 +39519,9 @@ namespace gaia {
 				uint32_t syncedRevision = 0;
 			};
 
-			cnt::map<QueryLookupKey, uint32_t> m_queryCache;
-			// TODO: Make m_queryArr allocate data in pages.
-			//       Currently ilist always uses a darray internally which keeps growing, making
-			//       it not suitable for this particular use case.
-			//       QueryInfo is quite big and we do not want to copy a lot of data every time
-			//       resizing is necessary.
-			cnt::ilist<QueryInfo, QueryHandle> m_queryArr;
+			cnt::map<QueryLookupKey, QueryInfo*> m_pCache;
+			//! QueryInfo records are kept in paged storage so growth does not relocate live queries.
+			cnt::paged_ilist<QueryInfo, QueryHandle> m_queryArr;
 
 			//! Entity -> query mapping
 			cnt::map<EntityLookupKey, cnt::darray<QueryHandle>> m_entityToQuery;
@@ -38835,16 +39561,15 @@ namespace gaia {
 				if (handle.id() == QueryIdBad)
 					return false;
 
-				// Entity ID has to fit inside the entity array
-				if (handle.id() >= m_queryArr.size())
+				if (!m_queryArr.has(handle.id()))
 					return false;
 
 				const auto& h = m_queryArr[handle.id()];
-				return h.idx == handle.id() && h.data.gen == handle.gen();
+				return h.idx == handle.id() && h.gen == handle.gen();
 			}
 
 			void clear() {
-				m_queryCache.clear();
+				m_pCache.clear();
 				m_queryArr.clear();
 				m_entityToQuery.clear();
 				m_relationToQuery.clear();
@@ -38876,7 +39601,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.data.gen == handle.gen());
+				GAIA_ASSERT(info.gen == handle.gen());
 				return &info;
 			}
 
@@ -38888,7 +39613,7 @@ namespace gaia {
 
 				auto& info = m_queryArr[handle.id()];
 				GAIA_ASSERT(info.idx == handle.id());
-				GAIA_ASSERT(info.data.gen == handle.gen());
+				GAIA_ASSERT(info.gen == handle.gen());
 				return info;
 			}
 
@@ -38904,13 +39629,12 @@ namespace gaia {
 				GAIA_ASSERT(ctx.hashLookup.hash != 0);
 
 				// First check if the query cache record exists
-				auto ret = m_queryCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx));
+				auto ret = m_pCache.try_emplace(QueryLookupKey(ctx.hashLookup, &ctx), nullptr);
 				if (!ret.second) {
-					const auto idx = ret.first->second;
-					auto& info = m_queryArr[idx];
-					GAIA_ASSERT(idx == info.idx);
-					info.add_ref();
-					return info;
+					auto* pInfo = ret.first->second;
+					GAIA_ASSERT(pInfo != nullptr);
+					pInfo->add_ref();
+					return *pInfo;
 				}
 
 				// No record exists, let us create a new one
@@ -38920,11 +39644,12 @@ namespace gaia {
 				creationCtx.allArchetypes = allArchetypes;
 				auto handle = m_queryArr.alloc(&creationCtx);
 
-				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_queryCache.emplace above is no longer
+				// We are moving the rvalue to "ctx". As a result, the pointer stored in m_pCache.emplace above is no longer
 				// going to be valid. Therefore we swap the map key with a one with a valid pointer.
 				auto& info = get(handle);
 				info.add_ref();
-				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), info.idx));
+				ret.first->second = &info;
+				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), &info));
 				ret.first->swap(new_p);
 
 				// Add the entity->query pair
@@ -38952,9 +39677,9 @@ namespace gaia {
 				unregister_query_archetypes(handle);
 
 				// If this was the last reference to the query, we can safely remove it
-				auto it = m_queryCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
-				GAIA_ASSERT(it != m_queryCache.end());
-				m_queryCache.erase(it);
+				auto it = m_pCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
+				GAIA_ASSERT(it != m_pCache.end());
+				m_pCache.erase(it);
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);
@@ -38967,11 +39692,11 @@ namespace gaia {
 				return true;
 			}
 
-			cnt::darray<QueryInfo>::iterator begin() {
+			auto begin() {
 				return m_queryArr.begin();
 			}
 
-			cnt::darray<QueryInfo>::iterator end() {
+			auto end() {
 				return m_queryArr.end();
 			}
 
@@ -39664,11 +40389,13 @@ namespace gaia {
 
 			template <bool Cached>
 			struct QueryImplStorage {
-				World* m_world{};
+				World* m_world = nullptr;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
-				QueryCache* m_queryCache{};
+				QueryCache* m_pCache = nullptr;
+				//! Hot cached query pointer. Validated against m_identity.handle before use.
+				QueryInfo* m_pInfo = nullptr;
 				//! Query identity
-				QueryIdentity m_q{};
+				QueryIdentity m_identity{};
 				bool m_destroyed = false;
 
 			public:
@@ -39680,24 +40407,28 @@ namespace gaia {
 
 				QueryImplStorage(QueryImplStorage&& other) {
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
-					other.m_q = {};
+					other.m_pInfo = nullptr;
+					other.m_identity = {};
 					other.m_destroyed = false;
 				}
 				QueryImplStorage& operator=(QueryImplStorage&& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
-					other.m_q = {};
+					other.m_pInfo = nullptr;
+					other.m_identity = {};
 					other.m_destroyed = false;
 
 					return *this;
@@ -39705,14 +40436,17 @@ namespace gaia {
 
 				QueryImplStorage(const QueryImplStorage& other) {
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
 					if (!m_destroyed) {
-						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						auto* pInfo = try_query_info_fast();
+						if (pInfo == nullptr)
+							pInfo = m_pCache->try_get(m_identity.handle);
 						if (pInfo != nullptr)
 							pInfo->add_ref();
 					}
@@ -39721,14 +40455,17 @@ namespace gaia {
 					GAIA_ASSERT(core::addressof(other) != this);
 
 					m_world = other.m_world;
-					m_queryCache = other.m_queryCache;
-					m_q = other.m_q;
+					m_pCache = other.m_pCache;
+					m_pInfo = other.m_pInfo;
+					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
 					if (!m_destroyed) {
-						auto* pInfo = m_queryCache->try_get(m_q.handle);
+						auto* pInfo = try_query_info_fast();
+						if (pInfo == nullptr)
+							pInfo = m_pCache->try_get(m_identity.handle);
 						if (pInfo != nullptr)
 							pInfo->add_ref();
 					}
@@ -39741,20 +40478,23 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
-					return m_q.ser_buffer(m_world);
+					return m_identity.ser_buffer(m_world);
 				}
 				void ser_buffer_reset() {
-					return m_q.ser_buffer_reset(m_world);
+					return m_identity.ser_buffer_reset(m_world);
 				}
 
 				void init(World* world, QueryCache* queryCache) {
 					m_world = world;
-					m_queryCache = queryCache;
+					m_pCache = queryCache;
+					m_pInfo = nullptr;
 				}
 
 				//! Release any data allocated by the query
 				void reset() {
-					auto& info = m_queryCache->get(m_q.handle);
+					auto* pInfo = try_query_info_fast();
+					GAIA_ASSERT(pInfo != nullptr);
+					auto& info = *pInfo;
 					info.reset();
 				}
 
@@ -39765,28 +40505,44 @@ namespace gaia {
 				//! Try delete the query from query cache
 				GAIA_NODISCARD bool try_del_from_cache() {
 					if (!m_destroyed)
-						m_queryCache->del(m_q.handle);
+						m_pCache->del(m_identity.handle);
 
 					// Don't allow multiple calls to destroy to break the reference counter.
 					// One object is only allowed to destroy once.
+					m_pInfo = nullptr;
 					m_destroyed = true;
 					return false;
 				}
 
 				//! Invalidates the query handle
 				void invalidate() {
-					m_q.handle = {};
+					m_pInfo = nullptr;
+					m_identity.handle = {};
+				}
+
+				GAIA_NODISCARD QueryInfo* try_query_info_fast() const {
+					if (m_pInfo == nullptr || m_identity.handle.id() == QueryIdBad || m_pCache == nullptr)
+						return nullptr;
+
+					auto* pInfo = m_pCache->try_get(m_identity.handle);
+					return pInfo == m_pInfo ? pInfo : nullptr;
+				}
+
+				void cache_query_info(QueryInfo& queryInfo) {
+					m_pInfo = &queryInfo;
 				}
 
 				//! Returns true if the query is found in the query cache.
 				GAIA_NODISCARD bool is_cached() const {
-					auto* pInfo = m_queryCache->try_get(m_q.handle);
+					auto* pInfo = try_query_info_fast();
+					if (pInfo == nullptr)
+						pInfo = m_pCache->try_get(m_identity.handle);
 					return pInfo != nullptr;
 				}
 
 				//! Returns true if the query is ready to be used.
 				GAIA_NODISCARD bool is_initialized() const {
-					return m_world != nullptr && m_queryCache != nullptr;
+					return m_world != nullptr && m_pCache != nullptr;
 				}
 			};
 
@@ -39796,7 +40552,7 @@ namespace gaia {
 
 				QueryImplStorage() {
 					m_queryInfo.idx = QueryIdBad;
-					m_queryInfo.data.gen = QueryIdBad;
+					m_queryInfo.gen = QueryIdBad;
 				}
 
 				GAIA_NODISCARD World* world() {
@@ -40165,12 +40921,15 @@ namespace gaia {
 
 						// If queryId is set it means QueryInfo was already created.
 						// This is the common case for cached queries.
-						if GAIA_LIKELY (m_storage.m_q.handle.id() != QueryIdBad) {
-							auto* pQueryInfo = m_storage.m_queryCache->try_get(m_storage.m_q.handle);
+						if GAIA_LIKELY (m_storage.m_identity.handle.id() != QueryIdBad) {
+							auto* pQueryInfo = m_storage.try_query_info_fast();
+							if GAIA_UNLIKELY (pQueryInfo == nullptr)
+								pQueryInfo = m_storage.m_pCache->try_get(m_storage.m_identity.handle);
 
 							// The only time when this can be nullptr is just once after Query::destroy is called.
 							if GAIA_LIKELY (pQueryInfo != nullptr) {
-								if GAIA_UNLIKELY (m_storage.m_q.serId != QueryIdBad)
+								m_storage.cache_query_info(*pQueryInfo);
+								if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad)
 									recommit(pQueryInfo->ctx());
 								return *pQueryInfo;
 							}
@@ -40182,9 +40941,9 @@ namespace gaia {
 						QueryCtx ctx;
 						ctx.init(m_storage.world());
 						commit(ctx);
-						auto& queryInfo =
-								m_storage.m_queryCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
-						m_storage.m_q.handle = QueryInfo::handle(queryInfo);
+						auto& queryInfo = m_storage.m_pCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
+						m_storage.m_identity.handle = QueryInfo::handle(queryInfo);
+						m_storage.cache_query_info(queryInfo);
 						m_storage.allow_to_destroy_again();
 						return queryInfo;
 					} else {
@@ -40213,7 +40972,7 @@ namespace gaia {
 					queryInfo.ensure_matches(
 							*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id(), m_varBindings, m_varBindingsMask);
 					if constexpr (UseCaching) {
-						m_storage.m_queryCache->sync_archetype_cache(queryInfo);
+						m_storage.m_pCache->sync_archetype_cache(queryInfo);
 					}
 				}
 
@@ -40741,7 +41500,7 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_q.handle.id() == QueryIdBad);
+						GAIA_ASSERT(m_storage.m_identity.handle.id() == QueryIdBad);
 					} else {
 						GAIA_ASSERT(m_storage.m_queryInfo.idx == QueryIdBad);
 					}
@@ -41555,10 +42314,10 @@ namespace gaia {
 						typename std::enable_if<FuncEnabled>::type* = nullptr>
 				void each_inter(QueryId queryId, Func func) {
 					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_queryCache != nullptr);
+					GAIA_ASSERT(m_storage.m_pCache != nullptr);
 					GAIA_ASSERT(queryId != QueryIdBad);
 
-					auto& queryInfo = m_storage.m_queryCache->get(queryId);
+					auto& queryInfo = m_storage.m_pCache->get(queryId);
 					each_inter(queryInfo, func);
 				}
 
@@ -43129,12 +43888,12 @@ namespace gaia {
 
 				GAIA_NODISCARD QueryId id() const {
 					static_assert(UseCaching, "id() can be used only with cached queries");
-					return m_storage.m_q.handle.id();
+					return m_storage.m_identity.handle.id();
 				}
 
 				GAIA_NODISCARD uint32_t gen() const {
 					static_assert(UseCaching, "gen() can be used only with cached queries");
-					return m_storage.m_q.handle.gen();
+					return m_storage.m_identity.handle.gen();
 				}
 
 				//------------------------------------------------
@@ -46440,10 +47199,8 @@ namespace gaia {
 			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
 				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
 					return true;
-				if (ec.pArchetype != nullptr && ec.pArchetype->is_req_del())
-					return true;
-
-				return false;
+				GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
+				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
 
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
@@ -50372,7 +51129,7 @@ namespace gaia {
 				// Regular entity
 				{
 					// Entity ID has to fit inside the entity array
-					if (entity.id() >= m_recs.entities.size())
+					if (entity.id() >= m_recs.entities.size() || !m_recs.entities.has(entity.id()))
 						return false;
 
 					// Index of the entity must fit inside the chunk
@@ -51828,6 +52585,8 @@ namespace gaia {
 							const auto target = pStore->srcToTgt[i];
 							if (target == EntityBad)
 								continue;
+							if (!m_recs.entities.has(i))
+								continue;
 							out.push_back(EntityContainer::handle(m_recs.entities[i]));
 						}
 						return;
@@ -51907,6 +52666,8 @@ namespace gaia {
 						GAIA_FOR(cnt) {
 							const auto target = pStore->srcToTgt[i];
 							if (target == EntityBad)
+								continue;
+							if (!m_recs.entities.has(i))
 								continue;
 							if (!func(ctx, EntityContainer::handle(m_recs.entities[i])))
 								return false;
@@ -52400,10 +53161,10 @@ namespace gaia {
 					GAIA_LOG_N("  --> %u", (uint32_t)m_recs.entities.get_next_free_item());
 
 					uint32_t iters = 0;
-					auto fe = m_recs.entities[m_recs.entities.get_next_free_item()].idx;
+					auto fe = m_recs.entities.next_free(m_recs.entities.get_next_free_item());
 					while (fe != IdentifierIdBad) {
-						GAIA_LOG_N("  --> %u", m_recs.entities[fe].idx);
-						fe = m_recs.entities[fe].idx;
+						GAIA_LOG_N("  --> %u", m_recs.entities.next_free(fe));
+						fe = m_recs.entities.next_free(fe);
 						++iters;
 						if (iters > m_recs.entities.get_free_items())
 							break;
@@ -52514,6 +53275,12 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static bool valid(const EntityContainer& ec, [[maybe_unused]] Entity entityExpected) {
+				if ((ec.flags & EntityContainerFlags::Load) != 0) {
+					return entityExpected.id() == ec.idx && entityExpected.gen() == ec.data.gen &&
+								 entityExpected.entity() == (bool)ec.data.ent && entityExpected.pair() == (bool)ec.data.pair &&
+								 entityExpected.kind() == (EntityKind)ec.data.kind;
+				}
+
 				if (is_req_del(ec))
 					return false;
 
@@ -52564,8 +53331,11 @@ namespace gaia {
 				if (entity.id() >= m_recs.entities.size())
 					return false;
 
-				const auto& ec = m_recs.entities[entity.id()];
-				return valid(ec, entity);
+				const auto* pEc = m_recs.entities.try_get(entity.id());
+				if (pEc == nullptr)
+					return false;
+
+				return valid(*pEc, entity);
 			}
 
 			//! Checks if the entity with id \param entityId is valid.
@@ -52579,7 +53349,11 @@ namespace gaia {
 				if (entityId >= m_recs.entities.size())
 					return false;
 
-				const auto& ec = m_recs.entities[entityId];
+				const auto* pEc = m_recs.entities.try_get(entityId);
+				if (pEc == nullptr)
+					return false;
+
+				const auto& ec = *pEc;
 				if (ec.data.pair != 0)
 					return false;
 
@@ -52610,7 +53384,7 @@ namespace gaia {
 			}
 
 		private:
-			static constexpr uint32_t WorldSerializerVersion = 1;
+			static constexpr uint32_t WorldSerializerVersion = 2;
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
 
 			void save_to(ser::serializer s) const {
@@ -52649,8 +53423,14 @@ namespace gaia {
 					const auto newEntities = recEntities - lastCoreComponentId;
 					s.save(newEntities);
 					GAIA_FOR2(lastCoreComponentId, recEntities) {
-						const auto& ec = m_recs.entities[i];
-						saveEntityContainer(ec);
+						const bool isAlive = m_recs.entities.has(i);
+						s.save(isAlive);
+						if (isAlive)
+							saveEntityContainer(m_recs.entities[i]);
+						else {
+							s.save(m_recs.entities.handle(i).val);
+							s.save(m_recs.entities.next_free(i));
+						}
 					}
 
 					{
@@ -52851,10 +53631,21 @@ namespace gaia {
 					uint32_t newEntities = 0;
 					s.load(newEntities);
 					GAIA_FOR(newEntities) {
-						EntityContainer ec;
-						loadEntityContainer(ec);
-
-						m_recs.entities.m_items.add_item(GAIA_MOV(ec));
+						bool isAlive = false;
+						s.load(isAlive);
+						if (isAlive) {
+							EntityContainer ec{};
+							loadEntityContainer(ec);
+							m_recs.entities.add_live(GAIA_MOV(ec));
+						} else {
+							Identifier id = IdentifierBad;
+							uint32_t nextFreeIdx = Entity::IdMask;
+							s.load(id);
+							s.load(nextFreeIdx);
+							auto entity = Entity(id);
+							GAIA_ASSERT(entity.id() == lastCoreComponentId + i);
+							m_recs.entities.add_free(entity, nextFreeIdx);
+						}
 					}
 
 					uint32_t pairsCnt = 0;
@@ -52911,8 +53702,12 @@ namespace gaia {
 				// Now we need to convert it back to the pointer.
 				{
 					for (auto& ec: m_recs.entities) {
-						if ((ec.flags & EntityContainerFlags::Load) == 0)
+						if (ec.idx < lastCoreComponentId) {
+							GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
 							continue;
+						}
+
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
 						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
@@ -52921,11 +53716,15 @@ namespace gaia {
 						ec.pChunk = ec.pArchetype->chunks()[chunkIdx];
 						ec.pEntity = &ec.pChunk->entity_view()[ec.row];
 					}
+
 					for (auto& pair: m_recs.pairs) {
 						auto& ec = pair.second;
 
+						// Core pairs remain in-world during load and were not serialized into the stream.
 						if ((ec.flags & EntityContainerFlags::Load) == 0)
 							continue;
+
+						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
 						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx
@@ -52936,6 +53735,15 @@ namespace gaia {
 					}
 				}
 
+#if GAIA_ASSERT_ENABLED
+				for (const auto& ec: m_recs.entities) {
+					GAIA_ASSERT(ec.idx < m_recs.entities.size());
+					GAIA_ASSERT(m_recs.entities.handle(ec.idx) == EntityContainer::handle(ec));
+					GAIA_ASSERT(ec.pArchetype != nullptr);
+					GAIA_ASSERT(ec.pChunk != nullptr);
+					GAIA_ASSERT(ec.pEntity != nullptr);
+				}
+#endif
 				// Entity names
 				{
 					m_nameToEntity = {};
@@ -52998,12 +53806,11 @@ namespace gaia {
 				// Entity aliases
 				{
 					m_aliasToEntity = {};
-					GAIA_FOR((uint32_t)m_recs.entities.size()) {
-						const auto entity = get((EntityId)i);
-						if (!valid(entity) || entity.pair())
+					for (auto& ec: m_recs.entities) {
+						const auto entity = EntityContainer::handle(ec);
+						if (entity.pair())
 							continue;
 
-						const auto& ec = m_recs.entities[i];
 						const auto compIdx = core::get_index(ec.pChunk->ids_view(), GAIA_ID(EntityDesc));
 						if (compIdx == BadIndex)
 							continue;
@@ -53136,6 +53943,22 @@ namespace gaia {
 				GAIA_ASSERT(!pArchetype->dying() || pArchetype->is_req_del());
 
 				unreg_archetype(pArchetype);
+				for (auto& ec: m_recs.entities) {
+					if (ec.pArchetype != pArchetype)
+						continue;
+
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
+				}
+				for (auto& [_, ec]: m_recs.pairs) {
+					if (ec.pArchetype != pArchetype)
+						continue;
+
+					ec.pArchetype = nullptr;
+					ec.pChunk = nullptr;
+					ec.pEntity = nullptr;
+				}
 				Archetype::destroy(pArchetype);
 			}
 
@@ -53530,8 +54353,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pair.id() < m_recs.entities.size());
 				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
-				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
-				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+				const auto first = m_recs.entities.handle(pair.id());
+				const auto second = m_recs.entities.handle(pair.gen());
 
 				del_entity_query_pair(Pair(All, second), pArchetypeToRemove);
 				del_entity_query_pair(Pair(first, All), pArchetypeToRemove);
@@ -53543,8 +54366,8 @@ namespace gaia {
 
 				GAIA_ASSERT(pair.id() < m_recs.entities.size());
 				GAIA_ASSERT(pair.gen() < m_recs.entities.size());
-				const auto first = EntityContainer::handle(m_recs.entities[pair.id()]);
-				const auto second = EntityContainer::handle(m_recs.entities[pair.gen()]);
+				const auto first = m_recs.entities.handle(pair.id());
+				const auto second = m_recs.entities.handle(pair.gen());
 
 				del_entity_query_pair(Pair(All, second), entityToRemove);
 				del_entity_query_pair(Pair(first, All), entityToRemove);
@@ -55206,8 +56029,8 @@ namespace gaia {
 						// lookup keys from the stored entity records instead of calling get().
 						GAIA_ASSERT(entity.id() < m_recs.entities.size());
 						GAIA_ASSERT(entity.gen() < m_recs.entities.size());
-						auto rel = EntityContainer::handle(m_recs.entities[entity.id()]);
-						auto tgt = EntityContainer::handle(m_recs.entities[entity.gen()]);
+						auto rel = m_recs.entities.handle(entity.id());
+						auto tgt = m_recs.entities.handle(entity.gen());
 
 						delPair(m_relToTgt, rel, tgt);
 						delPair(m_relToTgt, All, tgt);
@@ -55216,7 +56039,8 @@ namespace gaia {
 					}
 				} else {
 					// Update the container record
-					auto& ec = m_recs.entities.free(entity);
+					auto ec = m_recs.entities[entity.id()];
+					m_recs.entities.free(entity);
 
 					// Remove all outgoing non-fragmenting sparse components from this entity.
 					del_sparse_components(entity);
