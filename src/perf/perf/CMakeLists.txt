@@ -12,6 +12,7 @@ add_executable(${PROJ_NAME}
 	src/sparse.cpp
 	src/legacy_entity.cpp
 	src/legacy_iter.cpp
+	src/containers.cpp
 )
 
 target_include_directories(${PROJ_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
