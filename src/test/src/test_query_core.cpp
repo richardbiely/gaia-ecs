@@ -3193,7 +3193,7 @@ TEST_CASE("Upward traversal with disabled ancestors") {
 	}
 }
 
-TEST_CASE("Query entity each bfs") {
+TEST_CASE("Query entity each walk") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3217,7 +3217,7 @@ TEST_CASE("Query entity each bfs") {
 
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
-	q.bfs(rel).each([&](ecs::Entity e) {
+	q.walk(rel).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 
@@ -3229,7 +3229,7 @@ TEST_CASE("Query entity each bfs") {
 
 	// Re-run without changes (cache hit expected).
 	ents.clear();
-	q.bfs(rel).each([&](ecs::Entity e) {
+	q.walk(rel).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 	CHECK(ents.size() == 4);
@@ -3243,7 +3243,7 @@ TEST_CASE("Query entity each bfs") {
 	wld.add(b, {rel, c});
 
 	ents.clear();
-	q.bfs(rel).each([&](ecs::Entity e) {
+	q.walk(rel).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 	CHECK(ents.size() == 4);
@@ -3253,7 +3253,7 @@ TEST_CASE("Query entity each bfs") {
 	CHECK(ents[3] == b);
 }
 
-TEST_CASE("Query typed each bfs") {
+TEST_CASE("Query typed each walk") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3275,7 +3275,7 @@ TEST_CASE("Query typed each bfs") {
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> xs;
-	q.bfs(rel).each([&](ecs::Entity e, const Position& pos) {
+	q.walk(rel).each([&](ecs::Entity e, const Position& pos) {
 		ents.push_back(e);
 		xs.push_back(pos.x);
 	});
@@ -3292,7 +3292,7 @@ TEST_CASE("Query typed each bfs") {
 	CHECK(xs[3] == doctest::Approx(3.0f));
 }
 
-TEST_CASE("Query iterator each bfs") {
+TEST_CASE("Query iterator each walk") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3314,7 +3314,7 @@ TEST_CASE("Query iterator each bfs") {
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> xs;
-	q.bfs(rel).each([&](ecs::Iter& it) {
+	q.walk(rel).each([&](ecs::Iter& it) {
 		auto entView = it.view<ecs::Entity>();
 		auto posView = it.view<Position>();
 		GAIA_EACH(it) {
@@ -3339,7 +3339,7 @@ TEST_CASE("Query iterator each bfs") {
 
 	ents.clear();
 	xs.clear();
-	q.bfs(rel).each([&](ecs::Iter& it) {
+	q.walk(rel).each([&](ecs::Iter& it) {
 		auto entView = it.view<ecs::Entity>();
 		auto posView = it.view<Position>();
 		GAIA_EACH(it) {
@@ -3360,7 +3360,7 @@ TEST_CASE("Query iterator each bfs") {
 	CHECK(xs[3] == doctest::Approx(2.0f));
 }
 
-TEST_CASE("Query typed each bfs multiple components") {
+TEST_CASE("Query typed each walk multiple components") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3388,7 +3388,7 @@ TEST_CASE("Query typed each bfs multiple components") {
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> px;
 	cnt::darray<float> sx;
-	q.bfs(rel).each([&](ecs::Entity e, const Position& pos, const Scale& scale) {
+	q.walk(rel).each([&](ecs::Entity e, const Position& pos, const Scale& scale) {
 		ents.push_back(e);
 		px.push_back(pos.x);
 		sx.push_back(scale.x);
@@ -3411,7 +3411,7 @@ TEST_CASE("Query typed each bfs multiple components") {
 	CHECK(sx[3] == doctest::Approx(13.0f));
 }
 
-TEST_CASE("Query typed each bfs mutable components") {
+TEST_CASE("Query typed each walk mutable components") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3437,7 +3437,7 @@ TEST_CASE("Query typed each bfs mutable components") {
 
 	auto q = wld.query().all<Position&>().all<Scale>();
 	cnt::darray<ecs::Entity> ents;
-	q.bfs(rel).each([&](ecs::Entity e, Position& pos, const Scale& scale) {
+	q.walk(rel).each([&](ecs::Entity e, Position& pos, const Scale& scale) {
 		ents.push_back(e);
 		pos.x += scale.x;
 	});
@@ -3454,7 +3454,7 @@ TEST_CASE("Query typed each bfs mutable components") {
 	CHECK(wld.get<Position>(c).x == doctest::Approx(16.0f));
 }
 
-TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
+TEST_CASE("Query entity each walk with disabled ancestor barriers") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3471,7 +3471,7 @@ TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3485,7 +3485,7 @@ TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	wld.enable(root, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3496,7 +3496,7 @@ TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	wld.enable(child, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.bfs(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3504,7 +3504,55 @@ TEST_CASE("Query entity each bfs with disabled ancestor barriers") {
 	}
 }
 
-TEST_CASE("Query cascade ChildOf orders entities by depth") {
+TEST_CASE("Query entity walk Parent prunes disabled subtree") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto child = wld.add();
+	auto grandChild = wld.add();
+
+	wld.add(child, ecs::Pair(ecs::Parent, root));
+	wld.add(grandChild, ecs::Pair(ecs::Parent, child));
+
+	wld.add<Position>(child, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	auto q = wld.query().all<Position>();
+
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.size() == 2);
+		CHECK(ents[0] == child);
+		CHECK(ents[1] == grandChild);
+	}
+
+	wld.enable(root, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+	}
+
+	wld.enable(root, true);
+	wld.enable(child, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+	}
+}
+
+TEST_CASE("Query depth_order ChildOf orders entities by depth") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3534,7 +3582,7 @@ TEST_CASE("Query cascade ChildOf orders entities by depth") {
 		return depth;
 	};
 
-	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	auto q = wld.query().all<Position>().depth_order(ecs::ChildOf);
 	cnt::darr<ecs::Entity> ents;
 	q.each([&](ecs::Entity e) {
 		ents.push_back(e);
@@ -3549,7 +3597,72 @@ TEST_CASE("Query cascade ChildOf orders entities by depth") {
 	CHECK(ents[3] == grandChild);
 }
 
-TEST_CASE("Query cascade ChildOf updates after reparent") {
+TEST_CASE("Query depth_order ChildOf prunes disabled subtree") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto child = wld.add();
+	auto grandChild = wld.add();
+
+	wld.child(child, root);
+	wld.child(grandChild, child);
+
+	wld.add<Position>(child, {0, 0, 0});
+	wld.add<Position>(grandChild, {0, 0, 0});
+
+	auto q = wld.query().all<Position>().depth_order(ecs::ChildOf);
+
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.size() == 2);
+		CHECK(ents[0] == child);
+		CHECK(ents[1] == grandChild);
+		CHECK(q.count() == 2);
+
+		cnt::darr<ecs::Entity> arr;
+		q.arr(arr);
+		CHECK(arr.size() == 2);
+		CHECK(arr[0] == child);
+		CHECK(arr[1] == grandChild);
+	}
+
+	wld.enable(root, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+		CHECK(q.count() == 0);
+
+		cnt::darr<ecs::Entity> arr;
+		q.arr(arr);
+		CHECK(arr.empty());
+	}
+
+	wld.enable(root, true);
+	wld.enable(child, false);
+	{
+		cnt::darr<ecs::Entity> ents;
+		q.each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+
+		CHECK(ents.empty());
+		CHECK(q.count() == 0);
+
+		cnt::darr<ecs::Entity> arr;
+		q.arr(arr);
+		CHECK(arr.empty());
+	}
+}
+
+TEST_CASE("Query depth_order ChildOf updates after reparent") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3566,7 +3679,7 @@ TEST_CASE("Query cascade ChildOf updates after reparent") {
 	wld.add<Position>(grandChild, {0, 0, 0});
 	wld.add<Position>(leaf, {0, 0, 0});
 
-	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	auto q = wld.query().all<Position>().depth_order(ecs::ChildOf);
 	cnt::darr<ecs::Entity> ents;
 	q.each([&](ecs::Entity e) {
 		ents.push_back(e);
@@ -3591,7 +3704,7 @@ TEST_CASE("Query cascade ChildOf updates after reparent") {
 	CHECK(ents[3] == grandChild);
 }
 
-TEST_CASE("Query cascade ChildOf updates when ancestor depth changes") {
+TEST_CASE("Query depth_order ChildOf updates when ancestor depth changes") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3611,7 +3724,7 @@ TEST_CASE("Query cascade ChildOf updates when ancestor depth changes") {
 	wld.add<Position>(leaf, {0, 0, 0});
 	wld.add<Position>(cousinGrandChild, {0, 0, 0});
 
-	auto q = wld.query().all<Position>().cascade(ecs::ChildOf);
+	auto q = wld.query().all<Position>().depth_order(ecs::ChildOf);
 	cnt::darr<ecs::Entity> ents;
 	q.each([&](ecs::Entity e) {
 		ents.push_back(e);
@@ -3641,7 +3754,7 @@ TEST_CASE("Query cascade ChildOf updates when ancestor depth changes") {
 	CHECK(leafIdx < cousinIdx);
 }
 
-TEST_CASE("Query cascade custom relation orders entities by depth") {
+TEST_CASE("Query depth_order custom relation orders entities by depth") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3673,7 +3786,7 @@ TEST_CASE("Query cascade custom relation orders entities by depth") {
 		return depth;
 	};
 
-	auto q = wld.query().all<Position>().cascade(rel);
+	auto q = wld.query().all<Position>().depth_order(rel);
 	cnt::darr<ecs::Entity> ents;
 	q.each([&](ecs::Entity e) {
 		ents.push_back(e);
@@ -3686,6 +3799,80 @@ TEST_CASE("Query cascade custom relation orders entities by depth") {
 	CHECK(depth_of(ents[3]) == 2);
 	CHECK(ents[0] == root);
 	CHECK(ents[3] == grandChild);
+}
+
+TEST_CASE("Query depth_order DependsOn respects deepest dependency chain") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto depA = wld.add();
+	auto depB = wld.add();
+	auto node = wld.add();
+
+	wld.add(depA, ecs::Pair(ecs::DependsOn, root));
+	wld.add(depB, ecs::Pair(ecs::DependsOn, depA));
+	wld.add(node, ecs::Pair(ecs::DependsOn, root));
+	wld.add(node, ecs::Pair(ecs::DependsOn, depB));
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(depA, {0, 0, 0});
+	wld.add<Position>(depB, {0, 0, 0});
+	wld.add<Position>(node, {0, 0, 0});
+
+	cnt::darr<ecs::Entity> ents;
+	wld.query().all<Position>().depth_order(ecs::DependsOn).each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == depA);
+	CHECK(ents[2] == depB);
+	CHECK(ents[3] == node);
+}
+
+TEST_CASE("Query depth_order DependsOn updates after dependency rewiring") {
+	TestWorld twld;
+
+	auto root = wld.add();
+	auto depA = wld.add();
+	auto depB = wld.add();
+	auto node = wld.add();
+
+	wld.add(depA, ecs::Pair(ecs::DependsOn, root));
+	wld.add(depB, ecs::Pair(ecs::DependsOn, depA));
+	wld.add(node, ecs::Pair(ecs::DependsOn, root));
+	wld.add(node, ecs::Pair(ecs::DependsOn, depB));
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(depA, {0, 0, 0});
+	wld.add<Position>(depB, {0, 0, 0});
+	wld.add<Position>(node, {0, 0, 0});
+
+	auto q = wld.query().all<Position>().depth_order(ecs::DependsOn);
+	cnt::darr<ecs::Entity> ents;
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == depA);
+	CHECK(ents[2] == depB);
+	CHECK(ents[3] == node);
+
+	wld.del(node, ecs::Pair(ecs::DependsOn, depB));
+
+	ents.clear();
+	q.each([&](ecs::Entity e) {
+		ents.push_back(e);
+	});
+
+	CHECK(ents.size() == 4);
+	CHECK(ents[0] == root);
+	CHECK(ents[1] == depA);
+	CHECK(ents[2] == node);
+	CHECK(ents[3] == depB);
 }
 
 template <typename TQuery>

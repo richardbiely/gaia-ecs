@@ -621,7 +621,7 @@ Observers can be looked at as reactive alternative to systems. They allow differ
 
 Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.
 
-Because observers are query-backed, query shaping helpers such as `cascade(...)` can be used on them as well when you want cached top-down iteration over fragmenting hierarchies like `ChildOf`.
+Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
 
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
@@ -1227,9 +1227,9 @@ ecs::Query qTravCached = w.query()
 This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.
 ### Traversal order
 
-Use `bfs(...)` when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.
+Use `walk(...)` when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.
 
-`bfs(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
+`walk(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
 Entity and typed callbacks are the best optimized paths.
 
 The iterator-style paths can be significantly slower on heavily reordered BFS results, because breadth-first order often splits the result into many small runs. Use only when for code that is not performance critical.
@@ -1262,22 +1262,22 @@ wld.add(cookDinner, ecs::Pair(DependsOn, chopVegetables));
 
 ecs::Query q = wld.query().all<Time>();
 
-// With bfs(...), query result is reordered by dependency levels:
+// With walk(...), query result is reordered by dependency levels:
 // buyGroceries
 // boilWater, chopVegetables, setTable
 // cookDinner
-q.bfs(DependsOn).each([&](ecs::Entity entity) {
+q.walk(DependsOn).each([&](ecs::Entity entity) {
   ...
 });
 
-// Without bfs(...), the query does not use DependsOn for ordering.
+// Without walk(...), the query does not use DependsOn for ordering.
 // Therefore, entities are iterated in undefined order.
 q.each([&](ecs::Entity entity) {
   ... // random entity order
 });
 ```
 
-Use `cascade(...)` when you want cached query iteration itself to run top-down by hierarchy depth for a fragmenting relation such as `ChildOf`.
+Use `depth_order(...)` when you want cached query iteration itself to run breadth-first top-down by relation depth for a fragmenting acyclic relation such as `ChildOf` or `DependsOn`. For hierarchy-style relations, the cached depth-ordered path only applies when the relation is still fragmenting. Use `walk(...)` when the relation is non-fragmenting, such as `Parent`, or when you want traversal to be resolved per entity instead of through cached archetype ordering.
 
 ```cpp
 ecs::Entity uiRoot = wld.add();
@@ -1304,18 +1304,25 @@ wld.child(itemList, inventoryPanel);
 
 ecs::Query q = wld.query().all<Time>();
 
-// With cascade(...), query iteration becomes top-down:
+// With depth_order(...), query iteration becomes top-down in breadth-first levels:
 // uiRoot
 // topBar, inventoryPanel
 // goldLabel, itemList
-q.cascade(ecs::ChildOf).each([&](ecs::Entity entity) {
+q.depth_order(ecs::ChildOf).each([&](ecs::Entity entity) {
   ...
 });
 
-// Without cascade(...), ChildOf does not affect the cached iteration order.
+// Without depth_order(...), ChildOf does not affect the cached iteration order.
 // Parents and children do not have any defined order.
 q.each([&](ecs::Entity entity) {
   ... // random entity order
+});
+
+ecs::Query qParent = wld.query().all<Time>();
+
+// Parent is non-fragmenting, so walk(...) is the supported breadth-first path.
+qParent.walk(ecs::Parent).each([&](ecs::Entity entity) {
+  ...
 });
 ```
 
@@ -2494,7 +2501,8 @@ Properties of `ChildOf`:
 - part of archetype identity
 - good when parenthood is part of the entity's physical or structural identity
 - adding/removing it can fragment archetypes when many entities differ only by parent
-- supports cached top-down query ordering with `query().cascade(ecs::ChildOf)`
+- supports cached top-down breadth-first query ordering with `query().depth_order(ecs::ChildOf)`
+- disabled-subtree pruning on `query().depth_order(ecs::ChildOf)` is handled at archetype level because `ChildOf` is the built-in fragmenting hierarchy relation: it is traversable, exclusive, and part of archetype identity, so every row in the archetype shares the same direct parent and therefore the same ancestor chain
 
 Use `ChildOf` only when you explicitly want physical ownership / structural hierarchy semantics:
 - parent deletion should own child lifetime
@@ -2523,6 +2531,11 @@ Properites of `Parent`:
 - stored outside archetypes
 - good for logical or organizational hierarchies where reducing archetype churn matters more than pure structural query speed
 - breadth-first traversal is typically better than `ChildOf`, but direct query terms over `Parent` are still less archetype-friendly than `ChildOf`
+- use `query().walk(ecs::Parent)` for breadth-first traversal; `depth_order(...)` is for fragmenting cached ordering and is not the right tool for `Parent`
+
+More generally, hierarchy semantics come from traversable exclusive parent-chain relations. `ChildOf` and `Parent` are the native built-ins:
+- `ChildOf`: hierarchy + fragmenting, so cached `depth_order(...)` can work at archetype level
+- `Parent`: hierarchy + non-fragmenting, so `walk(...)` is the supported path
 
 Use `Parent` for:
 - prefab ownership

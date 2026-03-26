@@ -734,14 +734,8 @@ TEST_CASE("Add - unique") {
 			CHECK(a.y == 5.f);
 			CHECK(a.z == 6.f);
 		}
-		{
-			// Because "e" was moved to a new archetype nobody ever set the value.
-			// Therefore, it is garbage and won't match the original chunk.
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK_FALSE(p.x == 1.f);
-			CHECK_FALSE(p.y == 2.f);
-			CHECK_FALSE(p.z == 3.f);
-		}
+		// Because "e" was moved to a new archetype nobody ever set the Position value again.
+		// The bytes are unspecified here, so only verify the value after writing it explicitly below.
 
 		// Add a unique entity. Archetype changes.
 		auto f = wld.add(ecs::EntityKind::EK_Uni);

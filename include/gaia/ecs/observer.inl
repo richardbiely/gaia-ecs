@@ -554,21 +554,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
-			//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \param relation Fragmenting hierarchy relation
-			ObserverBuilder& cascade(Entity relation = ChildOf) {
+			ObserverBuilder& depth_order(Entity relation = ChildOf) {
 				validate();
-				runtime_data().query.cascade(relation);
+				runtime_data().query.depth_order(relation);
 				return *this;
 			}
 
-			//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
-			ObserverBuilder& cascade() {
+			ObserverBuilder& depth_order() {
 				validate();
-				runtime_data().query.template cascade<Rel>();
+				runtime_data().query.template depth_order<Rel>();
 				return *this;
 			}
 

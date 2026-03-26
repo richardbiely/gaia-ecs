@@ -43,6 +43,10 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		Entity world_pair_target_if_alive(const World& world, Entity pair);
+		bool world_entity_enabled(const World& world, Entity entity);
+		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
+		bool world_is_hierarchy_relation(const World& world, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 

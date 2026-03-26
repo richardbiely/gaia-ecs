@@ -1797,8 +1797,6 @@ namespace gaia {
 			bool m_teardownActive = false;
 			//! Query used to iterate systems
 			ecs::Query m_systemsQuery;
-			//! Scratch ordered-system list reused by systems_run() to avoid per-frame allocations.
-			cnt::darray<Entity> m_orderedSystemsScratch;
 			//! Scratch entity-visit stamps reused by wildcard relationship traversal helpers.
 			mutable cnt::darray<uint64_t> m_entityVisitStamps;
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
@@ -1908,6 +1906,15 @@ namespace gaia {
 				const auto& ec = fetch(relation);
 				return (ec.flags & EntityContainerFlags::IsExclusive) != 0 &&
 							 (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
+			//! Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain.
+			//! ChildOf and Parent satisfy this today. DependsOn intentionally does not.
+			GAIA_NODISCARD bool is_hierarchy_relation(Entity relation) const {
+				if (!valid(relation) || relation.pair())
+					return false;
+
+				return has(relation, Exclusive) && has(relation, Traversable);
 			}
 
 			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
@@ -6800,46 +6807,35 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Returns the cached fragmenting hierarchy depth used by cascade ordering for `(relation, target)`.
-			//! The returned value is `1` for direct children of a root and grows by one per ancestor level.
+			//! Returns the cached fragmenting relation depth used by cascade ordering for `(relation, target)`.
+			//! The returned value is `1` for direct dependents of a root/source with no further relation targets and grows
+			//! by one per level. For multi-target relations, the deepest target chain determines the result.
 			GAIA_NODISCARD uint32_t cascade_depth_cache(Entity relation, Entity sourceTarget) const {
 				const auto key = EntityLookupKey(Pair(relation, sourceTarget));
 				const auto itCache = m_cascadeDepthCache.find(key);
-				if (itCache != m_cascadeDepthCache.end())
+				if (itCache != m_cascadeDepthCache.end()) {
+					GAIA_ASSERT(itCache->second != GroupIdMax && "cascade ordering requires an acyclic relation graph");
 					return itCache->second;
+				}
 
 				if (!valid(relation) || !valid(sourceTarget))
 					return 0;
 
-				cnt::darray_ext<Entity, 32> pending;
-				auto curr = sourceTarget;
-				uint32_t depth = 0;
-				GAIA_FOR(MAX_TRAV_DEPTH) {
-					const auto currKey = EntityLookupKey(Pair(relation, curr));
-					const auto itDepth = m_cascadeDepthCache.find(currKey);
-					if (itDepth != m_cascadeDepthCache.end()) {
-						depth = itDepth->second;
-						break;
-					}
+				// Mark this node as in-flight so cycles trip a debug assert instead of recursing forever.
+				m_cascadeDepthCache[key] = GroupIdMax;
 
-					pending.push_back(curr);
+				uint32_t depth = 1;
+				targets(sourceTarget, relation, [&](Entity next) {
+					const auto nextDepth = cascade_depth_cache(relation, next);
+					if (nextDepth == 0)
+						return;
+					const auto candidate = nextDepth + 1;
+					if (candidate > depth)
+						depth = candidate;
+				});
 
-					const auto next = this->target(curr, relation);
-					if (next == EntityBad || next == curr) {
-						depth = 0;
-						break;
-					}
-
-					curr = next;
-				}
-
-				for (uint32_t i = (uint32_t)pending.size(); i > 0; --i) {
-					++depth;
-					m_cascadeDepthCache[EntityLookupKey(Pair(relation, pending[i - 1]))] = depth;
-				}
-
-				const auto itResult = m_cascadeDepthCache.find(key);
-				return itResult != m_cascadeDepthCache.end() ? itResult->second : 0;
+				m_cascadeDepthCache[key] = depth;
+				return depth;
 			}
 
 			template <typename Func>
@@ -11778,12 +11774,14 @@ namespace gaia {
 			GAIA_ASSERT(!relation.pair());
 
 			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			// Non-fragmenting relations such as Parent must stay on walk(...), because their targets vary per entity
+			// and cannot be represented by one cached archetype depth.
 			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
 			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
 				return 0;
 
 			auto ids = archetype.ids_view();
-			GroupId minDepth = GroupIdMax;
+			GroupId maxDepth = 0;
 			bool found = false;
 
 			for (auto idsIdx: archetype.pair_rel_indices(relation)) {
@@ -11794,13 +11792,13 @@ namespace gaia {
 
 				const GroupId depth = GroupId(world.cascade_depth_cache(relation, target));
 
-				if (!found || depth < minDepth) {
-					minDepth = depth;
+				if (!found || depth > maxDepth) {
+					maxDepth = depth;
 					found = true;
 				}
 			}
 
-			return found ? minDepth : 0;
+			return found ? maxDepth : 0;
 		}
 	} // namespace ecs
 } // namespace gaia
@@ -11811,39 +11809,34 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		inline void World::systems_init() {
-			m_systemsQuery = query().all(System);
+			m_systemsQuery = query().all(System).depth_order(DependsOn);
 		}
 
 		inline void World::systems_run() {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
 
-			m_orderedSystemsScratch.clear();
-			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
-				m_orderedSystemsScratch.push_back(systemEntity);
-			});
-
-			for (auto systemEntity: m_orderedSystemsScratch) {
+			m_systemsQuery.each([&](Entity systemEntity) {
 				if (!valid(systemEntity) || !has(systemEntity, System))
-					continue;
+					return;
 				if (!enabled_hierarchy(systemEntity, ChildOf))
-					continue;
+					return;
 
 				auto ss = acc_mut(systemEntity);
 				auto& sys = ss.smut<ecs::System_>();
 				sys.exec();
-			}
+			});
 		}
 
 		inline void World::systems_done() {
-			m_orderedSystemsScratch.clear();
-			m_systemsQuery.bfs(DependsOn).each([&](Entity systemEntity) {
-				m_orderedSystemsScratch.push_back(systemEntity);
+			cnt::darray<Entity> tmpEntities;
+			m_systemsQuery.each([&](Entity systemEntity) {
+				tmpEntities.push_back(systemEntity);
 			});
 
 			// Wait for every outstanding system job before mutating any system runtime state.
 			// This keeps dependency chains intact while jobs are still live.
-			for (auto entity: m_orderedSystemsScratch) {
+			for (auto entity: tmpEntities) {
 				if (!valid(entity) || !has(entity, System))
 					continue;
 
@@ -11856,7 +11849,7 @@ namespace gaia {
 			}
 
 			// With all system jobs complete we can release their runtime state safely.
-			for (auto entity: m_orderedSystemsScratch) {
+			for (auto entity: tmpEntities) {
 				if (!valid(entity) || !has(entity, System))
 					continue;
 
@@ -11872,7 +11865,7 @@ namespace gaia {
 			}
 
 			m_systemsQuery = {};
-			m_orderedSystemsScratch.clear();
+			tmpEntities.clear();
 		}
 
 		inline SystemBuilder World::system() {
@@ -12029,6 +12022,18 @@ namespace gaia {
 
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
+		}
+
+		inline Entity world_pair_target_if_alive(const World& world, Entity pair) {
+			return world.pair_target_if_alive(pair);
+		}
+
+		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
+			return world.enabled_hierarchy(entity, relation);
+		}
+
+		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {
+			return world.is_hierarchy_relation(relation);
 		}
 
 		inline bool world_entity_prefab(const World& world, Entity entity) {

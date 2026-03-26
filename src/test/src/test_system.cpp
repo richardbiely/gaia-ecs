@@ -109,6 +109,86 @@ TEST_CASE("System - dependency BFS order") {
 	}
 }
 
+TEST_CASE("System - DependsOn respects deepest dependency chain") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto make_sys = [&](char id) {
+		return wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	auto sysRoot = make_sys('R');
+	auto sysA = make_sys('A');
+	auto sysB = make_sys('B');
+	auto sysC = make_sys('C');
+
+	wld.add(sysA.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysB.entity()});
+
+	wld.update();
+
+	CHECK(order.size() == 4);
+	if (order.size() == 4) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'B');
+		CHECK(order[3] == 'C');
+	}
+}
+
+TEST_CASE("System - DependsOn updates after dependency rewiring") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto make_sys = [&](char id) {
+		return wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	auto sysRoot = make_sys('R');
+	auto sysA = make_sys('A');
+	auto sysB = make_sys('B');
+	auto sysC = make_sys('C');
+
+	wld.add(sysA.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysRoot.entity()});
+	wld.add(sysC.entity(), {ecs::DependsOn, sysB.entity()});
+
+	wld.update();
+
+	CHECK(order.size() == 4);
+	if (order.size() == 4) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'B');
+		CHECK(order[3] == 'C');
+	}
+
+	wld.del(sysC.entity(), {ecs::DependsOn, sysB.entity()});
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 4);
+	if (order.size() == 4) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'C');
+		CHECK(order[3] == 'B');
+	}
+}
+
 TEST_CASE("World - teardown removes runtime callbacks without executing them") {
 	ecs::World world;
 	uint32_t sysCnt = 0;
@@ -148,7 +228,7 @@ TEST_CASE("World - teardown removes runtime callbacks without executing them") {
 	CHECK(obsCnt == 1);
 }
 
-TEST_CASE("System - cascade query order") {
+TEST_CASE("System - depth_order query order") {
 	cnt::darr<ecs::Entity> order;
 	TestWorld twld;
 
@@ -166,7 +246,7 @@ TEST_CASE("System - cascade query order") {
 	wld.add<Position>(childB, {0, 0, 0});
 	wld.add<Position>(grandChild, {0, 0, 0});
 
-	wld.system().all<Position>().cascade(ecs::ChildOf).on_each([&](ecs::Entity entity, Position) {
+	wld.system().all<Position>().depth_order(ecs::ChildOf).on_each([&](ecs::Entity entity, Position) {
 		order.push_back(entity);
 	});
 

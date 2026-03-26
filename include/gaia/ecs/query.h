@@ -1486,6 +1486,53 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD static bool has_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
+					const auto& data = queryInfo.ctx().data;
+					return data.groupByFunc == group_by_func_cascade &&
+								 world_is_hierarchy_relation(*queryInfo.world(), data.groupBy) &&
+								 !world_is_exclusive_dont_fragment_relation(*queryInfo.world(), data.groupBy);
+				}
+
+				//! Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations.
+				//! ChildOf is the native built-in example, but the rule is semantic: the relation must form an
+				//! exclusive traversable parent chain and still participate in archetype identity. For such relations,
+				//! all rows in the archetype share the same direct parent target. That lets us prune the entire
+				//! archetype when its parent chain crosses a disabled entity.
+				//! Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must
+				//! stay on the per-entity walk(...) path instead.
+				GAIA_NODISCARD static bool
+				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
+					if (!has_cascade_hierarchy_enabled_barrier(queryInfo))
+						return true;
+
+					const auto& world = *queryInfo.world();
+					const auto relation = queryInfo.ctx().data.groupBy;
+					auto ids = archetype.ids_view();
+
+					for (auto idsIdx: archetype.pair_rel_indices(relation)) {
+						const auto pair = ids[idsIdx];
+						const auto parent = world_pair_target_if_alive(world, pair);
+						if (parent == EntityBad)
+							return false;
+						if (!world_entity_enabled_hierarchy(world, parent, relation))
+							return false;
+					}
+
+					return true;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD bool can_process_archetype_inter(const QueryInfo& queryInfo, const Archetype& archetype) const {
+					if (!can_process_archetype(queryInfo, archetype))
+						return false;
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_cascade_hierarchy_enabled_barrier(queryInfo) &&
+								!survives_cascade_hierarchy_enabled_barrier(queryInfo, archetype))
+							return false;
+					}
+					return true;
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
@@ -1614,7 +1661,7 @@ namespace gaia {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							chunkBatches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
+							chunkBatches.push_back({pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
@@ -1624,7 +1671,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1704,12 +1751,12 @@ namespace gaia {
 							const auto* pArchetype = cacheView[view.archetypeIdx];
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
-							m_batches.push_back(ChunkBatch{pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
+							m_batches.push_back({pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
-							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1770,7 +1817,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1839,7 +1886,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						const auto& data = dataView[i];
@@ -1853,7 +1900,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1959,7 +2006,7 @@ namespace gaia {
 						auto cache_view = queryInfo.cache_archetype_view();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
-							if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2980,7 +3027,7 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
@@ -3149,7 +3196,7 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
@@ -3659,7 +3706,7 @@ namespace gaia {
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 
 					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
@@ -4341,12 +4388,12 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				class OrderByBfsView final {
+				class OrderByWalkView final {
 					QueryImpl* m_query = nullptr;
 					Entity m_relation = EntityBad;
 
 				public:
-					OrderByBfsView(QueryImpl& query, Entity relation): m_query(&query), m_relation(relation) {}
+					OrderByWalkView(QueryImpl& query, Entity relation): m_query(&query), m_relation(relation) {}
 
 					template <typename Func>
 					void each(Func func) {
@@ -4356,33 +4403,38 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Orders query iteration in dependency BFS levels for the given relation.
+				//! Walks the relation graph in breadth-first levels for the given relation.
 				//! Pair(relation, X) on entity E means E depends on X.
-				GAIA_NODISCARD OrderByBfsView bfs(Entity relation) {
-					return OrderByBfsView(*this, relation);
+				//! This path evaluates traversal per entity, so it works for both fragmenting relations
+				//! such as ChildOf and non-fragmenting relations such as Parent.
+				GAIA_NODISCARD OrderByWalkView walk(Entity relation) {
+					return OrderByWalkView(*this, relation);
 				}
 
 				//------------------------------------------------
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
-				//! Intended for relations such as ChildOf where the target is part of the archetype shape.
+				//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
+				//! Intended only for fragmenting relations such as ChildOf or DependsOn where the target
+				//! participates in archetype identity. Unlike walk(...), this affects the cached query
+				//! iteration order itself and can therefore prune fragmenting disabled subtrees at the
+				//! archetype level. For non-fragmenting relations such as Parent, use walk(...) instead.
 				//! \param relation Fragmenting hierarchy relation
-				QueryImpl& cascade(Entity relation = ChildOf) {
+				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
 					group_by_inter(relation, group_by_func_cascade);
 					return *this;
 				}
 
-				//! Sorts cached query entries by fragmenting hierarchy depth so iteration runs top-down.
+				//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 				template <typename Rel>
-				QueryImpl& cascade() {
+				QueryImpl& depth_order() {
 					using UO = typename component_type_t<Rel>::TypeOriginal;
-					static_assert(core::is_raw_v<UO>, "Use cascade() with raw relation types only");
+					static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
 
 					const auto& desc = comp_cache_add<Rel>(*m_storage.world());
-					return cascade(desc.entity);
+					return depth_order(desc.entity);
 				}
 
 				//------------------------------------------------

@@ -615,7 +615,7 @@ TEST_CASE("Observer - fast path") {
 	const auto observerCascade = wld.observer()
 																	 .event(ecs::ObserverEvent::OnAdd)
 																	 .all<Position>()
-																	 .cascade(ecs::ChildOf)
+																	 .depth_order(ecs::ChildOf)
 																	 .on_each([](ecs::Iter&) {})
 																	 .entity();
 
