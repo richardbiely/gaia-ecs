@@ -313,6 +313,60 @@ void BM_Query_DepthOrder_DependsOn(picobench::state& state) {
 	dont_optimize(visited);
 }
 
+template <uint32_t BranchingFactor>
+void BM_Query_DepthOrder_ChildOf_IterEmpty(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n, BranchingFactor);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	uint64_t chunkVisits = 0;
+
+	q.each([&](ecs::Iter& it) {
+		chunkVisits += it.size() != 0 ? 1U : 0U;
+	});
+	chunkVisits = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Iter& it) {
+			chunkVisits += it.size() != 0 ? 1U : 0U;
+		});
+	}
+
+	dont_optimize(chunkVisits);
+}
+
+template <uint32_t BranchingFactor>
+void BM_Query_DepthOrder_DependsOn_IterEmpty(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_dependency_tree_with_position(w, entities, n, BranchingFactor);
+
+	auto q = w.query().all<Position>().depth_order(ecs::DependsOn);
+	uint64_t chunkVisits = 0;
+
+	q.each([&](ecs::Iter& it) {
+		chunkVisits += it.size() != 0 ? 1U : 0U;
+	});
+	chunkVisits = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Iter& it) {
+			chunkVisits += it.size() != 0 ? 1U : 0U;
+		});
+	}
+
+	dont_optimize(chunkVisits);
+}
+
 void BM_Query_Plain_ChildOf_Component(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
@@ -954,6 +1008,14 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof depth_order wide 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_ChildOf_IterEmpty<4U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query childof depth_order iter empty 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_ChildOf_IterEmpty<1U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query childof depth_order iter empty chain 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_Disabled)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
@@ -974,6 +1036,14 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query dependson depth_order chain 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn_IterEmpty<4U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson depth_order iter empty 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn_IterEmpty<1U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson depth_order iter empty chain 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_Component)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
