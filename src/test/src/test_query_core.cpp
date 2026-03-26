@@ -3875,6 +3875,28 @@ TEST_CASE("Query depth_order DependsOn updates after dependency rewiring") {
 	CHECK(ents[3] == depB);
 }
 
+TEST_CASE("Traversal relation semantics are explicit") {
+	TestWorld twld;
+
+	CHECK(wld.is_hierarchy_relation(ecs::ChildOf));
+	CHECK(wld.is_fragmenting_relation(ecs::ChildOf));
+	CHECK(wld.is_fragmenting_hierarchy_relation(ecs::ChildOf));
+	CHECK(wld.supports_depth_order(ecs::ChildOf));
+	CHECK(wld.depth_order_prunes_disabled_subtrees(ecs::ChildOf));
+
+	CHECK(wld.is_hierarchy_relation(ecs::Parent));
+	CHECK(!wld.is_fragmenting_relation(ecs::Parent));
+	CHECK(!wld.is_fragmenting_hierarchy_relation(ecs::Parent));
+	CHECK(!wld.supports_depth_order(ecs::Parent));
+	CHECK(!wld.depth_order_prunes_disabled_subtrees(ecs::Parent));
+
+	CHECK(!wld.is_hierarchy_relation(ecs::DependsOn));
+	CHECK(wld.is_fragmenting_relation(ecs::DependsOn));
+	CHECK(!wld.is_fragmenting_hierarchy_relation(ecs::DependsOn));
+	CHECK(wld.supports_depth_order(ecs::DependsOn));
+	CHECK(!wld.depth_order_prunes_disabled_subtrees(ecs::DependsOn));
+}
+
 template <typename TQuery>
 void Test_Query_Equality() {
 	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;

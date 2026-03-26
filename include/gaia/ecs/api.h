@@ -47,6 +47,10 @@ namespace gaia {
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
+		bool world_is_fragmenting_relation(const World& world, Entity relation);
+		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
+		bool world_supports_depth_order(const World& world, Entity relation);
+		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 

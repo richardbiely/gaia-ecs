@@ -1489,17 +1489,15 @@ namespace gaia {
 				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
 					return data.groupByFunc == group_by_func_depth_order &&
-								 world_is_hierarchy_relation(*queryInfo.world(), data.groupBy) &&
-								 !world_is_exclusive_dont_fragment_relation(*queryInfo.world(), data.groupBy);
+								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
 				//! Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations.
-				//! ChildOf is the native built-in example, but the rule is semantic: the relation must form an
-				//! exclusive traversable parent chain and still participate in archetype identity. For such relations,
-				//! all rows in the archetype share the same direct parent target. That lets us prune the entire
-				//! archetype when its parent chain crosses a disabled entity.
-				//! Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must
-				//! stay on the per-entity walk(...) path instead.
+				//! ChildOf is the native built-in example, but the rule is semantic: the relation must support
+				//! depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in
+				//! the archetype share the same direct parent target. That lets us prune the entire archetype when
+				//! its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent
+				//! cannot use this archetype-level check and must stay on the per-entity walk(...) path instead.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
 					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
@@ -4421,7 +4419,7 @@ namespace gaia {
 				//! \param relation Fragmenting hierarchy relation
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
-					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
+					GAIA_ASSERT(m_storage.world()->supports_depth_order(relation));
 					group_by_inter(relation, group_by_func_depth_order);
 					return *this;
 				}

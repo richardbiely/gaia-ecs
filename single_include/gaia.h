@@ -23947,6 +23947,10 @@ namespace gaia {
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
+		bool world_is_fragmenting_relation(const World& world, Entity relation);
+		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
+		bool world_supports_depth_order(const World& world, Entity relation);
+		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
@@ -41652,17 +41656,15 @@ namespace gaia {
 				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
 					return data.groupByFunc == group_by_func_depth_order &&
-								 world_is_hierarchy_relation(*queryInfo.world(), data.groupBy) &&
-								 !world_is_exclusive_dont_fragment_relation(*queryInfo.world(), data.groupBy);
+								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
 				//! Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations.
-				//! ChildOf is the native built-in example, but the rule is semantic: the relation must form an
-				//! exclusive traversable parent chain and still participate in archetype identity. For such relations,
-				//! all rows in the archetype share the same direct parent target. That lets us prune the entire
-				//! archetype when its parent chain crosses a disabled entity.
-				//! Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must
-				//! stay on the per-entity walk(...) path instead.
+				//! ChildOf is the native built-in example, but the rule is semantic: the relation must support
+				//! depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in
+				//! the archetype share the same direct parent target. That lets us prune the entire archetype when
+				//! its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent
+				//! cannot use this archetype-level check and must stay on the per-entity walk(...) path instead.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
 					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
@@ -44584,7 +44586,7 @@ namespace gaia {
 				//! \param relation Fragmenting hierarchy relation
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
-					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
+					GAIA_ASSERT(m_storage.world()->supports_depth_order(relation));
 					group_by_inter(relation, group_by_func_depth_order);
 					return *this;
 				}
@@ -47316,6 +47318,33 @@ namespace gaia {
 					return false;
 
 				return has(relation, Exclusive) && has(relation, Traversable);
+			}
+
+			//! Returns true when the relation still participates in archetype identity.
+			//! Non-fragmenting relations such as Parent are excluded.
+			GAIA_NODISCARD bool is_fragmenting_relation(Entity relation) const {
+				return valid(relation) && !relation.pair() && !is_dont_fragment(relation);
+			}
+
+			//! Returns true for hierarchy relations that still fragment archetypes.
+			//! ChildOf satisfies this today, while Parent intentionally does not.
+			GAIA_NODISCARD bool is_fragmenting_hierarchy_relation(Entity relation) const {
+				return is_hierarchy_relation(relation) && is_fragmenting_relation(relation);
+			}
+
+			//! Returns true when the relation can drive cached depth-ordered iteration.
+			//! This requires a fragmenting relation whose target participates in archetype identity,
+			//! such as ChildOf, DependsOn, or a custom fragmenting relation. Cycles are still invalid
+			//! and are diagnosed by the depth cache itself.
+			GAIA_NODISCARD bool supports_depth_order(Entity relation) const {
+				return is_fragmenting_relation(relation);
+			}
+
+			//! Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level.
+			//! Only fragmenting hierarchy relations qualify because all rows in the archetype then share
+			//! the same direct parent and therefore the same ancestor chain.
+			GAIA_NODISCARD bool depth_order_prunes_disabled_subtrees(Entity relation) const {
+				return is_fragmenting_hierarchy_relation(relation);
 			}
 
 			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
@@ -58426,7 +58455,7 @@ namespace gaia {
 			// Non-fragmenting relations such as Parent must stay on walk(...), because their targets vary per entity
 			// and cannot be represented by one cached archetype depth.
 			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
-			if (!world.valid(relation) || world.is_exclusive_dont_fragment_relation(relation) || archetype.pairs() == 0)
+			if (!world.supports_depth_order(relation) || archetype.pairs() == 0)
 				return 0;
 
 			auto ids = archetype.ids_view();
@@ -59492,6 +59521,22 @@ namespace gaia {
 
 		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {
 			return world.is_hierarchy_relation(relation);
+		}
+
+		inline bool world_is_fragmenting_relation(const World& world, Entity relation) {
+			return world.is_fragmenting_relation(relation);
+		}
+
+		inline bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation) {
+			return world.is_fragmenting_hierarchy_relation(relation);
+		}
+
+		inline bool world_supports_depth_order(const World& world, Entity relation) {
+			return world.supports_depth_order(relation);
+		}
+
+		inline bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
+			return world.depth_order_prunes_disabled_subtrees(relation);
 		}
 
 		inline bool world_entity_prefab(const World& world, Entity entity) {
