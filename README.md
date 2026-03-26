@@ -623,6 +623,8 @@ Under the hood they use the query engine, just like systems. However, systems ar
 
 Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
 
+Currently OberverEvent::OnSet is not yet supported. 
+
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
 ```cpp
