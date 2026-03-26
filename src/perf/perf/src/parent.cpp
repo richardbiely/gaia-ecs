@@ -9,10 +9,16 @@ void add_hierarchy_edge(ecs::World& w, ecs::Entity entity, ecs::Entity parent) {
 		w.add(entity, ecs::Pair(ecs::ChildOf, parent));
 }
 
+inline void add_dependency_edge(ecs::World& w, ecs::Entity entity, ecs::Entity dependency) {
+	w.add(entity, ecs::Pair(ecs::DependsOn, dependency));
+}
+
 template <bool UseParent>
-void create_hierarchy_tree(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+void create_hierarchy_tree(
+		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, uint32_t branchingFactor = 4U) {
 	entities.clear();
 	entities.reserve(count);
+	GAIA_ASSERT(branchingFactor > 0);
 
 	GAIA_FOR(count) {
 		const auto e = w.add();
@@ -21,14 +27,40 @@ void create_hierarchy_tree(ecs::World& w, cnt::darray<ecs::Entity>& entities, ui
 		if (i == 0)
 			continue;
 
-		const auto parentIdx = (i - 1U) / 4U;
+		const auto parentIdx = (i - 1U) / branchingFactor;
 		add_hierarchy_edge<UseParent>(w, e, entities[parentIdx]);
 	}
 }
 
 template <bool UseParent>
-void create_hierarchy_tree_with_position(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
-	create_hierarchy_tree<UseParent>(w, entities, count);
+void create_hierarchy_tree_with_position(
+		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, uint32_t branchingFactor = 4U) {
+	create_hierarchy_tree<UseParent>(w, entities, count, branchingFactor);
+	for (auto e: entities)
+		w.add<Position>(e, {1.0f, 2.0f, 3.0f});
+}
+
+void create_dependency_tree(
+		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, uint32_t branchingFactor = 4U) {
+	entities.clear();
+	entities.reserve(count);
+	GAIA_ASSERT(branchingFactor > 0);
+
+	GAIA_FOR(count) {
+		const auto e = w.add();
+		entities.push_back(e);
+
+		if (i == 0)
+			continue;
+
+		const auto dependencyIdx = (i - 1U) / branchingFactor;
+		add_dependency_edge(w, e, entities[dependencyIdx]);
+	}
+}
+
+void create_dependency_tree_with_position(
+		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, uint32_t branchingFactor = 4U) {
+	create_dependency_tree(w, entities, count, branchingFactor);
 	for (auto e: entities)
 		w.add<Position>(e, {1.0f, 2.0f, 3.0f});
 }
@@ -182,6 +214,87 @@ void BM_Query_Cascade_ChildOf_Disabled(picobench::state& state) {
 	disable_hierarchy_barrier(w, entities);
 
 	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	uint64_t visited = 0;
+
+	q.each([&](ecs::Entity) {
+		++visited;
+	});
+	visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
+template <uint32_t BranchingFactor>
+void BM_Query_DepthOrder_ChildOf_Fanout(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_hierarchy_tree_with_position<false>(w, entities, n, BranchingFactor);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	uint64_t visited = 0;
+
+	q.each([&](ecs::Entity) {
+		++visited;
+	});
+	visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
+template <uint32_t BranchingFactor>
+void BM_Query_Walk_DependsOn(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_dependency_tree_with_position(w, entities, n, BranchingFactor);
+
+	auto q = w.query().all<Position>();
+	uint64_t visited = 0;
+
+	q.walk(ecs::DependsOn).each([&](ecs::Entity) {
+		++visited;
+	});
+	visited = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.walk(ecs::DependsOn).each([&](ecs::Entity) {
+			++visited;
+		});
+	}
+
+	dont_optimize(visited);
+}
+
+template <uint32_t BranchingFactor>
+void BM_Query_DepthOrder_DependsOn(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_dependency_tree_with_position(w, entities, n, BranchingFactor);
+
+	auto q = w.query().all<Position>().depth_order(ecs::DependsOn);
 	uint64_t visited = 0;
 
 	q.each([&](ecs::Entity) {
@@ -833,10 +946,34 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof depth_order 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_ChildOf_Fanout<1U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query childof depth_order chain 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_ChildOf_Fanout<64U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query childof depth_order wide 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_Disabled)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof depth_order disabled barrier 10K");
+	PICOBENCH_REG(BM_Query_Walk_DependsOn<4U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson walk 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn<4U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson depth_order 10K");
+	PICOBENCH_REG(BM_Query_Walk_DependsOn<1U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson walk chain 10K");
+	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn<1U>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query dependson depth_order chain 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_Component)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
