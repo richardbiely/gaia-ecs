@@ -30720,8 +30720,8 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
 		GAIA_NODISCARD uint32_t
 		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
-		//! Groups fragmenting hierarchy archetypes by depth for cascade-style top-down iteration.
-		GAIA_NODISCARD GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation);
+		//! Groups fragmenting hierarchy archetypes by depth for depth-ordered top-down iteration.
+		GAIA_NODISCARD GroupId group_by_func_depth_order(const World& world, const Archetype& archetype, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
@@ -31344,8 +31344,8 @@ namespace gaia {
 				void add_group_deps() {
 					deps.set_dep_flag(DependencyHasGroup);
 
-					const bool hasBuiltInGroupDep =
-							groupBy != EntityBad && (groupByFunc == group_by_func_default || groupByFunc == group_by_func_cascade);
+					const bool hasBuiltInGroupDep = groupBy != EntityBad && (groupByFunc == group_by_func_default ||
+																																	 groupByFunc == group_by_func_depth_order);
 					if (hasBuiltInGroupDep)
 						deps.add_rel(groupBy);
 					for (auto relation: group_deps_view())
@@ -40725,62 +40725,62 @@ namespace gaia {
 				//! Traversed-source closure size allowed for explicit snapshot reuse.
 				uint16_t m_cacheSrcTrav = 0;
 
-				//! BFS-specific cache and scratch storage, allocated on-demand.
-				struct EachBfsData {
-					//! Cached raw entity list for each_bfs.
+				//! Walk-specific cache and scratch storage, allocated on-demand.
+				struct EachWalkData {
+					//! Cached raw entity list for each_walk.
 					cnt::darray<Entity> cachedInput;
-					//! Cached ordered entity list for each_bfs.
+					//! Cached ordered entity list for each_walk.
 					cnt::darray<Entity> cachedOutput;
-					//! Cached contiguous chunk-row runs for typed each_bfs fast-paths.
+					//! Cached contiguous chunk-row runs for typed each_walk fast-paths.
 					cnt::darray<detail::BfsChunkRun> cachedRuns;
-					//! Cached relation used by each_bfs.
+					//! Cached relation used by each_walk.
 					Entity cachedRelation = EntityBad;
-					//! Cached constraints used by each_bfs.
+					//! Cached constraints used by each_walk.
 					Constraints cachedConstraints = Constraints::EnabledOnly;
-					//! Relation version when each_bfs cache was produced.
+					//! Relation version when each_walk cache was produced.
 					uint32_t cachedRelationVersion = 0;
 					//! World version snapshot used for chunk-structural change checks.
 					uint32_t cachedEntityVersion = 0;
-					//! Cached matched chunk pointers used by each_bfs fast-path.
+					//! Cached matched chunk pointers used by each_walk fast-path.
 					cnt::darray<const Chunk*> cachedChunks;
-					//! True if each_bfs cache is valid.
+					//! True if each_walk cache is valid.
 					bool cacheValid = false;
-					//! Scratch entities for each_bfs computation.
+					//! Scratch entities for each_walk computation.
 					cnt::darray<Entity> scratchEntities;
-					//! Scratch matched chunk pointers for each_bfs fast-path.
+					//! Scratch matched chunk pointers for each_walk fast-path.
 					cnt::darray<const Chunk*> scratchChunks;
-					//! Scratch indegree array for each_bfs computation.
+					//! Scratch indegree array for each_walk computation.
 					cnt::darray<uint32_t> scratchIndegree;
-					//! Scratch outdegree array for each_bfs computation.
+					//! Scratch outdegree array for each_walk computation.
 					cnt::darray<uint32_t> scratchOutdegree;
-					//! Scratch adjacency offsets (CSR) for each_bfs computation.
+					//! Scratch adjacency offsets (CSR) for each_walk computation.
 					cnt::darray<uint32_t> scratchOffsets;
 					//! Scratch adjacency write cursor (CSR fill stage).
 					cnt::darray<uint32_t> scratchWriteCursor;
-					//! Scratch adjacency edges (CSR) for each_bfs computation.
+					//! Scratch adjacency edges (CSR) for each_walk computation.
 					cnt::darray<uint32_t> scratchEdges;
-					//! Scratch level queue for current BFS layer.
+					//! Scratch level queue for current walk layer.
 					cnt::darray<uint32_t> scratchCurrLevel;
-					//! Scratch level queue for next BFS layer.
+					//! Scratch level queue for next walk layer.
 					cnt::darray<uint32_t> scratchNextLevel;
 				};
 
-				//! Optional on-demand storage for BFS iteration data.
-				struct EachBfsDataHolder {
-					EachBfsData* pData = nullptr;
+				//! Optional on-demand storage for walk iteration data.
+				struct EachWalkDataHolder {
+					EachWalkData* pData = nullptr;
 
-					EachBfsDataHolder() = default;
+					EachWalkDataHolder() = default;
 
-					~EachBfsDataHolder() {
+					~EachWalkDataHolder() {
 						delete pData;
 					}
 
-					EachBfsDataHolder(const EachBfsDataHolder& other) {
+					EachWalkDataHolder(const EachWalkDataHolder& other) {
 						if (other.pData != nullptr)
-							pData = new EachBfsData(*other.pData);
+							pData = new EachWalkData(*other.pData);
 					}
 
-					EachBfsDataHolder& operator=(const EachBfsDataHolder& other) {
+					EachWalkDataHolder& operator=(const EachWalkDataHolder& other) {
 						if (core::addressof(other) == this)
 							return *this;
 
@@ -40791,18 +40791,18 @@ namespace gaia {
 						}
 
 						if (pData == nullptr)
-							pData = new EachBfsData(*other.pData);
+							pData = new EachWalkData(*other.pData);
 						else
 							*pData = *other.pData;
 
 						return *this;
 					}
 
-					EachBfsDataHolder(EachBfsDataHolder&& other) noexcept: pData(other.pData) {
+					EachWalkDataHolder(EachWalkDataHolder&& other) noexcept: pData(other.pData) {
 						other.pData = nullptr;
 					}
 
-					EachBfsDataHolder& operator=(EachBfsDataHolder&& other) noexcept {
+					EachWalkDataHolder& operator=(EachWalkDataHolder&& other) noexcept {
 						if (core::addressof(other) == this)
 							return *this;
 
@@ -40812,17 +40812,17 @@ namespace gaia {
 						return *this;
 					}
 
-					GAIA_NODISCARD EachBfsData* get() {
+					GAIA_NODISCARD EachWalkData* get() {
 						return pData;
 					}
 
-					GAIA_NODISCARD const EachBfsData* get() const {
+					GAIA_NODISCARD const EachWalkData* get() const {
 						return pData;
 					}
 
-					GAIA_NODISCARD EachBfsData& ensure() {
+					GAIA_NODISCARD EachWalkData& ensure() {
 						if (pData == nullptr)
-							pData = new EachBfsData();
+							pData = new EachWalkData();
 						return *pData;
 					}
 
@@ -40832,7 +40832,7 @@ namespace gaia {
 					}
 				};
 
-				EachBfsDataHolder m_eachBfsData;
+				EachWalkDataHolder m_eachWalkData;
 
 				//! Cached run data for repeated direct-seeded semantic/inherited entity walks.
 				struct DirectSeedRunData {
@@ -41020,7 +41020,7 @@ namespace gaia {
 						maxItems = MaxCacheSrcTrav;
 					}
 
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 					invalidate_direct_seed_run_cache();
 					m_cacheSrcTrav = maxItems;
 					m_storage.invalidate();
@@ -41039,7 +41039,7 @@ namespace gaia {
 					if (m_cacheKind == cacheKind)
 						return *this;
 
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 					invalidate_direct_seed_run_cache();
 					m_cacheKind = cacheKind;
 					if constexpr (UseCaching)
@@ -41114,22 +41114,22 @@ namespace gaia {
 					return true;
 				}
 
-				GAIA_NODISCARD EachBfsData* each_bfs_data() {
-					return m_eachBfsData.get();
+				GAIA_NODISCARD EachWalkData* each_walk_data() {
+					return m_eachWalkData.get();
 				}
 
-				GAIA_NODISCARD const EachBfsData* each_bfs_data() const {
-					return m_eachBfsData.get();
+				GAIA_NODISCARD const EachWalkData* each_walk_data() const {
+					return m_eachWalkData.get();
 				}
 
-				GAIA_NODISCARD EachBfsData& ensure_each_bfs_data() {
-					return m_eachBfsData.ensure();
+				GAIA_NODISCARD EachWalkData& ensure_each_walk_data() {
+					return m_eachWalkData.ensure();
 				}
 
-				void invalidate_each_bfs_cache() {
-					auto* pBfsData = each_bfs_data();
-					if (pBfsData != nullptr)
-						pBfsData->cacheValid = false;
+				void invalidate_each_walk_cache() {
+					auto* pWalkData = each_walk_data();
+					if (pWalkData != nullptr)
+						pWalkData->cacheValid = false;
 				}
 
 				GAIA_NODISCARD DirectSeedRunData* direct_seed_run_data() {
@@ -41243,7 +41243,7 @@ namespace gaia {
 
 				template <typename T>
 				void add_cmd(T& cmd) {
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 
 					// Make sure to invalidate if necessary.
 					if constexpr (T::InvalidatesHash) {
@@ -41479,7 +41479,7 @@ namespace gaia {
 					// Dummy usage of GroupIdMax to avoid warning about unused constant
 					(void)GroupIdMax;
 
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 					m_groupIdSet = groupId;
 				}
 
@@ -41649,9 +41649,9 @@ namespace gaia {
 					return true;
 				}
 
-				GAIA_NODISCARD static bool has_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
-					return data.groupByFunc == group_by_func_cascade &&
+					return data.groupByFunc == group_by_func_depth_order &&
 								 world_is_hierarchy_relation(*queryInfo.world(), data.groupBy) &&
 								 !world_is_exclusive_dont_fragment_relation(*queryInfo.world(), data.groupBy);
 				}
@@ -41665,7 +41665,7 @@ namespace gaia {
 				//! stay on the per-entity walk(...) path instead.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
-					if (!has_cascade_hierarchy_enabled_barrier(queryInfo))
+					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
 						return true;
 
 					const auto& world = *queryInfo.world();
@@ -41689,7 +41689,7 @@ namespace gaia {
 					if (!can_process_archetype(queryInfo, archetype))
 						return false;
 					if constexpr (std::is_same_v<TIter, Iter>) {
-						if (has_cascade_hierarchy_enabled_barrier(queryInfo) &&
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo) &&
 								!survives_cascade_hierarchy_enabled_barrier(queryInfo, archetype))
 							return false;
 					}
@@ -43540,11 +43540,11 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
 					auto& world = *queryInfo.world();
-					auto& bfsData = ensure_each_bfs_data();
+					auto& walkData = ensure_each_walk_data();
 					TIter it;
 					it.set_world(&world);
-					if (!bfsData.cachedRuns.empty()) {
-						each_chunk_runs_iter<TIter>(queryInfo, bfsData.cachedRuns, func);
+					if (!walkData.cachedRuns.empty()) {
+						each_chunk_runs_iter<TIter>(queryInfo, walkData.cachedRuns, func);
 						return;
 					}
 
@@ -43611,9 +43611,9 @@ namespace gaia {
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
 					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
-					auto& bfsData = ensure_each_bfs_data();
-					if (!bfsData.cachedRuns.empty()) {
-						each_chunk_runs<TIter>(queryInfo, bfsData.cachedRuns, func, core::func_type_list<T...>{});
+					auto& walkData = ensure_each_walk_data();
+					if (!walkData.cachedRuns.empty()) {
+						each_chunk_runs<TIter>(queryInfo, walkData.cachedRuns, func, core::func_type_list<T...>{});
 						return;
 					}
 
@@ -43952,16 +43952,16 @@ namespace gaia {
 				//! Release any data allocated by the query
 				void reset() {
 					m_storage.reset();
-					m_eachBfsData.reset();
+					m_eachWalkData.reset();
 					reset_changed_filter_state();
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 				}
 
 				void destroy() {
 					(void)m_storage.try_del_from_cache();
-					m_eachBfsData.reset();
+					m_eachWalkData.reset();
 					reset_changed_filter_state();
-					invalidate_each_bfs_cache();
+					invalidate_each_walk_cache();
 				}
 
 				//! Returns true if the query is stored in the query cache
@@ -44560,7 +44560,7 @@ namespace gaia {
 
 					template <typename Func>
 					void each(Func func) {
-						m_query->each_bfs(func, m_relation);
+						m_query->each_walk(func, m_relation);
 					}
 				};
 
@@ -44585,7 +44585,7 @@ namespace gaia {
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(!m_storage.world()->is_exclusive_dont_fragment_relation(relation));
-					group_by_inter(relation, group_by_func_cascade);
+					group_by_inter(relation, group_by_func_depth_order);
 					return *this;
 				}
 
@@ -44868,9 +44868,9 @@ namespace gaia {
 					}
 				}
 
-				GAIA_NODISCARD std::span<const Entity> ordered_entities_bfs(
+				GAIA_NODISCARD std::span<const Entity> ordered_entities_walk(
 						QueryInfo& queryInfo, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
-					auto& bfsData = ensure_each_bfs_data();
+					auto& walkData = ensure_each_walk_data();
 					auto& world = *m_storage.world();
 					const uint32_t relationVersion = world.rel_version(relation);
 					const uint32_t worldVersion = world.world_version();
@@ -44893,11 +44893,11 @@ namespace gaia {
 						return true;
 					};
 
-					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion &&
-							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
+					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedConstraints == constraints &&
+							walkData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) &&
 							!queryInfo.has_filters()) {
-						auto& chunks = bfsData.scratchChunks;
+						auto& chunks = walkData.scratchChunks;
 						chunks.clear();
 
 						bool chunkChanged = false;
@@ -44910,15 +44910,15 @@ namespace gaia {
 									continue;
 
 								chunks.push_back(pChunk);
-								if (!chunkChanged && pChunk->changed(bfsData.cachedEntityVersion))
+								if (!chunkChanged && pChunk->changed(walkData.cachedEntityVersion))
 									chunkChanged = true;
 							}
 						}
 
-						bool sameChunks = chunks.size() == bfsData.cachedChunks.size();
+						bool sameChunks = chunks.size() == walkData.cachedChunks.size();
 						if (sameChunks) {
 							for (uint32_t i = 0; i < (uint32_t)chunks.size(); ++i) {
-								if (chunks[i] != bfsData.cachedChunks[i]) {
+								if (chunks[i] != walkData.cachedChunks[i]) {
 									sameChunks = false;
 									break;
 								}
@@ -44926,11 +44926,11 @@ namespace gaia {
 						}
 
 						if (sameChunks && !chunkChanged) {
-							return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
+							return std::span<const Entity>(walkData.cachedOutput.data(), walkData.cachedOutput.size());
 						}
 					}
 
-					auto& entities = bfsData.scratchEntities;
+					auto& entities = walkData.scratchEntities;
 					entities.clear();
 					arr(entities, constraints);
 					if (entities.empty())
@@ -44950,25 +44950,25 @@ namespace gaia {
 							return {};
 					}
 
-					if (bfsData.cacheValid && bfsData.cachedRelation == relation && bfsData.cachedConstraints == constraints &&
-							bfsData.cachedRelationVersion == relationVersion &&
-							(!needsTraversalBarrierState || bfsData.cachedEntityVersion == worldVersion) &&
-							entities.size() == bfsData.cachedInput.size()) {
+					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedConstraints == constraints &&
+							walkData.cachedRelationVersion == relationVersion &&
+							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) &&
+							entities.size() == walkData.cachedInput.size()) {
 						bool sameInput = true;
 						for (uint32_t i = 0; i < (uint32_t)entities.size(); ++i) {
-							if (entities[i] != bfsData.cachedInput[i]) {
+							if (entities[i] != walkData.cachedInput[i]) {
 								sameInput = false;
 								break;
 							}
 						}
 
 						if (sameInput) {
-							return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
+							return std::span<const Entity>(walkData.cachedOutput.data(), walkData.cachedOutput.size());
 						}
 					}
 
-					auto& ordered = bfsData.cachedOutput;
-					bfsData.cachedInput = entities;
+					auto& ordered = walkData.cachedOutput;
+					walkData.cachedInput = entities;
 					ordered.clear();
 					if (!world.valid(relation)) {
 						core::sort(entities, [](Entity left, Entity right) {
@@ -44983,9 +44983,9 @@ namespace gaia {
 
 						const auto cnt = (uint32_t)entities.size();
 
-						auto& indegree = bfsData.scratchIndegree;
+						auto& indegree = walkData.scratchIndegree;
 						indegree.resize(cnt);
-						auto& outdegree = bfsData.scratchOutdegree;
+						auto& outdegree = walkData.scratchOutdegree;
 						outdegree.resize(cnt);
 						for (uint32_t i = 0; i < cnt; ++i) {
 							indegree[i] = 0;
@@ -45022,18 +45022,18 @@ namespace gaia {
 							});
 						}
 
-						auto& offsets = bfsData.scratchOffsets;
+						auto& offsets = walkData.scratchOffsets;
 						offsets.resize(cnt + 1);
 						offsets[0] = 0;
 						for (uint32_t i = 0; i < cnt; ++i)
 							offsets[i + 1] = offsets[i] + outdegree[i];
 
-						auto& writeCursor = bfsData.scratchWriteCursor;
+						auto& writeCursor = walkData.scratchWriteCursor;
 						writeCursor.resize(cnt);
 						for (uint32_t i = 0; i < cnt; ++i)
 							writeCursor[i] = offsets[i];
 
-						auto& edges = bfsData.scratchEdges;
+						auto& edges = walkData.scratchEdges;
 						edges.resize(edgeCnt);
 						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
 							const auto dependent = entities[dependentIdx];
@@ -45048,9 +45048,9 @@ namespace gaia {
 
 						ordered.reserve(cnt);
 
-						auto& currLevel = bfsData.scratchCurrLevel;
+						auto& currLevel = walkData.scratchCurrLevel;
 						currLevel.clear();
-						auto& nextLevel = bfsData.scratchNextLevel;
+						auto& nextLevel = walkData.scratchNextLevel;
 						nextLevel.clear();
 						for (uint32_t i = 0; i < cnt; ++i) {
 							if (indegree[i] == 0)
@@ -45104,34 +45104,34 @@ namespace gaia {
 						}
 					}
 
-					bfsData.cachedRelation = relation;
-					bfsData.cachedConstraints = constraints;
-					bfsData.cachedRelationVersion = relationVersion;
-					bfsData.cachedEntityVersion = world.world_version();
-					bfsData.cachedRuns.clear();
+					walkData.cachedRelation = relation;
+					walkData.cachedConstraints = constraints;
+					walkData.cachedRelationVersion = relationVersion;
+					walkData.cachedEntityVersion = world.world_version();
+					walkData.cachedRuns.clear();
 
 					{
 						const auto orderedCnt = (uint32_t)ordered.size();
 						if (orderedCnt != 0) {
 							for (uint32_t i = 0; i < orderedCnt; ++i) {
 								const auto& ec = ::gaia::ecs::fetch(world, ordered[i]);
-								if (bfsData.cachedRuns.empty()) {
-									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
+								if (walkData.cachedRuns.empty()) {
+									walkData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
 									continue;
 								}
 
-								auto& run = bfsData.cachedRuns.back();
+								auto& run = walkData.cachedRuns.back();
 								if (ec.pChunk == run.pChunk && ec.row == run.to) {
 									run.to = (uint16_t)(run.to + 1);
 								} else {
-									bfsData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
+									walkData.cachedRuns.push_back({ec.pArchetype, ec.pChunk, ec.row, (uint16_t)(ec.row + 1), i});
 								}
 							}
 						}
 					}
 
 					if (!queryInfo.has_filters()) {
-						auto& chunks = bfsData.scratchChunks;
+						auto& chunks = walkData.scratchChunks;
 						chunks.clear();
 						for (auto* pArchetype: queryInfo) {
 							if (pArchetype == nullptr || !can_process_archetype(queryInfo, *pArchetype))
@@ -45143,12 +45143,12 @@ namespace gaia {
 								chunks.push_back(pChunk);
 							}
 						}
-						bfsData.cachedChunks = chunks;
+						walkData.cachedChunks = chunks;
 					} else
-						bfsData.cachedChunks.clear();
-					bfsData.cacheValid = true;
+						walkData.cachedChunks.clear();
+					walkData.cacheValid = true;
 
-					return std::span<const Entity>(bfsData.cachedOutput.data(), bfsData.cachedOutput.size());
+					return std::span<const Entity>(walkData.cachedOutput.data(), walkData.cachedOutput.size());
 				}
 
 				//! Iterates entities matching the query ordered in dependency BFS levels.
@@ -45159,10 +45159,10 @@ namespace gaia {
 				//! \param relation Dependency relation
 				//! \param constraints QueryImpl constraints
 				template <typename Func>
-				void each_bfs(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+				void each_walk(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
-					const auto ordered = ordered_entities_bfs(queryInfo, relation, constraints);
+					const auto ordered = ordered_entities_walk(queryInfo, relation, constraints);
 
 					if constexpr (std::is_invocable_v<Func, IterAll&>) {
 						each_direct_entities_iter<IterAll>(queryInfo, ordered, func);
@@ -46060,7 +46060,7 @@ namespace gaia {
 						if (ctx.resetTraversalCaches) {
 							world.m_targetsTravCache = {};
 							world.m_srcBfsTravCache = {};
-							world.m_cascadeDepthCache = {};
+							world.m_depthOrderCache = {};
 							world.m_sourcesAllCache = {};
 							world.m_targetsAllCache = {};
 							world.m_entityToAsTargetsTravCache = {};
@@ -47118,9 +47118,9 @@ namespace gaia {
 			//! Lazily built breadth-first descendant closures for unlimited source traversal.
 			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
-			//! Lazily built hierarchy levels for cached cascade ordering.
+			//! Lazily built hierarchy levels for cached depth-ordered iteration.
 			//! Keyed by `(relation, target)` and cleared whenever a pair edge changes.
-			mutable cnt::map<EntityLookupKey, uint32_t> m_cascadeDepthCache;
+			mutable cnt::map<EntityLookupKey, uint32_t> m_depthOrderCache;
 			//! Lazily built deduped sources for wildcard source traversal on a target entity.
 			//! Keyed by `target` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_sourcesAllCache;
@@ -47534,7 +47534,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -47565,7 +47565,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -47632,7 +47632,7 @@ namespace gaia {
 				}
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -47657,7 +47657,7 @@ namespace gaia {
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -48470,7 +48470,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
-						m_world.m_cascadeDepthCache = {};
+						m_world.m_depthOrderCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -48535,7 +48535,7 @@ namespace gaia {
 								m_world.invalidate_queries_for_rel(relation);
 								m_world.m_targetsTravCache = {};
 								m_world.m_srcBfsTravCache = {};
-								m_world.m_cascadeDepthCache = {};
+								m_world.m_depthOrderCache = {};
 								m_world.m_sourcesAllCache = {};
 								m_world.m_targetsAllCache = {};
 							}
@@ -48569,7 +48569,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
-						m_world.m_cascadeDepthCache = {};
+						m_world.m_depthOrderCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -49831,7 +49831,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Parent);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -50443,7 +50443,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -50550,7 +50550,7 @@ namespace gaia {
 					invalidate_queries_for_rel(Is);
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
-					m_cascadeDepthCache = {};
+					m_depthOrderCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 
@@ -52208,14 +52208,14 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Returns the cached fragmenting relation depth used by cascade ordering for `(relation, target)`.
+			//! Returns the cached fragmenting relation depth used by depth-ordered iteration for `(relation, target)`.
 			//! The returned value is `1` for direct dependents of a root/source with no further relation targets and grows
 			//! by one per level. For multi-target relations, the deepest target chain determines the result.
-			GAIA_NODISCARD uint32_t cascade_depth_cache(Entity relation, Entity sourceTarget) const {
+			GAIA_NODISCARD uint32_t depth_order_cache(Entity relation, Entity sourceTarget) const {
 				const auto key = EntityLookupKey(Pair(relation, sourceTarget));
-				const auto itCache = m_cascadeDepthCache.find(key);
-				if (itCache != m_cascadeDepthCache.end()) {
-					GAIA_ASSERT(itCache->second != GroupIdMax && "cascade ordering requires an acyclic relation graph");
+				const auto itCache = m_depthOrderCache.find(key);
+				if (itCache != m_depthOrderCache.end()) {
+					GAIA_ASSERT(itCache->second != GroupIdMax && "depth_order requires an acyclic relation graph");
 					return itCache->second;
 				}
 
@@ -52223,11 +52223,11 @@ namespace gaia {
 					return 0;
 
 				// Mark this node as in-flight so cycles trip a debug assert instead of recursing forever.
-				m_cascadeDepthCache[key] = GroupIdMax;
+				m_depthOrderCache[key] = GroupIdMax;
 
 				uint32_t depth = 1;
 				targets(sourceTarget, relation, [&](Entity next) {
-					const auto nextDepth = cascade_depth_cache(relation, next);
+					const auto nextDepth = depth_order_cache(relation, next);
 					if (nextDepth == 0)
 						return;
 					const auto candidate = nextDepth + 1;
@@ -52235,7 +52235,7 @@ namespace gaia {
 						depth = candidate;
 				});
 
-				m_cascadeDepthCache[key] = depth;
+				m_depthOrderCache[key] = depth;
 				return depth;
 			}
 
@@ -53373,7 +53373,7 @@ namespace gaia {
 					m_entityToAsTargetsTravCache = {};
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
-					m_cascadeDepthCache = {};
+					m_depthOrderCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 					m_tgtToRel = {};
@@ -55376,7 +55376,7 @@ namespace gaia {
 
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -58419,10 +58419,10 @@ namespace gaia {
 			return 0;
 		}
 
-		inline GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation) {
+		inline GroupId group_by_func_depth_order(const World& world, const Archetype& archetype, Entity relation) {
 			GAIA_ASSERT(!relation.pair());
 
-			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			// Depth ordering only makes sense for fragmenting relations whose target participates in archetype identity.
 			// Non-fragmenting relations such as Parent must stay on walk(...), because their targets vary per entity
 			// and cannot be represented by one cached archetype depth.
 			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
@@ -58439,7 +58439,7 @@ namespace gaia {
 				if (target == EntityBad)
 					continue;
 
-				const GroupId depth = GroupId(world.cascade_depth_cache(relation, target));
+				const GroupId depth = GroupId(world.depth_order_cache(relation, target));
 
 				if (!found || depth > maxDepth) {
 					maxDepth = depth;

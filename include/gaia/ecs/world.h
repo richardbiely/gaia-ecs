@@ -659,7 +659,7 @@ namespace gaia {
 						if (ctx.resetTraversalCaches) {
 							world.m_targetsTravCache = {};
 							world.m_srcBfsTravCache = {};
-							world.m_cascadeDepthCache = {};
+							world.m_depthOrderCache = {};
 							world.m_sourcesAllCache = {};
 							world.m_targetsAllCache = {};
 							world.m_entityToAsTargetsTravCache = {};
@@ -1717,9 +1717,9 @@ namespace gaia {
 			//! Lazily built breadth-first descendant closures for unlimited source traversal.
 			//! Keyed by `(relation, source)` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_srcBfsTravCache;
-			//! Lazily built hierarchy levels for cached cascade ordering.
+			//! Lazily built hierarchy levels for cached depth-ordered iteration.
 			//! Keyed by `(relation, target)` and cleared whenever a pair edge changes.
-			mutable cnt::map<EntityLookupKey, uint32_t> m_cascadeDepthCache;
+			mutable cnt::map<EntityLookupKey, uint32_t> m_depthOrderCache;
 			//! Lazily built deduped sources for wildcard source traversal on a target entity.
 			//! Keyed by `target` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_sourcesAllCache;
@@ -2133,7 +2133,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -2164,7 +2164,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -2231,7 +2231,7 @@ namespace gaia {
 				}
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -2256,7 +2256,7 @@ namespace gaia {
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -3069,7 +3069,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
-						m_world.m_cascadeDepthCache = {};
+						m_world.m_depthOrderCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -3134,7 +3134,7 @@ namespace gaia {
 								m_world.invalidate_queries_for_rel(relation);
 								m_world.m_targetsTravCache = {};
 								m_world.m_srcBfsTravCache = {};
-								m_world.m_cascadeDepthCache = {};
+								m_world.m_depthOrderCache = {};
 								m_world.m_sourcesAllCache = {};
 								m_world.m_targetsAllCache = {};
 							}
@@ -3168,7 +3168,7 @@ namespace gaia {
 						m_world.invalidate_queries_for_rel(relation);
 						m_world.m_targetsTravCache = {};
 						m_world.m_srcBfsTravCache = {};
-						m_world.m_cascadeDepthCache = {};
+						m_world.m_depthOrderCache = {};
 						m_world.m_sourcesAllCache = {};
 						m_world.m_targetsAllCache = {};
 					}
@@ -4430,7 +4430,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Parent);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -5042,7 +5042,7 @@ namespace gaia {
 				invalidate_queries_for_rel(Is);
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 
@@ -5149,7 +5149,7 @@ namespace gaia {
 					invalidate_queries_for_rel(Is);
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
-					m_cascadeDepthCache = {};
+					m_depthOrderCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 
@@ -6807,14 +6807,14 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Returns the cached fragmenting relation depth used by cascade ordering for `(relation, target)`.
+			//! Returns the cached fragmenting relation depth used by depth-ordered iteration for `(relation, target)`.
 			//! The returned value is `1` for direct dependents of a root/source with no further relation targets and grows
 			//! by one per level. For multi-target relations, the deepest target chain determines the result.
-			GAIA_NODISCARD uint32_t cascade_depth_cache(Entity relation, Entity sourceTarget) const {
+			GAIA_NODISCARD uint32_t depth_order_cache(Entity relation, Entity sourceTarget) const {
 				const auto key = EntityLookupKey(Pair(relation, sourceTarget));
-				const auto itCache = m_cascadeDepthCache.find(key);
-				if (itCache != m_cascadeDepthCache.end()) {
-					GAIA_ASSERT(itCache->second != GroupIdMax && "cascade ordering requires an acyclic relation graph");
+				const auto itCache = m_depthOrderCache.find(key);
+				if (itCache != m_depthOrderCache.end()) {
+					GAIA_ASSERT(itCache->second != GroupIdMax && "depth_order requires an acyclic relation graph");
 					return itCache->second;
 				}
 
@@ -6822,11 +6822,11 @@ namespace gaia {
 					return 0;
 
 				// Mark this node as in-flight so cycles trip a debug assert instead of recursing forever.
-				m_cascadeDepthCache[key] = GroupIdMax;
+				m_depthOrderCache[key] = GroupIdMax;
 
 				uint32_t depth = 1;
 				targets(sourceTarget, relation, [&](Entity next) {
-					const auto nextDepth = cascade_depth_cache(relation, next);
+					const auto nextDepth = depth_order_cache(relation, next);
 					if (nextDepth == 0)
 						return;
 					const auto candidate = nextDepth + 1;
@@ -6834,7 +6834,7 @@ namespace gaia {
 						depth = candidate;
 				});
 
-				m_cascadeDepthCache[key] = depth;
+				m_depthOrderCache[key] = depth;
 				return depth;
 			}
 
@@ -7972,7 +7972,7 @@ namespace gaia {
 					m_entityToAsTargetsTravCache = {};
 					m_targetsTravCache = {};
 					m_srcBfsTravCache = {};
-					m_cascadeDepthCache = {};
+					m_depthOrderCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
 					m_tgtToRel = {};
@@ -9975,7 +9975,7 @@ namespace gaia {
 
 				m_targetsTravCache = {};
 				m_srcBfsTravCache = {};
-				m_cascadeDepthCache = {};
+				m_depthOrderCache = {};
 				m_sourcesAllCache = {};
 				m_targetsAllCache = {};
 			}
@@ -11770,10 +11770,10 @@ namespace gaia {
 			return 0;
 		}
 
-		inline GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation) {
+		inline GroupId group_by_func_depth_order(const World& world, const Archetype& archetype, Entity relation) {
 			GAIA_ASSERT(!relation.pair());
 
-			// Cascade grouping only makes sense for fragmenting relations whose target participates in archetype identity.
+			// Depth ordering only makes sense for fragmenting relations whose target participates in archetype identity.
 			// Non-fragmenting relations such as Parent must stay on walk(...), because their targets vary per entity
 			// and cannot be represented by one cached archetype depth.
 			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
@@ -11790,7 +11790,7 @@ namespace gaia {
 				if (target == EntityBad)
 					continue;
 
-				const GroupId depth = GroupId(world.cascade_depth_cache(relation, target));
+				const GroupId depth = GroupId(world.depth_order_cache(relation, target));
 
 				if (!found || depth > maxDepth) {
 					maxDepth = depth;

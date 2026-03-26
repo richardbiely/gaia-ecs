@@ -47,8 +47,8 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term);
 		GAIA_NODISCARD uint32_t
 		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
-		//! Groups fragmenting hierarchy archetypes by depth for cascade-style top-down iteration.
-		GAIA_NODISCARD GroupId group_by_func_cascade(const World& world, const Archetype& archetype, Entity relation);
+		//! Groups fragmenting hierarchy archetypes by depth for depth-ordered top-down iteration.
+		GAIA_NODISCARD GroupId group_by_func_depth_order(const World& world, const Archetype& archetype, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
 		template <typename T>
@@ -671,8 +671,8 @@ namespace gaia {
 				void add_group_deps() {
 					deps.set_dep_flag(DependencyHasGroup);
 
-					const bool hasBuiltInGroupDep =
-							groupBy != EntityBad && (groupByFunc == group_by_func_default || groupByFunc == group_by_func_cascade);
+					const bool hasBuiltInGroupDep = groupBy != EntityBad && (groupByFunc == group_by_func_default ||
+																																	 groupByFunc == group_by_func_depth_order);
 					if (hasBuiltInGroupDep)
 						deps.add_rel(groupBy);
 					for (auto relation: group_deps_view())
