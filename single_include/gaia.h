@@ -23946,6 +23946,7 @@ namespace gaia {
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
+		uint32_t world_enabled_hierarchy_version(const World& world);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
@@ -37873,6 +37874,7 @@ namespace gaia {
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
 		struct ArchetypeCacheData {
 			GroupId groupId = 0;
+			bool depthOrderHierarchyBarrierPasses = true;
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
@@ -38012,6 +38014,10 @@ namespace gaia {
 				//! World version at which the sorted cache slices were last rebuilt.
 				//! Unlike worldVersion, this is only updated after a real sort refresh.
 				uint32_t sortVersion{};
+				//! Relation topology version at which the cached depth-order hierarchy barrier state was last rebuilt.
+				uint32_t depthOrderBarrierRelationVersion = UINT32_MAX;
+				//! Entity enable-state version at which the cached depth-order hierarchy barrier state was last rebuilt.
+				uint32_t depthOrderBarrierEnabledVersion = UINT32_MAX;
 
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
@@ -38047,6 +38053,8 @@ namespace gaia {
 					selectedGroupData = {};
 					selectedGroupDataValid = false;
 					sortVersion = 0;
+					depthOrderBarrierRelationVersion = UINT32_MAX;
+					depthOrderBarrierEnabledVersion = UINT32_MAX;
 				}
 
 				void clear_cache() {
@@ -38115,6 +38123,8 @@ namespace gaia {
 			}
 
 			void mark_result_cache_membership_changed() {
+				m_state.depthOrderBarrierRelationVersion = UINT32_MAX;
+				m_state.depthOrderBarrierEnabledVersion = UINT32_MAX;
 				++m_state.resultCacheRevision;
 				if (m_state.resultCacheRevision != 0)
 					return;
@@ -39013,6 +39023,37 @@ namespace gaia {
 				m_state.selectedGroupDataValid = false;
 			}
 
+			void ensure_depth_order_hierarchy_barrier_cache_inter() {
+				if (!world_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
+					return;
+
+				const auto currRelationVersion = world_rel_version(*world(), m_plan.ctx.data.groupBy);
+				const auto currEnabledVersion = world_enabled_hierarchy_version(*world());
+				if (m_state.depthOrderBarrierRelationVersion == currRelationVersion &&
+						m_state.depthOrderBarrierEnabledVersion == currEnabledVersion)
+					return;
+
+				const auto relation = m_plan.ctx.data.groupBy;
+				for (uint32_t i = 0; i < m_state.archetypeCache.size(); ++i) {
+					const auto* pArchetype = m_state.archetypeCache[i];
+					auto& cacheData = m_state.archetypeCacheData[i];
+					cacheData.depthOrderHierarchyBarrierPasses = true;
+
+					auto ids = pArchetype->ids_view();
+					for (auto idsIdx: pArchetype->pair_rel_indices(relation)) {
+						const auto pair = ids[idsIdx];
+						const auto parent = world_pair_target_if_alive(*world(), pair);
+						if (parent == EntityBad || !world_entity_enabled_hierarchy(*world(), parent, relation)) {
+							cacheData.depthOrderHierarchyBarrierPasses = false;
+							break;
+						}
+					}
+				}
+
+				m_state.depthOrderBarrierRelationVersion = currRelationVersion;
+				m_state.depthOrderBarrierEnabledVersion = currEnabledVersion;
+			}
+
 			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
 				auto queryIds = ctx().data.ids_view();
@@ -39391,6 +39432,10 @@ namespace gaia {
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
 				const auto& ctxData = m_state.archetypeCacheData[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
+			}
+
+			void ensure_depth_order_hierarchy_barrier_cache() {
+				ensure_depth_order_hierarchy_barrier_cache_inter();
 			}
 
 			//! Returns a cached indices mapping view for an exact archetype match, or an empty span when absent.
@@ -41687,13 +41732,18 @@ namespace gaia {
 				}
 
 				template <typename TIter>
-				GAIA_NODISCARD bool can_process_archetype_inter(const QueryInfo& queryInfo, const Archetype& archetype) const {
+				GAIA_NODISCARD bool can_process_archetype_inter(
+						const QueryInfo& queryInfo, const Archetype& archetype,
+						const ArchetypeCacheData* pCacheData = nullptr) const {
 					if (!can_process_archetype(queryInfo, archetype))
 						return false;
 					if constexpr (std::is_same_v<TIter, Iter>) {
-						if (has_depth_order_hierarchy_enabled_barrier(queryInfo) &&
-								!survives_cascade_hierarchy_enabled_barrier(queryInfo, archetype))
-							return false;
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo)) {
+							if (pCacheData != nullptr)
+								return pCacheData->depthOrderHierarchyBarrierPasses;
+							if (!survives_cascade_hierarchy_enabled_barrier(queryInfo, archetype))
+								return false;
+						}
 					}
 					return true;
 				}
@@ -41793,7 +41843,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
 					auto sortView = queryInfo.cache_sort_view();
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 
 					lock(*m_storage.world());
 
@@ -41824,6 +41879,9 @@ namespace gaia {
 							}
 
 							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(
+																		queryInfo, *pArchetype, &dataView[view.archetypeIdx]))
+								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
 							chunkBatches.push_back({pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
@@ -41836,7 +41894,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -41889,7 +41947,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					auto dataView = queryInfo.cache_data_view();
 					auto sortView = queryInfo.cache_sort_view();
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
@@ -41914,6 +41977,9 @@ namespace gaia {
 							}
 
 							const auto* pArchetype = cacheView[view.archetypeIdx];
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(
+																		queryInfo, *pArchetype, &dataView[view.archetypeIdx]))
+								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 
 							m_batches.push_back({pArchetype, view.pChunk, indicesView.data(), 0U, startRow, endRow});
@@ -41921,7 +41987,7 @@ namespace gaia {
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -41977,12 +42043,16 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 
 					lock(*m_storage.world());
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -42047,11 +42117,15 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					auto dataView = queryInfo.cache_data_view();
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 
 #if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 							continue;
 
 						const auto& data = dataView[i];
@@ -42065,7 +42139,7 @@ namespace gaia {
 
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -42169,9 +42243,11 @@ namespace gaia {
 						//       Make it so only valid pointers are linked together.
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
+						auto dataView = queryInfo.cache_data_view();
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
-							if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype))
+							if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype, &dataView[i]))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -43180,6 +43256,8 @@ namespace gaia {
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
+					const auto dataView = queryInfo.cache_data_view();
+					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (hasRuntimeGroupFilter) {
@@ -43192,7 +43270,7 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[qi]))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
@@ -43349,6 +43427,8 @@ namespace gaia {
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
+					const auto dataView = queryInfo.cache_data_view();
+					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (hasRuntimeGroupFilter) {
@@ -43361,7 +43441,7 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[qi]))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
@@ -43869,9 +43949,13 @@ namespace gaia {
 					TIter it;
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					const auto cacheView = queryInfo.cache_archetype_view();
+					const auto dataView = queryInfo.cache_data_view();
+					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
-					for (auto* pArchetype: queryInfo) {
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+					GAIA_EACH(cacheView) {
+						auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
@@ -47218,6 +47302,8 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
+			//! Increments whenever an entity enable bit changes.
+			uint32_t m_enabledHierarchyVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -53092,6 +53178,7 @@ namespace gaia {
 				if (wasEnabled != enable) {
 					pChunk->update_world_version();
 					pChunk->update_entity_order_version();
+					update_version(m_enabledHierarchyVersion);
 					update_version(m_worldVersion);
 				}
 			}
@@ -53206,6 +53293,10 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			GAIA_NODISCARD uint32_t enabled_hierarchy_version() const {
+				return m_enabledHierarchyVersion;
+			}
+
 			friend uint32_t world_rel_version(const World& world, Entity relation);
 			friend uint32_t world_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
@@ -53314,6 +53405,7 @@ namespace gaia {
 				m_nextArchetypeId = 0;
 				m_defragLastArchetypeIdx = 0;
 				m_worldVersion = 0;
+				m_enabledHierarchyVersion = 0;
 				init();
 			}
 
@@ -59517,6 +59609,10 @@ namespace gaia {
 
 		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
 			return world.enabled_hierarchy(entity, relation);
+		}
+
+		inline uint32_t world_enabled_hierarchy_version(const World& world) {
+			return world.enabled_hierarchy_version();
 		}
 
 		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {

@@ -1815,6 +1815,8 @@ namespace gaia {
 
 			//! With every structural change world version changes
 			uint32_t m_worldVersion = 0;
+			//! Increments whenever an entity enable bit changes.
+			uint32_t m_enabledHierarchyVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -7689,6 +7691,7 @@ namespace gaia {
 				if (wasEnabled != enable) {
 					pChunk->update_world_version();
 					pChunk->update_entity_order_version();
+					update_version(m_enabledHierarchyVersion);
 					update_version(m_worldVersion);
 				}
 			}
@@ -7803,6 +7806,10 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			GAIA_NODISCARD uint32_t enabled_hierarchy_version() const {
+				return m_enabledHierarchyVersion;
+			}
+
 			friend uint32_t world_rel_version(const World& world, Entity relation);
 			friend uint32_t world_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
@@ -7911,6 +7918,7 @@ namespace gaia {
 				m_nextArchetypeId = 0;
 				m_defragLastArchetypeIdx = 0;
 				m_worldVersion = 0;
+				m_enabledHierarchyVersion = 0;
 				init();
 			}
 
@@ -12057,6 +12065,10 @@ namespace gaia {
 
 		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
 			return world.enabled_hierarchy(entity, relation);
+		}
+
+		inline uint32_t world_enabled_hierarchy_version(const World& world) {
+			return world.enabled_hierarchy_version();
 		}
 
 		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {

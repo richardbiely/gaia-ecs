@@ -46,6 +46,7 @@ namespace gaia {
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
+		uint32_t world_enabled_hierarchy_version(const World& world);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
