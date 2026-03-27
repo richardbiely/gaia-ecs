@@ -3897,7 +3897,8 @@ namespace gaia {
 
 					auto& world = *const_cast<World*>(queryInfo.world());
 					if constexpr (!UseFilters) {
-						if (!queryInfo.has_entity_filter_terms() && can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
+						if (!queryInfo.has_entity_filter_terms() &&
+								can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
 								can_use_direct_chunk_iteration_fastpath(queryInfo)) {
 							const auto cacheView = queryInfo.cache_archetype_view();
 							uint32_t idxFrom = 0;
@@ -3938,55 +3939,85 @@ namespace gaia {
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
+					const auto sortView = queryInfo.cache_sort_view();
 					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr)
+							return;
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
 
-					GAIA_EACH(cacheView) {
-						auto* pArchetype = cacheView[i];
-						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+					const auto append_rows = [&](const uint32_t archetypeIdx, auto* pArchetype, auto* pChunk, uint16_t from,
+																			 uint16_t to) {
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(archetypeIdx);
 						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
-							continue;
+							return;
 
 						GAIA_PROF_SCOPE(query::arr);
 
 						it.set_archetype(pArchetype);
+						it.set_chunk(pChunk, from, to);
 
-						// No mapping for arr(). It doesn't need to access data cache.
-						// auto indicesView = queryInfo.indices_mapping_view(aid);
+						const auto cnt = it.size();
+						if (cnt == 0)
+							return;
 
-						const auto& chunks = pArchetype->chunks();
-						for (auto* pChunk: chunks) {
-							it.set_chunk(pChunk);
+						if constexpr (UseFilters) {
+							if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+								return;
+						}
 
-							const auto cnt = it.size();
-							if (cnt == 0)
-								continue;
-
-							// Filters
-							if constexpr (UseFilters) {
-								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
-									continue;
+						const auto dataView = it.template view<ContainerItemType>();
+						if (!hasEntityFilters) {
+							GAIA_FOR(cnt) {
+								const auto idx = it.template acc_index<ContainerItemType>(i);
+								auto tmp = dataView[idx];
+								outArray.push_back(tmp);
 							}
-
-							const auto dataView = it.template view<ContainerItemType>();
-							if (!hasEntityFilters) {
-								GAIA_FOR(cnt) {
-									const auto idx = it.template acc_index<ContainerItemType>(i);
-									auto tmp = dataView[idx];
-									outArray.push_back(tmp);
-								}
-							} else {
-								const auto entities = it.template view<Entity>();
-								GAIA_FOR(cnt) {
-									if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
-										continue;
-									const auto idx = it.template acc_index<ContainerItemType>(i);
-									auto tmp = dataView[idx];
-									outArray.push_back(tmp);
-								}
+						} else {
+							const auto entities = it.template view<Entity>();
+							GAIA_FOR(cnt) {
+								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									continue;
+								const auto idx = it.template acc_index<ContainerItemType>(i);
+								auto tmp = dataView[idx];
+								outArray.push_back(tmp);
 							}
 						}
+					};
+
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							if (view.archetypeIdx < idxFrom || view.archetypeIdx >= idxTo)
+								continue;
+
+							const auto minStartRow = TIter::start_index(view.pChunk);
+							const auto minEndRow = TIter::end_index(view.pChunk);
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							if (startRow == endRow)
+								continue;
+
+							append_rows(
+									view.archetypeIdx, const_cast<Archetype*>(cacheView[view.archetypeIdx]), view.pChunk, startRow,
+									endRow);
+						}
+						return;
+					}
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						auto* pArchetype = cacheView[i];
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks)
+							append_rows(i, pArchetype, pChunk, 0, 0);
 					}
 				}
 

@@ -1506,12 +1506,19 @@ namespace gaia {
 					return nullptr;
 
 				if (!m_state.selectedGroupDataValid || m_state.selectedGroupData.groupId != runtimeGroupId) {
-					const auto cnt = m_state.archetypeGroupData.size();
-					GAIA_FOR(cnt) {
-						if (m_state.archetypeGroupData[i].groupId != runtimeGroupId)
-							continue;
+					uint32_t left = 0;
+					uint32_t right = (uint32_t)m_state.archetypeGroupData.size();
+					while (left < right) {
+						const uint32_t mid = left + ((right - left) >> 1);
+						const auto midGroupId = m_state.archetypeGroupData[mid].groupId;
+						if (midGroupId < runtimeGroupId)
+							left = mid + 1;
+						else
+							right = mid;
+					}
 
-						m_state.selectedGroupData = m_state.archetypeGroupData[i];
+					if (left < m_state.archetypeGroupData.size() && m_state.archetypeGroupData[left].groupId == runtimeGroupId) {
+						m_state.selectedGroupData = m_state.archetypeGroupData[left];
 						m_state.selectedGroupDataValid = true;
 						return &m_state.selectedGroupData;
 					}

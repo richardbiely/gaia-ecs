@@ -4883,6 +4883,15 @@ TEST_CASE("Query - cached sorted query exact sort term lookup across archetypes"
 	CHECK(wld.get<Position>(ordered[0]).x == doctest::Approx(1.0f));
 	CHECK(wld.get<Position>(ordered[3]).x == doctest::Approx(4.0f));
 	CHECK(info.cache_archetype_view().size() >= 4);
+	{
+		cnt::darray<ecs::Entity> orderedArr;
+		q.arr(orderedArr);
+		CHECK(orderedArr.size() == 4);
+		CHECK(orderedArr[0] == ordered[0]);
+		CHECK(orderedArr[1] == ordered[1]);
+		CHECK(orderedArr[2] == ordered[2]);
+		CHECK(orderedArr[3] == ordered[3]);
+	}
 
 	auto e4 = wld.add();
 	wld.add<Position>(e4, {0, 0, 0});
@@ -5119,6 +5128,18 @@ TEST_CASE("Query - cached grouped queries with instance-local group filters") {
 	CHECK(qSalad.count() == 2);
 	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
 	expect_exact_entities(qSalad, {eSaladA, eSaladB});
+	{
+		cnt::darray<ecs::Entity> carrotArr;
+		cnt::darray<ecs::Entity> saladArr;
+		qCarrot.arr(carrotArr);
+		qSalad.arr(saladArr);
+		CHECK(carrotArr.size() == 2);
+		CHECK(saladArr.size() == 2);
+		CHECK(carrotArr[0] == eCarrotA);
+		CHECK(carrotArr[1] == eCarrotB);
+		CHECK(saladArr[0] == eSaladA);
+		CHECK(saladArr[1] == eSaladB);
+	}
 	CHECK(qCarrot.count() == 2);
 	expect_exact_entities(qCarrot, {eCarrotA, eCarrotB});
 }
