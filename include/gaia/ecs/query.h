@@ -2139,6 +2139,45 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				template <typename Func, typename... T>
+				void run_query_on_chunks_uncached_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
+					::gaia::ecs::update_version(*m_worldVersion);
+
+					const bool hasFilters = queryInfo.has_filters();
+					auto cacheView = queryInfo.cache_archetype_view();
+					if (cacheView.empty())
+						return;
+
+					lock(*m_storage.world());
+
+					GAIA_EACH(cacheView) {
+						const auto* pArchetype = cacheView[i];
+						if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype))
+							continue;
+
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							const auto from = Iter::start_index(pChunk);
+							const auto to = Iter::end_index(pChunk);
+							if GAIA_UNLIKELY (from == to)
+								continue;
+
+							if (hasFilters) {
+								if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							GAIA_PROF_SCOPE(query_func);
+							run_query_on_chunk_rows_direct(pChunk, from, to, func, core::func_type_list<T...>{});
+						}
+					}
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
+					m_changedWorldVersion = *m_worldVersion;
+				}
+
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
@@ -2263,6 +2302,13 @@ namespace gaia {
 
 					auto& world = *const_cast<World*>(queryInfo.world());
 					if (can_use_direct_chunk_term_eval<T...>(world, queryInfo)) {
+						if constexpr (ExecType == QueryExecType::Default) {
+							if (!uses_shared_cache_layer() && queryInfo.ctx().data.groupBy == EntityBad &&
+									queryInfo.ctx().data.sortByFunc == nullptr) {
+								run_query_on_chunks_uncached_direct(queryInfo, func, core::func_type_list<T...>{});
+								return;
+							}
+						}
 						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 							GAIA_PROF_SCOPE(query_func);
 							run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
