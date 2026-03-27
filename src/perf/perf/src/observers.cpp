@@ -597,14 +597,6 @@ void BM_Observer_DiffCopyExtDirectFiltered_OnAdd(picobench::state& state) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define PICO_SETTINGS() iterations({256}).samples(3)
-#define PICO_SETTINGS_HEAVY() iterations({64}).samples(3)
-#define PICO_SETTINGS_FOCUS() iterations({256}).samples(7)
-#define PICO_SETTINGS_OBS() iterations({64}).samples(3)
-#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
-#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
-
 void register_observers(PerfRunMode mode) {
 	switch (mode) {
 		case PerfRunMode::Profiling:
@@ -653,123 +645,123 @@ void register_observers(PerfRunMode mode) {
 					.user_data(NObserverEntities)
 					.label("on_del, 50 obs, 8 terms");
 			PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff pair-rel on_add filtered 1");
 			PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(50)
 					.label("observer diff pair-rel on_add filtered 50");
 			PICOBENCH_REG(BM_Observer_DiffPairRelFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(200)
 					.label("observer diff pair-rel on_add filtered 200");
 			PICOBENCH_REG(BM_Observer_DiffPairRelExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff pair-rel local existing 1");
 			PICOBENCH_REG(BM_Observer_DiffPairRelExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff pair-rel local existing 100");
 			PICOBENCH_REG(BM_Observer_DiffPairRelExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff pair-rel local existing 1000");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff copy_ext on_add filtered 1");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(50)
 					.label("observer diff copy_ext on_add filtered 50");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(200)
 					.label("observer diff copy_ext on_add filtered 200");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff copy_ext local existing 1");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff copy_ext local existing 100");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff copy_ext local existing 1000");
 			PICOBENCH_REG(BM_Observer_DiffAncestorExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff ancestor local existing 1");
 			PICOBENCH_REG(BM_Observer_DiffAncestorExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff ancestor local existing 100");
 			PICOBENCH_REG(BM_Observer_DiffAncestorExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff ancestor local existing 1000");
 			PICOBENCH_REG(BM_Observer_DiffRelationEdgeExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff relation-edge local existing 1");
 			PICOBENCH_REG(BM_Observer_DiffRelationEdgeExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff relation-edge local existing 100");
 			PICOBENCH_REG(BM_Observer_DiffRelationEdgeExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff relation-edge local existing 1000");
 			PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff ancestor filtered observers 1");
 			PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(50)
 					.label("observer diff ancestor filtered observers 50");
 			PICOBENCH_REG(BM_Observer_DiffAncestorFilteredObservers_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(200)
 					.label("observer diff ancestor filtered observers 200");
 			PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff ancestor delete 1");
 			PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff ancestor delete 100");
 			PICOBENCH_REG(BM_Observer_DiffAncestorCascadeDelete_OnDel)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff ancestor delete 1000");
 			PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff ancestor unrelated existing 1");
 			PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(100)
 					.label("observer diff ancestor unrelated existing 100");
 			PICOBENCH_REG(BM_Observer_DiffAncestorUnrelatedExistingMatches_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1000)
 					.label("observer diff ancestor unrelated existing 1000");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(1)
 					.label("observer diff copy_ext direct-filtered 1");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(50)
 					.label("observer diff copy_ext direct-filtered 50");
 			PICOBENCH_REG(BM_Observer_DiffCopyExtDirectFiltered_OnAdd)
-					.PICO_SETTINGS_FOCUS()
+					.PICO_SETTINGS_OBS()
 					.user_data(200)
 					.label("observer diff copy_ext direct-filtered 200");
 			return;

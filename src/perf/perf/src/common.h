@@ -11,6 +11,14 @@
 #define GAIA_USE_SAFE_ENTITY 1
 #include <gaia.h>
 
+#define PICO_SETTINGS() iterations({64}).samples(3)
+#define PICO_SETTINGS_HEAVY() iterations({32}).samples(3)
+#define PICO_SETTINGS_FOCUS() iterations({64}).samples(3)
+#define PICO_SETTINGS_OBS() iterations({16}).samples(3)
+#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
+#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
+#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
+
 using namespace gaia;
 
 struct Position {

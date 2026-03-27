@@ -298,13 +298,7 @@ void BM_EntityDestroy_4Comp(picobench::state& state) {
 	}
 }
 
-#define PICO_SETTINGS() iterations({256}).samples(3)
-#define PICO_SETTINGS_HEAVY() iterations({64}).samples(3)
-#define PICO_SETTINGS_FOCUS() iterations({256}).samples(7)
-#define PICO_SETTINGS_OBS() iterations({64}).samples(3)
-#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
-#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
+////////////////////////////////////////////////////////////////////////////////
 
 void register_entity_lifecycle(PerfRunMode mode) {
 	switch (mode) {
