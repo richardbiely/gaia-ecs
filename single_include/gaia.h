@@ -31147,6 +31147,8 @@ namespace gaia {
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
 			QueryOpKind op;
+			//! Stable execution field index matching the user-defined query field order.
+			uint8_t fieldIndex = 0;
 
 			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && entTrav == other.entTrav && travKind == other.travKind &&
@@ -31369,8 +31371,6 @@ namespace gaia {
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms;
 				//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> lookupTerms;
-				//! Mapping of the original indices to the new ones after sorting
-				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Or;
@@ -31829,8 +31829,6 @@ namespace gaia {
 			const uint32_t changedCnt = ctx.data.changedCnt;
 
 			auto& ctxData = ctx.data;
-			auto remappingCopy = ctxData.remapping;
-
 			// Canonicalize degenerate OR queries: a single OR term has AND semantics.
 			// Rewriting it here keeps ordering/hash behavior identical to an explicit ALL term.
 			if (idsCnt > 0) {
@@ -31857,25 +31855,12 @@ namespace gaia {
 					[&](uint32_t left, uint32_t right) {
 						core::swap(ctxData.ids[left], ctxData.ids[right]);
 						core::swap(ctxData.terms[left], ctxData.terms[right]);
-						core::swap(remappingCopy[left], remappingCopy[right]);
 
 						// Make sure masks remains correct after sorting
 						core::swap_bits(ctxData.readWriteMask, left, right);
 						core::swap_bits(ctxData.as_mask_0, left, right);
 						core::swap_bits(ctxData.as_mask_1, left, right);
 					});
-
-			// Update remapping indices.
-			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
-			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
-			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
-			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
-			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-
-			GAIA_FOR(idsCnt) {
-				const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-				ctxData.remapping[i] = idxBeforeRemapping;
-			}
 
 			if (idsCnt > 0) {
 				uint32_t i = 0;
@@ -39294,15 +39279,16 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				auto queryIds = ctx().data.ids_view();
-				const auto cnt = (uint32_t)queryIds.size();
+				const auto terms = ctx().data.terms_view();
+				const auto cnt = (uint32_t)terms.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_plan.ctx.data.remapping[i];
-					const auto queryId = queryIds[idxBeforeRemapping];
+					const auto& term = terms[i];
+					const auto fieldIdx = term.fieldIndex;
+					const auto queryId = term.id;
 					if (!queryId.pair() && world_is_out_of_line_component(*world(), queryId)) {
 						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
 						GAIA_ASSERT(compIdx != BadIndex);
-						cacheData.indices[i] = 0xFF;
+						cacheData.indices[fieldIdx] = 0xFF;
 						continue;
 					}
 
@@ -39314,7 +39300,7 @@ namespace gaia {
 					}
 					GAIA_ASSERT(compIdx != BadIndex);
 
-					cacheData.indices[i] = (uint8_t)compIdx;
+					cacheData.indices[fieldIdx] = (uint8_t)compIdx;
 				}
 				return cacheData;
 			}
@@ -40570,14 +40556,10 @@ namespace gaia {
 					const uint16_t isReadWrite = uint16_t(item.access == QueryAccess::Write);
 					ctxData.readWriteMask |= (isReadWrite << ctxData.idsCnt);
 
-					// The query engine is going to reorder the query items as necessary.
-					// Remapping is used so the user can still identify the items according the order in which
-					// they defined them when building the query.
-					ctxData.remapping[ctxData.idsCnt] = ctxData.idsCnt;
-
 					ctxData.ids[ctxData.idsCnt] = item.id;
-					ctxData.terms[ctxData.idsCnt] = {item.id,				 item.entSrc,		 item.entTrav, item.travKind,
-																					 item.travDepth, item.matchKind, nullptr,			 item.op};
+					ctxData.terms[ctxData.idsCnt] = {item.id,				item.entSrc,		item.entTrav,
+																					 item.travKind, item.travDepth, item.matchKind,
+																					 nullptr,				item.op,				(uint8_t)ctxData.idsCnt};
 					++ctxData.idsCnt;
 				}
 			};
@@ -42599,8 +42581,14 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				GAIA_NODISCARD bool can_use_direct_chunk_iteration_fastpath(const QueryInfo& queryInfo) const {
+					const auto& data = queryInfo.ctx().data;
+					return data.groupBy == EntityBad && data.sortByFunc == nullptr &&
+								 !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+				}
+
 				template <typename Func, typename... T>
-				void run_query_on_chunks_uncached_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
+				void run_query_on_chunks_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
@@ -42763,9 +42751,8 @@ namespace gaia {
 					auto& world = *const_cast<World*>(queryInfo.world());
 					if (can_use_direct_chunk_term_eval<T...>(world, queryInfo)) {
 						if constexpr (ExecType == QueryExecType::Default) {
-							if (!uses_shared_cache_layer() && queryInfo.ctx().data.groupBy == EntityBad &&
-									queryInfo.ctx().data.sortByFunc == nullptr) {
-								run_query_on_chunks_uncached_direct(queryInfo, func, core::func_type_list<T...>{});
+							if (can_use_direct_chunk_iteration_fastpath(queryInfo)) {
+								run_query_on_chunks_direct(queryInfo, func, core::func_type_list<T...>{});
 								return;
 							}
 						}
@@ -43624,8 +43611,12 @@ namespace gaia {
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const auto dataView = queryInfo.cache_data_view();
-					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					std::span<const ArchetypeCacheData> dataView{};
+					if (needsBarrierCache) {
+						dataView = queryInfo.cache_data_view();
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (hasRuntimeGroupFilter) {
@@ -43638,7 +43629,8 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[qi]))
+						const auto* pCacheData = needsBarrierCache ? &dataView[qi] : nullptr;
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, pCacheData))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
@@ -43795,8 +43787,12 @@ namespace gaia {
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const auto dataView = queryInfo.cache_data_view();
-					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					std::span<const ArchetypeCacheData> dataView{};
+					if (needsBarrierCache) {
+						dataView = queryInfo.cache_data_view();
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (hasRuntimeGroupFilter) {
@@ -43809,7 +43805,8 @@ namespace gaia {
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[qi]))
+						const auto* pCacheData = needsBarrierCache ? &dataView[qi] : nullptr;
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, pCacheData))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
@@ -43864,29 +43861,29 @@ namespace gaia {
 							pTermIds[i] = EntityBad;
 						}
 
-						const auto queryIds = queryInfo.ctx().data.ids_view();
-						const auto& remapping = queryInfo.ctx().data.remapping;
-						const auto queryIdCnt = (uint32_t)queryIds.size();
+						const auto terms = queryInfo.ctx().data.terms_view();
+						const auto queryIdCnt = (uint32_t)terms.size();
 						auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
 						GAIA_FOR(queryIdCnt) {
-							const auto idxBeforeRemapping = remapping[i];
-							const auto queryId = queryIds[idxBeforeRemapping];
-							pTermIds[i] = queryId;
+							const auto& term = terms[i];
+							const auto fieldIdx = term.fieldIndex;
+							const auto queryId = term.id;
+							pTermIds[fieldIdx] = queryId;
 							if (!indicesView.empty()) {
-								pIndices[i] = indicesView[i];
+								pIndices[fieldIdx] = indicesView[fieldIdx];
 								continue;
 							}
 							if (!queryId.pair() && world_is_out_of_line_component(world, queryId)) {
 								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
 								GAIA_ASSERT(compIdx != BadIndex);
-								pIndices[i] = 0xFF;
+								pIndices[fieldIdx] = 0xFF;
 								continue;
 							}
 
 							auto compIdx = world_component_index_comp_idx(world, *ec.pArchetype, queryId);
 							if (compIdx == BadIndex)
 								compIdx = core::get_index(ec.pArchetype->ids_view(), queryId);
-							pIndices[i] = (uint8_t)compIdx;
+							pIndices[fieldIdx] = (uint8_t)compIdx;
 						}
 
 						it.set_archetype(ec.pArchetype);
@@ -44318,12 +44315,17 @@ namespace gaia {
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const auto dataView = queryInfo.cache_data_view();
-					const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					std::span<const ArchetypeCacheData> dataView{};
+					if (needsBarrierCache) {
+						dataView = queryInfo.cache_data_view();
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+					}
 
 					GAIA_EACH(cacheView) {
 						auto* pArchetype = cacheView[i];
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, &dataView[i]))
+						const auto* pCacheData = needsBarrierCache ? &dataView[i] : nullptr;
+						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, pCacheData))
 							continue;
 
 						GAIA_PROF_SCOPE(query::arr);
@@ -57699,16 +57701,15 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
-			const auto queryIds = queryInfo.ctx().data.ids_view();
-			const auto& remapping = queryInfo.ctx().data.remapping;
-			const auto queryIdCnt = (uint32_t)queryIds.size();
+			const auto terms = queryInfo.ctx().data.terms_view();
+			const auto queryIdCnt = (uint32_t)terms.size();
 			Entity termIds[ChunkHeader::MAX_COMPONENTS];
 			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
 				termIds[i] = EntityBad;
 			}
 			GAIA_FOR(queryIdCnt) {
-				const auto idxBeforeRemapping = remapping[i];
-				termIds[i] = queryIds[idxBeforeRemapping];
+				const auto& term = terms[i];
+				termIds[term.fieldIndex] = term.id;
 			}
 
 			const Archetype* pCachedArchetype = nullptr;

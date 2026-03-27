@@ -77,16 +77,15 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
-			const auto queryIds = queryInfo.ctx().data.ids_view();
-			const auto& remapping = queryInfo.ctx().data.remapping;
-			const auto queryIdCnt = (uint32_t)queryIds.size();
+			const auto terms = queryInfo.ctx().data.terms_view();
+			const auto queryIdCnt = (uint32_t)terms.size();
 			Entity termIds[ChunkHeader::MAX_COMPONENTS];
 			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
 				termIds[i] = EntityBad;
 			}
 			GAIA_FOR(queryIdCnt) {
-				const auto idxBeforeRemapping = remapping[i];
-				termIds[i] = queryIds[idxBeforeRemapping];
+				const auto& term = terms[i];
+				termIds[term.fieldIndex] = term.id;
 			}
 
 			const Archetype* pCachedArchetype = nullptr;

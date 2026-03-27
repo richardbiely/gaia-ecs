@@ -375,6 +375,8 @@ namespace gaia {
 			Archetype* srcArchetype;
 			//! Operation to perform with the term
 			QueryOpKind op;
+			//! Stable execution field index matching the user-defined query field order.
+			uint8_t fieldIndex = 0;
 
 			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && entTrav == other.entTrav && travKind == other.travKind &&
@@ -597,8 +599,6 @@ namespace gaia {
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms;
 				//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> lookupTerms;
-				//! Mapping of the original indices to the new ones after sorting
-				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Or;
@@ -1057,8 +1057,6 @@ namespace gaia {
 			const uint32_t changedCnt = ctx.data.changedCnt;
 
 			auto& ctxData = ctx.data;
-			auto remappingCopy = ctxData.remapping;
-
 			// Canonicalize degenerate OR queries: a single OR term has AND semantics.
 			// Rewriting it here keeps ordering/hash behavior identical to an explicit ALL term.
 			if (idsCnt > 0) {
@@ -1085,25 +1083,12 @@ namespace gaia {
 					[&](uint32_t left, uint32_t right) {
 						core::swap(ctxData.ids[left], ctxData.ids[right]);
 						core::swap(ctxData.terms[left], ctxData.terms[right]);
-						core::swap(remappingCopy[left], remappingCopy[right]);
 
 						// Make sure masks remains correct after sorting
 						core::swap_bits(ctxData.readWriteMask, left, right);
 						core::swap_bits(ctxData.as_mask_0, left, right);
 						core::swap_bits(ctxData.as_mask_1, left, right);
 					});
-
-			// Update remapping indices.
-			// E.g., let us have ids 0, 14, 15, with indices 0, 1, 2.
-			// After sorting they become 14, 15, 0, with indices 1, 2, 0.
-			// So indices mapping is as follows: 0 -> 1, 1 -> 2, 2 -> 0.
-			// After remapping update, indices become 0 -> 2, 1 -> 0, 2 -> 1.
-			// Therefore, if we want to see where 15 was located originally (curr index 1), we do look at index 2 and get 1.
-
-			GAIA_FOR(idsCnt) {
-					const auto idxBeforeRemapping = (uint8_t)core::get_index_unsafe(remappingCopy, (uint8_t)i);
-					ctxData.remapping[i] = idxBeforeRemapping;
-			}
 
 			if (idsCnt > 0) {
 				uint32_t i = 0;
@@ -1122,7 +1107,7 @@ namespace gaia {
 			// Canonicalize filter order. This enables monotonic component lookup in filter matching
 			// and keeps cache keys stable regardless of changed() call order.
 			if (changedCnt > 1) {
-					core::sort(ctxData.changed.data(), ctxData.changed.data() + changedCnt, SortComponentCond{});
+				core::sort(ctxData.changed.data(), ctxData.changed.data() + changedCnt, SortComponentCond{});
 			}
 		}
 
@@ -1184,7 +1169,7 @@ namespace gaia {
 				QueryLookupHash::Type hash = 0;
 
 				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedLookup[i].value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedLookup[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
@@ -1195,7 +1180,7 @@ namespace gaia {
 				QueryLookupHash::Type hash = 0;
 
 				for (uint32_t i = 0; i < ctxData.groupDepCnt; ++i)
-						hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepsLookup[i].value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepsLookup[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);

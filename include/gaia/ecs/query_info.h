@@ -1377,15 +1377,16 @@ namespace gaia {
 
 			ArchetypeCacheData create_cache_data(const Archetype* pArchetype) {
 				ArchetypeCacheData cacheData;
-				auto queryIds = ctx().data.ids_view();
-				const auto cnt = (uint32_t)queryIds.size();
+				const auto terms = ctx().data.terms_view();
+				const auto cnt = (uint32_t)terms.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_plan.ctx.data.remapping[i];
-					const auto queryId = queryIds[idxBeforeRemapping];
+					const auto& term = terms[i];
+					const auto fieldIdx = term.fieldIndex;
+					const auto queryId = term.id;
 					if (!queryId.pair() && world_is_out_of_line_component(*world(), queryId)) {
 						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
 						GAIA_ASSERT(compIdx != BadIndex);
-						cacheData.indices[i] = 0xFF;
+						cacheData.indices[fieldIdx] = 0xFF;
 						continue;
 					}
 
@@ -1397,7 +1398,7 @@ namespace gaia {
 					}
 					GAIA_ASSERT(compIdx != BadIndex);
 
-					cacheData.indices[i] = (uint8_t)compIdx;
+					cacheData.indices[fieldIdx] = (uint8_t)compIdx;
 				}
 				return cacheData;
 			}
