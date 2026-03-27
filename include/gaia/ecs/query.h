@@ -3336,8 +3336,6 @@ namespace gaia {
 					}
 
 					uint32_t cnt = 0;
-					TIter it;
-					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
 					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
@@ -3361,12 +3359,18 @@ namespace gaia {
 
 						GAIA_PROF_SCOPE(query::count);
 
-						it.set_archetype(pArchetype);
-
-						// No mapping for count(). It doesn't need to access data cache.
-						// auto indicesView = queryInfo.indices_mapping_view(aid);
-
 						const auto& chunks = pArchetype->chunks();
+						if constexpr (!UseFilters) {
+							if (!hasEntityFilters) {
+								for (auto* pChunk: chunks)
+									cnt += TIter::size(pChunk);
+								continue;
+							}
+						}
+
+						TIter it;
+						it.set_world(queryInfo.world());
+						it.set_archetype(pArchetype);
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 
