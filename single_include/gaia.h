@@ -38105,7 +38105,11 @@ namespace gaia {
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
+				//! Dirty flags
 				uint8_t dirtyFlags = DirtyFlags::All;
+				//! True when uncached transient matches have archetype membership populated but remapping/group metadata
+				//! still needs to be materialized on demand.
+				bool transientCacheDataPending = false;
 
 				void clear_seed_cache() {
 					seedArchetypeSet = {};
@@ -38124,6 +38128,7 @@ namespace gaia {
 					sortVersion = 0;
 					depthOrderBarrierRelationVersion = UINT32_MAX;
 					depthOrderBarrierEnabledVersion = UINT32_MAX;
+					transientCacheDataPending = false;
 				}
 
 				void clear_transient_result_cache() {
@@ -38136,6 +38141,7 @@ namespace gaia {
 					sortVersion = 0;
 					depthOrderBarrierRelationVersion = UINT32_MAX;
 					depthOrderBarrierEnabledVersion = UINT32_MAX;
+					transientCacheDataPending = true;
 				}
 
 				void clear_cache() {
@@ -39195,6 +39201,25 @@ namespace gaia {
 				m_state.selectedGroupDataValid = false;
 			}
 
+			void materialize_transient_cache_data() {
+				if (!m_state.transientCacheDataPending)
+					return;
+
+				m_state.archetypeCacheData.clear();
+				m_state.archetypeCacheData.reserve(m_state.archetypeCache.size());
+				for (const auto* pArchetype: m_state.archetypeCache) {
+					auto cacheData = create_cache_data(pArchetype);
+					if (m_plan.ctx.data.groupBy != EntityBad)
+						cacheData.groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
+					m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
+				}
+
+				if (m_plan.ctx.data.groupBy != EntityBad)
+					rebuild_transient_cache_groups();
+
+				m_state.transientCacheDataPending = false;
+			}
+
 			void rebuild_transient_cache_groups() {
 				if (m_plan.ctx.data.groupBy == EntityBad)
 					return;
@@ -39432,17 +39457,13 @@ namespace gaia {
 			}
 
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
-				auto cacheData = create_cache_data(pArchetype);
-				if (m_plan.ctx.data.groupBy != EntityBad)
-					cacheData.groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
-
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
 			//! Returns cached group bounds for the currently selected group filter.
 			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
 			GAIA_NODISCARD const GroupData* selected_group_data(GroupId runtimeGroupId) const {
+				const_cast<QueryInfo*>(this)->materialize_transient_cache_data();
 				if (m_plan.ctx.data.groupBy == EntityBad || runtimeGroupId == 0)
 					return nullptr;
 
@@ -39652,16 +39673,19 @@ namespace gaia {
 
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
+				const_cast<QueryInfo*>(this)->materialize_transient_cache_data();
 				const auto& ctxData = m_state.archetypeCacheData[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
 			void ensure_depth_order_hierarchy_barrier_cache() {
+				materialize_transient_cache_data();
 				ensure_depth_order_hierarchy_barrier_cache_inter();
 			}
 
 			//! Returns a cached indices mapping view for an exact archetype match, or an empty span when absent.
 			std::span<const uint8_t> try_indices_mapping_view(const Archetype* pArchetype) const {
+				const_cast<QueryInfo*>(this)->materialize_transient_cache_data();
 				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
 				if (archetypeIdx == BadIndex)
 					return {};
@@ -39697,6 +39721,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD std::span<const ArchetypeCacheData> cache_data_view() const {
+				const_cast<QueryInfo*>(this)->materialize_transient_cache_data();
 				return std::span{m_state.archetypeCacheData.data(), m_state.archetypeCacheData.size()};
 			}
 
@@ -39705,6 +39730,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
+				const_cast<QueryInfo*>(this)->materialize_transient_cache_data();
 				return std::span{m_state.archetypeGroupData.data(), m_state.archetypeGroupData.size()};
 			}
 		};
