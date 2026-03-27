@@ -8402,6 +8402,23 @@ namespace gaia {
 				uint32_t lastCoreComponentId = 0;
 				s.load(lastCoreComponentId);
 
+				// Append-only core ids are handled via load-time entity remapping.
+				// Snapshots from a runtime with a larger core-id boundary are not supported.
+				const auto currLastCoreComponentId = GAIA_ID(LastCoreComponent).id();
+				if (lastCoreComponentId > currLastCoreComponentId) {
+					GAIA_LOG_E(
+							"Unsupported world core boundary %u. Current runtime supports up to %u.", lastCoreComponentId,
+							currLastCoreComponentId);
+					return false;
+				}
+				// Install the append-only core-id remap for nested Entity::load() calls.
+				// This keeps the serializer API unchanged, at the cost of relying on
+				// scoped thread-local state instead of explicit serializer-local context.
+				const detail::EntityLoadRemapGuard entityLoadRemapGuard(lastCoreComponentId, currLastCoreComponentId);
+				auto remapLoadedEntityId = [&](uint32_t id) {
+					return detail::remap_loaded_entity_id(id, lastCoreComponentId, currLastCoreComponentId);
+				};
+
 				// Entities
 				{
 					auto loadEntityContainer = [&](EntityContainer& ec) {
@@ -8410,6 +8427,10 @@ namespace gaia {
 						s.load(ec.row);
 						s.load(ec.flags);
 						ec.flags |= EntityContainerFlags::Load;
+
+						ec.idx = remapLoadedEntityId(ec.idx);
+						if (ec.data.pair != 0)
+							ec.data.gen = remapLoadedEntityId(ec.data.gen);
 
 #if GAIA_USE_SAFE_ENTITY
 						s.load(ec.refCnt);
@@ -8445,7 +8466,9 @@ namespace gaia {
 							s.load(id);
 							s.load(nextFreeIdx);
 							auto entity = Entity(id);
-							GAIA_ASSERT(entity.id() == lastCoreComponentId + i);
+							entity = detail::remap_loaded_entity(entity, lastCoreComponentId, currLastCoreComponentId);
+							nextFreeIdx = remapLoadedEntityId(nextFreeIdx);
+							GAIA_ASSERT(entity.id() == remapLoadedEntityId(lastCoreComponentId + i));
 							m_recs.entities.add_free(entity, nextFreeIdx);
 						}
 					}
@@ -8460,6 +8483,7 @@ namespace gaia {
 					}
 
 					s.load(m_recs.entities.m_nextFreeIdx);
+					m_recs.entities.m_nextFreeIdx = remapLoadedEntityId(m_recs.entities.m_nextFreeIdx);
 					s.load(m_recs.entities.m_freeItems);
 				}
 
@@ -8504,12 +8528,8 @@ namespace gaia {
 				// Now we need to convert it back to the pointer.
 				{
 					for (auto& ec: m_recs.entities) {
-						if (ec.idx < lastCoreComponentId) {
-							GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
+						if ((ec.flags & EntityContainerFlags::Load) == 0)
 							continue;
-						}
-
-						GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) != 0);
 						ec.flags &= ~EntityContainerFlags::Load; // Clear the load flag
 
 						const auto archetypeIdx = (ArchetypeId)((uintptr_t)ec.pArchetype); // Decode the archetype idx

@@ -1719,6 +1719,131 @@ TEST_CASE("Serialization - hashset") {
 	}
 }
 
+static uint32_t find_serialized_entity_archetype_idx(ecs::World& world, ecs::Entity entity) {
+	ser::bin_stream buffer;
+	world.set_serializer(buffer);
+	world.save();
+
+	auto s = ser::make_serializer(buffer);
+	s.seek(0);
+
+	uint32_t version = 0;
+	uint32_t lastCoreComponentId = 0;
+	uint32_t newEntities = 0;
+	s.load(version);
+	s.load(lastCoreComponentId);
+	s.load(newEntities);
+	(void)version;
+	(void)lastCoreComponentId;
+
+	GAIA_FOR(newEntities) {
+		bool isAlive = false;
+		s.load(isAlive);
+		if (isAlive) {
+			uint32_t idx = 0;
+			uint32_t dataRaw = 0;
+			uint16_t row = 0;
+			uint16_t flags = 0;
+			uint32_t refCnt = 0;
+			uint32_t archetypeIdx = 0;
+			uint32_t chunkIdx = 0;
+			s.load(idx);
+			s.load(dataRaw);
+			s.load(row);
+			s.load(flags);
+			s.load(refCnt);
+			s.load(archetypeIdx);
+			s.load(chunkIdx);
+			(void)dataRaw;
+			(void)row;
+			(void)flags;
+			(void)refCnt;
+			(void)chunkIdx;
+
+			if (idx == entity.id())
+				return archetypeIdx;
+		} else {
+			ecs::Identifier id = ecs::IdentifierBad;
+			uint32_t nextFreeIdx = ecs::Entity::IdMask;
+			s.load(id);
+			s.load(nextFreeIdx);
+			(void)id;
+			(void)nextFreeIdx;
+		}
+	}
+
+	return BadIndex;
+}
+
+static ser::bin_stream
+make_legacy_named_entity_snapshot(uint32_t oldLastCoreComponentId, uint32_t archetypeIdx, const char* name) {
+	ser::bin_stream buffer;
+	auto s = ser::make_serializer(buffer);
+
+	const auto legacyEntity =
+			ecs::Entity((ecs::EntityId)(oldLastCoreComponentId + 1), 0, true, false, ecs::EntityKind::EK_Gen);
+	ecs::EntityContainerCtx ctx{true, false, ecs::EntityKind::EK_Gen};
+	auto ec = ecs::EntityContainer::create(legacyEntity.id(), legacyEntity.gen(), &ctx);
+	ec.row = 0;
+	ec.flags = 0;
+	ec.refCnt = 1;
+
+	s.save((uint32_t)2); // WorldSerializerVersion
+	s.save(oldLastCoreComponentId);
+
+	s.save((uint32_t)1); // newEntities
+	s.save(true);
+	s.save(ec.idx);
+	s.save(ec.dataRaw);
+	s.save(ec.row);
+	s.save(ec.flags);
+	s.save(ec.refCnt);
+	s.save(archetypeIdx);
+	s.save((uint32_t)0); // chunkIdx
+
+	s.save((uint32_t)0); // pairsCnt
+	s.save((uint32_t)ecs::Entity::IdMask);
+	s.save((uint32_t)0); // freeItems
+
+	s.save((uint32_t)1); // archetypesSize
+	s.save((uint32_t)1); // idsSize
+	s.save(ecs::GAIA_ID(EntityDesc));
+	s.save((uint32_t)0); // firstFreeChunkIdx
+	s.save(archetypeIdx);
+	s.save((uint32_t)1); // chunkCnt
+	s.save((uint32_t)0); // chunkIdx
+	s.save((uint16_t)1); // count
+	s.save((uint16_t)1); // countEnabled
+	s.save((uint16_t)0); // dead
+	s.save((uint16_t)0); // lifespanCountdown
+	s.save(legacyEntity);
+	s.save(ecs::EntityDesc{});
+	s.save((uint32_t)0); // worldVersion
+
+	s.save((uint32_t)1); // namesCnt
+	s.save(legacyEntity);
+	s.save(true); // isOwned
+	const auto len = (uint32_t)strlen(name);
+	s.save(len);
+	s.save_raw(name, len, ser::serialization_type_id::c8);
+
+	s.save((uint32_t)0); // aliasCnt
+
+	return buffer;
+}
+
+static std::string make_binary_snapshot_json(const ser::bin_stream& buffer) {
+	std::string json = "{\"format\":1,\"binary\":[";
+	const auto* pData = (const uint8_t*)buffer.data();
+	GAIA_FOR(buffer.bytes()) {
+		if (i != 0)
+			json += ',';
+		json += std::to_string((uint32_t)pData[i]);
+	}
+	json += "]}";
+	return json;
+}
+
 TEST_CASE("Serialization - world self") {
 	auto initComponents = [](ecs::World& w) {
 		(void)w.add<Position>();
@@ -1817,6 +1942,33 @@ TEST_CASE("Serialization - world other") {
 	CHECK(carrot2 == carrot);
 	CHECK(salad2 == salad);
 	CHECK(apple2 == apple);
+}
+
+TEST_CASE("Serialization - world compatibility when core components are added later") {
+	TestWorld archetypeWorld;
+	const auto warmup = archetypeWorld.m_w.add();
+	archetypeWorld.m_w.name(warmup, "Warmup");
+
+	const auto archetypeIdx = find_serialized_entity_archetype_idx(archetypeWorld.m_w, warmup);
+	CHECK(archetypeIdx != BadIndex);
+	if (archetypeIdx == BadIndex)
+		return;
+
+	const auto currLastCoreComponentId = ecs::GAIA_ID(LastCoreComponent).id();
+	CHECK(currLastCoreComponentId > 0);
+	if (currLastCoreComponentId == 0)
+		return;
+	auto legacyBuffer = make_legacy_named_entity_snapshot(currLastCoreComponentId - 1, archetypeIdx, "Legacy");
+
+	TestWorld twldOut;
+	CHECK(twldOut.m_w.load(legacyBuffer));
+
+	const auto legacy = twldOut.m_w.get("Legacy");
+	CHECK(legacy != ecs::EntityBad);
+	CHECK(legacy.id() == currLastCoreComponentId + 1);
+
+	const auto next = twldOut.m_w.add();
+	CHECK(next.id() == legacy.id() + 1);
 }
 
 TEST_CASE("Serialization - world json") {
@@ -1949,6 +2101,31 @@ TEST_CASE("Serialization - world json") {
 		}
 	}
 	CHECK(hasUnsupportedFormatError);
+}
+
+TEST_CASE("Serialization - world json compatibility when core components are added later") {
+	TestWorld archetypeWorld;
+	const auto warmup = archetypeWorld.m_w.add();
+	archetypeWorld.m_w.name(warmup, "Warmup");
+
+	const auto archetypeIdx = find_serialized_entity_archetype_idx(archetypeWorld.m_w, warmup);
+	CHECK(archetypeIdx != BadIndex);
+	if (archetypeIdx == BadIndex)
+		return;
+
+	const auto currLastCoreComponentId = ecs::GAIA_ID(LastCoreComponent).id();
+	CHECK(currLastCoreComponentId > 0);
+	if (currLastCoreComponentId == 0)
+		return;
+	auto legacyBuffer = make_legacy_named_entity_snapshot(currLastCoreComponentId - 1, archetypeIdx, "LegacyJson");
+	const auto json = make_binary_snapshot_json(legacyBuffer);
+
+	TestWorld twldOut;
+	CHECK(twldOut.m_w.load_json(json.c_str(), (uint32_t)json.size()));
+
+	const auto legacy = twldOut.m_w.get("LegacyJson");
+	CHECK(legacy != ecs::EntityBad);
+	CHECK(legacy.id() == currLastCoreComponentId + 1);
 }
 
 TEST_CASE("Serialization - world json schema nested arrays") {

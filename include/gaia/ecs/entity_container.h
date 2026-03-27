@@ -232,13 +232,11 @@ namespace gaia {
 
 			template <typename Serializer>
 			void save(Serializer& s) const {
-				s.save(m_entity.val);
+				s.save(m_entity);
 			}
 			template <typename Serializer>
 			void load(Serializer& s) {
-				Identifier id{};
-				s.load(id);
-				m_entity = Entity(id);
+				s.load(m_entity);
 			}
 
 			GAIA_NODISCARD Entity entity() const noexcept {

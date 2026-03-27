@@ -617,9 +617,9 @@ namespace gaia {
 								(size2 - offs.firstByte_EntityData - uniCompsSize - 1) / (genCompsSize + (uint32_t)sizeof(Entity));
 						maxGenItemsInArchetype = compute_max_entities_for_chunk(maxGenItemsInArchetype, size2);
 
-						// NOTE:
-						// No we only check against MAX_CHUNK_ENTITIES for the largest size chunk because MAX_CHUNK_ENTITIES is
-						// calculated relative to its size. Therefore, smaller chunks can't possibly fit more.
+						// NOTE: No we only check against MAX_CHUNK_ENTITIES for the largest size chunk because
+						//       MAX_CHUNK_ENTITIES is calculated relative to its size. Therefore, smaller chunks
+						//       can't possibly fit more.
 						if (maxGenItemsInArchetype > ChunkHeader::MAX_CHUNK_ENTITIES)
 							maxGenItemsInArchetype = ChunkHeader::MAX_CHUNK_ENTITIES;
 					}
