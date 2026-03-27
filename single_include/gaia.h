@@ -42535,8 +42535,7 @@ namespace gaia {
 
 				GAIA_NODISCARD bool can_use_direct_chunk_iteration_fastpath(const QueryInfo& queryInfo) const {
 					const auto& data = queryInfo.ctx().data;
-					return data.groupBy == EntityBad && data.sortByFunc == nullptr &&
-								 !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					return data.sortByFunc == nullptr && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				}
 
 				template <typename Func, typename... T>
@@ -42548,9 +42547,19 @@ namespace gaia {
 					if (cacheView.empty())
 						return;
 
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr)
+							return;
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
+
 					lock(*m_storage.world());
 
-					GAIA_EACH(cacheView) {
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype))
 							continue;
@@ -43585,6 +43594,19 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::empty);
 
 						const auto& chunks = pArchetype->chunks();
+						if (!hasEntityFilters) {
+							for (auto* pChunk: chunks) {
+								if (TIter::size(pChunk) == 0)
+									continue;
+								if constexpr (UseFilters) {
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+										continue;
+								}
+								return false;
+							}
+							continue;
+						}
+
 						TIter it;
 						it.set_world(queryInfo.world());
 						it.set_archetype(pArchetype);
@@ -43756,12 +43778,20 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query::count);
 
 						const auto& chunks = pArchetype->chunks();
-						if constexpr (!UseFilters) {
-							if (!hasEntityFilters) {
-								for (auto* pChunk: chunks)
-									cnt += TIter::size(pChunk);
-								continue;
+						if (!hasEntityFilters) {
+							for (auto* pChunk: chunks) {
+								const auto entityCnt = TIter::size(pChunk);
+								if (entityCnt == 0)
+									continue;
+
+								if constexpr (UseFilters) {
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+										continue;
+								}
+
+								cnt += entityCnt;
 							}
+							continue;
 						}
 
 						TIter it;
@@ -44256,6 +44286,46 @@ namespace gaia {
 								}
 								return true;
 							});
+
+							return;
+						}
+					}
+
+					auto& world = *const_cast<World*>(queryInfo.world());
+					if constexpr (!UseFilters) {
+						if (!queryInfo.has_entity_filter_terms() &&
+								can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
+								can_use_direct_chunk_iteration_fastpath(queryInfo)) {
+							const auto cacheView = queryInfo.cache_archetype_view();
+							uint32_t idxFrom = 0;
+							uint32_t idxTo = (uint32_t)cacheView.size();
+							if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
+								const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+								if (pGroupData == nullptr)
+									return;
+								idxFrom = pGroupData->idxFirst;
+								idxTo = pGroupData->idxLast + 1;
+							}
+
+							for (uint32_t i = idxFrom; i < idxTo; ++i) {
+								auto* pArchetype = cacheView[i];
+								if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
+									continue;
+
+								GAIA_PROF_SCOPE(query::arr);
+
+								const auto& chunks = pArchetype->chunks();
+								for (auto* pChunk: chunks) {
+									const auto from = TIter::start_index(pChunk);
+									const auto to = TIter::end_index(pChunk);
+									if GAIA_UNLIKELY (from == to)
+										continue;
+
+									const auto dataView = chunk_view_auto<ContainerItemType>(pChunk);
+									for (uint16_t row = from; row < to; ++row)
+										outArray.push_back(dataView[row]);
+								}
+							}
 
 							return;
 						}
