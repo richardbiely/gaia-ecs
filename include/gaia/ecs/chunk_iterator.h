@@ -744,7 +744,7 @@ namespace gaia {
 				//! Chunk currently associated with the iterator
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
-				const uint8_t* m_pCompIdxMapping = nullptr;
+				const uint8_t* m_pCompIndices = nullptr;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Row of the first entity we iterate from
@@ -824,8 +824,8 @@ namespace gaia {
 					return m_pChunk;
 				}
 
-				void set_remapping_indices(const uint8_t* pCompIndicesMapping) {
-					m_pCompIdxMapping = pCompIndicesMapping;
+				void set_comp_indices(const uint8_t* pCompIndices) {
+					m_pCompIndices = pCompIndices;
 				}
 
 				void set_term_ids(const Entity* pTermIds) {
@@ -896,7 +896,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view for a remapped term index that can resolve non-direct storage.
+				//! Returns a read-only entity or component view for a query-term index that can resolve non-direct storage.
 				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage
 				//! instead of a dense chunk column.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
@@ -908,7 +908,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -922,7 +922,7 @@ namespace gaia {
 						return SoATermViewGet<U>{
 								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
 						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
 							return EntityTermViewGet<U>::entity(
@@ -966,7 +966,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a read-only entity or component view for a remapped owned chunk-backed term.
+				//! Returns a read-only entity or component view for a query-term owned chunk-backed term.
 				//! The caller is responsible for passing a term index that maps to a dense chunk column.
 				//! Use view_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or other
 				//! non-direct storage.
@@ -977,7 +977,7 @@ namespace gaia {
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) const {
 					using U = typename actual_type_t<T>::Type;
-					const auto compIdx = m_pCompIdxMapping[termIdx];
+					const auto compIdx = m_pCompIndices[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
 
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -1035,7 +1035,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable entity or component view for a remapped owned chunk-backed term.
+				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
 				//! Updates world versioning for the selected chunk column before handing out mutable access.
 				//! Use view_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
@@ -1047,7 +1047,7 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					const auto compIdx = m_pCompIdxMapping[termIdx];
+					const auto compIdx = m_pCompIndices[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1060,7 +1060,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable entity or component view for a remapped term index that can resolve non-direct storage.
+				//! Returns a mutable entity or component view for a query-term index that can resolve non-direct storage.
 				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
 				//! storage instead of a dense chunk column.
 				//! Updates world versioning for chunk-backed terms before handing out mutable access.
@@ -1073,7 +1073,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -1091,7 +1091,7 @@ namespace gaia {
 						return SoATermViewSet<U>{
 								m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
 						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
 							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
@@ -1162,7 +1162,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable component view for a remapped owned chunk-backed term.
+				//! Returns a mutable component view for a query-term owned chunk-backed term.
 				//! Doesn't update the world version when the access is acquired.
 				//! Use sview_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
@@ -1174,7 +1174,7 @@ namespace gaia {
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
-					const auto compIdx = m_pCompIdxMapping[termIdx];
+					const auto compIdx = m_pCompIndices[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
 
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -1185,7 +1185,7 @@ namespace gaia {
 					}
 				}
 
-				//! Returns a mutable component view for a remapped term index that can resolve non-direct storage.
+				//! Returns a mutable component view for a query-term index that can resolve non-direct storage.
 				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
 				//! storage instead of a dense chunk column.
 				//! Doesn't update the world version when the access is acquired.
@@ -1198,7 +1198,7 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							GAIA_ASSERT(size() == 1);
@@ -1215,7 +1215,7 @@ namespace gaia {
 						return SoATermViewSet<U>{
 								m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto compIdx = m_pCompIdxMapping[termIdx];
+						const auto compIdx = m_pCompIndices[termIdx];
 						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
 						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
 							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());

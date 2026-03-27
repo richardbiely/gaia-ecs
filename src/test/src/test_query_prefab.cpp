@@ -2643,7 +2643,7 @@ TEST_CASE("Prefab - inherited component query writes local overrides") {
 }
 
 TEST_CASE(
-		"Is inheritance - inherited component queries see derived entities and materialize local overrides on write") {
+		"Is inheritance - inherited component queries see derived entities and create local overrides on write") {
 	TestWorld twld;
 
 	const auto animal = wld.add();

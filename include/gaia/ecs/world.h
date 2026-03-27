@@ -1036,7 +1036,7 @@ namespace gaia {
 						Iter it;
 						it.set_world(&world);
 						it.set_group_id(0);
-						it.set_remapping_indices(0);
+						it.set_comp_indices(0);
 						obs.exec(it, targets);
 					}
 
@@ -1555,7 +1555,7 @@ namespace gaia {
 				void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic) {
 					GAIA_ASSERT(!observer.pair());
 					GAIA_ASSERT(world.valid(observer));
-					// For a pair term, valid(pair) is true only if that exact pair is already materialized
+					// For a pair term, valid(pair) is true only if that exact pair already exists
 					// in m_recs.pairs (exists in-world). Observers are allowed to register pair terms that
 					// may appear later, so asserting just world.valid(term) for pairs when adding is wrong.
 					GAIA_ASSERT(term.pair() || world.valid(term));

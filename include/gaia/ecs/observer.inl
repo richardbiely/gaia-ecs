@@ -120,7 +120,7 @@ namespace gaia {
 
 				iter.set_archetype(ec.pArchetype);
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
-				iter.set_remapping_indices(cachedIndices);
+				iter.set_comp_indices(cachedIndices);
 				iter.set_term_ids(termIds);
 				on_each_func(iter);
 			}

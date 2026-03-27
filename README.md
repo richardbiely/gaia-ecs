@@ -2391,9 +2391,9 @@ Currently supported policies:
 * `ecs::Inherit` - do not copy the id, resolve `has`/`get` through the prefab chain until the instance overrides it locally
 * `ecs::DontInherit` - skip the id during instantiation and do not resolve it through the prefab chain
 
-Typed queries and typed systems also resolve inherited prefab data and materialize a local override on first mutable access.
+Typed queries and typed systems also resolve inherited prefab data and create a local override on first mutable access.
 
-`ecs::Iter` fallback accessors (`view_any`, `view_mut_any`, `sview_mut_any`, `view_auto_any`, `sview_auto_any`) also resolve inherited prefab data and materialize a local override on first mutable access.
+`ecs::Iter` fallback accessors (`view_any`, `view_mut_any`, `sview_mut_any`, `view_auto_any`, `sview_auto_any`) also resolve inherited prefab data and create a local override on first mutable access.
 
 This applies to table, sparse, AoS and SoA component layouts. Mutable inherited query access always turns into a local override on the instance before the write is applied, so the prefab source data stays unchanged.
 
@@ -2407,7 +2407,7 @@ bool changed = w.override<Position>(instance);
 bool changedById = w.override(instance, positionEntity);
 ```
 
-`override` returns `true` only when it actually materialized a new local copy. If the instance already owns the id, or there is no inherited source to copy from, it returns `false`.
+`override` returns `true` only when it actually creates a new local copy. If the instance already owns the id, or there is no inherited source to copy from, it returns `false`.
 
 The typed and id-based forms also work for sparse prefab data. That includes runtime-registered sparse ids when the store already has typed data attached to the prefab source.
 
@@ -2421,7 +2421,7 @@ uint32_t changes = w.sync(prefab);
 
 This adds missing copied ids to existing instances and spawns missing prefab children under existing instances.
 It does not overwrite already owned instance data and it does not remove existing children.
-When `sync(prefab)` materializes new copied ids or spawns new child instances, normal `OnAdd` observers fire for those additions.
+When `sync(prefab)` creates new copied ids or spawns new child instances, normal `OnAdd` observers fire for those additions.
 
 Inherited removals already take effect through normal semantic lookup, because `ecs::Inherit` data is not stored on the instance in the first place. Removing an inherited id from the prefab therefore makes existing instances stop resolving it.
 Normal `OnDel` observers also fire for those inherited removals when an existing instance stops matching because the prefab source data disappeared.

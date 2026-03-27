@@ -845,7 +845,7 @@ namespace gaia {
 						const bool allowSemanticIs = !(
 								term.matchKind == QueryMatchKind::Direct && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()));
 						if (!id.pair()) {
-							const auto j = (uint32_t)i; // data.remapping[i];
+							const auto j = (uint32_t)i;
 							const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, id) : 0U;
 							as_mask_0 |= (has_as << j);
 						} else {
@@ -854,14 +854,14 @@ namespace gaia {
 							isComplex |= (idIsWildcard || isGenWildcard);
 
 							if (!idIsWildcard) {
-								const auto j = (uint32_t)i; // data.remapping[i];
+								const auto j = (uint32_t)i;
 								const auto e = entity_from_id(*w, id.id());
 								const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, e) : 0U;
 								as_mask_0 |= (has_as << j);
 							}
 
 							if (!isGenWildcard) {
-								const auto j = (uint32_t)i; // data.remapping[i];
+								const auto j = (uint32_t)i;
 								const auto e = entity_from_id(*w, id.gen());
 								const auto has_as = allowSemanticIs ? (uint32_t)is_base(*w, e) : 0U;
 								as_mask_1 |= (has_as << j);
