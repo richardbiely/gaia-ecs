@@ -595,6 +595,8 @@ namespace gaia {
 				QueryEntityArray _ids;
 				//! Array of terms
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> _terms;
+				//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
+				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> _lookupTerms;
 				//! Mapping of the original indices to the new ones after sorting
 				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> _remapping;
 				//! Index of the last checked archetype in the component-to-archetype map
@@ -605,8 +607,12 @@ namespace gaia {
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray _changed;
+				//! Canonicalized changed-filter ids reused by hash/equality for shared query dedup.
+				QueryEntityArray _lookupChanged;
 				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
 				QueryEntityArray _groupDeps;
+				//! Canonicalized group dependency ids reused by hash/equality for shared query dedup.
+				QueryEntityArray _lookupGroupDeps;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -942,6 +948,14 @@ namespace gaia {
 				}
 
 				// Request recompilation of the query if the mask has changed
+				GAIA_FOR(data.idsCnt) data._lookupTerms[i] = data._terms[i];
+				canonicalize_lookup_terms(std::span<QueryTerm>{data._lookupTerms.data(), data.idsCnt});
+				GAIA_FOR(data.changedCnt) data._lookupChanged[i] = data._changed[i];
+				canonicalize_lookup_changed(std::span<Entity>{data._lookupChanged.data(), data.changedCnt});
+				GAIA_FOR(data.groupDepCnt) data._lookupGroupDeps[i] = data._groupDeps[i];
+				canonicalize_lookup_changed(std::span<Entity>{data._lookupGroupDeps.data(), data.groupDepCnt});
+
+				// Request recompilation of the query if the mask has changed
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
@@ -976,53 +990,26 @@ namespace gaia {
 				if (left.cacheSrcTrav != right.cacheSrcTrav)
 					return false;
 
-				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> leftTerms{};
-				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> rightTerms{};
-				GAIA_FOR(left.idsCnt) {
-					leftTerms[i] = left._terms[i];
-					rightTerms[i] = right._terms[i];
-				}
-				canonicalize_lookup_terms(std::span<QueryTerm>{leftTerms.data(), left.idsCnt});
-				canonicalize_lookup_terms(std::span<QueryTerm>{rightTerms.data(), right.idsCnt});
-
 				{
 					const auto cnt = left.idsCnt;
 					GAIA_FOR(cnt) {
-						if (leftTerms[i] != rightTerms[i])
+						if (left._lookupTerms[i] != right._lookupTerms[i])
 							return false;
 					}
 				}
-
-				QueryEntityArray leftChanged{};
-				QueryEntityArray rightChanged{};
-				GAIA_FOR(left.changedCnt) {
-					leftChanged[i] = left._changed[i];
-					rightChanged[i] = right._changed[i];
-				}
-				canonicalize_lookup_changed(std::span<Entity>{leftChanged.data(), left.changedCnt});
-				canonicalize_lookup_changed(std::span<Entity>{rightChanged.data(), right.changedCnt});
 
 				{
 					const auto cnt = left.changedCnt;
 					GAIA_FOR(cnt) {
-						if (leftChanged[i] != rightChanged[i])
+						if (left._lookupChanged[i] != right._lookupChanged[i])
 							return false;
 					}
 				}
 
-				QueryEntityArray leftGroupDeps{};
-				QueryEntityArray rightGroupDeps{};
-				GAIA_FOR(left.groupDepCnt) {
-					leftGroupDeps[i] = left._groupDeps[i];
-					rightGroupDeps[i] = right._groupDeps[i];
-				}
-				canonicalize_lookup_changed(std::span<Entity>{leftGroupDeps.data(), left.groupDepCnt});
-				canonicalize_lookup_changed(std::span<Entity>{rightGroupDeps.data(), right.groupDepCnt});
-
 				{
 					const auto cnt = left.groupDepCnt;
 					GAIA_FOR(cnt) {
-						if (leftGroupDeps[i] != rightGroupDeps[i])
+						if (left._lookupGroupDeps[i] != right._lookupGroupDeps[i])
 							return false;
 					}
 				}
@@ -1172,12 +1159,8 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms{};
-				GAIA_FOR(ctxData.idsCnt) terms[i] = ctxData._terms[i];
-				canonicalize_lookup_terms(std::span<QueryTerm>{terms.data(), ctxData.idsCnt});
-
 				for (uint32_t i = 0; i < ctxData.idsCnt; ++i) {
-					const auto& pair = terms[i];
+					const auto& pair = ctxData._lookupTerms[i];
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
@@ -1200,12 +1183,8 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				QueryEntityArray changed{};
-				GAIA_FOR(ctxData.changedCnt) changed[i] = ctxData._changed[i];
-				canonicalize_lookup_changed(std::span<Entity>{changed.data(), ctxData.changedCnt});
-
 				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)changed[i].value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData._lookupChanged[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);
@@ -1215,12 +1194,8 @@ namespace gaia {
 			{
 				QueryLookupHash::Type hash = 0;
 
-				QueryEntityArray groupDeps{};
-				GAIA_FOR(ctxData.groupDepCnt) groupDeps[i] = ctxData._groupDeps[i];
-				canonicalize_lookup_changed(std::span<Entity>{groupDeps.data(), ctxData.groupDepCnt});
-
 				for (uint32_t i = 0; i < ctxData.groupDepCnt; ++i)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDeps[i].value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData._lookupGroupDeps[i].value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepCnt);
 
 				hashLookup = core::hash_combine(hashLookup, hash);

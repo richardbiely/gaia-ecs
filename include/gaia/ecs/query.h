@@ -1368,7 +1368,6 @@ namespace gaia {
 						if (ctxData.changedCnt > 1) {
 							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
 						}
-						calc_lookup_hash(ctx);
 					}
 
 					// We can free all temporary data now
@@ -1376,6 +1375,8 @@ namespace gaia {
 
 					// Refresh the context
 					ctx.refresh();
+					if constexpr (UseCaching)
+						calc_lookup_hash(ctx);
 				}
 
 				void recommit(QueryCtx& ctx) {
