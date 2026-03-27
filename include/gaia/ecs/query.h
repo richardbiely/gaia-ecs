@@ -117,10 +117,10 @@ namespace gaia {
 					// The query engine is going to reorder the query items as necessary.
 					// Remapping is used so the user can still identify the items according the order in which
 					// they defined them when building the query.
-					ctxData._remapping[ctxData.idsCnt] = ctxData.idsCnt;
+					ctxData.remapping[ctxData.idsCnt] = ctxData.idsCnt;
 
-					ctxData._ids[ctxData.idsCnt] = item.id;
-					ctxData._terms[ctxData.idsCnt] = {item.id,				item.entSrc,		item.entTrav, item.travKind,
+					ctxData.ids[ctxData.idsCnt] = item.id;
+					ctxData.terms[ctxData.idsCnt] = {item.id,				item.entSrc,		item.entTrav, item.travKind,
 																						item.travDepth, item.matchKind, nullptr,			item.op};
 					++ctxData.idsCnt;
 				}
@@ -150,7 +150,7 @@ namespace gaia {
 
 					uint32_t compIdx = 0;
 					for (; compIdx < ctxData.idsCnt; ++compIdx)
-						if (ctxData._ids[compIdx] == comp)
+						if (ctxData.ids[compIdx] == comp)
 							break;
 
 					// NOTE: Code bellow does the same as this commented piece.
@@ -161,17 +161,17 @@ namespace gaia {
 					// Component has to be present in all/or lists.
 					// Filtering by NOT/ANY doesn't make sense because those are not hard requirements.
 					GAIA_ASSERT2(
-							ctxData._terms[compIdx].op != QueryOpKind::Not && ctxData._terms[compIdx].op != QueryOpKind::Any,
+							ctxData.terms[compIdx].op != QueryOpKind::Not && ctxData.terms[compIdx].op != QueryOpKind::Any,
 							"Filtering by NOT/ANY doesn't make sense!");
-					if (ctxData._terms[compIdx].op != QueryOpKind::Not && ctxData._terms[compIdx].op != QueryOpKind::Any) {
-						ctxData._changed[ctxData.changedCnt++] = comp;
+					if (ctxData.terms[compIdx].op != QueryOpKind::Not && ctxData.terms[compIdx].op != QueryOpKind::Any) {
+						ctxData.changed[ctxData.changedCnt++] = comp;
 						return;
 					}
 
 					const auto* compName = ctx.cc->get(comp).name.str();
 					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
 #else
-					ctxData._changed[ctxData.changedCnt++] = comp;
+					ctxData.changed[ctxData.changedCnt++] = comp;
 #endif
 				}
 			};
@@ -1366,7 +1366,7 @@ namespace gaia {
 						normalize_cache_src_trav(ctx);
 						auto& ctxData = ctx.data;
 						if (ctxData.changedCnt > 1) {
-							core::sort(ctxData._changed.data(), ctxData._changed.data() + ctxData.changedCnt, SortComponentCond{});
+							core::sort(ctxData.changed.data(), ctxData.changed.data() + ctxData.changedCnt, SortComponentCond{});
 						}
 					}
 
@@ -3286,7 +3286,7 @@ namespace gaia {
 						}
 
 						const auto queryIds = queryInfo.ctx().data.ids_view();
-						const auto& remapping = queryInfo.ctx().data._remapping;
+						const auto& remapping = queryInfo.ctx().data.remapping;
 						const auto queryIdCnt = (uint32_t)queryIds.size();
 						auto indicesView = queryInfo.try_indices_mapping_view(ec.pArchetype);
 						GAIA_FOR(queryIdCnt) {

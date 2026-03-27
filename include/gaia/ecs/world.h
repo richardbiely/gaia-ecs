@@ -418,12 +418,12 @@ namespace gaia {
 							return false;
 
 						GAIA_FOR(leftData.idsCnt) {
-							if (leftData._terms[i] != rightData._terms[i])
+							if (leftData.terms[i] != rightData.terms[i])
 								return false;
 						}
 
 						GAIA_FOR(leftData.changedCnt) {
-							if (leftData._changed[i] != rightData._changed[i])
+							if (leftData.changed[i] != rightData.changed[i])
 								return false;
 						}
 

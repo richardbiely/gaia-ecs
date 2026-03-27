@@ -78,7 +78,7 @@ namespace gaia {
 
 			auto* pWorld = iter.world();
 			const auto queryIds = queryInfo.ctx().data.ids_view();
-			const auto& remapping = queryInfo.ctx().data._remapping;
+			const auto& remapping = queryInfo.ctx().data.remapping;
 			const auto queryIdCnt = (uint32_t)queryIds.size();
 			Entity termIds[ChunkHeader::MAX_COMPONENTS];
 			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {

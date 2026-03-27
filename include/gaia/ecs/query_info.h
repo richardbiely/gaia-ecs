@@ -537,9 +537,9 @@ namespace gaia {
 					}
 
 					const auto& ctxData = m_plan.ctx.data;
-					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(ctxData._terms.data(), id, EntityBad);
+					const auto compIdx = comp_idx<MAX_ITEMS_IN_QUERY>(ctxData.terms.data(), id, EntityBad);
 
-					if (op != ctxData._terms[compIdx].op)
+					if (op != ctxData.terms[compIdx].op)
 						return false;
 
 					// Read-write mask must match
@@ -1211,7 +1211,7 @@ namespace gaia {
 				auto queryIds = ctx().data.ids_view();
 				const auto cnt = (uint32_t)queryIds.size();
 				GAIA_FOR(cnt) {
-					const auto idxBeforeRemapping = m_plan.ctx.data._remapping[i];
+					const auto idxBeforeRemapping = m_plan.ctx.data.remapping[i];
 					const auto queryId = queryIds[idxBeforeRemapping];
 					if (!queryId.pair() && world_is_out_of_line_component(*world(), queryId)) {
 						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
