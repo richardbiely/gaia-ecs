@@ -209,6 +209,18 @@ namespace gaia {
 					depthOrderBarrierEnabledVersion = UINT32_MAX;
 				}
 
+				void clear_transient_result_cache() {
+					archetypeCache.clear();
+					archetypeSortData.clear();
+					archetypeCacheData.clear();
+					archetypeGroupData.clear();
+					selectedGroupData = {};
+					selectedGroupDataValid = false;
+					sortVersion = 0;
+					depthOrderBarrierRelationVersion = UINT32_MAX;
+					depthOrderBarrierEnabledVersion = UINT32_MAX;
+				}
+
 				void clear_cache() {
 					clear_seed_cache();
 					clear_result_cache();
@@ -894,10 +906,101 @@ namespace gaia {
 				match(entityToArchetypeMap, allArchetypes, archetypeLastId, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
+			void ensure_matches_transient(
+					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				auto& ctxData = m_plan.ctx.data;
+
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
+				if (!m_plan.vm.is_compiled())
+					return;
+
+				m_state.clear_transient_result_cache();
+
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w, true);
+
+				vm::MatchingCtx ctx{};
+				ctx.pWorld = world();
+				ctx.allArchetypes = allArchetypes;
+				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap);
+				ctx.pMatchesArr = &matchScratch.matchesArr;
+				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
+				ctx.matchesVersion = matchScratch.next_match_version();
+				ctx.pLastMatchedArchetypeIdx_All = nullptr;
+				ctx.pLastMatchedArchetypeIdx_Or = nullptr;
+				ctx.pLastMatchedArchetypeIdx_Not = nullptr;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
+				ctx.varBindings = runtimeVarBindings;
+				ctx.varBindingMask = runtimeVarBindingMask;
+
+				m_plan.vm.exec(ctx);
+
+				m_state.archetypeCache.reserve(ctx.pMatchesArr->size());
+				m_state.archetypeCacheData.reserve(ctx.pMatchesArr->size());
+				for (const auto* pArchetype: *ctx.pMatchesArr)
+					add_archetype_to_transient_cache(pArchetype);
+
+				sort_entities();
+				rebuild_transient_cache_groups();
+			}
+
 			void ensure_matches_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
+			}
+
+			void ensure_matches_one_transient(
+					const Archetype& archetype, EntitySpan targetEntities,
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				auto& ctxData = m_plan.ctx.data;
+
+				if ((ctxData.flags & QueryCtx::QueryFlags::Recompile) != 0)
+					recompile();
+
+				if (!m_plan.vm.is_compiled())
+					return;
+
+				m_state.clear_transient_result_cache();
+
+				auto& w = *world();
+				auto& matchScratch = query_match_scratch_acquire(w);
+				CleanUpTmpArchetypeMatches autoCleanup(w, true);
+
+				vm::MatchingCtx ctx{};
+				ctx.pWorld = world();
+				ctx.targetEntities = targetEntities;
+				const auto* pArchetype = &archetype;
+				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
+				ctx.archetypeLookup = {};
+				ctx.pMatchesArr = &matchScratch.matchesArr;
+				ctx.pMatchesStampByArchetypeId = &matchScratch.matchStamps;
+				ctx.matchesVersion = matchScratch.next_match_version();
+				ctx.pLastMatchedArchetypeIdx_All = nullptr;
+				ctx.pLastMatchedArchetypeIdx_Or = nullptr;
+				ctx.pLastMatchedArchetypeIdx_Not = nullptr;
+				ctx.queryMask = ctxData.queryMask;
+				ctx.as_mask_0 = ctxData.as_mask_0;
+				ctx.as_mask_1 = ctxData.as_mask_1;
+				ctx.flags = ctxData.flags;
+				ctx.varBindings = runtimeVarBindings;
+				ctx.varBindingMask = runtimeVarBindingMask;
+
+				m_plan.vm.exec(ctx);
+
+				m_state.archetypeCache.reserve(ctx.pMatchesArr->size());
+				m_state.archetypeCacheData.reserve(ctx.pMatchesArr->size());
+				for (const auto* pArch: *ctx.pMatchesArr)
+					add_archetype_to_transient_cache(pArch);
+
+				rebuild_transient_cache_groups();
 			}
 
 			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad, bool assumeNew = false) {
@@ -1175,6 +1278,47 @@ namespace gaia {
 				m_state.selectedGroupDataValid = false;
 			}
 
+			void rebuild_transient_cache_groups() {
+				if (m_plan.ctx.data.groupBy == EntityBad)
+					return;
+
+				struct sort_cond {
+					bool operator()(const ArchetypeCacheData& a, const ArchetypeCacheData& b) const {
+						return a.groupId <= b.groupId;
+					}
+				};
+
+				core::sort(m_state.archetypeCacheData, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					auto* pTmpArchetype = m_state.archetypeCache[left];
+					m_state.archetypeCache[left] = m_state.archetypeCache[right];
+					m_state.archetypeCache[right] = pTmpArchetype;
+
+					auto tmp = m_state.archetypeCacheData[left];
+					m_state.archetypeCacheData[left] = m_state.archetypeCacheData[right];
+					m_state.archetypeCacheData[right] = tmp;
+				});
+
+				m_state.archetypeGroupData.clear();
+				m_state.selectedGroupDataValid = false;
+
+				if (m_state.archetypeCacheData.empty())
+					return;
+
+				GroupId groupId = m_state.archetypeCacheData[0].groupId;
+				uint32_t idxFirst = 0;
+				const auto cnt = (uint32_t)m_state.archetypeCacheData.size();
+				for (uint32_t i = 1; i < cnt; ++i) {
+					if (m_state.archetypeCacheData[i].groupId == groupId)
+						continue;
+
+					m_state.archetypeGroupData.push_back({groupId, idxFirst, i - 1, false});
+					groupId = m_state.archetypeCacheData[i].groupId;
+					idxFirst = i;
+				}
+
+				m_state.archetypeGroupData.push_back({groupId, idxFirst, cnt - 1, false});
+			}
+
 			void ensure_depth_order_hierarchy_barrier_cache_inter() {
 				if (!world_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
 					return;
@@ -1368,6 +1512,15 @@ namespace gaia {
 					add_archetype_to_cache_w_grouping(pArchetype, trackMembershipChange, assumeAbsent);
 				else
 					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange, assumeAbsent);
+			}
+
+			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
+				auto cacheData = create_cache_data(pArchetype);
+				if (m_plan.ctx.data.groupBy != EntityBad)
+					cacheData.groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
+
+				m_state.archetypeCache.push_back(pArchetype);
+				m_state.archetypeCacheData.push_back(GAIA_MOV(cacheData));
 			}
 
 			//! Returns cached group bounds for the currently selected group filter.

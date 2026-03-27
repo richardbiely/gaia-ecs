@@ -1844,21 +1844,18 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, results of the query are cached
+			//! \tparam UseCache If true, the query uses the world's shared cache layer.
+			//! If false, the query runs as QueryCacheKind::None and keeps only a local immutable plan.
 			//! \return Valid query object
 			template <bool UseCache = true>
-			auto query() {
-				if constexpr (UseCache) {
-					return Query(
-							*const_cast<World*>(this), m_queryCache,
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-				} else {
-					return QueryUncached(
-							*const_cast<World*>(this),
-							//
-							m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-				}
+			Query query() {
+				auto q = Query(
+						*const_cast<World*>(this), m_queryCache,
+						//
+						m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
+				if constexpr (!UseCache)
+					q.cache_kind(QueryCacheKind::None);
+				return q;
 			}
 
 			//----------------------------------------------------------------------

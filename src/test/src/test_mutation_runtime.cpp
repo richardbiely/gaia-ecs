@@ -1534,7 +1534,7 @@ TEST_CASE("Query Filter - Iter auto mutable views track changes correctly") {
 
 template <typename TQuery>
 void Test_Query_Filter_Changed_Order_NoSystems() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Marker {};
@@ -1588,7 +1588,7 @@ TEST_CASE("Query Filter - changed order no systems") {
 
 template <typename TQuery>
 void Test_Query_Filter_Changed_Or_Missing_Component() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Marker {};

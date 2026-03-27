@@ -50,7 +50,7 @@ TEST_CASE("Query - QueryResult") {
 
 template <typename TQuery>
 void Test_Query_SourceLookup() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 
@@ -260,7 +260,7 @@ TEST_CASE("Query - source lookup") {
 
 template <typename TQuery>
 void Test_Query_All_Any_Or_Semantics() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Cable {};
@@ -336,7 +336,7 @@ TEST_CASE("Query - all/any/or semantics") {
 
 template <typename TQuery>
 void Test_Query_Local_Short_Name_Ambiguity() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 
@@ -374,7 +374,7 @@ TEST_CASE("Query - local short-name ambiguity") {
 
 template <typename TQuery>
 void Test_Query_Variables() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 
@@ -421,7 +421,7 @@ TEST_CASE("Query - variables") {
 
 template <typename TQuery>
 void Test_Query_SourceOr_VariableOr_Interaction() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	struct Cable {};
 	struct Device {};
@@ -486,7 +486,7 @@ TEST_CASE("Query - source or and variable or interaction") {
 
 template <typename TQuery>
 void Test_Query_VariableOr_Backtracking_SkipBranch() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Cable {};
@@ -532,7 +532,7 @@ TEST_CASE("Query - variable or backtracking skip branch") {
 
 template <typename TQuery>
 void Test_Query_Variables_Advanced() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	// Variable target reused by multiple terms + source lookup.
 	{
@@ -884,7 +884,7 @@ TEST_CASE("Query - variable pair target ignores stale recycled handles") {
 
 template <typename TQuery>
 void Test_Query_Variables_MultiVar() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	// 3 independent vars with type checks on all variable sources.
 	{
@@ -1036,7 +1036,7 @@ TEST_CASE("Query - variables multivar") {
 
 template <typename TQuery>
 void Test_Query_RuntimeParams() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct SpaceShip {};
@@ -1161,7 +1161,7 @@ TEST_CASE("Query - runtime params") {
 
 template <typename TQuery>
 void Test_Query_Bytecode_Dump() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 
@@ -1243,7 +1243,7 @@ TEST_CASE("Query - bytecode dump") {
 
 template <typename TQuery>
 void Test_Query_Variable_Opcode_Paths() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	struct Cable {};
 	struct Device {};
@@ -1968,7 +1968,7 @@ TEST_CASE("Query - variable opcode paths") {
 
 template <typename TQuery>
 void Test_Query_Variable_Opcode_Selection_IsStructural() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	struct Cable {};
 	struct ConnectedTo {};
@@ -2038,7 +2038,7 @@ TEST_CASE("Query - variable opcode selection is structural") {
 
 template <typename TQuery>
 void Test_Query_Variable_Program_Recompile() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	struct Cable {};
 	struct ConnectedTo {};
@@ -2127,7 +2127,7 @@ TEST_CASE("Query - variable program recompile") {
 
 template <typename TQuery>
 void Test_Query_SingleOr_CanonicalizedToAll() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	auto collect_sorted = [](auto& query) {
 		cnt::darr<ecs::Entity> out;
@@ -2188,7 +2188,7 @@ TEST_CASE("Query - single or canonicalized to all") {
 
 template <typename TQuery>
 void Test_Query_String_Optional_Regression() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Fuel {};
@@ -2240,7 +2240,7 @@ TEST_CASE("Query - string optional regression") {
 
 template <typename TQuery>
 void Test_Query_Or_Dedup() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	struct Marker {};
@@ -2307,7 +2307,7 @@ void Test_Query_QueryResult_Complex() {
 
 	GAIA_FOR(N) create(i);
 
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
 	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
 	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
@@ -3899,10 +3899,10 @@ TEST_CASE("Traversal relation semantics are explicit") {
 
 template <typename TQuery>
 void Test_Query_Equality() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 	constexpr uint32_t N = 100;
 
-	auto verify = [&](TQuery& q1, TQuery& q2, TQuery& q3, TQuery& q4) {
+	auto verify = [&](auto& q1, auto& q2, auto& q3, auto& q4) {
 		CHECK(q1.count() == q2.count());
 		CHECK(q1.count() == q3.count());
 		CHECK(q1.count() == q4.count());
@@ -4004,7 +4004,7 @@ TEST_CASE("Query - equality") {
 
 template <typename TQuery>
 void Test_Query_Reset() {
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 
 	TestWorld twld;
 	auto wolf = wld.add();

@@ -57,6 +57,9 @@ using namespace gaia;
 
 #define wld twld.m_w
 
+template <typename TQuery>
+inline constexpr bool use_cached_query_v = std::is_same_v<TQuery, ecs::Query>;
+
 //! World wrapper for test purposes.
 //! The wrapped world handles teardown on destruction; tests can still call update()
 //! repeatedly when they want to flush regular frame maintenance explicitly.
@@ -269,7 +272,7 @@ void Test_Query_QueryResult() {
 
 	GAIA_FOR(N) create(i);
 
-	constexpr bool UseCachedQuery = std::is_same_v<TQuery, ecs::Query>;
+	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
 	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
 	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
 	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
