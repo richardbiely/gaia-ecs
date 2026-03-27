@@ -265,10 +265,7 @@ void BM_PagedIList_Mixed(picobench::state& state) {
 	run_mixed<cnt::paged_ilist<ListItem, ListHandle>>(state);
 }
 
-#define PICO_SETTINGS() iterations({128}).samples(5)
-#define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name)
-#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
+////////////////////////////////////////////////////////////////////////////////
 
 void register_containers(PerfRunMode mode) {
 	switch (mode) {
