@@ -246,7 +246,7 @@ If you already have a dedicated string storage it would be a waste to duplicate 
 const char* pUserManagedString = ...;
 w.name_raw(e, pUserManagedString);
 
-// If you now the length, you can provide it
+// If you know the length, you can provide it
 w.name_raw(e, pUserManagedString, userManagedStringLength);
 
 // If the user-managed string pointer is not stable, you need to unset the name before the pointer changes location

@@ -2756,17 +2756,21 @@ TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 	wld.add<Position>(prefabAnimal, {5, 0, 0});
 	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
 
-	const auto instance = wld.instantiate(prefabAnimal);
+	const auto instanceA = wld.instantiate(prefabAnimal);
+	const auto instanceB = wld.instantiate(prefabAnimal);
 
 	auto qRead = wld.query().all<Position>();
 	float xRead = 0.0f;
+	uint32_t rowsRead = 0;
 	qRead.each([&](ecs::Iter& it) {
 		auto posView = it.view_any<Position>(1);
 		GAIA_EACH(it) {
 			xRead += posView[i].x;
+			++rowsRead;
 		}
 	});
-	CHECK(xRead == doctest::Approx(5.0f));
+	CHECK(rowsRead == 2);
+	CHECK(xRead == doctest::Approx(10.0f));
 
 	auto qWrite = wld.query().all<Position&>();
 	qWrite.each([&](ecs::Iter& it) {
@@ -2776,8 +2780,10 @@ TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 		}
 	});
 
-	CHECK(wld.has_direct(instance, position));
-	CHECK(wld.get<Position>(instance).x == doctest::Approx(9.0f));
+	CHECK(wld.has_direct(instanceA, position));
+	CHECK(wld.has_direct(instanceB, position));
+	CHECK(wld.get<Position>(instanceA).x == doctest::Approx(9.0f));
+	CHECK(wld.get<Position>(instanceB).x == doctest::Approx(9.0f));
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 

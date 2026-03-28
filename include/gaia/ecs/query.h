@@ -2762,8 +2762,6 @@ namespace gaia {
 							return false;
 						if (term.op == QueryOpKind::All && term.id == seedTerm.id && term.matchKind == seedTerm.matchKind)
 							continue;
-						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term))
-							return false;
 						if (is_adjunct_direct_term(world, term))
 							return false;
 					}

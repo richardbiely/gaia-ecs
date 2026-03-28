@@ -911,11 +911,10 @@ namespace gaia {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
 							const auto* pEntities = m_pChunk->entity_view().data() + from();
 							const auto id = m_pTermIdMapping[termIdx];
-							return SoATermViewGet<U>{nullptr, 0, pEntities, world(), id, 0, 1};
+							GAIA_ASSERT(id != EntityBad);
+							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), id, 0, size()};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
@@ -930,12 +929,9 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
-							const auto entity = m_pChunk->entity_view()[from()];
-							const auto id = m_pTermIdMapping[termIdx];
-							const auto& data = world_query_entity_arg_by_id<const U&>(*world(), entity, id);
-							return EntityTermViewGet<U>::pointer(&data, 1);
+							GAIA_ASSERT(id != EntityBad);
+							return EntityTermViewGet<U>::entity(
+									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), id, size());
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
