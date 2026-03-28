@@ -623,6 +623,14 @@ Under the hood they use the query engine, just like systems. However, systems ar
 
 Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
 
+Observer events currently mean:
+* `OnAdd` - an entity starts matching because ids were added
+* `OnDel` - an entity stops matching because ids were removed
+* `OnSet` - a value of an already present component was explicitly written
+
+`OnSet` is triggered by APIs such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, and `modify<T, true>(entity)`.
+It is not triggered by `sset(...)`, `modify<T, false>(entity)`, or by the initial `add<T>(entity, value)` that creates the component.
+
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
 ```cpp
@@ -692,7 +700,36 @@ w.del<Position>(e);
 w.del<Velocity>(e);
 ```
 
-Observers can be enabled by defining GAIA_ENABLE_OBSERVERS 1. The feature is currently disabled by default.
+Listening to value changes uses `OnSet`:
+```cpp
+ecs::World w;
+
+uint32_t hits = 0;
+
+w.observer()
+  .event(ecs::ObserverEvent::OnSet)
+  .all<Position>()
+  .on_each([&](ecs::Entity entity, const Position& pos) {
+    ++hits;
+    (void)entity;
+    (void)pos;
+  });
+
+ecs::Entity e = w.add();
+w.add<Position>(e, {1.0f, 2.0f, 3.0f});
+// No OnSet yet. This was the initial add.
+
+w.set<Position>(e) = {4.0f, 5.0f, 6.0f};
+// OnSet triggered once.
+
+w.acc_mut(e).sset<Position>({7.0f, 8.0f, 9.0f});
+// Still one hit. sset is silent.
+
+w.modify<Position, true>(e);
+// OnSet triggered again.
+```
+
+Observers can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`. The feature is currently disabled by default.
 
 ### Bulk editing
 

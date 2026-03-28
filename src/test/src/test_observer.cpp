@@ -160,6 +160,59 @@ TEST_CASE("Observer - simple") {
 	}
 }
 
+TEST_CASE("Observer - OnSet") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	ecs::Entity last = ecs::EntityBad;
+
+	const auto observerSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all<Position>()
+													 .on_each([&](ecs::Entity entity, const Position&) {
+														 ++hits;
+														 last = entity;
+													 })
+													 .entity();
+	(void)observerSet;
+
+	const auto e = wld.add();
+	wld.add<Position>(e);
+	wld.add<Rotation>(e, {4.0f, 5.0f, 6.0f});
+
+	CHECK(hits == 0);
+
+	wld.set<Rotation>(e) = {7.0f, 8.0f, 9.0f};
+	CHECK(hits == 0);
+
+	wld.set<Position>(e) = {10.0f, 11.0f, 12.0f};
+	CHECK(hits == 1);
+	CHECK(last == e);
+
+	wld.acc_mut(e).set<Position>({13.0f, 14.0f, 15.0f});
+	CHECK(hits == 2);
+	CHECK(last == e);
+
+	wld.acc_mut(e).sset<Position>({16.0f, 17.0f, 18.0f});
+	CHECK(hits == 2);
+
+	wld.modify<Position, false>(e);
+	CHECK(hits == 2);
+
+	wld.modify<Position, true>(e);
+	CHECK(hits == 3);
+	CHECK(last == e);
+
+	const auto e2 = wld.add();
+	wld.add<Position>(e2, {19.0f, 20.0f, 21.0f});
+	CHECK(hits == 3);
+	CHECK(last == e);
+
+	wld.set<Position>(e2) = {22.0f, 23.0f, 24.0f};
+	CHECK(hits == 4);
+	CHECK(last == e2);
+}
+
 TEST_CASE("EntityBuilder single-step graph rebuild tolerates stale del edges") {
 	TestWorld twld;
 

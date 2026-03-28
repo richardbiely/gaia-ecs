@@ -20,14 +20,19 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
-		//! Observer event types
+		//! Observer event types.
+		//! `OnSet` is emitted for explicit value writes to an already present component,
+		//! such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, or `modify<T, true>(entity)`.
+		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
+		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {
 			OnAdd, // Entity enters matching archetype
 			OnDel, // Entity leaves matching archetype
-			OnSet, // Component value changed
+			OnSet, // Component value changed on an already present component
 		};
 
-		//! Observer context passed to callbacks
+		//! Observer context passed to callbacks.
+		//! TODO: `old_ptr` is reserved for `OnSet` previous-value access but is not populated yet.
 		struct ObserverContext {
 			World* world;
 			Entity entity;

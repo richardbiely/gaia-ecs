@@ -27500,8 +27500,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		class Chunk;
 		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
 		void world_invalidate_sorted_queries(World& world);
+		void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to);
 
 		class GAIA_API Chunk final {
 		public:
@@ -28923,6 +28925,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
+				world_notify_on_set(*const_cast<World*>(m_header.world), comp_entity<T>(), *this, row, (uint16_t)(row + 1));
 				return view_mut<T>()[row];
 			}
 
@@ -28941,6 +28944,8 @@ namespace gaia {
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
 
+				world_notify_on_set(
+						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, row, (uint16_t)(row + 1));
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
@@ -28957,6 +28962,7 @@ namespace gaia {
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
 
+				world_notify_on_set(*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, 0, 1);
 				return comp_mut_idx<T, true>(0, compIdx);
 			}
 
@@ -28977,6 +28983,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
+				world_notify_on_set(*const_cast<World*>(m_header.world), type, *this, row, (uint16_t)(row + 1));
 
 				// TODO: This function works but is useless because it does the same job as
 				//       set(uint16_t row, U&& value).
@@ -33693,7 +33700,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut(Entity type) {
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(type);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
 			}
 
 			//! Sets the value of the component without triggering a world version update.
@@ -45741,14 +45748,19 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
-		//! Observer event types
+		//! Observer event types.
+		//! `OnSet` is emitted for explicit value writes to an already present component,
+		//! such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, or `modify<T, true>(entity)`.
+		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
+		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {
 			OnAdd, // Entity enters matching archetype
 			OnDel, // Entity leaves matching archetype
-			OnSet, // Component value changed
+			OnSet, // Component value changed on an already present component
 		};
 
-		//! Observer context passed to callbacks
+		//! Observer context passed to callbacks.
+		//! TODO: `old_ptr` is reserved for `OnSet` previous-value access but is not populated yet.
 		struct ObserverContext {
 			World* world;
 			Entity entity;
@@ -46753,6 +46765,42 @@ namespace gaia {
 
 						registry.m_relevant_observers_tmp.clear();
 					}
+
+					static void on_set(ObserverRegistry& registry, World& world, Entity term, EntitySpan targets) {
+						if GAIA_UNLIKELY (world.tearing_down())
+							return;
+						if (targets.empty())
+							return;
+
+						const auto itObservers = registry.m_observer_map_set.find(EntityLookupKey(term));
+						if (itObservers == registry.m_observer_map_set.end() || itObservers->second.empty())
+							return;
+
+						registry.m_relevant_observers_tmp.clear();
+						const auto matchStamp = ++registry.m_current_match_stamp;
+						SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
+
+						for (auto* pObs: registry.m_relevant_observers_tmp) {
+							auto& obs = *pObs;
+							for (auto entity: targets) {
+								if (!world.valid(entity))
+									continue;
+
+								auto& queryInfo = obs.query.fetch();
+								const auto& ec = world.fetch(entity);
+								if (ec.pArchetype == nullptr)
+									continue;
+								if (ec.pArchetype->has(Prefab) && !queryInfo.matches_prefab_entities())
+									continue;
+								if (!obs.query.matches_any(queryInfo, *ec.pArchetype, EntitySpan{&entity, 1}))
+									continue;
+
+								SharedDispatch::execute_targets(world, obs, EntitySpan{&entity, 1});
+							}
+						}
+
+						registry.m_relevant_observers_tmp.clear();
+					}
 				};
 
 				struct SharedDispatch {
@@ -46980,6 +47028,8 @@ namespace gaia {
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add;
 				//! Component to OnDel observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_del;
+				//! Component to OnSet observer mapping.
+				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_set;
 				//! Semantic `Is` target to OnAdd observer mapping.
 				cnt::map<EntityLookupKey, cnt::darray<Entity>> m_observer_map_add_is;
 				//! Semantic `Is` target to OnDel observer mapping.
@@ -47006,7 +47056,8 @@ namespace gaia {
 				GAIA_NODISCARD bool has_observers_for_term(Entity term) const {
 					const auto termKey = EntityLookupKey(term);
 					return m_observer_map_add.find(termKey) != m_observer_map_add.end() ||
-								 m_observer_map_del.find(termKey) != m_observer_map_del.end();
+								 m_observer_map_del.find(termKey) != m_observer_map_del.end() ||
+								 m_observer_map_set.find(termKey) != m_observer_map_set.end();
 				}
 
 				GAIA_NODISCARD static bool can_mark_term_observed(World& world, Entity term) {
@@ -47313,6 +47364,10 @@ namespace gaia {
 					return has_observers_for_term(term);
 				}
 
+				GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
+					return m_observer_map_set.find(EntityLookupKey(term)) != m_observer_map_set.end();
+				}
+
 				void add_diff_observer_term(World& world, Entity observer, Entity term, const QueryTermOptions& options) {
 					GAIA_ASSERT(world.valid(observer));
 
@@ -47405,6 +47460,7 @@ namespace gaia {
 					m_observer_data = {};
 					m_observer_map_add = {};
 					m_observer_map_del = {};
+					m_observer_map_set = {};
 					m_observer_map_add_is = {};
 					m_observer_map_del_is = {};
 					m_diff_index_add = {};
@@ -47466,6 +47522,7 @@ namespace gaia {
 					GAIA_ASSERT(term.pair() || world.valid(term));
 
 					const auto wasObserved = has_observers_for_term(term);
+					const auto canMarkObserved = can_mark_term_observed(world, term);
 					const auto& ec = world.fetch(observer);
 					const auto compIdx = ec.pChunk->comp_idx(Observer);
 					const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
@@ -47481,10 +47538,10 @@ namespace gaia {
 								add_observer_to_map(m_observer_map_del_is, world.get(term.gen()), observer);
 							break;
 						case ObserverEvent::OnSet:
-							// OnSet observers are not triggered via OnAdd/OnDel hooks.
+							add_observer_to_map(m_observer_map_set, term, observer);
 							break;
 					}
-					if (!wasObserved && has_observers_for_term(term) && can_mark_term_observed(world, term))
+					if (!wasObserved && canMarkObserved)
 						mark_term_observed(world, term, true);
 				}
 
@@ -47498,12 +47555,13 @@ namespace gaia {
 					const auto erasedData = m_observer_data.erase(termKey);
 					const auto erasedOnAdd = m_observer_map_add.erase(termKey);
 					const auto erasedOnDel = m_observer_map_del.erase(termKey);
+					const auto erasedOnSet = m_observer_map_set.erase(termKey);
 					if (is_semantic_is_term(term)) {
 						const auto isKey = EntityLookupKey(w.get(term.gen()));
 						m_observer_map_add_is.erase(isKey);
 						m_observer_map_del_is.erase(isKey);
 					}
-					if ((erasedOnAdd != 0 || erasedOnDel != 0) && can_mark_term_observed(w, term))
+					if ((erasedOnAdd != 0 || erasedOnDel != 0 || erasedOnSet != 0) && can_mark_term_observed(w, term))
 						mark_term_observed(w, term, false);
 
 					// A regular term deletion has nothing else to clean up.
@@ -47534,6 +47592,7 @@ namespace gaia {
 					};
 					remove_observer_from_map(m_observer_map_add);
 					remove_observer_from_map(m_observer_map_del);
+					remove_observer_from_map(m_observer_map_set);
 					remove_observer_from_map(m_observer_map_add_is);
 					remove_observer_from_map(m_observer_map_del_is);
 					auto remove_observer_from_diff_index = [&](auto& index) {
@@ -47565,6 +47624,10 @@ namespace gaia {
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					DirectDispatcher::on_del(*this, world, archetype, ents_removed, targets);
+				}
+
+				void on_set(World& world, Entity term, EntitySpan targets) {
+					DirectDispatcher::on_set(*this, world, term, targets);
 				}
 			};
 #endif
@@ -49976,7 +50039,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.set(object, GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 			}
 
@@ -50021,7 +50084,7 @@ namespace gaia {
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.set<T>(GAIA_FWD(value));
+				ComponentSetter{{ec.pChunk, idx}}.sset<T>(GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on @a entity.
@@ -51537,7 +51600,7 @@ namespace gaia {
 
 			//! Marks the component @a T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
-			//! If @a TriggerHooks is true, also triggers the component's set hooks.
+			//! If @a TriggerHooks is true, also triggers the component's set hooks and `OnSet` observers.
 			//! \tparam T Component type
 			//! \tparam TriggerHooks Triggers hooks if true
 			template <
@@ -51564,6 +51627,20 @@ namespace gaia {
 						TriggerHooks
 #endif
 						>();
+
+#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
+				if constexpr (TriggerHooks) {
+					Entity term = EntityBad;
+					if constexpr (is_pair<T>::value) {
+						const auto rel = comp_cache().template get<typename T::rel>().entity;
+						const auto tgt = comp_cache().template get<typename T::tgt>().entity;
+						term = (Entity)Pair(rel, tgt);
+					} else
+						term = comp_cache().template get<T>().entity;
+
+					world_notify_on_set(*this, term, *ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
+				}
+#endif
 			}
 
 			//----------------------------------------------------------------------
@@ -51581,6 +51658,7 @@ namespace gaia {
 			}
 
 			//! Sets the value of the component @a T on @a entity.
+			//! Triggers component set hooks and `OnSet` observers for that entity when observers are enabled.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
@@ -51599,6 +51677,7 @@ namespace gaia {
 			}
 
 			//! Sets the value of the component associated with @a object on @a entity.
+			//! Triggers component set hooks and `OnSet` observers for that entity when observers are enabled.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
@@ -51611,6 +51690,7 @@ namespace gaia {
 			}
 
 			//! Sets the value of the component @a T on @a entity without triggering a world version update.
+			//! This is a silent write and does not trigger set hooks or `OnSet` observers.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
@@ -51629,6 +51709,7 @@ namespace gaia {
 			}
 
 			//! Sets the value of the component associated with @a object on @a entity without updating world version.
+			//! This is a silent write and does not trigger set hooks or `OnSet` observers.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
@@ -60192,6 +60273,31 @@ namespace gaia {
 				return world.template set<Arg>(entity, termId);
 			} else
 				return world.template get<Arg>(entity, termId);
+		}
+
+		inline void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to) {
+#if GAIA_OBSERVERS_ENABLED
+			if (world.tearing_down())
+				return;
+			if (!world.observers().has_on_set_observers(term))
+				return;
+
+			auto entities = chunk.entity_view();
+			if (from >= entities.size())
+				return;
+			if (to > entities.size())
+				to = (uint16_t)entities.size();
+			if (from >= to)
+				return;
+
+			world.observers().on_set(world, term, EntitySpan{entities.data() + from, uint32_t(to - from)});
+#else
+			(void)world;
+			(void)term;
+			(void)chunk;
+			(void)from;
+			(void)to;
+#endif
 		}
 
 	} // namespace ecs

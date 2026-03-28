@@ -27,8 +27,10 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		class Chunk;
 		void world_invalidate_sorted_queries_for_entity(World& world, Entity entity);
 		void world_invalidate_sorted_queries(World& world);
+		void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to);
 
 		class GAIA_API Chunk final {
 		public:
@@ -1450,6 +1452,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
+				world_notify_on_set(*const_cast<World*>(m_header.world), comp_entity<T>(), *this, row, (uint16_t)(row + 1));
 				return view_mut<T>()[row];
 			}
 
@@ -1468,6 +1471,8 @@ namespace gaia {
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
 
+				world_notify_on_set(
+						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, row, (uint16_t)(row + 1));
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
@@ -1484,6 +1489,7 @@ namespace gaia {
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
 
+				world_notify_on_set(*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, 0, 1);
 				return comp_mut_idx<T, true>(0, compIdx);
 			}
 
@@ -1504,6 +1510,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
+				world_notify_on_set(*const_cast<World*>(m_header.world), type, *this, row, (uint16_t)(row + 1));
 
 				// TODO: This function works but is useless because it does the same job as
 				//       set(uint16_t row, U&& value).

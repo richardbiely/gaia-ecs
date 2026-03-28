@@ -71,7 +71,7 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut(Entity type) {
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(type);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
 			}
 
 			//! Sets the value of the component without triggering a world version update.
