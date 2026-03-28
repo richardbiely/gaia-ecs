@@ -48,7 +48,6 @@ namespace gaia {
 			struct DiffPlan {
 				enum class DispatchKind : uint8_t { LocalTargets, PropagatedTraversal, GlobalFallback };
 
-				
 				//! Bound variable used by the supported traversal/source diff narrowing shape.
 				Entity bindingVar = EntityBad;
 				//! Fixed pair relation that binds the traversal source variable.
@@ -182,6 +181,12 @@ namespace gaia {
 		struct ObserverRuntimeData {
 			using TObserverIterFunc = std::function<void(Iter&)>;
 
+			ObserverRuntimeData() {
+				GAIA_FOR(MAX_ITEMS_IN_QUERY) {
+					queryTermIds[i] = EntityBad;
+				}
+			}
+
 			//! Entity identifying the observer
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
@@ -190,6 +195,8 @@ namespace gaia {
 			Query query;
 			//! Precomputed observer execution plan.
 			ObserverPlan plan;
+			//! Query term ids cached in field order for observer iteration setup.
+			QueryEntityArray queryTermIds{};
 			//! Hot-path stamp used for O(1) deduplication during observer candidate collection.
 			uint64_t lastMatchStamp = 0;
 

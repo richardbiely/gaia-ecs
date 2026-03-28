@@ -92,16 +92,8 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
-			const auto terms = queryInfo.ctx().data.terms_view();
-			const auto queryIdCnt = (uint32_t)terms.size();
-			Entity termIds[ChunkHeader::MAX_COMPONENTS];
-			GAIA_FOR(ChunkHeader::MAX_COMPONENTS) {
-				termIds[i] = EntityBad;
-			}
-			GAIA_FOR(queryIdCnt) {
-				const auto& term = terms[i];
-				termIds[term.fieldIndex] = term.id;
-			}
+			const auto queryIdCnt = (uint32_t)plan.termCount;
+			const auto& termIds = queryTermIds;
 
 			const Archetype* pCachedArchetype = nullptr;
 			uint8_t cachedIndices[ChunkHeader::MAX_COMPONENTS];
@@ -136,7 +128,7 @@ namespace gaia {
 				iter.set_archetype(ec.pArchetype);
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 				iter.set_comp_indices(cachedIndices);
-				iter.set_term_ids(termIds);
+				iter.set_term_ids(termIds.data());
 				on_each_func(iter);
 			}
 		}
@@ -167,6 +159,12 @@ namespace gaia {
 
 			const ObserverRuntimeData& runtime_data() const {
 				return m_world.observers().data(m_entity);
+			}
+
+			static void cache_term_id(ObserverRuntimeData& data, Entity term) {
+				GAIA_ASSERT(data.plan.termCount < MAX_ITEMS_IN_QUERY);
+				if (data.plan.termCount < MAX_ITEMS_IN_QUERY)
+					data.queryTermIds[data.plan.termCount] = term;
 			}
 
 			bool has_default_match_options(const QueryTermOptions& options) const {
@@ -354,6 +352,7 @@ namespace gaia {
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data) {
 				const auto term = m_world.add<T>().entity;
+				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
 				register_diff_term(data, Op, term, QueryTermOptions{});
 				m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
@@ -362,6 +361,7 @@ namespace gaia {
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
 				const auto term = m_world.add<T>().entity;
+				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
 				register_diff_term(data, Op, term, options);
 				m_world.observers().add(m_world, term, m_entity, options.matchKind);
@@ -393,6 +393,7 @@ namespace gaia {
 				options.access = item.access;
 				options.matchKind = item.matchKind;
 
+				cache_term_id(data, item.id);
 				data.plan.add_term_descriptor(item.op, is_fast_path_eligible_term(item.id, options));
 				register_diff_term(data, item.op, item.id, options);
 				m_world.observers().add(m_world, item.id, m_entity, item.matchKind);
@@ -418,6 +419,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.all(entity, options);
+				cache_term_id(data, entity);
 				data.plan.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
 				register_diff_term(data, QueryOpKind::All, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
@@ -428,6 +430,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.any(entity, options);
+				cache_term_id(data, entity);
 				data.plan.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
 				register_diff_term(data, QueryOpKind::Any, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
@@ -438,6 +441,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
+				cache_term_id(data, entity);
 				data.plan.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
 				register_diff_term(data, QueryOpKind::Or, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
@@ -448,6 +452,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.no(entity, options);
+				cache_term_id(data, entity);
 				data.plan.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
 				register_diff_term(data, QueryOpKind::Not, entity, options);
 				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
