@@ -33049,14 +33049,9 @@ namespace gaia {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
-							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
-							const auto* pEntities = ec.pChunk->entity_view().data() + ec.row;
-							return SoATermViewSet<U>{nullptr, 0, pEntities, world(), id, 0, 1};
+							GAIA_ASSERT(id != EntityBad);
+							return SoATermViewSet<U>{nullptr, 0, m_pChunk->entity_view().data() + from(), world(), id, 0, size()};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
@@ -33071,12 +33066,9 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
-							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							return EntityTermViewSet<U>::pointer(&data, 1);
+							GAIA_ASSERT(id != EntityBad);
+							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 
@@ -33174,14 +33166,9 @@ namespace gaia {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
-							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							(void)world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							const auto& ec = ::gaia::ecs::fetch(*world(), entity);
-							const auto* pEntities = ec.pChunk->entity_view().data() + ec.row;
-							return SoATermViewSet<U>{nullptr, 0, pEntities, world(), id, 0, 1};
+							GAIA_ASSERT(id != EntityBad);
+							return SoATermViewSet<U>{nullptr, 0, m_pChunk->entity_view().data() + from(), world(), id, 0, size()};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
@@ -33195,12 +33182,9 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(size() == 1);
-
-							const auto entity = m_pChunk->entity_view()[from()];
 							const auto id = m_pTermIdMapping[termIdx];
-							auto& data = world_query_entity_arg_by_id<U&>(*world(), entity, id);
-							return EntityTermViewSet<U>::pointer(&data, 1);
+							GAIA_ASSERT(id != EntityBad);
+							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
@@ -38744,7 +38728,7 @@ namespace gaia {
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
 			//! \warning Not thread safe. No two threads can call this at the same time.
-			void match_one(
+			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
@@ -38755,7 +38739,7 @@ namespace gaia {
 
 				// Skip if nothing has been compiled.
 				if (!m_plan.vm.is_compiled())
-					return;
+					return false;
 
 				const bool hasDynamicTerms = has_dyn_terms();
 				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
@@ -38797,6 +38781,7 @@ namespace gaia {
 
 				// Run the virtual machine
 				m_plan.vm.exec(ctx);
+				const bool matched = !ctx.pMatchesArr->empty();
 
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
@@ -38809,6 +38794,7 @@ namespace gaia {
 				}
 				snapshot_dyn_inputs(runtimeVarBindings, runtimeVarBindingMask);
 				m_state.clear_dirty();
+				return matched;
 			}
 
 			void ensure_matches(
@@ -38864,13 +38850,13 @@ namespace gaia {
 				ensure_group_data();
 			}
 
-			void ensure_matches_one(
+			bool ensure_matches_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
-				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
+				return match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			void ensure_matches_one_transient(
+			bool ensure_matches_one_transient(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
@@ -38879,7 +38865,7 @@ namespace gaia {
 					recompile();
 
 				if (!m_plan.vm.is_compiled())
-					return;
+					return false;
 
 				m_state.clear_transient_result_cache();
 
@@ -38907,6 +38893,7 @@ namespace gaia {
 				ctx.varBindingMask = runtimeVarBindingMask;
 
 				m_plan.vm.exec(ctx);
+				const bool matched = !ctx.pMatchesArr->empty();
 
 				m_state.archetypeCache.reserve(ctx.pMatchesArr->size());
 				if (ctxData.groupBy != EntityBad)
@@ -38915,6 +38902,7 @@ namespace gaia {
 					add_archetype_to_transient_cache(pArch);
 
 				ensure_group_data();
+				return matched;
 			}
 
 			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad, bool assumeNew = false) {
@@ -41274,15 +41262,15 @@ namespace gaia {
 					}
 				}
 
-				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+				GAIA_NODISCARD bool match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if constexpr (UseCaching) {
 						if (!uses_shared_cache_layer()) {
-							queryInfo.ensure_matches_one_transient(archetype, targetEntities, m_varBindings, m_varBindingsMask);
-							return;
+							return queryInfo.ensure_matches_one_transient(
+									archetype, targetEntities, m_varBindings, m_varBindingsMask);
 						}
 					}
 
-					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
+					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
@@ -43700,15 +43688,7 @@ namespace gaia {
 						return false;
 					}
 
-					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
-
-					bool archetypeMatched = false;
-					for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
-						if (pMatchedArchetype != &archetype)
-							continue;
-						archetypeMatched = true;
-						break;
-					}
+					const bool archetypeMatched = match_one(queryInfo, archetype, targetEntities);
 
 					if (!archetypeMatched)
 						return false;
@@ -44198,7 +44178,6 @@ namespace gaia {
 									func();
 								}
 							}
-
 							return;
 						}
 					}

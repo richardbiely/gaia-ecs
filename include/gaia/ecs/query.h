@@ -875,15 +875,15 @@ namespace gaia {
 					}
 				}
 
-				void match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
+				GAIA_NODISCARD bool match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if constexpr (UseCaching) {
 						if (!uses_shared_cache_layer()) {
-							queryInfo.ensure_matches_one_transient(archetype, targetEntities, m_varBindings, m_varBindingsMask);
-							return;
+							return queryInfo.ensure_matches_one_transient(
+									archetype, targetEntities, m_varBindings, m_varBindingsMask);
 						}
 					}
 
-					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
+					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
@@ -3301,15 +3301,7 @@ namespace gaia {
 						return false;
 					}
 
-					queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
-
-					bool archetypeMatched = false;
-					for (const auto* pMatchedArchetype: queryInfo.cache_archetype_view()) {
-						if (pMatchedArchetype != &archetype)
-							continue;
-						archetypeMatched = true;
-						break;
-					}
+					const bool archetypeMatched = match_one(queryInfo, archetype, targetEntities);
 
 					if (!archetypeMatched)
 						return false;
@@ -3799,7 +3791,6 @@ namespace gaia {
 									func();
 								}
 							}
-
 							return;
 						}
 					}

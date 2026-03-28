@@ -846,7 +846,7 @@ namespace gaia {
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
 			//! \warning Not thread safe. No two threads can call this at the same time.
-			void match_one(
+			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
@@ -857,7 +857,7 @@ namespace gaia {
 
 				// Skip if nothing has been compiled.
 				if (!m_plan.vm.is_compiled())
-					return;
+					return false;
 
 				const bool hasDynamicTerms = has_dyn_terms();
 				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
@@ -899,6 +899,7 @@ namespace gaia {
 
 				// Run the virtual machine
 				m_plan.vm.exec(ctx);
+				const bool matched = !ctx.pMatchesArr->empty();
 
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
@@ -911,6 +912,7 @@ namespace gaia {
 				}
 				snapshot_dyn_inputs(runtimeVarBindings, runtimeVarBindingMask);
 				m_state.clear_dirty();
+				return matched;
 			}
 
 			void ensure_matches(
@@ -966,13 +968,13 @@ namespace gaia {
 				ensure_group_data();
 			}
 
-			void ensure_matches_one(
+			bool ensure_matches_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
-				match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
+				return match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
-			void ensure_matches_one_transient(
+			bool ensure_matches_one_transient(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
@@ -981,7 +983,7 @@ namespace gaia {
 					recompile();
 
 				if (!m_plan.vm.is_compiled())
-					return;
+					return false;
 
 				m_state.clear_transient_result_cache();
 
@@ -1009,6 +1011,7 @@ namespace gaia {
 				ctx.varBindingMask = runtimeVarBindingMask;
 
 				m_plan.vm.exec(ctx);
+				const bool matched = !ctx.pMatchesArr->empty();
 
 				m_state.archetypeCache.reserve(ctx.pMatchesArr->size());
 				if (ctxData.groupBy != EntityBad)
@@ -1017,6 +1020,7 @@ namespace gaia {
 					add_archetype_to_transient_cache(pArch);
 
 				ensure_group_data();
+				return matched;
 			}
 
 			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad, bool assumeNew = false) {
