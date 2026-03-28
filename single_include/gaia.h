@@ -45988,6 +45988,7 @@ namespace gaia {
 		class ObserverBuilder;
 #endif
 		class World;
+		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 
 		template <typename T>
 		struct SparseComponentRecord {
@@ -51658,7 +51659,8 @@ namespace gaia {
 			}
 
 			//! Sets the value of the component @a T on @a entity.
-			//! Triggers component set hooks and `OnSet` observers for that entity when observers are enabled.
+			//! Triggers `OnSet` observers for that entity when observers are enabled.
+			//! Chunk-backed components also trigger component set hooks.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
@@ -51670,21 +51672,26 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 				if constexpr (supports_out_of_line_component<FT>()) {
-					if (is_out_of_line_component(item.entity))
+					if (is_out_of_line_component(item.entity)) {
+						world_notify_on_set_entity(*this, item.entity, entity);
 						return sparse_component_store_mut<FT>(item.entity).mut(entity);
+					}
 				}
 				return acc_mut(entity).mut<T>();
 			}
 
 			//! Sets the value of the component associated with @a object on @a entity.
-			//! Triggers component set hooks and `OnSet` observers for that entity when observers are enabled.
+			//! Triggers `OnSet` observers for that entity when observers are enabled.
+			//! Chunk-backed components also trigger component set hooks.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object))
+					if (can_use_out_of_line_component<FT>(object)) {
+						world_notify_on_set_entity(*this, object, entity);
 						return sparse_component_store_mut<FT>(object).mut(entity);
+					}
 				}
 				return acc_mut(entity).mut<T>(object);
 			}
@@ -60297,6 +60304,23 @@ namespace gaia {
 			(void)chunk;
 			(void)from;
 			(void)to;
+#endif
+		}
+
+		inline void world_notify_on_set_entity(World& world, Entity term, Entity entity) {
+#if GAIA_OBSERVERS_ENABLED
+			if (world.tearing_down())
+				return;
+			if (!world.valid(entity))
+				return;
+			if (!world.observers().has_on_set_observers(term))
+				return;
+
+			world.observers().on_set(world, term, EntitySpan{&entity, 1});
+#else
+			(void)world;
+			(void)term;
+			(void)entity;
 #endif
 		}
 

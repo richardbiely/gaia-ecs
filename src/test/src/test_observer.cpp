@@ -165,6 +165,8 @@ TEST_CASE("Observer - OnSet") {
 
 	uint32_t hits = 0;
 	ecs::Entity last = ecs::EntityBad;
+	uint32_t sparseHits = 0;
+	ecs::Entity sparseLast = ecs::EntityBad;
 
 	const auto observerSet = wld.observer()
 													 .event(ecs::ObserverEvent::OnSet)
@@ -175,6 +177,16 @@ TEST_CASE("Observer - OnSet") {
 													 })
 													 .entity();
 	(void)observerSet;
+
+	const auto sparseObserverSet = wld.observer()
+																 .event(ecs::ObserverEvent::OnSet)
+																 .all<PositionSparse>()
+																 .on_each([&](ecs::Entity entity, const PositionSparse&) {
+																	 ++sparseHits;
+																	 sparseLast = entity;
+																 })
+																 .entity();
+	(void)sparseObserverSet;
 
 	const auto e = wld.add();
 	wld.add<Position>(e);
@@ -203,12 +215,19 @@ TEST_CASE("Observer - OnSet") {
 	CHECK(hits == 3);
 	CHECK(last == e);
 
+	wld.add<PositionSparse>(e);
+	CHECK(sparseHits == 0);
+
+	wld.set<PositionSparse>(e) = {19.0f, 20.0f, 21.0f};
+	CHECK(sparseHits == 1);
+	CHECK(sparseLast == e);
+
 	const auto e2 = wld.add();
-	wld.add<Position>(e2, {19.0f, 20.0f, 21.0f});
+	wld.add<Position>(e2, {22.0f, 23.0f, 24.0f});
 	CHECK(hits == 3);
 	CHECK(last == e);
 
-	wld.set<Position>(e2) = {22.0f, 23.0f, 24.0f};
+	wld.set<Position>(e2) = {25.0f, 26.0f, 27.0f};
 	CHECK(hits == 4);
 	CHECK(last == e2);
 }
