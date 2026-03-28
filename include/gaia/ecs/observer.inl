@@ -39,27 +39,42 @@ namespace gaia {
 			func(observer_inherited_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
 		}
 
+		template <typename... T>
+		static bool observer_has_inherited_query_terms(Query& query, World& world, core::func_type_list<T...>) {
+			constexpr bool needsInheritedArgIds =
+					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+			if constexpr (!needsInheritedArgIds)
+				return false;
+			else {
+				auto& queryInfo = query.fetch();
+				for (const auto& term: queryInfo.ctx().data.terms_view()) {
+					if (Query::uses_inherited_id_matching(world, term))
+						return true;
+				}
+				return false;
+			}
+		}
+
+		template <typename... T>
+		static void observer_init_inherited_arg_ids(Entity* pArgIds, World& world, core::func_type_list<T...>) {
+			if constexpr (sizeof...(T) > 0) {
+				const Entity ids[] = {observer_inherited_arg_id<T>(world)...};
+				GAIA_FOR(sizeof...(T)) pArgIds[i] = ids[i];
+			}
+		}
+
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
-				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>) {
+				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
+				bool hasInheritedTerms, const Entity* pInheritedArgIds) {
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 			if constexpr (!needsInheritedArgIds)
 				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
 			else {
-				bool hasInheritedTerms = false;
-				auto& queryInfo = obs.query.fetch();
-				for (const auto& term: queryInfo.ctx().data.terms_view()) {
-					if (Query::uses_inherited_id_matching(world, term)) {
-						hasInheritedTerms = true;
-						break;
-					}
-				}
-
 				if (hasInheritedTerms) {
-					Entity inheritedArgIds[] = {observer_inherited_arg_id<T>(world)...};
 					observer_invoke_inherited_args_by_id<T...>(
-							world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
+							world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
 					return;
 				}
 
@@ -596,6 +611,10 @@ namespace gaia {
 				} else {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
+					const bool hasInheritedTerms = observer_has_inherited_query_terms(ctx.query, m_world, InputArgs{});
+					Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
+					observer_init_inherited_arg_ids(inheritedArgIds, m_world, InputArgs{});
+
 	#if GAIA_ASSERT_ENABLED
 					// Make sure we only use components specified in the query.
 					// Constness is respected. Therefore, if a type is const when registered to query,
@@ -605,11 +624,11 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [e = m_entity, func](Iter& it) mutable {
+					ctx.on_each_func = [e = m_entity, func, hasInheritedTerms, inheritedArgIds](Iter& it) mutable {
 						auto& obs = it.world()->observers().data(e);
 						auto& world = *it.world();
 						const auto entity = it.view<Entity>()[0];
-						observer_run_typed_on_entity(obs, world, entity, it, func, InputArgs{});
+						observer_run_typed_on_entity(obs, world, entity, it, func, InputArgs{}, hasInheritedTerms, inheritedArgIds);
 					};
 				}
 
