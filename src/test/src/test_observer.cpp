@@ -171,25 +171,25 @@ TEST_CASE("Observer - OnSet") {
 	PositionSparse lastSparsePos{};
 
 	const auto observerSet = wld.observer()
-													 .event(ecs::ObserverEvent::OnSet)
-													 .all<Position>()
-													 .on_each([&](ecs::Entity entity, const Position& pos) {
-														 ++hits;
-														 last = entity;
-														 lastPos = pos;
-													 })
-													 .entity();
+															 .event(ecs::ObserverEvent::OnSet)
+															 .all<Position>()
+															 .on_each([&](ecs::Entity entity, const Position& pos) {
+																 ++hits;
+																 last = entity;
+																 lastPos = pos;
+															 })
+															 .entity();
 	(void)observerSet;
 
 	const auto sparseObserverSet = wld.observer()
-																 .event(ecs::ObserverEvent::OnSet)
-																 .all<PositionSparse>()
-																 .on_each([&](ecs::Entity entity, const PositionSparse& pos) {
-																	 ++sparseHits;
-																	 sparseLast = entity;
-																	 lastSparsePos = pos;
-																 })
-																 .entity();
+																		 .event(ecs::ObserverEvent::OnSet)
+																		 .all<PositionSparse>()
+																		 .on_each([&](ecs::Entity entity, const PositionSparse& pos) {
+																			 ++sparseHits;
+																			 sparseLast = entity;
+																			 lastSparsePos = pos;
+																		 })
+																		 .entity();
 	(void)sparseObserverSet;
 
 	const auto e = wld.add();
@@ -248,6 +248,61 @@ TEST_CASE("Observer - OnSet") {
 	CHECK(lastPos.z == doctest::Approx(27.0f));
 }
 
+TEST_CASE("World modify emits OnSet for raw writes") {
+	TestWorld twld;
+
+	uint32_t hits = 0;
+	Position lastPos{};
+	uint32_t sparseHits = 0;
+	PositionSparse lastSparsePos{};
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<Position>()
+			.on_each([&](ecs::Entity, const Position& pos) {
+				++hits;
+				lastPos = pos;
+			})
+			.entity();
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all<PositionSparse>()
+			.on_each([&](ecs::Entity, const PositionSparse& pos) {
+				++sparseHits;
+				lastSparsePos = pos;
+			})
+			.entity();
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+
+	{
+		auto& pos = wld.mut<Position>(e);
+		pos = {7.0f, 8.0f, 9.0f};
+	}
+	wld.modify<Position, false>(e);
+	CHECK(hits == 0);
+	wld.modify<Position, true>(e);
+	CHECK(hits == 1);
+	CHECK(lastPos.x == doctest::Approx(7.0f));
+	CHECK(lastPos.y == doctest::Approx(8.0f));
+	CHECK(lastPos.z == doctest::Approx(9.0f));
+
+	{
+		auto& pos = wld.mut<PositionSparse>(e);
+		pos = {10.0f, 11.0f, 12.0f};
+	}
+	wld.modify<PositionSparse, false>(e);
+	CHECK(sparseHits == 0);
+	wld.modify<PositionSparse, true>(e);
+	CHECK(sparseHits == 1);
+	CHECK(lastSparsePos.x == doctest::Approx(10.0f));
+	CHECK(lastSparsePos.y == doctest::Approx(11.0f));
+	CHECK(lastSparsePos.z == doctest::Approx(12.0f));
+}
+
 TEST_CASE("Observer - OnSet after query write callbacks") {
 	SUBCASE("typed chunk-backed query") {
 		TestWorld twld;
@@ -255,13 +310,13 @@ TEST_CASE("Observer - OnSet after query write callbacks") {
 		uint32_t hits = 0;
 		Position lastPos{};
 		const auto observer = wld.observer()
-				.event(ecs::ObserverEvent::OnSet)
-				.all<Position>()
-				.on_each([&](const Position& pos) {
-					++hits;
-					lastPos = pos;
-				})
-				.entity();
+															.event(ecs::ObserverEvent::OnSet)
+															.all<Position>()
+															.on_each([&](const Position& pos) {
+																++hits;
+																lastPos = pos;
+															})
+															.entity();
 		(void)observer;
 
 		const auto e = wld.add();
@@ -288,13 +343,13 @@ TEST_CASE("Observer - OnSet after query write callbacks") {
 		uint32_t hits = 0;
 		Position lastPos{};
 		const auto observer = wld.observer()
-				.event(ecs::ObserverEvent::OnSet)
-				.all<Position>()
-				.on_each([&](const Position& pos) {
-					++hits;
-					lastPos = pos;
-				})
-				.entity();
+															.event(ecs::ObserverEvent::OnSet)
+															.all<Position>()
+															.on_each([&](const Position& pos) {
+																++hits;
+																lastPos = pos;
+															})
+															.entity();
 		(void)observer;
 
 		const auto e = wld.add();
@@ -324,13 +379,13 @@ TEST_CASE("Observer - OnSet after query write callbacks") {
 		uint32_t hits = 0;
 		PositionSparse lastPos{};
 		const auto observer = wld.observer()
-				.event(ecs::ObserverEvent::OnSet)
-				.all<PositionSparse>()
-				.on_each([&](const PositionSparse& pos) {
-					++hits;
-					lastPos = pos;
-				})
-				.entity();
+															.event(ecs::ObserverEvent::OnSet)
+															.all<PositionSparse>()
+															.on_each([&](const PositionSparse& pos) {
+																++hits;
+																lastPos = pos;
+															})
+															.entity();
 		(void)observer;
 
 		const auto e = wld.add();
@@ -359,26 +414,26 @@ TEST_CASE("Observer - write callbacks emit OnSet after callback completion") {
 		uint32_t onSetHits = 0;
 		Position lastPos{};
 		const auto onSetObserver = wld.observer()
-										 .event(ecs::ObserverEvent::OnSet)
-										 .all<Position>()
-										 .on_each([&](const Position& pos) {
-											 ++onSetHits;
-											 lastPos = pos;
-										 })
-										 .entity();
+																	 .event(ecs::ObserverEvent::OnSet)
+																	 .all<Position>()
+																	 .on_each([&](const Position& pos) {
+																		 ++onSetHits;
+																		 lastPos = pos;
+																	 })
+																	 .entity();
 		(void)onSetObserver;
 
 		const auto onAddObserver = wld.observer()
-										 .event(ecs::ObserverEvent::OnAdd)
-										 .all<Position&>()
-										 .on_each([&](Position& pos) {
-											 CHECK(onSetHits == 0);
-											 pos.x = 40.0f;
-											 pos.y = 41.0f;
-											 pos.z = 42.0f;
-											 CHECK(onSetHits == 0);
-										 })
-										 .entity();
+																	 .event(ecs::ObserverEvent::OnAdd)
+																	 .all<Position&>()
+																	 .on_each([&](Position& pos) {
+																		 CHECK(onSetHits == 0);
+																		 pos.x = 40.0f;
+																		 pos.y = 41.0f;
+																		 pos.z = 42.0f;
+																		 CHECK(onSetHits == 0);
+																	 })
+																	 .entity();
 		(void)onAddObserver;
 
 		const auto e = wld.add();
@@ -396,29 +451,29 @@ TEST_CASE("Observer - write callbacks emit OnSet after callback completion") {
 		uint32_t onSetHits = 0;
 		Position lastPos{};
 		const auto onSetObserver = wld.observer()
-										 .event(ecs::ObserverEvent::OnSet)
-										 .all<Position>()
-										 .on_each([&](const Position& pos) {
-											 ++onSetHits;
-											 lastPos = pos;
-										 })
-										 .entity();
+																	 .event(ecs::ObserverEvent::OnSet)
+																	 .all<Position>()
+																	 .on_each([&](const Position& pos) {
+																		 ++onSetHits;
+																		 lastPos = pos;
+																	 })
+																	 .entity();
 		(void)onSetObserver;
 
 		const auto onAddObserver = wld.observer()
-										 .event(ecs::ObserverEvent::OnAdd)
-										 .all<Position&>()
-										 .on_each([&](ecs::Iter& it) {
-											 auto posView = it.view_mut<Position>();
-											 CHECK(onSetHits == 0);
-											 GAIA_EACH(it) {
-												 posView[i].x = 50.0f;
-												 posView[i].y = 51.0f;
-												 posView[i].z = 52.0f;
-												 CHECK(onSetHits == 0);
-											 }
-										 })
-										 .entity();
+																	 .event(ecs::ObserverEvent::OnAdd)
+																	 .all<Position&>()
+																	 .on_each([&](ecs::Iter& it) {
+																		 auto posView = it.view_mut<Position>();
+																		 CHECK(onSetHits == 0);
+																		 GAIA_EACH(it) {
+																			 posView[i].x = 50.0f;
+																			 posView[i].y = 51.0f;
+																			 posView[i].z = 52.0f;
+																			 CHECK(onSetHits == 0);
+																		 }
+																	 })
+																	 .entity();
 		(void)onAddObserver;
 
 		const auto e = wld.add();

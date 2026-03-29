@@ -692,12 +692,12 @@ namespace gaia {
 
 			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			//! If \tparam TriggerSetHooks is true, also triggers the component's set hooks.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
 					,
-					bool TriggerHooks
+					bool TriggerSetHooks
 #endif
 					>
 			GAIA_FORCEINLINE void modify() {
@@ -719,7 +719,7 @@ namespace gaia {
 					update_world_version(compIdx);
 
 #if GAIA_ENABLE_SET_HOOKS
-					if constexpr (TriggerHooks) {
+					if constexpr (TriggerSetHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -740,7 +740,7 @@ namespace gaia {
 					update_world_version(compIdx);
 
 #if GAIA_ENABLE_SET_HOOKS
-					if constexpr (TriggerHooks) {
+					if constexpr (TriggerSetHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);

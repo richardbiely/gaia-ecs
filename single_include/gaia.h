@@ -28165,12 +28165,12 @@ namespace gaia {
 
 			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			//! If \tparam TriggerSetHooks is true, also triggers the component's set hooks.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
 					,
-					bool TriggerHooks
+					bool TriggerSetHooks
 #endif
 					>
 			GAIA_FORCEINLINE void modify() {
@@ -28192,7 +28192,7 @@ namespace gaia {
 					update_world_version(compIdx);
 
 #if GAIA_ENABLE_SET_HOOKS
-					if constexpr (TriggerHooks) {
+					if constexpr (TriggerSetHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -28213,7 +28213,7 @@ namespace gaia {
 					update_world_version(compIdx);
 
 #if GAIA_ENABLE_SET_HOOKS
-					if constexpr (TriggerHooks) {
+					if constexpr (TriggerSetHooks) {
 						const auto& rec = m_records.pRecords[compIdx];
 						if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
 							rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
@@ -52342,14 +52342,15 @@ namespace gaia {
 
 			//! Marks the component @a T as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
-			//! If @a TriggerHooks is true, also triggers the component's set hooks and `OnSet` observers.
+			//! If @a TriggerSetEffects is true, also triggers the component's set side effects:
+			//! set hooks and `OnSet` observers.
 			//! \tparam T Component type
-			//! \tparam TriggerHooks Triggers hooks if true
+			//! \tparam TriggerSetEffects Triggers set side effects if true
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
 					,
-					bool TriggerHooks
+					bool TriggerSetEffects
 #endif
 					>
 			void modify(Entity entity) {
@@ -52357,8 +52358,19 @@ namespace gaia {
 
 				if constexpr (supports_out_of_line_component<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
-					if (pItem != nullptr && is_out_of_line_component(pItem->entity))
+					if (pItem != nullptr && is_out_of_line_component(pItem->entity)) {
+						auto* pStore = sparse_component_store<typename component_type_t<T>::TypeFull>(pItem->entity);
+						GAIA_ASSERT(pStore != nullptr);
+						GAIA_ASSERT(pStore->has(entity));
+
+						::gaia::ecs::update_version(m_worldVersion);
+
+#if GAIA_OBSERVERS_ENABLED
+						if constexpr (TriggerSetEffects)
+							world_notify_on_set_entity(*this, pItem->entity, entity);
+#endif
 						return;
+					}
 				}
 
 				auto& ec = m_recs.entities[entity.id()];
@@ -52366,12 +52378,12 @@ namespace gaia {
 						T
 #if GAIA_ENABLE_HOOKS
 						,
-						TriggerHooks
+						TriggerSetEffects
 #endif
 						>();
 
-#if GAIA_OBSERVERS_ENABLED && GAIA_ENABLE_HOOKS
-				if constexpr (TriggerHooks) {
+#if GAIA_OBSERVERS_ENABLED
+				if constexpr (TriggerSetEffects) {
 					Entity term = EntityBad;
 					if constexpr (is_pair<T>::value) {
 						const auto rel = comp_cache().template get<typename T::rel>().entity;

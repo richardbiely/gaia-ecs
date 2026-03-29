@@ -784,7 +784,7 @@ builder.commit();
 ```cpp
 // Change Velocity's value.
 w.set<Velocity>(e) = {0, 0, 2};
-// Same as above but the world version is not updated so nobody gets notified of this change.
+// Same shape as above but silent: no world-version update, no hooks, no OnSet observers.
 w.sset<Velocity>(e) = {4, 2, 0};
 ```
 
@@ -809,6 +809,8 @@ w.add<Position>(e, {1, 2, 3});
 const auto& updated = w.get<Position>(e);
 // updated is {10, 20, 30}
 ```
+
+If you need the write to happen immediately, use `acc_mut(entity).set<T>(...)` instead of `w.set<T>(entity)`.
 
 When setting multiple component values at once it is more efficient doing it via chaining:
 
@@ -836,7 +838,8 @@ auto& vel = setter.mut<Velocity>();
 auto& pos = setter.mut<Position>();
 ```
 
-`setter.mut<T>()` and `w.mut<T>(e)` are silent raw write paths. If you use them and want hooks or `OnSet`, call `w.modify<T, true>(e)` after finishing the write.
+`setter.mut<T>()` and `w.mut<T>(e)` are silent raw write paths. If you use them and want hooks or `OnSet`, call
+`w.modify<T, true>(e)` after finishing the write.
 
 Use the write path that matches the behavior you want:
 * `set<T>(entity)` - writes back on scope/full-expression end and then triggers set hooks and `OnSet`
