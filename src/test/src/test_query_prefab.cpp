@@ -2642,8 +2642,7 @@ TEST_CASE("Prefab - inherited component query writes local overrides") {
 	CHECK(wld.get<Position>(prefabAnimal).x == doctest::Approx(5.0f));
 }
 
-TEST_CASE(
-		"Is inheritance - inherited component queries see derived entities and create local overrides on write") {
+TEST_CASE("Is inheritance - inherited component queries see derived entities and create local overrides on write") {
 	TestWorld twld;
 
 	const auto animal = wld.add();
@@ -4357,30 +4356,42 @@ TEST_CASE("Query - cache kind and policy") {
 	auto qCachedDynamicOptIn =
 			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
+	auto qSharedImmediate = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
 	auto qNoneImmediate = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
 	auto qUncachedImmediate = wld.query<false>().all<Position>();
 
 	CHECK(qCachedImmediate.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedImmediate.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
 	CHECK(qCachedLazy.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedLazy.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedLazy.cache_policy() == ecs::QueryCachePolicy::Lazy);
 
 	CHECK(qCachedDynamic.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedDynamic.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qCachedDynamic.cache_src_trav() == 0);
 
 	CHECK(qCachedDynamicOptIn.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedDynamicOptIn.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedDynamicOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qCachedDynamicOptIn.cache_src_trav() == 32);
 
 	CHECK(qCachedVar.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedVar.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedVar.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 
+	CHECK(qSharedImmediate.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qSharedImmediate.cache_scope() == ecs::QueryCacheScope::Shared);
+	CHECK(qSharedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
+
 	CHECK(qNoneImmediate.cache_kind() == ecs::QueryCacheKind::None);
+	CHECK(qNoneImmediate.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qNoneImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
 	CHECK(qUncachedImmediate.cache_kind() == ecs::QueryCacheKind::None);
+	CHECK(qUncachedImmediate.cache_scope() == ecs::QueryCacheScope::Local);
 	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 }
 
@@ -4515,6 +4526,7 @@ TEST_CASE("Query - shared cache for identical traversed queries") {
 
 	const auto buildQuery = [&] {
 		return wld.query()
+				.cache_scope(ecs::QueryCacheScope::Shared)
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
@@ -5250,31 +5262,37 @@ TEST_CASE("Query - exact owned term matcher with inherited fallback") {
 	expect_exact_entities(qInherited, {instance});
 }
 
-TEST_CASE("Query - uncached query state is not immediately updated by shared cache propagation") {
+TEST_CASE("Query - only shared-scope query state is immediately updated by shared cache propagation") {
 	TestWorld twld;
 
-	auto qCached = wld.query().all<Position>();
+	auto qShared = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qLocal = wld.query().all<Position>();
 	auto qNone = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
 	auto qUncached = wld.query<false>().all<Position>();
 
-	auto& cachedInfo = qCached.fetch();
+	auto& sharedInfo = qShared.fetch();
+	auto& localInfo = qLocal.fetch();
 	auto& noneInfo = qNone.fetch();
 	auto& uncachedInfo = qUncached.fetch();
-	qCached.match_all(cachedInfo);
+	qShared.match_all(sharedInfo);
+	qLocal.match_all(localInfo);
 	qNone.match_all(noneInfo);
 	qUncached.match_all(uncachedInfo);
 
-	CHECK(cachedInfo.cache_archetype_view().empty());
+	CHECK(sharedInfo.cache_archetype_view().empty());
+	CHECK(localInfo.cache_archetype_view().empty());
 	CHECK(noneInfo.cache_archetype_view().empty());
 	CHECK(uncachedInfo.cache_archetype_view().empty());
 
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 0, 0});
 
-	CHECK(cachedInfo.cache_archetype_view().size() == 1);
+	CHECK(sharedInfo.cache_archetype_view().size() == 1);
+	CHECK(localInfo.cache_archetype_view().empty());
 	CHECK(noneInfo.cache_archetype_view().empty());
 	CHECK(uncachedInfo.cache_archetype_view().empty());
-	CHECK(qCached.count() == 1);
+	CHECK(qShared.count() == 1);
+	CHECK(qLocal.count() == 1);
 	CHECK(qNone.count() == 1);
 	CHECK(qUncached.count() == 1);
 }

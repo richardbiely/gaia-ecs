@@ -70,6 +70,17 @@ namespace gaia {
 			};
 
 		private:
+			QueryInfo& register_query_info(QueryHandle handle, QueryInfo& info) {
+				// Add the entity->query pair
+				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
+				add_rel_to_query_pairs(info.ctx(), handle);
+				add_sort_to_query_pairs(info.ctx(), handle);
+				add_sorted_query(info.ctx(), handle);
+				add_create_to_query_pairs(info.ctx(), handle);
+
+				return info;
+			}
+
 			//! Create-time query candidate together with the selector id that woke it.
 			//! Direct structural registration can use that selector to skip one redundant term check.
 			struct CreateQueryCandidate {
@@ -226,14 +237,23 @@ namespace gaia {
 				auto new_p = robin_hood::pair(std::make_pair(QueryLookupKey(ctx.hashLookup, &info.ctx()), &info));
 				ret.first->swap(new_p);
 
-				// Add the entity->query pair
-				add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);
-				add_rel_to_query_pairs(info.ctx(), handle);
-				add_sort_to_query_pairs(info.ctx(), handle);
-				add_sorted_query(info.ctx(), handle);
-				add_create_to_query_pairs(info.ctx(), handle);
+				return register_query_info(handle, info);
+			}
 
-				return info;
+			//! Registers a cached query without deduplicating against the shared lookup map.
+			QueryInfo& add_local(
+					QueryCtx&& ctx, //
+					const EntityToArchetypeMap& entityToArchetypeMap, //
+					std::span<const Archetype*> allArchetypes) {
+				QueryInfoCreationCtx creationCtx{};
+				creationCtx.pQueryCtx = &ctx;
+				creationCtx.pEntityToArchetypeMap = &entityToArchetypeMap;
+				creationCtx.allArchetypes = allArchetypes;
+				auto handle = m_queryArr.alloc(&creationCtx);
+
+				auto& info = get(handle);
+				info.add_ref();
+				return register_query_info(handle, info);
 			}
 
 			//! Deletes an existing QueryInfo object given the provided query handle.
@@ -252,8 +272,8 @@ namespace gaia {
 
 				// If this was the last reference to the query, we can safely remove it
 				auto it = m_pCache.find(QueryLookupKey(pInfo->ctx().hashLookup, &pInfo->ctx()));
-				GAIA_ASSERT(it != m_pCache.end());
-				m_pCache.erase(it);
+				if (it != m_pCache.end())
+					m_pCache.erase(it);
 
 				// Remove the entity->query pair
 				del_entity_to_query_pairs(pInfo->ctx().data.ids_view(), handle);

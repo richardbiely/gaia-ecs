@@ -2246,7 +2246,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, the query uses the world's shared cache layer.
+			//! \tparam UseCache If true, the query uses cached state with local scope by default.
 			//! If false, the query runs as QueryCacheKind::None and keeps only a local immutable plan.
 			//! \return Valid query object
 			template <bool UseCache = true>
