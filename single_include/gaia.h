@@ -30813,6 +30813,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		using InheritedTermDataView = std::span<const void* const>;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_in(const World& world, Entity entity, Entity term);
@@ -32827,6 +32828,8 @@ namespace gaia {
 				const uint8_t* m_pCompIndices = nullptr;
 				//! Optional per-term inherited owner entities for exact semantic self-source terms.
 				const Entity* m_pInheritedOwners = nullptr;
+				//! Optional inherited term data view for exact semantic self-source terms.
+				InheritedTermDataView m_inheritedData{};
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
@@ -32927,6 +32930,10 @@ namespace gaia {
 					m_pInheritedOwners = pInheritedOwners;
 				}
 
+				void set_inherited_data(InheritedTermDataView inheritedData) {
+					m_inheritedData = inheritedData;
+				}
+
 				void set_term_ids(const Entity* pTermIds) {
 					m_pTermIdMapping = pTermIds;
 				}
@@ -32937,6 +32944,10 @@ namespace gaia {
 
 				GAIA_NODISCARD const Entity* inherited_owners() const {
 					return m_pInheritedOwners;
+				}
+
+				GAIA_NODISCARD InheritedTermDataView inherited_data() const {
+					return m_inheritedData;
 				}
 
 				GAIA_NODISCARD const Entity* term_ids() const {
@@ -33145,6 +33156,11 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(termId != EntityBad);
+							if (!m_inheritedData.empty()) {
+								const auto* pInheritedValue = reinterpret_cast<const U*>(m_inheritedData[termIdx]);
+								if (pInheritedValue != nullptr)
+									return EntityTermViewGet<U>::inherited(pInheritedValue, size());
+							}
 							if (m_pInheritedOwners != nullptr) {
 								const auto owner = m_pInheritedOwners[termIdx];
 								if (owner != EntityBad) {
@@ -38195,15 +38211,22 @@ namespace gaia {
 	namespace ecs {
 		struct Entity;
 		class World;
+
 		uint32_t world_version(const World& world);
 		Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term);
+		const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id);
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
 		struct ArchetypeCompIndices {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
+
 		struct ArchetypeInheritedOwners {
 			Entity owners[ChunkHeader::MAX_COMPONENTS];
+		};
+
+		struct ArchetypeInheritedData {
+			const void* data[ChunkHeader::MAX_COMPONENTS];
 		};
 
 		struct QueryMatchScratch {
@@ -38362,6 +38385,8 @@ namespace gaia {
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
 					//! Cached inherited owner entity per query field for exact self-source semantic terms.
 					cnt::darray<ArchetypeInheritedOwners> archetypeInheritedOwners;
+					//! Cached inherited component data pointer per query field for exact self-source semantic terms.
+					cnt::darray<ArchetypeInheritedData> archetypeInheritedData;
 					//! True when archetype membership is populated but component-index metadata
 					//! still needs to be built on demand.
 					bool compIndicesPending = false;
@@ -38372,6 +38397,7 @@ namespace gaia {
 					void clear() {
 						archetypeCompIndices = {};
 						archetypeInheritedOwners = {};
+						archetypeInheritedData = {};
 						compIndicesPending = false;
 						inheritedOwnersPending = false;
 					}
@@ -38379,6 +38405,7 @@ namespace gaia {
 					void clear_transient() {
 						archetypeCompIndices.clear();
 						archetypeInheritedOwners.clear();
+						archetypeInheritedData.clear();
 						compIndicesPending = false;
 						inheritedOwnersPending = false;
 					}
@@ -39536,6 +39563,12 @@ namespace gaia {
 					m_state.exec.archetypeInheritedOwners[right] = tmp;
 				}
 
+				if (left < m_state.exec.archetypeInheritedData.size() && right < m_state.exec.archetypeInheritedData.size()) {
+					auto tmp = m_state.exec.archetypeInheritedData[left];
+					m_state.exec.archetypeInheritedData[left] = m_state.exec.archetypeInheritedData[right];
+					m_state.exec.archetypeInheritedData[right] = tmp;
+				}
+
 				if (left < m_state.nonTrivial.archetypeBarrierPasses.size() &&
 						right < m_state.nonTrivial.archetypeBarrierPasses.size()) {
 					const auto tmp = m_state.nonTrivial.archetypeBarrierPasses[left];
@@ -39566,14 +39599,17 @@ namespace gaia {
 
 				if (!has_inherited_owner_payload()) {
 					m_state.exec.archetypeInheritedOwners.clear();
+					m_state.exec.archetypeInheritedData.clear();
 					m_state.exec.inheritedOwnersPending = false;
 					return;
 				}
 
 				m_state.exec.archetypeInheritedOwners.clear();
+				m_state.exec.archetypeInheritedData.clear();
 				m_state.exec.archetypeInheritedOwners.reserve(m_state.archetypeCache.size());
+				m_state.exec.archetypeInheritedData.reserve(m_state.archetypeCache.size());
 				for (const auto* pArchetype: m_state.archetypeCache)
-					m_state.exec.archetypeInheritedOwners.push_back(create_inherited_owners(pArchetype));
+					create_inherited_owners(pArchetype);
 
 				m_state.exec.inheritedOwnersPending = false;
 			}
@@ -39680,9 +39716,11 @@ namespace gaia {
 				return cacheData;
 			}
 
-			ArchetypeInheritedOwners create_inherited_owners(const Archetype* pArchetype) {
-				ArchetypeInheritedOwners cacheData{};
-				core::fill(cacheData.owners, cacheData.owners + ChunkHeader::MAX_COMPONENTS, EntityBad);
+			void create_inherited_owners(const Archetype* pArchetype) {
+				ArchetypeInheritedOwners ownerData{};
+				ArchetypeInheritedData inheritedData{};
+				core::fill(ownerData.owners, ownerData.owners + ChunkHeader::MAX_COMPONENTS, EntityBad);
+				core::fill(inheritedData.data, inheritedData.data + ChunkHeader::MAX_COMPONENTS, nullptr);
 
 				const auto terms = ctx().data.terms_view();
 				const auto cnt = (uint32_t)terms.size();
@@ -39704,10 +39742,12 @@ namespace gaia {
 
 					const auto owner = world_query_first_inherited_owner(*world(), *pArchetype, queryId);
 					GAIA_ASSERT(owner != EntityBad);
-					cacheData.owners[term.fieldIndex] = owner;
+					ownerData.owners[term.fieldIndex] = owner;
+					inheritedData.data[term.fieldIndex] = world_query_inherited_arg_data_const_ptr(*world(), owner, queryId);
 				}
 
-				return cacheData;
+				m_state.exec.archetypeInheritedOwners.push_back(ownerData);
+				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
 			void add_archetype_to_cache_no_grouping(
@@ -39878,6 +39918,8 @@ namespace gaia {
 					core::swap_erase(m_state.exec.archetypeCompIndices, archetypeIdx);
 				if (archetypeIdx < m_state.exec.archetypeInheritedOwners.size())
 					core::swap_erase(m_state.exec.archetypeInheritedOwners, archetypeIdx);
+				if (archetypeIdx < m_state.exec.archetypeInheritedData.size())
+					core::swap_erase(m_state.exec.archetypeInheritedData, archetypeIdx);
 				if (archetypeIdx < m_state.grouped.archetypeGroupIds.size())
 					core::swap_erase(m_state.grouped.archetypeGroupIds, archetypeIdx);
 				if (archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size())
@@ -40024,6 +40066,14 @@ namespace gaia {
 				return {(const Entity*)&ctxData.owners[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
+			InheritedTermDataView inherited_data_view(uint32_t archetypeIdx) const {
+				const_cast<QueryInfo*>(this)->ensure_inherited_owners();
+				if (archetypeIdx >= m_state.exec.archetypeInheritedData.size())
+					return {};
+				const auto& ctxData = m_state.exec.archetypeInheritedData[archetypeIdx];
+				return {ctxData.data, ChunkHeader::MAX_COMPONENTS};
+			}
+
 			std::span<const Entity> inherited_owner_view(const Archetype* pArchetype) const {
 				if (!has_inherited_owner_payload())
 					return {};
@@ -40031,6 +40081,15 @@ namespace gaia {
 				if (archetypeIdx == BadIndex)
 					return {};
 				return inherited_owner_view((uint32_t)archetypeIdx);
+			}
+
+			InheritedTermDataView inherited_data_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload())
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_data_view((uint32_t)archetypeIdx);
 			}
 
 			void ensure_depth_order_hierarchy_barrier_cache() {
@@ -40054,6 +40113,15 @@ namespace gaia {
 				if (archetypeIdx == BadIndex)
 					return {};
 				return inherited_owner_view((uint32_t)archetypeIdx);
+			}
+
+			InheritedTermDataView try_inherited_data_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload() || m_state.exec.inheritedOwnersPending)
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_data_view((uint32_t)archetypeIdx);
 			}
 
 			GAIA_NODISCARD GroupId group_id(uint32_t archetypeIdx) const {
@@ -41279,6 +41347,7 @@ namespace gaia {
 					Chunk* pChunk;
 					const uint8_t* pCompIndices;
 					const Entity* pInheritedOwners;
+					InheritedTermDataView inheritedData;
 					GroupId groupId;
 					uint16_t from;
 					uint16_t to;
@@ -42546,6 +42615,7 @@ namespace gaia {
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					it.set_inherited_owners(batch.pInheritedOwners);
+					it.set_inherited_data(batch.inheritedData);
 					func(it);
 					finish_iter_writes(it);
 					it.clear_touched_writes();
@@ -42562,6 +42632,7 @@ namespace gaia {
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					it.set_inherited_owners(batch.pInheritedOwners);
+					it.set_inherited_data(batch.inheritedData);
 					func(it);
 					it.clear_touched_writes();
 				}
@@ -42581,6 +42652,7 @@ namespace gaia {
 					const Archetype* pLastArchetype = nullptr;
 					const uint8_t* pLastIndices = nullptr;
 					const Entity* pLastInheritedOwners = nullptr;
+					InheritedTermDataView lastInheritedData{};
 					GroupId lastGroupId = GroupIdMax;
 
 					const auto apply_batch = [&](const ChunkBatch& batch) {
@@ -42597,6 +42669,11 @@ namespace gaia {
 						if (batch.pInheritedOwners != pLastInheritedOwners) {
 							it.set_inherited_owners(batch.pInheritedOwners);
 							pLastInheritedOwners = batch.pInheritedOwners;
+						}
+
+						if (batch.inheritedData.data() != lastInheritedData.data()) {
+							it.set_inherited_data(batch.inheritedData);
+							lastInheritedData = batch.inheritedData;
 						}
 
 						if (batch.groupId != lastGroupId) {
@@ -42689,9 +42766,12 @@ namespace gaia {
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto* pInheritedOwners =
 									hasInheritedOwners ? queryInfo.inherited_owner_view(view.archetypeIdx).data() : nullptr;
+							const auto inheritedDataView =
+									hasInheritedOwners ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
 							chunkBatches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, 0U, startRow, endRow});
+									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0U, startRow,
+									 endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
@@ -42707,6 +42787,8 @@ namespace gaia {
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
+							const auto inheritedDataView =
+									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							uint32_t chunkOffset = 0;
 							uint32_t itemsLeft = chunks.size();
@@ -42724,7 +42806,8 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), pInheritedOwners, 0, 0, 0});
+									chunkBatches.push_back(
+											{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0});
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -42795,9 +42878,12 @@ namespace gaia {
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto* pInheritedOwners =
 									hasInheritedOwners ? queryInfo.inherited_owner_view(view.archetypeIdx).data() : nullptr;
+							const auto inheritedDataView =
+									hasInheritedOwners ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
 							m_batches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, 0U, startRow, endRow});
+									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0U, startRow,
+									 endRow});
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
@@ -42808,6 +42894,8 @@ namespace gaia {
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
+							const auto inheritedDataView =
+									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
 								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
@@ -42818,7 +42906,8 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back({pArchetype, pChunk, indicesView.data(), pInheritedOwners, 0, 0, 0});
+								m_batches.push_back(
+										{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0});
 							}
 						}
 					}
@@ -42875,6 +42964,8 @@ namespace gaia {
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
 						const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
+						const auto inheritedDataView =
+								hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 						const auto& chunks = pArchetype->chunks();
 						const auto groupId = queryInfo.group_id(i);
 
@@ -42902,7 +42993,8 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), pInheritedOwners, groupId, 0, 0});
+								chunkBatches.push_back(
+										{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, groupId, 0, 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -42965,6 +43057,8 @@ namespace gaia {
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
 						const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
+						const auto inheritedDataView =
+								hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 						const auto groupId = queryInfo.group_id(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -42976,7 +43070,8 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), pInheritedOwners, groupId, 0, 0});
+							m_batches.push_back(
+									{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, groupId, 0, 0});
 						}
 					}
 
@@ -43077,7 +43172,9 @@ namespace gaia {
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
-							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), pInheritedOwners, 0, 0, 0};
+							const auto inheritedDataView =
+									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0};
 							run_query_arch_func<Func, Iter>(m_storage.world(), func, batch);
 						}
 					}
@@ -44437,6 +44534,8 @@ namespace gaia {
 						it.set_comp_indices(pIndices);
 						const auto inheritedOwnersView = queryInfo.inherited_owner_view(ec.pArchetype);
 						it.set_inherited_owners(inheritedOwnersView.empty() ? nullptr : inheritedOwnersView.data());
+						const auto inheritedDataView = queryInfo.inherited_data_view(ec.pArchetype);
+						it.set_inherited_data(inheritedDataView);
 						it.set_term_ids(pTermIds);
 						pLastArchetype = ec.pArchetype;
 					}
@@ -44806,24 +44905,16 @@ namespace gaia {
 								each_chunk_runs<TIter>(
 										queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func,
 										core::func_type_list<T...>{});
-								return;
-							}
-
-							const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
-							if constexpr (sizeof...(T) > 0) {
-								Entity argIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
-								const Archetype* lastArchetypes[sizeof...(T)]{};
-								Entity cachedOwners[sizeof...(T)]{};
-								bool cachedDirect[sizeof...(T)]{};
+							} else {
+								const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
+								Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1] = {inherited_query_arg_id<T>(world)...};
+								const Archetype* lastArchetypes[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+								Entity cachedOwners[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+								bool cachedDirect[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
 								for (const auto entity: entities) {
 									invoke_inherited_query_args_by_id_cached<T...>(
-											world, entity, argIds, lastArchetypes, cachedOwners, cachedDirect, func,
+											world, entity, inheritedArgIds, lastArchetypes, cachedOwners, cachedDirect, func,
 											std::index_sequence_for<T...>{});
-								}
-							} else {
-								for (const auto entity: entities) {
-									(void)entity;
-									func();
 								}
 							}
 							return;
@@ -61438,6 +61529,12 @@ namespace gaia {
 		world_query_inherited_arg_data_const(World& world, Entity owner, Entity id) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			return &world.template get<Arg>(owner, id);
+		}
+
+		inline const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id) {
+			const auto& ec = world.fetch(owner);
+			const auto row = id.kind() == EntityKind::EK_Gen ? ec.row : 0;
+			return ec.pChunk->comp_ptr(ec.pChunk->comp_idx(id), row);
 		}
 
 		template <typename T>

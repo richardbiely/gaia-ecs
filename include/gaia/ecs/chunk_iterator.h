@@ -826,6 +826,8 @@ namespace gaia {
 				const uint8_t* m_pCompIndices = nullptr;
 				//! Optional per-term inherited owner entities for exact semantic self-source terms.
 				const Entity* m_pInheritedOwners = nullptr;
+				//! Optional inherited term data view for exact semantic self-source terms.
+				InheritedTermDataView m_inheritedData{};
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
@@ -926,6 +928,10 @@ namespace gaia {
 					m_pInheritedOwners = pInheritedOwners;
 				}
 
+				void set_inherited_data(InheritedTermDataView inheritedData) {
+					m_inheritedData = inheritedData;
+				}
+
 				void set_term_ids(const Entity* pTermIds) {
 					m_pTermIdMapping = pTermIds;
 				}
@@ -936,6 +942,10 @@ namespace gaia {
 
 				GAIA_NODISCARD const Entity* inherited_owners() const {
 					return m_pInheritedOwners;
+				}
+
+				GAIA_NODISCARD InheritedTermDataView inherited_data() const {
+					return m_inheritedData;
 				}
 
 				GAIA_NODISCARD const Entity* term_ids() const {
@@ -1144,6 +1154,11 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(termId != EntityBad);
+							if (!m_inheritedData.empty()) {
+								const auto* pInheritedValue = reinterpret_cast<const U*>(m_inheritedData[termIdx]);
+								if (pInheritedValue != nullptr)
+									return EntityTermViewGet<U>::inherited(pInheritedValue, size());
+							}
 							if (m_pInheritedOwners != nullptr) {
 								const auto owner = m_pInheritedOwners[termIdx];
 								if (owner != EntityBad) {

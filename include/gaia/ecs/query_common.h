@@ -9,6 +9,7 @@
 #include "gaia/cnt/sarray_ext.h"
 #include "gaia/core/bit_utils.h"
 #include "gaia/core/hashing_policy.h"
+#include "gaia/core/span.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/component.h"
@@ -20,6 +21,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		using InheritedTermDataView = std::span<const void* const>;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_in(const World& world, Entity entity, Entity term);

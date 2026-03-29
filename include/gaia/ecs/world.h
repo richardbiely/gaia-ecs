@@ -12684,6 +12684,12 @@ namespace gaia {
 			return &world.template get<Arg>(owner, id);
 		}
 
+		inline const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id) {
+			const auto& ec = world.fetch(owner);
+			const auto row = id.kind() == EntityKind::EK_Gen ? ec.row : 0;
+			return ec.pChunk->comp_ptr(ec.pChunk->comp_idx(id), row);
+		}
+
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
