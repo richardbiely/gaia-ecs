@@ -12772,6 +12772,49 @@ namespace gaia {
 			return world.template get<Arg>(cachedOwner, termId);
 		}
 
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_chunk_stable_const(
+				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, uint16_t rowBase, uint32_t idx,
+				bool& resolved, bool& direct, Entity& owner, uint32_t& compIdx,
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pOwnerData) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return pEntities[idx];
+
+			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+			if (!resolved) {
+				direct = chunk.has(termId);
+				owner = EntityBad;
+				compIdx = BadIndex;
+				pOwnerData = nullptr;
+
+				if (!direct) {
+					const auto firstEntity = pEntities[0];
+					for (const auto target: world.as_targets_trav_cache(firstEntity)) {
+						if (!world.has_direct(target, termId))
+							continue;
+
+						owner = target;
+						break;
+					}
+
+					GAIA_ASSERT(owner != EntityBad);
+					pOwnerData = &world.template get<Arg>(owner, termId);
+				} else {
+					compIdx = chunk.comp_idx(termId);
+					GAIA_ASSERT(compIdx != BadIndex);
+				}
+
+				resolved = true;
+			}
+
+			if (direct)
+				return chunk.template get_idx<Arg>((uint16_t)(rowBase + idx), compIdx);
+
+			GAIA_ASSERT(pOwnerData != nullptr);
+			return *pOwnerData;
+		}
+
 		inline void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to) {
 #if GAIA_OBSERVERS_ENABLED
 			if (world.tearing_down())
