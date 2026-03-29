@@ -30,14 +30,7 @@ namespace gaia {
 			//! \param type Entity associated with the component type
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity type) const {
-				verify_comp<T>();
-
-				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
-					return m_pChunk->template get<T>(m_row, type);
-				else {
-					(void)type;
-					return m_pChunk->template get<T>();
-				}
+				return m_pChunk->template get<T>(m_row, type);
 			}
 		};
 	} // namespace ecs

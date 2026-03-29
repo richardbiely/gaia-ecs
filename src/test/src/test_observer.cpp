@@ -306,8 +306,13 @@ TEST_CASE("World modify emits OnSet for raw writes") {
 TEST_CASE("World modify emits OnSet for raw object writes") {
 	TestWorld twld;
 
-	const auto tableComp = wld.add<Position>().entity;
-	const auto sparseComp = wld.add<PositionSparse>().entity;
+	const auto& runtimeTableComp = wld.add(
+			"Observer_Runtime_Table_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
+			(uint32_t)alignof(Position));
+	const auto& runtimeSparseComp = wld.add(
+			"Observer_Runtime_Sparse_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+	wld.add(runtimeSparseComp.entity, ecs::DontFragment);
 
 	uint32_t tableHits = 0;
 	ecs::Entity lastTable = ecs::EntityBad;
@@ -316,7 +321,7 @@ TEST_CASE("World modify emits OnSet for raw object writes") {
 
 	(void)wld.observer()
 			.event(ecs::ObserverEvent::OnSet)
-			.all(tableComp)
+			.all(runtimeTableComp.entity)
 			.on_each([&](ecs::Iter& it) {
 				auto entities = it.view<ecs::Entity>();
 				GAIA_EACH(it) {
@@ -328,7 +333,7 @@ TEST_CASE("World modify emits OnSet for raw object writes") {
 
 	(void)wld.observer()
 			.event(ecs::ObserverEvent::OnSet)
-			.all(sparseComp)
+			.all(runtimeSparseComp.entity)
 			.on_each([&](ecs::Iter& it) {
 				auto entities = it.view<ecs::Entity>();
 				GAIA_EACH(it) {
@@ -339,36 +344,36 @@ TEST_CASE("World modify emits OnSet for raw object writes") {
 			.entity();
 
 	const auto e = wld.add();
-	wld.add(e, tableComp, Position{1.0f, 2.0f, 3.0f});
-	wld.add(e, sparseComp, PositionSparse{4.0f, 5.0f, 6.0f});
+	wld.add(e, runtimeTableComp.entity, Position{1.0f, 2.0f, 3.0f});
+	wld.add(e, runtimeSparseComp.entity, Position{4.0f, 5.0f, 6.0f});
 
 	{
-		auto& pos = wld.mut<Position>(e, tableComp);
+		auto& pos = wld.mut<Position>(e, runtimeTableComp.entity);
 		pos = {7.0f, 8.0f, 9.0f};
 	}
-	wld.modify<Position, false>(e, tableComp);
+	wld.modify<Position, false>(e, runtimeTableComp.entity);
 	CHECK(tableHits == 0);
-	wld.modify<Position, true>(e, tableComp);
+	wld.modify<Position, true>(e, runtimeTableComp.entity);
 	CHECK(tableHits == 1);
 	CHECK(lastTable == e);
 	{
-		const auto& pos = wld.get<Position>(e, tableComp);
+		const auto& pos = wld.get<Position>(e, runtimeTableComp.entity);
 		CHECK(pos.x == doctest::Approx(7.0f));
 		CHECK(pos.y == doctest::Approx(8.0f));
 		CHECK(pos.z == doctest::Approx(9.0f));
 	}
 
 	{
-		auto& pos = wld.mut<PositionSparse>(e, sparseComp);
+		auto& pos = wld.mut<Position>(e, runtimeSparseComp.entity);
 		pos = {10.0f, 11.0f, 12.0f};
 	}
-	wld.modify<PositionSparse, false>(e, sparseComp);
+	wld.modify<Position, false>(e, runtimeSparseComp.entity);
 	CHECK(sparseHits == 0);
-	wld.modify<PositionSparse, true>(e, sparseComp);
+	wld.modify<Position, true>(e, runtimeSparseComp.entity);
 	CHECK(sparseHits == 1);
 	CHECK(lastSparse == e);
 	{
-		const auto& pos = wld.get<PositionSparse>(e, sparseComp);
+		const auto& pos = wld.get<Position>(e, runtimeSparseComp.entity);
 		CHECK(pos.x == doctest::Approx(10.0f));
 		CHECK(pos.y == doctest::Approx(11.0f));
 		CHECK(pos.z == doctest::Approx(12.0f));

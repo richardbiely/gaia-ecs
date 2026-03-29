@@ -28998,27 +28998,18 @@ namespace gaia {
 			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
-				verify_comp<T>();
-
 				GAIA_ASSERT2(
 						type.kind() == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
 				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
+				const uint32_t compIdx = comp_idx(type);
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				world_notify_on_set(*const_cast<World*>(m_header.world), type, *this, row, (uint16_t)(row + 1));
-
-				// TODO: This function works but is useless because it does the same job as
-				//       set(uint16_t row, U&& value).
-				//       This is because T needs to match U anyway for the component lookup to succeed.
-				(void)type;
-				// const uint32_t compIdx = comp_idx(type);
-				//(void)compIdx;
-
-				return view_mut<T>()[row];
+				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
 			//! Sets the value of the unique component @a T on @a row in the chunk.
@@ -29074,17 +29065,11 @@ namespace gaia {
 				GAIA_ASSERT2(
 						type.kind() == EntityKind::EK_Gen || row == 0,
 						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
+				const uint32_t compIdx = comp_idx(type);
 
 				GAIA_ASSERT(row < m_header.capacity);
-
-				// TODO: This function works but is useless because it does the same job as
-				//       sset(uint16_t row, U&& value).
-				//       This is because T needs to match U anyway for the component lookup to succeed.
-				(void)type;
-				// const uint32_t compIdx = comp_idx(type);
-				//(void)compIdx;
-
-				return sview_mut<T>()[row];
+				return comp_mut_idx<T, false>(row, compIdx);
 			}
 
 			//----------------------------------------------------------------------
@@ -29124,14 +29109,13 @@ namespace gaia {
 			//! \warning It is expected the component is present. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
-				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
-
+				GAIA_ASSERT2(
+						type.kind() == EntityKind::EK_Gen || row == 0,
+						"Get providing a row can only be used with generic components");
 				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				GAIA_ASSERT(row < m_header.count);
-
-				(void)type;
-				return comp_inter<T>(row);
+				const uint32_t compIdx = comp_idx(type);
+				return comp_inter_idx<T>(row, compIdx);
 			}
 
 			//! Returns the value stored in the unique component @a T.
@@ -33836,14 +33820,7 @@ namespace gaia {
 			//! \param type Entity associated with the component type
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity type) const {
-				verify_comp<T>();
-
-				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
-					return m_pChunk->template get<T>(m_row, type);
-				else {
-					(void)type;
-					return m_pChunk->template get<T>();
-				}
+				return m_pChunk->template get<T>(m_row, type);
 			}
 		};
 	} // namespace ecs
