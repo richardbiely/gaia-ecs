@@ -29,6 +29,9 @@ namespace gaia {
 		void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
 				const std::remove_cv_t<std::remove_reference_t<T>>*& pDataInherited);
+		template <typename T>
+		const std::remove_cv_t<std::remove_reference_t<T>>*
+		world_query_inherited_arg_data_const(World& world, Entity owner, Entity id);
 		bool world_term_uses_inherit_policy(const World& world, Entity term);
 		template <typename T>
 		Entity world_query_arg_id(World& world);
@@ -163,23 +166,24 @@ namespace gaia {
 			struct EntityTermViewGet {
 				const U* pData = nullptr;
 				const Entity* pEntities = nullptr;
-				const Chunk* pChunk = nullptr;
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
-				uint16_t rowBase = 0;
 				uint32_t cnt = 0;
-				bool chunkStableInherited = false;
 				const U* pDataInherited = nullptr;
 				mutable const Archetype* pLastArchetype = nullptr;
 				mutable Entity cachedOwner = EntityBad;
 				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr, nullptr, nullptr, EntityBad, 0, cnt, false, nullptr, nullptr, EntityBad, false};
+					return {pData, nullptr, nullptr, EntityBad, cnt, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, nullptr, pWorld, id, 0, cnt, false, nullptr, nullptr, EntityBad, false};
+					return {nullptr, pEntities, pWorld, id, cnt, nullptr, nullptr, EntityBad, false};
+				}
+
+				static EntityTermViewGet inherited(const U* pDataInherited, uint32_t cnt) {
+					return {nullptr, nullptr, nullptr, EntityBad, cnt, pDataInherited, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity_chunk_stable(
@@ -193,14 +197,14 @@ namespace gaia {
 					if (direct)
 						pData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
 
-					return {pData, pEntities, pChunk, pWorld, id, rowBase, cnt, true, pDataInherited, nullptr, EntityBad, false};
+					return {pData, nullptr, pWorld, id, cnt, pDataInherited, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					if (pData != nullptr)
 						return pData[idx];
-					if (chunkStableInherited) {
+					if (pDataInherited != nullptr) {
 						GAIA_ASSERT(pDataInherited != nullptr);
 						return *pDataInherited;
 					}
@@ -820,6 +824,8 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIndices = nullptr;
+				//! Optional per-term inherited owner entities for exact semantic self-source terms.
+				const Entity* m_pInheritedOwners = nullptr;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
@@ -916,12 +922,20 @@ namespace gaia {
 					m_pCompIndices = pCompIndices;
 				}
 
+				void set_inherited_owners(const Entity* pInheritedOwners) {
+					m_pInheritedOwners = pInheritedOwners;
+				}
+
 				void set_term_ids(const Entity* pTermIds) {
 					m_pTermIdMapping = pTermIds;
 				}
 
 				GAIA_NODISCARD const uint8_t* comp_indices() const {
 					return m_pCompIndices;
+				}
+
+				GAIA_NODISCARD const Entity* inherited_owners() const {
+					return m_pInheritedOwners;
 				}
 
 				GAIA_NODISCARD const Entity* term_ids() const {
@@ -1130,6 +1144,13 @@ namespace gaia {
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(termId != EntityBad);
+							if (m_pInheritedOwners != nullptr) {
+								const auto owner = m_pInheritedOwners[termIdx];
+								if (owner != EntityBad) {
+									return EntityTermViewGet<U>::inherited(
+											world_query_inherited_arg_data_const<U>(*const_cast<World*>(world()), owner, termId), size());
+								}
+							}
 							if (world_term_uses_inherit_policy(*world(), termId)) {
 								return EntityTermViewGet<U>::entity_chunk_stable(
 										m_pChunk->entity_view().data() + from(), m_pChunk, const_cast<World*>(world()), termId, from(),

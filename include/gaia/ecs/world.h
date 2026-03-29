@@ -12611,6 +12611,29 @@ namespace gaia {
 			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
+		inline Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term) {
+			const auto& chunks = archetype.chunks();
+			const Chunk* pFirstChunk = nullptr;
+			for (const auto* pChunk: chunks) {
+				if (pChunk == nullptr || pChunk->size() == 0)
+					continue;
+				pFirstChunk = pChunk;
+				break;
+			}
+
+			if (pFirstChunk == nullptr)
+				return EntityBad;
+
+			const auto firstEntity = pFirstChunk->entity_view()[0];
+			for (const auto target: world.as_targets_trav_cache(firstEntity)) {
+				if (!world.has_direct(target, term))
+					continue;
+				return target;
+			}
+
+			return EntityBad;
+		}
+
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
 		}
@@ -12652,6 +12675,13 @@ namespace gaia {
 				return 0;
 
 			return it->second[idx].matchCount;
+		}
+
+		template <typename T>
+		inline const std::remove_cv_t<std::remove_reference_t<T>>*
+		world_query_inherited_arg_data_const(World& world, Entity owner, Entity id) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			return &world.template get<Arg>(owner, id);
 		}
 
 		template <typename T>

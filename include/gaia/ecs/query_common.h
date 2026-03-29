@@ -524,6 +524,7 @@ namespace gaia {
 				DependencyHasGroup = 0x80,
 				DependencyHasTraversalTerms = 0x100,
 				DependencyHasAdjunctTerms = 0x200,
+				DependencyHasInheritedTerms = 0x400,
 			};
 
 			struct Data {
@@ -806,6 +807,8 @@ namespace gaia {
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.set_dep_flag(DependencyHasAdjunctTerms);
+							if (isInheritedTerm)
+								data.deps.set_dep_flag(DependencyHasInheritedTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));
 							continue;

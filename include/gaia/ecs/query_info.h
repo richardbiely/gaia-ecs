@@ -22,10 +22,14 @@ namespace gaia {
 		struct Entity;
 		class World;
 		uint32_t world_version(const World& world);
+		Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term);
 
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
 		struct ArchetypeCompIndices {
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
+		};
+		struct ArchetypeInheritedOwners {
+			Entity owners[ChunkHeader::MAX_COMPONENTS];
 		};
 
 		struct QueryMatchScratch {
@@ -182,18 +186,27 @@ namespace gaia {
 				struct ExecPayload {
 					//! Cached component-index mapping for each matched archetype.
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
+					//! Cached inherited owner entity per query field for exact self-source semantic terms.
+					cnt::darray<ArchetypeInheritedOwners> archetypeInheritedOwners;
 					//! True when archetype membership is populated but component-index metadata
 					//! still needs to be built on demand.
 					bool compIndicesPending = false;
+					//! True when archetype membership is populated but inherited-owner metadata
+					//! still needs to be built on demand.
+					bool inheritedOwnersPending = false;
 
 					void clear() {
 						archetypeCompIndices = {};
+						archetypeInheritedOwners = {};
 						compIndicesPending = false;
+						inheritedOwnersPending = false;
 					}
 
 					void clear_transient() {
 						archetypeCompIndices.clear();
+						archetypeInheritedOwners.clear();
 						compIndicesPending = false;
+						inheritedOwnersPending = false;
 					}
 				};
 
@@ -1342,6 +1355,13 @@ namespace gaia {
 					m_state.exec.archetypeCompIndices[right] = tmp;
 				}
 
+				if (left < m_state.exec.archetypeInheritedOwners.size() &&
+						right < m_state.exec.archetypeInheritedOwners.size()) {
+					auto tmp = m_state.exec.archetypeInheritedOwners[left];
+					m_state.exec.archetypeInheritedOwners[left] = m_state.exec.archetypeInheritedOwners[right];
+					m_state.exec.archetypeInheritedOwners[right] = tmp;
+				}
+
 				if (left < m_state.nonTrivial.archetypeBarrierPasses.size() &&
 						right < m_state.nonTrivial.archetypeBarrierPasses.size()) {
 					const auto tmp = m_state.nonTrivial.archetypeBarrierPasses[left];
@@ -1360,6 +1380,28 @@ namespace gaia {
 					m_state.exec.archetypeCompIndices.push_back(create_comp_indices(pArchetype));
 
 				m_state.exec.compIndicesPending = false;
+			}
+
+			GAIA_NODISCARD bool has_inherited_owner_payload() const {
+				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedTerms);
+			}
+
+			void ensure_inherited_owners() {
+				if (!m_state.exec.inheritedOwnersPending)
+					return;
+
+				if (!has_inherited_owner_payload()) {
+					m_state.exec.archetypeInheritedOwners.clear();
+					m_state.exec.inheritedOwnersPending = false;
+					return;
+				}
+
+				m_state.exec.archetypeInheritedOwners.clear();
+				m_state.exec.archetypeInheritedOwners.reserve(m_state.archetypeCache.size());
+				for (const auto* pArchetype: m_state.archetypeCache)
+					m_state.exec.archetypeInheritedOwners.push_back(create_inherited_owners(pArchetype));
+
+				m_state.exec.inheritedOwnersPending = false;
 			}
 
 			void ensure_group_data() {
@@ -1464,6 +1506,36 @@ namespace gaia {
 				return cacheData;
 			}
 
+			ArchetypeInheritedOwners create_inherited_owners(const Archetype* pArchetype) {
+				ArchetypeInheritedOwners cacheData{};
+				core::fill(cacheData.owners, cacheData.owners + ChunkHeader::MAX_COMPONENTS, EntityBad);
+
+				const auto terms = ctx().data.terms_view();
+				const auto cnt = (uint32_t)terms.size();
+				GAIA_FOR(cnt) {
+					const auto& term = terms[i];
+					if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						continue;
+					if (term.matchKind != QueryMatchKind::Semantic)
+						continue;
+					const auto queryId = term.id;
+					if (queryId == EntityBad || is_wildcard(queryId) || is_variable((EntityId)queryId.id()))
+						continue;
+					if (world_is_out_of_line_component(*world(), queryId))
+						continue;
+					if (!world_term_uses_inherit_policy(*world(), queryId))
+						continue;
+					if (pArchetype->has(queryId))
+						continue;
+
+					const auto owner = world_query_first_inherited_owner(*world(), *pArchetype, queryId);
+					GAIA_ASSERT(owner != EntityBad);
+					cacheData.owners[term.fieldIndex] = owner;
+				}
+
+				return cacheData;
+			}
+
 			void add_archetype_to_cache_no_grouping(
 					const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
@@ -1475,6 +1547,7 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.exec.compIndicesPending = true;
+				m_state.exec.inheritedOwnersPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				if (trackMembershipChange)
@@ -1503,6 +1576,7 @@ namespace gaia {
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.exec.compIndicesPending = true;
+				m_state.exec.inheritedOwnersPending = true;
 				if (trackMembershipChange)
 					mark_result_cache_membership_changed();
 			}
@@ -1524,6 +1598,7 @@ namespace gaia {
 				m_state.grouped.archetypeGroupIds.push_back(groupId);
 				m_state.grouped.dataPending = true;
 				m_state.exec.compIndicesPending = true;
+				m_state.exec.inheritedOwnersPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
@@ -1544,6 +1619,7 @@ namespace gaia {
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.exec.compIndicesPending = true;
+				m_state.exec.inheritedOwnersPending = true;
 				if (m_plan.ctx.data.groupBy != EntityBad) {
 					const auto groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 					m_state.grouped.archetypeGroupIds.push_back(groupId);
@@ -1626,6 +1702,8 @@ namespace gaia {
 				core::swap_erase(m_state.archetypeCache, archetypeIdx);
 				if (archetypeIdx < m_state.exec.archetypeCompIndices.size())
 					core::swap_erase(m_state.exec.archetypeCompIndices, archetypeIdx);
+				if (archetypeIdx < m_state.exec.archetypeInheritedOwners.size())
+					core::swap_erase(m_state.exec.archetypeInheritedOwners, archetypeIdx);
 				if (archetypeIdx < m_state.grouped.archetypeGroupIds.size())
 					core::swap_erase(m_state.grouped.archetypeGroupIds, archetypeIdx);
 				if (archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size())
@@ -1762,6 +1840,14 @@ namespace gaia {
 				const_cast<QueryInfo*>(this)->ensure_comp_indices();
 				const auto& ctxData = m_state.exec.archetypeCompIndices[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
+			}
+
+			std::span<const Entity> inherited_owner_view(uint32_t archetypeIdx) const {
+				const_cast<QueryInfo*>(this)->ensure_inherited_owners();
+				if (archetypeIdx >= m_state.exec.archetypeInheritedOwners.size())
+					return {};
+				const auto& ctxData = m_state.exec.archetypeInheritedOwners[archetypeIdx];
+				return {(const Entity*)&ctxData.owners[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
 			void ensure_depth_order_hierarchy_barrier_cache() {
