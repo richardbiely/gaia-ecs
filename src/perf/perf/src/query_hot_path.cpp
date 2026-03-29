@@ -513,7 +513,7 @@ static cnt::darray<ecs::Query> make_changed_queries(ecs::World& w, uint32_t quer
 	cnt::darray<ecs::Query> queries;
 	queries.reserve(queryCnt);
 	GAIA_FOR(queryCnt) {
-		queries.push_back(w.query().cache_scope(CacheScope).all<Position>().changed<Position>());
+		queries.push_back(w.query().scope(CacheScope).all<Position>().changed<Position>());
 	}
 	return queries;
 }

@@ -2260,7 +2260,7 @@ namespace gaia {
 			//! \return Valid query object
 			Query uquery() {
 				auto q = query();
-				q.cache_kind(QueryCacheKind::None);
+				q.kind(QueryCacheKind::None);
 				return q;
 			}
 

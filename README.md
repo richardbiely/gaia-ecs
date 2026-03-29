@@ -1657,7 +1657,7 @@ Two uncached queries with the same setup do not share state with each other, so 
 
 Prefer uncached queries for one-shot work or highly specialized query shapes that are unlikely to repeat. Prefer cached queries when the query object itself is reused, and prefer shared-scope cached queries when the same query shape is rebuilt across frames, systems, or helper code.
 
-`World::uquery()` is equivalent to `World::query().cache_kind(ecs::QueryCacheKind::None)`.
+`World::uquery()` is equivalent to `World::query().kind(ecs::QueryCacheKind::None)`.
 
 ```cpp
 // Cached query with local scope (default).
@@ -1665,13 +1665,13 @@ ecs::Query q1 = w.query().all<Position>();
 
 // The same behavior written explicitly.
 ecs::Query q2 = w.query()
-  .cache_kind(ecs::QueryCacheKind::Default)
-  .cache_scope(ecs::QueryCacheScope::Local)
+  .kind(ecs::QueryCacheKind::Default)
+  .scope(ecs::QueryCacheScope::Local)
   .all<Position>();
 
 // Shared-scope cached query: identical query shapes may reuse one cache entry.
 ecs::Query q3 = w.query()
-  .cache_scope(ecs::QueryCacheScope::Shared)
+  .scope(ecs::QueryCacheScope::Shared)
   .all<Position>();
 
 // Uncached query: local plan only, transient results.
@@ -1702,8 +1702,8 @@ q.reset();
 If this is a cached query, even after resetting it the compiled query state still remains alive. For local-scope queries, destroying that query object releases the private cached state. For shared-scope queries, the shared cache entry stays alive until the last query with the matching signature is destroyed:
 
 ```cpp
-ecs::Query q1 = w.query().cache_scope(ecs::QueryCacheScope::Shared);
-ecs::Query q2 = w.query().cache_scope(ecs::QueryCacheScope::Shared);
+ecs::Query q1 = w.query().scope(ecs::QueryCacheScope::Shared);
+ecs::Query q2 = w.query().scope(ecs::QueryCacheScope::Shared);
 q1.add<Position>();
 q2.add<Position>();
 
@@ -1735,7 +1735,7 @@ Quick guide:
 | Automatic cache layers only | `QueryCacheKind::Auto` | Rejects explicit traversed-source snapshots. |
 | Immediate structural cache only | `QueryCacheKind::All` | Query creation fails unless the query can stay fully on the immediate structural cache layer. |
 
-Use `World::uquery()` or `cache_kind(ecs::QueryCacheKind::None)` for one-shot or highly specialized queries that are unlikely to be reused. Use `cache_scope(ecs::QueryCacheScope::Shared)` when identical query shapes are frequently rebuilt and you want them to share warm state.
+Use `World::uquery()` or `kind(ecs::QueryCacheKind::None)` for one-shot or highly specialized queries that are unlikely to be reused. Use `scope(ecs::QueryCacheScope::Shared)` when identical query shapes are frequently rebuilt and you want them to share warm state.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.

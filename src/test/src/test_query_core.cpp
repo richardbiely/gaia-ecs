@@ -4061,9 +4061,9 @@ TEST_CASE("Query - delete from cache") {
 	wld.add(wolf, {eats, rabbit});
 
 	auto q1 = wld.query()
-								.cache_scope(ecs::QueryCacheScope::Shared)
+								.scope(ecs::QueryCacheScope::Shared)
 								.add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
-	auto q2 = wld.query().cache_scope(ecs::QueryCacheScope::Shared).add("(%e, %e)", eats.value(), carrot.value());
+	auto q2 = wld.query().scope(ecs::QueryCacheScope::Shared).add("(%e, %e)", eats.value(), carrot.value());
 
 	{
 		const auto cnt1 = q1.count();

@@ -1656,14 +1656,14 @@ TEST_CASE("Query Filter - changed order cache keys") {
 	wld.add<B>(e, {2});
 
 	ecs::Query qAB = wld.query() //
-											 .cache_scope(ecs::QueryCacheScope::Shared)
+											 .scope(ecs::QueryCacheScope::Shared)
 											 .template all<Marker>()
 											 .template all<A>()
 											 .template all<B>()
 											 .template changed<A>()
 											 .template changed<B>();
 	ecs::Query qBA = wld.query() //
-											 .cache_scope(ecs::QueryCacheScope::Shared)
+											 .scope(ecs::QueryCacheScope::Shared)
 											 .template all<Marker>()
 											 .template all<A>()
 											 .template all<B>()

@@ -85,7 +85,7 @@ auto create_query(ecs::World& w, ecs::EntitySpan queryTypes) {
 
 	auto query = make_query<UseCachedQuery>(w);
 	if constexpr (UseCachedQuery) {
-		query.cache_scope(CacheScope);
+		query.scope(CacheScope);
 	}
 	for (auto e: queryTypes)
 		query.all(e);

@@ -41424,7 +41424,7 @@ namespace gaia {
 
 				void match_all(QueryInfo& queryInfo) {
 					if (!validate_cache_kind(queryInfo.ctx())) {
-						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid cache_kind selected for a query");
+						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
 						queryInfo.reset();
 						return;
 					}
@@ -41450,7 +41450,7 @@ namespace gaia {
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if (!validate_cache_kind(queryInfo.ctx())) {
-						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid cache_kind selected for a query");
+						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
 						queryInfo.reset();
 						return false;
 					}
@@ -41492,7 +41492,7 @@ namespace gaia {
 					return m_cacheSrcTrav;
 				}
 
-				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
+				QueryImpl& kind(QueryCacheKind cacheKind) {
 					if (m_cacheKind == cacheKind)
 						return *this;
 
@@ -41504,7 +41504,7 @@ namespace gaia {
 					return *this;
 				}
 
-				QueryImpl& cache_scope(QueryCacheScope cacheScope) {
+				QueryImpl& scope(QueryCacheScope cacheScope) {
 					if (m_cacheScope == cacheScope)
 						return *this;
 
@@ -41522,11 +41522,11 @@ namespace gaia {
 					return *this;
 				}
 
-				GAIA_NODISCARD QueryCacheKind cache_kind() const {
+				GAIA_NODISCARD QueryCacheKind kind() const {
 					return m_cacheKind;
 				}
 
-				GAIA_NODISCARD QueryCacheScope cache_scope() const {
+				GAIA_NODISCARD QueryCacheScope scope() const {
 					return m_cacheScope;
 				}
 
@@ -48510,7 +48510,7 @@ namespace gaia {
 			//! \return Valid query object
 			Query uquery() {
 				auto q = query();
-				q.cache_kind(QueryCacheKind::None);
+				q.kind(QueryCacheKind::None);
 				return q;
 			}
 

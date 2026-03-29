@@ -4356,42 +4356,42 @@ TEST_CASE("Query - cache kind and policy") {
 	auto qCachedDynamicOptIn =
 			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
-	auto qSharedImmediate = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
-	auto qNoneImmediate = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
+	auto qSharedImmediate = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qNoneImmediate = wld.query().kind(ecs::QueryCacheKind::None).all<Position>();
 	auto qUncachedImmediate = wld.uquery().all<Position>();
 
-	CHECK(qCachedImmediate.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qCachedImmediate.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qCachedImmediate.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedImmediate.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qCachedLazy.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qCachedLazy.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qCachedLazy.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedLazy.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedLazy.cache_policy() == ecs::QueryCachePolicy::Lazy);
 
-	CHECK(qCachedDynamic.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qCachedDynamic.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qCachedDynamic.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedDynamic.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qCachedDynamic.cache_src_trav() == 0);
 
-	CHECK(qCachedDynamicOptIn.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qCachedDynamicOptIn.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qCachedDynamicOptIn.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedDynamicOptIn.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedDynamicOptIn.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qCachedDynamicOptIn.cache_src_trav() == 32);
 
-	CHECK(qCachedVar.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qCachedVar.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qCachedVar.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qCachedVar.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qCachedVar.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 
-	CHECK(qSharedImmediate.cache_kind() == ecs::QueryCacheKind::Default);
-	CHECK(qSharedImmediate.cache_scope() == ecs::QueryCacheScope::Shared);
+	CHECK(qSharedImmediate.kind() == ecs::QueryCacheKind::Default);
+	CHECK(qSharedImmediate.scope() == ecs::QueryCacheScope::Shared);
 	CHECK(qSharedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qNoneImmediate.cache_kind() == ecs::QueryCacheKind::None);
-	CHECK(qNoneImmediate.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qNoneImmediate.kind() == ecs::QueryCacheKind::None);
+	CHECK(qNoneImmediate.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qNoneImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qUncachedImmediate.cache_kind() == ecs::QueryCacheKind::None);
-	CHECK(qUncachedImmediate.cache_scope() == ecs::QueryCacheScope::Local);
+	CHECK(qUncachedImmediate.kind() == ecs::QueryCacheKind::None);
+	CHECK(qUncachedImmediate.scope() == ecs::QueryCacheScope::Local);
 	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 }
 
@@ -4403,75 +4403,72 @@ TEST_CASE("Query - cache kind") {
 	auto source = wld.add();
 	auto rel = wld.add();
 
-	auto qDefault = wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>();
+	auto qDefault = wld.query().kind(ecs::QueryCacheKind::Default).all<Position>();
 	auto qDefaultSrcTrav = wld.query()
-														 .cache_kind(ecs::QueryCacheKind::Default)
+														 .kind(ecs::QueryCacheKind::Default)
 														 .cache_src_trav(ecs::MaxCacheSrcTrav)
 														 .all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
-	auto qAuto = wld.query().cache_kind(ecs::QueryCacheKind::Auto).no<Position>();
-	auto qAutoDirectSrc =
-			wld.query().cache_kind(ecs::QueryCacheKind::Auto).all<Position>(ecs::QueryTermOptions{}.src(source));
+	auto qAuto = wld.query().kind(ecs::QueryCacheKind::Auto).no<Position>();
+	auto qAutoDirectSrc = wld.query().kind(ecs::QueryCacheKind::Auto).all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qAutoTraversedSrc =
-			wld.query().cache_kind(ecs::QueryCacheKind::Auto).all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
+			wld.query().kind(ecs::QueryCacheKind::Auto).all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto qAutoSrcTrav = wld.query()
-													.cache_kind(ecs::QueryCacheKind::Auto)
+													.kind(ecs::QueryCacheKind::Auto)
 													.cache_src_trav(ecs::MaxCacheSrcTrav)
 													.all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
-	auto qNone = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
-	auto qAll = wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>();
-	auto qAllFail = wld.query().cache_kind(ecs::QueryCacheKind::All).no<Position>();
-	auto qAllDynamic =
-			wld.query().cache_kind(ecs::QueryCacheKind::All).all<Position>(ecs::QueryTermOptions{}.src(source));
+	auto qNone = wld.query().kind(ecs::QueryCacheKind::None).all<Position>();
+	auto qAll = wld.query().kind(ecs::QueryCacheKind::All).all<Position>();
+	auto qAllFail = wld.query().kind(ecs::QueryCacheKind::All).no<Position>();
+	auto qAllDynamic = wld.query().kind(ecs::QueryCacheKind::All).all<Position>(ecs::QueryTermOptions{}.src(source));
 	auto qAllSrcTrav = wld.query()
-												 .cache_kind(ecs::QueryCacheKind::All)
+												 .kind(ecs::QueryCacheKind::All)
 												 .cache_src_trav(ecs::MaxCacheSrcTrav)
 												 .all<Position>(ecs::QueryTermOptions{}.src(source).trav(rel));
-	auto qDynamic =
-			wld.query().cache_kind(ecs::QueryCacheKind::Default).all<Position>(ecs::QueryTermOptions{}.src(source));
+	auto qDynamic = wld.query().kind(ecs::QueryCacheKind::Default).all<Position>(ecs::QueryTermOptions{}.src(source));
 
-	CHECK(qDefault.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qDefault.kind() == ecs::QueryCacheKind::Default);
 	CHECK(qDefault.valid());
 	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qDefaultSrcTrav.cache_kind() == ecs::QueryCacheKind::Default);
+	CHECK(qDefaultSrcTrav.kind() == ecs::QueryCacheKind::Default);
 	CHECK(qDefaultSrcTrav.valid());
 	CHECK(qDefaultSrcTrav.cache_src_trav() > 0);
 
-	CHECK(qAuto.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(qAuto.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAuto.valid());
 	CHECK(qAuto.cache_policy() == ecs::QueryCachePolicy::Lazy);
 
-	CHECK(qAutoDirectSrc.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(qAutoDirectSrc.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAutoDirectSrc.valid());
 	CHECK(qAutoDirectSrc.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qAutoDirectSrc.cache_src_trav() == 0);
 
-	CHECK(qAutoTraversedSrc.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(qAutoTraversedSrc.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAutoTraversedSrc.valid());
 	CHECK(qAutoTraversedSrc.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qAutoTraversedSrc.cache_src_trav() == 0);
 
-	CHECK(qAutoSrcTrav.cache_kind() == ecs::QueryCacheKind::Auto);
+	CHECK(qAutoSrcTrav.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(!qAutoSrcTrav.valid());
 	CHECK(qAutoSrcTrav.count() == 0);
 
-	CHECK(qNone.cache_kind() == ecs::QueryCacheKind::None);
+	CHECK(qNone.kind() == ecs::QueryCacheKind::None);
 	CHECK(qNone.valid());
 	CHECK(qNone.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qAll.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(qAll.kind() == ecs::QueryCacheKind::All);
 	CHECK(qAll.valid());
 	CHECK(qAll.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
-	CHECK(qAllFail.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(qAllFail.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllFail.valid());
 	CHECK(qAllFail.count() == 0);
 
-	CHECK(qAllDynamic.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(qAllDynamic.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllDynamic.valid());
 	CHECK(qAllDynamic.count() == 0);
 
-	CHECK(qAllSrcTrav.cache_kind() == ecs::QueryCacheKind::All);
+	CHECK(qAllSrcTrav.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllSrcTrav.valid());
 	CHECK(qAllSrcTrav.count() == 0);
 
@@ -4487,19 +4484,18 @@ TEST_CASE("Query - cache_src_trav and traversed source cache keys") {
 	auto root = wld.add();
 	auto leaf = wld.add();
 	wld.child(leaf, root);
-	auto qNoSource = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qNoSource = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>();
 	auto qNoSourceSrcTrav =
-			wld.query().cache_scope(ecs::QueryCacheScope::Shared).cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>();
-	auto qDirectSource =
-			wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(root));
+			wld.query().scope(ecs::QueryCacheScope::Shared).cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>();
+	auto qDirectSource = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(root));
 	auto qDirectSourceSrcTrav = wld.query()
-																	.cache_scope(ecs::QueryCacheScope::Shared)
+																	.scope(ecs::QueryCacheScope::Shared)
 																	.cache_src_trav(ecs::MaxCacheSrcTrav)
 																	.all<Position>(ecs::QueryTermOptions{}.src(root));
 	auto qTraversedSource =
-			wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
 	auto qTraversedSourceSrcTrav = wld.query()
-																		 .cache_scope(ecs::QueryCacheScope::Shared)
+																		 .scope(ecs::QueryCacheScope::Shared)
 																		 .cache_src_trav(ecs::MaxCacheSrcTrav)
 																		 .all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
 
@@ -4533,7 +4529,7 @@ TEST_CASE("Query - shared cache for identical traversed queries") {
 
 	const auto buildQuery = [&] {
 		return wld.query()
-				.cache_scope(ecs::QueryCacheScope::Shared)
+				.scope(ecs::QueryCacheScope::Shared)
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
@@ -5272,9 +5268,9 @@ TEST_CASE("Query - exact owned term matcher with inherited fallback") {
 TEST_CASE("Query - cached local and shared query state is immediately updated by cache propagation") {
 	TestWorld twld;
 
-	auto qShared = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qShared = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>();
 	auto qLocal = wld.query().all<Position>();
-	auto qNone = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
+	auto qNone = wld.query().kind(ecs::QueryCacheKind::None).all<Position>();
 	auto qUncached = wld.uquery().all<Position>();
 
 	auto& sharedInfo = qShared.fetch();
