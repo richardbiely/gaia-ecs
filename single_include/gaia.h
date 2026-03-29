@@ -32025,8 +32025,8 @@ namespace gaia {
 				bool& cachedDirect);
 		template <typename T>
 		void world_init_query_entity_arg_by_id_chunk_stable_const(
-				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, Entity& owner,
-				uint32_t& compIdx, const std::remove_cv_t<std::remove_reference_t<T>>*& pOwnerData);
+				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pResolvedData);
 		bool world_term_uses_inherit_policy(const World& world, Entity term);
 		template <typename T>
 		Entity world_query_arg_id(World& world);
@@ -32167,39 +32167,31 @@ namespace gaia {
 				uint16_t rowBase = 0;
 				uint32_t cnt = 0;
 				bool chunkStableInherited = false;
-				bool chunkEntityDirect = false;
-				Entity chunkEntityOwner = EntityBad;
-				uint32_t chunkEntityCompIdx = BadIndex;
-				const U* pChunkEntityDirectData = nullptr;
-				const U* pChunkEntityOwnerData = nullptr;
+				const U* pResolvedData = nullptr;
 				mutable const Archetype* pLastArchetype = nullptr;
 				mutable Entity cachedOwner = EntityBad;
 				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr,		nullptr,	nullptr, EntityBad, 0,			 cnt,				false,
-									false, EntityBad, BadIndex, nullptr, nullptr,		nullptr, EntityBad, false};
+					return {pData, nullptr, nullptr, nullptr, EntityBad, 0, cnt, false, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, nullptr,	pWorld,	 id,			0,			 cnt,				false,
-									false,	 EntityBad, BadIndex, nullptr, nullptr, nullptr, EntityBad, false};
+					return {nullptr, pEntities, nullptr, pWorld, id, 0, cnt, false, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity_chunk_stable(
 						const Entity* pEntities, const Chunk* pChunk, World* pWorld, Entity id, uint16_t rowBase, uint32_t cnt) {
-					Entity owner = EntityBad;
 					uint32_t compIdx = BadIndex;
-					const U* pDirectData = nullptr;
-					const U* pOwnerData = nullptr;
+					const U* pResolvedData = nullptr;
 					bool direct = false;
 					world_init_query_entity_arg_by_id_chunk_stable_const<U>(
-							*pWorld, *pChunk, pEntities, id, direct, owner, compIdx, pOwnerData);
+							*pWorld, *pChunk, pEntities, id, direct, compIdx, pResolvedData);
+					const U* pData = nullptr;
 					if (direct)
-						pDirectData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
+						pData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
 
-					return {nullptr, pEntities, pChunk,	 pWorld,			id,					rowBase, cnt,				true,
-									direct,	 owner,			compIdx, pDirectData, pOwnerData, nullptr, EntityBad, false};
+					return {pData, pEntities, pChunk, pWorld, id, rowBase, cnt, true, pResolvedData, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32207,11 +32199,8 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 					if (chunkStableInherited) {
-						if (chunkEntityDirect)
-							return pChunkEntityDirectData[idx];
-
-						GAIA_ASSERT(pChunkEntityOwnerData != nullptr);
-						return *pChunkEntityOwnerData;
+						GAIA_ASSERT(pResolvedData != nullptr);
+						return *pResolvedData;
 					}
 
 					return world_query_entity_arg_by_id_cached_const<const U&>(
@@ -61344,22 +61333,20 @@ namespace gaia {
 
 		template <typename T>
 		inline void world_init_query_entity_arg_by_id_chunk_stable_const(
-				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, Entity& owner,
-				uint32_t& compIdx, const std::remove_cv_t<std::remove_reference_t<T>>*& pOwnerData) {
+				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pResolvedData) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>) {
 				direct = false;
-				owner = EntityBad;
 				compIdx = BadIndex;
-				pOwnerData = nullptr;
+				pResolvedData = nullptr;
 				return;
 			}
 
 			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
 			direct = chunk.has(termId);
-			owner = EntityBad;
 			compIdx = BadIndex;
-			pOwnerData = nullptr;
+			pResolvedData = nullptr;
 
 			if (direct) {
 				compIdx = chunk.comp_idx(termId);
@@ -61367,6 +61354,7 @@ namespace gaia {
 				return;
 			}
 
+			auto owner = EntityBad;
 			const auto firstEntity = pEntities[0];
 			for (const auto target: world.as_targets_trav_cache(firstEntity)) {
 				if (!world.has_direct(target, termId))
@@ -61377,7 +61365,7 @@ namespace gaia {
 			}
 
 			GAIA_ASSERT(owner != EntityBad);
-			pOwnerData = &world.template get<Arg>(owner, termId);
+			pResolvedData = &world.template get<Arg>(owner, termId);
 		}
 
 		template <typename T>

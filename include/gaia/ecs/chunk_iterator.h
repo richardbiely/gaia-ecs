@@ -169,19 +169,17 @@ namespace gaia {
 				uint16_t rowBase = 0;
 				uint32_t cnt = 0;
 				bool chunkStableInherited = false;
-				bool chunkEntityDirect = false;
 				const U* pResolvedData = nullptr;
 				mutable const Archetype* pLastArchetype = nullptr;
 				mutable Entity cachedOwner = EntityBad;
 				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr, nullptr, nullptr, EntityBad, 0,		 cnt,
-									false, false,		nullptr, nullptr, EntityBad, false};
+					return {pData, nullptr, nullptr, nullptr, EntityBad, 0, cnt, false, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, nullptr, pWorld, id, 0, cnt, false, false, nullptr, nullptr, EntityBad, false};
+					return {nullptr, pEntities, nullptr, pWorld, id, 0, cnt, false, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity_chunk_stable(
@@ -191,11 +189,11 @@ namespace gaia {
 					bool direct = false;
 					world_init_query_entity_arg_by_id_chunk_stable_const<U>(
 							*pWorld, *pChunk, pEntities, id, direct, compIdx, pResolvedData);
+					const U* pData = nullptr;
 					if (direct)
-						pResolvedData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
+						pData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
 
-					return {nullptr, pEntities, pChunk,				 pWorld,	id,				 rowBase, cnt,
-									true,		 direct,		pResolvedData, nullptr, EntityBad, false};
+					return {pData, pEntities, pChunk, pWorld, id, rowBase, cnt, true, pResolvedData, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -203,9 +201,6 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 					if (chunkStableInherited) {
-						if (chunkEntityDirect)
-							return pResolvedData[idx];
-
 						GAIA_ASSERT(pResolvedData != nullptr);
 						return *pResolvedData;
 					}
