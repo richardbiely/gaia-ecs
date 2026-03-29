@@ -29312,7 +29312,7 @@ namespace gaia {
 				versions[0] = m_header.worldVersion;
 				// Do +1 because index 0 is reserved for the entity version number.
 				versions[compIdx + 1] = m_header.worldVersion;
-				// Sorted queries keyed by this component can invalidate their cached order eagerly.
+				// Sorted queries keyed by this component can invalidate their cached order immediately.
 				world_invalidate_sorted_queries_for_entity(
 						*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx]);
 			}

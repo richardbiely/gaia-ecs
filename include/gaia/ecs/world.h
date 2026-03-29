@@ -94,6 +94,10 @@ namespace gaia {
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);
 			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
 			friend uint32_t world_component_index_match_count(const World&, const Archetype&, Entity);
+			template <typename T>
+			friend decltype(auto) world_direct_entity_arg(World& world, Entity entity);
+			template <typename T>
+			friend decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -221,6 +225,310 @@ namespace gaia {
 					delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
 				};
 				return store;
+			}
+
+			template <
+					typename TApi, typename TValue, bool DeriveFromValue = std::is_class_v<TValue> && !std::is_final_v<TValue>>
+			class SetWriteProxyTyped;
+
+			template <typename TApi, typename TValue>
+			class SetWriteProxyTyped<TApi, TValue, true>: public TValue {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_typed<TApi, TValue>(m_entity, m_term, static_cast<const TValue&>(*this));
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, const TValue& value):
+						TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, TValue&& value):
+						TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyTyped(const SetWriteProxyTyped&) = delete;
+				SetWriteProxyTyped& operator=(const SetWriteProxyTyped&) = delete;
+
+				SetWriteProxyTyped(SetWriteProxyTyped&& other) noexcept:
+						TValue(static_cast<TValue&&>(other)), m_pWorld(other.m_pWorld), m_entity(other.m_entity),
+						m_term(other.m_term) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyTyped() {
+					commit();
+				}
+
+				SetWriteProxyTyped& operator=(const TValue& value) {
+					static_cast<TValue&>(*this) = value;
+					return *this;
+				}
+
+				SetWriteProxyTyped& operator=(TValue&& value) {
+					static_cast<TValue&>(*this) = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return *this;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return *this;
+				}
+			};
+
+			template <typename TApi, typename TValue>
+			class SetWriteProxyTyped<TApi, TValue, false> {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+				TValue m_value{};
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_typed<TApi, TValue>(m_entity, m_term, m_value);
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, const TValue& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(value) {}
+
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, TValue&& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(GAIA_MOV(value)) {}
+
+				SetWriteProxyTyped(const SetWriteProxyTyped&) = delete;
+				SetWriteProxyTyped& operator=(const SetWriteProxyTyped&) = delete;
+
+				SetWriteProxyTyped(SetWriteProxyTyped&& other) noexcept:
+						m_pWorld(other.m_pWorld), m_entity(other.m_entity), m_term(other.m_term), m_value(GAIA_MOV(other.m_value)) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyTyped() {
+					commit();
+				}
+
+				SetWriteProxyTyped& operator=(const TValue& value) {
+					m_value = value;
+					return *this;
+				}
+
+				SetWriteProxyTyped& operator=(TValue&& value) {
+					m_value = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return m_value;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return m_value;
+				}
+
+				GAIA_NODISCARD TValue* operator->() {
+					return &m_value;
+				}
+
+				GAIA_NODISCARD const TValue* operator->() const {
+					return &m_value;
+				}
+			};
+
+			template <typename TValue, bool DeriveFromValue = std::is_class_v<TValue> && !std::is_final_v<TValue>>
+			class SetWriteProxyObject;
+
+			template <typename TValue>
+			class SetWriteProxyObject<TValue, true>: public TValue {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_object<TValue>(m_entity, m_term, static_cast<const TValue&>(*this));
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyObject(World& world, Entity entity, Entity term, const TValue& value):
+						TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyObject(World& world, Entity entity, Entity term, TValue&& value):
+						TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyObject(const SetWriteProxyObject&) = delete;
+				SetWriteProxyObject& operator=(const SetWriteProxyObject&) = delete;
+
+				SetWriteProxyObject(SetWriteProxyObject&& other) noexcept:
+						TValue(static_cast<TValue&&>(other)), m_pWorld(other.m_pWorld), m_entity(other.m_entity),
+						m_term(other.m_term) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyObject() {
+					commit();
+				}
+
+				SetWriteProxyObject& operator=(const TValue& value) {
+					static_cast<TValue&>(*this) = value;
+					return *this;
+				}
+
+				SetWriteProxyObject& operator=(TValue&& value) {
+					static_cast<TValue&>(*this) = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return *this;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return *this;
+				}
+			};
+
+			template <typename TValue>
+			class SetWriteProxyObject<TValue, false> {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+				TValue m_value{};
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_object<TValue>(m_entity, m_term, m_value);
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyObject(World& world, Entity entity, Entity term, const TValue& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(value) {}
+
+				SetWriteProxyObject(World& world, Entity entity, Entity term, TValue&& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(GAIA_MOV(value)) {}
+
+				SetWriteProxyObject(const SetWriteProxyObject&) = delete;
+				SetWriteProxyObject& operator=(const SetWriteProxyObject&) = delete;
+
+				SetWriteProxyObject(SetWriteProxyObject&& other) noexcept:
+						m_pWorld(other.m_pWorld), m_entity(other.m_entity), m_term(other.m_term), m_value(GAIA_MOV(other.m_value)) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyObject() {
+					commit();
+				}
+
+				SetWriteProxyObject& operator=(const TValue& value) {
+					m_value = value;
+					return *this;
+				}
+
+				SetWriteProxyObject& operator=(TValue&& value) {
+					m_value = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return m_value;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return m_value;
+				}
+
+				GAIA_NODISCARD TValue* operator->() {
+					return &m_value;
+				}
+
+				GAIA_NODISCARD const TValue* operator->() const {
+					return &m_value;
+				}
+			};
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut_im(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity))
+						return sparse_component_store_mut<FT>(item.entity).mut(entity);
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+					return ec.pChunk->template set<T>(ec.row);
+				else
+					return ec.pChunk->template set<T>();
+			}
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut_im(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object))
+						return sparse_component_store_mut<FT>(object).mut(entity);
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				return ec.pChunk->template set<T>(ec.row, object);
+			}
+
+			template <typename TApi, typename TValue>
+			void write_back_set_typed(Entity entity, Entity term, const TValue& value) {
+				using FT = typename component_type_t<TApi>::TypeFull;
+
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(term)) {
+						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						world_notify_on_set_entity(*this, term, entity);
+						return;
+					}
+				}
+
+				const auto& ec = fetch(entity);
+				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				ComponentSetter{{ec.pChunk, row}}.sset<TApi>(value);
+				const auto compIdx = ec.pChunk->comp_idx(term);
+				(void)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, row);
+				world_notify_on_set_entity(*this, term, entity);
+			}
+
+			template <typename TValue>
+			void write_back_set_object(Entity entity, Entity term, const TValue& value) {
+				using FT = typename component_type_t<TValue>::TypeFull;
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(term)) {
+						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						world_notify_on_set_entity(*this, term, entity);
+						return;
+					}
+				}
+
+				const auto& ec = fetch(entity);
+				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				ComponentSetter{{ec.pChunk, row}}.smut<TValue>(term) = value;
+				const auto compIdx = ec.pChunk->comp_idx(term);
+				(void)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, row);
+				world_notify_on_set_entity(*this, term, entity);
 			}
 
 			//----------------------------------------------------------------------
@@ -5741,42 +6049,32 @@ namespace gaia {
 				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
-			//! Sets the value of the component @a T on @a entity.
-			//! Triggers `OnSet` observers for that entity when observers are enabled.
-			//! Chunk-backed components also trigger component set hooks.
+			//! Returns a write-back proxy for the component @a T on @a entity.
+			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
+			//! full expression or scope and only then triggers `OnSet` observers.
+			//! Chunk-backed components also trigger component set hooks after the write-back completes.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) set(Entity entity) {
+			GAIA_NODISCARD auto set(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
+				using ValueType = typename actual_type_t<T>::Type;
 				const auto& item = add<FT>();
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (is_out_of_line_component(item.entity)) {
-						world_notify_on_set_entity(*this, item.entity, entity);
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-					}
-				}
-				return acc_mut(entity).mut<T>();
+				return SetWriteProxyTyped<T, ValueType>{*this, entity, item.entity, get<T>(entity)};
 			}
 
-			//! Sets the value of the component associated with @a object on @a entity.
-			//! Triggers `OnSet` observers for that entity when observers are enabled.
-			//! Chunk-backed components also trigger component set hooks.
+			//! Returns a write-back proxy for the component associated with @a object on @a entity.
+			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
+			//! full expression or scope and only then triggers `OnSet` observers.
+			//! Chunk-backed components also trigger component set hooks after the write-back completes.
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
+			GAIA_NODISCARD auto set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
-				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object)) {
-						world_notify_on_set_entity(*this, object, entity);
-						return sparse_component_store_mut<FT>(object).mut(entity);
-					}
-				}
-				return acc_mut(entity).mut<T>(object);
+				return SetWriteProxyObject<typename actual_type_t<T>::Type>{*this, entity, object, get<T>(entity, object)};
 			}
 
 			//! Sets the value of the component @a T on @a entity without triggering a world version update.
@@ -5813,7 +6111,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the component T on entity without triggering a world version update.
+			//! Returns a mutable reference or proxy to the component on @a entity without triggering a world version update.
+			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
@@ -5822,14 +6121,15 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
 				static_assert(!is_pair<T>::value);
-				return set<T>(entity);
+				return sset<T>(entity);
 			}
 
-			//! Sets the value of the component associated with @a object on @a entity.
+			//! Returns a mutable reference or proxy to the component associated with @a object on @a entity.
+			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
-				return set<T>(entity, object);
+				return sset<T>(entity, object);
 			}
 
 			//----------------------------------------------------------------------
@@ -12238,7 +12538,7 @@ namespace gaia {
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
 			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-				return world.template set<Arg>(entity);
+				return world.template mut_im<Arg>(entity);
 			else
 				return world.template get<Arg>(entity);
 		}
@@ -12280,7 +12580,7 @@ namespace gaia {
 						(void)world.template override<Arg>(entity, termId);
 				}
 
-				return world.template set<Arg>(entity, termId);
+				return world.template mut_im<Arg>(entity, termId);
 			} else
 				return world.template get<Arg>(entity, termId);
 		}

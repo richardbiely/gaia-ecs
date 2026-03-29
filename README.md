@@ -593,20 +593,21 @@ ecs::Entity e = w.add();
 w.add<Position>(e);
 ```
 
-It is also possible to set up a "set" hook. These are triggered whenever write access to component is requested.
+It is also possible to set up a "set" hook. For explicit setter APIs such as `w.set<T>(e) = ...` and `w.acc_mut(e).set<T>(...)`, the hook runs after the new value has been written back.
+
 ```cpp
 ecs::World w;
 const ecs::ComponentCacheItem& pos_item = w.add<Position>();
 ecs::ComponentCache::hooks(pos_item).func_set = [](const ecs::World& w, const ecs::ComponentRecord& rec, Chunk& chunk) {
-  // Position component value change has been requested
+  // Position component value has been updated
   // ...
 };
 
 ecs::Entity e = w.add();
 w.add<Position>(e); // Don't trigger the set hook, yet
 w.set<Position>(e) = {}; // Trigger the set hook
-w.acc(e).set<Position>({}); // Trigger the set hook
-w.acc(e).sset<Position>({}); // Don't trigger the set hook
+w.acc_mut(e).set<Position>({}); // Trigger the set hook
+w.acc_mut(e).sset<Position>({}); // Don't trigger the set hook
 ```
 
 Unlike *add* and *del* hooks, *set* hooks will not tell you what entity the hook triggered for. This is because any write access is done for the entire chunk, not just one of its entities. If one-entity behavior is required, the best thing you can do is moving your entity to a separate archetype (e.g. by adding some unique tag component to it).
@@ -630,6 +631,7 @@ Observer events currently mean:
 
 `OnSet` is triggered by APIs such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, and `modify<T, true>(entity)`.
 It is not triggered by `sset(...)`, `modify<T, false>(entity)`, or by the initial `add<T>(entity, value)` that creates the component.
+`set<T>(entity)` uses a write-back proxy, so `OnSet` is emitted after the full expression or scope writes the final value back.
 
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
@@ -806,6 +808,8 @@ setter.set<Something>({ ... }).set<Else>({ ... });
 auto& vel = setter.mut<Velocity>();
 auto& pos = setter.mut<Position>();
 ```
+
+`setter.mut<T>()` and `w.mut<T>(e)` are silent raw write paths. If you use them and want hooks or `OnSet`, call `w.modify<T, true>(e)` after finishing the write.
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
 

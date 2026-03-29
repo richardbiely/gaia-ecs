@@ -23,6 +23,7 @@ namespace gaia {
 		//! Observer event types.
 		//! `OnSet` is emitted for explicit value writes to an already present component,
 		//! such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, or `modify<T, true>(entity)`.
+		//! For the setter-style APIs the event is emitted after the new value has been written back.
 		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
 		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {

@@ -5329,7 +5329,7 @@ TEST_CASE("Query - cached structural query drops deleted archetypes after gc") {
 	CHECK(info.cache_archetype_view().empty());
 }
 
-TEST_CASE("Query - cached structural query across eager add and gc") {
+TEST_CASE("Query - cached structural query across immediate add and gc") {
 	TestWorld twld;
 
 	auto e0 = wld.add();
@@ -5377,7 +5377,7 @@ TEST_CASE("Query - cached query destruction unregisters archetype reverse index"
 	CHECK(wld.query().all<Position&>().all<Acceleration&>().count() == 0);
 }
 
-TEST_CASE("Query - cached reverse index across repeated eager add gc and destruction") {
+TEST_CASE("Query - cached reverse index across repeated immediate add gc and destruction") {
 	TestWorld twld;
 	for (int i = 0; i < 256; ++i) {
 		auto e0 = wld.add();

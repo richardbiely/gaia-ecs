@@ -165,15 +165,18 @@ TEST_CASE("Observer - OnSet") {
 
 	uint32_t hits = 0;
 	ecs::Entity last = ecs::EntityBad;
+	Position lastPos{};
 	uint32_t sparseHits = 0;
 	ecs::Entity sparseLast = ecs::EntityBad;
+	PositionSparse lastSparsePos{};
 
 	const auto observerSet = wld.observer()
 													 .event(ecs::ObserverEvent::OnSet)
 													 .all<Position>()
-													 .on_each([&](ecs::Entity entity, const Position&) {
+													 .on_each([&](ecs::Entity entity, const Position& pos) {
 														 ++hits;
 														 last = entity;
+														 lastPos = pos;
 													 })
 													 .entity();
 	(void)observerSet;
@@ -181,9 +184,10 @@ TEST_CASE("Observer - OnSet") {
 	const auto sparseObserverSet = wld.observer()
 																 .event(ecs::ObserverEvent::OnSet)
 																 .all<PositionSparse>()
-																 .on_each([&](ecs::Entity entity, const PositionSparse&) {
+																 .on_each([&](ecs::Entity entity, const PositionSparse& pos) {
 																	 ++sparseHits;
 																	 sparseLast = entity;
+																	 lastSparsePos = pos;
 																 })
 																 .entity();
 	(void)sparseObserverSet;
@@ -200,10 +204,16 @@ TEST_CASE("Observer - OnSet") {
 	wld.set<Position>(e) = {10.0f, 11.0f, 12.0f};
 	CHECK(hits == 1);
 	CHECK(last == e);
+	CHECK(lastPos.x == doctest::Approx(10.0f));
+	CHECK(lastPos.y == doctest::Approx(11.0f));
+	CHECK(lastPos.z == doctest::Approx(12.0f));
 
 	wld.acc_mut(e).set<Position>({13.0f, 14.0f, 15.0f});
 	CHECK(hits == 2);
 	CHECK(last == e);
+	CHECK(lastPos.x == doctest::Approx(13.0f));
+	CHECK(lastPos.y == doctest::Approx(14.0f));
+	CHECK(lastPos.z == doctest::Approx(15.0f));
 
 	wld.acc_mut(e).sset<Position>({16.0f, 17.0f, 18.0f});
 	CHECK(hits == 2);
@@ -221,6 +231,9 @@ TEST_CASE("Observer - OnSet") {
 	wld.set<PositionSparse>(e) = {19.0f, 20.0f, 21.0f};
 	CHECK(sparseHits == 1);
 	CHECK(sparseLast == e);
+	CHECK(lastSparsePos.x == doctest::Approx(19.0f));
+	CHECK(lastSparsePos.y == doctest::Approx(20.0f));
+	CHECK(lastSparsePos.z == doctest::Approx(21.0f));
 
 	const auto e2 = wld.add();
 	wld.add<Position>(e2, {22.0f, 23.0f, 24.0f});
@@ -230,6 +243,9 @@ TEST_CASE("Observer - OnSet") {
 	wld.set<Position>(e2) = {25.0f, 26.0f, 27.0f};
 	CHECK(hits == 4);
 	CHECK(last == e2);
+	CHECK(lastPos.x == doctest::Approx(25.0f));
+	CHECK(lastPos.y == doctest::Approx(26.0f));
+	CHECK(lastPos.z == doctest::Approx(27.0f));
 }
 
 TEST_CASE("EntityBuilder single-step graph rebuild tolerates stale del edges") {

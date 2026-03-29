@@ -2332,7 +2332,8 @@ TEST_CASE("Query - sort") {
 		CHECK(g_query_sort_cmp_cnt > 0);
 
 		g_query_sort_cmp_cnt = 0;
-		wld.set<Something>(e0).value = true;
+		auto something = wld.set<Something>(e0);
+		something.value = true;
 		q.each([](ecs::Iter&) {});
 		CHECK(g_query_sort_cmp_cnt == 0);
 	}
