@@ -10,6 +10,8 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
+		//! Entity-scoped component accessor bound to a specific world, chunk and row.
+		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentGetter {
 			const World* m_pWorld;
 			const Chunk* m_pChunk;

@@ -33804,6 +33804,8 @@ namespace gaia {
 	namespace ecs {
 		class World;
 
+		//! Entity-scoped component accessor bound to a specific world, chunk and row.
+		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentGetter {
 			const World* m_pWorld;
 			const Chunk* m_pChunk;
@@ -33842,6 +33844,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
+		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
 			using ComponentGetter::ComponentGetter;
 
@@ -52408,7 +52412,7 @@ namespace gaia {
 
 			//! Starts a bulk set operation on @a entity.
 			//! \param entity Entity
-			//! \return ComponentSetter
+			//! \return Entity-scoped ComponentSetter bound to this world and entity's current storage
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
@@ -52513,7 +52517,7 @@ namespace gaia {
 
 			//! Starts a bulk get operation on an entity.
 			//! \param entity Entity
-			//! \return ComponentGetter
+			//! \return Entity-scoped ComponentGetter bound to this world and entity's current storage
 			//! \warning It is expected that entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			ComponentGetter acc(Entity entity) const {

@@ -6144,7 +6144,7 @@ namespace gaia {
 
 			//! Starts a bulk set operation on @a entity.
 			//! \param entity Entity
-			//! \return ComponentSetter
+			//! \return Entity-scoped ComponentSetter bound to this world and entity's current storage
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
@@ -6249,7 +6249,7 @@ namespace gaia {
 
 			//! Starts a bulk get operation on an entity.
 			//! \param entity Entity
-			//! \return ComponentGetter
+			//! \return Entity-scoped ComponentGetter bound to this world and entity's current storage
 			//! \warning It is expected that entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if entity changes archetype after ComponentGetter is created.
 			ComponentGetter acc(Entity entity) const {

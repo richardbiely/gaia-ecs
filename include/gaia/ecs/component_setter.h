@@ -9,6 +9,8 @@
 
 namespace gaia {
 	namespace ecs {
+		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
+		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
 			using ComponentGetter::ComponentGetter;
 
