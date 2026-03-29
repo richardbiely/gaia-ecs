@@ -33,7 +33,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
-			//! Call `World::modify<T, true>(entity)` if the write should emit `OnSet`.
+			//! Call `World::modify<T, true>(entity, type)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>

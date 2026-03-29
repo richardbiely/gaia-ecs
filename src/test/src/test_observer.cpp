@@ -380,6 +380,40 @@ TEST_CASE("World modify emits OnSet for raw object writes") {
 	}
 }
 
+TEST_CASE("Observer - OnSet for immediate object writes") {
+	TestWorld twld;
+
+	const auto& runtimeTableComp = wld.add(
+			"Observer_Runtime_Table_Position_Setter", (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
+			(uint32_t)alignof(Position));
+
+	uint32_t tableHits = 0;
+	ecs::Entity lastTable = ecs::EntityBad;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all(runtimeTableComp.entity)
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++tableHits;
+					lastTable = entities[i];
+				}
+			})
+			.entity();
+
+	const auto e = wld.add();
+	wld.add(e, runtimeTableComp.entity, Position{1.0f, 2.0f, 3.0f});
+
+	auto setter = wld.acc_mut(e);
+	setter.set<Position>(runtimeTableComp.entity, Position{7.0f, 8.0f, 9.0f});
+	CHECK(tableHits == 1);
+	CHECK(lastTable == e);
+
+	setter.sset<Position>(runtimeTableComp.entity, Position{10.0f, 11.0f, 12.0f});
+	CHECK(tableHits == 1);
+}
+
 TEST_CASE("Observer - OnSet after query write callbacks") {
 	SUBCASE("typed chunk-backed query") {
 		TestWorld twld;

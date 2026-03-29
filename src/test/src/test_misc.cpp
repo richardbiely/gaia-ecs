@@ -3713,6 +3713,27 @@ TEST_CASE("DontFragment runtime-registered table component typed object access")
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("Runtime-registered component accessor object setter paths") {
+	TestWorld twld;
+
+	const auto& runtimeTableComp = wld.add(
+			"Runtime_Table_Position_Setter", (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
+			(uint32_t)alignof(Position));
+
+	const auto e = wld.add();
+	wld.add(e, runtimeTableComp.entity, Position{1.0f, 2.0f, 3.0f});
+
+	auto setter = wld.acc_mut(e);
+	setter.set<Position>(runtimeTableComp.entity, Position{7.0f, 8.0f, 9.0f});
+	setter.sset<Position>(runtimeTableComp.entity, Position{10.0f, 11.0f, 12.0f});
+
+	const auto getter = wld.acc(e);
+	const auto& tablePos = getter.get<Position>(runtimeTableComp.entity);
+	CHECK(tablePos.x == doctest::Approx(10.0f));
+	CHECK(tablePos.y == doctest::Approx(11.0f));
+	CHECK(tablePos.z == doctest::Approx(12.0f));
+}
+
 TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity delete") {
 	TestWorld twld;
 
