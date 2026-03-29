@@ -934,6 +934,16 @@ namespace gaia {
 					return std::span<const Entity>{m_pChunk->entity_view().data() + from(), size()};
 				}
 
+				template <typename U>
+				GAIA_NODISCARD auto entity_view_set(Entity termId, bool writeIm) {
+					return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), writeIm);
+				}
+
+				template <typename U>
+				GAIA_NODISCARD auto entity_soa_view_set(Entity termId, bool writeIm) {
+					return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), writeIm};
+				}
+
 				void set_group_id(GroupId groupId) {
 					m_groupId = groupId;
 				}
@@ -1160,7 +1170,7 @@ namespace gaia {
 
 						if (id != EntityBad) {
 							touch_term(id);
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), id, size(), m_writeIm);
+							return entity_view_set<U>(id, m_writeIm);
 						}
 
 						touch_term_by_type<T>();
@@ -1239,7 +1249,7 @@ namespace gaia {
 							const auto termId = fallback_term_id<T>(termIdx);
 							GAIA_ASSERT(termId != EntityBad);
 							touch_term(termId);
-							return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), m_writeIm};
+							return entity_soa_view_set<U>(termId, m_writeIm);
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
@@ -1259,13 +1269,13 @@ namespace gaia {
 						const auto termId = fallback_term_id<T>(termIdx);
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId)) {
 							touch_term(termId);
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), m_writeIm);
+							return entity_view_set<U>(termId, m_writeIm);
 						}
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(termId != EntityBad);
 							touch_term(termId);
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), m_writeIm);
+							return entity_view_set<U>(termId, m_writeIm);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 
@@ -1300,7 +1310,7 @@ namespace gaia {
 						}
 
 						if (id != EntityBad)
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), id, size(), false);
+							return entity_view_set<U>(id, false);
 
 						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
 						return EntityTermViewSet<U>::pointer(pData, size());
@@ -1366,7 +1376,7 @@ namespace gaia {
 						if (compIdx == 0xFF) {
 							const auto termId = fallback_term_id<T>(termIdx);
 							GAIA_ASSERT(termId != EntityBad);
-							return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), false};
+							return entity_soa_view_set<U>(termId, false);
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
@@ -1382,11 +1392,11 @@ namespace gaia {
 						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), false);
+							return entity_view_set<U>(termId, false);
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(termId != EntityBad);
-							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), false);
+							return entity_view_set<U>(termId, false);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 

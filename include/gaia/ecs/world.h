@@ -543,7 +543,7 @@ namespace gaia {
 
 				if constexpr (supports_out_of_line_component<FT>()) {
 					if (is_out_of_line_component(term)) {
-						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						sparse_component_store_mut<FT>(term).add(entity) = value;
 						finish_write(entity, term);
 						return;
 					}
@@ -561,7 +561,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_worldVersion);
 				if constexpr (supports_out_of_line_component<FT>()) {
 					if (can_use_out_of_line_component<FT>(term)) {
-						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						sparse_component_store_mut<FT>(term).add(entity) = value;
 						finish_write(entity, term);
 						return;
 					}

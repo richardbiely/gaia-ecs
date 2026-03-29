@@ -89,11 +89,20 @@ namespace gaia {
 				return;
 
 			auto& world = *it.world();
-			const auto entities = it.view<Entity>();
+			const auto entities = it.entity_rows();
 			GAIA_EACH(terms) {
 				const auto term = terms[i];
-				for (uint16_t row = it.row_begin(); row < it.row_end(); ++row)
-					world_finish_write(world, term, entities[row]);
+				if (!world_is_out_of_line_component(world, term)) {
+					const auto compIdx = core::get_index(it.chunk()->ids_view(), term);
+					if (compIdx != BadIndex) {
+						pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
+						continue;
+					}
+				}
+
+				GAIA_FOR_(entities.size(), j) {
+					world_finish_write(world, term, entities[j]);
+				}
 			}
 		}
 

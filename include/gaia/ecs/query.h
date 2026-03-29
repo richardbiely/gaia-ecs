@@ -1638,8 +1638,9 @@ namespace gaia {
 							}
 						}
 
-						GAIA_FOR((uint16_t)entities.size())
-						world_finish_write(world, term, entities[i]);
+						GAIA_FOR_(entities.size(), j) {
+							world_finish_write(world, term, entities[j]);
+						}
 					}
 				}
 
@@ -1706,8 +1707,9 @@ namespace gaia {
 						}
 
 						auto entities = it.entity_rows();
-						GAIA_FOR((uint16_t)entities.size())
-						world_finish_write(world, term, entities[i]);
+						GAIA_FOR(entities.size()) {
+							world_finish_write(world, term, entities[i]);
+						}
 					}
 				}
 

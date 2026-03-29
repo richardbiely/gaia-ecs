@@ -3367,8 +3367,10 @@ TEST_CASE("Sparse DontFragment component and adjunct storage") {
 	CHECK(wld.has(e, compItem.entity));
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 
-	auto pos = wld.set<PositionSparse>(e);
-	pos = {1.0f, 2.0f, 3.0f};
+	{
+		auto pos = wld.set<PositionSparse>(e);
+		pos = {1.0f, 2.0f, 3.0f};
+	}
 
 	const auto& posConst = wld.get<PositionSparse>(e);
 	CHECK(posConst.x == doctest::Approx(1.0f));
@@ -3396,8 +3398,10 @@ TEST_CASE("DontFragment table component uses out-of-line storage") {
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
 
-	auto pos = wld.set<Position>(e);
-	pos = {1.0f, 2.0f, 3.0f};
+	{
+		auto pos = wld.set<Position>(e);
+		pos = {1.0f, 2.0f, 3.0f};
+	}
 
 	const auto& posConst = wld.get<Position>(e);
 	CHECK(posConst.x == doctest::Approx(1.0f));
@@ -3634,8 +3638,10 @@ TEST_CASE("Sparse DontFragment runtime-registered component typed object access"
 	CHECK(wld.has(e, runtimeComp.entity));
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 
-	auto posMut = wld.set<Position>(e, runtimeComp.entity);
-	posMut = {10.0f, 11.0f, 12.0f};
+	{
+		auto posMut = wld.set<Position>(e, runtimeComp.entity);
+		posMut = {10.0f, 11.0f, 12.0f};
+	}
 
 	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
 	CHECK(pos.x == doctest::Approx(10.0f));
@@ -3662,8 +3668,10 @@ TEST_CASE("Sparse runtime-registered component uses out-of-line storage and stil
 	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
 	CHECK(wld.fetch(e).pArchetype->has(runtimeComp.entity));
 
-	auto posMut = wld.set<Position>(e, runtimeComp.entity);
-	posMut = {10.0f, 11.0f, 12.0f};
+	{
+		auto posMut = wld.set<Position>(e, runtimeComp.entity);
+		posMut = {10.0f, 11.0f, 12.0f};
+	}
 
 	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
 	CHECK(pos.x == doctest::Approx(10.0f));
@@ -3690,8 +3698,10 @@ TEST_CASE("DontFragment runtime-registered table component typed object access")
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 	CHECK_FALSE(wld.fetch(e).pArchetype->has(runtimeComp.entity));
 
-	auto posMut = wld.set<Position>(e, runtimeComp.entity);
-	posMut = {10.0f, 11.0f, 12.0f};
+	{
+		auto posMut = wld.set<Position>(e, runtimeComp.entity);
+		posMut = {10.0f, 11.0f, 12.0f};
+	}
 
 	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
 	CHECK(pos.x == doctest::Approx(10.0f));
@@ -3745,8 +3755,10 @@ TEST_CASE("Clear removes table unique and sparse component state") {
 
 	auto& posUni = wld.acc_mut(e).mut<ecs::uni<Position>>();
 	posUni = {11.0f, 12.0f, 13.0f};
-	auto posSparse = wld.set<PositionSparse>(e);
-	posSparse = {14.0f, 15.0f, 16.0f};
+	{
+		auto posSparse = wld.set<PositionSparse>(e);
+		posSparse = {14.0f, 15.0f, 16.0f};
+	}
 
 	CHECK(wld.get<ecs::uni<Position>>(e).x == doctest::Approx(11.0f));
 	CHECK(wld.get<PositionSparse>(e).x == doctest::Approx(14.0f));

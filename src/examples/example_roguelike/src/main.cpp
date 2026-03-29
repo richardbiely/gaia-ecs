@@ -1016,7 +1016,7 @@ int main() {
 										.all<Player>()
 										.on_each([](ecs::Iter& it) {
 											auto sysEnt = it.world()->get("GameStateSystemP");
-											auto& sysData = it.world()->set<GameStateSystemPData>(sysEnt);
+											auto sysData = it.world()->set<GameStateSystemPData>(sysEnt);
 
 											const bool hasNoPlayer = it.size() == 0;
 											if (sysData.hadPlayer && hasNoPlayer) {
@@ -1043,7 +1043,7 @@ int main() {
 										.no<Item>()
 										.on_each([](ecs::Iter& it) {
 											auto sysEnt = it.world()->get("GameStateSystemNP");
-											auto& sysData = it.world()->set<GameStateSystemNPData>(sysEnt);
+											auto sysData = it.world()->set<GameStateSystemNPData>(sysEnt);
 
 											const bool hasNoEnemies = it.size() == 0;
 											if (sysData.hadEnemies && hasNoEnemies) {
