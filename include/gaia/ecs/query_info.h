@@ -1850,6 +1850,15 @@ namespace gaia {
 				return {(const Entity*)&ctxData.owners[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
+			std::span<const Entity> inherited_owner_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload())
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_owner_view((uint32_t)archetypeIdx);
+			}
+
 			void ensure_depth_order_hierarchy_barrier_cache() {
 				ensure_depth_order_hierarchy_barrier_cache_inter();
 			}
@@ -1862,6 +1871,15 @@ namespace gaia {
 				if (archetypeIdx == BadIndex)
 					return {};
 				return indices_mapping_view(archetypeIdx);
+			}
+
+			std::span<const Entity> try_inherited_owner_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload() || m_state.exec.inheritedOwnersPending)
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_owner_view((uint32_t)archetypeIdx);
 			}
 
 			GAIA_NODISCARD GroupId group_id(uint32_t archetypeIdx) const {

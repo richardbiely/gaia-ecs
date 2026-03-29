@@ -40024,6 +40024,15 @@ namespace gaia {
 				return {(const Entity*)&ctxData.owners[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
+			std::span<const Entity> inherited_owner_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload())
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_owner_view((uint32_t)archetypeIdx);
+			}
+
 			void ensure_depth_order_hierarchy_barrier_cache() {
 				ensure_depth_order_hierarchy_barrier_cache_inter();
 			}
@@ -40036,6 +40045,15 @@ namespace gaia {
 				if (archetypeIdx == BadIndex)
 					return {};
 				return indices_mapping_view(archetypeIdx);
+			}
+
+			std::span<const Entity> try_inherited_owner_view(const Archetype* pArchetype) const {
+				if (!has_inherited_owner_payload() || m_state.exec.inheritedOwnersPending)
+					return {};
+				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
+				if (archetypeIdx == BadIndex)
+					return {};
+				return inherited_owner_view((uint32_t)archetypeIdx);
 			}
 
 			GAIA_NODISCARD GroupId group_id(uint32_t archetypeIdx) const {
@@ -43783,6 +43801,14 @@ namespace gaia {
 					return {runData.cachedEntities.data(), runData.cachedEntities.size()};
 				}
 
+				template <typename TIter>
+				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_chunk_entities(
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+					(void)cached_direct_seed_runs<TIter>(queryInfo, seedTerm, seedInfo);
+					auto& runData = ensure_direct_seed_run_data();
+					return {runData.cachedChunkOrderedEntities.data(), runData.cachedChunkOrderedEntities.size()};
+				}
+
 				template <typename TIter, typename Func>
 				GAIA_NODISCARD static bool for_each_direct_all_seed(
 						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
@@ -44409,6 +44435,8 @@ namespace gaia {
 
 						it.set_archetype(ec.pArchetype);
 						it.set_comp_indices(pIndices);
+						const auto inheritedOwnersView = queryInfo.inherited_owner_view(ec.pArchetype);
+						it.set_inherited_owners(inheritedOwnersView.empty() ? nullptr : inheritedOwnersView.data());
 						it.set_term_ids(pTermIds);
 						pLastArchetype = ec.pArchetype;
 					}
@@ -44781,7 +44809,7 @@ namespace gaia {
 								return;
 							}
 
-							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
+							const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							if constexpr (sizeof...(T) > 0) {
 								Entity argIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
 								const Archetype* lastArchetypes[sizeof...(T)]{};
