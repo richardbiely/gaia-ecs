@@ -6089,6 +6089,51 @@ namespace gaia {
 #endif
 			}
 
+			//! Marks the component associated with @a object as modified on @a entity.
+			//! Best used with `mut<T>(entity, object)` or `sset<T>(entity, object)` to manually trigger an update
+			//! at user's whim.
+			//! If @a TriggerSetEffects is true, also triggers the component's set side effects:
+			//! set hooks and `OnSet` observers.
+			//! \tparam T Component type
+			//! \tparam TriggerSetEffects Triggers set side effects if true
+			template <
+					typename T
+#if GAIA_ENABLE_HOOKS
+					,
+					bool TriggerSetEffects
+#endif
+					>
+			void modify(Entity entity, Entity object) {
+				GAIA_ASSERT(valid(entity));
+				GAIA_ASSERT(valid(object));
+
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object)) {
+						auto* pStore = sparse_component_store<FT>(object);
+						GAIA_ASSERT(pStore != nullptr);
+						GAIA_ASSERT(pStore->has(entity));
+
+						::gaia::ecs::update_version(m_worldVersion);
+
+#if GAIA_OBSERVERS_ENABLED
+						if constexpr (TriggerSetEffects)
+							world_notify_on_set_entity(*this, object, entity);
+#endif
+						return;
+					}
+				}
+
+				auto& ec = m_recs.entities[entity.id()];
+				const auto compIdx = ec.pChunk->comp_idx(object);
+				GAIA_ASSERT(compIdx != ComponentIndexBad);
+
+				if constexpr (TriggerSetEffects)
+					ec.pChunk->finish_write(compIdx, ec.row, (uint16_t)(ec.row + 1));
+				else
+					ec.pChunk->update_world_version(compIdx);
+			}
+
 			//----------------------------------------------------------------------
 
 			//! Starts a bulk set operation on @a entity.
@@ -6187,7 +6232,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable reference or proxy to the component associated with @a object on @a entity.
-			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
+			//! This is a silent raw write path. Call `modify<T, true>(entity, object)` when you need hooks or `OnSet`.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);

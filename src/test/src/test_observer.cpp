@@ -303,6 +303,78 @@ TEST_CASE("World modify emits OnSet for raw writes") {
 	CHECK(lastSparsePos.z == doctest::Approx(12.0f));
 }
 
+TEST_CASE("World modify emits OnSet for raw object writes") {
+	TestWorld twld;
+
+	const auto tableComp = wld.add<Position>().entity;
+	const auto sparseComp = wld.add<PositionSparse>().entity;
+
+	uint32_t tableHits = 0;
+	ecs::Entity lastTable = ecs::EntityBad;
+	uint32_t sparseHits = 0;
+	ecs::Entity lastSparse = ecs::EntityBad;
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all(tableComp)
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++tableHits;
+					lastTable = entities[i];
+				}
+			})
+			.entity();
+
+	(void)wld.observer()
+			.event(ecs::ObserverEvent::OnSet)
+			.all(sparseComp)
+			.on_each([&](ecs::Iter& it) {
+				auto entities = it.view<ecs::Entity>();
+				GAIA_EACH(it) {
+					++sparseHits;
+					lastSparse = entities[i];
+				}
+			})
+			.entity();
+
+	const auto e = wld.add();
+	wld.add(e, tableComp, Position{1.0f, 2.0f, 3.0f});
+	wld.add(e, sparseComp, PositionSparse{4.0f, 5.0f, 6.0f});
+
+	{
+		auto& pos = wld.mut<Position>(e, tableComp);
+		pos = {7.0f, 8.0f, 9.0f};
+	}
+	wld.modify<Position, false>(e, tableComp);
+	CHECK(tableHits == 0);
+	wld.modify<Position, true>(e, tableComp);
+	CHECK(tableHits == 1);
+	CHECK(lastTable == e);
+	{
+		const auto& pos = wld.get<Position>(e, tableComp);
+		CHECK(pos.x == doctest::Approx(7.0f));
+		CHECK(pos.y == doctest::Approx(8.0f));
+		CHECK(pos.z == doctest::Approx(9.0f));
+	}
+
+	{
+		auto& pos = wld.mut<PositionSparse>(e, sparseComp);
+		pos = {10.0f, 11.0f, 12.0f};
+	}
+	wld.modify<PositionSparse, false>(e, sparseComp);
+	CHECK(sparseHits == 0);
+	wld.modify<PositionSparse, true>(e, sparseComp);
+	CHECK(sparseHits == 1);
+	CHECK(lastSparse == e);
+	{
+		const auto& pos = wld.get<PositionSparse>(e, sparseComp);
+		CHECK(pos.x == doctest::Approx(10.0f));
+		CHECK(pos.y == doctest::Approx(11.0f));
+		CHECK(pos.z == doctest::Approx(12.0f));
+	}
+}
+
 TEST_CASE("Observer - OnSet after query write callbacks") {
 	SUBCASE("typed chunk-backed query") {
 		TestWorld twld;

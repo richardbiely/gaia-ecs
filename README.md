@@ -630,8 +630,10 @@ Observer events currently mean:
 * `OnDel` - an entity stops matching because ids were removed
 * `OnSet` - a value of an already present component was explicitly written
 
-`OnSet` is triggered by APIs such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, and `modify<T, true>(entity)`.
-It is not triggered by `sset(...)`, `modify<T, false>(entity)`, or by the initial `add<T>(entity, value)` that creates the component.
+`OnSet` is triggered by APIs such as `set<T>(entity)`, `set<T>(entity, object)`, `acc_mut(entity).set<T>(...)`,
+`modify<T, true>(entity)`, and `modify<T, true>(entity, object)`.
+It is not triggered by `sset(...)`, `modify<T, false>(...)`, or by the initial `add<T>(entity, value)` that creates
+the component.
 
 `set<T>(entity)` uses a write-back proxy, so `OnSet` is emitted after the full expression or scope writes the final value back.
 
@@ -841,10 +843,25 @@ auto& pos = setter.mut<Position>();
 `setter.mut<T>()` and `w.mut<T>(e)` are silent raw write paths. If you use them and want hooks or `OnSet`, call
 `w.modify<T, true>(e)` after finishing the write.
 
+The same pattern applies to object-based writes:
+
+```cpp
+ecs::Entity runtimePos = w.add<Position>().entity;
+w.add(e, runtimePos, Position{1, 2, 3});
+
+auto& pos = w.mut<Position>(e, runtimePos);
+pos.x = 10;
+pos.y = 20;
+pos.z = 30;
+w.modify<Position, true>(e, runtimePos);
+```
+
 Use the write path that matches the behavior you want:
 * `set<T>(entity)` - writes back on scope/full-expression end and then triggers set hooks and `OnSet`
+* `set<T>(entity, object)` - same as above for a specific runtime object/component entity
 * `acc_mut(entity).set<T>(...)` - writes immediately and triggers set hooks and `OnSet`
 * `sset<T>(entity)` / `mut<T>(entity)` - silent write paths, no hooks, no `OnSet`
+* `sset<T>(entity, object)` / `mut<T>(entity, object)` - silent object-based write paths; pair them with `modify<T, true>(entity, object)` when you want set side effects
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
 
