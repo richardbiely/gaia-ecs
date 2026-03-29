@@ -44361,6 +44361,13 @@ namespace gaia {
 
 					if (can_use_direct_target_eval(queryInfo)) {
 						const DirectEntitySeedInfo seedInfo{};
+						if (targetEntities.size() == 1) {
+							const auto entity = targetEntities[0];
+							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+								return false;
+							return match_direct_entity_terms(world, entity, queryInfo, seedInfo);
+						}
+
 						for (const auto entity: targetEntities) {
 							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
 								continue;
@@ -44371,9 +44378,7 @@ namespace gaia {
 						return false;
 					}
 
-					const bool archetypeMatched = match_one(queryInfo, archetype, targetEntities);
-
-					if (!archetypeMatched)
+					if (!match_one(queryInfo, archetype, targetEntities))
 						return false;
 
 					if (!queryInfo.has_entity_filter_terms())
@@ -44423,12 +44428,14 @@ namespace gaia {
 					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (hasRuntimeGroupFilter) {
 						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
 						if (pGroupData == nullptr)
 							return 0;
+
 						idxFrom = pGroupData->idxFirst;
 						idxTo = pGroupData->idxLast + 1;
 					}
