@@ -553,7 +553,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, row}.sset<TApi>(value);
+				ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
 				finish_write(entity, term);
 			}
 
@@ -571,7 +571,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, row}.template smut<TValue>(term) = value;
+				ComponentSetter{*this, ec.pChunk, entity, row}.template smut<TValue>(term) = value;
 				finish_write(entity, term);
 			}
 
@@ -4479,7 +4479,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, idx}.sset(object, GAIA_FWD(value));
+				ComponentSetter{*this, ec.pChunk, entity, idx}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 			}
 
@@ -4524,7 +4524,7 @@ namespace gaia {
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, idx}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on @a entity.
@@ -6151,7 +6151,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{*this, entity, ec.pChunk, ec.row};
+				return ComponentSetter{*this, ec.pChunk, entity, ec.row};
 			}
 
 			//! Returns a write-back proxy for the component @a T on @a entity.
@@ -6256,7 +6256,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{*this, entity, ec.pChunk, ec.row};
+				return ComponentGetter{*this, ec.pChunk, entity, ec.row};
 			}
 
 			//! Returns the value stored in the component T on entity.

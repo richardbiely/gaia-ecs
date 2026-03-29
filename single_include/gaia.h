@@ -33805,20 +33805,22 @@ namespace gaia {
 		class World;
 
 		struct ComponentGetter {
-			const World* m_pWorld = nullptr;
-			Entity m_entity = EntityBad;
-			const Chunk* m_pChunk = nullptr;
-			uint16_t m_row = 0;
+			const World* m_pWorld;
+			const Chunk* m_pChunk;
+			Entity m_entity;
+			uint16_t m_row;
 
-			ComponentGetter() = default;
-			ComponentGetter(const World& world, Entity entity, const Chunk* pChunk, uint16_t row):
-					m_pWorld(&world), m_entity(entity), m_pChunk(pChunk), m_row(row) {}
+			ComponentGetter(const World& world, const Chunk* pChunk, Entity entity, uint16_t row):
+					m_pWorld(&world), m_pChunk(pChunk), m_entity(entity), m_row(row) {}
 
 			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
@@ -33849,6 +33851,9 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut() {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
@@ -33858,6 +33863,9 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				smut<T>() = GAIA_FWD(value);
 				auto& chunk = *const_cast<Chunk*>(m_pChunk);
 				chunk.template modify<T, true>();
@@ -33885,6 +33893,9 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut() {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
@@ -33894,6 +33905,9 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& sset(U&& value) {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				smut<T>() = GAIA_FWD(value);
 				return *this;
 			}
@@ -46803,7 +46817,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, row}.sset<TApi>(value);
+				ComponentSetter{*this, ec.pChunk, entity, row}.sset<TApi>(value);
 				finish_write(entity, term);
 			}
 
@@ -46821,7 +46835,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, row}.template smut<TValue>(term) = value;
+				ComponentSetter{*this, ec.pChunk, entity, row}.template smut<TValue>(term) = value;
 				finish_write(entity, term);
 			}
 
@@ -50729,7 +50743,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, idx}.sset(object, GAIA_FWD(value));
+				ComponentSetter{*this, ec.pChunk, entity, idx}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 			}
 
@@ -50774,7 +50788,7 @@ namespace gaia {
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{*this, entity, ec.pChunk, idx}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on @a entity.
@@ -52401,7 +52415,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{*this, entity, ec.pChunk, ec.row};
+				return ComponentSetter{*this, ec.pChunk, entity, ec.row};
 			}
 
 			//! Returns a write-back proxy for the component @a T on @a entity.
@@ -52506,7 +52520,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{*this, entity, ec.pChunk, ec.row};
+				return ComponentGetter{*this, ec.pChunk, entity, ec.row};
 			}
 
 			//! Returns the value stored in the component T on entity.

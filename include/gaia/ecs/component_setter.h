@@ -18,6 +18,9 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut() {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
@@ -27,6 +30,9 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				smut<T>() = GAIA_FWD(value);
 				auto& chunk = *const_cast<Chunk*>(m_pChunk);
 				chunk.template modify<T, true>();
@@ -54,6 +60,9 @@ namespace gaia {
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) smut() {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
@@ -63,6 +72,9 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& sset(U&& value) {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				smut<T>() = GAIA_FWD(value);
 				return *this;
 			}

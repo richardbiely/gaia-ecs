@@ -11,20 +11,22 @@ namespace gaia {
 		class World;
 
 		struct ComponentGetter {
-			const World* m_pWorld = nullptr;
-			Entity m_entity = EntityBad;
-			const Chunk* m_pChunk = nullptr;
-			uint16_t m_row = 0;
+			const World* m_pWorld;
+			const Chunk* m_pChunk;
+			Entity m_entity;
+			uint16_t m_row;
 
-			ComponentGetter() = default;
-			ComponentGetter(const World& world, Entity entity, const Chunk* pChunk, uint16_t row):
-					m_pWorld(&world), m_entity(entity), m_pChunk(pChunk), m_row(row) {}
+			ComponentGetter(const World& world, const Chunk* pChunk, Entity entity, uint16_t row):
+					m_pWorld(&world), m_pChunk(pChunk), m_entity(entity), m_row(row) {}
 
 			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
+				GAIA_ASSERT(m_pWorld != nullptr);
+				GAIA_ASSERT(m_entity != EntityBad);
+				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
