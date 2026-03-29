@@ -77,7 +77,7 @@ void BM_ComponentSetGet_ByEntity(picobench::state& state) {
 		uint64_t sum = 0ULL;
 
 		for (auto e: entities) {
-			auto& p = w.set<Position>(e);
+			auto p = w.set<Position>(e);
 			p.x += 0.125f;
 			p.y += 0.250f;
 			const auto& h = w.get<Health>(e);

@@ -49,7 +49,7 @@ void BM_SparseComponent_Set(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		auto& pos = w.set<PositionSparse>(entities[cursor % entities.size()]);
+		auto pos = w.set<PositionSparse>(entities[cursor % entities.size()]);
 		pos = {(float)cursor, (float)(cursor + 1U), (float)(cursor + 2U)};
 		++cursor;
 	}
@@ -266,7 +266,7 @@ void BM_RuntimeSparseComponent_Set(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		auto& pos = w.set<Position>(entities[cursor % entities.size()], component);
+		auto pos = w.set<Position>(entities[cursor % entities.size()], component);
 		pos = {(float)cursor, (float)(cursor + 1U), (float)(cursor + 2U)};
 		++cursor;
 	}

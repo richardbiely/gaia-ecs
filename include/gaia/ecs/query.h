@@ -31,6 +31,7 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		void world_finish_write(World& world, Entity term, Entity entity);
 
 		//! Maximal cap for cached traversed-source closure snapshots.
 		inline static constexpr uint16_t MaxCacheSrcTrav = 32;
@@ -1605,6 +1606,116 @@ namespace gaia {
 					return true;
 				}
 
+				template <typename T>
+				GAIA_NODISCARD static constexpr bool is_write_query_arg() {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
+								 !std::is_same_v<Arg, Entity>;
+				}
+
+				template <typename TIter>
+				static void finish_iter_writes(TIter& it) {
+					if (it.chunk() == nullptr)
+						return;
+
+					auto compIndices = it.touched_comp_indices();
+					for (auto compIdx: compIndices)
+						const_cast<Chunk*>(it.chunk())->finish_write(compIdx, it.row_begin(), it.row_end());
+
+					auto terms = it.touched_terms();
+					if (terms.empty())
+						return;
+
+					auto entities = it.entity_rows();
+					auto& world = *it.world();
+					GAIA_EACH(terms) {
+						const auto term = terms[i];
+						if (!world_is_out_of_line_component(world, term)) {
+							const auto compIdx = core::get_index(it.chunk()->ids_view(), term);
+							if (compIdx != BadIndex) {
+								const_cast<Chunk*>(it.chunk())->finish_write(compIdx, it.row_begin(), it.row_end());
+								continue;
+							}
+						}
+
+						GAIA_FOR((uint16_t)entities.size())
+						world_finish_write(world, term, entities[i]);
+					}
+				}
+
+				template <typename... T>
+				static void finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to) {
+					if (from >= to)
+						return;
+
+					Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+					uint32_t seenCnt = 0;
+					const auto entities = pChunk->entity_view();
+					const auto finish_term = [&](Entity term) {
+						GAIA_FOR(seenCnt) {
+							if (seenTerms[i] == term)
+								return;
+						}
+
+						seenTerms[seenCnt++] = term;
+						if (!world_is_out_of_line_component(world, term)) {
+							const auto compIdx = core::get_index(pChunk->ids_view(), term);
+							if (compIdx != BadIndex) {
+								pChunk->finish_write(compIdx, from, to);
+								return;
+							}
+						}
+
+						for (uint16_t row = from; row < to; ++row)
+							world_finish_write(world, term, entities[row]);
+					};
+
+					(
+							[&] {
+								if constexpr (is_write_query_arg<T>()) {
+									using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+									finish_term(world_query_arg_id<Arg>(world));
+								}
+							}(),
+							...);
+				}
+
+				template <typename T, typename TIter>
+				static void finish_typed_iter_write_arg(TIter& it, uint32_t fieldIdx) {
+					if constexpr (!is_write_query_arg<T>())
+						return;
+					else {
+						using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+						auto* pChunk = const_cast<Chunk*>(it.chunk());
+						auto& world = *it.world();
+						Entity term = it.term_ids() != nullptr ? it.term_ids()[fieldIdx] : world_query_arg_id<Arg>(world);
+						if (term == EntityBad)
+							term = world_query_arg_id<Arg>(world);
+
+						if (it.row_begin() >= it.row_end())
+							return;
+
+						auto compIdx = uint8_t(0xFF);
+						if (it.comp_indices() != nullptr && fieldIdx < ChunkHeader::MAX_COMPONENTS)
+							compIdx = it.comp_indices()[fieldIdx];
+						else if (!world_is_out_of_line_component(world, term))
+							compIdx = (uint8_t)pChunk->comp_idx(term);
+						if (compIdx != 0xFF && !world_is_out_of_line_component(world, term)) {
+							pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
+							return;
+						}
+
+						auto entities = it.entity_rows();
+						GAIA_FOR((uint16_t)entities.size())
+						world_finish_write(world, term, entities[i]);
+					}
+				}
+
+				template <typename TIter, typename... T, size_t... I>
+				static void finish_typed_iter_writes(TIter& it, std::index_sequence<I...>) {
+					(finish_typed_iter_write_arg<T>(it, (uint32_t)I), ...);
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
@@ -1612,11 +1723,14 @@ namespace gaia {
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					it.set_chunk(batch.pChunk, batch.from, batch.to);
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					func(it);
+					finish_iter_writes(it);
+					it.clear_touched_writes();
 				}
 
 				//! Execute the functor for a given chunk batch
@@ -1624,11 +1738,13 @@ namespace gaia {
 				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch) {
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					func(it);
+					it.clear_touched_writes();
 				}
 
 				//! Execute the functor in batches
@@ -1641,6 +1757,7 @@ namespace gaia {
 
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 
 					const Archetype* pLastArchetype = nullptr;
 					const uint8_t* pLastIndices = nullptr;
@@ -1664,6 +1781,8 @@ namespace gaia {
 
 						it.set_chunk(batch.pChunk, batch.from, batch.to);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					};
 
 					// We only have one chunk to process.
@@ -2182,6 +2301,7 @@ namespace gaia {
 
 							GAIA_PROF_SCOPE(query_func);
 							run_query_on_chunk_rows_direct(pChunk, from, to, func, core::func_type_list<T...>{});
+							finish_typed_chunk_writes<T...>(*queryInfo.world(), pChunk, from, to);
 						}
 					}
 
@@ -2251,12 +2371,17 @@ namespace gaia {
 							}
 						}
 					}
+
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename T>
@@ -2267,7 +2392,7 @@ namespace gaia {
 					else {
 						using FT = typename component_type_t<Arg>::TypeFull;
 						if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-							return pChunk->template view_mut<FT>();
+							return pChunk->template sview_mut<FT>();
 						else
 							return pChunk->template view<FT>();
 					}
@@ -2295,12 +2420,17 @@ namespace gaia {
 					} else {
 						func();
 					}
+
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				//------------------------------------------------
@@ -3500,6 +3630,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					TIter it;
 					it.set_world(&world);
+					it.set_write_im(false);
 					const Archetype* pLastArchetype = nullptr;
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -3510,6 +3641,8 @@ namespace gaia {
 						it.set_chunk(run.pChunk, run.from, run.to);
 						it.set_group_id(0);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					}
 				}
 
@@ -3564,6 +3697,7 @@ namespace gaia {
 					auto& walkData = ensure_each_walk_data();
 					TIter it;
 					it.set_world(&world);
+					it.set_write_im(false);
 					if (!walkData.cachedRuns.empty()) {
 						each_chunk_runs_iter<TIter>(queryInfo, walkData.cachedRuns, func);
 						return;
@@ -3576,6 +3710,8 @@ namespace gaia {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					}
 				}
 
@@ -3678,6 +3814,8 @@ namespace gaia {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 					if constexpr (std::is_same_v<Arg, Entity>)
 						return entity;
+					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+						return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
 					else
 						return world_query_entity_arg_by_id<T>(world, entity, termId);
 				}
@@ -3694,6 +3832,28 @@ namespace gaia {
 					func(world_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
 				}
 
+				template <typename... T, size_t... I>
+				static void
+				finish_query_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
+					Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+					uint32_t seenCnt = 0;
+					const auto finish_term = [&](Entity term) {
+						GAIA_FOR(seenCnt) {
+							if (seenTerms[i] == term)
+								return;
+						}
+						seenTerms[seenCnt++] = term;
+						world_finish_write(world, term, entity);
+					};
+
+					(
+							[&] {
+								if constexpr (is_write_query_arg<T>())
+									finish_term(pArgIds[I]);
+							}(),
+							...);
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
@@ -3706,7 +3866,9 @@ namespace gaia {
 						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
 						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						it.set_write_im(false);
 						func(it);
+						finish_iter_writes(it);
 					};
 
 					if (hasWriteTerms) {
@@ -3841,6 +4003,7 @@ namespace gaia {
 							if (hasInheritedTerms) {
 								invoke_inherited_query_args_by_id<T...>(
 										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
+								finish_query_args_by_id<T...>(world, entity, inheritedArgIds, std::index_sequence_for<T...>{});
 								return;
 							}
 

@@ -16,6 +16,11 @@ namespace gaia {
 		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+
+		inline void world_finish_write(World& world, Entity term, Entity entity);
+
+		template <typename T>
 		static Entity observer_inherited_arg_id(World& world) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
@@ -29,6 +34,8 @@ namespace gaia {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+				return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
 			else
 				return world_query_entity_arg_by_id<T>(world, entity, termId);
 		}
@@ -37,6 +44,57 @@ namespace gaia {
 		static void observer_invoke_inherited_args_by_id(
 				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 			func(observer_inherited_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+		}
+
+		template <typename T>
+		GAIA_NODISCARD static constexpr bool observer_is_write_arg() {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
+						 !std::is_same_v<Arg, Entity>;
+		}
+
+		template <typename... T, size_t... I>
+		static void
+		observer_finish_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
+			Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+			uint32_t seenCnt = 0;
+			const auto finish_term = [&](Entity term) {
+				GAIA_FOR(seenCnt) {
+					if (seenTerms[i] == term)
+						return;
+				}
+
+				seenTerms[seenCnt++] = term;
+				world_finish_write(world, term, entity);
+			};
+
+			(
+					[&] {
+						if constexpr (observer_is_write_arg<T>())
+							finish_term(pArgIds[I]);
+					}(),
+					...);
+		}
+
+		static void observer_finish_iter_writes(Iter& it) {
+			auto* pChunk = const_cast<Chunk*>(it.chunk());
+			if (pChunk == nullptr)
+				return;
+
+			for (auto compIdx: it.touched_comp_indices())
+				pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
+
+			auto terms = it.touched_terms();
+			if (terms.empty())
+				return;
+
+			auto& world = *it.world();
+			const auto entities = it.view<Entity>();
+			GAIA_EACH(terms) {
+				const auto term = terms[i];
+				for (uint16_t row = it.row_begin(); row < it.row_end(); ++row)
+					world_finish_write(world, term, entities[row]);
+			}
 		}
 
 		template <typename... T>
@@ -75,6 +133,7 @@ namespace gaia {
 				if (hasInheritedTerms) {
 					observer_invoke_inherited_args_by_id<T...>(
 							world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
+					observer_finish_args_by_id<T...>(world, entity, pInheritedArgIds, std::index_sequence_for<T...>{});
 					return;
 				}
 
@@ -129,7 +188,10 @@ namespace gaia {
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 				iter.set_comp_indices(cachedIndices);
 				iter.set_term_ids(termIds.data());
+				iter.set_write_im(false);
 				on_each_func(iter);
+				observer_finish_iter_writes(iter);
+				iter.clear_touched_writes();
 			}
 		}
 

@@ -463,10 +463,10 @@ void createHero(ecs::World& w, ecs::Entity entity) {
 			.add<components::DamageComponent>();
 	builder.commit();
 
-	auto& player = w.set<components::PlayerComponent>(entity);
-	auto& health = w.set<components::HealthComponent>(entity);
-	auto& damage = w.set<components::DamageComponent>(entity);
-	auto& sprite = w.set<components::SpriteComponent>(entity);
+	auto player = w.set<components::PlayerComponent>(entity);
+	auto health = w.set<components::HealthComponent>(entity);
+	auto damage = w.set<components::DamageComponent>(entity);
+	auto sprite = w.set<components::SpriteComponent>(entity);
 
 	player.type = components::PlayerType::Hero;
 	health.maxhp = (int)player.rng.range(5, 15);
@@ -498,10 +498,10 @@ void createEnemy(ecs::World& w, ecs::Entity entity) {
 			.add<components::DamageComponent>();
 	builder.commit();
 
-	auto& player = w.set<components::PlayerComponent>(entity);
-	auto& health = w.set<components::HealthComponent>(entity);
-	auto& damage = w.set<components::DamageComponent>(entity);
-	auto& sprite = w.set<components::SpriteComponent>(entity);
+	auto player = w.set<components::PlayerComponent>(entity);
+	auto health = w.set<components::HealthComponent>(entity);
+	auto damage = w.set<components::DamageComponent>(entity);
+	auto sprite = w.set<components::SpriteComponent>(entity);
 
 	player.type = components::PlayerType::Monster;
 	health.maxhp = (int)(player.rng.range(4, 12));
@@ -531,8 +531,8 @@ void createNPC(ecs::World& w, ecs::Entity entity) {
 			.add<components::SpriteComponent>();
 	builder.commit();
 
-	auto& player = w.set<components::PlayerComponent>(entity);
-	auto& sprite = w.set<components::SpriteComponent>(entity);
+	auto player = w.set<components::PlayerComponent>(entity);
+	auto sprite = w.set<components::SpriteComponent>(entity);
 
 	player.type = components::PlayerType::NPC;
 	sprite.character = '_';

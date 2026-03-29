@@ -27819,6 +27819,24 @@ namespace gaia {
 				return comp_ptr_mut(compIdx, row);
 			}
 
+			//! Finishes a raw write over a chunk range by updating versions, running set hooks once,
+			//! and notifying `OnSet` observers after the callback completed.
+			void finish_write(uint32_t compIdx, uint16_t from, uint16_t to) {
+				GAIA_ASSERT(compIdx < m_header.cntEntities);
+				if (from >= to)
+					return;
+
+				update_world_version(compIdx);
+
+#if GAIA_ENABLE_SET_HOOKS
+				const auto& rec = m_records.pRecords[compIdx];
+				if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+					rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
+
+				world_notify_on_set(*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, from, to);
+			}
+
 		private:
 			//! Returns the value stored in the component @a T on @a row in the chunk.
 			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
@@ -28249,6 +28267,14 @@ namespace gaia {
 
 			GAIA_NODISCARD EntitySpan entity_view() const {
 				return {(const Entity*)m_records.pEntities, m_header.count};
+			}
+
+			GAIA_NODISCARD World& world() {
+				return *const_cast<World*>(m_header.world);
+			}
+
+			GAIA_NODISCARD const World& world() const {
+				return *m_header.world;
 			}
 
 			GAIA_NODISCARD EntitySpan ids_view() const {
@@ -32002,6 +32028,11 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		void world_finish_write(World& world, Entity term, Entity entity);
+		template <typename T>
+		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+		template <typename T>
+		Entity world_query_arg_id(World& world);
 
 		//! QueryImpl constraints
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
@@ -32091,7 +32122,7 @@ namespace gaia {
 
 			//! Mutable term view for entity-backed AoS data resolved through the world store.
 			//! Used when writes target out-of-line payloads rather than chunk columns.
-			template <typename U>
+			template <typename U, bool WriteIm>
 			struct EntityTermViewSetEntity {
 				const Entity* pEntities = nullptr;
 				World* pWorld = nullptr;
@@ -32100,7 +32131,9 @@ namespace gaia {
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
 					GAIA_ASSERT(idx < cnt);
-					return world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id);
+					if constexpr (WriteIm)
+						return world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id);
+					return world_query_entity_arg_by_id_raw<U&>(*pWorld, pEntities[idx], id);
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32165,13 +32198,15 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				bool writeIm = true;
 
 				static EntityTermViewSet pointer(U* pData, uint32_t cnt) {
-					return {pData, nullptr, nullptr, EntityBad, cnt};
+					return {pData, nullptr, nullptr, EntityBad, cnt, true};
 				}
 
-				static EntityTermViewSet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, pWorld, id, cnt};
+				static EntityTermViewSet
+				entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt, bool writeIm = true) {
+					return {nullptr, pEntities, pWorld, id, cnt, writeIm};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
@@ -32179,7 +32214,9 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 
-					return world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id);
+					if (writeIm)
+						return EntityTermViewSetEntity<U, true>{pEntities, pWorld, id, cnt}[idx];
+					return EntityTermViewSetEntity<U, false>{pEntities, pWorld, id, cnt}[idx];
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32225,7 +32262,7 @@ namespace gaia {
 
 			//! Writable row proxy for entity-backed SoA data.
 			//! Reads and writes the full structured value through the world store.
-			template <typename U>
+			template <typename U, bool WriteIm>
 			struct SoATermRowWriteProxyEntity {
 				const Entity* pEntities = nullptr;
 				World* pWorld = nullptr;
@@ -32237,7 +32274,10 @@ namespace gaia {
 				}
 
 				SoATermRowWriteProxyEntity& operator=(const U& value) {
-					world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id) = value;
+					if constexpr (WriteIm)
+						world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id) = value;
+					else
+						world_query_entity_arg_by_id_raw<U&>(*pWorld, pEntities[idx], id) = value;
 					return *this;
 				}
 			};
@@ -32312,7 +32352,7 @@ namespace gaia {
 
 			//! Mutable field proxy for a single SoA member in entity-backed storage.
 			//! Updates reconstruct the whole value, modify one field and store it back.
-			template <typename U, size_t Item>
+			template <typename U, size_t Item, bool WriteIm>
 			struct SoATermFieldWriteProxyEntity {
 				using view_policy = mem::data_view_policy_soa_set<U::gaia_Data_Layout, U>;
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::value_type;
@@ -32333,7 +32373,11 @@ namespace gaia {
 						auto data = world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
 						auto tuple = meta::struct_to_tuple(data);
 						std::get<Item>(tuple) = value;
-						world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id) = meta::tuple_to_struct<U>(GAIA_MOV(tuple));
+						if constexpr (WriteIm)
+							world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id) = meta::tuple_to_struct<U>(GAIA_MOV(tuple));
+						else
+							world_query_entity_arg_by_id_raw<U&>(*pWorld, pEntities[idx], id) =
+									meta::tuple_to_struct<U>(GAIA_MOV(tuple));
 						return *this;
 					}
 
@@ -32471,7 +32515,7 @@ namespace gaia {
 
 			//! Mutable SoA term view for entity-backed storage only.
 			//! Reads and writes rows and fields through the world store.
-			template <typename U>
+			template <typename U, bool WriteIm>
 			struct SoATermViewSetEntity {
 				const Entity* pEntities = nullptr;
 				World* pWorld = nullptr;
@@ -32480,7 +32524,7 @@ namespace gaia {
 
 				GAIA_NODISCARD auto operator[](size_t idx) {
 					GAIA_ASSERT(idx < cnt);
-					return SoATermRowWriteProxyEntity<U>{pEntities, pWorld, id, (uint32_t)idx};
+					return SoATermRowWriteProxyEntity<U, WriteIm>{pEntities, pWorld, id, (uint32_t)idx};
 				}
 
 				GAIA_NODISCARD U operator[](size_t idx) const {
@@ -32495,7 +32539,7 @@ namespace gaia {
 
 				template <size_t Item>
 				GAIA_NODISCARD auto set() {
-					return SoATermFieldWriteProxyEntity<U, Item>{pEntities, pWorld, id, cnt};
+					return SoATermFieldWriteProxyEntity<U, Item, WriteIm>{pEntities, pWorld, id, cnt};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -32513,19 +32557,24 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t idx = 0;
+				bool writeIm = true;
 
 				GAIA_NODISCARD operator U() const {
 					if (pData != nullptr)
 						return (U)SoATermRowWriteProxyPointer<U>{pData, dataSize, idx};
 
-					return (U)SoATermRowWriteProxyEntity<U>{pEntities, pWorld, id, idx};
+					if (writeIm)
+						return (U)SoATermRowWriteProxyEntity<U, true>{pEntities, pWorld, id, idx};
+					return (U)SoATermRowWriteProxyEntity<U, false>{pEntities, pWorld, id, idx};
 				}
 
 				SoATermRowWriteProxy& operator=(const U& value) {
 					if (pData != nullptr) {
 						SoATermRowWriteProxyPointer<U>{pData, dataSize, idx} = value;
-					} else
-						SoATermRowWriteProxyEntity<U>{pEntities, pWorld, id, idx} = value;
+					} else if (writeIm)
+						SoATermRowWriteProxyEntity<U, true>{pEntities, pWorld, id, idx} = value;
+					else
+						SoATermRowWriteProxyEntity<U, false>{pEntities, pWorld, id, idx} = value;
 					return *this;
 				}
 			};
@@ -32566,6 +32615,7 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				bool writeIm = true;
 
 				//! Proxy representing a single writable SoA field element in the runtime fallback path only.
 				//! Direct chunk-backed paths should use SoATermFieldWriteProxyPointer, which returns raw field references.
@@ -32575,12 +32625,15 @@ namespace gaia {
 					World* pWorld = nullptr;
 					Entity id = EntityBad;
 					uint32_t idx = 0;
+					bool writeIm = true;
 
 					GAIA_NODISCARD operator value_type() const {
 						if (pData != nullptr)
 							return SoATermFieldWriteProxyPointer<U, Item>{pData, idx + 1}[idx];
 
-						return SoATermFieldWriteProxyEntity<U, Item>{pEntities, pWorld, id, idx + 1}[idx];
+						if (writeIm)
+							return SoATermFieldWriteProxyEntity<U, Item, true>{pEntities, pWorld, id, idx + 1}[idx];
+						return SoATermFieldWriteProxyEntity<U, Item, false>{pEntities, pWorld, id, idx + 1}[idx];
 					}
 
 					ElementProxy& operator=(const value_type& value) {
@@ -32589,7 +32642,10 @@ namespace gaia {
 							return *this;
 						}
 
-						SoATermFieldWriteProxyEntity<U, Item>{pEntities, pWorld, id, idx + 1}[idx] = value;
+						if (writeIm)
+							SoATermFieldWriteProxyEntity<U, Item, true>{pEntities, pWorld, id, idx + 1}[idx] = value;
+						else
+							SoATermFieldWriteProxyEntity<U, Item, false>{pEntities, pWorld, id, idx + 1}[idx] = value;
 						return *this;
 					}
 
@@ -32620,7 +32676,7 @@ namespace gaia {
 
 				GAIA_NODISCARD ElementProxy operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					return ElementProxy{pData, pEntities, pWorld, id, (uint32_t)idx};
+					return ElementProxy{pData, pEntities, pWorld, id, (uint32_t)idx, writeIm};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -32675,10 +32731,11 @@ namespace gaia {
 				Entity id = EntityBad;
 				uint32_t idxBase = 0;
 				uint32_t cnt = 0;
+				bool writeIm = true;
 
 				GAIA_NODISCARD auto operator[](size_t idx) {
 					GAIA_ASSERT(idx < cnt);
-					return SoATermRowWriteProxy<U>{pData, dataSize, pEntities, pWorld, id, idxBase + (uint32_t)idx};
+					return SoATermRowWriteProxy<U>{pData, dataSize, pEntities, pWorld, id, idxBase + (uint32_t)idx, writeIm};
 				}
 
 				GAIA_NODISCARD U operator[](size_t idx) const {
@@ -32686,7 +32743,7 @@ namespace gaia {
 					if (pData != nullptr)
 						return SoATermViewSetPointer<U>{pData, dataSize, idxBase, cnt}[idx];
 
-					return SoATermViewSetEntity<U>{pEntities, pWorld, id, cnt}[idx];
+					return SoATermViewSetEntity<U, true>{pEntities, pWorld, id, cnt}[idx];
 				}
 
 				template <size_t Item>
@@ -32696,7 +32753,7 @@ namespace gaia {
 						return SoATermFieldReadProxy<U, Item>{field.pData, nullptr, pWorld, id, cnt};
 					}
 
-					const auto field = SoATermViewSetEntity<U>{pEntities, pWorld, id, cnt}.template get<Item>();
+					const auto field = SoATermViewSetEntity<U, true>{pEntities, pWorld, id, cnt}.template get<Item>();
 					return SoATermFieldReadProxy<U, Item>{nullptr, field.pEntities, field.pWorld, field.id, field.cnt};
 				}
 
@@ -32707,8 +32764,13 @@ namespace gaia {
 						return SoATermFieldWriteProxy<U, Item>{field.pData, nullptr, pWorld, id, cnt};
 					}
 
-					const auto field = SoATermViewSetEntity<U>{pEntities, pWorld, id, cnt}.template set<Item>();
-					return SoATermFieldWriteProxy<U, Item>{nullptr, field.pEntities, field.pWorld, field.id, field.cnt};
+					if (writeIm) {
+						const auto field = SoATermViewSetEntity<U, true>{pEntities, pWorld, id, cnt}.template set<Item>();
+						return SoATermFieldWriteProxy<U, Item>{nullptr, field.pEntities, field.pWorld, field.id, field.cnt, true};
+					}
+
+					const auto field = SoATermViewSetEntity<U, false>{pEntities, pWorld, id, cnt}.template set<Item>();
+					return SoATermFieldWriteProxy<U, Item>{nullptr, field.pEntities, field.pWorld, field.id, field.cnt, false};
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -32731,6 +32793,17 @@ namespace gaia {
 				const uint8_t* m_pCompIndices = nullptr;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
+				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
+				bool m_writeIm = true;
+				//! Chunk-backed columns that were exposed as mutable during the current callback.
+				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS]{};
+				uint8_t m_touchedCompCnt = 0;
+				//! Entity-backed terms that were exposed as mutable during the current callback.
+				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS]{};
+				uint8_t m_touchedTermCnt = 0;
+				//! Stable copy of the currently iterated entity rows for mutable entity-backed views.
+				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES]{};
+				bool m_entitySnapshotValid = false;
 				//! Row of the first entity we iterate from
 				uint16_t m_from;
 				//! Row of the last entity we iterate to
@@ -32779,6 +32852,7 @@ namespace gaia {
 				void set_chunk(Chunk* pChunk) {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+					m_entitySnapshotValid = false;
 
 					if constexpr (IterConstraint == Constraints::EnabledOnly)
 						m_from = m_pChunk->size_disabled();
@@ -32799,6 +32873,7 @@ namespace gaia {
 
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
+					m_entitySnapshotValid = false;
 					m_from = from;
 					m_to = to;
 				}
@@ -32814,6 +32889,59 @@ namespace gaia {
 
 				void set_term_ids(const Entity* pTermIds) {
 					m_pTermIdMapping = pTermIds;
+				}
+
+				GAIA_NODISCARD const uint8_t* comp_indices() const {
+					return m_pCompIndices;
+				}
+
+				GAIA_NODISCARD const Entity* term_ids() const {
+					return m_pTermIdMapping;
+				}
+
+				void set_write_im(bool value) {
+					m_writeIm = value;
+					clear_touched_writes();
+				}
+
+				GAIA_NODISCARD bool write_im() const {
+					return m_writeIm;
+				}
+
+				void clear_touched_writes() {
+					m_touchedCompCnt = 0;
+					m_touchedTermCnt = 0;
+				}
+
+				GAIA_NODISCARD const Entity* entity_snapshot() {
+					if (!m_entitySnapshotValid) {
+						const auto cnt = size();
+						GAIA_ASSERT(cnt <= ChunkHeader::MAX_CHUNK_ENTITIES);
+
+						const auto entities = m_pChunk->entity_view();
+						GAIA_FOR(cnt) {
+							m_entitySnapshot[i] = entities[from() + i];
+						}
+
+						m_entitySnapshotValid = true;
+					}
+
+					return m_entitySnapshot;
+				}
+
+				GAIA_NODISCARD auto touched_comp_indices() const {
+					return std::span<const uint8_t>{m_touchedCompIndices, m_touchedCompCnt};
+				}
+
+				GAIA_NODISCARD auto touched_terms() const {
+					return std::span<const Entity>{m_touchedTerms, m_touchedTermCnt};
+				}
+
+				GAIA_NODISCARD auto entity_rows() {
+					if (m_entitySnapshotValid)
+						return std::span<const Entity>{m_entitySnapshot, size()};
+
+					return std::span<const Entity>{m_pChunk->entity_view().data() + from(), size()};
 				}
 
 				void set_group_id(GroupId groupId) {
@@ -32850,6 +32978,57 @@ namespace gaia {
 							return pItem != nullptr && world_is_out_of_line_component(*world(), pItem->entity);
 						}
 					}
+				}
+
+				void touch_comp_idx(uint8_t compIdx) {
+					GAIA_ASSERT(compIdx != 0xFF);
+					GAIA_FOR(m_touchedCompCnt) {
+						if (m_touchedCompIndices[i] == compIdx)
+							return;
+					}
+
+					GAIA_ASSERT(m_touchedCompCnt < ChunkHeader::MAX_COMPONENTS);
+					m_touchedCompIndices[m_touchedCompCnt++] = compIdx;
+				}
+
+				void touch_term(Entity term) {
+					GAIA_ASSERT(term != EntityBad);
+					GAIA_FOR(m_touchedTermCnt) {
+						if (m_touchedTerms[i] == term)
+							return;
+					}
+
+					GAIA_ASSERT(m_touchedTermCnt < ChunkHeader::MAX_COMPONENTS);
+					m_touchedTerms[m_touchedTermCnt++] = term;
+				}
+
+				template <typename T>
+				void touch_term_by_type() {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return;
+					else {
+						const auto term = world_query_arg_id<Arg>(*world());
+						if (world_is_out_of_line_component(*world(), term))
+							touch_term(term);
+						else
+							touch_comp_idx((uint8_t)m_pChunk->comp_idx(term));
+					}
+				}
+
+				template <typename T>
+				GAIA_NODISCARD Entity fallback_term_id(uint32_t termIdx) const {
+					if (m_pTermIdMapping != nullptr) {
+						const auto termId = m_pTermIdMapping[termIdx];
+						if (termId != EntityBad)
+							return termId;
+					}
+
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return EntityBad;
+					else
+						return world_query_arg_id<Arg>(*const_cast<World*>(world()));
 				}
 
 				//! Returns a read-only entity or component view that can resolve non-direct storage.
@@ -32894,11 +33073,10 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
 							const auto* pEntities = m_pChunk->entity_view().data() + from();
-							const auto id = m_pTermIdMapping[termIdx];
-							GAIA_ASSERT(id != EntityBad);
-							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), id, 0, size()};
+							const auto termId = fallback_term_id<T>(termIdx);
+							GAIA_ASSERT(termId != EntityBad);
+							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), termId, 0, size()};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
@@ -32906,16 +33084,15 @@ namespace gaia {
 								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
 						const auto compIdx = m_pCompIndices[termIdx];
-						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
-						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
+						const auto termId = fallback_term_id<T>(termIdx);
+						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
 							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), id, size());
+									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							GAIA_ASSERT(id != EntityBad);
+							GAIA_ASSERT(termId != EntityBad);
 							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), id, size());
+									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
@@ -32978,9 +33155,12 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut_any() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>)
-						return m_pChunk->view_mut<T>(from(), to());
-					else {
+					if constexpr (mem::is_soa_layout_v<U>) {
+						touch_term_by_type<T>();
+						if (m_writeIm)
+							return m_pChunk->view_mut<T>(from(), to());
+						return m_pChunk->sview_mut<T>(from(), to());
+					} else {
 						Entity id = EntityBad;
 						if (uses_out_of_line_component<T>()) {
 							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -32988,10 +33168,15 @@ namespace gaia {
 							id = comp_cache(*world()).template get<FT>().entity;
 						}
 
-						if (id != EntityBad)
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+						if (id != EntityBad) {
+							touch_term(id);
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), id, size(), m_writeIm);
+						}
 
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<T>(from(), to()).data());
+						touch_term_by_type<T>();
+						auto* pData = reinterpret_cast<U*>((m_writeIm ? m_pChunk->template view_mut<T>(from(), to())
+																													: m_pChunk->template sview_mut<T>(from(), to()))
+																									 .data());
 						return EntityTermViewSet<U>::pointer(pData, size());
 					}
 				}
@@ -33006,11 +33191,14 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
+					touch_term_by_type<T>();
 					if constexpr (mem::is_soa_layout_v<U>) {
-						auto view = m_pChunk->view_mut<T>(from(), to());
+						auto view = m_writeIm ? m_pChunk->view_mut<T>(from(), to()) : m_pChunk->sview_mut<T>(from(), to());
 						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
 					} else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template view_mut<T>(from(), to()).data());
+						auto* pData = reinterpret_cast<U*>((m_writeIm ? m_pChunk->template view_mut<T>(from(), to())
+																													: m_pChunk->template sview_mut<T>(from(), to()))
+																									 .data());
 						return EntityTermViewSetPointer<U>{pData, size()};
 					}
 				}
@@ -33029,12 +33217,15 @@ namespace gaia {
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					const auto compIdx = m_pCompIndices[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
+					touch_comp_idx(compIdx);
 
 					if constexpr (mem::is_soa_layout_v<U>) {
-						m_pChunk->update_world_version(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
 						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
 					} else {
-						m_pChunk->update_world_version(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
 						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
 						return EntityTermViewSetPointer<U>{pData, size()};
 					}
@@ -33055,31 +33246,42 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							const auto id = m_pTermIdMapping[termIdx];
-							GAIA_ASSERT(id != EntityBad);
-							return SoATermViewSet<U>{nullptr, 0, m_pChunk->entity_view().data() + from(), world(), id, 0, size()};
+							const auto termId = fallback_term_id<T>(termIdx);
+							GAIA_ASSERT(termId != EntityBad);
+							touch_term(termId);
+							return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), m_writeIm};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
-						m_pChunk->update_world_version(compIdx);
-						return SoATermViewSet<U>{
-								m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
+						touch_comp_idx(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
+						return SoATermViewSet<U>{m_pChunk->comp_ptr_mut(compIdx),
+																		 m_pChunk->capacity(),
+																		 nullptr,
+																		 world(),
+																		 EntityBad,
+																		 from(),
+																		 size(),
+																		 m_writeIm};
 					} else {
 						const auto compIdx = m_pCompIndices[termIdx];
-						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
-						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+						const auto termId = fallback_term_id<T>(termIdx);
+						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId)) {
+							touch_term(termId);
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), m_writeIm);
+						}
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							const auto id = m_pTermIdMapping[termIdx];
-							GAIA_ASSERT(id != EntityBad);
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+							GAIA_ASSERT(termId != EntityBad);
+							touch_term(termId);
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), m_writeIm);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 
-						m_pChunk->update_world_version(compIdx);
+						touch_comp_idx(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
 
 						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
 						return EntityTermViewSet<U>::pointer(pData, size());
@@ -33108,7 +33310,7 @@ namespace gaia {
 						}
 
 						if (id != EntityBad)
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), id, size(), false);
 
 						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
 						return EntityTermViewSet<U>::pointer(pData, size());
@@ -33172,26 +33374,29 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							const auto id = m_pTermIdMapping[termIdx];
-							GAIA_ASSERT(id != EntityBad);
-							return SoATermViewSet<U>{nullptr, 0, m_pChunk->entity_view().data() + from(), world(), id, 0, size()};
+							const auto termId = fallback_term_id<T>(termIdx);
+							GAIA_ASSERT(termId != EntityBad);
+							return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), false};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-						return SoATermViewSet<U>{
-								m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
+						return SoATermViewSet<U>{m_pChunk->comp_ptr_mut(compIdx),
+																		 m_pChunk->capacity(),
+																		 nullptr,
+																		 world(),
+																		 EntityBad,
+																		 from(),
+																		 size(),
+																		 false};
 					} else {
 						const auto compIdx = m_pCompIndices[termIdx];
-						const auto id = m_pTermIdMapping != nullptr ? m_pTermIdMapping[termIdx] : EntityBad;
-						if (id != EntityBad && world_is_out_of_line_component(*world(), id))
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+						const auto termId = fallback_term_id<T>(termIdx);
+						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), false);
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(m_pTermIdMapping != nullptr);
-							const auto id = m_pTermIdMapping[termIdx];
-							GAIA_ASSERT(id != EntityBad);
-							return EntityTermViewSet<U>::entity(m_pChunk->entity_view().data() + from(), world(), id, size());
+							GAIA_ASSERT(termId != EntityBad);
+							return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), false);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
@@ -33639,40 +33844,49 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct ComponentSetter: public ComponentGetter {
-			//! Returns a mutable reference to component.
+			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
+			//! Call `World::modify<T, true>(entity)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut() {
-				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
 			}
 
-			//! Sets the value of the component \tparam T.
+			//! Sets the value of the component \tparam T and then emits the normal post-write set notifications.
 			//! \tparam T Component or pair
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			ComponentSetter& set(U&& value) {
-				mut<T>() = GAIA_FWD(value);
+				smut<T>() = GAIA_FWD(value);
+				auto& chunk = *const_cast<Chunk*>(m_pChunk);
+				chunk.template modify<T, true>();
+				world_notify_on_set(chunk.world(), chunk.template comp_entity<T>(), chunk, m_row, (uint16_t)(m_row + 1));
 				return *this;
 			}
 
-			//! Returns a mutable reference to component.
+			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
+			//! Call `World::modify<T, true>(entity)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut(Entity type) {
-				return const_cast<Chunk*>(m_pChunk)->template set<T>(m_row, type);
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
 			}
 
-			//! Sets the value of the component @a type.
+			//! Sets the value of the component @a type and then emits the normal post-write set notifications.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& set(Entity type, T&& value) {
-				mut<T>(type) = GAIA_FWD(value);
+				smut<T>(type) = GAIA_FWD(value);
+				auto& chunk = *const_cast<Chunk*>(m_pChunk);
+				const auto compIdx = chunk.comp_idx(type);
+				(void)chunk.template comp_ptr_mut_gen<true>(compIdx, m_row);
+				world_notify_on_set(chunk.world(), type, chunk, m_row, (uint16_t)(m_row + 1));
 				return *this;
 			}
 
@@ -40425,6 +40639,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		void world_finish_write(World& world, Entity term, Entity entity);
 
 		//! Maximal cap for cached traversed-source closure snapshots.
 		inline static constexpr uint16_t MaxCacheSrcTrav = 32;
@@ -41999,6 +42214,116 @@ namespace gaia {
 					return true;
 				}
 
+				template <typename T>
+				GAIA_NODISCARD static constexpr bool is_write_query_arg() {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
+								 !std::is_same_v<Arg, Entity>;
+				}
+
+				template <typename TIter>
+				static void finish_iter_writes(TIter& it) {
+					if (it.chunk() == nullptr)
+						return;
+
+					auto compIndices = it.touched_comp_indices();
+					for (auto compIdx: compIndices)
+						const_cast<Chunk*>(it.chunk())->finish_write(compIdx, it.row_begin(), it.row_end());
+
+					auto terms = it.touched_terms();
+					if (terms.empty())
+						return;
+
+					auto entities = it.entity_rows();
+					auto& world = *it.world();
+					GAIA_EACH(terms) {
+						const auto term = terms[i];
+						if (!world_is_out_of_line_component(world, term)) {
+							const auto compIdx = core::get_index(it.chunk()->ids_view(), term);
+							if (compIdx != BadIndex) {
+								const_cast<Chunk*>(it.chunk())->finish_write(compIdx, it.row_begin(), it.row_end());
+								continue;
+							}
+						}
+
+						GAIA_FOR((uint16_t)entities.size())
+						world_finish_write(world, term, entities[i]);
+					}
+				}
+
+				template <typename... T>
+				static void finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to) {
+					if (from >= to)
+						return;
+
+					Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+					uint32_t seenCnt = 0;
+					const auto entities = pChunk->entity_view();
+					const auto finish_term = [&](Entity term) {
+						GAIA_FOR(seenCnt) {
+							if (seenTerms[i] == term)
+								return;
+						}
+
+						seenTerms[seenCnt++] = term;
+						if (!world_is_out_of_line_component(world, term)) {
+							const auto compIdx = core::get_index(pChunk->ids_view(), term);
+							if (compIdx != BadIndex) {
+								pChunk->finish_write(compIdx, from, to);
+								return;
+							}
+						}
+
+						for (uint16_t row = from; row < to; ++row)
+							world_finish_write(world, term, entities[row]);
+					};
+
+					(
+							[&] {
+								if constexpr (is_write_query_arg<T>()) {
+									using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+									finish_term(world_query_arg_id<Arg>(world));
+								}
+							}(),
+							...);
+				}
+
+				template <typename T, typename TIter>
+				static void finish_typed_iter_write_arg(TIter& it, uint32_t fieldIdx) {
+					if constexpr (!is_write_query_arg<T>())
+						return;
+					else {
+						using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+						auto* pChunk = const_cast<Chunk*>(it.chunk());
+						auto& world = *it.world();
+						Entity term = it.term_ids() != nullptr ? it.term_ids()[fieldIdx] : world_query_arg_id<Arg>(world);
+						if (term == EntityBad)
+							term = world_query_arg_id<Arg>(world);
+
+						if (it.row_begin() >= it.row_end())
+							return;
+
+						auto compIdx = uint8_t(0xFF);
+						if (it.comp_indices() != nullptr && fieldIdx < ChunkHeader::MAX_COMPONENTS)
+							compIdx = it.comp_indices()[fieldIdx];
+						else if (!world_is_out_of_line_component(world, term))
+							compIdx = (uint8_t)pChunk->comp_idx(term);
+						if (compIdx != 0xFF && !world_is_out_of_line_component(world, term)) {
+							pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
+							return;
+						}
+
+						auto entities = it.entity_rows();
+						GAIA_FOR((uint16_t)entities.size())
+						world_finish_write(world, term, entities[i]);
+					}
+				}
+
+				template <typename TIter, typename... T, size_t... I>
+				static void finish_typed_iter_writes(TIter& it, std::index_sequence<I...>) {
+					(finish_typed_iter_write_arg<T>(it, (uint32_t)I), ...);
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
@@ -42006,11 +42331,14 @@ namespace gaia {
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					it.set_chunk(batch.pChunk, batch.from, batch.to);
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					func(it);
+					finish_iter_writes(it);
+					it.clear_touched_writes();
 				}
 
 				//! Execute the functor for a given chunk batch
@@ -42018,11 +42346,13 @@ namespace gaia {
 				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch) {
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
 					func(it);
+					it.clear_touched_writes();
 				}
 
 				//! Execute the functor in batches
@@ -42035,6 +42365,7 @@ namespace gaia {
 
 					TIter it;
 					it.set_world(pWorld);
+					it.set_write_im(false);
 
 					const Archetype* pLastArchetype = nullptr;
 					const uint8_t* pLastIndices = nullptr;
@@ -42058,6 +42389,8 @@ namespace gaia {
 
 						it.set_chunk(batch.pChunk, batch.from, batch.to);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					};
 
 					// We only have one chunk to process.
@@ -42576,6 +42909,7 @@ namespace gaia {
 
 							GAIA_PROF_SCOPE(query_func);
 							run_query_on_chunk_rows_direct(pChunk, from, to, func, core::func_type_list<T...>{});
+							finish_typed_chunk_writes<T...>(*queryInfo.world(), pChunk, from, to);
 						}
 					}
 
@@ -42645,12 +42979,17 @@ namespace gaia {
 							}
 						}
 					}
+
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename T>
@@ -42661,7 +43000,7 @@ namespace gaia {
 					else {
 						using FT = typename component_type_t<Arg>::TypeFull;
 						if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-							return pChunk->template view_mut<FT>();
+							return pChunk->template sview_mut<FT>();
 						else
 							return pChunk->template view<FT>();
 					}
@@ -42689,12 +43028,17 @@ namespace gaia {
 					} else {
 						func();
 					}
+
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				template <typename TIter, typename Func, typename... T>
 				GAIA_FORCEINLINE void
 				run_query_on_direct_entity_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
+					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
+					it.clear_touched_writes();
 				}
 
 				//------------------------------------------------
@@ -43894,6 +44238,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					TIter it;
 					it.set_world(&world);
+					it.set_write_im(false);
 					const Archetype* pLastArchetype = nullptr;
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -43904,6 +44249,8 @@ namespace gaia {
 						it.set_chunk(run.pChunk, run.from, run.to);
 						it.set_group_id(0);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					}
 				}
 
@@ -43958,6 +44305,7 @@ namespace gaia {
 					auto& walkData = ensure_each_walk_data();
 					TIter it;
 					it.set_world(&world);
+					it.set_write_im(false);
 					if (!walkData.cachedRuns.empty()) {
 						each_chunk_runs_iter<TIter>(queryInfo, walkData.cachedRuns, func);
 						return;
@@ -43970,6 +44318,8 @@ namespace gaia {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
 					}
 				}
 
@@ -44072,6 +44422,8 @@ namespace gaia {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 					if constexpr (std::is_same_v<Arg, Entity>)
 						return entity;
+					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+						return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
 					else
 						return world_query_entity_arg_by_id<T>(world, entity, termId);
 				}
@@ -44088,6 +44440,28 @@ namespace gaia {
 					func(world_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
 				}
 
+				template <typename... T, size_t... I>
+				static void
+				finish_query_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
+					Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+					uint32_t seenCnt = 0;
+					const auto finish_term = [&](Entity term) {
+						GAIA_FOR(seenCnt) {
+							if (seenTerms[i] == term)
+								return;
+						}
+						seenTerms[seenCnt++] = term;
+						world_finish_write(world, term, entity);
+					};
+
+					(
+							[&] {
+								if constexpr (is_write_query_arg<T>())
+									finish_term(pArgIds[I]);
+							}(),
+							...);
+				}
+
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
 				template <typename TIter, typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
@@ -44100,7 +44474,9 @@ namespace gaia {
 						Entity termIds[ChunkHeader::MAX_COMPONENTS];
 						TIter it;
 						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+						it.set_write_im(false);
 						func(it);
+						finish_iter_writes(it);
 					};
 
 					if (hasWriteTerms) {
@@ -44235,6 +44611,7 @@ namespace gaia {
 							if (hasInheritedTerms) {
 								invoke_inherited_query_args_by_id<T...>(
 										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
+								finish_query_args_by_id<T...>(world, entity, inheritedArgIds, std::index_sequence_for<T...>{});
 								return;
 							}
 
@@ -45751,6 +46128,8 @@ namespace gaia {
 		//! Observer event types.
 		//! `OnSet` is emitted for explicit value writes to an already present component,
 		//! such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, or `modify<T, true>(entity)`.
+		//! Setter-style APIs emit the event after the new value has been written back.
+		//! Query and observer write callbacks emit the event after the callback finishes.
 		//! It is not emitted by silent writes such as `sset(...)`, and it is not emitted just because
 		//! a component was added for the first time.
 		enum class ObserverEvent : uint8_t {
@@ -45989,6 +46368,11 @@ namespace gaia {
 #endif
 		class World;
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
+		void world_finish_write(World& world, Entity term, Entity entity);
+		template <typename T>
+		decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity);
+		template <typename T>
+		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
 
 		template <typename T>
 		struct SparseComponentRecord {
@@ -46011,6 +46395,15 @@ namespace gaia {
 			friend uint32_t world_component_index_bucket_size(const World&, Entity);
 			friend uint32_t world_component_index_comp_idx(const World&, const Archetype&, Entity);
 			friend uint32_t world_component_index_match_count(const World&, const Archetype&, Entity);
+			template <typename T>
+			friend decltype(auto) world_direct_entity_arg(World& world, Entity entity);
+			template <typename T>
+			friend decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity);
+			template <typename T>
+			friend decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
+			template <typename T>
+			friend decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+			friend void world_finish_write(World& world, Entity term, Entity entity);
 
 			ser::bin_stream m_stream;
 			ser::serializer m_serializer{};
@@ -46138,6 +46531,342 @@ namespace gaia {
 					delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
 				};
 				return store;
+			}
+
+			template <
+					typename TApi, typename TValue, bool DeriveFromValue = std::is_class_v<TValue> && !std::is_final_v<TValue>>
+			class SetWriteProxyTyped;
+
+			template <typename TApi, typename TValue>
+			class SetWriteProxyTyped<TApi, TValue, true>: public TValue {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_typed<TApi, TValue>(m_entity, m_term, static_cast<const TValue&>(*this));
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, const TValue& value):
+						TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, TValue&& value):
+						TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyTyped(const SetWriteProxyTyped&) = delete;
+				SetWriteProxyTyped& operator=(const SetWriteProxyTyped&) = delete;
+
+				SetWriteProxyTyped(SetWriteProxyTyped&& other) noexcept:
+						TValue(static_cast<TValue&&>(other)), m_pWorld(other.m_pWorld), m_entity(other.m_entity),
+						m_term(other.m_term) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyTyped() {
+					commit();
+				}
+
+				SetWriteProxyTyped& operator=(const TValue& value) {
+					static_cast<TValue&>(*this) = value;
+					return *this;
+				}
+
+				SetWriteProxyTyped& operator=(TValue&& value) {
+					static_cast<TValue&>(*this) = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return *this;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return *this;
+				}
+			};
+
+			template <typename TApi, typename TValue>
+			class SetWriteProxyTyped<TApi, TValue, false> {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+				TValue m_value{};
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_typed<TApi, TValue>(m_entity, m_term, m_value);
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, const TValue& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(value) {}
+
+				SetWriteProxyTyped(World& world, Entity entity, Entity term, TValue&& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(GAIA_MOV(value)) {}
+
+				SetWriteProxyTyped(const SetWriteProxyTyped&) = delete;
+				SetWriteProxyTyped& operator=(const SetWriteProxyTyped&) = delete;
+
+				SetWriteProxyTyped(SetWriteProxyTyped&& other) noexcept:
+						m_pWorld(other.m_pWorld), m_entity(other.m_entity), m_term(other.m_term), m_value(GAIA_MOV(other.m_value)) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyTyped() {
+					commit();
+				}
+
+				SetWriteProxyTyped& operator=(const TValue& value) {
+					m_value = value;
+					return *this;
+				}
+
+				SetWriteProxyTyped& operator=(TValue&& value) {
+					m_value = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return m_value;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return m_value;
+				}
+
+				GAIA_NODISCARD TValue* operator->() {
+					return &m_value;
+				}
+
+				GAIA_NODISCARD const TValue* operator->() const {
+					return &m_value;
+				}
+			};
+
+			template <typename TValue, bool DeriveFromValue = std::is_class_v<TValue> && !std::is_final_v<TValue>>
+			class SetWriteProxyObject;
+
+			template <typename TValue>
+			class SetWriteProxyObject<TValue, true>: public TValue {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_object<TValue>(m_entity, m_term, static_cast<const TValue&>(*this));
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyObject(World& world, Entity entity, Entity term, const TValue& value):
+						TValue(value), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyObject(World& world, Entity entity, Entity term, TValue&& value):
+						TValue(GAIA_MOV(value)), m_pWorld(&world), m_entity(entity), m_term(term) {}
+
+				SetWriteProxyObject(const SetWriteProxyObject&) = delete;
+				SetWriteProxyObject& operator=(const SetWriteProxyObject&) = delete;
+
+				SetWriteProxyObject(SetWriteProxyObject&& other) noexcept:
+						TValue(static_cast<TValue&&>(other)), m_pWorld(other.m_pWorld), m_entity(other.m_entity),
+						m_term(other.m_term) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyObject() {
+					commit();
+				}
+
+				SetWriteProxyObject& operator=(const TValue& value) {
+					static_cast<TValue&>(*this) = value;
+					return *this;
+				}
+
+				SetWriteProxyObject& operator=(TValue&& value) {
+					static_cast<TValue&>(*this) = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return *this;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return *this;
+				}
+			};
+
+			template <typename TValue>
+			class SetWriteProxyObject<TValue, false> {
+				World* m_pWorld = nullptr;
+				Entity m_entity = EntityBad;
+				Entity m_term = EntityBad;
+				TValue m_value{};
+
+				void commit() {
+					if (m_pWorld == nullptr)
+						return;
+
+					m_pWorld->template write_back_set_object<TValue>(m_entity, m_term, m_value);
+					m_pWorld = nullptr;
+				}
+
+			public:
+				SetWriteProxyObject(World& world, Entity entity, Entity term, const TValue& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(value) {}
+
+				SetWriteProxyObject(World& world, Entity entity, Entity term, TValue&& value):
+						m_pWorld(&world), m_entity(entity), m_term(term), m_value(GAIA_MOV(value)) {}
+
+				SetWriteProxyObject(const SetWriteProxyObject&) = delete;
+				SetWriteProxyObject& operator=(const SetWriteProxyObject&) = delete;
+
+				SetWriteProxyObject(SetWriteProxyObject&& other) noexcept:
+						m_pWorld(other.m_pWorld), m_entity(other.m_entity), m_term(other.m_term), m_value(GAIA_MOV(other.m_value)) {
+					other.m_pWorld = nullptr;
+				}
+
+				~SetWriteProxyObject() {
+					commit();
+				}
+
+				SetWriteProxyObject& operator=(const TValue& value) {
+					m_value = value;
+					return *this;
+				}
+
+				SetWriteProxyObject& operator=(TValue&& value) {
+					m_value = GAIA_MOV(value);
+					return *this;
+				}
+
+				GAIA_NODISCARD operator TValue&() {
+					return m_value;
+				}
+
+				GAIA_NODISCARD operator const TValue&() const {
+					return m_value;
+				}
+
+				GAIA_NODISCARD TValue* operator->() {
+					return &m_value;
+				}
+
+				GAIA_NODISCARD const TValue* operator->() const {
+					return &m_value;
+				}
+			};
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut_im(Entity entity) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				const auto& item = add<FT>();
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(item.entity))
+						return sparse_component_store_mut<FT>(item.entity).mut(entity);
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+					return ec.pChunk->template set<T>(ec.row);
+				else
+					return ec.pChunk->template set<T>();
+			}
+
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) mut_im(Entity entity, Entity object) {
+				static_assert(!is_pair<T>::value);
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(object))
+						return sparse_component_store_mut<FT>(object).mut(entity);
+				}
+
+				const auto& ec = m_recs.entities[entity.id()];
+				return ec.pChunk->template set<T>(ec.row, object);
+			}
+
+			//! Finishes a deferred raw write on @a term attached to @a entity.
+			//! Ensures direct owned storage exists when needed, updates the chunk-backed version state,
+			//! and emits `OnSet` for the completed write.
+			//! \param entity Entity
+			//! \param term Component entity or pair
+			void finish_write(Entity entity, Entity term) {
+				if (tearing_down() || !valid(entity))
+					return;
+
+				if (is_out_of_line_component(term)) {
+					world_notify_on_set_entity(*this, term, entity);
+					return;
+				}
+
+				auto compIdx = uint32_t(BadIndex);
+				{
+					const auto& ec = fetch(entity);
+					compIdx = world_component_index_comp_idx(*this, *ec.pArchetype, term);
+				}
+
+				if (compIdx == BadIndex) {
+					(void) override(entity, term);
+					const auto& ec = fetch(entity);
+					compIdx = world_component_index_comp_idx(*this, *ec.pArchetype, term);
+					if (compIdx == BadIndex)
+						return;
+				}
+
+				const auto& ec = fetch(entity);
+				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				(void)ec.pChunk->comp_ptr_mut_gen<true>(compIdx, row);
+				world_notify_on_set_entity(*this, term, entity);
+			}
+
+			template <typename TApi, typename TValue>
+			void write_back_set_typed(Entity entity, Entity term, const TValue& value) {
+				using FT = typename component_type_t<TApi>::TypeFull;
+				::gaia::ecs::update_version(m_worldVersion);
+
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (is_out_of_line_component(term)) {
+						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						finish_write(entity, term);
+						return;
+					}
+				}
+
+				const auto& ec = fetch(entity);
+				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				ComponentSetter{{ec.pChunk, row}}.sset<TApi>(value);
+				finish_write(entity, term);
+			}
+
+			template <typename TValue>
+			void write_back_set_object(Entity entity, Entity term, const TValue& value) {
+				using FT = typename component_type_t<TValue>::TypeFull;
+				::gaia::ecs::update_version(m_worldVersion);
+				if constexpr (supports_out_of_line_component<FT>()) {
+					if (can_use_out_of_line_component<FT>(term)) {
+						sparse_component_store_mut<FT>(term).mut(entity) = value;
+						finish_write(entity, term);
+						return;
+					}
+				}
+
+				const auto& ec = fetch(entity);
+				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
+				ComponentSetter{{ec.pChunk, row}}.template smut<TValue>(term) = value;
+				finish_write(entity, term);
 			}
 
 			//----------------------------------------------------------------------
@@ -51658,42 +52387,40 @@ namespace gaia {
 				return ComponentSetter{{ec.pChunk, ec.row}};
 			}
 
-			//! Sets the value of the component @a T on @a entity.
-			//! Triggers `OnSet` observers for that entity when observers are enabled.
-			//! Chunk-backed components also trigger component set hooks.
+			//! Returns a write-back proxy for the component @a T on @a entity.
+			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
+			//! full expression or scope. `OnSet` observers and chunk-backed set hooks are triggered only after the
+			//! write-back completes.
 			//! \tparam T Component
 			//! \param entity Entity
+			//! \return Write-back proxy
 			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
 			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \warning Undefined behavior if @a entity changes archetype before the proxy writes the value back.
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) set(Entity entity) {
+			GAIA_NODISCARD auto set(Entity entity) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
+				using ValueType = typename actual_type_t<T>::Type;
 				const auto& item = add<FT>();
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (is_out_of_line_component(item.entity)) {
-						world_notify_on_set_entity(*this, item.entity, entity);
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-					}
-				}
-				return acc_mut(entity).mut<T>();
+				return SetWriteProxyTyped<T, ValueType>{*this, entity, item.entity, get<T>(entity)};
 			}
 
-			//! Sets the value of the component associated with @a object on @a entity.
-			//! Triggers `OnSet` observers for that entity when observers are enabled.
-			//! Chunk-backed components also trigger component set hooks.
+			//! Returns a write-back proxy for the component associated with @a object on @a entity.
+			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
+			//! full expression or scope. `OnSet` observers and chunk-backed set hooks are triggered only after the
+			//! write-back completes.
+			//! \tparam T Component
+			//! \param entity Entity
+			//! \param object Component entity
+			//! \return Write-back proxy
+			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
+			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if @a entity changes archetype before the proxy writes the value back.
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) set(Entity entity, Entity object) {
+			GAIA_NODISCARD auto set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
-				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object)) {
-						world_notify_on_set_entity(*this, object, entity);
-						return sparse_component_store_mut<FT>(object).mut(entity);
-					}
-				}
-				return acc_mut(entity).mut<T>(object);
+				return SetWriteProxyObject<typename actual_type_t<T>::Type>{*this, entity, object, get<T>(entity, object)};
 			}
 
 			//! Sets the value of the component @a T on @a entity without triggering a world version update.
@@ -51730,7 +52457,8 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the component T on entity without triggering a world version update.
+			//! Returns a mutable reference or proxy to the component on @a entity without triggering a world version update.
+			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
@@ -51739,14 +52467,15 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity) {
 				static_assert(!is_pair<T>::value);
-				return set<T>(entity);
+				return sset<T>(entity);
 			}
 
-			//! Sets the value of the component associated with @a object on @a entity.
+			//! Returns a mutable reference or proxy to the component associated with @a object on @a entity.
+			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
-				return set<T>(entity, object);
+				return sset<T>(entity, object);
 			}
 
 			//----------------------------------------------------------------------
@@ -57763,6 +58492,11 @@ namespace gaia {
 		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+
+		inline void world_finish_write(World& world, Entity term, Entity entity);
+
+		template <typename T>
 		static Entity observer_inherited_arg_id(World& world) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
@@ -57776,6 +58510,8 @@ namespace gaia {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+				return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
 			else
 				return world_query_entity_arg_by_id<T>(world, entity, termId);
 		}
@@ -57784,6 +58520,57 @@ namespace gaia {
 		static void observer_invoke_inherited_args_by_id(
 				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 			func(observer_inherited_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+		}
+
+		template <typename T>
+		GAIA_NODISCARD static constexpr bool observer_is_write_arg() {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
+						 !std::is_same_v<Arg, Entity>;
+		}
+
+		template <typename... T, size_t... I>
+		static void
+		observer_finish_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
+			Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+			uint32_t seenCnt = 0;
+			const auto finish_term = [&](Entity term) {
+				GAIA_FOR(seenCnt) {
+					if (seenTerms[i] == term)
+						return;
+				}
+
+				seenTerms[seenCnt++] = term;
+				world_finish_write(world, term, entity);
+			};
+
+			(
+					[&] {
+						if constexpr (observer_is_write_arg<T>())
+							finish_term(pArgIds[I]);
+					}(),
+					...);
+		}
+
+		static void observer_finish_iter_writes(Iter& it) {
+			auto* pChunk = const_cast<Chunk*>(it.chunk());
+			if (pChunk == nullptr)
+				return;
+
+			for (auto compIdx: it.touched_comp_indices())
+				pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
+
+			auto terms = it.touched_terms();
+			if (terms.empty())
+				return;
+
+			auto& world = *it.world();
+			const auto entities = it.view<Entity>();
+			GAIA_EACH(terms) {
+				const auto term = terms[i];
+				for (uint16_t row = it.row_begin(); row < it.row_end(); ++row)
+					world_finish_write(world, term, entities[row]);
+			}
 		}
 
 		template <typename... T>
@@ -57822,6 +58609,7 @@ namespace gaia {
 				if (hasInheritedTerms) {
 					observer_invoke_inherited_args_by_id<T...>(
 							world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
+					observer_finish_args_by_id<T...>(world, entity, pInheritedArgIds, std::index_sequence_for<T...>{});
 					return;
 				}
 
@@ -57876,7 +58664,10 @@ namespace gaia {
 				iter.set_chunk(ec.pChunk, ec.row, (uint16_t)(ec.row + 1));
 				iter.set_comp_indices(cachedIndices);
 				iter.set_term_ids(termIds.data());
+				iter.set_write_im(false);
 				on_each_func(iter);
+				observer_finish_iter_writes(iter);
+				iter.clear_touched_writes();
 			}
 		}
 
@@ -60235,7 +61026,18 @@ namespace gaia {
 			if constexpr (std::is_same_v<Arg, Entity>)
 				return entity;
 			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-				return world.template set<Arg>(entity);
+				return world.template mut_im<Arg>(entity);
+			else
+				return world.template get<Arg>(entity);
+		}
+
+		template <typename T>
+		inline decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+				return world.template mut<Arg>(entity);
 			else
 				return world.template get<Arg>(entity);
 		}
@@ -60270,14 +61072,34 @@ namespace gaia {
 				return entity;
 			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
 			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
-				if (!world.has_direct(entity, termId) && world.has(entity, termId)) {
+				if (!world.has_direct(entity, termId)) {
 					if constexpr (is_pair<Arg>::value)
 						(void)world.override(entity, termId);
 					else
 						(void)world.template override<Arg>(entity, termId);
 				}
 
-				return world.template set<Arg>(entity, termId);
+				return world.template mut_im<Arg>(entity, termId);
+			} else
+				return world.template get<Arg>(entity, termId);
+		}
+
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+
+			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+			if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>) {
+				if (!world.has_direct(entity, termId)) {
+					if constexpr (is_pair<Arg>::value)
+						(void)world.override(entity, termId);
+					else
+						(void)world.template override<Arg>(entity, termId);
+				}
+
+				return world.template mut<Arg>(entity, termId);
 			} else
 				return world.template get<Arg>(entity, termId);
 		}
@@ -60322,6 +61144,10 @@ namespace gaia {
 			(void)term;
 			(void)entity;
 #endif
+		}
+
+		inline void world_finish_write(World& world, Entity term, Entity entity) {
+			world.finish_write(entity, term);
 		}
 
 	} // namespace ecs

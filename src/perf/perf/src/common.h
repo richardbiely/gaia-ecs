@@ -381,7 +381,7 @@ inline void create_sorted_exact_entities(
 		if (count > 1U) {
 			w.copy_n(e, count - 1U, [&](ecs::Entity entity) {
 				entities.push_back(entity);
-				auto& pos = w.set<Position>(entity);
+				auto pos = w.set<Position>(entity);
 				pos.x = (float)(totalCount - entities.size() + 1U);
 				pos.y = (float)(mask % 41U);
 			});

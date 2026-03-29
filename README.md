@@ -442,7 +442,8 @@ w.add(cooldown.entity, ecs::DontFragment);
 
 auto e = w.add();
 w.add<Cooldown>(e);
-w.set<Cooldown>(e).value = 1.5f;
+auto cooldownValue = w.set<Cooldown>(e);
+cooldownValue.value = 1.5f;
 ```
 
 That gives four practical outcomes:
@@ -631,7 +632,11 @@ Observer events currently mean:
 
 `OnSet` is triggered by APIs such as `set<T>(entity)`, `acc_mut(entity).set<T>(...)`, and `modify<T, true>(entity)`.
 It is not triggered by `sset(...)`, `modify<T, false>(entity)`, or by the initial `add<T>(entity, value)` that creates the component.
+
 `set<T>(entity)` uses a write-back proxy, so `OnSet` is emitted after the full expression or scope writes the final value back.
+
+Mutable query and observer callbacks follow the same rule. When a callback writes through `Position&` or `it.view_mut<Position>()`,
+`OnSet` is emitted after the callback returns, not in the middle of the callback.
 
 Following is an observer that generates an OnAdd event every time some entity is added Position and Velocity.
 
@@ -783,6 +788,28 @@ w.set<Velocity>(e) = {0, 0, 2};
 w.sset<Velocity>(e) = {4, 2, 0};
 ```
 
+`w.set<T>(entity)` returns a write-back proxy. The current value is copied out, you mutate the proxy, and the new value is written
+back at the end of the full expression or scope.
+
+```cpp
+w.add<Position>(e, {1, 2, 3});
+
+{
+  auto pos = w.set<Position>(e);
+  pos.x = 10;
+  pos.y = 20;
+  pos.z = 30;
+
+  // The write-back did not happen yet.
+  const auto& current = w.get<Position>(e);
+  // current is still {1, 2, 3}
+}
+
+// The proxy went out of scope, so the new value is now stored.
+const auto& updated = w.get<Position>(e);
+// updated is {10, 20, 30}
+```
+
 When setting multiple component values at once it is more efficient doing it via chaining:
 
 ```cpp
@@ -810,6 +837,11 @@ auto& pos = setter.mut<Position>();
 ```
 
 `setter.mut<T>()` and `w.mut<T>(e)` are silent raw write paths. If you use them and want hooks or `OnSet`, call `w.modify<T, true>(e)` after finishing the write.
+
+Use the write path that matches the behavior you want:
+* `set<T>(entity)` - writes back on scope/full-expression end and then triggers set hooks and `OnSet`
+* `acc_mut(entity).set<T>(...)` - writes immediately and triggers set hooks and `OnSet`
+* `sset<T>(entity)` / `mut<T>(entity)` - silent write paths, no hooks, no `OnSet`
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
 

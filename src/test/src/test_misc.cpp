@@ -3785,3 +3785,51 @@ TEST_CASE("EntityContainer cached entity slot across row swap and archetype move
 		CHECK(*targetBAfterMove.pEntity == targetB);
 	CHECK(wld.target(sourceB, ecs::ChildOf) == targetB);
 }
+
+TEST_CASE("World set writes back when the proxy finishes") {
+	TestWorld twld;
+
+	SUBCASE("chunk-backed component") {
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+
+		{
+			auto pos = wld.set<Position>(e);
+			pos.x = 10.0f;
+			pos.y = 11.0f;
+			pos.z = 12.0f;
+
+			const auto& current = wld.get<Position>(e);
+			CHECK(current.x == doctest::Approx(1.0f));
+			CHECK(current.y == doctest::Approx(2.0f));
+			CHECK(current.z == doctest::Approx(3.0f));
+		}
+
+		const auto& updated = wld.get<Position>(e);
+		CHECK(updated.x == doctest::Approx(10.0f));
+		CHECK(updated.y == doctest::Approx(11.0f));
+		CHECK(updated.z == doctest::Approx(12.0f));
+	}
+
+	SUBCASE("sparse component") {
+		const auto e = wld.add();
+		wld.add<PositionSparse>(e, {4.0f, 5.0f, 6.0f});
+
+		{
+			auto pos = wld.set<PositionSparse>(e);
+			pos.x = 14.0f;
+			pos.y = 15.0f;
+			pos.z = 16.0f;
+
+			const auto& current = wld.get<PositionSparse>(e);
+			CHECK(current.x == doctest::Approx(4.0f));
+			CHECK(current.y == doctest::Approx(5.0f));
+			CHECK(current.z == doctest::Approx(6.0f));
+		}
+
+		const auto& updated = wld.get<PositionSparse>(e);
+		CHECK(updated.x == doctest::Approx(14.0f));
+		CHECK(updated.y == doctest::Approx(15.0f));
+		CHECK(updated.z == doctest::Approx(16.0f));
+	}
+}

@@ -248,6 +248,189 @@ TEST_CASE("Observer - OnSet") {
 	CHECK(lastPos.z == doctest::Approx(27.0f));
 }
 
+TEST_CASE("Observer - OnSet after query write callbacks") {
+	SUBCASE("typed chunk-backed query") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		Position lastPos{};
+		const auto observer = wld.observer()
+				.event(ecs::ObserverEvent::OnSet)
+				.all<Position>()
+				.on_each([&](const Position& pos) {
+					++hits;
+					lastPos = pos;
+				})
+				.entity();
+		(void)observer;
+
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		hits = 0;
+
+		wld.query().all<Position&>().each([&](Position& pos) {
+			CHECK(hits == 0);
+			pos.x = 10.0f;
+			pos.y = 11.0f;
+			pos.z = 12.0f;
+			CHECK(hits == 0);
+		});
+
+		CHECK(hits == 1);
+		CHECK(lastPos.x == doctest::Approx(10.0f));
+		CHECK(lastPos.y == doctest::Approx(11.0f));
+		CHECK(lastPos.z == doctest::Approx(12.0f));
+	}
+
+	SUBCASE("Iter chunk-backed query") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		Position lastPos{};
+		const auto observer = wld.observer()
+				.event(ecs::ObserverEvent::OnSet)
+				.all<Position>()
+				.on_each([&](const Position& pos) {
+					++hits;
+					lastPos = pos;
+				})
+				.entity();
+		(void)observer;
+
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+		hits = 0;
+
+		wld.query().all<Position&>().each([&](ecs::Iter& it) {
+			auto posView = it.view_mut<Position>();
+			CHECK(hits == 0);
+			GAIA_EACH(it) {
+				posView[i].x = 20.0f;
+				posView[i].y = 21.0f;
+				posView[i].z = 22.0f;
+				CHECK(hits == 0);
+			}
+		});
+
+		CHECK(hits == 1);
+		CHECK(lastPos.x == doctest::Approx(20.0f));
+		CHECK(lastPos.y == doctest::Approx(21.0f));
+		CHECK(lastPos.z == doctest::Approx(22.0f));
+	}
+
+	SUBCASE("typed sparse query") {
+		TestWorld twld;
+
+		uint32_t hits = 0;
+		PositionSparse lastPos{};
+		const auto observer = wld.observer()
+				.event(ecs::ObserverEvent::OnSet)
+				.all<PositionSparse>()
+				.on_each([&](const PositionSparse& pos) {
+					++hits;
+					lastPos = pos;
+				})
+				.entity();
+		(void)observer;
+
+		const auto e = wld.add();
+		wld.add<PositionSparse>(e, {1.0f, 2.0f, 3.0f});
+		hits = 0;
+
+		wld.query().all<PositionSparse&>().each([&](PositionSparse& pos) {
+			CHECK(hits == 0);
+			pos.x = 30.0f;
+			pos.y = 31.0f;
+			pos.z = 32.0f;
+			CHECK(hits == 0);
+		});
+
+		CHECK(hits == 1);
+		CHECK(lastPos.x == doctest::Approx(30.0f));
+		CHECK(lastPos.y == doctest::Approx(31.0f));
+		CHECK(lastPos.z == doctest::Approx(32.0f));
+	}
+}
+
+TEST_CASE("Observer - write callbacks emit OnSet after callback completion") {
+	SUBCASE("typed callback") {
+		TestWorld twld;
+
+		uint32_t onSetHits = 0;
+		Position lastPos{};
+		const auto onSetObserver = wld.observer()
+										 .event(ecs::ObserverEvent::OnSet)
+										 .all<Position>()
+										 .on_each([&](const Position& pos) {
+											 ++onSetHits;
+											 lastPos = pos;
+										 })
+										 .entity();
+		(void)onSetObserver;
+
+		const auto onAddObserver = wld.observer()
+										 .event(ecs::ObserverEvent::OnAdd)
+										 .all<Position&>()
+										 .on_each([&](Position& pos) {
+											 CHECK(onSetHits == 0);
+											 pos.x = 40.0f;
+											 pos.y = 41.0f;
+											 pos.z = 42.0f;
+											 CHECK(onSetHits == 0);
+										 })
+										 .entity();
+		(void)onAddObserver;
+
+		const auto e = wld.add();
+		wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+
+		CHECK(onSetHits == 1);
+		CHECK(lastPos.x == doctest::Approx(40.0f));
+		CHECK(lastPos.y == doctest::Approx(41.0f));
+		CHECK(lastPos.z == doctest::Approx(42.0f));
+	}
+
+	SUBCASE("Iter callback") {
+		TestWorld twld;
+
+		uint32_t onSetHits = 0;
+		Position lastPos{};
+		const auto onSetObserver = wld.observer()
+										 .event(ecs::ObserverEvent::OnSet)
+										 .all<Position>()
+										 .on_each([&](const Position& pos) {
+											 ++onSetHits;
+											 lastPos = pos;
+										 })
+										 .entity();
+		(void)onSetObserver;
+
+		const auto onAddObserver = wld.observer()
+										 .event(ecs::ObserverEvent::OnAdd)
+										 .all<Position&>()
+										 .on_each([&](ecs::Iter& it) {
+											 auto posView = it.view_mut<Position>();
+											 CHECK(onSetHits == 0);
+											 GAIA_EACH(it) {
+												 posView[i].x = 50.0f;
+												 posView[i].y = 51.0f;
+												 posView[i].z = 52.0f;
+												 CHECK(onSetHits == 0);
+											 }
+										 })
+										 .entity();
+		(void)onAddObserver;
+
+		const auto e = wld.add();
+		wld.add<Position>(e, {4.0f, 5.0f, 6.0f});
+
+		CHECK(onSetHits == 1);
+		CHECK(lastPos.x == doctest::Approx(50.0f));
+		CHECK(lastPos.y == doctest::Approx(51.0f));
+		CHECK(lastPos.z == doctest::Approx(52.0f));
+	}
+}
+
 TEST_CASE("EntityBuilder single-step graph rebuild tolerates stale del edges") {
 	TestWorld twld;
 

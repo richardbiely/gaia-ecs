@@ -711,7 +711,7 @@ void BM_QueryCache_Sorted_UnrelatedWrite(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		auto& health = w.set<Health>(entities[cursor % entities.size()]);
+		auto health = w.set<Health>(entities[cursor % entities.size()]);
 		health.value += 1;
 		dont_optimize(q.count());
 		++cursor;

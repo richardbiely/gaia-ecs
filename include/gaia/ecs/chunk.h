@@ -346,6 +346,24 @@ namespace gaia {
 				return comp_ptr_mut(compIdx, row);
 			}
 
+			//! Finishes a raw write over a chunk range by updating versions, running set hooks once,
+			//! and notifying `OnSet` observers after the callback completed.
+			void finish_write(uint32_t compIdx, uint16_t from, uint16_t to) {
+				GAIA_ASSERT(compIdx < m_header.cntEntities);
+				if (from >= to)
+					return;
+
+				update_world_version(compIdx);
+
+#if GAIA_ENABLE_SET_HOOKS
+				const auto& rec = m_records.pRecords[compIdx];
+				if GAIA_UNLIKELY (rec.pItem->comp_hooks.func_set != nullptr)
+					rec.pItem->comp_hooks.func_set(*m_header.world, rec, *this);
+#endif
+
+				world_notify_on_set(*const_cast<World*>(m_header.world), m_records.pCompEntities[compIdx], *this, from, to);
+			}
+
 		private:
 			//! Returns the value stored in the component @a T on @a row in the chunk.
 			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
