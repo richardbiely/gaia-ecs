@@ -32170,32 +32170,36 @@ namespace gaia {
 				bool chunkEntityDirect = false;
 				Entity chunkEntityOwner = EntityBad;
 				uint32_t chunkEntityCompIdx = BadIndex;
+				const U* pChunkEntityDirectData = nullptr;
 				const U* pChunkEntityOwnerData = nullptr;
 				mutable const Archetype* pLastArchetype = nullptr;
 				mutable Entity cachedOwner = EntityBad;
 				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr,		nullptr,	nullptr, EntityBad, 0,				 cnt,	 false,
-									false, EntityBad, BadIndex, nullptr, nullptr,		EntityBad, false};
+					return {pData, nullptr,		nullptr,	nullptr, EntityBad, 0,			 cnt,				false,
+									false, EntityBad, BadIndex, nullptr, nullptr,		nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, nullptr,	pWorld,	 id,			0,				 cnt,	 false,
-									false,	 EntityBad, BadIndex, nullptr, nullptr, EntityBad, false};
+					return {nullptr, pEntities, nullptr,	pWorld,	 id,			0,			 cnt,				false,
+									false,	 EntityBad, BadIndex, nullptr, nullptr, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity_chunk_stable(
 						const Entity* pEntities, const Chunk* pChunk, World* pWorld, Entity id, uint16_t rowBase, uint32_t cnt) {
 					Entity owner = EntityBad;
 					uint32_t compIdx = BadIndex;
+					const U* pDirectData = nullptr;
 					const U* pOwnerData = nullptr;
 					bool direct = false;
 					world_init_query_entity_arg_by_id_chunk_stable_const<U>(
 							*pWorld, *pChunk, pEntities, id, direct, owner, compIdx, pOwnerData);
+					if (direct)
+						pDirectData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
 
-					return {nullptr, pEntities, pChunk,	 pWorld,		 id,			rowBase,	 cnt,	 true,
-									direct,	 owner,			compIdx, pOwnerData, nullptr, EntityBad, false};
+					return {nullptr, pEntities, pChunk,	 pWorld,			id,					rowBase, cnt,				true,
+									direct,	 owner,			compIdx, pDirectData, pOwnerData, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32204,7 +32208,7 @@ namespace gaia {
 						return pData[idx];
 					if (chunkStableInherited) {
 						if (chunkEntityDirect)
-							return pChunk->template get_idx<U>((uint16_t)(rowBase + idx), chunkEntityCompIdx);
+							return pChunkEntityDirectData[idx];
 
 						GAIA_ASSERT(pChunkEntityOwnerData != nullptr);
 						return *pChunkEntityOwnerData;
