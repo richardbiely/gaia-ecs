@@ -160,6 +160,25 @@ TEST_CASE("Observer - simple") {
 	}
 }
 
+TEST_CASE("Observer - builder exposes kind and scope") {
+	TestWorld twld;
+
+	const auto observerEntity = wld.observer()
+																	.event(ecs::ObserverEvent::OnAdd)
+																	.kind(ecs::QueryCacheKind::All)
+																	.scope(ecs::QueryCacheScope::Shared)
+																	.all<Position>()
+																	.on_each([](ecs::Iter&) {})
+																	.entity();
+
+	auto ss = wld.acc(observerEntity);
+	const auto& obsHdr = ss.get<ecs::Observer_>();
+	(void)obsHdr;
+	const auto& obsData = wld.observers().data(observerEntity);
+	CHECK(obsData.query.kind() == ecs::QueryCacheKind::All);
+	CHECK(obsData.query.scope() == ecs::QueryCacheScope::Shared);
+}
+
 TEST_CASE("Observer - OnSet") {
 	TestWorld twld;
 

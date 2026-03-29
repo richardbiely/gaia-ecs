@@ -532,8 +532,6 @@ namespace gaia {
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
 				uint32_t* m_worldVersion{};
-				//! Map of archetypes (stable pointer to parent world's archetype array)
-				const ArchetypeMapById* m_archetypes{};
 				//! Map of component ids to archetypes (stable pointer to parent world's archetype component-to-archetype map)
 				const EntityToArchetypeMap* m_entityToArchetypeMap{};
 				//! All world archetypes
@@ -741,6 +739,11 @@ namespace gaia {
 							pData = new DirectSeedRunData();
 						return *pData;
 					}
+
+					void reset() {
+						delete pData;
+						pData = nullptr;
+					}
 				};
 
 				DirectSeedRunDataHolder m_directSeedRunData;
@@ -804,7 +807,7 @@ namespace gaia {
 				}
 
 				void match_all(QueryInfo& queryInfo) {
-					if (!validate_cache_kind(queryInfo.ctx())) {
+					if (!validate_kind(queryInfo.ctx())) {
 						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
 						queryInfo.reset();
 						return;
@@ -830,7 +833,7 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
-					if (!validate_cache_kind(queryInfo.ctx())) {
+					if (!validate_kind(queryInfo.ctx())) {
 						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
 						queryInfo.reset();
 						return false;
@@ -912,7 +915,7 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool valid() {
-					return validate_cache_kind(fetch().ctx());
+					return validate_kind(fetch().ctx());
 				}
 
 				//--------------------------------------------------------------------------------
@@ -939,8 +942,8 @@ namespace gaia {
 					return ctx.data.cachePolicy == QueryCachePolicy::Dynamic;
 				}
 
-				//! Validates that the requested public cache kind can be satisfied by the current query shape.
-				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
+				//! Validates that the requested public kind can be satisfied by the current query shape.
+				GAIA_NODISCARD bool validate_kind(const QueryCtx& ctx) const {
 					if (m_cacheKind == QueryCacheKind::None)
 						return true;
 
@@ -4107,9 +4110,8 @@ namespace gaia {
 
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
-						const ArchetypeMapById& archetypes, const EntityToArchetypeMap& entityToArchetypeMap,
-						const ArchetypeDArray& allArchetypes):
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
+						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
+						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion),
 						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
 					m_storage.init(&world, &queryCache);
 				}
@@ -4132,15 +4134,19 @@ namespace gaia {
 				void reset() {
 					m_storage.reset();
 					m_eachWalkData.reset();
+					m_directSeedRunData.reset();
 					reset_changed_filter_state();
 					invalidate_each_walk_cache();
+					invalidate_direct_seed_run_cache();
 				}
 
 				void destroy() {
 					(void)m_storage.try_del_from_cache();
 					m_eachWalkData.reset();
+					m_directSeedRunData.reset();
 					reset_changed_filter_state();
 					invalidate_each_walk_cache();
+					invalidate_direct_seed_run_cache();
 				}
 
 				//! Returns true if the query is stored in the query cache

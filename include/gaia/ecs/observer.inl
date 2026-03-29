@@ -449,6 +449,18 @@ namespace gaia {
 				return *this;
 			}
 
+			ObserverBuilder& kind(QueryCacheKind kind) {
+				validate();
+				runtime_data().query.kind(kind);
+				return *this;
+			}
+
+			ObserverBuilder& scope(QueryCacheScope scope) {
+				validate();
+				runtime_data().query.scope(scope);
+				return *this;
+			}
+
 			//------------------------------------------------
 
 			ObserverBuilder& add(QueryInput item) {

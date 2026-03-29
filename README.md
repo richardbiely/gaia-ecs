@@ -1142,7 +1142,7 @@ q.all<Velocity&>();
 // ... may have Something, or may have SomethingElse (immutable access for both, it does not matter if none is present)...
 q.any<Something>().any<SomethingElse>();
 // ... and no Player component... (no access done for no())
-q.not<Player>();
+q.no<Player>();
 
 ecs::Query q2 = w.query();
 // Take into account everything with Position and Velocity (mutable access for both)...
@@ -1151,7 +1151,7 @@ q2.all<Velocity&>();
 // ... at least Something or SomethingElse (immutable access for both, one of them has to be present)...
 q2.or_<Something>().or_<SomethingElse>();
 // ... and no Player component... (no access done for no())
-q2.not<Player>();
+q2.no<Player>();
 ```
 
 All Query operations can be chained and it is also possible to invoke various filters multiple times with unique components:
@@ -1655,7 +1655,7 @@ Uncached queries do not keep persistent match caches. They still keep an immutab
 
 Two uncached queries with the same setup do not share state with each other, so each query pays for its own local warmup and temporary result storage.
 
-Prefer uncached queries for one-shot work or highly specialized query shapes that are unlikely to repeat. Prefer cached queries when the query object itself is reused, and prefer shared-scope cached queries when the same query shape is rebuilt across frames, systems, or helper code.
+Prefer uncached queries for one-shot work or highly specialized query shapes that are unlikely to repeat. Prefer cached queries when the query object itself is reused, and prefer shared cached queries when the same query shape is rebuilt across frames, systems, or helper code.
 
 `World::uquery()` is equivalent to `World::query().kind(ecs::QueryCacheKind::None)`.
 
@@ -1669,7 +1669,7 @@ ecs::Query q2 = w.query()
   .scope(ecs::QueryCacheScope::Local)
   .all<Position>();
 
-// Shared-scope cached query: identical query shapes may reuse one cache entry.
+// Shared cached query: identical query shapes may reuse one cache entry.
 ecs::Query q3 = w.query()
   .scope(ecs::QueryCacheScope::Shared)
   .all<Position>();
@@ -1699,7 +1699,7 @@ Building cache requires memory. Because of that, sometimes it comes handy having
 q.reset();
 ```
 
-If this is a cached query, even after resetting it the compiled query state still remains alive. For local-scope queries, destroying that query object releases the private cached state. For shared-scope queries, the shared cache entry stays alive until the last query with the matching signature is destroyed:
+If this is a cached query, even after resetting it the compiled query state still remains alive. For local queries, destroying that query object releases the private cached state. For shared queries, the shared cache entry stays alive until the last query with the matching signature is destroyed:
 
 ```cpp
 ecs::Query q1 = w.query().scope(ecs::QueryCacheScope::Shared);
@@ -1717,7 +1717,7 @@ q2 = w.query(); // Last reference to cache query is destroyed. The cache is clea
 Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via `World::query()` or `World::uquery()` have a valid state.
 #### Query cache behavior
 
-Cached queries can use 3 internal cache layers. When the cache scope is `Shared`, identical query shapes also reuse one cached query record instead of rebuilding it for every query object.
+Cached queries can use 3 internal cache layers. When the scope is `Shared`, identical query shapes also reuse one cached query record instead of rebuilding it for every query object.
 
 * immediate cache - for plain structural queries that can be kept in sync immediately
 * lazy cache - for structural queries that stay cached, but rebuild on demand after relevant world changes

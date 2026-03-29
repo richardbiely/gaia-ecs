@@ -4344,7 +4344,7 @@ TEST_CASE("Query - create selectors with wildcard pair over broad exact term on 
 	CHECK(deps.create_selectors_view()[0] == ecs::Pair(rel, ecs::All));
 }
 
-TEST_CASE("Query - cache kind and policy") {
+TEST_CASE("Query - kind and policy") {
 	TestWorld twld;
 
 	auto source = wld.add();
@@ -4395,7 +4395,7 @@ TEST_CASE("Query - cache kind and policy") {
 	CHECK(qUncachedImmediate.cache_policy() == ecs::QueryCachePolicy::Immediate);
 }
 
-TEST_CASE("Query - cache kind") {
+TEST_CASE("Query - kind") {
 	TestWorld twld;
 
 	ecs::Query::SilenceInvalidCacheKindAssertions = true;

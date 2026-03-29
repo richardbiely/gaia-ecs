@@ -108,6 +108,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			SystemBuilder& kind(QueryCacheKind kind) {
+				validate();
+				data().query.kind(kind);
+				return *this;
+			}
+
+			SystemBuilder& scope(QueryCacheScope scope) {
+				validate();
+				data().query.scope(scope);
+				return *this;
+			}
+
+			//------------------------------------------------
+
 			SystemBuilder& add(QueryInput item) {
 				validate();
 				data().query.add(item);

@@ -72,6 +72,22 @@ TEST_CASE("System - simple") {
 	CHECK(sys3_run_before_sys2);
 }
 
+TEST_CASE("System - builder exposes kind and scope") {
+	TestWorld twld;
+
+	const auto systemEntity = wld.system()
+																.kind(ecs::QueryCacheKind::All)
+																.scope(ecs::QueryCacheScope::Shared)
+																.all<Position>()
+																.on_each([](ecs::Iter&) {})
+																.entity();
+
+	auto ss = wld.acc(systemEntity);
+	const auto& sys = ss.get<ecs::System_>();
+	CHECK(sys.query.kind() == ecs::QueryCacheKind::All);
+	CHECK(sys.query.scope() == ecs::QueryCacheScope::Shared);
+}
+
 TEST_CASE("System - dependency BFS order") {
 	cnt::darr<char> order;
 	TestWorld twld;
