@@ -8,6 +8,14 @@
 
 using namespace gaia;
 
+template <bool UseCachedQuery>
+ecs::Query make_query(ecs::World& world) {
+	if constexpr (UseCachedQuery)
+		return world.query();
+	else
+		return world.uquery();
+}
+
 float dt;
 
 inline static constexpr uint32_t FrameBufferWidth = 320;
@@ -706,22 +714,22 @@ void BM_QueryMix(picobench::state& state) {
 	state.stop_timer();
 	init_query_workload(workload, (uint32_t)state.user_data());
 
-	auto qMove = workload.world.template query<UseCaching>().template all<PositionT>().template all<VelocityT>();
-	auto qDamage = workload.world.template query<UseCaching>()
+	auto qMove = make_query<UseCaching>(workload.world).template all<PositionT>().template all<VelocityT>();
+	auto qDamage = make_query<UseCaching>(workload.world)
 										 .template all<components::HealthComponent>()
 										 .template all<components::DamageComponent>();
 	auto qRender =
-			workload.world.template query<UseCaching>().template all<PositionT>().template all<components::SpriteComponent>();
-	decltype(workload.world.template query<UseCaching>()) qGlobal;
+			make_query<UseCaching>(workload.world).template all<PositionT>().template all<components::SpriteComponent>();
+	ecs::Query qGlobal;
 	if constexpr (IncludeGlobalQuery) {
-		qGlobal = workload.world.template query<UseCaching>()
+		qGlobal = make_query<UseCaching>(workload.world)
 									.template all<PositionT>()
 									.template all<components::GlobalStateComponent>(ecs::QueryTermOptions{}.src(workload.globalState));
 	}
 
-	decltype(workload.world.template query<UseCaching>()) qScene;
+	ecs::Query qScene;
 	if constexpr (IncludeSceneQuery) {
-		qScene = workload.world.template query<UseCaching>()
+		qScene = make_query<UseCaching>(workload.world)
 								 .template all<PositionT>()
 								 .template all<components::SceneStateComponent>(ecs::QueryTermOptions{}.src(workload.sceneLeaf).trav());
 

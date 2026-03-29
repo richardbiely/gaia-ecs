@@ -1277,7 +1277,7 @@ TEST_CASE("Observer - direct source or term changes trigger OnAdd and OnDel") {
 		CHECK(removed[0] == matched);
 }
 
-TEST_CASE("Observer - identical traversed observers share cached query") {
+TEST_CASE("Observer - identical traversed observers keep local cached query state by default") {
 	TestWorld twld;
 
 	const auto connectedTo = wld.add();
@@ -1310,7 +1310,7 @@ TEST_CASE("Observer - identical traversed observers share cached query") {
 	for (uint32_t i = 1; i < 200; ++i) {
 		const auto observer = makeObserver();
 		const auto handle = ecs::QueryInfo::handle(wld.observers().data(observer).query.fetch());
-		CHECK(handle == expectedHandle);
+		CHECK(handle != expectedHandle);
 		observers.push_back(observer);
 	}
 
@@ -1416,7 +1416,7 @@ namespace {
 		termOptions.src(ecs::Var0);
 
 		auto buildQuery = [&]() {
-			return world.query<false>()
+			return world.uquery()
 					.template all<Position>()
 					.all(ecs::Pair(bindingRelation, ecs::Var0))
 					.template all<Acceleration>(termOptions);
@@ -1758,7 +1758,7 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 				.entity();
 	};
 	const auto buildQuery = [&] {
-		return wld.query<false>()
+		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
@@ -2253,7 +2253,7 @@ TEST_CASE("Observer - unsupported traversal diff shape") {
 	wld.add(cable, ecs::Pair(guardedBy, guardian));
 
 	auto buildQuery = [&]() {
-		return wld.query<false>()
+		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.all(ecs::Pair(guardedBy, ecs::Var1))
@@ -2341,7 +2341,7 @@ TEST_CASE("Observer - traversed source copy_ext_n fires for all new entities") {
 	wld.add(src, ecs::Pair(connectedTo, child));
 
 	auto buildQuery = [&]() {
-		return wld.query<false>()
+		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
@@ -2448,7 +2448,7 @@ TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 	wld.add(archetypeSeed, ecs::Pair(connectedTo, child));
 
 	auto buildQuery = [&]() {
-		return wld.query<false>()
+		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
@@ -2551,7 +2551,7 @@ TEST_CASE("Observer - parented instantiate_n traversed source fires for all new 
 	wld.add<Position>(animal);
 
 	auto buildQuery = [&]() {
-		return wld.query<false>()
+		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(ecs::Parent, ecs::Var0))
 				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_self_parent());

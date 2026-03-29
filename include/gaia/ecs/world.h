@@ -2245,18 +2245,22 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, the query uses cached state with local scope by default.
-			//! If false, the query runs as QueryCacheKind::None and keeps only a local immutable plan.
+			//! Provides a cached query set up to work with the parent world.
+			//! Cached queries use local scope by default.
 			//! \return Valid query object
-			template <bool UseCache = true>
 			Query query() {
-				auto q = Query(
+				return Query(
 						*const_cast<World*>(this), m_queryCache,
 						//
 						m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-				if constexpr (!UseCache)
-					q.cache_kind(QueryCacheKind::None);
+			}
+
+			//! Provides an uncached query set up to work with the parent world.
+			//! Uncached queries keep only a local immutable plan and rebuild transient matches on demand.
+			//! \return Valid query object
+			Query uquery() {
+				auto q = query();
+				q.cache_kind(QueryCacheKind::None);
 				return q;
 			}
 
@@ -3458,7 +3462,7 @@ namespace gaia {
 					// 	ec.depthDependsOn = (uint8_t)depth;
 
 					// 	// Update depth for all entities depending on this one
-					// 	auto q = m_world.query<false>();
+					// 	auto q = m_world.uquery();
 					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
 					// 			.each([&](Entity dependingEntity) {
 					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
@@ -3466,7 +3470,7 @@ namespace gaia {
 					// 			});
 					// } else {
 					// 	// Update depth for all entities depending on this one
-					// 	auto q = m_world.query<false>();
+					// 	auto q = m_world.uquery();
 					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
 					// 			.each([&](Entity dependingEntity) {
 					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
@@ -12413,7 +12417,7 @@ namespace gaia {
 			auto& sys = ss.smut<System_>();
 			{
 				sys.entity = e;
-				sys.query = query<true>();
+				sys.query = query();
 			}
 			return SystemBuilder(*this, e);
 		}
@@ -12425,6 +12429,13 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline void
+		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
+			world.targets(entity, relation, [ctx, func](Entity target) {
+				func(ctx, target);
+			});
 		}
 
 		inline QueryMatchScratch& query_match_scratch_acquire(World& world) {
@@ -12807,7 +12818,7 @@ namespace gaia {
 			{
 				hdr.entity = e;
 				obs.entity = e;
-				obs.query = query<true>();
+				obs.query = query();
 			}
 			return ObserverBuilder(*this, e);
 		}

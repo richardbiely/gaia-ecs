@@ -1,10 +1,5 @@
-#include <gaia.h>
-#include <picobench/picobench.hpp>
-
-using namespace gaia;
-
-constexpr uint32_t NEntities = 100; // 1'000;
-constexpr uint32_t NEntitiesMany = 1000; // 1'000'000;
+#include "common.h"
+#include "registry.h"
 
 template <uint32_t Version, typename T, uint32_t TCount>
 struct Component {
@@ -135,7 +130,7 @@ void BM_CreateEntity_CopyMany(picobench::state& state) {
 		auto e = w.add();
 		state.start_timer();
 
-		w.copy_n(e, NEntities);
+		w.copy_n(e, NEntitiesFew);
 
 		state.stop_timer();
 	}
@@ -153,7 +148,7 @@ void BM_CreateEntity_CopyMany_With_Component(picobench::state& state) {
 		auto e = AddsOne<float, 0, Iterations, false>(w);
 		state.start_timer();
 
-		w.copy_n(e, NEntities);
+		w.copy_n(e, NEntitiesFew);
 
 		state.stop_timer();
 	}
@@ -171,7 +166,7 @@ void BM_CreateEntity_With_Component(picobench::state& state) {
 		Adds<float, 0, Iterations, false>(w, 1);
 		state.start_timer();
 
-		Adds<float, 0, Iterations, false>(w, NEntities);
+		Adds<float, 0, Iterations, false>(w, NEntitiesFew);
 
 		state.stop_timer();
 	}
@@ -190,19 +185,17 @@ void BM_BulkCreateEntity_With_Component(picobench::state& state) {
 		Adds<float, 0, Iterations, true>(w, 1);
 		state.start_timer();
 
-		Adds<float, 0, Iterations, true>(w, NEntities);
+		Adds<float, 0, Iterations, true>(w, NEntitiesFew);
 
 		state.stop_timer();
 	}
 }
 
+#undef PICO_SETTINGS
+#undef PICO_SETTINGS_SANI
 #define PICO_SETTINGS() iterations({1024}).samples(3)
 #define PICO_SETTINGS_1() iterations({16}).samples(1)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
-#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
-
-#include "registry.h"
 
 void register_legacy_entity(PerfRunMode mode) {
 	switch (mode) {
@@ -210,7 +203,7 @@ void register_legacy_entity(PerfRunMode mode) {
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS().label("30 components");
 			return;
 		case PerfRunMode::Sanitizer:
-			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS_SANI().label("0 components");
+			PICOBENCH_REG(BM_CreateEntity<NEntitiesFew>).PICO_SETTINGS_SANI().label("0 components");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_CreateEntity_CopyMany_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
 			PICOBENCH_REG(BM_CreateEntity_With_Component<30>).PICO_SETTINGS_SANI().label("30 components");
@@ -218,13 +211,13 @@ void register_legacy_entity(PerfRunMode mode) {
 			return;
 		case PerfRunMode::Normal:
 			PICOBENCH_SUITE_REG("Entity creation");
-			PICOBENCH_REG(BM_CreateEntity<NEntities>).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_CreateEntity<NEntitiesFew>).PICO_SETTINGS().label("0 components");
 			PICOBENCH_REG(BM_CreateEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
 			PICOBENCH_SUITE_REG("Entity deletion");
-			PICOBENCH_REG(BM_DeleteEntity<NEntities>).PICO_SETTINGS().label("0 components");
+			PICOBENCH_REG(BM_DeleteEntity<NEntitiesFew>).PICO_SETTINGS().label("0 components");
 			PICOBENCH_REG(BM_DeleteEntity<NEntitiesMany>).PICO_SETTINGS_1().label("0 components, 1M entities");
 			PICOBENCH_SUITE_REG("Entity + N components - add_n");
-			PICOBENCH_REG(BM_CreateEntity_Many<NEntities>).PICO_SETTINGS().label("0 component");
+			PICOBENCH_REG(BM_CreateEntity_Many<NEntitiesFew>).PICO_SETTINGS().label("0 component");
 			PICOBENCH_REG(BM_CreateEntity_Many<NEntitiesMany>).PICO_SETTINGS_1().label("0 component, 1M entities");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<1>).PICO_SETTINGS().label("1 component");
 			PICOBENCH_REG(BM_CreateEntity_Many_With_Component<2>).PICO_SETTINGS().label("2 components");

@@ -23943,10 +23943,14 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		void
+		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
+		uint32_t world_version(const World& world);
+		uint32_t world_rel_version(const World& world, Entity relation);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
@@ -40843,15 +40847,14 @@ namespace gaia {
 				}
 			};
 
-			template <bool Cached>
 			struct QueryImplStorage {
 				World* m_world = nullptr;
 				//! QueryImpl cache (stable pointer to parent world's query cache)
 				QueryCache* m_pCache = nullptr;
 				//! Hot cached query pointer. Validated against m_identity.handle before use.
 				QueryInfo* m_pInfo = nullptr;
-				//! Locally-owned query plan used when the cache layer is disabled.
-				QueryInfo* m_pLocalInfo = nullptr;
+				//! Locally-owned query plan used when the query does not use cache-backed storage.
+				QueryInfo* m_pOwnedInfo = nullptr;
 				//! Query identity
 				QueryIdentity m_identity{};
 				bool m_destroyed = false;
@@ -40859,40 +40862,39 @@ namespace gaia {
 			public:
 				QueryImplStorage() = default;
 				~QueryImplStorage() {
-					if (try_del_from_cache())
-						ser_buffer_reset();
-					delete m_pLocalInfo;
+					(void)try_del_from_cache();
+					delete m_pOwnedInfo;
 				}
 
 				QueryImplStorage(QueryImplStorage&& other) {
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
 					m_pInfo = other.m_pInfo;
-					m_pLocalInfo = other.m_pLocalInfo;
+					m_pOwnedInfo = other.m_pOwnedInfo;
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
 					other.m_pInfo = nullptr;
-					other.m_pLocalInfo = nullptr;
+					other.m_pOwnedInfo = nullptr;
 					other.m_identity = {};
 					other.m_destroyed = false;
 				}
 				QueryImplStorage& operator=(QueryImplStorage&& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
-					delete m_pLocalInfo;
+					delete m_pOwnedInfo;
 
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
 					m_pInfo = other.m_pInfo;
-					m_pLocalInfo = other.m_pLocalInfo;
+					m_pOwnedInfo = other.m_pOwnedInfo;
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
 					// Make sure old instance is invalidated
 					other.m_pInfo = nullptr;
-					other.m_pLocalInfo = nullptr;
+					other.m_pOwnedInfo = nullptr;
 					other.m_identity = {};
 					other.m_destroyed = false;
 
@@ -40903,8 +40905,8 @@ namespace gaia {
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
 					m_pInfo = other.m_pInfo;
-					if (other.m_pLocalInfo != nullptr)
-						m_pLocalInfo = new QueryInfo(*other.m_pLocalInfo);
+					if (other.m_pOwnedInfo != nullptr)
+						m_pOwnedInfo = new QueryInfo(*other.m_pOwnedInfo);
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
@@ -40921,14 +40923,14 @@ namespace gaia {
 				QueryImplStorage& operator=(const QueryImplStorage& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
-					delete m_pLocalInfo;
-					m_pLocalInfo = nullptr;
+					delete m_pOwnedInfo;
+					m_pOwnedInfo = nullptr;
 
 					m_world = other.m_world;
 					m_pCache = other.m_pCache;
 					m_pInfo = other.m_pInfo;
-					if (other.m_pLocalInfo != nullptr)
-						m_pLocalInfo = new QueryInfo(*other.m_pLocalInfo);
+					if (other.m_pOwnedInfo != nullptr)
+						m_pOwnedInfo = new QueryInfo(*other.m_pOwnedInfo);
 					m_identity = other.m_identity;
 					m_destroyed = other.m_destroyed;
 
@@ -40966,8 +40968,8 @@ namespace gaia {
 				void reset() {
 					if (auto* pInfo = try_query_info_fast(); pInfo != nullptr)
 						pInfo->reset();
-					if (m_pLocalInfo != nullptr)
-						m_pLocalInfo->reset();
+					if (m_pOwnedInfo != nullptr)
+						m_pOwnedInfo->reset();
 				}
 
 				void allow_to_destroy_again() {
@@ -40990,8 +40992,8 @@ namespace gaia {
 				void invalidate() {
 					m_pInfo = nullptr;
 					m_identity.handle = {};
-					delete m_pLocalInfo;
-					m_pLocalInfo = nullptr;
+					delete m_pOwnedInfo;
+					m_pOwnedInfo = nullptr;
 				}
 
 				GAIA_NODISCARD QueryInfo* try_query_info_fast() const {
@@ -41006,20 +41008,20 @@ namespace gaia {
 					m_pInfo = &queryInfo;
 				}
 
-				GAIA_NODISCARD bool has_local_query_info() const {
-					return m_pLocalInfo != nullptr;
+				GAIA_NODISCARD bool has_owned_query_info() const {
+					return m_pOwnedInfo != nullptr;
 				}
 
-				GAIA_NODISCARD QueryInfo& local_query_info() {
-					GAIA_ASSERT(m_pLocalInfo != nullptr);
-					return *m_pLocalInfo;
+				GAIA_NODISCARD QueryInfo& owned_query_info() {
+					GAIA_ASSERT(m_pOwnedInfo != nullptr);
+					return *m_pOwnedInfo;
 				}
 
-				void init_local_query_info(QueryInfo&& queryInfo) {
-					if (m_pLocalInfo == nullptr)
-						m_pLocalInfo = new QueryInfo(GAIA_MOV(queryInfo));
+				void init_owned_query_info(QueryInfo&& queryInfo) {
+					if (m_pOwnedInfo == nullptr)
+						m_pOwnedInfo = new QueryInfo(GAIA_MOV(queryInfo));
 					else
-						*m_pLocalInfo = GAIA_MOV(queryInfo);
+						*m_pOwnedInfo = GAIA_MOV(queryInfo);
 				}
 
 				//! Returns true if the query is found in the query cache.
@@ -41035,56 +41037,6 @@ namespace gaia {
 					return m_world != nullptr && m_pCache != nullptr;
 				}
 			};
-
-			template <>
-			struct QueryImplStorage<false> {
-				QueryInfo m_queryInfo;
-
-				QueryImplStorage() {
-					m_queryInfo.idx = QueryIdBad;
-					m_queryInfo.gen = QueryIdBad;
-				}
-
-				GAIA_NODISCARD World* world() {
-					return m_queryInfo.world();
-				}
-
-				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
-					return m_queryInfo.ser_buffer();
-				}
-				void ser_buffer_reset() {
-					m_queryInfo.ser_buffer_reset();
-				}
-
-				void init(World* world) {
-					m_queryInfo.init(world);
-				}
-
-				//! Release any data allocated by the query
-				void reset() {
-					m_queryInfo.reset();
-				}
-
-				//! Does nothing for uncached queries.
-				GAIA_NODISCARD bool try_del_from_cache() {
-					return false;
-				}
-
-				//! Does nothing for uncached queries.
-				void invalidate() {}
-
-				//! Does nothing for uncached queries.
-				GAIA_NODISCARD bool is_cached() const {
-					return false;
-				}
-
-				//! Returns true. Uncached queries are always considered initialized.
-				GAIA_NODISCARD bool is_initialized() const {
-					return true;
-				}
-			};
-
-			template <bool UseCaching = true>
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
 
@@ -41113,9 +41065,6 @@ namespace gaia {
 
 			private:
 				GAIA_NODISCARD bool uses_query_cache_storage() const {
-					if constexpr (!UseCaching)
-						return false;
-
 					return m_cacheKind != QueryCacheKind::None;
 				}
 
@@ -41124,13 +41073,9 @@ namespace gaia {
 				}
 
 				void invalidate_query_storage() {
-					if constexpr (UseCaching) {
-						if (uses_query_cache_storage())
-							(void)m_storage.try_del_from_cache();
-						m_storage.invalidate();
-					} else {
-						m_storage.reset();
-					}
+					if (uses_query_cache_storage())
+						(void)m_storage.try_del_from_cache();
+					m_storage.invalidate();
 				}
 
 				//! Returns the per-thread scratch storage used by the direct entity-seeded query fast path.
@@ -41200,8 +41145,8 @@ namespace gaia {
 						} //
 				}; // namespace detail
 
-				//! Storage for data based on whether Caching is used or not
-				QueryImplStorage<UseCaching> m_storage;
+				//! Storage for cache-backed and locally-owned query state.
+				QueryImplStorage m_storage;
 				//! World version (stable pointer to parent world's m_nextArchetypeId)
 				ArchetypeId* m_nextArchetypeId{};
 				//! World version (stable pointer to parent world's world version)
@@ -41426,70 +41371,55 @@ namespace gaia {
 				//! Fetches the QueryInfo object.
 				//! \return QueryInfo object
 				QueryInfo& fetch() {
-					if constexpr (UseCaching) {
-						GAIA_PROF_SCOPE(query::fetch);
+					GAIA_PROF_SCOPE(query::fetch);
 
-						// Make sure the query was created by World::query()
-						GAIA_ASSERT(m_storage.is_initialized());
+					// Make sure the query was created by World::query()
+					GAIA_ASSERT(m_storage.is_initialized());
 
-						if (!uses_query_cache_storage()) {
-							if GAIA_UNLIKELY (!m_storage.has_local_query_info()) {
-								QueryCtx ctx;
-								ctx.init(m_storage.world());
-								commit(ctx);
-								m_storage.init_local_query_info(
-										QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view()));
-							} else if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad) {
-								recommit(m_storage.local_query_info().ctx());
-							}
-
-							return m_storage.local_query_info();
-						}
-
-						// If queryId is set it means QueryInfo was already created.
-						// This is the common case for cached queries.
-						if GAIA_LIKELY (m_storage.m_identity.handle.id() != QueryIdBad) {
-							auto* pQueryInfo = m_storage.try_query_info_fast();
-							if GAIA_UNLIKELY (pQueryInfo == nullptr)
-								pQueryInfo = m_storage.m_pCache->try_get(m_storage.m_identity.handle);
-
-							// The only time when this can be nullptr is just once after Query::destroy is called.
-							if GAIA_LIKELY (pQueryInfo != nullptr) {
-								m_storage.cache_query_info(*pQueryInfo);
-								if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad)
-									recommit(pQueryInfo->ctx());
-								return *pQueryInfo;
-							}
-
-							m_storage.invalidate();
-						}
-
-						// No queryId is set which means QueryInfo needs to be created
-						QueryCtx ctx;
-						ctx.init(m_storage.world());
-						commit(ctx);
-						auto& queryInfo =
-								uses_shared_cache_layer()
-										? m_storage.m_pCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view())
-										: m_storage.m_pCache->add_local(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
-						m_storage.m_identity.handle = QueryInfo::handle(queryInfo);
-						m_storage.cache_query_info(queryInfo);
-						m_storage.allow_to_destroy_again();
-						return queryInfo;
-					} else {
-						GAIA_PROF_SCOPE(query::fetchu);
-
-						if GAIA_UNLIKELY (m_storage.m_queryInfo.ctx().q.handle.id() == QueryIdBad) {
+					if (!uses_query_cache_storage()) {
+						if GAIA_UNLIKELY (!m_storage.has_owned_query_info()) {
 							QueryCtx ctx;
 							ctx.init(m_storage.world());
 							commit(ctx);
-							m_storage.m_queryInfo =
-									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
-						} else if GAIA_UNLIKELY (m_storage.m_queryInfo.ctx().q.serId != QueryIdBad) {
-							recommit(m_storage.m_queryInfo.ctx());
+							m_storage.init_owned_query_info(
+									QueryInfo::create(QueryId{}, GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view()));
+						} else if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad) {
+							recommit(m_storage.owned_query_info().ctx());
 						}
-						return m_storage.m_queryInfo;
+
+						return m_storage.owned_query_info();
 					}
+
+					// If queryId is set it means QueryInfo was already created.
+					// This is the common case for cached queries.
+					if GAIA_LIKELY (m_storage.m_identity.handle.id() != QueryIdBad) {
+						auto* pQueryInfo = m_storage.try_query_info_fast();
+						if GAIA_UNLIKELY (pQueryInfo == nullptr)
+							pQueryInfo = m_storage.m_pCache->try_get(m_storage.m_identity.handle);
+
+						// The only time when this can be nullptr is just once after Query::destroy is called.
+						if GAIA_LIKELY (pQueryInfo != nullptr) {
+							m_storage.cache_query_info(*pQueryInfo);
+							if GAIA_UNLIKELY (m_storage.m_identity.serId != QueryIdBad)
+								recommit(pQueryInfo->ctx());
+							return *pQueryInfo;
+						}
+
+						m_storage.invalidate();
+					}
+
+					// No queryId is set which means QueryInfo needs to be created
+					QueryCtx ctx;
+					ctx.init(m_storage.world());
+					commit(ctx);
+					auto& queryInfo =
+							uses_shared_cache_layer()
+									? m_storage.m_pCache->add(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view())
+									: m_storage.m_pCache->add_local(GAIA_MOV(ctx), *m_entityToArchetypeMap, all_archetypes_view());
+					m_storage.m_identity.handle = QueryInfo::handle(queryInfo);
+					m_storage.cache_query_info(queryInfo);
+					m_storage.allow_to_destroy_again();
+					return queryInfo;
 				}
 
 				void match_all(QueryInfo& queryInfo) {
@@ -41499,30 +41429,20 @@ namespace gaia {
 						return;
 					}
 
-					if constexpr (UseCaching) {
-						if (!uses_query_cache_storage()) {
-							queryInfo.ensure_matches_transient(
-									*m_entityToArchetypeMap, all_archetypes_view(), m_varBindings, m_varBindingsMask);
-							return;
-						}
+					if (!uses_query_cache_storage()) {
+						queryInfo.ensure_matches_transient(
+								*m_entityToArchetypeMap, all_archetypes_view(), m_varBindings, m_varBindingsMask);
+						return;
 					}
 
 					queryInfo.ensure_matches(
 							*m_entityToArchetypeMap, all_archetypes_view(), last_archetype_id(), m_varBindings, m_varBindingsMask);
-					if constexpr (UseCaching) {
-						if (!uses_query_cache_storage())
-							return;
-
-						m_storage.m_pCache->sync_archetype_cache(queryInfo);
-					}
+					m_storage.m_pCache->sync_archetype_cache(queryInfo);
 				}
 
 				GAIA_NODISCARD bool match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
-					if constexpr (UseCaching) {
-						if (!uses_query_cache_storage()) {
-							return queryInfo.ensure_matches_one_transient(
-									archetype, targetEntities, m_varBindings, m_varBindingsMask);
-						}
+					if (!uses_query_cache_storage()) {
+						return queryInfo.ensure_matches_one_transient(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 					}
 
 					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
@@ -41550,7 +41470,6 @@ namespace gaia {
 				//! affect shared cache identity.
 				//! Use this only when traversed source closures stay small and stable enough for
 				//! snapshot reuse to be cheaper than rebuilding them on demand.
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_src_trav(uint16_t maxItems) {
 					if (m_cacheSrcTrav == maxItems)
 						return *this;
@@ -41569,12 +41488,10 @@ namespace gaia {
 
 				//! Returns the traversed-source snapshot cap.
 				//! 0 disables explicit traversed-source snapshot caching.
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD uint16_t cache_src_trav() const {
 					return m_cacheSrcTrav;
 				}
 
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_kind(QueryCacheKind cacheKind) {
 					if (m_cacheKind == cacheKind)
 						return *this;
@@ -41587,7 +41504,6 @@ namespace gaia {
 					return *this;
 				}
 
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				QueryImpl& cache_scope(QueryCacheScope cacheScope) {
 					if (m_cacheScope == cacheScope)
 						return *this;
@@ -41606,20 +41522,15 @@ namespace gaia {
 					return *this;
 				}
 
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD QueryCacheKind cache_kind() const {
 					return m_cacheKind;
 				}
 
-				template <bool U = UseCaching, std::enable_if_t<U, int> = 0>
 				GAIA_NODISCARD QueryCacheScope cache_scope() const {
 					return m_cacheScope;
 				}
 
 				GAIA_NODISCARD bool valid() {
-					if constexpr (!UseCaching)
-						return true;
-
 					return validate_cache_kind(fetch().ctx());
 				}
 
@@ -41649,23 +41560,21 @@ namespace gaia {
 
 				//! Validates that the requested public cache kind can be satisfied by the current query shape.
 				GAIA_NODISCARD bool validate_cache_kind(const QueryCtx& ctx) const {
-					if constexpr (UseCaching) {
-						if (m_cacheKind == QueryCacheKind::None)
-							return true;
+					if (m_cacheKind == QueryCacheKind::None)
+						return true;
 
-						if (m_cacheKind == QueryCacheKind::Auto) {
-							const bool usesImmediateLayer = uses_im_cache(ctx);
-							const bool usesLazyLayer = uses_lazy_cache(ctx);
-							const bool usesDynamicLayer = uses_dyn_cache(ctx);
-							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-							return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
-						}
+					if (m_cacheKind == QueryCacheKind::Auto) {
+						const bool usesImmediateLayer = uses_im_cache(ctx);
+						const bool usesLazyLayer = uses_lazy_cache(ctx);
+						const bool usesDynamicLayer = uses_dyn_cache(ctx);
+						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+						return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
+					}
 
-						if (m_cacheKind == QueryCacheKind::All) {
-							const bool usesImmediateLayer = uses_im_cache(ctx);
-							const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-							return usesImmediateLayer && !usesExplicitSrcTravLayer;
-						}
+					if (m_cacheKind == QueryCacheKind::All) {
+						const bool usesImmediateLayer = uses_im_cache(ctx);
+						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
+						return usesImmediateLayer && !usesExplicitSrcTravLayer;
 					}
 
 					return true;
@@ -42060,11 +41969,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::commit);
 
 #if GAIA_ASSERT_ENABLED
-					if constexpr (UseCaching) {
-						GAIA_ASSERT(m_storage.m_identity.handle.id() == QueryIdBad);
-					} else {
-						GAIA_ASSERT(m_storage.m_queryInfo.idx == QueryIdBad);
-					}
+					GAIA_ASSERT(m_storage.m_identity.handle.id() == QueryIdBad);
 #endif
 
 					auto& serBuffer = m_storage.ser_buffer();
@@ -42081,16 +41986,14 @@ namespace gaia {
 					}
 
 					// Calculate the lookup hash from the provided context
-					if constexpr (UseCaching) {
-						if (uses_query_cache_storage()) {
-							ctx.data.cacheSrcTrav = m_cacheSrcTrav;
-							normalize_cache_src_trav(ctx);
-						}
-						if (uses_shared_cache_layer()) {
-							auto& ctxData = ctx.data;
-							if (ctxData.changedCnt > 1) {
-								core::sort(ctxData.changed.data(), ctxData.changed.data() + ctxData.changedCnt, SortComponentCond{});
-							}
+					if (uses_query_cache_storage()) {
+						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
+						normalize_cache_src_trav(ctx);
+					}
+					if (uses_shared_cache_layer()) {
+						auto& ctxData = ctx.data;
+						if (ctxData.changedCnt > 1) {
+							core::sort(ctxData.changed.data(), ctxData.changed.data() + ctxData.changedCnt, SortComponentCond{});
 						}
 					}
 
@@ -42099,9 +42002,8 @@ namespace gaia {
 
 					// Refresh the context
 					ctx.refresh();
-					if constexpr (UseCaching)
-						if (uses_shared_cache_layer())
-							calc_lookup_hash(ctx);
+					if (uses_shared_cache_layer())
+						calc_lookup_hash(ctx);
 				}
 
 				void recommit(QueryCtx& ctx) {
@@ -42122,11 +42024,10 @@ namespace gaia {
 							return;
 						CommandBufferRead[id](serBuffer, ctx);
 					}
-					if constexpr (UseCaching)
-						if (uses_query_cache_storage()) {
-							ctx.data.cacheSrcTrav = m_cacheSrcTrav;
-							normalize_cache_src_trav(ctx);
-						}
+					if (uses_query_cache_storage()) {
+						ctx.data.cacheSrcTrav = m_cacheSrcTrav;
+						normalize_cache_src_trav(ctx);
+					}
 
 					// We can free all temporary data now
 					m_storage.ser_buffer_reset();
@@ -43144,18 +43045,6 @@ namespace gaia {
 #endif
 
 					each_inter<ExecType>(queryInfo, func, InputArgs{});
-				}
-
-				template <
-						QueryExecType ExecType, typename Func, bool FuncEnabled = UseCaching,
-						typename std::enable_if<FuncEnabled>::type* = nullptr>
-				void each_inter(QueryId queryId, Func func) {
-					// Make sure the query was created by World.query()
-					GAIA_ASSERT(m_storage.m_pCache != nullptr);
-					GAIA_ASSERT(queryId != QueryIdBad);
-
-					auto& queryInfo = m_storage.m_pCache->get(queryId);
-					each_inter(queryInfo, func);
 				}
 
 				template <QueryExecType ExecType, typename Func>
@@ -44844,33 +44733,16 @@ namespace gaia {
 					m_storage.init(&world, &queryCache);
 				}
 
-				template <bool FuncEnabled = !UseCaching, typename std::enable_if<FuncEnabled, int>::type = 0>
-				QueryImpl(
-						World& world, ArchetypeId& nextArchetypeId, uint32_t& worldVersion, const ArchetypeMapById& archetypes,
-						const EntityToArchetypeMap& entityToArchetypeMap, const ArchetypeDArray& allArchetypes):
-						m_nextArchetypeId(&nextArchetypeId), m_worldVersion(&worldVersion), m_archetypes(&archetypes),
-						m_entityToArchetypeMap(&entityToArchetypeMap), m_allArchetypes(&allArchetypes) {
-					m_storage.init(&world);
-				}
-
 				GAIA_NODISCARD QueryId id() const {
-					if constexpr (UseCaching) {
-						if (!uses_query_cache_storage())
-							return QueryIdBad;
-						return m_storage.m_identity.handle.id();
-					}
-
-					return QueryIdBad;
+					if (!uses_query_cache_storage())
+						return QueryIdBad;
+					return m_storage.m_identity.handle.id();
 				}
 
 				GAIA_NODISCARD uint32_t gen() const {
-					if constexpr (UseCaching) {
-						if (!uses_query_cache_storage())
-							return QueryIdBad;
-						return m_storage.m_identity.handle.gen();
-					}
-
-					return QueryIdBad;
+					if (!uses_query_cache_storage())
+						return QueryIdBad;
+					return m_storage.m_identity.handle.gen();
 				}
 
 				//------------------------------------------------
@@ -44892,9 +44764,6 @@ namespace gaia {
 
 				//! Returns true if the query is stored in the query cache
 				GAIA_NODISCARD bool is_cached() const {
-					if constexpr (!UseCaching)
-						return false;
-
 					return uses_query_cache_storage() && m_storage.is_cached();
 				}
 
@@ -45513,7 +45382,7 @@ namespace gaia {
 				//! \param relation Fragmenting hierarchy relation
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
-					GAIA_ASSERT(m_storage.world()->supports_depth_order(relation));
+					GAIA_ASSERT(world_supports_depth_order(*m_storage.world(), relation));
 					group_by_inter(relation, group_by_func_depth_order);
 					return *this;
 				}
@@ -45799,22 +45668,72 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> ordered_entities_walk(
 						QueryInfo& queryInfo, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+					struct OrderedWalkTargetCtx {
+						const cnt::darray<Entity>* pEntities = nullptr;
+						uint32_t cnt = 0;
+						uint32_t dependentIdx = 0;
+						cnt::darray<uint32_t>* pIndegree = nullptr;
+						cnt::darray<uint32_t>* pOutdegree = nullptr;
+						cnt::darray<uint32_t>* pWriteCursor = nullptr;
+						cnt::darray<uint32_t>* pEdges = nullptr;
+						uint32_t* pEdgeCnt = nullptr;
+
+						GAIA_NODISCARD static uint32_t
+						find_entity_idx(const cnt::darray<Entity>& entities, uint32_t cnt, Entity entity) {
+							const auto targetId = entity.id();
+							uint32_t low = 0;
+							uint32_t high = cnt;
+							while (low < high) {
+								const uint32_t mid = low + ((high - low) >> 1);
+								if (entities[mid].id() < targetId)
+									low = mid + 1;
+								else
+									high = mid;
+							}
+
+							if (low < cnt && entities[low].id() == targetId)
+								return low;
+							return cnt;
+						}
+
+						static void count_edge(void* rawCtx, Entity dependency) {
+							auto& ctx = *static_cast<OrderedWalkTargetCtx*>(rawCtx);
+							const auto dependencyIdx = find_entity_idx(*ctx.pEntities, ctx.cnt, dependency);
+							if (dependencyIdx == ctx.cnt || dependencyIdx == ctx.dependentIdx)
+								return;
+
+							++(*ctx.pOutdegree)[dependencyIdx];
+							++(*ctx.pIndegree)[ctx.dependentIdx];
+							++*ctx.pEdgeCnt;
+						}
+
+						static void write_edge(void* rawCtx, Entity dependency) {
+							auto& ctx = *static_cast<OrderedWalkTargetCtx*>(rawCtx);
+							const auto dependencyIdx = find_entity_idx(*ctx.pEntities, ctx.cnt, dependency);
+							if (dependencyIdx == ctx.cnt || dependencyIdx == ctx.dependentIdx)
+								return;
+
+							(*ctx.pEdges)[(*ctx.pWriteCursor)[dependencyIdx]++] = ctx.dependentIdx;
+						}
+					};
+
 					auto& walkData = ensure_each_walk_data();
 					auto& world = *m_storage.world();
-					const uint32_t relationVersion = world.rel_version(relation);
-					const uint32_t worldVersion = world.world_version();
+					const uint32_t relationVersion = world_rel_version(world, relation);
+					const uint32_t worldVersion = ::gaia::ecs::world_version(world);
 
-					const bool needsTraversalBarrierState = constraints == Constraints::EnabledOnly && world.valid(relation);
+					const bool needsTraversalBarrierState =
+							constraints == Constraints::EnabledOnly && ::gaia::ecs::valid(world, relation);
 					auto survives_disabled_barrier = [&](Entity entity) {
 						if (!needsTraversalBarrierState)
 							return true;
 
 						auto curr = entity;
 						GAIA_FOR(MAX_TRAV_DEPTH) {
-							const auto next = world.target(curr, relation);
+							const auto next = target(world, curr, relation);
 							if (next == EntityBad || next == curr)
 								break;
-							if (!world.enabled(next))
+							if (!world_entity_enabled(world, next))
 								return false;
 							curr = next;
 						}
@@ -45899,7 +45818,7 @@ namespace gaia {
 					auto& ordered = walkData.cachedOutput;
 					walkData.cachedInput = entities;
 					ordered.clear();
-					if (!world.valid(relation)) {
+					if (!::gaia::ecs::valid(world, relation)) {
 						core::sort(entities, [](Entity left, Entity right) {
 							return left.id() < right.id();
 						});
@@ -45921,34 +45840,17 @@ namespace gaia {
 							outdegree[i] = 0;
 						}
 
-						auto find_entity_idx = [&](Entity entity) {
-							const auto targetId = entity.id();
-							uint32_t low = 0;
-							uint32_t high = cnt;
-							while (low < high) {
-								const uint32_t mid = low + ((high - low) >> 1);
-								if (entities[mid].id() < targetId)
-									low = mid + 1;
-								else
-									high = mid;
-							}
-							if (low < cnt && entities[low].id() == targetId)
-								return low;
-							return cnt;
-						};
-
 						uint32_t edgeCnt = 0;
+						OrderedWalkTargetCtx edgeCtx;
+						edgeCtx.pEntities = &entities;
+						edgeCtx.cnt = cnt;
+						edgeCtx.pIndegree = &indegree;
+						edgeCtx.pOutdegree = &outdegree;
+						edgeCtx.pEdgeCnt = &edgeCnt;
 						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
 							const auto dependent = entities[dependentIdx];
-							world.targets(dependent, relation, [&](Entity dependency) {
-								const auto dependencyIdx = find_entity_idx(dependency);
-								if (dependencyIdx == cnt || dependencyIdx == dependentIdx)
-									return;
-
-								++outdegree[dependencyIdx];
-								++indegree[dependentIdx];
-								++edgeCnt;
-							});
+							edgeCtx.dependentIdx = dependentIdx;
+							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::count_edge);
 						}
 
 						auto& offsets = walkData.scratchOffsets;
@@ -45964,15 +45866,12 @@ namespace gaia {
 
 						auto& edges = walkData.scratchEdges;
 						edges.resize(edgeCnt);
+						edgeCtx.pWriteCursor = &writeCursor;
+						edgeCtx.pEdges = &edges;
 						for (uint32_t dependentIdx = 0; dependentIdx < cnt; ++dependentIdx) {
 							const auto dependent = entities[dependentIdx];
-							world.targets(dependent, relation, [&](Entity dependency) {
-								const auto dependencyIdx = find_entity_idx(dependency);
-								if (dependencyIdx == cnt || dependencyIdx == dependentIdx)
-									return;
-
-								edges[writeCursor[dependencyIdx]++] = dependentIdx;
-							});
+							edgeCtx.dependentIdx = dependentIdx;
+							world_for_each_target(world, dependent, relation, &edgeCtx, &OrderedWalkTargetCtx::write_edge);
 						}
 
 						ordered.reserve(cnt);
@@ -46036,7 +45935,7 @@ namespace gaia {
 					walkData.cachedRelation = relation;
 					walkData.cachedConstraints = constraints;
 					walkData.cachedRelationVersion = relationVersion;
-					walkData.cachedEntityVersion = world.world_version();
+					walkData.cachedEntityVersion = ::gaia::ecs::world_version(world);
 					walkData.cachedRuns.clear();
 
 					{
@@ -46162,8 +46061,8 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		using Query = typename detail::QueryImpl<true>;
-		//! Marker type used by tests to request World::query<false>().
+		using Query = detail::QueryImpl;
+		//! Marker type used by tests to request World::uquery().
 		struct QueryUncached {};
 	} // namespace ecs
 } // namespace gaia
@@ -48596,18 +48495,22 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Provides a query set up to work with the parent world.
-			//! \tparam UseCache If true, the query uses cached state with local scope by default.
-			//! If false, the query runs as QueryCacheKind::None and keeps only a local immutable plan.
+			//! Provides a cached query set up to work with the parent world.
+			//! Cached queries use local scope by default.
 			//! \return Valid query object
-			template <bool UseCache = true>
 			Query query() {
-				auto q = Query(
+				return Query(
 						*const_cast<World*>(this), m_queryCache,
 						//
 						m_nextArchetypeId, m_worldVersion, m_archetypesById, m_entityToArchetypeMap, m_archetypes);
-				if constexpr (!UseCache)
-					q.cache_kind(QueryCacheKind::None);
+			}
+
+			//! Provides an uncached query set up to work with the parent world.
+			//! Uncached queries keep only a local immutable plan and rebuild transient matches on demand.
+			//! \return Valid query object
+			Query uquery() {
+				auto q = query();
+				q.cache_kind(QueryCacheKind::None);
 				return q;
 			}
 
@@ -49809,7 +49712,7 @@ namespace gaia {
 					// 	ec.depthDependsOn = (uint8_t)depth;
 
 					// 	// Update depth for all entities depending on this one
-					// 	auto q = m_world.query<false>();
+					// 	auto q = m_world.uquery();
 					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
 					// 			.each([&](Entity dependingEntity) {
 					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
@@ -49817,7 +49720,7 @@ namespace gaia {
 					// 			});
 					// } else {
 					// 	// Update depth for all entities depending on this one
-					// 	auto q = m_world.query<false>();
+					// 	auto q = m_world.uquery();
 					// 	q.all(ecs::Pair(DependsOn, m_entity)) //
 					// 			.each([&](Entity dependingEntity) {
 					// 				auto& ecDependingEntity = m_world.fetch(dependingEntity);
@@ -60915,7 +60818,7 @@ namespace gaia {
 			auto& sys = ss.smut<System_>();
 			{
 				sys.entity = e;
-				sys.query = query<true>();
+				sys.query = query();
 			}
 			return SystemBuilder(*this, e);
 		}
@@ -60927,6 +60830,13 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline void
+		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
+			world.targets(entity, relation, [ctx, func](Entity target) {
+				func(ctx, target);
+			});
 		}
 
 		inline QueryMatchScratch& query_match_scratch_acquire(World& world) {
@@ -61309,7 +61219,7 @@ namespace gaia {
 			{
 				hdr.entity = e;
 				obs.entity = e;
-				obs.query = query<true>();
+				obs.query = query();
 			}
 			return ObserverBuilder(*this, e);
 		}

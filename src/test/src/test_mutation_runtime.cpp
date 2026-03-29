@@ -1551,7 +1551,7 @@ void Test_Query_Filter_Changed_Order_NoSystems() {
 	wld.add<B>(e, {2});
 
 	// Intentionally reversed relative to canonical component order.
-	auto q = wld.query<UseCachedQuery>() //
+	auto q = make_query<UseCachedQuery>(wld) //
 							 .template all<Marker>()
 							 .template all<A>()
 							 .template all<B>()
@@ -1609,7 +1609,7 @@ void Test_Query_Filter_Changed_Or_Missing_Component() {
 
 	// Archetypes can match with only one of OR terms present.
 	// Both changed filters must remain safe.
-	auto q = wld.query<UseCachedQuery>()
+	auto q = make_query<UseCachedQuery>(wld)
 							 .template all<Marker>()
 							 .template or_<A>()
 							 .template or_<B>()
@@ -1656,12 +1656,14 @@ TEST_CASE("Query Filter - changed order cache keys") {
 	wld.add<B>(e, {2});
 
 	ecs::Query qAB = wld.query() //
+											 .cache_scope(ecs::QueryCacheScope::Shared)
 											 .template all<Marker>()
 											 .template all<A>()
 											 .template all<B>()
 											 .template changed<A>()
 											 .template changed<B>();
 	ecs::Query qBA = wld.query() //
+											 .cache_scope(ecs::QueryCacheScope::Shared)
 											 .template all<Marker>()
 											 .template all<A>()
 											 .template all<B>()

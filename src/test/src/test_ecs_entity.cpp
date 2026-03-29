@@ -771,7 +771,7 @@ TEST_CASE("Entity weak - recycled ids do not resurrect stale handles") {
 	CHECK(weak == ecs::EntityBad);
 }
 
-#if GAIA_ASSERT_ENABLED
+	#if GAIA_ASSERT_ENABLED
 TEST_CASE("Entity validity distinguishes stale handles from recycled live slots") {
 	TestWorld twld;
 
@@ -789,7 +789,7 @@ TEST_CASE("Entity validity distinguishes stale handles from recycled live slots"
 	CHECK(wld.valid(recycled));
 	CHECK(wld.try_get(originalId) == recycled);
 }
-#endif
+	#endif
 #endif
 
 TEST_CASE("Add - no components") {
@@ -1542,7 +1542,7 @@ TEST_CASE("Inheritance (Is)") {
 
 	ecs::QueryTermOptions directOpts;
 	directOpts.direct();
-	auto qDirectAnimal = wld.query<false>().all(ecs::Pair(ecs::Is, animal), directOpts);
+	auto qDirectAnimal = wld.uquery().all(ecs::Pair(ecs::Is, animal), directOpts);
 	CHECK(qDirectAnimal.count() == 2);
 	cnt::darr<ecs::Entity> directAnimalEntities;
 	qDirectAnimal.each([&](ecs::Entity entity) {
@@ -1948,13 +1948,13 @@ TEST_CASE("Component names") {
 		const auto eRender = wld.add();
 		wld.add(eRender, renderComp);
 
-		auto qGlobal = wld.query<false>().add("Position");
+		auto qGlobal = wld.uquery().add("Position");
 		CHECK(qGlobal.count() == 1);
 		qGlobal.each([&](ecs::Entity e) {
 			CHECK(e == eGameplay);
 		});
 
-		auto qScoped = wld.query<false>();
+		auto qScoped = wld.uquery();
 		wld.scope(render, [&] {
 			qScoped.add("Position");
 		});
@@ -1963,7 +1963,7 @@ TEST_CASE("Component names") {
 			CHECK(e == eRender);
 		});
 
-		auto qPath = wld.query<false>().add("gameplay.render.Position");
+		auto qPath = wld.uquery().add("gameplay.render.Position");
 		CHECK(qPath.count() == 1);
 		qPath.each([&](ecs::Entity e) {
 			CHECK(e == eRender);
@@ -2035,7 +2035,7 @@ TEST_CASE("Component names") {
 		const auto eRender = wld.add();
 		wld.add(eRender, renderComp);
 
-		auto qDefault = wld.query<false>().add("Position");
+		auto qDefault = wld.uquery().add("Position");
 		CHECK(qDefault.count() == 1);
 		qDefault.each([&](ecs::Entity e) {
 			CHECK(e == eGameplay);
@@ -2044,7 +2044,7 @@ TEST_CASE("Component names") {
 		const ecs::Entity lookupRender[] = {render};
 		wld.lookup_path(lookupRender);
 
-		auto qLookup = wld.query<false>().add("Position");
+		auto qLookup = wld.uquery().add("Position");
 		CHECK(qLookup.count() == 1);
 		qLookup.each([&](ecs::Entity e) {
 			CHECK(e == eRender);

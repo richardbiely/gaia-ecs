@@ -45,7 +45,7 @@ void BM_Fragmented_QueryEach_Read1(picobench::state& state) {
 	// One entity per archetype isolates query iteration overhead on many tiny chunks.
 	create_fragmented_entities(w, 128U, 1U);
 
-	auto q = w.query<UseCachedQuery>().template all<Position>();
+	auto q = make_query<UseCachedQuery>(w).template all<Position>();
 	dont_optimize(q.empty());
 
 	for (auto _: state) {
@@ -64,7 +64,7 @@ void BM_Fragmented_QueryEach_Read2(picobench::state& state) {
 	// One entity per archetype isolates query iteration overhead on many tiny chunks.
 	create_fragmented_entities(w, 128U, 1U);
 
-	auto q = w.query<UseCachedQuery>().template all<Position>().template all<Velocity>();
+	auto q = make_query<UseCachedQuery>(w).template all<Position>().template all<Velocity>();
 	dont_optimize(q.empty());
 
 	for (auto _: state) {
@@ -83,7 +83,7 @@ void BM_Fragmented_QueryEach_Write2(picobench::state& state) {
 	// Many tiny chunks make batching/setup cost more visible than raw component math.
 	create_fragmented_entities(w, 128U, 1U);
 
-	auto q = w.query<UseCachedQuery>().template all<Position&>().template all<Velocity>();
+	auto q = make_query<UseCachedQuery>(w).template all<Position&>().template all<Velocity>();
 	dont_optimize(q.empty());
 
 	for (auto _: state) {

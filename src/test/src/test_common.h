@@ -60,6 +60,19 @@ using namespace gaia;
 template <typename TQuery>
 inline constexpr bool use_cached_query_v = std::is_same_v<TQuery, ecs::Query>;
 
+template <bool UseCachedQuery>
+ecs::Query make_query(ecs::World& world) {
+	if constexpr (UseCachedQuery)
+		return world.query();
+	else
+		return world.uquery();
+}
+
+template <typename TQuery>
+ecs::Query make_query(ecs::World& world) {
+	return make_query<use_cached_query_v<TQuery>>(world);
+}
+
 //! World wrapper for test purposes.
 //! The wrapped world handles teardown on destruction; tests can still call update()
 //! repeatedly when they want to flush regular frame maintenance explicitly.
@@ -273,9 +286,9 @@ void Test_Query_QueryResult() {
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
-	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
-	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
+	auto q1 = make_query<UseCachedQuery>(wld).template all<Position>();
+	auto q2 = make_query<UseCachedQuery>(wld).template all<Rotation>();
+	auto q3 = make_query<UseCachedQuery>(wld).template all<Position>().template all<Rotation>();
 
 	{
 		const auto cnt = q1.count();
@@ -354,7 +367,7 @@ void Test_Query_QueryResult() {
 		uint32_t value;
 	};
 	wld.add<Level>(game, {2});
-	auto q4 = wld.query<UseCachedQuery>() //
+	auto q4 = make_query<UseCachedQuery>(wld) //
 								.template all<Position>()
 								.template all<Level>(ecs::QueryTermOptions{}.src(game));
 

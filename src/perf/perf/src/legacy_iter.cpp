@@ -1,18 +1,9 @@
-#include <gaia.h>
-#include <picobench/picobench.hpp>
-
-using namespace gaia;
+#include "common.h"
+#include "registry.h"
 
 constexpr uint32_t EntitiesPerArchetype = 1'000;
 
 using TBenchmarkTypes = cnt::darray<ecs::Entity>;
-
-struct Position {
-	float x, y, z;
-};
-struct Velocity {
-	float x, y, z;
-};
 struct Rotation {
 	float x, y, z, w;
 };
@@ -21,10 +12,6 @@ struct Scale {
 };
 struct Direction {
 	float x, y, z;
-};
-struct Health {
-	int value;
-	int max;
 };
 struct IsEnemy {
 	bool value;
@@ -90,13 +77,16 @@ void prepare_query_types(ecs::Entity specialEntity, ecs::EntitySpan in, ecs::Ent
 	}
 }
 
-template <bool UseCachedQuery>
+template <bool UseCachedQuery, ecs::QueryCacheScope CacheScope = ecs::QueryCacheScope::Local>
 auto create_query(ecs::World& w, ecs::EntitySpan queryTypes) {
 	GAIA_PROF_SCOPE(create_query);
 
 	GAIA_ASSERT(!queryTypes.empty());
 
-	auto query = w.query<UseCachedQuery>();
+	auto query = make_query<UseCachedQuery>(w);
+	if constexpr (UseCachedQuery) {
+		query.cache_scope(CacheScope);
+	}
 	for (auto e: queryTypes)
 		query.all(e);
 
@@ -254,6 +244,32 @@ void BM_BuildQuery(picobench::state& state) {
 	bench_build_query<UseCachedQuery, QueryComponents>(state, w, types, specialEntity);
 }
 
+template <uint32_t QueryComponents>
+void BM_BuildQuery_Shared(picobench::state& state) {
+	ecs::World w;
+	ecs::Entity specialEntity;
+	auto types = create_archetypes<false>(w, 10000, 10, &specialEntity);
+
+	GAIA_PROF_SCOPE(bench_build_query);
+
+	state.stop_timer();
+
+	ecs::Entity tmp[QueryComponents + 1];
+	prepare_query_types(specialEntity, {types.data(), types.size()}, tmp);
+
+	for (auto _: state) {
+		GAIA_PROF_SCOPE(update);
+		(void)_;
+
+		auto query = create_query<true, ecs::QueryCacheScope::Shared>(w, tmp);
+
+		state.start_timer();
+		auto& queryInfo = query.fetch();
+		query.match_all(queryInfo);
+		state.stop_timer();
+	}
+}
+
 #define DEFINE_BUILD_QUERY(QueryComponents)                                                                            \
 	void BM_BuildQuery_##QueryComponents(picobench::state& state) {                                                      \
 		GAIA_PROF_SCOPE(BM_BuildQuery_##QueryComponents);                                                                  \
@@ -266,14 +282,24 @@ void BM_BuildQuery(picobench::state& state) {
 		BM_BuildQuery<false, QueryComponents>(state);                                                                      \
 	}
 
+#define DEFINE_BUILD_QUERY_S(QueryComponents)                                                                          \
+	void BM_BuildQuery_S_##QueryComponents(picobench::state& state) {                                                    \
+		GAIA_PROF_SCOPE(BM_BuildQuery_S_##QueryComponents);                                                                \
+		BM_BuildQuery_Shared<QueryComponents>(state);                                                                      \
+	}
+
 DEFINE_BUILD_QUERY(1)
 DEFINE_BUILD_QUERY_U(1)
+DEFINE_BUILD_QUERY_S(1)
 DEFINE_BUILD_QUERY(3)
 DEFINE_BUILD_QUERY_U(3)
+DEFINE_BUILD_QUERY_S(3)
 DEFINE_BUILD_QUERY(5)
 DEFINE_BUILD_QUERY_U(5)
+DEFINE_BUILD_QUERY_S(5)
 DEFINE_BUILD_QUERY(7)
 DEFINE_BUILD_QUERY_U(7)
+DEFINE_BUILD_QUERY_S(7)
 
 #define DEFINE_EACH(ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                               \
 	void BM_Each_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                                         \
@@ -430,14 +456,12 @@ DEFINE_EACH_VIEW(4, true)
 DEFINE_EACH_VIEW(5, false)
 DEFINE_EACH_VIEW(5, true)
 
+#undef PICO_SETTINGS
+#undef PICO_SETTINGS_SANI
 #define PICO_SETTINGS() iterations({8192}).samples(3)
 #define PICO_SETTINGS_1() iterations({8192}).samples(1)
 #define PICO_SETTINGS_2() iterations({32768}).samples(3)
 #define PICO_SETTINGS_SANI() iterations({8}).samples(1)
-#define PICOBENCH_SUITE_REG(name) (void)picobench::global_registry::set_bench_suite(name);
-#define PICOBENCH_REG(func) picobench::global_registry::new_benchmark(#func, func)
-
-#include "registry.h"
 
 void register_legacy_iter(PerfRunMode mode) {
 	switch (mode) {
@@ -475,12 +499,16 @@ void register_legacy_iter(PerfRunMode mode) {
 			PICOBENCH_SUITE_REG("build query");
 			PICOBENCH_REG(BM_BuildQuery_1).PICO_SETTINGS_2().label("1 comp ");
 			PICOBENCH_REG(BM_BuildQuery_U_1).PICO_SETTINGS_2().label("(u) 1 comp ");
+			PICOBENCH_REG(BM_BuildQuery_S_1).PICO_SETTINGS_2().label("(s) 1 comp ");
 			PICOBENCH_REG(BM_BuildQuery_3).PICO_SETTINGS_2().label(" 3 comps");
 			PICOBENCH_REG(BM_BuildQuery_U_3).PICO_SETTINGS_2().label("(u) 3 comps");
+			PICOBENCH_REG(BM_BuildQuery_S_3).PICO_SETTINGS_2().label("(s) 3 comps");
 			PICOBENCH_REG(BM_BuildQuery_5).PICO_SETTINGS_2().label("5 comps");
 			PICOBENCH_REG(BM_BuildQuery_U_5).PICO_SETTINGS_2().label("(u) 5 comps");
+			PICOBENCH_REG(BM_BuildQuery_S_5).PICO_SETTINGS_2().label("(s) 5 comps");
 			PICOBENCH_REG(BM_BuildQuery_7).PICO_SETTINGS_2().label("7 comps");
 			PICOBENCH_REG(BM_BuildQuery_U_7).PICO_SETTINGS_2().label("(u) 7 comps");
+			PICOBENCH_REG(BM_BuildQuery_S_7).PICO_SETTINGS_2().label("(s) 7 comps");
 			return;
 	}
 }

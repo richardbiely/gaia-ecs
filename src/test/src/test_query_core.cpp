@@ -94,7 +94,7 @@ void Test_Query_SourceLookup() {
 	const auto game = wld.add();
 
 	(void)wld.add<Level>(game, {1});
-	auto qSrc = wld.query<UseCachedQuery>() //
+	auto qSrc = make_query<UseCachedQuery>(wld) //
 									.template all<Position>()
 									.template all<Level>(ecs::QueryTermOptions{}.src(game));
 	CHECK(qSrc.count() == N);
@@ -114,40 +114,40 @@ void Test_Query_SourceLookup() {
 	wld.child(scene, parent);
 	wld.child(parent, root);
 
-	auto qSelfUp = wld.query<UseCachedQuery>() //
+	auto qSelfUp = make_query<UseCachedQuery>(wld) //
 										 .template all<Position>()
 										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
-	auto qUpOnly = wld.query<UseCachedQuery>() //
+	auto qUpOnly = make_query<UseCachedQuery>(wld) //
 										 .template all<Position>()
 										 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up());
-	auto qUpDepth0 = wld.query<UseCachedQuery>() //
+	auto qUpDepth0 = make_query<UseCachedQuery>(wld) //
 											 .template all<Position>()
 											 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_up().trav_depth(0));
-	auto qParentOnly = wld.query<UseCachedQuery>() //
+	auto qParentOnly = make_query<UseCachedQuery>(wld) //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_parent());
-	auto qSelfParent = wld.query<UseCachedQuery>() //
+	auto qSelfParent = make_query<UseCachedQuery>(wld) //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav_self_parent());
-	auto qSelfDepth1 = wld.query<UseCachedQuery>() //
+	auto qSelfDepth1 = make_query<UseCachedQuery>(wld) //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(scene).trav().trav_depth(1));
-	auto qDownOnly = wld.query<UseCachedQuery>() //
+	auto qDownOnly = make_query<UseCachedQuery>(wld) //
 											 .template all<Position>()
 											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down());
-	auto qDownDepth0 = wld.query<UseCachedQuery>() //
+	auto qDownDepth0 = make_query<UseCachedQuery>(wld) //
 												 .template all<Position>()
 												 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
-	auto qSelfDown = wld.query<UseCachedQuery>() //
+	auto qSelfDown = make_query<UseCachedQuery>(wld) //
 											 .template all<Position>()
 											 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down());
-	auto qChildOnly = wld.query<UseCachedQuery>() //
+	auto qChildOnly = make_query<UseCachedQuery>(wld) //
 												.template all<Position>()
 												.template all<Level>(ecs::QueryTermOptions{}.src(root).trav_child());
-	auto qSelfChild = wld.query<UseCachedQuery>() //
+	auto qSelfChild = make_query<UseCachedQuery>(wld) //
 												.template all<Position>()
 												.template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_child());
-	auto qSelfDownDepth1 = wld.query<UseCachedQuery>() //
+	auto qSelfDownDepth1 = make_query<UseCachedQuery>(wld) //
 														 .template all<Position>()
 														 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
 
@@ -297,30 +297,30 @@ void Test_Query_All_Any_Or_Semantics() {
 	wld.add<Device>(deviceOnly);
 	(void)deviceOnly;
 
-	auto qAll = wld.query<UseCachedQuery>().template all<Cable>().template all<Device>();
+	auto qAll = make_query<UseCachedQuery>(wld).template all<Cable>().template all<Device>();
 	CHECK(qAll.count() == 2);
 	expect_exact_entities(qAll, {cableDevice, cableBoth});
 
 	// `any<Device>()` is optional: it does not filter out cables without Device.
-	auto qAny = wld.query<UseCachedQuery>().template all<Cable>().template any<Device>();
+	auto qAny = make_query<UseCachedQuery>(wld).template all<Cable>().template any<Device>();
 	CHECK(qAny.count() == 4);
 	expect_exact_entities(qAny, {cablePlain, cableDevice, cablePowered, cableBoth});
 
 	// OR-chain: cable must satisfy at least one OR term.
-	auto qOr = wld.query<UseCachedQuery>().template all<Cable>().template or_<Device>().template or_<Powered>();
+	auto qOr = make_query<UseCachedQuery>(wld).template all<Cable>().template or_<Device>().template or_<Powered>();
 	CHECK(qOr.count() == 3);
 	expect_exact_entities(qOr, {cableDevice, cablePowered, cableBoth});
 
-	auto qAnyExpr = wld.query<UseCachedQuery>().add("Cable, ?Device");
+	auto qAnyExpr = make_query<UseCachedQuery>(wld).add("Cable, ?Device");
 	CHECK(qAnyExpr.count() == 4);
 	expect_exact_entities(qAnyExpr, {cablePlain, cableDevice, cablePowered, cableBoth});
 
-	auto qOrExpr = wld.query<UseCachedQuery>().add("Cable, Device || Powered");
+	auto qOrExpr = make_query<UseCachedQuery>(wld).add("Cable, Device || Powered");
 	CHECK(qOrExpr.count() == 3);
 	expect_exact_entities(qOrExpr, {cableDevice, cablePowered, cableBoth});
 
 	// Optional dependent term: if ConnectedTo exists, the target must be a Device.
-	auto qOptionalDependent = wld.query<UseCachedQuery>().add("Cable, ?(ConnectedTo, $device), Device($device)");
+	auto qOptionalDependent = make_query<UseCachedQuery>(wld).add("Cable, ?(ConnectedTo, $device), Device($device)");
 	CHECK(qOptionalDependent.count() == 3);
 	expect_exact_entities(qOptionalDependent, {cablePlain, cableDevice, cableBoth});
 }
@@ -354,11 +354,11 @@ void Test_Query_Local_Short_Name_Ambiguity() {
 
 	CHECK(wld.get("Device") == ecs::EntityBad);
 
-	auto qRack = wld.query<UseCachedQuery>().template all<typename Rack::Device>();
+	auto qRack = make_query<UseCachedQuery>(wld).template all<typename Rack::Device>();
 	CHECK(qRack.count() == 1);
 	expect_exact_entities(qRack, {rackEntity});
 
-	auto qBus = wld.query<UseCachedQuery>().template all<typename Bus::Device>();
+	auto qBus = make_query<UseCachedQuery>(wld).template all<typename Bus::Device>();
 	CHECK(qBus.count() == 1);
 	expect_exact_entities(qBus, {busEntity});
 }
@@ -398,14 +398,14 @@ void Test_Query_Variables() {
 	const auto cableC = wld.add();
 	wld.add<Cable>(cableC);
 
-	auto qApi = wld.query<UseCachedQuery>() //
+	auto qApi = make_query<UseCachedQuery>(wld) //
 									.template all<Cable>()
 									.all(ecs::Pair(connectedTo, ecs::Var0))
 									.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0));
 	CHECK(qApi.count() == 1);
 	expect_exact_entities(qApi, {cableA});
 
-	auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $device), Device($device)");
+	auto qExpr = make_query<UseCachedQuery>(wld).add("Cable, (ConnectedTo, $device), Device($device)");
 	CHECK(qExpr.count() == 1);
 	expect_exact_entities(qExpr, {cableA});
 }
@@ -442,7 +442,7 @@ void Test_Query_SourceOr_VariableOr_Interaction() {
 		const auto cableB = wld.add();
 		wld.add<Cable>(cableB);
 
-		auto q = wld.query<UseCachedQuery>()
+		auto q = make_query<UseCachedQuery>(wld)
 								 .template all<Cable>()
 								 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
 								 .or_(ecs::Pair(connectedTo, ecs::Var0));
@@ -466,7 +466,7 @@ void Test_Query_SourceOr_VariableOr_Interaction() {
 		const auto cableB = wld.add();
 		wld.add<Cable>(cableB);
 
-		auto q = wld.query<UseCachedQuery>()
+		auto q = make_query<UseCachedQuery>(wld)
 								 .template all<Cable>()
 								 .template or_<Device>(ecs::QueryTermOptions{}.src(source))
 								 .or_(ecs::Pair(connectedTo, ecs::Var0));
@@ -508,7 +508,7 @@ void Test_Query_VariableOr_Backtracking_SkipBranch() {
 
 	// First OR term can bind $d to a non-device. The solver must be able to skip it
 	// and backtrack into the second OR term.
-	auto qApi = wld.query<UseCachedQuery>()
+	auto qApi = make_query<UseCachedQuery>(wld)
 									.template all<Cable>()
 									.template all<Device>(ecs::QueryTermOptions{}.src(ecs::Var0))
 									.or_(ecs::Pair(connectedTo, ecs::Var0))
@@ -516,7 +516,7 @@ void Test_Query_VariableOr_Backtracking_SkipBranch() {
 	CHECK(qApi.count() == 1);
 	expect_exact_entities(qApi, {cable});
 
-	auto qExpr = wld.query<UseCachedQuery>().add("Cable, Device($d), (ConnectedTo, $d) || (LinkedTo, $d)");
+	auto qExpr = make_query<UseCachedQuery>(wld).add("Cable, Device($d), (ConnectedTo, $d) || (LinkedTo, $d)");
 	CHECK(qExpr.count() == 1);
 	expect_exact_entities(qExpr, {cable});
 }
@@ -558,7 +558,7 @@ void Test_Query_Variables_Advanced() {
 		wld.add(cableB, {connectedTo, deviceA});
 		wld.add(cableB, {poweredBy, deviceB});
 
-		auto qApi = wld.query<UseCachedQuery>() //
+		auto qApi = make_query<UseCachedQuery>(wld) //
 										.template all<Cable>()
 										.all(ecs::Pair(connectedTo, ecs::Var0))
 										.all(ecs::Pair(poweredBy, ecs::Var0))
@@ -566,7 +566,7 @@ void Test_Query_Variables_Advanced() {
 		CHECK(qApi.count() == 1);
 		expect_exact_entities(qApi, {cableA});
 
-		auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $d), (PoweredBy, $d), ActiveDevice($d)");
+		auto qExpr = make_query<UseCachedQuery>(wld).add("Cable, (ConnectedTo, $d), (PoweredBy, $d), ActiveDevice($d)");
 		CHECK(qExpr.count() == 1);
 		expect_exact_entities(qExpr, {cableA});
 	}
@@ -591,14 +591,14 @@ void Test_Query_Variables_Advanced() {
 		wld.add<Cable>(cableB);
 		wld.add(cableB, {connectedTo, deviceB});
 
-		auto qApi = wld.query<UseCachedQuery>() //
+		auto qApi = make_query<UseCachedQuery>(wld) //
 										.template all<Cable>()
 										.all(ecs::Pair(connectedTo, ecs::Var0))
 										.template no<Blocked>(ecs::QueryTermOptions{}.src(ecs::Var0));
 		CHECK(qApi.count() == 1);
 		expect_exact_entities(qApi, {cableB});
 
-		auto qExpr = wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $d), !Blocked($d)");
+		auto qExpr = make_query<UseCachedQuery>(wld).add("Cable, (ConnectedTo, $d), !Blocked($d)");
 		CHECK(qExpr.count() == 1);
 		expect_exact_entities(qExpr, {cableB});
 	}
@@ -625,14 +625,14 @@ void Test_Query_Variables_Advanced() {
 		wld.add(cableB, {connectedTo, nodeA});
 		wld.add(cableB, {linkedTo, nodeB});
 
-		auto qApi = wld.query<UseCachedQuery>()
+		auto qApi = make_query<UseCachedQuery>(wld)
 										.template all<Cable>()
 										.all(ecs::Pair(ecs::Var0, nodeA))
 										.all(ecs::Pair(ecs::Var0, nodeB));
 		CHECK(qApi.count() == 1);
 		expect_exact_entities(qApi, {cableA});
 
-		auto qExpr = wld.query<UseCachedQuery>().add("Cable, ($rel, %e), ($rel, %e)", nodeA.value(), nodeB.value());
+		auto qExpr = make_query<UseCachedQuery>(wld).add("Cable, ($rel, %e), ($rel, %e)", nodeA.value(), nodeB.value());
 		CHECK(qExpr.count() == 1);
 		expect_exact_entities(qExpr, {cableA});
 	}
@@ -663,7 +663,7 @@ void Test_Query_Variables_Advanced() {
 		wld.add(cableAA, {connectedTo, deviceA});
 		wld.add(cableAA, {poweredBy, deviceA});
 
-		auto qApi = wld.query<UseCachedQuery>() //
+		auto qApi = make_query<UseCachedQuery>(wld) //
 										.template all<Cable>()
 										.all(ecs::Pair(connectedTo, ecs::Var0))
 										.all(ecs::Pair(poweredBy, ecs::Var1))
@@ -672,8 +672,8 @@ void Test_Query_Variables_Advanced() {
 		CHECK(qApi.count() == 1);
 		expect_exact_entities(qApi, {cableAB});
 
-		auto qExpr =
-				wld.query<UseCachedQuery>().add("Cable, (ConnectedTo, $src), (PoweredBy, $dst), Device($src), PowerNode($dst)");
+		auto qExpr = make_query<UseCachedQuery>(wld).add(
+				"Cable, (ConnectedTo, $src), (PoweredBy, $dst), Device($src), PowerNode($dst)");
 		CHECK(qExpr.count() == 1);
 		expect_exact_entities(qExpr, {cableAB});
 	}
@@ -706,19 +706,19 @@ void Test_Query_Variables_Advanced() {
 		wld.add<Cable>(cableRoot);
 		wld.add(cableRoot, {connectedTo, root});
 
-		auto qSelfUp = wld.query<UseCachedQuery>()
+		auto qSelfUp = make_query<UseCachedQuery>(wld)
 											 .template all<Cable>()
 											 .all(ecs::Pair(connectedTo, ecs::Var0))
 											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav());
-		auto qUpOnly = wld.query<UseCachedQuery>()
+		auto qUpOnly = make_query<UseCachedQuery>(wld)
 											 .template all<Cable>()
 											 .all(ecs::Pair(connectedTo, ecs::Var0))
 											 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_up());
-		auto qParentOnly = wld.query<UseCachedQuery>()
+		auto qParentOnly = make_query<UseCachedQuery>(wld)
 													 .template all<Cable>()
 													 .all(ecs::Pair(connectedTo, ecs::Var0))
 													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent());
-		auto qSelfDepth1 = wld.query<UseCachedQuery>()
+		auto qSelfDepth1 = make_query<UseCachedQuery>(wld)
 													 .template all<Cable>()
 													 .all(ecs::Pair(connectedTo, ecs::Var0))
 													 .template all<Level>(ecs::QueryTermOptions{}.src(ecs::Var0).trav().trav_depth(1));
@@ -778,8 +778,8 @@ void Test_Query_Variables_Advanced() {
 		const auto cableB = wld.add();
 		wld.add<Cable>(cableB);
 
-		auto qImplicit = wld.query<UseCachedQuery>().add("Cable, Device");
-		auto qExplicit = wld.query<UseCachedQuery>().add("Cable, Device($this)");
+		auto qImplicit = make_query<UseCachedQuery>(wld).add("Cable, Device");
+		auto qExplicit = make_query<UseCachedQuery>(wld).add("Cable, Device($this)");
 
 		CHECK(qImplicit.count() == 1);
 		CHECK(qExplicit.count() == 1);
@@ -944,7 +944,7 @@ void Test_Query_Variables_MultiVar() {
 		wld.add(cableMulti, {poweredBy, powerB});
 		wld.add(cableMulti, {dockedTo, planetA});
 
-		auto qApi = wld.query<UseCachedQuery>() //
+		auto qApi = make_query<UseCachedQuery>(wld) //
 										.template all<Cable>()
 										.all(ecs::Pair(connectedTo, ecs::Var0))
 										.all(ecs::Pair(poweredBy, ecs::Var1))
@@ -955,13 +955,13 @@ void Test_Query_Variables_MultiVar() {
 		CHECK(qApi.count() == 2);
 		expect_exact_entities(qApi, {cableGood, cableMulti});
 
-		auto qExpr = wld.query<UseCachedQuery>().add(
+		auto qExpr = make_query<UseCachedQuery>(wld).add(
 				"Cable, (ConnectedTo, $dev), (PoweredBy, $pwr), (DockedTo, $pl), Device($dev), PowerNode($pwr), Planet($pl)");
 		CHECK(qExpr.count() == 2);
 		expect_exact_entities(qExpr, {cableGood, cableMulti});
 
 		// Same query semantics with shuffled term order.
-		auto qExprShuffled = wld.query<UseCachedQuery>().add(
+		auto qExprShuffled = make_query<UseCachedQuery>(wld).add(
 				"Cable, Device($dev), Planet($pl), PowerNode($pwr), (DockedTo, $pl), (PoweredBy, $pwr), (ConnectedTo, $dev)");
 		CHECK(qExprShuffled.count() == 2);
 		expect_exact_entities(qExprShuffled, {cableGood, cableMulti});
@@ -1012,7 +1012,7 @@ void Test_Query_Variables_MultiVar() {
 		wld.add(relayBadSecondary, {primary, devA});
 		wld.add(relayBadSecondary, {secondary, backupB});
 
-		auto qApi = wld.query<UseCachedQuery>() //
+		auto qApi = make_query<UseCachedQuery>(wld) //
 										.template all<Relay>()
 										.all(ecs::Pair(primary, ecs::Var0))
 										.all(ecs::Pair(secondary, ecs::Var1))
@@ -1071,31 +1071,32 @@ void Test_Query_RuntimeParams() {
 	wld.add<Civilian>(shipFree);
 
 	// Baseline expression parsing sanity checks.
-	auto qSpaceShip = wld.query<UseCachedQuery>().add("SpaceShip");
+	auto qSpaceShip = make_query<UseCachedQuery>(wld).add("SpaceShip");
 	CHECK(qSpaceShip.count() == 4);
 	expect_exact_entities(qSpaceShip, {shipEarth, shipMars, shipMoon, shipFree});
 
-	auto qOrBaseline = wld.query<UseCachedQuery>().add("Military || Civilian");
+	auto qOrBaseline = make_query<UseCachedQuery>(wld).add("Military || Civilian");
 	CHECK(qOrBaseline.count() == 2);
 	expect_exact_entities(qOrBaseline, {shipEarth, shipFree});
 
 	// Optional term + dependent term:
 	// match all spaceships, and when DockedTo exists require that target to be a Planet.
-	auto qOptional = wld.query<UseCachedQuery>().add("SpaceShip, ?(DockedTo, $planet), Planet($planet)");
+	auto qOptional = make_query<UseCachedQuery>(wld).add("SpaceShip, ?(DockedTo, $planet), Planet($planet)");
 	CHECK(qOptional.count() == 3);
 	expect_exact_entities(qOptional, {shipEarth, shipMars, shipFree});
 
 	// OR-chain syntax maps to query::or_.
-	auto qOr = wld.query<UseCachedQuery>().add("SpaceShip, Military || Civilian");
+	auto qOr = make_query<UseCachedQuery>(wld).add("SpaceShip, Military || Civilian");
 	CHECK(qOr.count() == 2);
 	expect_exact_entities(qOr, {shipEarth, shipFree});
 
 	// Non-string OR API alias.
-	auto qOrApi = wld.query<UseCachedQuery>().template all<SpaceShip>().template or_<Military>().template or_<Civilian>();
+	auto qOrApi =
+			make_query<UseCachedQuery>(wld).template all<SpaceShip>().template or_<Military>().template or_<Civilian>();
 	CHECK(qOrApi.count() == 2);
 	expect_exact_entities(qOrApi, {shipEarth, shipFree});
 
-	auto qApi = wld.query<UseCachedQuery>() //
+	auto qApi = make_query<UseCachedQuery>(wld) //
 									.template all<SpaceShip>()
 									.all(ecs::Pair(dockedTo, ecs::Var0))
 									.template all<Planet>(ecs::QueryTermOptions{}.src(ecs::Var0))
@@ -1137,14 +1138,15 @@ void Test_Query_RuntimeParams() {
 	}
 
 	// Named var provided explicitly before parsing the expression.
-	auto qExprNamed =
-			wld.query<UseCachedQuery>().var_name(ecs::Var0, "planet").add("SpaceShip, (DockedTo, $planet), Planet($planet)");
+	auto qExprNamed = make_query<UseCachedQuery>(wld)
+												.var_name(ecs::Var0, "planet")
+												.add("SpaceShip, (DockedTo, $planet), Planet($planet)");
 	qExprNamed.set_var("planet", mars);
 	CHECK(qExprNamed.count() == 1);
 	expect_exact_entities(qExprNamed, {shipMars});
 
 	// Expression-created variable names can be bound at runtime too.
-	auto qExprAuto = wld.query<UseCachedQuery>().add("SpaceShip, (DockedTo, $p), Planet($p)");
+	auto qExprAuto = make_query<UseCachedQuery>(wld).add("SpaceShip, (DockedTo, $p), Planet($p)");
 	qExprAuto.set_var("p", earth);
 	CHECK(qExprAuto.count() == 1);
 	expect_exact_entities(qExprAuto, {shipEarth});
@@ -1183,7 +1185,7 @@ void Test_Query_Bytecode_Dump() {
 	wld.add(entity, {connectedTo, root});
 	wld.add<PlanetTag>(root);
 
-	auto q = wld.query<UseCachedQuery>() //
+	auto q = make_query<UseCachedQuery>(wld) //
 							 .template all<Position>()
 							 .all(level, ecs::QueryTermOptions{}.src(scene).trav())
 							 .all(ecs::Pair(connectedTo, ecs::Var0))
@@ -1198,29 +1200,29 @@ void Test_Query_Bytecode_Dump() {
 	CHECK(bytecode.find("] up id=") != BadIndex);
 	CHECK(bytecode.find("depth=1") != BadIndex);
 
-	auto qDown = wld.query<UseCachedQuery>() //
+	auto qDown = make_query<UseCachedQuery>(wld) //
 									 .template all<Position>()
 									 .all(level, ecs::QueryTermOptions{}.src(root).trav_self_down());
 	const auto bytecodeDown = qDown.bytecode();
 	CHECK(bytecodeDown.find("] down id=") != BadIndex);
 
 	// Single OR term is canonicalized to AND.
-	auto qOrOnlySingle = wld.query<UseCachedQuery>().template or_<PlanetTag>();
+	auto qOrOnlySingle = make_query<UseCachedQuery>(wld).template or_<PlanetTag>();
 	const auto bytecodeOrOnlySingle = qOrOnlySingle.bytecode();
 	CHECK(bytecodeOrOnlySingle.find("ids_all: 1") != BadIndex);
 	CHECK(bytecodeOrOnlySingle.find("ids_or:") == BadIndex);
 
-	auto qOrWithAllSingle = wld.query<UseCachedQuery>().template all<Position>().template or_<PlanetTag>();
+	auto qOrWithAllSingle = make_query<UseCachedQuery>(wld).template all<Position>().template or_<PlanetTag>();
 	const auto bytecodeOrWithAllSingle = qOrWithAllSingle.bytecode();
 	CHECK(bytecodeOrWithAllSingle.find("ids_all: 2") != BadIndex);
 	CHECK(bytecodeOrWithAllSingle.find("ids_or:") == BadIndex);
 
-	auto qOrOnlyMulti = wld.query<UseCachedQuery>().template or_<PlanetTag>().template or_<Position>();
+	auto qOrOnlyMulti = make_query<UseCachedQuery>(wld).template or_<PlanetTag>().template or_<Position>();
 	const auto bytecodeOrOnlyMulti = qOrOnlyMulti.bytecode();
 	CHECK(bytecodeOrOnlyMulti.find("] or ") != BadIndex);
 
 	auto qOrWithAllMulti =
-			wld.query<UseCachedQuery>().template all<Position>().template or_<PlanetTag>().template or_<ConnectedTo>();
+			make_query<UseCachedQuery>(wld).template all<Position>().template or_<PlanetTag>().template or_<ConnectedTo>();
 	const auto bytecodeOrWithAllMulti = qOrWithAllMulti.bytecode();
 	CHECK(bytecodeOrWithAllMulti.find("] ora ") != BadIndex);
 
@@ -1275,7 +1277,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableBad, {connectedTo, devA});
 		wld.add(cableBad, {poweredBy, devB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(poweredBy, ecs::Var0))
@@ -1335,7 +1337,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableWrongB, {linkedTo, devA});
 		wld.add(cableWrongB, {routedVia, devC});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(linkedTo, ecs::Var0))
@@ -1400,7 +1402,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableWrongVar1, {poweredBy, pwrA});
 		wld.add(cableWrongVar1, {routedVia, pwrB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(poweredBy, ecs::Var1))
@@ -1465,7 +1467,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableWrongVar1, {linkedTo, devA});
 		wld.add(cableWrongVar1, {poweredBy, pwrB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(linkedTo, ecs::Var0))
@@ -1528,7 +1530,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableWrongTarget, {poweredBy, pwrB});
 		wld.add(cableWrongTarget, {devA, pwrA});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(poweredBy, ecs::Var1))
@@ -1597,7 +1599,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableBadCoupling, {linkedTo, routeB});
 		wld.add(cableBadCoupling, {routeA, devMarked});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(ecs::Var1, ecs::Var0))
@@ -1661,7 +1663,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add<Cable>(cableLeaf);
 		wld.add(cableLeaf, {connectedTo, leaf});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_down());
@@ -1717,7 +1719,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add<Cable>(cableLeaf);
 		wld.add(cableLeaf, {connectedTo, leaf});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_down().trav_kind(
@@ -1773,7 +1775,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableB, {linkedTo, devA});
 		wld.add(cableB, {routedVia, devB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0))
 								 .or_(ecs::Pair(connectedTo, ecs::Var0))
@@ -1825,7 +1827,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add<Cable>(cableB);
 		wld.add(cableB, {linkedTo, devB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .or_(ecs::Pair(connectedTo, ecs::Var0))
 								 .or_(ecs::Pair(linkedTo, ecs::Var0));
@@ -1880,7 +1882,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableBadNot, {linkedTo, devA});
 		wld.add(cableBadNot, {blockedBy, devA});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .or_(ecs::Pair(linkedTo, ecs::Var0))
@@ -1938,7 +1940,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add<Cable>(cableB);
 		wld.add(cableB, {linkedTo, devB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .any(ecs::Pair(connectedTo, ecs::Var0))
 								 .any(ecs::Pair(linkedTo, ecs::Var0));
@@ -2002,7 +2004,7 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 		wld.add(cableB, {linkedTo, devA});
 		wld.add(cableB, {routedVia, devB});
 
-		auto q = wld.query<UseCachedQuery>() //
+		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0))
 								 .or_(ecs::Pair(connectedTo, ecs::Var0))
@@ -2081,7 +2083,7 @@ void Test_Query_Variable_Program_Recompile() {
 	wld.add(cableBadCoupling, {linkedTo, routeB});
 	wld.add(cableBadCoupling, {routeA, devMarked});
 
-	auto q = wld.query<UseCachedQuery>() //
+	auto q = make_query<UseCachedQuery>(wld) //
 							 .template all<Cable>()
 							 .all(ecs::Pair(connectedTo, ecs::Var0))
 							 .all(ecs::Pair(ecs::Var1, ecs::Var0))
@@ -2155,8 +2157,8 @@ void Test_Query_SingleOr_CanonicalizedToAll() {
 	(void)eB;
 
 	// Single OR has required semantics and matches ALL.
-	auto qOr = wld.query<UseCachedQuery>().template or_<A>();
-	auto qAll = wld.query<UseCachedQuery>().template all<A>();
+	auto qOr = make_query<UseCachedQuery>(wld).template or_<A>();
+	auto qAll = make_query<UseCachedQuery>(wld).template all<A>();
 	CHECK(qOr.count() == qAll.count());
 	const auto qOrEntities = collect_sorted(qOr);
 	const auto qAllEntities = collect_sorted(qAll);
@@ -2166,8 +2168,8 @@ void Test_Query_SingleOr_CanonicalizedToAll() {
 	}
 
 	// Source-based single OR is canonicalized in the same way.
-	auto qOrSrc = wld.query<UseCachedQuery>().template or_<A>(ecs::QueryTermOptions{}.src(source));
-	auto qAllSrc = wld.query<UseCachedQuery>().template all<A>(ecs::QueryTermOptions{}.src(source));
+	auto qOrSrc = make_query<UseCachedQuery>(wld).template or_<A>(ecs::QueryTermOptions{}.src(source));
+	auto qAllSrc = make_query<UseCachedQuery>(wld).template all<A>(ecs::QueryTermOptions{}.src(source));
 	CHECK(qOrSrc.count() == qAllSrc.count());
 	const auto qOrSrcEntities = collect_sorted(qOrSrc);
 	const auto qAllSrcEntities = collect_sorted(qAllSrc);
@@ -2212,9 +2214,9 @@ void Test_Query_String_Optional_Regression() {
 	wld.add<Position>(noBody, {7.0f, 8.0f, 9.0f});
 	wld.add(noBody, {fuel, player});
 
-	auto qExpr = wld.query<UseCachedQuery>().add("&Position, !Velocity, ?RigidBody, (Fuel,*)");
+	auto qExpr = make_query<UseCachedQuery>(wld).add("&Position, !Velocity, ?RigidBody, (Fuel,*)");
 	auto qApi =
-			wld.query<UseCachedQuery>().template all<Position&>().template no<Velocity>().template any<RigidBody>().all(
+			make_query<UseCachedQuery>(wld).template all<Position&>().template no<Velocity>().template any<RigidBody>().all(
 					ecs::Pair(fuel, ecs::All));
 
 	CHECK(qExpr.count() == 2);
@@ -2252,11 +2254,11 @@ void Test_Query_Or_Dedup() {
 	wld.add<A>(eBoth);
 	wld.add<B>(eBoth);
 
-	auto qOrOnly = wld.query<UseCachedQuery>().template or_<A>().template or_<B>(); //
+	auto qOrOnly = make_query<UseCachedQuery>(wld).template or_<A>().template or_<B>(); //
 	CHECK(qOrOnly.count() == 1);
 	expect_exact_entities(qOrOnly, {eBoth});
 
-	auto qAllOr = wld.query<UseCachedQuery>().template all<Marker>().template or_<A>().template or_<B>();
+	auto qAllOr = make_query<UseCachedQuery>(wld).template all<Marker>().template or_<A>().template or_<B>();
 	CHECK(qAllOr.count() == 1);
 	expect_exact_entities(qAllOr, {eBoth});
 }
@@ -2308,11 +2310,11 @@ void Test_Query_QueryResult_Complex() {
 	GAIA_FOR(N) create(i);
 
 	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;
-	auto q1 = wld.query<UseCachedQuery>().template all<Position>();
-	auto q2 = wld.query<UseCachedQuery>().template all<Rotation>();
-	auto q3 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
-	auto q4 = wld.query<UseCachedQuery>().template all<Position>().template all<Scale>();
-	auto q5 = wld.query<UseCachedQuery>().template all<Position>().template all<Scale>().template all<Something>();
+	auto q1 = make_query<UseCachedQuery>(wld).template all<Position>();
+	auto q2 = make_query<UseCachedQuery>(wld).template all<Rotation>();
+	auto q3 = make_query<UseCachedQuery>(wld).template all<Position>().template all<Rotation>();
+	auto q4 = make_query<UseCachedQuery>(wld).template all<Position>().template all<Scale>();
+	auto q5 = make_query<UseCachedQuery>(wld).template all<Position>().template all<Scale>().template all<Something>();
 
 	{
 		ents.clear();
@@ -3944,16 +3946,16 @@ void Test_Query_Equality() {
 		auto p = wld.add<Position>().entity;
 		auto r = wld.add<Rotation>().entity;
 
-		auto qq1 = wld.query<UseCachedQuery>().template all<Position>().template all<Rotation>();
-		auto qq2 = wld.query<UseCachedQuery>().template all<Rotation>().template all<Position>();
-		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r);
-		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p);
+		auto qq1 = make_query<UseCachedQuery>(wld).template all<Position>().template all<Rotation>();
+		auto qq2 = make_query<UseCachedQuery>(wld).template all<Rotation>().template all<Position>();
+		auto qq3 = make_query<UseCachedQuery>(wld).all(p).all(r);
+		auto qq4 = make_query<UseCachedQuery>(wld).all(r).all(p);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = wld.query<UseCachedQuery>().add("Position, Rotation");
-		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation, Position");
-		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation");
-		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position");
+		auto qq1_ = make_query<UseCachedQuery>(wld).add("Position, Rotation");
+		auto qq2_ = make_query<UseCachedQuery>(wld).add("Rotation, Position");
+		auto qq3_ = make_query<UseCachedQuery>(wld).add("Position").add("Rotation");
+		auto qq4_ = make_query<UseCachedQuery>(wld).add("Rotation").add("Position");
 		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 	SUBCASE("4 components") {
@@ -3971,24 +3973,24 @@ void Test_Query_Equality() {
 		auto a = wld.add<Acceleration>().entity;
 		auto s = wld.add<Something>().entity;
 
-		auto qq1 = wld.query<UseCachedQuery>()
+		auto qq1 = make_query<UseCachedQuery>(wld)
 									 .template all<Position>()
 									 .template all<Rotation>()
 									 .template all<Acceleration>()
 									 .template all<Something>();
-		auto qq2 = wld.query<UseCachedQuery>()
+		auto qq2 = make_query<UseCachedQuery>(wld)
 									 .template all<Rotation>()
 									 .template all<Something>()
 									 .template all<Position>()
 									 .template all<Acceleration>();
-		auto qq3 = wld.query<UseCachedQuery>().all(p).all(r).all(a).all(s);
-		auto qq4 = wld.query<UseCachedQuery>().all(r).all(p).all(s).all(a);
+		auto qq3 = make_query<UseCachedQuery>(wld).all(p).all(r).all(a).all(s);
+		auto qq4 = make_query<UseCachedQuery>(wld).all(r).all(p).all(s).all(a);
 		verify(qq1, qq2, qq3, qq4);
 
-		auto qq1_ = wld.query<UseCachedQuery>().add("Position, Rotation, Acceleration, Something");
-		auto qq2_ = wld.query<UseCachedQuery>().add("Rotation, Something, Position, Acceleration");
-		auto qq3_ = wld.query<UseCachedQuery>().add("Position").add("Rotation").add("Acceleration").add("Something");
-		auto qq4_ = wld.query<UseCachedQuery>().add("Rotation").add("Position").add("Something").add("Acceleration");
+		auto qq1_ = make_query<UseCachedQuery>(wld).add("Position, Rotation, Acceleration, Something");
+		auto qq2_ = make_query<UseCachedQuery>(wld).add("Rotation, Something, Position, Acceleration");
+		auto qq3_ = make_query<UseCachedQuery>(wld).add("Position").add("Rotation").add("Acceleration").add("Something");
+		auto qq4_ = make_query<UseCachedQuery>(wld).add("Rotation").add("Position").add("Something").add("Acceleration");
 		verify(qq1_, qq2_, qq3_, qq4_);
 	}
 }
@@ -4015,8 +4017,9 @@ void Test_Query_Reset() {
 	wld.add(rabbit, {eats, carrot});
 	wld.add(wolf, {eats, rabbit});
 
-	auto q1 = wld.query<UseCachedQuery>().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
-	auto q2 = wld.query<UseCachedQuery>().add("(%e, %e)", eats.value(), carrot.value());
+	auto q1 =
+			make_query<UseCachedQuery>(wld).add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+	auto q2 = make_query<UseCachedQuery>(wld).add("(%e, %e)", eats.value(), carrot.value());
 
 	auto check_queries = [&]() {
 		const auto cnt1 = q1.count();
@@ -4057,8 +4060,10 @@ TEST_CASE("Query - delete from cache") {
 	wld.add(rabbit, {eats, carrot});
 	wld.add(wolf, {eats, rabbit});
 
-	auto q1 = wld.query().add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
-	auto q2 = wld.query().add("(%e, %e)", eats.value(), carrot.value());
+	auto q1 = wld.query()
+								.cache_scope(ecs::QueryCacheScope::Shared)
+								.add({ecs::QueryOpKind::All, ecs::QueryAccess::None, ecs::Pair(eats, carrot)});
+	auto q2 = wld.query().cache_scope(ecs::QueryCacheScope::Shared).add("(%e, %e)", eats.value(), carrot.value());
 
 	{
 		const auto cnt1 = q1.count();

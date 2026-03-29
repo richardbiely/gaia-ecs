@@ -43,10 +43,14 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		void
+		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
+		uint32_t world_version(const World& world);
+		uint32_t world_rel_version(const World& world, Entity relation);
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);

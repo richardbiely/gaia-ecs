@@ -2172,14 +2172,14 @@ TEST_CASE("Query - cached OR query after entity creation") {
 
 	// Compile/cache before any matching archetype exists.
 	CHECK(qCached.count() == 0);
-	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 0);
+	CHECK(wld.uquery().or_(tagA).or_(tagB).count() == 0);
 
 	// Add matching archetype after query creation.
 	auto e = wld.add();
 	wld.add(e, tagA);
 
 	CHECK(qCached.count() == 1);
-	CHECK(wld.query<false>().or_(tagA).or_(tagB).count() == 1);
+	CHECK(wld.uquery().or_(tagA).or_(tagB).count() == 1);
 }
 
 TEST_CASE("Query - cached OR query with secondary selector archetypes") {
@@ -3770,12 +3770,12 @@ TEST_CASE("Query - mixed semantic and direct Is terms") {
 	directOpts.direct();
 
 	auto qDirectHerbivoreChildren =
-			wld.query<false>().all(ecs::Pair(ecs::Is, animal)).all(ecs::Pair(ecs::Is, herbivore), directOpts);
+			wld.uquery().all(ecs::Pair(ecs::Is, animal)).all(ecs::Pair(ecs::Is, herbivore), directOpts);
 	CHECK(qDirectHerbivoreChildren.count() == 2);
 	expect_exact_entities(qDirectHerbivoreChildren, {rabbit, hare});
 
 	auto qExcludeDirectHerbivoreChildren =
-			wld.query<false>().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore), directOpts);
+			wld.uquery().all(ecs::Pair(ecs::Is, animal)).no(ecs::Pair(ecs::Is, herbivore), directOpts);
 	CHECK(qExcludeDirectHerbivoreChildren.count() == 4);
 	expect_exact_entities(qExcludeDirectHerbivoreChildren, {animal, herbivore, carnivore, wolf});
 }
@@ -4358,7 +4358,7 @@ TEST_CASE("Query - cache kind and policy") {
 	auto qCachedVar = wld.query().all(ecs::Pair(rel, ecs::Var0));
 	auto qSharedImmediate = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
 	auto qNoneImmediate = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
-	auto qUncachedImmediate = wld.query<false>().all<Position>();
+	auto qUncachedImmediate = wld.uquery().all<Position>();
 
 	CHECK(qCachedImmediate.cache_kind() == ecs::QueryCacheKind::Default);
 	CHECK(qCachedImmediate.cache_scope() == ecs::QueryCacheScope::Local);
@@ -4487,14 +4487,21 @@ TEST_CASE("Query - cache_src_trav and traversed source cache keys") {
 	auto root = wld.add();
 	auto leaf = wld.add();
 	wld.child(leaf, root);
-	auto qNoSource = wld.query().all<Position>();
-	auto qNoSourceSrcTrav = wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>();
-	auto qDirectSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(root));
-	auto qDirectSourceSrcTrav =
-			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(root));
-	auto qTraversedSource = wld.query().all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
-	auto qTraversedSourceSrcTrav =
-			wld.query().cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
+	auto qNoSource = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qNoSourceSrcTrav =
+			wld.query().cache_scope(ecs::QueryCacheScope::Shared).cache_src_trav(ecs::MaxCacheSrcTrav).all<Position>();
+	auto qDirectSource =
+			wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(root));
+	auto qDirectSourceSrcTrav = wld.query()
+																	.cache_scope(ecs::QueryCacheScope::Shared)
+																	.cache_src_trav(ecs::MaxCacheSrcTrav)
+																	.all<Position>(ecs::QueryTermOptions{}.src(root));
+	auto qTraversedSource =
+			wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
+	auto qTraversedSourceSrcTrav = wld.query()
+																		 .cache_scope(ecs::QueryCacheScope::Shared)
+																		 .cache_src_trav(ecs::MaxCacheSrcTrav)
+																		 .all<Position>(ecs::QueryTermOptions{}.src(leaf).trav());
 
 	const auto& ctxNoSource = qNoSource.fetch().ctx();
 	const auto& ctxNoSourceSrcTrav = qNoSourceSrcTrav.fetch().ctx();
@@ -4554,7 +4561,7 @@ TEST_CASE("Query - cached broad NOT query after archetype creation") {
 
 	auto excluded = wld.add();
 	auto q = wld.query().no(excluded);
-	auto qUncached = wld.query<false>().no(excluded);
+	auto qUncached = wld.uquery().no(excluded);
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -4573,7 +4580,7 @@ TEST_CASE("Query - cached broad NOT query with non-matching archetypes") {
 
 	auto excluded = wld.add();
 	auto q = wld.query().no(excluded);
-	auto qUncached = wld.query<false>().no(excluded);
+	auto qUncached = wld.uquery().no(excluded);
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -4594,7 +4601,7 @@ TEST_CASE("Query - cached broad NOT wildcard pair query after archetype creation
 	auto relOther = wld.add();
 	auto tgt = wld.add();
 	auto q = wld.query().no(ecs::Pair(relExcluded, ecs::All));
-	auto qUncached = wld.query<false>().no(ecs::Pair(relExcluded, ecs::All));
+	auto qUncached = wld.uquery().no(ecs::Pair(relExcluded, ecs::All));
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -4613,7 +4620,7 @@ TEST_CASE("Query - cached broad NOT wildcard pair query with excluded archetypes
 	auto relExcluded = wld.add();
 	auto tgt = wld.add();
 	auto q = wld.query().no(ecs::Pair(relExcluded, ecs::All));
-	auto qUncached = wld.query<false>().no(ecs::Pair(relExcluded, ecs::All));
+	auto qUncached = wld.uquery().no(ecs::Pair(relExcluded, ecs::All));
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -4632,7 +4639,7 @@ TEST_CASE("Query - cached multi-NOT query after archetype creation") {
 	auto excludedB = wld.add();
 	auto included = wld.add();
 	auto q = wld.query().no(excludedA).no(excludedB);
-	auto qUncached = wld.query<false>().no(excludedA).no(excludedB);
+	auto qUncached = wld.uquery().no(excludedA).no(excludedB);
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -4651,7 +4658,7 @@ TEST_CASE("Query - cached multi-NOT query with excluded ids") {
 	auto excludedA = wld.add();
 	auto excludedB = wld.add();
 	auto q = wld.query().no(excludedA).no(excludedB);
-	auto qUncached = wld.query<false>().no(excludedA).no(excludedB);
+	auto qUncached = wld.uquery().no(excludedA).no(excludedB);
 	auto& info = q.fetch();
 	q.match_all(info);
 	const auto archetypeCntBefore = info.cache_archetype_view().size();
@@ -5253,22 +5260,22 @@ TEST_CASE("Query - exact owned term matcher with inherited fallback") {
 
 	const auto instance = wld.instantiate(prefab);
 
-	auto qOwned = wld.query<false>().all(owned);
+	auto qOwned = wld.uquery().all(owned);
 	CHECK(qOwned.count() == 1);
 	expect_exact_entities(qOwned, {ownedEntity});
 
-	auto qInherited = wld.query<false>().all<Position>();
+	auto qInherited = wld.uquery().all<Position>();
 	CHECK(qInherited.count() == 1);
 	expect_exact_entities(qInherited, {instance});
 }
 
-TEST_CASE("Query - only shared-scope query state is immediately updated by shared cache propagation") {
+TEST_CASE("Query - cached local and shared query state is immediately updated by cache propagation") {
 	TestWorld twld;
 
 	auto qShared = wld.query().cache_scope(ecs::QueryCacheScope::Shared).all<Position>();
 	auto qLocal = wld.query().all<Position>();
 	auto qNone = wld.query().cache_kind(ecs::QueryCacheKind::None).all<Position>();
-	auto qUncached = wld.query<false>().all<Position>();
+	auto qUncached = wld.uquery().all<Position>();
 
 	auto& sharedInfo = qShared.fetch();
 	auto& localInfo = qLocal.fetch();
@@ -5288,7 +5295,7 @@ TEST_CASE("Query - only shared-scope query state is immediately updated by share
 	wld.add<Position>(e, {1, 0, 0});
 
 	CHECK(sharedInfo.cache_archetype_view().size() == 1);
-	CHECK(localInfo.cache_archetype_view().empty());
+	CHECK(localInfo.cache_archetype_view().size() == 1);
 	CHECK(noneInfo.cache_archetype_view().empty());
 	CHECK(uncachedInfo.cache_archetype_view().empty());
 	CHECK(qShared.count() == 1);

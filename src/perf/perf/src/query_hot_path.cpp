@@ -508,6 +508,17 @@ void BM_QueryCache_DynamicRelation_WarmRead(picobench::state& state) {
 
 //! Benchmarks repeated probe reads across many identical cached changed() queries kept alive at once.
 //! count() is intentionally non-consuming for changed() queries.
+template <ecs::QueryCacheScope CacheScope>
+static cnt::darray<ecs::Query> make_changed_queries(ecs::World& w, uint32_t queryCnt) {
+	cnt::darray<ecs::Query> queries;
+	queries.reserve(queryCnt);
+	GAIA_FOR(queryCnt) {
+		queries.push_back(w.query().cache_scope(CacheScope).all<Position>().changed<Position>());
+	}
+	return queries;
+}
+
+template <ecs::QueryCacheScope CacheScope>
 void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
 	const uint32_t queryCnt = (uint32_t)state.user_data();
 
@@ -515,9 +526,7 @@ void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
 	const auto e = w.add();
 	w.add<Position>(e, {1, 2, 3});
 
-	cnt::darray<ecs::Query> queries;
-	queries.reserve(queryCnt);
-	GAIA_FOR(queryCnt) queries.push_back(w.query().all<Position>().changed<Position>());
+	auto queries = make_changed_queries<CacheScope>(w, queryCnt);
 
 	uint64_t total = 0;
 	for (auto _: state) {
@@ -533,6 +542,7 @@ void BM_QueryCache_ChangedProbe_IdenticalCached(picobench::state& state) {
 
 //! Benchmarks consuming iteration across many identical cached changed() queries kept alive at once.
 //! each() is consuming for changed() queries, so the setup is rebuilt each sample.
+template <ecs::QueryCacheScope CacheScope>
 void BM_QueryCache_ChangedConsume_IdenticalCached(picobench::state& state) {
 	const uint32_t queryCnt = (uint32_t)state.user_data();
 
@@ -544,9 +554,7 @@ void BM_QueryCache_ChangedConsume_IdenticalCached(picobench::state& state) {
 		const auto e = w.add();
 		w.add<Position>(e, {1, 2, 3});
 
-		cnt::darray<ecs::Query> queries;
-		queries.reserve(queryCnt);
-		GAIA_FOR(queryCnt) queries.push_back(w.query().all<Position>().changed<Position>());
+		auto queries = make_changed_queries<CacheScope>(w, queryCnt);
 
 		uint64_t total = 0;
 		state.start_timer();
@@ -560,6 +568,22 @@ void BM_QueryCache_ChangedConsume_IdenticalCached(picobench::state& state) {
 		state.stop_timer();
 		dont_optimize(total);
 	}
+}
+
+void BM_QueryCache_ChangedProbe_IdenticalCached_Local(picobench::state& state) {
+	BM_QueryCache_ChangedProbe_IdenticalCached<ecs::QueryCacheScope::Local>(state);
+}
+
+void BM_QueryCache_ChangedProbe_IdenticalCached_Shared(picobench::state& state) {
+	BM_QueryCache_ChangedProbe_IdenticalCached<ecs::QueryCacheScope::Shared>(state);
+}
+
+void BM_QueryCache_ChangedConsume_IdenticalCached_Local(picobench::state& state) {
+	BM_QueryCache_ChangedConsume_IdenticalCached<ecs::QueryCacheScope::Local>(state);
+}
+
+void BM_QueryCache_ChangedConsume_IdenticalCached_Shared(picobench::state& state) {
+	BM_QueryCache_ChangedConsume_IdenticalCached<ecs::QueryCacheScope::Shared>(state);
 }
 
 //! Benchmarks repeated structural invalidation and cache refresh while entities churn between existing archetypes.
@@ -895,7 +919,7 @@ void BM_QueryMatch_IsChain(picobench::state& state) {
 		w.add(e, ecs::Pair(ecs::Is, (i & 1U) == 0U ? matchingBases[ChainDepth - 1] : nonMatchingBases[ChainDepth - 1]));
 	}
 
-	auto q = w.query<false>().all<Position>().all(ecs::Pair(ecs::Is, matchingBases[0]));
+	auto q = w.uquery().all<Position>().all(ecs::Pair(ecs::Is, matchingBases[0]));
 	auto& qi = q.fetch();
 	q.match_all(qi);
 	dont_optimize(qi.cache_archetype_view().size());
@@ -946,7 +970,7 @@ void BM_QueryMatch_ExactTerm(picobench::state& state) {
 			w.add(e, tag);
 	}
 
-	auto q = w.query<false>().all<Position>().all(tag);
+	auto q = w.uquery().all<Position>().all(tag);
 	auto& qi = q.fetch();
 	q.match_all(qi);
 	dont_optimize(qi.cache_archetype_view().size());
@@ -2460,11 +2484,19 @@ struct VariableBuildFixture_1VarSource {
 	}
 
 	template <bool UseCachedQuery>
-	auto query() {
-		return w.query<UseCachedQuery>()
+	auto query_impl() {
+		return make_query<UseCachedQuery>(w)
 				.all(ecs::Pair(relA, ecs::Var0))
 				.all(ecs::Pair(relB, ecs::Var0))
 				.template all<SourceType0>(ecs::QueryTermOptions{}.src(ecs::Var0));
+	}
+
+	auto query() {
+		return query_impl<true>();
+	}
+
+	auto uquery() {
+		return query_impl<false>();
 	}
 };
 
@@ -2508,12 +2540,20 @@ struct VariableBuildFixture_1VarOrSource {
 	}
 
 	template <bool UseCachedQuery>
-	auto query() {
-		return w.query<UseCachedQuery>()
+	auto query_impl() {
+		return make_query<UseCachedQuery>(w)
 				.template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0))
 				.or_(ecs::Pair(relA, ecs::Var0))
 				.or_(ecs::Pair(relB, ecs::Var0))
 				.or_(ecs::Pair(relC, ecs::Var0));
+	}
+
+	auto query() {
+		return query_impl<true>();
+	}
+
+	auto uquery() {
+		return query_impl<false>();
 	}
 };
 
@@ -2559,12 +2599,20 @@ struct VariableBuildFixture_2VarPairAll {
 	}
 
 	template <bool UseCachedQuery>
-	auto query() {
-		return w.query<UseCachedQuery>()
+	auto query_impl() {
+		return make_query<UseCachedQuery>(w)
 				.all(ecs::Pair(relConnected, ecs::Var0))
 				.all(ecs::Pair(relMirror, ecs::Var0))
 				.all(ecs::Pair(relPowered, ecs::Var1))
 				.all(ecs::Pair(relRouted, ecs::Var1));
+	}
+
+	auto query() {
+		return query_impl<true>();
+	}
+
+	auto uquery() {
+		return query_impl<false>();
 	}
 };
 
@@ -2616,13 +2664,21 @@ struct VariableBuildFixture_GenericSourceBacktrack {
 	}
 
 	template <bool UseCachedQuery>
-	auto query() {
-		return w.query<UseCachedQuery>()
+	auto query_impl() {
+		return make_query<UseCachedQuery>(w)
 				.all(ecs::Pair(relConnected, ecs::Var0))
 				.all(ecs::Pair(ecs::Var1, ecs::Var0))
 				.template all<SourceTypeOr>(ecs::QueryTermOptions{}.src(ecs::Var0).trav_parent())
 				.or_(ecs::Pair(relRoute, ecs::Var1))
 				.or_(ecs::Pair(relRouteAlt, ecs::Var1));
+	}
+
+	auto query() {
+		return query_impl<true>();
+	}
+
+	auto uquery() {
+		return query_impl<false>();
 	}
 };
 
@@ -2635,7 +2691,7 @@ void BM_QueryBuild_Variable_Uncached(picobench::state& state) {
 		(void)_;
 		state.start_timer();
 
-		auto q = fixture.template query<false>();
+		auto q = fixture.uquery();
 		auto& qi = q.fetch();
 		dont_optimize(qi.op_count());
 		const auto bytecode = qi.bytecode();
@@ -2649,7 +2705,7 @@ template <typename Fixture>
 void BM_QueryBuild_Variable_Recompile(picobench::state& state) {
 	Fixture fixture((uint32_t)state.user_data());
 
-	auto q = fixture.template query<true>();
+	auto q = fixture.query();
 	auto& qi = q.fetch();
 	dont_optimize(qi.op_count());
 	const auto bytecodeWarm = qi.bytecode();
@@ -2680,7 +2736,7 @@ void BM_QueryCompile_Variable_Uncached(picobench::state& state) {
 
 		uint64_t signatureSum = 0;
 		GAIA_FOR(VariableCompileBatch) {
-			auto q = fixture.template query<false>();
+			auto q = fixture.uquery();
 			dont_optimize(q);
 			auto& qi = q.fetch();
 			dont_optimize(qi);
@@ -2697,7 +2753,7 @@ template <typename Fixture>
 void BM_QueryCompile_Variable_Recompile(picobench::state& state) {
 	Fixture fixture((uint32_t)state.user_data());
 
-	auto q = fixture.template query<true>();
+	auto q = fixture.query();
 	dont_optimize(q);
 	auto& qi = q.fetch();
 	dont_optimize(qi);
@@ -2930,14 +2986,22 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)
 					.label("dynamic relation warm");
-			PICOBENCH_REG(BM_QueryCache_ChangedProbe_IdenticalCached)
+			PICOBENCH_REG(BM_QueryCache_ChangedProbe_IdenticalCached_Local)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(128)
-					.label("changed probe identical cached 128q");
-			PICOBENCH_REG(BM_QueryCache_ChangedConsume_IdenticalCached)
+					.label("changed probe identical local 128q");
+			PICOBENCH_REG(BM_QueryCache_ChangedProbe_IdenticalCached_Shared)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(128)
-					.label("changed consume identical cached 128q");
+					.label("changed probe identical shared 128q");
+			PICOBENCH_REG(BM_QueryCache_ChangedConsume_IdenticalCached_Local)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(128)
+					.label("changed consume identical local 128q");
+			PICOBENCH_REG(BM_QueryCache_ChangedConsume_IdenticalCached_Shared)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(128)
+					.label("changed consume identical shared 128q");
 			PICOBENCH_REG(BM_QueryCache_Invalidate_Churn)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesMedium)

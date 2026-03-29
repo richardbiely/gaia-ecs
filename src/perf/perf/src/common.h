@@ -21,6 +21,14 @@
 
 using namespace gaia;
 
+template <bool UseCachedQuery>
+ecs::Query make_query(ecs::World& world) {
+	if constexpr (UseCachedQuery)
+		return world.query();
+	else
+		return world.uquery();
+}
+
 struct Position {
 	float x;
 	float y;
@@ -391,7 +399,7 @@ inline void create_sorted_exact_entities(
 
 template <bool UseCachedQuery, uint32_t QueryComponents>
 auto create_query(ecs::World& w) {
-	auto q = w.query<UseCachedQuery>().template all<Position>();
+	auto q = make_query<UseCachedQuery>(w).template all<Position>();
 
 	if constexpr (QueryComponents > 1)
 		q.template all<Velocity>();
