@@ -32026,7 +32026,7 @@ namespace gaia {
 		template <typename T>
 		void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
-				const std::remove_cv_t<std::remove_reference_t<T>>*& pResolvedData);
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pDataInherited);
 		bool world_term_uses_inherit_policy(const World& world, Entity term);
 		template <typename T>
 		Entity world_query_arg_id(World& world);
@@ -32167,7 +32167,7 @@ namespace gaia {
 				uint16_t rowBase = 0;
 				uint32_t cnt = 0;
 				bool chunkStableInherited = false;
-				const U* pResolvedData = nullptr;
+				const U* pDataInherited = nullptr;
 				mutable const Archetype* pLastArchetype = nullptr;
 				mutable Entity cachedOwner = EntityBad;
 				mutable bool cachedDirect = false;
@@ -32183,15 +32183,15 @@ namespace gaia {
 				static EntityTermViewGet entity_chunk_stable(
 						const Entity* pEntities, const Chunk* pChunk, World* pWorld, Entity id, uint16_t rowBase, uint32_t cnt) {
 					uint32_t compIdx = BadIndex;
-					const U* pResolvedData = nullptr;
+					const U* pDataInherited = nullptr;
 					bool direct = false;
 					world_init_query_entity_arg_by_id_chunk_stable_const<U>(
-							*pWorld, *pChunk, pEntities, id, direct, compIdx, pResolvedData);
+							*pWorld, *pChunk, pEntities, id, direct, compIdx, pDataInherited);
 					const U* pData = nullptr;
 					if (direct)
 						pData = reinterpret_cast<const U*>(pChunk->comp_ptr(compIdx, rowBase));
 
-					return {pData, pEntities, pChunk, pWorld, id, rowBase, cnt, true, pResolvedData, nullptr, EntityBad, false};
+					return {pData, pEntities, pChunk, pWorld, id, rowBase, cnt, true, pDataInherited, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32199,8 +32199,8 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 					if (chunkStableInherited) {
-						GAIA_ASSERT(pResolvedData != nullptr);
-						return *pResolvedData;
+						GAIA_ASSERT(pDataInherited != nullptr);
+						return *pDataInherited;
 					}
 
 					return world_query_entity_arg_by_id_cached_const<const U&>(
@@ -61334,19 +61334,19 @@ namespace gaia {
 		template <typename T>
 		inline void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
-				const std::remove_cv_t<std::remove_reference_t<T>>*& pResolvedData) {
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pDataInherited) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>) {
 				direct = false;
 				compIdx = BadIndex;
-				pResolvedData = nullptr;
+				pDataInherited = nullptr;
 				return;
 			}
 
 			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
 			direct = chunk.has(termId);
 			compIdx = BadIndex;
-			pResolvedData = nullptr;
+			pDataInherited = nullptr;
 
 			if (direct) {
 				compIdx = chunk.comp_idx(termId);
@@ -61365,7 +61365,7 @@ namespace gaia {
 			}
 
 			GAIA_ASSERT(owner != EntityBad);
-			pResolvedData = &world.template get<Arg>(owner, termId);
+			pDataInherited = &world.template get<Arg>(owner, termId);
 		}
 
 		template <typename T>

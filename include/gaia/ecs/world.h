@@ -12741,19 +12741,19 @@ namespace gaia {
 		template <typename T>
 		inline void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
-				const std::remove_cv_t<std::remove_reference_t<T>>*& pResolvedData) {
+				const std::remove_cv_t<std::remove_reference_t<T>>*& pDataInherited) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			if constexpr (std::is_same_v<Arg, Entity>) {
 				direct = false;
 				compIdx = BadIndex;
-				pResolvedData = nullptr;
+				pDataInherited = nullptr;
 				return;
 			}
 
 			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
 			direct = chunk.has(termId);
 			compIdx = BadIndex;
-			pResolvedData = nullptr;
+			pDataInherited = nullptr;
 
 			if (direct) {
 				compIdx = chunk.comp_idx(termId);
@@ -12772,7 +12772,7 @@ namespace gaia {
 			}
 
 			GAIA_ASSERT(owner != EntityBad);
-			pResolvedData = &world.template get<Arg>(owner, termId);
+			pDataInherited = &world.template get<Arg>(owner, termId);
 		}
 
 		template <typename T>
