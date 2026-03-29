@@ -22,6 +22,10 @@ namespace gaia {
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
 		template <typename T>
+		decltype(auto) world_query_entity_arg_by_id_cached_const(
+				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
+				bool& cachedDirect);
+		template <typename T>
 		Entity world_query_arg_id(World& world);
 
 		//! QueryImpl constraints
@@ -65,10 +69,14 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				mutable const Archetype* pLastArchetype = nullptr;
+				mutable Entity cachedOwner = EntityBad;
+				mutable bool cachedDirect = false;
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+					return world_query_entity_arg_by_id_cached_const<const U&>(
+							*pWorld, pEntities[idx], id, pLastArchetype, cachedOwner, cachedDirect);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -153,13 +161,16 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				mutable const Archetype* pLastArchetype = nullptr;
+				mutable Entity cachedOwner = EntityBad;
+				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr, nullptr, EntityBad, cnt};
+					return {pData, nullptr, nullptr, EntityBad, cnt, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, pWorld, id, cnt};
+					return {nullptr, pEntities, pWorld, id, cnt, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -167,7 +178,8 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 
-					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+					return world_query_entity_arg_by_id_cached_const<const U&>(
+							*pWorld, pEntities[idx], id, pLastArchetype, cachedOwner, cachedDirect);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {

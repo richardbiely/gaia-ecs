@@ -32020,6 +32020,10 @@ namespace gaia {
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
 		template <typename T>
+		decltype(auto) world_query_entity_arg_by_id_cached_const(
+				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
+				bool& cachedDirect);
+		template <typename T>
 		Entity world_query_arg_id(World& world);
 
 		//! QueryImpl constraints
@@ -32063,10 +32067,14 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				mutable const Archetype* pLastArchetype = nullptr;
+				mutable Entity cachedOwner = EntityBad;
+				mutable bool cachedDirect = false;
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
-					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+					return world_query_entity_arg_by_id_cached_const<const U&>(
+							*pWorld, pEntities[idx], id, pLastArchetype, cachedOwner, cachedDirect);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -32151,13 +32159,16 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity id = EntityBad;
 				uint32_t cnt = 0;
+				mutable const Archetype* pLastArchetype = nullptr;
+				mutable Entity cachedOwner = EntityBad;
+				mutable bool cachedDirect = false;
 
 				static EntityTermViewGet pointer(const U* pData, uint32_t cnt) {
-					return {pData, nullptr, nullptr, EntityBad, cnt};
+					return {pData, nullptr, nullptr, EntityBad, cnt, nullptr, EntityBad, false};
 				}
 
 				static EntityTermViewGet entity(const Entity* pEntities, World* pWorld, Entity id, uint32_t cnt) {
-					return {nullptr, pEntities, pWorld, id, cnt};
+					return {nullptr, pEntities, pWorld, id, cnt, nullptr, EntityBad, false};
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
@@ -32165,7 +32176,8 @@ namespace gaia {
 					if (pData != nullptr)
 						return pData[idx];
 
-					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+					return world_query_entity_arg_by_id_cached_const<const U&>(
+							*pWorld, pEntities[idx], id, pLastArchetype, cachedOwner, cachedDirect);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -38285,9 +38297,25 @@ namespace gaia {
 					}
 				};
 
-				struct NonTrivialPayload {
+				struct ExecPayload {
 					//! Cached component-index mapping for each matched archetype.
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
+					//! True when archetype membership is populated but component-index metadata
+					//! still needs to be built on demand.
+					bool compIndicesPending = false;
+
+					void clear() {
+						archetypeCompIndices = {};
+						compIndicesPending = false;
+					}
+
+					void clear_transient() {
+						archetypeCompIndices.clear();
+						compIndicesPending = false;
+					}
+				};
+
+				struct NonTrivialPayload {
 					//! Cached depth-order hierarchy barrier result for each archetype.
 					cnt::darray<uint8_t> archetypeBarrierPasses;
 					//! Sort data used by cache.
@@ -38299,31 +38327,26 @@ namespace gaia {
 					uint32_t barrierRelVersion = UINT32_MAX;
 					//! Entity enable-state version at which the cached depth-order hierarchy barrier state was last rebuilt.
 					uint32_t barrierEnabledVersion = UINT32_MAX;
-					//! True when archetype membership is populated but component-index metadata
-					//! still needs to be built on demand.
-					bool compIndicesPending = false;
 
 					void clear() {
 						archetypeSortData = {};
-						archetypeCompIndices = {};
 						archetypeBarrierPasses = {};
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
-						compIndicesPending = false;
 					}
 
 					void clear_transient() {
 						archetypeSortData.clear();
-						archetypeCompIndices.clear();
 						archetypeBarrierPasses.clear();
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
-						compIndicesPending = false;
 					}
 				};
 
+				//! Execution metadata shared by plain and grouped iteration paths on demand.
+				ExecPayload exec;
 				//! Grouped-query-only payload.
 				GroupedPayload grouped;
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
@@ -38357,12 +38380,14 @@ namespace gaia {
 				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
+					exec.clear();
 					grouped.clear();
 					nonTrivial.clear();
 				}
 
 				void clear_transient_result_cache() {
 					archetypeCache.clear();
+					exec.clear_transient();
 					grouped.clear_transient();
 					nonTrivial.clear_transient();
 				}
@@ -38827,6 +38852,14 @@ namespace gaia {
 
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
 				return m_plan.ctx.data.cachePolicy;
+			}
+
+			GAIA_NODISCARD bool has_grouped_payload() const {
+				return m_plan.ctx.data.groupBy != EntityBad;
+			}
+
+			GAIA_NODISCARD bool has_sorted_payload() const {
+				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
 			GAIA_NODISCARD uint32_t reverse_index_revision() const {
@@ -39421,11 +39454,10 @@ namespace gaia {
 					m_state.grouped.archetypeGroupIds[right] = tmp;
 				}
 
-				if (left < m_state.nonTrivial.archetypeCompIndices.size() &&
-						right < m_state.nonTrivial.archetypeCompIndices.size()) {
-					auto tmp = m_state.nonTrivial.archetypeCompIndices[left];
-					m_state.nonTrivial.archetypeCompIndices[left] = m_state.nonTrivial.archetypeCompIndices[right];
-					m_state.nonTrivial.archetypeCompIndices[right] = tmp;
+				if (left < m_state.exec.archetypeCompIndices.size() && right < m_state.exec.archetypeCompIndices.size()) {
+					auto tmp = m_state.exec.archetypeCompIndices[left];
+					m_state.exec.archetypeCompIndices[left] = m_state.exec.archetypeCompIndices[right];
+					m_state.exec.archetypeCompIndices[right] = tmp;
 				}
 
 				if (left < m_state.nonTrivial.archetypeBarrierPasses.size() &&
@@ -39437,15 +39469,15 @@ namespace gaia {
 			}
 
 			void ensure_comp_indices() {
-				if (!m_state.nonTrivial.compIndicesPending)
+				if (!m_state.exec.compIndicesPending)
 					return;
 
-				m_state.nonTrivial.archetypeCompIndices.clear();
-				m_state.nonTrivial.archetypeCompIndices.reserve(m_state.archetypeCache.size());
+				m_state.exec.archetypeCompIndices.clear();
+				m_state.exec.archetypeCompIndices.reserve(m_state.archetypeCache.size());
 				for (const auto* pArchetype: m_state.archetypeCache)
-					m_state.nonTrivial.archetypeCompIndices.push_back(create_comp_indices(pArchetype));
+					m_state.exec.archetypeCompIndices.push_back(create_comp_indices(pArchetype));
 
-				m_state.nonTrivial.compIndicesPending = false;
+				m_state.exec.compIndicesPending = false;
 			}
 
 			void ensure_group_data() {
@@ -39560,7 +39592,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				if (trackMembershipChange)
@@ -39588,7 +39620,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				if (trackMembershipChange)
 					mark_result_cache_membership_changed();
 			}
@@ -39609,7 +39641,7 @@ namespace gaia {
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.grouped.archetypeGroupIds.push_back(groupId);
 				m_state.grouped.dataPending = true;
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
@@ -39629,7 +39661,7 @@ namespace gaia {
 
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				if (m_plan.ctx.data.groupBy != EntityBad) {
 					const auto groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 					m_state.grouped.archetypeGroupIds.push_back(groupId);
@@ -39710,8 +39742,8 @@ namespace gaia {
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				core::swap_erase(m_state.archetypeCache, archetypeIdx);
-				if (archetypeIdx < m_state.nonTrivial.archetypeCompIndices.size())
-					core::swap_erase(m_state.nonTrivial.archetypeCompIndices, archetypeIdx);
+				if (archetypeIdx < m_state.exec.archetypeCompIndices.size())
+					core::swap_erase(m_state.exec.archetypeCompIndices, archetypeIdx);
 				if (archetypeIdx < m_state.grouped.archetypeGroupIds.size())
 					core::swap_erase(m_state.grouped.archetypeGroupIds, archetypeIdx);
 				if (archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size())
@@ -39846,7 +39878,7 @@ namespace gaia {
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_comp_indices();
-				const auto& ctxData = m_state.nonTrivial.archetypeCompIndices[archetypeIdx];
+				const auto& ctxData = m_state.exec.archetypeCompIndices[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
@@ -39856,7 +39888,7 @@ namespace gaia {
 
 			//! Returns a cached indices mapping view for an exact archetype match, or an empty span when absent.
 			std::span<const uint8_t> try_indices_mapping_view(const Archetype* pArchetype) const {
-				if (m_state.nonTrivial.compIndicesPending)
+				if (m_state.exec.compIndicesPending)
 					return {};
 				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
 				if (archetypeIdx == BadIndex)
@@ -42320,6 +42352,26 @@ namespace gaia {
 					(finish_typed_iter_write_arg<T>(it, (uint32_t)I), ...);
 				}
 
+				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
+
+				template <typename TIter>
+				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo) {
+					if (queryInfo.has_sorted_payload())
+						return ExecPayloadKind::NonTrivial;
+					if (!queryInfo.has_grouped_payload())
+						return ExecPayloadKind::Plain;
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							return ExecPayloadKind::NonTrivial;
+					}
+					return ExecPayloadKind::Grouped;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo) {
+					return exec_payload_kind<TIter>(queryInfo) == ExecPayloadKind::NonTrivial;
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
@@ -42423,9 +42475,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
 					auto sortView = queryInfo.cache_sort_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -42527,9 +42582,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
 					auto sortView = queryInfo.cache_sort_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -42622,8 +42680,8 @@ namespace gaia {
 					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -42696,8 +42754,8 @@ namespace gaia {
 					ChunkBatchArray chunkBatch;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -44412,10 +44470,33 @@ namespace gaia {
 						return world_query_entity_arg_by_id<T>(world, entity, termId);
 				}
 
+				template <typename T>
+				static decltype(auto) inherited_query_entity_arg_by_id_cached(
+						World& world, Entity entity, Entity termId, const Archetype*& pLastArchetype, Entity& cachedOwner,
+						bool& cachedDirect) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return entity;
+					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+						return inherited_query_entity_arg_by_id<T>(world, entity, termId);
+					else
+						return world_query_entity_arg_by_id_cached_const<T>(
+								world, entity, termId, pLastArchetype, cachedOwner, cachedDirect);
+				}
+
 				template <typename... T, typename Func, size_t... I>
 				static void invoke_inherited_query_args_by_id(
 						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+				}
+
+				template <typename... T, typename Func, size_t... I>
+				static void invoke_inherited_query_args_by_id_cached(
+						World& world, Entity entity, const Entity* pArgIds, const Archetype** pLastArchetypes,
+						Entity* pCachedOwners, bool* pCachedDirect, Func& func, std::index_sequence<I...>) {
+					func(
+							inherited_query_entity_arg_by_id_cached<T>(
+									world, entity, pArgIds[I], pLastArchetypes[I], pCachedOwners[I], pCachedDirect[I])...);
 				}
 
 				template <typename... T, typename Func, size_t... I>
@@ -44536,8 +44617,13 @@ namespace gaia {
 							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							if constexpr (sizeof...(T) > 0) {
 								Entity argIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
+								const Archetype* lastArchetypes[sizeof...(T)]{};
+								Entity cachedOwners[sizeof...(T)]{};
+								bool cachedDirect[sizeof...(T)]{};
 								for (const auto entity: entities) {
-									invoke_inherited_query_args_by_id<T...>(world, entity, argIds, func, std::index_sequence_for<T...>{});
+									invoke_inherited_query_args_by_id_cached<T...>(
+											world, entity, argIds, lastArchetypes, cachedOwners, cachedDirect, func,
+											std::index_sequence_for<T...>{});
 								}
 							} else {
 								for (const auto entity: entities) {
@@ -61211,6 +61297,40 @@ namespace gaia {
 				return world.template mut<Arg>(entity, termId);
 			} else
 				return world.template get<Arg>(entity, termId);
+		}
+
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_cached_const(
+				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
+				bool& cachedDirect) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+
+			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+			const auto& ec = world.fetch(entity);
+			if (ec.pArchetype != pLastArchetype) {
+				pLastArchetype = ec.pArchetype;
+				cachedDirect = ec.pArchetype->has(termId);
+				cachedOwner = EntityBad;
+
+				if (!cachedDirect) {
+					for (const auto target: world.as_targets_trav_cache(entity)) {
+						if (!world.has_direct(target, termId))
+							continue;
+
+						cachedOwner = target;
+						break;
+					}
+
+					GAIA_ASSERT(cachedOwner != EntityBad);
+				}
+			}
+
+			if (cachedDirect)
+				return ComponentGetter{world, ec.pChunk, entity, ec.row}.template get<Arg>(termId);
+
+			return world.template get<Arg>(cachedOwner, termId);
 		}
 
 		inline void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to) {

@@ -179,9 +179,25 @@ namespace gaia {
 					}
 				};
 
-				struct NonTrivialPayload {
+				struct ExecPayload {
 					//! Cached component-index mapping for each matched archetype.
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
+					//! True when archetype membership is populated but component-index metadata
+					//! still needs to be built on demand.
+					bool compIndicesPending = false;
+
+					void clear() {
+						archetypeCompIndices = {};
+						compIndicesPending = false;
+					}
+
+					void clear_transient() {
+						archetypeCompIndices.clear();
+						compIndicesPending = false;
+					}
+				};
+
+				struct NonTrivialPayload {
 					//! Cached depth-order hierarchy barrier result for each archetype.
 					cnt::darray<uint8_t> archetypeBarrierPasses;
 					//! Sort data used by cache.
@@ -193,31 +209,26 @@ namespace gaia {
 					uint32_t barrierRelVersion = UINT32_MAX;
 					//! Entity enable-state version at which the cached depth-order hierarchy barrier state was last rebuilt.
 					uint32_t barrierEnabledVersion = UINT32_MAX;
-					//! True when archetype membership is populated but component-index metadata
-					//! still needs to be built on demand.
-					bool compIndicesPending = false;
 
 					void clear() {
 						archetypeSortData = {};
-						archetypeCompIndices = {};
 						archetypeBarrierPasses = {};
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
-						compIndicesPending = false;
 					}
 
 					void clear_transient() {
 						archetypeSortData.clear();
-						archetypeCompIndices.clear();
 						archetypeBarrierPasses.clear();
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
-						compIndicesPending = false;
 					}
 				};
 
+				//! Execution metadata shared by plain and grouped iteration paths on demand.
+				ExecPayload exec;
 				//! Grouped-query-only payload.
 				GroupedPayload grouped;
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
@@ -251,12 +262,14 @@ namespace gaia {
 				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
+					exec.clear();
 					grouped.clear();
 					nonTrivial.clear();
 				}
 
 				void clear_transient_result_cache() {
 					archetypeCache.clear();
+					exec.clear_transient();
 					grouped.clear_transient();
 					nonTrivial.clear_transient();
 				}
@@ -721,6 +734,14 @@ namespace gaia {
 
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
 				return m_plan.ctx.data.cachePolicy;
+			}
+
+			GAIA_NODISCARD bool has_grouped_payload() const {
+				return m_plan.ctx.data.groupBy != EntityBad;
+			}
+
+			GAIA_NODISCARD bool has_sorted_payload() const {
+				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
 			GAIA_NODISCARD uint32_t reverse_index_revision() const {
@@ -1315,11 +1336,10 @@ namespace gaia {
 					m_state.grouped.archetypeGroupIds[right] = tmp;
 				}
 
-				if (left < m_state.nonTrivial.archetypeCompIndices.size() &&
-						right < m_state.nonTrivial.archetypeCompIndices.size()) {
-					auto tmp = m_state.nonTrivial.archetypeCompIndices[left];
-					m_state.nonTrivial.archetypeCompIndices[left] = m_state.nonTrivial.archetypeCompIndices[right];
-					m_state.nonTrivial.archetypeCompIndices[right] = tmp;
+				if (left < m_state.exec.archetypeCompIndices.size() && right < m_state.exec.archetypeCompIndices.size()) {
+					auto tmp = m_state.exec.archetypeCompIndices[left];
+					m_state.exec.archetypeCompIndices[left] = m_state.exec.archetypeCompIndices[right];
+					m_state.exec.archetypeCompIndices[right] = tmp;
 				}
 
 				if (left < m_state.nonTrivial.archetypeBarrierPasses.size() &&
@@ -1331,15 +1351,15 @@ namespace gaia {
 			}
 
 			void ensure_comp_indices() {
-				if (!m_state.nonTrivial.compIndicesPending)
+				if (!m_state.exec.compIndicesPending)
 					return;
 
-				m_state.nonTrivial.archetypeCompIndices.clear();
-				m_state.nonTrivial.archetypeCompIndices.reserve(m_state.archetypeCache.size());
+				m_state.exec.archetypeCompIndices.clear();
+				m_state.exec.archetypeCompIndices.reserve(m_state.archetypeCache.size());
 				for (const auto* pArchetype: m_state.archetypeCache)
-					m_state.nonTrivial.archetypeCompIndices.push_back(create_comp_indices(pArchetype));
+					m_state.exec.archetypeCompIndices.push_back(create_comp_indices(pArchetype));
 
-				m_state.nonTrivial.compIndicesPending = false;
+				m_state.exec.compIndicesPending = false;
 			}
 
 			void ensure_group_data() {
@@ -1454,7 +1474,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				if (trackMembershipChange)
@@ -1482,7 +1502,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				if (trackMembershipChange)
 					mark_result_cache_membership_changed();
 			}
@@ -1503,7 +1523,7 @@ namespace gaia {
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.grouped.archetypeGroupIds.push_back(groupId);
 				m_state.grouped.dataPending = true;
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 				m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortGroups;
@@ -1523,7 +1543,7 @@ namespace gaia {
 
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
-				m_state.nonTrivial.compIndicesPending = true;
+				m_state.exec.compIndicesPending = true;
 				if (m_plan.ctx.data.groupBy != EntityBad) {
 					const auto groupId = m_plan.ctx.data.groupByFunc(*m_plan.ctx.w, *pArchetype, m_plan.ctx.data.groupBy);
 					m_state.grouped.archetypeGroupIds.push_back(groupId);
@@ -1604,8 +1624,8 @@ namespace gaia {
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
 				core::swap_erase(m_state.archetypeCache, archetypeIdx);
-				if (archetypeIdx < m_state.nonTrivial.archetypeCompIndices.size())
-					core::swap_erase(m_state.nonTrivial.archetypeCompIndices, archetypeIdx);
+				if (archetypeIdx < m_state.exec.archetypeCompIndices.size())
+					core::swap_erase(m_state.exec.archetypeCompIndices, archetypeIdx);
 				if (archetypeIdx < m_state.grouped.archetypeGroupIds.size())
 					core::swap_erase(m_state.grouped.archetypeGroupIds, archetypeIdx);
 				if (archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size())
@@ -1740,7 +1760,7 @@ namespace gaia {
 			//! Returns a view of indices mapping for component entities in a given archetype
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_comp_indices();
-				const auto& ctxData = m_state.nonTrivial.archetypeCompIndices[archetypeIdx];
+				const auto& ctxData = m_state.exec.archetypeCompIndices[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
@@ -1750,7 +1770,7 @@ namespace gaia {
 
 			//! Returns a cached indices mapping view for an exact archetype match, or an empty span when absent.
 			std::span<const uint8_t> try_indices_mapping_view(const Archetype* pArchetype) const {
-				if (m_state.nonTrivial.compIndicesPending)
+				if (m_state.exec.compIndicesPending)
 					return {};
 				const auto archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);
 				if (archetypeIdx == BadIndex)

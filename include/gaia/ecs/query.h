@@ -1659,6 +1659,26 @@ namespace gaia {
 					(finish_typed_iter_write_arg<T>(it, (uint32_t)I), ...);
 				}
 
+				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
+
+				template <typename TIter>
+				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo) {
+					if (queryInfo.has_sorted_payload())
+						return ExecPayloadKind::NonTrivial;
+					if (!queryInfo.has_grouped_payload())
+						return ExecPayloadKind::Plain;
+					if constexpr (std::is_same_v<TIter, Iter>) {
+						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
+							return ExecPayloadKind::NonTrivial;
+					}
+					return ExecPayloadKind::Grouped;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo) {
+					return exec_payload_kind<TIter>(queryInfo) == ExecPayloadKind::NonTrivial;
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
@@ -1762,9 +1782,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
 					auto sortView = queryInfo.cache_sort_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -1866,9 +1889,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
 					auto sortView = queryInfo.cache_sort_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -1961,8 +1987,8 @@ namespace gaia {
 					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -2035,8 +2061,8 @@ namespace gaia {
 					ChunkBatchArray chunkBatch;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache =
-							std::is_same_v<TIter, Iter> && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -3751,10 +3777,33 @@ namespace gaia {
 						return world_query_entity_arg_by_id<T>(world, entity, termId);
 				}
 
+				template <typename T>
+				static decltype(auto) inherited_query_entity_arg_by_id_cached(
+						World& world, Entity entity, Entity termId, const Archetype*& pLastArchetype, Entity& cachedOwner,
+						bool& cachedDirect) {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return entity;
+					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+						return inherited_query_entity_arg_by_id<T>(world, entity, termId);
+					else
+						return world_query_entity_arg_by_id_cached_const<T>(
+								world, entity, termId, pLastArchetype, cachedOwner, cachedDirect);
+				}
+
 				template <typename... T, typename Func, size_t... I>
 				static void invoke_inherited_query_args_by_id(
 						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
+				}
+
+				template <typename... T, typename Func, size_t... I>
+				static void invoke_inherited_query_args_by_id_cached(
+						World& world, Entity entity, const Entity* pArgIds, const Archetype** pLastArchetypes,
+						Entity* pCachedOwners, bool* pCachedDirect, Func& func, std::index_sequence<I...>) {
+					func(
+							inherited_query_entity_arg_by_id_cached<T>(
+									world, entity, pArgIds[I], pLastArchetypes[I], pCachedOwners[I], pCachedDirect[I])...);
 				}
 
 				template <typename... T, typename Func, size_t... I>
@@ -3875,8 +3924,13 @@ namespace gaia {
 							const auto entities = cached_direct_seed_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							if constexpr (sizeof...(T) > 0) {
 								Entity argIds[sizeof...(T)] = {inherited_query_arg_id<T>(world)...};
+								const Archetype* lastArchetypes[sizeof...(T)]{};
+								Entity cachedOwners[sizeof...(T)]{};
+								bool cachedDirect[sizeof...(T)]{};
 								for (const auto entity: entities) {
-									invoke_inherited_query_args_by_id<T...>(world, entity, argIds, func, std::index_sequence_for<T...>{});
+									invoke_inherited_query_args_by_id_cached<T...>(
+											world, entity, argIds, lastArchetypes, cachedOwners, cachedDirect, func,
+											std::index_sequence_for<T...>{});
 								}
 							} else {
 								for (const auto entity: entities) {

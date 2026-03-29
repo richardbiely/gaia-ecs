@@ -12738,6 +12738,40 @@ namespace gaia {
 				return world.template get<Arg>(entity, termId);
 		}
 
+		template <typename T>
+		inline decltype(auto) world_query_entity_arg_by_id_cached_const(
+				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
+				bool& cachedDirect) {
+			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+			if constexpr (std::is_same_v<Arg, Entity>)
+				return entity;
+
+			const auto termId = id != EntityBad ? id : world_query_arg_id<Arg>(world);
+			const auto& ec = world.fetch(entity);
+			if (ec.pArchetype != pLastArchetype) {
+				pLastArchetype = ec.pArchetype;
+				cachedDirect = ec.pArchetype->has(termId);
+				cachedOwner = EntityBad;
+
+				if (!cachedDirect) {
+					for (const auto target: world.as_targets_trav_cache(entity)) {
+						if (!world.has_direct(target, termId))
+							continue;
+
+						cachedOwner = target;
+						break;
+					}
+
+					GAIA_ASSERT(cachedOwner != EntityBad);
+				}
+			}
+
+			if (cachedDirect)
+				return ComponentGetter{world, ec.pChunk, entity, ec.row}.template get<Arg>(termId);
+
+			return world.template get<Arg>(cachedOwner, termId);
+		}
+
 		inline void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to) {
 #if GAIA_OBSERVERS_ENABLED
 			if (world.tearing_down())
