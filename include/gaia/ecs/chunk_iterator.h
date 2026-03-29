@@ -1146,8 +1146,8 @@ namespace gaia {
 						return SoATermViewGet<U>{
 								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
 							return EntityTermViewGet<U>::entity(
 									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
@@ -1345,8 +1345,8 @@ namespace gaia {
 																		 size(),
 																		 m_writeIm};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId)) {
 							touch_term(termId);
 							return entity_view_set<U>(termId, m_writeIm);
@@ -1469,8 +1469,8 @@ namespace gaia {
 																		 size(),
 																		 false};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
 							return entity_view_set<U>(termId, false);
 

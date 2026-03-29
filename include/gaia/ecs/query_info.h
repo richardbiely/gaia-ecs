@@ -1810,6 +1810,14 @@ namespace gaia {
 				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
+			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {
+				return m_plan.ctx.data.directTargetEvalKind;
+			}
+
+			GAIA_NODISCARD Entity direct_target_eval_id() const {
+				return m_plan.ctx.data.directTargetEvalId;
+			}
+
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
 				const auto& ctxData = m_plan.ctx.data;

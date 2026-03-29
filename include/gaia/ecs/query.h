@@ -2286,7 +2286,8 @@ namespace gaia {
 
 				template <typename Func, typename... T>
 				void run_query_on_chunks_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
-					::gaia::ecs::update_version(*m_worldVersion);
+					if constexpr (has_write_query_args<T...>())
+						::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					auto cacheView = queryInfo.cache_archetype_view();
@@ -2405,6 +2406,11 @@ namespace gaia {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
 					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
 					it.clear_touched_writes();
+				}
+
+				template <typename... T>
+				GAIA_NODISCARD static constexpr bool has_write_query_args() {
+					return (is_write_query_arg<T>() || ...);
 				}
 
 				template <typename T>
@@ -2599,6 +2605,24 @@ namespace gaia {
 						return world_has_entity_term_in(world, entity, term.id);
 
 					return world_has_entity_term_direct(world, entity, term.id);
+				}
+
+				//! Evaluates a compiled single-term direct-target query without re-walking the generic term loop.
+				GAIA_NODISCARD static bool match_single_direct_target_term(
+						const World& world, Entity entity, Entity termId, QueryCtx::DirectTargetEvalKind kind) {
+					switch (kind) {
+						case QueryCtx::DirectTargetEvalKind::SingleAllSemanticIs:
+						case QueryCtx::DirectTargetEvalKind::SingleAllInherited:
+							return world_has_entity_term(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllInIs:
+							return world_has_entity_term_in(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllDirect:
+							return world_has_entity_term_direct(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::Generic:
+							break;
+					}
+
+					return false;
 				}
 
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
@@ -3439,6 +3463,26 @@ namespace gaia {
 					const auto& world = *queryInfo.world();
 
 					if (can_use_direct_target_eval(queryInfo)) {
+						const auto directTargetEvalKind = queryInfo.direct_target_eval_kind();
+						if (directTargetEvalKind != QueryCtx::DirectTargetEvalKind::Generic) {
+							const auto termId = queryInfo.direct_target_eval_id();
+							if (targetEntities.size() == 1) {
+								const auto entity = targetEntities[0];
+								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+									return false;
+								return match_single_direct_target_term(world, entity, termId, directTargetEvalKind);
+							}
+
+							for (const auto entity: targetEntities) {
+								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+									continue;
+								if (match_single_direct_target_term(world, entity, termId, directTargetEvalKind))
+									return true;
+							}
+
+							return false;
+						}
+
 						const DirectEntitySeedInfo seedInfo{};
 						if (targetEntities.size() == 1) {
 							const auto entity = targetEntities[0];

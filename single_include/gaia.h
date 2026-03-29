@@ -31306,6 +31306,14 @@ namespace gaia {
 				DirectStructuralTerms,
 			};
 
+			enum class DirectTargetEvalKind : uint8_t {
+				Generic,
+				SingleAllDirect,
+				SingleAllSemanticIs,
+				SingleAllInIs,
+				SingleAllInherited,
+			};
+
 			enum DependencyFlags : uint16_t {
 				DependencyNone = 0x00,
 				DependencyHasSourceTerms = 0x01,
@@ -31439,6 +31447,10 @@ namespace gaia {
 				uint8_t flags;
 				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
 				uint16_t cacheSrcTrav = 0;
+				//! Specialized direct-target evaluation shape for single-term queries.
+				DirectTargetEvalKind directTargetEvalKind = DirectTargetEvalKind::Generic;
+				//! Term id used by the specialized direct-target evaluation shape.
+				Entity directTargetEvalId = EntityBad;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -31525,6 +31537,8 @@ namespace gaia {
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasAdjunctTerms = false;
+					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
+					bool singleDirectTargetEvalPossible = true;
 					QueryEntityArray idsNoSrc;
 					QueryEntityArray createSelectorsAll;
 					QueryEntityArray createSelectorsOr;
@@ -31532,6 +31546,8 @@ namespace gaia {
 					uint8_t createSelectorAllCnt = 0;
 					uint8_t createSelectorOrCnt = 0;
 					data.deps.clear();
+					data.directTargetEvalKind = DirectTargetEvalKind::Generic;
+					data.directTargetEvalId = EntityBad;
 					if (data.sortByFunc != nullptr)
 						data.deps.set_dep_flag(DependencyHasSort);
 					if (data.groupBy != EntityBad)
@@ -31561,6 +31577,22 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							singleDirectTargetEvalPossible = false;
+						switch (term.op) {
+							case QueryOpKind::All:
+								if (pSingleDirectTargetAllTerm == nullptr)
+									pSingleDirectTargetAllTerm = &term;
+								else
+									singleDirectTargetEvalPossible = false;
+								break;
+							case QueryOpKind::Or:
+							case QueryOpKind::Not:
+							case QueryOpKind::Any:
+							case QueryOpKind::Count:
+								singleDirectTargetEvalPossible = false;
+								break;
+						}
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
@@ -31664,6 +31696,26 @@ namespace gaia {
 								as_mask_1 |= (has_as << j);
 							}
 						}
+					}
+
+					if (singleDirectTargetEvalPossible && pSingleDirectTargetAllTerm != nullptr) {
+						const auto& term = *pSingleDirectTargetAllTerm;
+						const auto id = term.id;
+						if (term.matchKind == QueryMatchKind::In && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
+								!is_variable((EntityId)id.gen())) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInIs;
+						} else if (
+								term.matchKind == QueryMatchKind::Semantic && id.pair() && id.id() == Is.id() &&
+								!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen())) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllSemanticIs;
+						} else if (
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id)) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInherited;
+						} else {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllDirect;
+						}
+						data.directTargetEvalId = id;
 					}
 
 					// Update the mask
@@ -33148,8 +33200,8 @@ namespace gaia {
 						return SoATermViewGet<U>{
 								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
 							return EntityTermViewGet<U>::entity(
 									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
@@ -33347,8 +33399,8 @@ namespace gaia {
 																		 size(),
 																		 m_writeIm};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId)) {
 							touch_term(termId);
 							return entity_view_set<U>(termId, m_writeIm);
@@ -33471,8 +33523,8 @@ namespace gaia {
 																		 size(),
 																		 false};
 					} else {
-						const auto compIdx = m_pCompIndices[termIdx];
 						const auto termId = fallback_term_id<T>(termIdx);
+						const auto compIdx = m_pCompIndices[termIdx];
 						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
 							return entity_view_set<U>(termId, false);
 
@@ -40000,6 +40052,14 @@ namespace gaia {
 				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
 			}
 
+			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {
+				return m_plan.ctx.data.directTargetEvalKind;
+			}
+
+			GAIA_NODISCARD Entity direct_target_eval_id() const {
+				return m_plan.ctx.data.directTargetEvalId;
+			}
+
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
 				const auto& ctxData = m_plan.ctx.data;
@@ -43207,7 +43267,8 @@ namespace gaia {
 
 				template <typename Func, typename... T>
 				void run_query_on_chunks_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
-					::gaia::ecs::update_version(*m_worldVersion);
+					if constexpr (has_write_query_args<T...>())
+						::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					auto cacheView = queryInfo.cache_archetype_view();
@@ -43326,6 +43387,11 @@ namespace gaia {
 					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
 					finish_typed_iter_writes<TIter, T...>(it, std::index_sequence_for<T...>{});
 					it.clear_touched_writes();
+				}
+
+				template <typename... T>
+				GAIA_NODISCARD static constexpr bool has_write_query_args() {
+					return (is_write_query_arg<T>() || ...);
 				}
 
 				template <typename T>
@@ -43520,6 +43586,24 @@ namespace gaia {
 						return world_has_entity_term_in(world, entity, term.id);
 
 					return world_has_entity_term_direct(world, entity, term.id);
+				}
+
+				//! Evaluates a compiled single-term direct-target query without re-walking the generic term loop.
+				GAIA_NODISCARD static bool match_single_direct_target_term(
+						const World& world, Entity entity, Entity termId, QueryCtx::DirectTargetEvalKind kind) {
+					switch (kind) {
+						case QueryCtx::DirectTargetEvalKind::SingleAllSemanticIs:
+						case QueryCtx::DirectTargetEvalKind::SingleAllInherited:
+							return world_has_entity_term(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllInIs:
+							return world_has_entity_term_in(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::SingleAllDirect:
+							return world_has_entity_term_direct(world, entity, termId);
+						case QueryCtx::DirectTargetEvalKind::Generic:
+							break;
+					}
+
+					return false;
 				}
 
 				GAIA_NODISCARD static uint32_t count_direct_term_entities(const World& world, const QueryTerm& term) {
@@ -44360,6 +44444,26 @@ namespace gaia {
 					const auto& world = *queryInfo.world();
 
 					if (can_use_direct_target_eval(queryInfo)) {
+						const auto directTargetEvalKind = queryInfo.direct_target_eval_kind();
+						if (directTargetEvalKind != QueryCtx::DirectTargetEvalKind::Generic) {
+							const auto termId = queryInfo.direct_target_eval_id();
+							if (targetEntities.size() == 1) {
+								const auto entity = targetEntities[0];
+								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+									return false;
+								return match_single_direct_target_term(world, entity, termId, directTargetEvalKind);
+							}
+
+							for (const auto entity: targetEntities) {
+								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+									continue;
+								if (match_single_direct_target_term(world, entity, termId, directTargetEvalKind))
+									return true;
+							}
+
+							return false;
+						}
+
 						const DirectEntitySeedInfo seedInfo{};
 						if (targetEntities.size() == 1) {
 							const auto entity = targetEntities[0];

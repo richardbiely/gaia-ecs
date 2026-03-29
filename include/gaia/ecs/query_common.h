@@ -514,6 +514,14 @@ namespace gaia {
 				DirectStructuralTerms,
 			};
 
+			enum class DirectTargetEvalKind : uint8_t {
+				Generic,
+				SingleAllDirect,
+				SingleAllSemanticIs,
+				SingleAllInIs,
+				SingleAllInherited,
+			};
+
 			enum DependencyFlags : uint16_t {
 				DependencyNone = 0x00,
 				DependencyHasSourceTerms = 0x01,
@@ -647,6 +655,10 @@ namespace gaia {
 				uint8_t flags;
 				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
 				uint16_t cacheSrcTrav = 0;
+				//! Specialized direct-target evaluation shape for single-term queries.
+				DirectTargetEvalKind directTargetEvalKind = DirectTargetEvalKind::Generic;
+				//! Term id used by the specialized direct-target evaluation shape.
+				Entity directTargetEvalId = EntityBad;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -733,6 +745,8 @@ namespace gaia {
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasAdjunctTerms = false;
+					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
+					bool singleDirectTargetEvalPossible = true;
 					QueryEntityArray idsNoSrc;
 					QueryEntityArray createSelectorsAll;
 					QueryEntityArray createSelectorsOr;
@@ -740,6 +754,8 @@ namespace gaia {
 					uint8_t createSelectorAllCnt = 0;
 					uint8_t createSelectorOrCnt = 0;
 					data.deps.clear();
+					data.directTargetEvalKind = DirectTargetEvalKind::Generic;
+					data.directTargetEvalId = EntityBad;
 					if (data.sortByFunc != nullptr)
 						data.deps.set_dep_flag(DependencyHasSort);
 					if (data.groupBy != EntityBad)
@@ -769,6 +785,22 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							singleDirectTargetEvalPossible = false;
+						switch (term.op) {
+							case QueryOpKind::All:
+								if (pSingleDirectTargetAllTerm == nullptr)
+									pSingleDirectTargetAllTerm = &term;
+								else
+									singleDirectTargetEvalPossible = false;
+								break;
+							case QueryOpKind::Or:
+							case QueryOpKind::Not:
+							case QueryOpKind::Any:
+							case QueryOpKind::Count:
+								singleDirectTargetEvalPossible = false;
+								break;
+						}
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
@@ -872,6 +904,26 @@ namespace gaia {
 								as_mask_1 |= (has_as << j);
 							}
 						}
+					}
+
+					if (singleDirectTargetEvalPossible && pSingleDirectTargetAllTerm != nullptr) {
+						const auto& term = *pSingleDirectTargetAllTerm;
+						const auto id = term.id;
+						if (term.matchKind == QueryMatchKind::In && id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
+								!is_variable((EntityId)id.gen())) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInIs;
+						} else if (
+								term.matchKind == QueryMatchKind::Semantic && id.pair() && id.id() == Is.id() &&
+								!is_wildcard(id.gen()) && !is_variable((EntityId)id.gen())) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllSemanticIs;
+						} else if (
+								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id)) {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllInherited;
+						} else {
+							data.directTargetEvalKind = DirectTargetEvalKind::SingleAllDirect;
+						}
+						data.directTargetEvalId = id;
 					}
 
 					// Update the mask
