@@ -43577,7 +43577,7 @@ namespace gaia {
 					if (evalPlan.pSingleAllTerm != nullptr && uses_non_direct_is_matching(*pSeedTerm) &&
 							(uses_non_direct_is_matching(*evalPlan.pSingleAllTerm) ||
 							 uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm))) {
-						const auto seedTarget = Entity((EntityId)pSeedTerm->id.gen(), 0, false, false, pSeedTerm->id.kind());
+						const auto seedTarget = entity_from_id(world, (EntityId)pSeedTerm->id.gen());
 						if (seedTarget != EntityBad)
 							seedImpliesSingleAllTerm = match_entity_term(world, seedTarget, *evalPlan.pSingleAllTerm);
 					}
@@ -53993,6 +53993,7 @@ namespace gaia {
 						const auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
 							const auto entity = entities[i];
+							GAIA_ASSERT(valid(entity));
 							const auto entityKey = EntityLookupKey(entity);
 							if (seen.contains(entityKey))
 								continue;
@@ -54003,6 +54004,7 @@ namespace gaia {
 
 							const auto& descendants = as_relations_trav_cache(entity);
 							for (const auto descendant: descendants) {
+								GAIA_ASSERT(valid(descendant));
 								const auto descendantKey = EntityLookupKey(descendant);
 								if (seen.contains(descendantKey))
 									continue;

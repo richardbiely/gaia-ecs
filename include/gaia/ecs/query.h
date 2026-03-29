@@ -2916,7 +2916,7 @@ namespace gaia {
 					if (evalPlan.pSingleAllTerm != nullptr && uses_non_direct_is_matching(*pSeedTerm) &&
 							(uses_non_direct_is_matching(*evalPlan.pSingleAllTerm) ||
 							 uses_inherited_id_matching(world, *evalPlan.pSingleAllTerm))) {
-						const auto seedTarget = Entity((EntityId)pSeedTerm->id.gen(), 0, false, false, pSeedTerm->id.kind());
+						const auto seedTarget = entity_from_id(world, (EntityId)pSeedTerm->id.gen());
 						if (seedTarget != EntityBad)
 							seedImpliesSingleAllTerm = match_entity_term(world, seedTarget, *evalPlan.pSingleAllTerm);
 					}

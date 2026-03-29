@@ -2540,6 +2540,31 @@ TEST_CASE("Prefab - Inherit policy before local override") {
 	CHECK(wld.get<Position>(instance).x == 8.0f);
 }
 
+TEST_CASE("Prefab - inherited query survives empty before iteration") {
+	TestWorld twld;
+
+	const auto position = wld.add<Position>().entity;
+	wld.add(position, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {1, 2, 3});
+
+	static constexpr uint32_t InstanceCnt = 128;
+	wld.instantiate_n(prefab, InstanceCnt);
+
+	auto q = wld.query().all<Position>().is(prefab);
+	CHECK_FALSE(q.empty());
+
+	uint32_t cntEach = 0;
+	uint64_t sumEach = 0;
+	q.each([&](const Position& p) {
+		sumEach += (uint64_t)(p.x + p.y + p.z);
+		++cntEach;
+	});
+	CHECK(cntEach == InstanceCnt);
+	CHECK(sumEach == 6ULL * InstanceCnt);
+}
+
 TEST_CASE("Prefab - explicit override and inherited ownership") {
 	TestWorld twld;
 

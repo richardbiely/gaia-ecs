@@ -7695,6 +7695,7 @@ namespace gaia {
 						const auto entities = pChunk->entity_view();
 						GAIA_EACH(entities) {
 							const auto entity = entities[i];
+							GAIA_ASSERT(valid(entity));
 							const auto entityKey = EntityLookupKey(entity);
 							if (seen.contains(entityKey))
 								continue;
@@ -7705,6 +7706,7 @@ namespace gaia {
 
 							const auto& descendants = as_relations_trav_cache(entity);
 							for (const auto descendant: descendants) {
+								GAIA_ASSERT(valid(descendant));
 								const auto descendantKey = EntityLookupKey(descendant);
 								if (seen.contains(descendantKey))
 									continue;

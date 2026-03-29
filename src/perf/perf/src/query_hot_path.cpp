@@ -886,6 +886,44 @@ void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks warm reads for a cached relation-wildcard query spanning many matching archetypes.
+//! This isolates steady-state wildcard selector reads after the cache has already registered all matching archetypes.
+void BM_QueryCache_Wildcard_WarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	static constexpr uint32_t ArchetypeCnt = 32;
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	const auto rel = w.add();
+	cnt::sarray<ecs::Entity, ArchetypeCnt> tags{};
+	cnt::sarray<ecs::Entity, ArchetypeCnt> targets{};
+	GAIA_FOR(ArchetypeCnt) {
+		tags[i] = w.add();
+		targets[i] = w.add();
+	}
+
+	const auto cnt = entities.size();
+	GAIA_FOR(cnt) {
+		const auto archetypeIdx = i % ArchetypeCnt;
+		w.add(entities[i], tags[archetypeIdx]);
+		w.add(entities[i], ecs::Pair(rel, targets[archetypeIdx]));
+	}
+
+	auto q = w.query().all<Position>().all(ecs::Pair(rel, ecs::All));
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0ULL;
+		q.each([&](const Position& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		dont_optimize(sum);
+	}
+}
+
 //! Benchmarks uncached matching of queries that depend on transitive `Is` traversal.
 //! This isolates the inheritance walk used by the query matcher.
 template <uint32_t ChainDepth>
@@ -3038,6 +3076,10 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
 					.label("grouped switching read 10K");
+			PICOBENCH_REG(BM_QueryCache_Wildcard_WarmRead)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesFew)
+					.label("wildcard warm read 10K");
 			PICOBENCH_REG(BM_World_ChunkDeleteQueue_GC)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
