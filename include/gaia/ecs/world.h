@@ -92,6 +92,8 @@ namespace gaia {
 		private:
 			friend CommandBufferST;
 			friend CommandBufferMT;
+			friend struct ComponentGetter;
+			friend struct ComponentSetter;
 			friend void lock(World&);
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
@@ -551,7 +553,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{{ec.pChunk, row}}.sset<TApi>(value);
+				ComponentSetter{*this, entity, ec.pChunk, row}.sset<TApi>(value);
 				finish_write(entity, term);
 			}
 
@@ -569,7 +571,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{{ec.pChunk, row}}.template smut<TValue>(term) = value;
+				ComponentSetter{*this, entity, ec.pChunk, row}.template smut<TValue>(term) = value;
 				finish_write(entity, term);
 			}
 
@@ -4477,7 +4479,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.sset(object, GAIA_FWD(value));
+				ComponentSetter{*this, entity, ec.pChunk, idx}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 			}
 
@@ -4522,7 +4524,7 @@ namespace gaia {
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{*this, entity, ec.pChunk, idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on @a entity.
@@ -6149,7 +6151,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{{ec.pChunk, ec.row}};
+				return ComponentSetter{*this, entity, ec.pChunk, ec.row};
 			}
 
 			//! Returns a write-back proxy for the component @a T on @a entity.
@@ -6254,7 +6256,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{ec.pChunk, ec.row};
+				return ComponentGetter{*this, entity, ec.pChunk, ec.row};
 			}
 
 			//! Returns the value stored in the component T on entity.
@@ -12758,6 +12760,72 @@ namespace gaia {
 			(void)to;
 #endif
 		}
+
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) ComponentGetter::get(Entity type) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			using FT = typename component_type_t<T>::TypeFull;
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				if (m_pWorld->template can_use_out_of_line_component<FT>(type)) {
+					const auto* pStore = m_pWorld->template sparse_component_store<FT>(type);
+					GAIA_ASSERT(pStore != nullptr);
+					GAIA_ASSERT(pStore->has(m_entity));
+					return pStore->get(m_entity);
+				}
+			}
+
+			return m_pChunk->template get<T>(m_row, type);
+		}
+
+		template <typename T>
+		decltype(auto) ComponentSetter::mut(Entity type) {
+			return smut<T>(type);
+		}
+
+		template <typename T>
+		decltype(auto) ComponentSetter::smut(Entity type) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			using FT = typename component_type_t<T>::TypeFull;
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				auto& world = *const_cast<World*>(m_pWorld);
+				if (world.template can_use_out_of_line_component<FT>(type))
+					return world.template sparse_component_store_mut<FT>(type).mut(m_entity);
+			}
+
+			return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
+		}
+
+		template <typename T>
+		ComponentSetter& ComponentSetter::sset(Entity type, T&& value) {
+			smut<T>(type) = GAIA_FWD(value);
+			return *this;
+		}
+
+		template <typename T>
+		ComponentSetter& ComponentSetter::set(Entity type, T&& value) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			smut<T>(type) = GAIA_FWD(value);
+			using FT = typename component_type_t<T>::TypeFull;
+			auto& world = *const_cast<World*>(m_pWorld);
+
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				if (world.template can_use_out_of_line_component<FT>(type))
+					::gaia::ecs::update_version(world.m_worldVersion);
+			}
+
+			world.finish_write(m_entity, type);
+			return *this;
+		}
+
+		//----------------------------------------------------------------------
 
 		inline void world_notify_on_set_entity(World& world, Entity term, Entity entity) {
 #if GAIA_OBSERVERS_ENABLED

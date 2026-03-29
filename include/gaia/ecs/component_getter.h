@@ -8,9 +8,17 @@
 
 namespace gaia {
 	namespace ecs {
+		class World;
+
 		struct ComponentGetter {
-			const Chunk* m_pChunk;
-			uint16_t m_row;
+			const World* m_pWorld = nullptr;
+			Entity m_entity = EntityBad;
+			const Chunk* m_pChunk = nullptr;
+			uint16_t m_row = 0;
+
+			ComponentGetter() = default;
+			ComponentGetter(const World& world, Entity entity, const Chunk* pChunk, uint16_t row):
+					m_pWorld(&world), m_entity(entity), m_pChunk(pChunk), m_row(row) {}
 
 			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
@@ -29,9 +37,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param type Entity associated with the component type
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) get(Entity type) const {
-				return m_pChunk->template get<T>(m_row, type);
-			}
+			GAIA_NODISCARD decltype(auto) get(Entity type) const;
 		};
 	} // namespace ecs
 } // namespace gaia

@@ -33802,9 +33802,17 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		class World;
+
 		struct ComponentGetter {
-			const Chunk* m_pChunk;
-			uint16_t m_row;
+			const World* m_pWorld = nullptr;
+			Entity m_entity = EntityBad;
+			const Chunk* m_pChunk = nullptr;
+			uint16_t m_row = 0;
+
+			ComponentGetter() = default;
+			ComponentGetter(const World& world, Entity entity, const Chunk* pChunk, uint16_t row):
+					m_pWorld(&world), m_entity(entity), m_pChunk(pChunk), m_row(row) {}
 
 			//! Returns the value stored in the component @a T on entity.
 			//! \tparam T Component
@@ -33823,9 +33831,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \param type Entity associated with the component type
 			template <typename T>
-			GAIA_NODISCARD decltype(auto) get(Entity type) const {
-				return m_pChunk->template get<T>(m_row, type);
-			}
+			GAIA_NODISCARD decltype(auto) get(Entity type) const;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -33835,6 +33841,8 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		struct ComponentSetter: public ComponentGetter {
+			using ComponentGetter::ComponentGetter;
+
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
 			//! Call `World::modify<T, true>(entity)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
@@ -33862,9 +33870,7 @@ namespace gaia {
 			//! \tparam T Component or pair
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
-			decltype(auto) mut(Entity type) {
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
-			}
+			decltype(auto) mut(Entity type);
 
 			//! Sets the value of the component @a type and then emits the normal post-write set notifications.
 			//! \tparam T Component or pair
@@ -33872,14 +33878,7 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T>
-			ComponentSetter& set(Entity type, T&& value) {
-				smut<T>(type) = GAIA_FWD(value);
-				auto& chunk = *const_cast<Chunk*>(m_pChunk);
-				const auto compIdx = chunk.comp_idx(type);
-				(void)chunk.template comp_ptr_mut_gen<true>(compIdx, m_row);
-				world_notify_on_set(chunk.world(), type, chunk, m_row, (uint16_t)(m_row + 1));
-				return *this;
-			}
+			ComponentSetter& set(Entity type, T&& value);
 
 			//! Returns a mutable reference to component without triggering a world version update.
 			//! \tparam T Component or pair
@@ -33904,9 +33903,7 @@ namespace gaia {
 			//! \param type Entity associated with the type
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
-			decltype(auto) smut(Entity type) {
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
-			}
+			decltype(auto) smut(Entity type);
 
 			//! Sets the value of the component without triggering a world version update.
 			//! \tparam T Component or pair
@@ -33914,10 +33911,7 @@ namespace gaia {
 			//! \param value Value to set for the component
 			//! \return ComponentSetter
 			template <typename T>
-			ComponentSetter& sset(Entity type, T&& value) {
-				smut<T>(type) = GAIA_FWD(value);
-				return *this;
-			}
+			ComponentSetter& sset(Entity type, T&& value);
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -46348,6 +46342,8 @@ namespace gaia {
 		private:
 			friend CommandBufferST;
 			friend CommandBufferMT;
+			friend struct ComponentGetter;
+			friend struct ComponentSetter;
 			friend void lock(World&);
 			friend void unlock(World&);
 			friend QueryMatchScratch& query_match_scratch_acquire(World&);
@@ -46807,7 +46803,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{{ec.pChunk, row}}.sset<TApi>(value);
+				ComponentSetter{*this, entity, ec.pChunk, row}.sset<TApi>(value);
 				finish_write(entity, term);
 			}
 
@@ -46825,7 +46821,7 @@ namespace gaia {
 
 				const auto& ec = fetch(entity);
 				const auto row = uint16_t(ec.row * (1U - (uint32_t)term.kind()));
-				ComponentSetter{{ec.pChunk, row}}.template smut<TValue>(term) = value;
+				ComponentSetter{*this, entity, ec.pChunk, row}.template smut<TValue>(term) = value;
 				finish_write(entity, term);
 			}
 
@@ -50733,7 +50729,7 @@ namespace gaia {
 				const auto& ec = fetch(entity);
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.sset(object, GAIA_FWD(value));
+				ComponentSetter{*this, entity, ec.pChunk, idx}.sset(object, GAIA_FWD(value));
 				notify_add_single(entity, object);
 			}
 
@@ -50778,7 +50774,7 @@ namespace gaia {
 				const auto& ec = m_recs.entities[entity.id()];
 				// Make sure the idx is 0 for unique entities
 				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
-				ComponentSetter{{ec.pChunk, idx}}.sset<T>(GAIA_FWD(value));
+				ComponentSetter{*this, entity, ec.pChunk, idx}.sset<T>(GAIA_FWD(value));
 			}
 
 			//! Materializes an inherited id as directly owned storage on @a entity.
@@ -52405,7 +52401,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentSetter{{ec.pChunk, ec.row}};
+				return ComponentSetter{*this, entity, ec.pChunk, ec.row};
 			}
 
 			//! Returns a write-back proxy for the component @a T on @a entity.
@@ -52510,7 +52506,7 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 
 				const auto& ec = m_recs.entities[entity.id()];
-				return ComponentGetter{ec.pChunk, ec.row};
+				return ComponentGetter{*this, entity, ec.pChunk, ec.row};
 			}
 
 			//! Returns the value stored in the component T on entity.
@@ -61191,6 +61187,72 @@ namespace gaia {
 			(void)to;
 #endif
 		}
+
+		//----------------------------------------------------------------------
+
+		template <typename T>
+		GAIA_NODISCARD decltype(auto) ComponentGetter::get(Entity type) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			using FT = typename component_type_t<T>::TypeFull;
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				if (m_pWorld->template can_use_out_of_line_component<FT>(type)) {
+					const auto* pStore = m_pWorld->template sparse_component_store<FT>(type);
+					GAIA_ASSERT(pStore != nullptr);
+					GAIA_ASSERT(pStore->has(m_entity));
+					return pStore->get(m_entity);
+				}
+			}
+
+			return m_pChunk->template get<T>(m_row, type);
+		}
+
+		template <typename T>
+		decltype(auto) ComponentSetter::mut(Entity type) {
+			return smut<T>(type);
+		}
+
+		template <typename T>
+		decltype(auto) ComponentSetter::smut(Entity type) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			using FT = typename component_type_t<T>::TypeFull;
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				auto& world = *const_cast<World*>(m_pWorld);
+				if (world.template can_use_out_of_line_component<FT>(type))
+					return world.template sparse_component_store_mut<FT>(type).mut(m_entity);
+			}
+
+			return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
+		}
+
+		template <typename T>
+		ComponentSetter& ComponentSetter::sset(Entity type, T&& value) {
+			smut<T>(type) = GAIA_FWD(value);
+			return *this;
+		}
+
+		template <typename T>
+		ComponentSetter& ComponentSetter::set(Entity type, T&& value) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+
+			smut<T>(type) = GAIA_FWD(value);
+			using FT = typename component_type_t<T>::TypeFull;
+			auto& world = *const_cast<World*>(m_pWorld);
+
+			if constexpr (World::template supports_out_of_line_component<FT>()) {
+				if (world.template can_use_out_of_line_component<FT>(type))
+					::gaia::ecs::update_version(world.m_worldVersion);
+			}
+
+			world.finish_write(m_entity, type);
+			return *this;
+		}
+
+		//----------------------------------------------------------------------
 
 		inline void world_notify_on_set_entity(World& world, Entity term, Entity entity) {
 #if GAIA_OBSERVERS_ENABLED

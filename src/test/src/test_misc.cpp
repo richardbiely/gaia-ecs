@@ -3719,19 +3719,31 @@ TEST_CASE("Runtime-registered component accessor object setter paths") {
 	const auto& runtimeTableComp = wld.add(
 			"Runtime_Table_Position_Setter", (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
 			(uint32_t)alignof(Position));
+	const auto& runtimeSparseComp = wld.add(
+			"Runtime_Sparse_Position_Setter", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
+			(uint32_t)alignof(Position));
+	wld.add(runtimeSparseComp.entity, ecs::DontFragment);
 
 	const auto e = wld.add();
 	wld.add(e, runtimeTableComp.entity, Position{1.0f, 2.0f, 3.0f});
+	wld.add(e, runtimeSparseComp.entity, Position{4.0f, 5.0f, 6.0f});
 
 	auto setter = wld.acc_mut(e);
 	setter.set<Position>(runtimeTableComp.entity, Position{7.0f, 8.0f, 9.0f});
 	setter.sset<Position>(runtimeTableComp.entity, Position{10.0f, 11.0f, 12.0f});
+	setter.set<Position>(runtimeSparseComp.entity, Position{13.0f, 14.0f, 15.0f});
+	setter.sset<Position>(runtimeSparseComp.entity, Position{16.0f, 17.0f, 18.0f});
 
 	const auto getter = wld.acc(e);
 	const auto& tablePos = getter.get<Position>(runtimeTableComp.entity);
 	CHECK(tablePos.x == doctest::Approx(10.0f));
 	CHECK(tablePos.y == doctest::Approx(11.0f));
 	CHECK(tablePos.z == doctest::Approx(12.0f));
+
+	const auto& sparsePos = getter.get<Position>(runtimeSparseComp.entity);
+	CHECK(sparsePos.x == doctest::Approx(16.0f));
+	CHECK(sparsePos.y == doctest::Approx(17.0f));
+	CHECK(sparsePos.z == doctest::Approx(18.0f));
 }
 
 TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity delete") {

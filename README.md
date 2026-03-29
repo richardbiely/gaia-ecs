@@ -813,7 +813,7 @@ const auto& updated = w.get<Position>(e);
 ```
 
 If you need the write to happen immediately, use `acc_mut(entity).set<T>(...)` instead of `w.set<T>(entity)`.
-For chunk-backed runtime object/component entities, the immediate form is `acc_mut(entity).set<T>(object, value)`.
+For runtime object/component entities, the immediate form is `acc_mut(entity).set<T>(object, value)`.
 
 When setting multiple component values at once it is more efficient doing it via chaining:
 
@@ -841,7 +841,7 @@ auto& vel = setter.mut<Velocity>();
 auto& pos = setter.mut<Position>();
 ```
 
-The setter object supports the same immediate chunk-backed object-based form:
+The setter object supports the same immediate object-based form:
 
 ```cpp
 ecs::Entity runtimePos = w.add<Position>().entity;
@@ -871,7 +871,7 @@ Use the write path that matches the behavior you want:
 * `set<T>(entity)` - writes back on scope/full-expression end and then triggers set hooks and `OnSet`
 * `set<T>(entity, object)` - same as above for a specific runtime object/component entity
 * `acc_mut(entity).set<T>(...)` - writes immediately and triggers set hooks and `OnSet`
-* `acc_mut(entity).set<T>(object, value)` - immediate chunk-backed object-based write with set hooks and `OnSet`
+* `acc_mut(entity).set<T>(object, value)` - immediate object-based write with set hooks and `OnSet`
 * `sset<T>(entity)` / `mut<T>(entity)` - silent write paths, no hooks, no `OnSet`
 * `sset<T>(entity, object)` / `mut<T>(entity, object)` - silent object-based write paths; pair them with `modify<T, true>(entity, object)` when you want set side effects
 
