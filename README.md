@@ -1671,6 +1671,14 @@ Prefer uncached queries for one-shot work or highly specialized query shapes tha
 
 `World::uquery()` is equivalent to `World::query().kind(ecs::QueryCacheKind::None)`.
 
+Quick choice:
+
+| Need | Use |
+|---|---|
+| Normal reusable query | `w.query()` |
+| One-shot query or highly specialized shape | `w.uquery()` |
+| Same cached query shape rebuilt many times | `w.query().scope(ecs::QueryCacheScope::Shared)` |
+
 ```cpp
 // Cached query with local scope (default).
 ecs::Query q1 = w.query().all<Position>();
@@ -1748,6 +1756,8 @@ Quick guide:
 | Immediate structural cache only | `QueryCacheKind::All` | Query creation fails unless the query can stay fully on the immediate structural cache layer. |
 
 Use `World::uquery()` or `kind(ecs::QueryCacheKind::None)` for one-shot or highly specialized queries that are unlikely to be reused. Use `scope(ecs::QueryCacheScope::Shared)` when identical query shapes are frequently rebuilt and you want them to share warm state.
+
+Use shared scope only as an optimization for many identical live cached queries.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.
