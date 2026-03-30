@@ -571,6 +571,7 @@ namespace gaia {
 		struct GAIA_API CantCombine_ {};
 		struct GAIA_API Exclusive_ {};
 		struct GAIA_API DontFragment_ {};
+		struct GAIA_API Sparse_ {};
 		struct GAIA_API Acyclic_ {};
 		struct GAIA_API All_ {};
 		struct GAIA_API ChildOf_ {};
@@ -614,40 +615,42 @@ namespace gaia {
 		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		// Entity storage
 		inline Entity DontFragment = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Sparse = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		// Graph properties
-		inline Entity Acyclic = Entity(12, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(15, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a logical/non-fragmenting hierarchy.
-		inline Entity Parent = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Parent = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Template entity excluded from queries by default unless explicitly requested.
-		inline Entity Prefab = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Prefab = Entity(19, 0, false, false, EntityKind::EK_Gen);
 		// Prefab instantiation policy relation and values.
-		inline Entity OnInstantiate = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Override = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Inherit = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DontInherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnInstantiate = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Override = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Inherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DontInherit = Entity(23, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(25, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(26, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(26, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(28, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(29, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(30, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(31, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(32, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(33, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(29, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(30, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(31, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -659,7 +662,7 @@ namespace gaia {
 		// remapped by the current core-id delta during load.
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
-		// Always has to match the last internal entity
+		// Always has to match the last internal entity.
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;
 
 		//----------------------------------------------------------------------

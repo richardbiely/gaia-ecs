@@ -311,7 +311,8 @@ namespace gaia {
 			}
 
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
+			GAIA_NODISCARD static ComponentCacheItem*
+			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
 				static_assert(core::is_raw_v<T>);
 
 				constexpr auto componentSize = detail::ComponentDesc<T>::size();
@@ -333,7 +334,7 @@ namespace gaia {
 						// alignment
 						detail::ComponentDesc<T>::alig(),
 						// storage type
-						storage_type_v<T>);
+						storageType);
 				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
 
 				auto ct_name = detail::ComponentDesc<T>::name();

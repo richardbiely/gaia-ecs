@@ -1,5 +1,7 @@
 #include "test_common.h"
 
+#define TestWorld SparseTestWorld
+
 TEST_CASE("System - simple") {
 	uint32_t sys1_cnt = 0;
 	uint32_t sys2_cnt = 0;

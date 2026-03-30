@@ -2359,10 +2359,7 @@ namespace gaia {
 				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
 					return false;
 
-				const auto& ec = fetch(component);
-				// Sparse AoS payloads live out-of-line even if the component still fragments.
-				// DontFragment uses that same storage model but also removes the id from archetype identity.
-				return component_has_out_of_line_data(pItem->comp) || (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+				return component_has_out_of_line_data(pItem->comp);
 			}
 
 			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
@@ -2370,6 +2367,64 @@ namespace gaia {
 					return false;
 
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
+			//! Updates the cached component metadata in both the component cache and the core Component storage.
+			//! \param component Component entity.
+			//! \param comp New component descriptor value.
+			void sync_component_record(Entity component, Component comp) {
+				auto& item = comp_cache_mut().get(component);
+				item.comp = comp;
+
+				auto& ec = m_recs.entities[component.id()];
+				const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
+				GAIA_ASSERT(compIdx != BadIndex);
+				auto* pComp = reinterpret_cast<Component*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+				*pComp = comp;
+			}
+
+			//! Latches DontFragment on a component entity record.
+			//! This first moves the payload out of chunks, then removes the id from archetype identity.
+			//! \param component Component entity.
+			//! \param ec Component entity container.
+			void set_component_dont_fragment(Entity component, EntityContainer& ec) {
+				set_component_sparse_storage(component);
+
+				if ((ec.flags & EntityContainerFlags::IsDontFragment) != 0)
+					return;
+
+				ec.flags |= EntityContainerFlags::IsDontFragment;
+			}
+
+			//! Latches Sparse storage on a component entity before any instances exist.
+			//! This moves the payload out of chunks while keeping the id in archetype identity.
+			//! Only plain generic AoS components are supported.
+			//! \param component Component entity.
+			void set_component_sparse_storage(Entity component) {
+				GAIA_ASSERT(valid(component));
+				GAIA_ASSERT(component.comp());
+				GAIA_ASSERT(!component.pair());
+				GAIA_ASSERT(!component.entity());
+				GAIA_ASSERT(component.kind() == EntityKind::EK_Gen);
+
+				const auto& item = comp_cache().get(component);
+				GAIA_ASSERT(item.entity == component);
+
+				if (item.comp.storage_type() == DataStorageType::Sparse)
+					return;
+
+				GAIA_ASSERT(item.comp.soa() == 0);
+				if (item.comp.soa() != 0)
+					return;
+
+				const auto directTermEntityCnt = count_direct_term_entities_direct(component);
+				GAIA_ASSERT(directTermEntityCnt == 0);
+				if (directTermEntityCnt != 0)
+					return;
+
+				auto comp = item.comp;
+				comp.data.storage = (IdentifierData)DataStorageType::Sparse;
+				sync_component_record(component, comp);
 			}
 
 			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
@@ -3358,7 +3413,8 @@ namespace gaia {
 					auto& ec = m_world.fetch(entity);
 					try_set_Is(ec, entity, enable);
 					try_set_IsExclusive(ecMain, entity, enable);
-					try_set_IsDontFragment(ecMain, entity, enable);
+					if (enable)
+						try_set_sticky_component_traits(ecMain, entity);
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
 					try_set_OnDeleteTarget(entity, enable);
@@ -3402,11 +3458,17 @@ namespace gaia {
 					set_flag(ec.flags, EntityContainerFlags::IsExclusive, enable);
 				}
 
-				void try_set_IsDontFragment(EntityContainer& ec, Entity entity, bool enable) {
-					if (entity.pair() || entity.id() != DontFragment.id())
+				void try_set_sticky_component_traits(EntityContainer& ecMain, Entity entity) {
+					if (entity.pair())
 						return;
 
-					set_flag(ec.flags, EntityContainerFlags::IsDontFragment, enable);
+					if (entity.id() == DontFragment.id()) {
+						m_world.set_component_dont_fragment(m_entity, ecMain);
+						return;
+					}
+
+					if (entity.id() == Sparse.id())
+						m_world.set_component_sparse_storage(m_entity);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -3688,7 +3750,17 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool is_sticky_component_trait(Entity entity) const noexcept {
+					if (entity.pair() || !m_entity.comp())
+						return false;
+
+					return entity.id() == DontFragment.id() || entity.id() == Sparse.id();
+				}
+
 				bool del_inter(Entity entity) {
+					if (is_sticky_component_trait(entity))
+						return true;
+
 					if (!can_del(entity))
 						return false;
 
@@ -4369,6 +4441,8 @@ namespace gaia {
 				}
 				// Register the default component symbol through the normal entity naming path.
 				name_raw(item.entity, item.name.str(), item.name.len());
+				if (item.comp.storage_type() == DataStorageType::Sparse)
+					add(item.entity, Sparse);
 				return item;
 			}
 
@@ -12094,6 +12168,7 @@ namespace gaia {
 				(void)reg_core_entity<CantCombine_>(CantCombine);
 				(void)reg_core_entity<Exclusive_>(Exclusive);
 				(void)reg_core_entity<DontFragment_>(DontFragment);
+				(void)reg_core_entity<Sparse_>(Sparse);
 				(void)reg_core_entity<Acyclic_>(Acyclic);
 				(void)reg_core_entity<Traversable_>(Traversable);
 				(void)reg_core_entity<All_>(All);
@@ -12164,6 +12239,10 @@ namespace gaia {
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
 				EntityBuilder(*this, DontFragment) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, Sparse) //
 						.add(Core)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);

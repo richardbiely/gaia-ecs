@@ -27,29 +27,6 @@ namespace gaia {
 		using ChunkDataOffsetSpan = std::span<const ChunkDataOffset>;
 		using SortComponentCond = core::is_smaller<Entity>;
 
-		//----------------------------------------------------------------------
-		// Component storage
-		//----------------------------------------------------------------------
-
-#ifndef GAIA_STORAGE
-	#define GAIA_STORAGE(storage_name)                                                                                   \
-		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
-#endif
-
-		namespace detail {
-			template <typename, typename = void>
-			struct storage_type {
-				static constexpr DataStorageType value = DataStorageType::Table;
-			};
-			template <typename T>
-			struct storage_type<T, std::void_t<decltype(T::gaia_Storage_Type)>> {
-				static constexpr DataStorageType value = T::gaia_Storage_Type;
-			};
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr DataStorageType storage_type_v = detail::storage_type<T>::value;
-
 		//! True when the component payload is stored inside archetype chunks.
 		//! Sparse AoS components are the notable false case: their id may still fragment,
 		//! but the payload itself lives in the world-side sparse store.
@@ -78,11 +55,6 @@ namespace gaia {
 							// SoA types need to be trivial. No restrictions otherwise.
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
-			template <typename T>
-			struct is_component_storage_valid:
-					std::bool_constant<
-							// Sparse storage currently supports only AoS payloads.
-							!(mem::is_soa_layout_v<T> && storage_type_v<T> == DataStorageType::Sparse)> {};
 		} // namespace detail
 
 		//----------------------------------------------------------------------
@@ -97,12 +69,7 @@ namespace gaia {
 			static_assert(
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
-			static_assert(
-					detail::is_component_type_valid<U>::value,
-					"SoA components must be trivially copyable");
-			static_assert(
-					detail::is_component_storage_valid<U>::value,
-					"SoA components can't use GAIA_STORAGE(Sparse). SoA layouts are currently stored only in archetype chunks.");
+			static_assert(detail::is_component_type_valid<U>::value, "SoA components must be trivially copyable");
 		}
 
 		//----------------------------------------------------------------------

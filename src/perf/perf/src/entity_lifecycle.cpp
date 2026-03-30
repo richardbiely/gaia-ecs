@@ -208,6 +208,7 @@ void BM_EntityInstantiateN_Prefab_Sparse_1Comp(picobench::state& state) {
 		(void)_;
 		state.stop_timer();
 		ecs::World w;
+		register_sparse_position(w);
 
 		const auto prefab = w.prefab();
 		w.add<PositionSparse>(prefab, {1.0f, 2.0f, 3.0f});

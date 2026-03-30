@@ -1,4 +1,6 @@
 #include "test_common.h"
+
+#define TestWorld SparseTestWorld
 #include <iterator>
 
 #if GAIA_OBSERVERS_ENABLED

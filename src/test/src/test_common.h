@@ -73,6 +73,12 @@ ecs::Query make_query(ecs::World& world) {
 	return make_query<use_cached_query_v<TQuery>>(world);
 }
 
+template <typename T>
+void register_sparse_test_component(ecs::World& world) {
+	const auto& item = world.add<T>();
+	world.add(item.entity, ecs::Sparse);
+}
+
 //! World wrapper for test purposes.
 //! The wrapped world handles teardown on destruction; tests can still call update()
 //! repeatedly when they want to flush regular frame maintenance explicitly.
@@ -106,28 +112,21 @@ struct Int3 {
 struct Position {
 	float x, y, z;
 };
-static_assert(ecs::storage_type_v<Position> == ecs::DataStorageType::Table);
 struct PositionSparse {
-	GAIA_STORAGE(Sparse);
 	float x, y, z;
 };
-static_assert(ecs::storage_type_v<PositionSparse> == ecs::DataStorageType::Sparse);
+struct SparseTestWorld: TestWorld {
+	SparseTestWorld() {
+		register_sparse_test_component<PositionSparse>(m_w);
+	}
+};
 struct PositionSoA {
 	GAIA_LAYOUT(SoA);
 	float x, y, z;
 };
-static_assert(ecs::detail::is_component_storage_valid<PositionSoA>::value);
 inline bool operator==(const PositionSoA& a, const PositionSoA& b) {
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
-
-struct PositionSoASparse {
-	GAIA_LAYOUT(SoA);
-	GAIA_STORAGE(Sparse);
-	float x, y, z;
-};
-static_assert(ecs::storage_type_v<PositionSoASparse> == ecs::DataStorageType::Sparse);
-static_assert(!ecs::detail::is_component_storage_valid<PositionSoASparse>::value);
 
 struct PositionSoA8 {
 	GAIA_LAYOUT(SoA8);

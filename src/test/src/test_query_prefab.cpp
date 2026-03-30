@@ -1,5 +1,7 @@
 #include "test_common.h"
 
+#define TestWorld SparseTestWorld
+
 TEST_CASE("Enable") {
 	// 1,500 picked so we create enough entities that they overflow into another chunk
 	const uint32_t N = 1'500;

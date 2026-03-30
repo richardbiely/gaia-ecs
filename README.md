@@ -421,23 +421,24 @@ const auto velocityComp = w.get("gameplay.render.Velocity");
 
 By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
 
-If this is undesired, there is also an option to use sparse storage. There are two options:
+If this is undesired, there is also an option to use out-of-line storage and optional non-fragmenting membership. The two traits are:
 
-- `GAIA_STORAGE(Sparse)`
-- `DontFragment`
+- `ecs::Sparse`
+- `ecs::DontFragment`
 
 To use a non-fragmenting sparse component:
 
 ```cpp
 struct Cooldown {
-  // Cooldown will use sparse-storage
-  GAIA_STORAGE(Sparse);
   float value = 0.0f;
 };
 
 ecs::World w;
 const auto& cooldown = w.add<Cooldown>();
-// Keep this component out of archetype identity.
+// Keep this component's data out-of-line (not stored in chunks).
+w.add(cooldown.entity, ecs::Sparse);
+// Make sure this component is not a part of the archetype id-wise.
+// This means that adding or removing it won't make the parent entity change its archetype.
 w.add(cooldown.entity, ecs::DontFragment);
 
 auto e = w.add();
@@ -446,7 +447,7 @@ auto cooldownValue = w.set<Cooldown>(e);
 cooldownValue.value = 1.5f;
 ```
 
-That gives four practical outcomes:
+That gives three practical outcomes:
 
 - default:
   - payload stored in chunks (memory address can change)
@@ -461,20 +462,26 @@ That gives four practical outcomes:
 - `DontFragment`:
   - payload stored out-of-line (stable memory address)
   - the id does not live in the archetype (add/del does not fragment)
-
-- `Sparse + DontFragment`:
-  - payload stored out-of-line (stable memory address)
-  - the id does not live in the archetype (add/del does not fragment)
+  - this is effectively `Sparse` plus "do not participate in archetype identity"
   - the usual choice for optional, state-like, or frequently toggled data
 
 Rule of thumb:
 - keep hot, common, frequently iterated data fragmenting and chunk-stored
 - use plain `Sparse` when the payload should live out-of-line but the component should still participate in structural matching
-- use `Sparse + DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
-- avoid out-of-line storage for components like `Position` or `Velocity` unless profiling clearly justifies it
+- use `DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
+- avoid out-of-line storage for components like `Position` or `Velocity` which benfit greatly of sequential access, unless profiling clearly justifies it
 
 >**NOTE:<br/>** 
-SoA components do not support out-of-line storage and they stay chunk-backed. `GAIA_LAYOUT(SoA)` can not be combined with `GAIA_STORAGE(Sparse)`.<br/>
+SoA components do not support out-of-line storage and they stay chunk-backed. `ecs::Sparse` applies only to plain AoS generic components.<br/>
+
+>**NOTE:<br/>** 
+Changing the storage mode is only supported before the component
+has instances attached to entities.<br/>
+
+>**NOTE:<br/>**
+`ecs::Sparse` and `ecs::DontFragment` are sticky component traits. Once set on a component entity, removing the
+relation later does not revert the storage or fragmentation behavior. `ecs::DontFragment` also implies sparse
+out-of-line storage, so adding both traits is redundant.<br/>
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).

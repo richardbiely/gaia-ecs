@@ -6,6 +6,7 @@ void setup_sparse_component_entities(ecs::World& w, cnt::darray<ecs::Entity>& en
 	entities.clear();
 	entities.reserve(count);
 
+	register_sparse_position(w);
 	const auto& comp = w.add<PositionSparse>();
 	if constexpr (DontFragment)
 		w.add(comp.entity, ecs::DontFragment);

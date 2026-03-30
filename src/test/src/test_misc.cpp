@@ -101,7 +101,7 @@ TEST_CASE("Component cache") {
 	}
 
 	{
-		TestWorld twld;
+		SparseTestWorld twld;
 		const auto& dense = wld.add<Position>();
 		const auto& sparse = wld.add<PositionSparse>();
 		CHECK(dense.comp.storage_type() == ecs::DataStorageType::Table);
@@ -3354,10 +3354,12 @@ TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
 }
 
 TEST_CASE("Sparse DontFragment component and adjunct storage") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
 	wld.add(compItem.entity, ecs::DontFragment);
+	wld.del(compItem.entity, ecs::DontFragment);
+	CHECK(wld.has(compItem.entity, ecs::DontFragment));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -3388,6 +3390,8 @@ TEST_CASE("DontFragment table component uses out-of-line storage") {
 
 	const auto& compItem = wld.add<Position>();
 	wld.add(compItem.entity, ecs::DontFragment);
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(wld.is_out_of_line_component(compItem.entity));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -3415,7 +3419,7 @@ TEST_CASE("DontFragment table component uses out-of-line storage") {
 }
 
 TEST_CASE("Sparse DontFragment component runtime object add with value") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
 	wld.add(compItem.entity, ecs::DontFragment);
@@ -3433,7 +3437,7 @@ TEST_CASE("Sparse DontFragment component runtime object add with value") {
 }
 
 TEST_CASE("Sparse DontFragment component direct query terms are evaluated as entity filters") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
 	wld.add(compItem.entity, ecs::DontFragment);
@@ -3493,9 +3497,10 @@ TEST_CASE("DontFragment table component direct query terms are evaluated as enti
 }
 
 TEST_CASE("Sparse component uses out-of-line storage and still fragments") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
+	CHECK(wld.has(compItem.entity, ecs::Sparse));
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
 
@@ -3519,8 +3524,37 @@ TEST_CASE("Sparse component uses out-of-line storage and still fragments") {
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
+TEST_CASE("Table component can opt into sparse storage via trait") {
 	TestWorld twld;
+
+	const auto& compItem = wld.add<Position>();
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.has(compItem.entity, ecs::Sparse));
+
+	wld.add(compItem.entity, ecs::Sparse);
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(wld.has(compItem.entity, ecs::Sparse));
+	CHECK(wld.is_out_of_line_component(compItem.entity));
+	wld.del(compItem.entity, ecs::Sparse);
+	CHECK(wld.has(compItem.entity, ecs::Sparse));
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
+	CHECK(wld.has<Position>(e));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
+	CHECK(wld.fetch(e).pArchetype->has(compItem.entity));
+
+	const auto& pos = wld.get<Position>(e);
+	CHECK(pos.x == doctest::Approx(1.0f));
+	CHECK(pos.y == doctest::Approx(2.0f));
+	CHECK(pos.z == doctest::Approx(3.0f));
+}
+
+TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
+	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
 	const auto prefab = wld.prefab();
@@ -3538,7 +3572,7 @@ TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
 }
 
 TEST_CASE("Sparse prefab sync keeps copied out-of-line payload after prefab delete") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto prefab = wld.prefab();
 	wld.add<PositionSparse>(prefab, {4.0f, 5.0f, 6.0f});
@@ -3576,7 +3610,7 @@ TEST_CASE("Chunk-backed query view keeps contiguous data access") {
 }
 
 TEST_CASE("Out-of-line query view does not expose contiguous data") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto e = wld.add();
 	wld.add<PositionSparse>(e, {1.0f, 2.0f, 3.0f});
@@ -3659,6 +3693,7 @@ TEST_CASE("Sparse runtime-registered component uses out-of-line storage and stil
 	const auto& runtimeComp = wld.add(
 			"Runtime_Sparse_Fragmenting_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
 			(uint32_t)alignof(Position));
+	CHECK(wld.has(runtimeComp.entity, ecs::Sparse));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -3683,12 +3718,42 @@ TEST_CASE("Sparse runtime-registered component uses out-of-line storage and stil
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
+TEST_CASE("Runtime-registered table component can opt into sparse storage via trait") {
+	TestWorld twld;
+
+	const auto& runtimeComp = wld.add(
+			"Runtime_Table_Position_Becomes_Sparse", (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
+			(uint32_t)alignof(Position));
+	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.has(runtimeComp.entity, ecs::Sparse));
+
+	wld.add(runtimeComp.entity, ecs::Sparse);
+	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(wld.has(runtimeComp.entity, ecs::Sparse));
+	CHECK(wld.is_out_of_line_component(runtimeComp.entity));
+
+	const auto e = wld.add();
+	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
+
+	wld.add(e, runtimeComp.entity, Position{7.0f, 8.0f, 9.0f});
+	CHECK(wld.has(e, runtimeComp.entity));
+	CHECK(wld.fetch(e).pArchetype != pArchetypeBefore);
+	CHECK(wld.fetch(e).pArchetype->has(runtimeComp.entity));
+
+	const auto& pos = wld.get<Position>(e, runtimeComp.entity);
+	CHECK(pos.x == doctest::Approx(7.0f));
+	CHECK(pos.y == doctest::Approx(8.0f));
+	CHECK(pos.z == doctest::Approx(9.0f));
+}
+
 TEST_CASE("DontFragment runtime-registered table component typed object access") {
 	TestWorld twld;
 
 	const auto& runtimeComp = wld.add(
 			"Runtime_Table_Position", (uint32_t)sizeof(Position), ecs::DataStorageType::Table, (uint32_t)alignof(Position));
 	wld.add(runtimeComp.entity, ecs::DontFragment);
+	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(wld.is_out_of_line_component(runtimeComp.entity));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -3765,7 +3830,7 @@ TEST_CASE("Sparse DontFragment runtime-registered component is removed on entity
 }
 
 TEST_CASE("Clear removes table unique and sparse component state") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	const auto e = wld.add();
 	wld.add<ecs::uni<Position>>(e, {1.0f, 2.0f, 3.0f});
@@ -3832,7 +3897,7 @@ TEST_CASE("EntityContainer cached entity slot across row swap and archetype move
 }
 
 TEST_CASE("World set writes back when the proxy finishes") {
-	TestWorld twld;
+	SparseTestWorld twld;
 
 	SUBCASE("chunk-backed component") {
 		const auto e = wld.add();
