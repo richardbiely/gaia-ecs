@@ -107,6 +107,13 @@
 	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
 #endif
 
+//! If enabled, typed APIs may implicitly register missing components using the default component form.
+//! When disabled, such APIs require explicit `w.add<T>()` registration up front.
+//! Non-default traits such as `ecs::Sparse` and `ecs::DontFragment` always require explicit registration.
+#ifndef GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+	#define GAIA_ECS_AUTO_COMPONENT_REGISTRATION 1
+#endif
+
 //------------------------------------------------------------------------------
 
 #include "gaia/config/config_core_end.h"

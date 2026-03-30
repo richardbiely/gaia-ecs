@@ -411,8 +411,7 @@ namespace gaia {
 
 		public:
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem*
-			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
 				constexpr auto componentSize = detail::ComponentDesc<T>::size();
@@ -430,7 +429,7 @@ namespace gaia {
 				ctx.nameLen = nameTmpLen;
 				ctx.size = componentSize;
 				ctx.alig = detail::ComponentDesc<T>::alig();
-				ctx.storageType = storageType;
+				ctx.storageType = DataStorageType::Table;
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
 				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
 				ctx.pSoaSizes = soaSizes;

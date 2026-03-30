@@ -790,6 +790,13 @@ namespace gaia {
 	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
 #endif
 
+//! If enabled, typed APIs may implicitly register missing components using the default component form.
+//! When disabled, such APIs require explicit `w.add<T>()` registration up front.
+//! Non-default traits such as `ecs::Sparse` and `ecs::DontFragment` always require explicit registration.
+#ifndef GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+	#define GAIA_ECS_AUTO_COMPONENT_REGISTRATION 1
+#endif
+
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -26328,8 +26335,7 @@ namespace gaia {
 
 		public:
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem*
-			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
 
 				constexpr auto componentSize = detail::ComponentDesc<T>::size();
@@ -26347,7 +26353,7 @@ namespace gaia {
 				ctx.nameLen = nameTmpLen;
 				ctx.size = componentSize;
 				ctx.alig = detail::ComponentDesc<T>::alig();
-				ctx.storageType = storageType;
+				ctx.storageType = DataStorageType::Table;
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
 				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
 				ctx.pSoaSizes = soaSizes;
@@ -49914,13 +49920,13 @@ namespace gaia {
 				template <typename T>
 				Entity register_component() {
 					if constexpr (is_pair<T>::value) {
-						const auto rel = m_world.add<typename T::rel>().entity;
-						const auto tgt = m_world.add<typename T::tgt>().entity;
+						const auto rel = m_world.template reg_comp<typename T::rel>().entity;
+						const auto tgt = m_world.template reg_comp<typename T::tgt>().entity;
 						const Entity ent = Pair(rel, tgt);
 						add_inter(ent);
 						return ent;
 					} else {
-						return m_world.add<T>().entity;
+						return m_world.template reg_comp<T>().entity;
 					}
 				}
 
@@ -51104,14 +51110,16 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD Entity get() const {
-				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+				return comp_cache().get<T>().entity;
+			}
 
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				const auto* pItem = comp_cache().find<FT>();
-				GAIA_ASSERT(pItem != nullptr);
-				return pItem->entity;
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem& reg_comp() {
+#if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+				return add<T>();
+#else
+				return comp_cache().template get<T>();
+#endif
 			}
 
 			//----------------------------------------------------------------------
@@ -58912,7 +58920,7 @@ namespace gaia {
 
 		template <typename T>
 		GAIA_NODISCARD inline const ComponentCacheItem& comp_cache_add(World& world) {
-			return world.add<T>();
+			return world.reg_comp<T>();
 		}
 
 		// Entity API
@@ -59528,7 +59536,7 @@ namespace gaia {
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data) {
-				const auto term = m_world.add<T>().entity;
+				const auto term = m_world.template reg_comp<T>().entity;
 				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
 				register_diff_term(data, Op, term, QueryTermOptions{});
@@ -59537,7 +59545,7 @@ namespace gaia {
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
-				const auto term = m_world.add<T>().entity;
+				const auto term = m_world.template reg_comp<T>().entity;
 				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
 				register_diff_term(data, Op, term, options);

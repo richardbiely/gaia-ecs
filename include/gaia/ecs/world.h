@@ -3133,13 +3133,13 @@ namespace gaia {
 				template <typename T>
 				Entity register_component() {
 					if constexpr (is_pair<T>::value) {
-						const auto rel = m_world.add<typename T::rel>().entity;
-						const auto tgt = m_world.add<typename T::tgt>().entity;
+						const auto rel = m_world.template reg_comp<typename T::rel>().entity;
+						const auto tgt = m_world.template reg_comp<typename T::tgt>().entity;
 						const Entity ent = Pair(rel, tgt);
 						add_inter(ent);
 						return ent;
 					} else {
-						return m_world.add<T>().entity;
+						return m_world.template reg_comp<T>().entity;
 					}
 				}
 
@@ -4323,14 +4323,16 @@ namespace gaia {
 
 			template <typename T>
 			GAIA_NODISCARD Entity get() const {
-				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+				return comp_cache().get<T>().entity;
+			}
 
-				using CT = component_type_t<T>;
-				using FT = typename CT::TypeFull;
-
-				const auto* pItem = comp_cache().find<FT>();
-				GAIA_ASSERT(pItem != nullptr);
-				return pItem->entity;
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem& reg_comp() {
+#if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+				return add<T>();
+#else
+				return comp_cache().template get<T>();
+#endif
 			}
 
 			//----------------------------------------------------------------------

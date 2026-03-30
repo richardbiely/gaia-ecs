@@ -571,6 +571,9 @@ When adding components following restrictions apply:
 * Maximum size of a registered component type is currently 4095 bytes. This limit comes from the component metadata and chunk layout used internally. If this is not enough for you, store a pointer or handle to data that lives outside ECS. Note, this limit is still enforced today even for components that use sparse storage.
 * [SoA](#data-layouts) components can have at most 4 members and each of them can be at most 255 bytes long.
 * Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.
+* Implicit registration only creates the default component form. If a component needs non-default traits such as `ecs::Sparse`
+or `ecs::DontFragment`, register it explicitly first and then apply the trait to the component entity. Implicit registration
+can also be disabled entirely with `GAIA_ECS_AUTO_COMPONENT_REGISTRATION`.
 
 
 ### Component hooks

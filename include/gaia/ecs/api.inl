@@ -14,7 +14,7 @@ namespace gaia {
 
 		template <typename T>
 		GAIA_NODISCARD inline const ComponentCacheItem& comp_cache_add(World& world) {
-			return world.add<T>();
+			return world.reg_comp<T>();
 		}
 
 		// Entity API

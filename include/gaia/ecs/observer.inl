@@ -422,7 +422,7 @@ namespace gaia {
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data) {
-				const auto term = m_world.add<T>().entity;
+				const auto term = m_world.template reg_comp<T>().entity;
 				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
 				register_diff_term(data, Op, term, QueryTermOptions{});
@@ -431,7 +431,7 @@ namespace gaia {
 
 			template <QueryOpKind Op, typename T>
 			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
-				const auto term = m_world.add<T>().entity;
+				const auto term = m_world.template reg_comp<T>().entity;
 				cache_term_id(data, term);
 				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
 				register_diff_term(data, Op, term, options);
