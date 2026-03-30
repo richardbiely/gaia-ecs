@@ -313,6 +313,55 @@ void BM_Observer_DiffCopyExtExistingMatches_OnAdd(picobench::state& state) {
 	}
 }
 
+template <ecs::QueryCacheScope Scope>
+void BM_Observer_IdenticalTraversed_OnAdd(picobench::state& state) {
+	const uint32_t observerCount = (uint32_t)state.user_data();
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		uint64_t hits = 0;
+
+		const auto connectedTo = w.add();
+		const auto root = w.add();
+		const auto child = w.add();
+		const auto cable = w.add();
+
+		w.child(child, root);
+		w.add<Acceleration>(root);
+		w.add<Position>(cable);
+
+		GAIA_FOR(observerCount) {
+			w.observer()
+					.event(ecs::ObserverEvent::OnAdd)
+					.scope(Scope)
+					.all<Position>()
+					.all(ecs::Pair(connectedTo, ecs::Var0))
+					.all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+					.on_each([&](ecs::Iter&) {
+						++hits;
+					});
+		}
+
+		hits = 0;
+		state.start_timer();
+		w.add(cable, ecs::Pair(connectedTo, child));
+		state.stop_timer();
+
+		dont_optimize(hits);
+	}
+}
+
+void BM_Observer_IdenticalTraversed_OnAdd_Local(picobench::state& state) {
+	BM_Observer_IdenticalTraversed_OnAdd<ecs::QueryCacheScope::Local>(state);
+}
+
+void BM_Observer_IdenticalTraversed_OnAdd_Shared(picobench::state& state) {
+	BM_Observer_IdenticalTraversed_OnAdd<ecs::QueryCacheScope::Shared>(state);
+}
+
 void BM_Observer_DiffAncestorExistingMatches_OnAdd(picobench::state& state) {
 	const uint32_t existingMatchCount = (uint32_t)state.user_data();
 
@@ -764,6 +813,14 @@ void register_observers(PerfRunMode mode) {
 					.PICO_SETTINGS_OBS()
 					.user_data(200)
 					.label("observer diff copy_ext direct-filtered 200");
+			PICOBENCH_REG(BM_Observer_IdenticalTraversed_OnAdd_Local)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(128)
+					.label("observer identical traversed local 128");
+			PICOBENCH_REG(BM_Observer_IdenticalTraversed_OnAdd_Shared)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(128)
+					.label("observer identical traversed shared 128");
 			return;
 		default:
 			return;

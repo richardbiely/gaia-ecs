@@ -41587,22 +41587,22 @@ namespace gaia {
 					cnt::darray<uint32_t> scratchNextLevel;
 				};
 
-				//! Optional on-demand storage for walk iteration data.
-				struct EachWalkDataHolder {
-					EachWalkData* pData = nullptr;
+				template <typename T>
+				struct OnDemandDataHolder {
+					T* pData = nullptr;
 
-					EachWalkDataHolder() = default;
+					OnDemandDataHolder() = default;
 
-					~EachWalkDataHolder() {
+					~OnDemandDataHolder() {
 						delete pData;
 					}
 
-					EachWalkDataHolder(const EachWalkDataHolder& other) {
+					OnDemandDataHolder(const OnDemandDataHolder& other) {
 						if (other.pData != nullptr)
-							pData = new EachWalkData(*other.pData);
+							pData = new T(*other.pData);
 					}
 
-					EachWalkDataHolder& operator=(const EachWalkDataHolder& other) {
+					OnDemandDataHolder& operator=(const OnDemandDataHolder& other) {
 						if (core::addressof(other) == this)
 							return *this;
 
@@ -41613,18 +41613,18 @@ namespace gaia {
 						}
 
 						if (pData == nullptr)
-							pData = new EachWalkData(*other.pData);
+							pData = new T(*other.pData);
 						else
 							*pData = *other.pData;
 
 						return *this;
 					}
 
-					EachWalkDataHolder(EachWalkDataHolder&& other) noexcept: pData(other.pData) {
+					OnDemandDataHolder(OnDemandDataHolder&& other) noexcept: pData(other.pData) {
 						other.pData = nullptr;
 					}
 
-					EachWalkDataHolder& operator=(EachWalkDataHolder&& other) noexcept {
+					OnDemandDataHolder& operator=(OnDemandDataHolder&& other) noexcept {
 						if (core::addressof(other) == this)
 							return *this;
 
@@ -41634,17 +41634,17 @@ namespace gaia {
 						return *this;
 					}
 
-					GAIA_NODISCARD EachWalkData* get() {
+					GAIA_NODISCARD T* get() {
 						return pData;
 					}
 
-					GAIA_NODISCARD const EachWalkData* get() const {
+					GAIA_NODISCARD const T* get() const {
 						return pData;
 					}
 
-					GAIA_NODISCARD EachWalkData& ensure() {
+					GAIA_NODISCARD T& ensure() {
 						if (pData == nullptr)
-							pData = new EachWalkData();
+							pData = new T();
 						return *pData;
 					}
 
@@ -41654,7 +41654,8 @@ namespace gaia {
 					}
 				};
 
-				EachWalkDataHolder m_eachWalkData;
+				//! Optional on-demand storage for walk iteration data.
+				OnDemandDataHolder<EachWalkData> m_eachWalkData;
 
 				//! Cached run data for repeated direct-seeded semantic/inherited entity walks.
 				struct DirectSeedRunData {
@@ -41669,73 +41670,7 @@ namespace gaia {
 					bool cacheValid = false;
 				};
 
-				struct DirectSeedRunDataHolder {
-					DirectSeedRunData* pData = nullptr;
-
-					DirectSeedRunDataHolder() = default;
-
-					~DirectSeedRunDataHolder() {
-						delete pData;
-					}
-
-					DirectSeedRunDataHolder(const DirectSeedRunDataHolder& other) {
-						if (other.pData != nullptr)
-							pData = new DirectSeedRunData(*other.pData);
-					}
-
-					DirectSeedRunDataHolder& operator=(const DirectSeedRunDataHolder& other) {
-						if (core::addressof(other) == this)
-							return *this;
-
-						if (other.pData == nullptr) {
-							delete pData;
-							pData = nullptr;
-							return *this;
-						}
-
-						if (pData == nullptr)
-							pData = new DirectSeedRunData(*other.pData);
-						else
-							*pData = *other.pData;
-
-						return *this;
-					}
-
-					DirectSeedRunDataHolder(DirectSeedRunDataHolder&& other) noexcept: pData(other.pData) {
-						other.pData = nullptr;
-					}
-
-					DirectSeedRunDataHolder& operator=(DirectSeedRunDataHolder&& other) noexcept {
-						if (core::addressof(other) == this)
-							return *this;
-
-						delete pData;
-						pData = other.pData;
-						other.pData = nullptr;
-						return *this;
-					}
-
-					GAIA_NODISCARD DirectSeedRunData* get() {
-						return pData;
-					}
-
-					GAIA_NODISCARD const DirectSeedRunData* get() const {
-						return pData;
-					}
-
-					GAIA_NODISCARD DirectSeedRunData& ensure() {
-						if (pData == nullptr)
-							pData = new DirectSeedRunData();
-						return *pData;
-					}
-
-					void reset() {
-						delete pData;
-						pData = nullptr;
-					}
-				};
-
-				DirectSeedRunDataHolder m_directSeedRunData;
+				OnDemandDataHolder<DirectSeedRunData> m_directSeedRunData;
 
 				//--------------------------------------------------------------------------------
 			public:

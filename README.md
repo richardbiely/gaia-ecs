@@ -635,6 +635,8 @@ Under the hood they use the query engine, just like systems. However, systems ar
 
 Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
 
+Observers also expose the same query cache controls as plain queries. By default an observer keeps cached query state locally. Use `scope(ecs::QueryCacheScope::Shared)` only when many identical observer query shapes are rebuilt and you want them to reuse one shared cache entry. Use `kind(ecs::QueryCacheKind::None)` only for special cases where you explicitly do not want observer query caches.
+
 Observer events currently mean:
 * `OnAdd` - an entity starts matching because ids were added
 * `OnDel` - an entity stops matching because ids were removed
@@ -2781,6 +2783,8 @@ Only the final state after all recorded operations is applied on commit. This me
 Systems are were your programs logic is executed. This usually means logic that is performed every frame / all the time. You can either spin your own mechanism for executing this logic or use the build-in one.
 
 Creating a system is very similar to creating a [query](#query). In fact, the built-in systems are queries internally. Ones which are performed at a later point in time. For each system an entity is created.
+
+Systems expose the same query cache controls as plain queries. By default a system keeps cached query state locally. Use `scope(ecs::QueryCacheScope::Shared)` only when many identical system query shapes are rebuilt and you want them to reuse one shared cache entry. Use `kind(ecs::QueryCacheKind::None)` only for advanced cases where you explicitly want an uncached system query.
 
 ```cpp
 SystemBuilder mySystem = w.system()
