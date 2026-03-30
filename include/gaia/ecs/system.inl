@@ -108,12 +108,18 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Sets the hard cache-kind requirement for the system query.
+			//! \param kind Requested cache-kind restriction.
+			//! \return Self reference.
 			SystemBuilder& kind(QueryCacheKind kind) {
 				validate();
 				data().query.kind(kind);
 				return *this;
 			}
 
+			//! Sets the cache scope used by the system query.
+			//! \param scope Requested scope.
+			//! \return Self reference.
 			SystemBuilder& scope(QueryCacheScope scope) {
 				validate();
 				data().query.scope(scope);

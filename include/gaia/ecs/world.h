@@ -2268,29 +2268,48 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns the internal record for @a entity.
+			//! \param entity Entity or exact pair record.
+			//! \return Mutable entity container record.
 			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
+#if GAIA_ASSERT_ENABLED
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
 					// Delete-time cleanup can still reference an exact pair record after one endpoint
 					// has already become invalid. As long as the pair record itself still exists,
 					// allow fetch() so cleanup can finish removing it.
-					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
-						GAIA_ASSERT(false);
+					const bool allowStaleExactPair = entity.pair() && m_recs.pairs.contains(EntityLookupKey(entity));
+					GAIA_ASSERT(allowStaleExactPair);
 				}
+#endif
 				return m_recs[entity];
 			}
 
+			//! Returns the internal record for @a entity.
+			//! \param entity Entity or exact pair record.
+			//! \return Const entity container record.
 			GAIA_NODISCARD const EntityContainer& fetch(Entity entity) const {
+#if GAIA_ASSERT_ENABLED
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
-					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
-						GAIA_ASSERT(false);
+					// Delete-time cleanup can still reference an exact pair record after one endpoint
+					// has already become invalid. As long as the pair record itself still exists,
+					// allow fetch() so cleanup can finish removing it.
+					const bool allowStaleExactPair = entity.pair() && m_recs.pairs.contains(EntityLookupKey(entity));
+					GAIA_ASSERT(allowStaleExactPair);
 				}
+#endif
 				return m_recs[entity];
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Returns whether the record is already in delete-requested state.
+			//! Covers both explicit per-entity deletion and archetype-level forced teardown.
+			//! \param ec Entity container record
+			//! \return True if the record is marked for deletion. False otherwise.
 			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
 				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
 					return true;
@@ -2298,14 +2317,24 @@ namespace gaia {
 				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
 
+			//! Returns whether @a entity is marked DontFragment.
+			//! \param entity Entity
+			//! \return True if @a entity is marked DontFragment. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
 				return (fetch(entity).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
+			//! Returns whether @a relation is a valid non-fragmenting relation entity.
+			//! \param relation Relation entity
+			//! \return True if @a relation is valid and non-fragmenting. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment_relation(Entity relation) const {
 				return valid(relation) && !relation.pair() && is_dont_fragment(relation);
 			}
 
+			//! Returns whether @a relation is both Exclusive and DontFragment.
+			//! Such relations are stored in the adjunct side structure instead of archetype identity.
+			//! \param relation Relation entity
+			//! \return True if @a relation is an exclusive non-fragmenting relation. False otherwise.
 			GAIA_NODISCARD bool is_exclusive_dont_fragment_relation(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
@@ -2351,6 +2380,10 @@ namespace gaia {
 				return is_fragmenting_hierarchy_relation(relation);
 			}
 
+			//! Returns whether @a component stores instance data out of line instead of in archetype chunks.
+			//! This is currently the storage path used for sparse plain generic AoS components.
+			//! \param component Component entity to inspect.
+			//! \return True when the component uses out-of-line storage.
 			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
 				if (!valid(component) || component.pair() || component.entity())
 					return false;
@@ -2362,12 +2395,18 @@ namespace gaia {
 				return component_has_out_of_line_data(pItem->comp);
 			}
 
+			//! Returns whether @a component is both out-of-line and non-fragmenting.
+			//! Non-fragmenting out-of-line components do not participate in archetype identity.
+			//! \param component Component entity to inspect.
+			//! \return True when the component uses out-of-line non-fragmenting storage.
 			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
 				if (!is_out_of_line_component(component))
 					return false;
 
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Updates the cached component metadata in both the component cache and the core Component storage.
 			//! \param component Component entity.
@@ -2435,12 +2474,18 @@ namespace gaia {
 
 			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
+			//! \tparam T Component type to inspect.
+			//! \return True when @a T can use the out-of-line storage path.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool supports_out_of_line_component() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
 			}
 
+			//! Returns whether @a object is a usable out-of-line storage target for component type @a T.
+			//! \tparam T Component type to validate against.
+			//! \param object Component entity to inspect.
+			//! \return True when @a object can back an out-of-line store for @a T.
 			template <typename T>
 			GAIA_NODISCARD bool can_use_out_of_line_component(Entity object) const {
 				if constexpr (!supports_out_of_line_component<T>())
@@ -2459,6 +2504,10 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
 			GAIA_NODISCARD SparseComponentStore<T>* sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -2468,6 +2517,10 @@ namespace gaia {
 				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
 			GAIA_NODISCARD const SparseComponentStore<T>* sparse_component_store(Entity component) const {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -2477,6 +2530,10 @@ namespace gaia {
 				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, creating it if needed.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Mutable sparse store reference.
 			template <typename T>
 			GAIA_NODISCARD SparseComponentStore<T>& sparse_component_store_mut(Entity component) {
 				const auto key = EntityLookupKey(component);
@@ -2489,6 +2546,8 @@ namespace gaia {
 				return *pStore;
 			}
 
+			//! Removes all sparse out-of-line component instances owned by @a entity.
+			//! \param entity Entity
 			void del_sparse_components(Entity entity) {
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
 					(void)compKey;
@@ -2496,6 +2555,8 @@ namespace gaia {
 				}
 			}
 
+			//! Deletes the sparse out-of-line component store associated with @a component.
+			//! \param component Component entity identifying the store.
 			void del_sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				if (it == m_sparseComponentsByComp.end())
@@ -2506,6 +2567,9 @@ namespace gaia {
 				m_sparseComponentsByComp.erase(it);
 			}
 
+			//! Returns the exclusive adjunct store for @a relation, or nullptr when absent.
+			//! \param relation Relation entity
+			//! \return Exclusive adjunct store or nullptr if absent.
 			GAIA_NODISCARD const ExclusiveAdjunctStore* exclusive_adjunct_store(Entity relation) const {
 				const auto it = m_exclusiveAdjunctByRel.find(EntityLookupKey(relation));
 				if (it == m_exclusiveAdjunctByRel.end())
@@ -2514,6 +2578,9 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Returns the exclusive adjunct store for @a relation, creating it if needed.
+			//! \param relation Relation entity
+			//! \return Mutable exclusive adjunct store reference.
 			GAIA_NODISCARD ExclusiveAdjunctStore& exclusive_adjunct_store_mut(Entity relation) {
 				return m_exclusiveAdjunctByRel[EntityLookupKey(relation)];
 			}
@@ -2778,18 +2845,21 @@ namespace gaia {
 			}
 
 			//! Binds a pre-built runtime serializer handle.
+			//! \param serializer Serializer handle to store.
 			void set_serializer(ser::serializer serializer) {
 				GAIA_ASSERT(serializer.valid());
 				m_serializer = serializer;
 			}
 
 			//! Binds a concrete serializer object through ser::make_serializer().
+			//! \param serializer Serializer instance to wrap.
 			template <typename TSerializer>
 			void set_serializer(TSerializer& serializer) {
 				set_serializer(ser::make_serializer(serializer));
 			}
 
 			//! Returns the currently bound runtime serializer handle.
+			//! \return Bound serializer handle.
 			ser::serializer get_serializer() const {
 				return m_serializer;
 			}
@@ -4321,11 +4391,17 @@ namespace gaia {
 				return valid_entity_id(id) ? get(id) : EntityBad;
 			}
 
+			//! Returns the entity registered for component type @a T.
+			//! \tparam T Component type.
+			//! \return Component entity.
 			template <typename T>
 			GAIA_NODISCARD Entity get() const {
 				return comp_cache().get<T>().entity;
 			}
 
+			//! Returns the registered component cache item for @a T, auto-registering it when enabled.
+			//! \tparam T Component type.
+			//! \return Component cache item for @a T.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& reg_comp() {
 #if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
@@ -4345,34 +4421,35 @@ namespace gaia {
 				return EntityBuilder(*this, entity);
 			}
 
-			//! Creates a new empty entity
+			//! Creates a new empty entity.
 			//! \param kind Entity kind. Generic entity by default.
-			//! \return New entity
+			//! \return New entity.
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
 			//! Creates a new prefab entity.
+			//! \param kind Entity kind. Generic entity by default.
+			//! \return New prefab entity.
 			GAIA_NODISCARD Entity prefab(EntityKind kind = EntityKind::EK_Gen) {
 				const auto entity = add(kind);
 				add(entity, Prefab);
 				return entity;
 			}
 
-			//! Creates @a count new empty entities
-			//! \param count Number of enities to create
-			//! \param func Functor to execute every time an entity is added
+			//! Creates @a count new empty entities.
+			//! \param count Number of entities to create.
+			//! \param func Functor invoked for each new entity.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(uint32_t count, Func func = func_void_with_entity) {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
 			//! Creates @a count of entities of the same archetype as @a entity.
-			//! \param entity Source entity to copy
-			//! \param count Number of enities to create
-			//! \param func Functor to execute every time an entity is added
-			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
-			//!       if they provide a constructor
+			//! \param entity Source entity whose archetype is reused.
+			//! \param count Number of entities to create.
+			//! \param func Functor invoked for each new entity.
+			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
@@ -4470,9 +4547,9 @@ namespace gaia {
 				EntityBuilder(*this, entity).add(object);
 			}
 
-			//! Creates a new entity relationship pair
-			//! \param entity Source entity
-			//! \param pair Pair
+			//! Attaches a relationship pair to @a entity.
+			//! \param entity Source entity.
+			//! \param pair Pair to attach.
 			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
@@ -7435,6 +7512,10 @@ namespace gaia {
 				return depth;
 			}
 
+			//! Traverses transitive `Is` descendants of @a target.
+			//! The traversal uses the cached closure built by as_relations_trav_cache().
+			//! \param target Target entity
+			//! \param func void(Entity relation) functor executed for each descendant relation.
 			template <typename Func>
 			void as_relations_trav(Entity target, Func func) const {
 				if (!valid(target))
@@ -7445,6 +7526,11 @@ namespace gaia {
 					func(relation);
 			}
 
+			//! Traverses transitive `Is` descendants of @a target until @a func returns true.
+			//! \param target Target entity
+			//! \param func bool(Entity relation) functor executed for each descendant relation.
+			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool as_relations_trav_if(Entity target, Func func) const {
 				if (!valid(target))
@@ -8030,26 +8116,48 @@ namespace gaia {
 			}
 
 		public:
+			//! Counts entities directly matching @a term, including semantic `Is` inheritance expansion.
+			//! \param term Query term
+			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities(Entity term) const {
 				return count_direct_term_entities_inter(term, true);
 			}
 
+			//! Counts entities directly matching @a term without semantic `Is` expansion.
+			//! \param term Query term
+			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities_direct(Entity term) const {
 				return count_direct_term_entities_inter(term, false);
 			}
 
+			//! Appends entities directly matching @a term to @a out, including semantic `Is` expansion.
+			//! \param term Query term
+			//! \param out Output array
 			void collect_direct_term_entities(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, true);
 			}
 
+			//! Appends entities directly matching @a term to @a out without semantic `Is` expansion.
+			//! \param term Query term
+			//! \param out Output array
 			void collect_direct_term_entities_direct(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, false);
 			}
 
+			//! Visits entities directly matching @a term, including semantic `Is` expansion.
+			//! \param term Query term
+			//! \param ctx User context passed to @a func
+			//! \param func bool(void*, Entity) callback executed for each matching entity.
+			//! \return False when @a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, true);
 			}
 
+			//! Visits entities directly matching @a term without semantic `Is` expansion.
+			//! \param term Query term
+			//! \param ctx User context passed to @a func
+			//! \param func bool(void*, Entity) callback executed for each matching entity.
+			//! \return False when @a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool
 			for_each_direct_term_entity_direct(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, false);
@@ -8145,13 +8253,16 @@ namespace gaia {
 				return false;
 			}
 
-			//! Returns direct children in the ChildOf hierarchy.
+			//! Visits direct children in the `ChildOf` hierarchy.
+			//! \param parent Parent entity
+			//! \param func void(Entity child) functor executed for each child.
 			template <typename Func>
 			void children(Entity parent, Func func) const {
 				sources(ChildOf, parent, func);
 			}
 
-			//! Returns direct children in the ChildOf hierarchy.
+			//! Visits direct children in the `ChildOf` hierarchy until @a func returns false.
+			//! \param parent Parent entity
 			//! \param func bool(Entity child) functor executed for each child found.
 			//!             Stops if false is returned.
 			template <typename Func>
@@ -8159,20 +8270,28 @@ namespace gaia {
 				sources_if(ChildOf, parent, func);
 			}
 
-			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
+			//! \param root Root entity
+			//! \param func void(Entity child) functor executed for each descendant.
 			template <typename Func>
 			void children_bfs(Entity root, Func func) const {
 				sources_bfs(ChildOf, root, func);
 			}
 
-			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
+			//! \param root Root entity
 			//! \param func bool(Entity child) functor executed for each child found.
 			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool children_bfs_if(Entity root, Func func) const {
 				return sources_bfs_if(ChildOf, root, func);
 			}
 
+			//! Traverses transitive `Is` targets of @a relation.
+			//! The traversal uses the cached closure built by as_targets_trav_cache().
+			//! \param relation Relation entity
+			//! \param func void(Entity target) functor executed for each inherited target.
 			template <typename Func>
 			void as_targets_trav(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
@@ -8184,6 +8303,11 @@ namespace gaia {
 					func(target);
 			}
 
+			//! Traverses transitive `Is` targets of @a relation until @a func returns true.
+			//! \param relation Relation entity
+			//! \param func bool(Entity target) functor executed for each inherited target.
+			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			bool as_targets_trav_if(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
@@ -8200,10 +8324,14 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns the single-threaded deferred command buffer owned by the world.
+			//! \return Single-threaded command buffer reference.
 			CommandBufferST& cmd_buffer_st() const {
 				return *m_pCmdBufferST;
 			}
 
+			//! Returns the multi-thread-safe deferred command buffer owned by the world.
+			//! \return Multi-thread-safe command buffer reference.
 			CommandBufferMT& cmd_buffer_mt() const {
 				return *m_pCmdBufferMT;
 			}
@@ -8218,22 +8346,24 @@ namespace gaia {
 			//! Executes all registered systems once.
 			void systems_run();
 
-			//! Provides a system set up to work with the parent world.
-			//! \return Entity holding the system.
+			//! Creates a system entity with a default local cached query.
+			//! \return System builder bound to the new system entity.
 			SystemBuilder system();
 
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
 
-			//! Provides a observer set up to work with the parent world.
-			//! \return Entity holding the observer.
+			//! Creates an observer entity with a default local cached query.
+			//! \return Observer builder bound to the new observer entity.
 			ObserverBuilder observer();
 
+			//! Returns the observer registry owned by the world.
 			ObserverRegistry& observers() {
 				return m_observers;
 			}
 
+			//! Returns the observer registry owned by the world.
 			const ObserverRegistry& observers() const {
 				return m_observers;
 			}
@@ -8376,6 +8506,9 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			//! Returns the version that changes when entity enabled state changes.
+			//! Hierarchy-aware cached traversals use this to invalidate ancestor gating state.
+			//! \return Enabled-hierarchy version.
 			GAIA_NODISCARD uint32_t enabled_hierarchy_version() const {
 				return m_enabledHierarchyVersion;
 			}
@@ -8941,10 +9074,21 @@ namespace gaia {
 			//! Non-fatal semantic issues are reported through @a diagnostics.
 			bool load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics);
 
+			//! Loads world state from a raw JSON buffer and discards non-fatal diagnostics.
+			//! \param json JSON buffer
+			//! \param len JSON buffer length
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(const char* json, uint32_t len);
 
+			//! Loads world state from a JSON string view and reports non-fatal diagnostics.
+			//! \param json JSON view
+			//! \param diagnostics Output diagnostics
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics);
 
+			//! Loads world state from a JSON string view and discards non-fatal diagnostics.
+			//! \param json JSON view
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json);
 
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
@@ -9240,6 +9384,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Loads a world state from a serializer-compatible stream wrapper.
+			//! \param inputSerializer Input serializer
+			//! \return True when loading succeeds. False otherwise.
 			template <typename TSerializer>
 			bool load(TSerializer& inputSerializer) {
 				return load(ser::make_serializer(inputSerializer));
@@ -11951,6 +12098,10 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the temporary serialization buffer used while building a query.
+			//! A fresh query id is allocated lazily when @a serId is QueryIdBad.
+			//! \param serId Query serialization id
+			//! \return Serialization buffer associated with @a serId.
 			QuerySerBuffer& query_buffer(QueryId& serId) {
 				// No serialization id set on the query, try creating a new record
 				if GAIA_UNLIKELY (serId == QueryIdBad) {
@@ -11983,6 +12134,8 @@ namespace gaia {
 				return m_querySerMap[serId];
 			}
 
+			//! Releases the temporary serialization buffer associated with @a serId.
+			//! \param serId Query serialization id reset to QueryIdBad on return.
 			void query_buffer_reset(QueryId& serId) {
 				auto it = m_querySerMap.find(serId);
 				if (it == m_querySerMap.end())
@@ -11992,14 +12145,20 @@ namespace gaia {
 				serId = QueryIdBad;
 			}
 
+			//! Invalidates cached queries structurally affected by @a entityKey.
+			//! \param entityKey Structural entity lookup key
 			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
 			}
 
+			//! Invalidates cached queries whose dynamic result depends on @a relation.
+			//! \param relation Relation entity
 			void invalidate_queries_for_rel(Entity relation) {
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
+			//! Invalidates cached sorted queries whose row ordering depends on @a entity.
+			//! \param entity Entity
 			void invalidate_sorted_queries_for_entity(Entity entity) {
 				m_queryCache.invalidate_sorted_queries_for_entity(entity);
 			}
@@ -12009,6 +12168,8 @@ namespace gaia {
 				m_queryCache.invalidate_sorted_queries();
 			}
 
+			//! Invalidates semantic `Is` queries affected by removing or changing @a is_pair.
+			//! \param is_pair `Is` pair
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -12030,6 +12191,10 @@ namespace gaia {
 				});
 			}
 
+			//! Resolves a textual id expression to an entity.
+			//! Supports names, aliases, wildcard `*`, and pair expressions like `(Rel, Target)`.
+			//! \param exprRaw Expression text
+			//! \return Resolved entity or EntityBad on failure.
 			Entity name_to_entity(std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
 
@@ -12063,6 +12228,11 @@ namespace gaia {
 				}
 			}
 
+			//! Resolves a textual id expression with `%e` placeholders to an entity.
+			//! Supports the same pair and wildcard syntax as name_to_entity().
+			//! \param args Vararg list consumed by `%e` placeholders
+			//! \param exprRaw Expression text
+			//! \return Resolved entity or EntityBad on failure.
 			Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
 
@@ -12522,6 +12692,12 @@ namespace gaia {
 			return world.m_worldVersion;
 		}
 
+		//! Iterates direct targets of @a entity for the given relation.
+		//! \param world World to query.
+		//! \param entity Source entity.
+		//! \param relation Relation to traverse.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each target.
 		inline void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
 			world.targets(entity, relation, [ctx, func](Entity target) {
@@ -12529,6 +12705,9 @@ namespace gaia {
 			});
 		}
 
+		//! Acquires temporary scratch storage used during query matching.
+		//! \param world World providing the scratch stack.
+		//! \return Scratch storage reference.
 		inline QueryMatchScratch& query_match_scratch_acquire(World& world) {
 			if (world.m_queryMatchScratchDepth == world.m_queryMatchScratchStack.size())
 				world.m_queryMatchScratchStack.push_back(new QueryMatchScratch());
@@ -12538,6 +12717,9 @@ namespace gaia {
 			return scratch;
 		}
 
+		//! Releases previously acquired query-match scratch storage.
+		//! \param world World providing the scratch stack.
+		//! \param keepStamps Whether stamp buffers should be preserved.
 		inline void query_match_scratch_release(World& world, bool keepStamps) {
 			GAIA_ASSERT(world.m_queryMatchScratchDepth > 0);
 			auto& scratch = *world.m_queryMatchScratchStack[--world.m_queryMatchScratchDepth];
@@ -12547,14 +12729,24 @@ namespace gaia {
 				scratch.clear_temporary_matches();
 		}
 
+		//! Invalidates sorted queries affected by @a entity.
+		//! \param world World owning the queries.
+		//! \param entity Changed entity.
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
 			world.invalidate_sorted_queries_for_entity(entity);
 		}
 
+		//! Invalidates all sorted queries in @a world.
+		//! \param world World owning the queries.
 		inline void world_invalidate_sorted_queries(World& world) {
 			world.invalidate_sorted_queries();
 		}
 
+		//! Checks whether @a entity satisfies @a term using normal semantic matching.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity satisfies @a term.
 		inline bool world_has_entity_term(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -12564,6 +12756,11 @@ namespace gaia {
 			return world.has(entity, term);
 		}
 
+		//! Checks whether @a entity satisfies an inherited `in(...)` semantic term.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity matches @a term through inherited Is traversal.
 		inline bool world_has_entity_term_in(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -12573,48 +12770,89 @@ namespace gaia {
 			return false;
 		}
 
+		//! Returns whether @a term inherits by OnInstantiate(Inherit) policy.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return True if @a term uses inherit policy.
 		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
 			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
 		}
 
+		//! Checks whether @a entity directly owns @a term without inheritance.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity directly owns @a term.
 		inline bool world_has_entity_term_direct(const World& world, Entity entity, Entity term) {
 			return world.has_direct(entity, term);
 		}
 
+		//! Returns whether @a relation is an exclusive non-fragmenting relation.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is exclusive and non-fragmenting.
 		inline bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation) {
 			return world.is_exclusive_dont_fragment_relation(relation);
 		}
 
+		//! Returns whether @a component uses out-of-line instance storage.
+		//! \param world World to query.
+		//! \param component Component entity to inspect.
+		//! \return True if @a component stores payload out of line.
 		inline bool world_is_out_of_line_component(const World& world, Entity component) {
 			return world.is_out_of_line_component(component);
 		}
 
+		//! Returns whether @a component is out-of-line and non-fragmenting.
+		//! \param world World to query.
+		//! \param component Component entity to inspect.
+		//! \return True if @a component uses non-fragmenting out-of-line storage.
 		inline bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component) {
 			return world.is_non_fragmenting_out_of_line_component(component);
 		}
 
+		//! Counts direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of direct entities.
 		inline uint32_t world_count_direct_term_entities(const World& world, Entity term) {
 			return world.count_direct_term_entities(term);
 		}
 
+		//! Counts direct relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \return Number of matching direct relations.
 		inline uint32_t world_count_in_term_entities(const World& world, Entity term) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return 0;
 
 			const auto target = world.get(term.gen());
 			return world.valid(target) ? (uint32_t)world.as_relations_trav_cache(target).size() : 0U;
 		}
 
+		//! Counts direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of direct entities.
 		inline uint32_t world_count_direct_term_entities_direct(const World& world, Entity term) {
 			return world.count_direct_term_entities_direct(term);
 		}
 
+		//! Collects direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param out Output array.
 		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities(term, out);
 		}
 
+		//! Collects relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \param out Output array.
 		inline void world_collect_in_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return;
 
 			const auto target = world.get(term.gen());
@@ -12627,17 +12865,33 @@ namespace gaia {
 				out.push_back(relation);
 		}
 
+		//! Collects direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param out Output array.
 		inline void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities_direct(term, out);
 		}
 
+		//! Iterates direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity(term, ctx, func);
 		}
 
+		//! Iterates relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return true;
 
 			const auto target = world.get(term.gen());
@@ -12652,52 +12906,103 @@ namespace gaia {
 			return true;
 		}
 
+		//! Iterates direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity_direct(term, ctx, func);
 		}
 
+		//! Returns whether @a entity is enabled.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return True if @a entity is enabled.
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
 		}
 
+		//! Returns the live target of @a pair, or EntityBad if unavailable.
+		//! \param world World to query.
+		//! \param pair Pair entity.
+		//! \return Live pair target or EntityBad.
 		inline Entity world_pair_target_if_alive(const World& world, Entity pair) {
 			return world.pair_target_if_alive(pair);
 		}
 
+		//! Returns whether @a entity is enabled through the given hierarchy relation.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \param relation Hierarchy relation.
+		//! \return True if @a entity is enabled in the hierarchy.
 		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
 			return world.enabled_hierarchy(entity, relation);
 		}
 
+		//! Returns the version counter for hierarchy-enabled state.
+		//! \param world World to query.
+		//! \return Hierarchy-enabled version.
 		inline uint32_t world_enabled_hierarchy_version(const World& world) {
 			return world.enabled_hierarchy_version();
 		}
 
+		//! Returns whether @a relation is treated as a hierarchy relation.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is a hierarchy relation.
 		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {
 			return world.is_hierarchy_relation(relation);
 		}
 
+		//! Returns whether @a relation fragments archetypes.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is fragmenting.
 		inline bool world_is_fragmenting_relation(const World& world, Entity relation) {
 			return world.is_fragmenting_relation(relation);
 		}
 
+		//! Returns whether @a relation is both hierarchy-forming and fragmenting.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is a fragmenting hierarchy relation.
 		inline bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation) {
 			return world.is_fragmenting_hierarchy_relation(relation);
 		}
 
+		//! Returns whether @a relation supports cached depth-ordered iteration.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation supports depth ordering.
 		inline bool world_supports_depth_order(const World& world, Entity relation) {
 			return world.supports_depth_order(relation);
 		}
 
+		//! Returns whether disabled subtrees may be pruned for depth-ordered iteration.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if disabled subtree pruning is valid.
 		inline bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
 			return world.depth_order_prunes_disabled_subtrees(relation);
 		}
 
+		//! Returns whether @a entity currently belongs to a prefab archetype.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return True if @a entity is stored in a prefab archetype.
 		inline bool world_entity_prefab(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
 			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
+		//! Finds the first inherited owner providing @a term for @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to resolve.
+		//! \return First inherited owner providing @a term, or EntityBad.
 		inline Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term) {
 			const auto& chunks = archetype.chunks();
 			const Chunk* pFirstChunk = nullptr;
@@ -12721,10 +13026,18 @@ namespace gaia {
 			return EntityBad;
 		}
 
+		//! Returns the current archetype of @a entity.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return Archetype pointer, or nullptr when absent.
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
 		}
 
+		//! Returns the size of the component-to-archetype bucket for @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of indexed archetype entries.
 		inline uint32_t world_component_index_bucket_size(const World& world, Entity term) {
 			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
 			if (it == world.m_entityToArchetypeMap.end())
@@ -12733,6 +13046,11 @@ namespace gaia {
 			return (uint32_t)it->second.size();
 		}
 
+		//! Returns the cached component index of @a term inside @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to inspect.
+		//! \return Component index, or BadIndex if unavailable.
 		inline uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term) {
 			if (is_wildcard(term))
 				return BadIndex;
@@ -12750,6 +13068,11 @@ namespace gaia {
 			return it->second[idx].compIdx;
 		}
 
+		//! Returns the cached match count of @a term inside @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to inspect.
+		//! \return Match count, or 0 if unavailable.
 		inline uint32_t world_component_index_match_count(const World& world, const Archetype& archetype, Entity term) {
 			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
 			if (it == world.m_entityToArchetypeMap.end())

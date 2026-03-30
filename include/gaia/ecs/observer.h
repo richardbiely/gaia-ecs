@@ -199,7 +199,7 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Query associated with the system
+			//! Query associated with the observer
 			Query query;
 			//! Precomputed observer execution plan.
 			ObserverPlan plan;

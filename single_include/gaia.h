@@ -23940,6 +23940,7 @@ namespace gaia {
 
 		Entity entity_from_id(const World& world, EntityId id);
 
+		//! Returns whether @a entity currently exists and its generation matches the world's record.
 		bool valid(const World& world, Entity entity);
 
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -23950,18 +23951,27 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		//! Invokes @a func for each live target of @a entity through @a relation.
+		//! This is a small C-style adapter used by header-only query/observer internals.
 		void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
+		//! Returns the current world structural version.
 		uint32_t world_version(const World& world);
+		//! Returns the current version of @a relation-specific traversal metadata.
 		uint32_t world_rel_version(const World& world, Entity relation);
+		//! Returns whether @a relation is treated as a hierarchy relation by traversal helpers.
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
+		//! Returns whether @a relation fragments archetypes.
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
+		//! Returns whether @a relation is both hierarchy-like and fragmenting.
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
+		//! Returns whether @a relation supports cached depth-order traversal.
 		bool world_supports_depth_order(const World& world, Entity relation);
+		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
 		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
@@ -41023,55 +41033,68 @@ namespace gaia {
 		//! Maximal cap for cached traversed-source closure snapshots.
 		inline static constexpr uint16_t MaxCacheSrcTrav = 32;
 
+		//! Query execution type.
 		enum class QueryExecType : uint32_t {
-			// Main thread
+			//! Main thread
 			Serial,
-			// Parallel, any core
+			//! Parallel, any core
 			Parallel,
-			// Parallel, perf cores only
+			//! Parallel, perf cores only
 			ParallelPerf,
-			// Parallel, efficiency cores only
+			//! Parallel, efficiency cores only
 			ParallelEff,
-			// Default execution type
+			//! Default execution type
 			Default = Serial,
 		};
 
+		//! Hard cache-kind requirement for a query.
 		enum class QueryCacheKind : uint8_t {
-			// Disable result caching. The query keeps its immutable compiled plan locally
-			// and rebuilds transient results on demand.
+			//! Disable result caching. The query keeps its immutable compiled plan locally
+			//! and rebuilds transient results on demand.
 			None,
-			// Use the engine's default cache behavior.
-			// Recommended for most queries.
-			// Allows all automatic cache layers:
-			// - immediate structural cache
-			// - lazy structural cache
-			// - dynamic relation/source cache
-			// Explicit traversed-source snapshot opt-ins are also allowed.
+			//! Use the engine's default cache behavior.
+			//! Recommended for most queries.
+			//! Allows all automatic cache layers:
+			//! - immediate structural cache
+			//! - lazy structural cache
+			//! - dynamic relation/source cache
+			//! Explicit traversed-source snapshot opt-ins are also allowed.
 			Default,
-			// Restrict the query to automatically derived cache layers only.
-			// Use this when the engine should decide the cache behavior on its own.
-			// Allows:
-			// - immediate structural cache
-			// - lazy structural cache
-			// - dynamic relation/source cache derived automatically by query shape
-			// Rejects explicit traversed-source snapshot opt-ins.
+			//! Restrict the query to automatically derived cache layers only.
+			//! Use this when the engine should decide the cache behavior on its own.
+			//! Allows:
+			//! - immediate structural cache
+			//! - lazy structural cache
+			//! - dynamic relation/source cache derived automatically by query shape
+			//! Rejects explicit traversed-source snapshot opt-ins.
 			Auto,
-			// Require a fully immediate structural cache.
-			// Use this only when query creation must fail unless the query can stay
-			// on the immediate structural cache layer.
-			// Allows only the immediate structural cache layer.
-			// Query creation fails for lazy, dynamic, or explicit traversed-source snapshot layers.
+			//! Require a fully immediate structural cache.
+			//! Use this only when query creation must fail unless the query can stay
+			//! on the immediate structural cache layer.
+			//! Allows only the immediate structural cache layer.
+			//! Query creation fails for lazy, dynamic, or explicit traversed-source snapshot layers.
 			All
 		};
 
+		//! Scope of cache-backed query state.
 		enum class QueryCacheScope : uint8_t {
-			// Keep cached query state private to this query instance and its copies.
+			//! Keep cached query state private to this query instance and its copies.
 			Local,
-			// Allow identical query shapes to share one cached query state through the world cache.
+			//! Allow identical query shapes to share one cached query state through the world cache.
 			Shared
 		};
 
-		enum class QueryKindRes : uint8_t { OK, AutoSrcTrav, AllNotIm, AllSrcTrav };
+		//! Result of validating a query shape against the requested QueryCacheKind.
+		enum class QueryKindRes : uint8_t {
+			//! The requested kind is satisfied.
+			OK,
+			//! QueryCacheKind::Auto rejected an explicit traversed-source snapshot opt-in.
+			AutoSrcTrav,
+			//! QueryCacheKind::All requires a fully immediate structural cache, but the query shape does not allow it.
+			AllNotIm,
+			//! QueryCacheKind::All rejected an explicit traversed-source snapshot opt-in.
+			AllSrcTrav
+		};
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 
@@ -41317,24 +41340,33 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Returns the world associated with this query storage.
+				//! \return World associated with this query storage.
 				GAIA_NODISCARD World* world() {
 					return m_world;
 				}
 
+				//! Returns the serialized command buffer for this query.
+				//! \return Serialized command buffer.
 				GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
 					return m_identity.ser_buffer(m_world);
 				}
+
+				//! Releases the serialized command buffer for this query.
 				void ser_buffer_reset() {
 					return m_identity.ser_buffer_reset(m_world);
 				}
 
+				//! Initializes storage against a world and query cache.
+				//! \param world World owning the query.
+				//! \param queryCache Query cache owned by the world.
 				void init(World* world, QueryCache* queryCache) {
 					m_world = world;
 					m_pCache = queryCache;
 					m_pInfo = nullptr;
 				}
 
-				//! Release any data allocated by the query
+				//! Releases any data allocated by the query.
 				void reset() {
 					if (auto* pInfo = try_query_info_fast(); pInfo != nullptr)
 						pInfo->reset();
@@ -41342,11 +41374,13 @@ namespace gaia {
 						m_pOwnedInfo->reset();
 				}
 
+				//! Allows this storage object to destroy cache-backed state again after a move/copy handoff.
 				void allow_to_destroy_again() {
 					m_destroyed = false;
 				}
 
-				//! Try delete the query from query cache
+				//! Tries to delete the query from the query cache.
+				//! \return False.
 				GAIA_NODISCARD bool try_del_from_cache() {
 					if (!m_destroyed && m_identity.handle.id() != QueryIdBad)
 						m_pCache->del(m_identity.handle);
@@ -41358,7 +41392,7 @@ namespace gaia {
 					return false;
 				}
 
-				//! Invalidates the query handle
+				//! Invalidates the query handle.
 				void invalidate() {
 					m_pInfo = nullptr;
 					m_identity.handle = {};
@@ -41366,6 +41400,8 @@ namespace gaia {
 					m_pOwnedInfo = nullptr;
 				}
 
+				//! Returns the cached QueryInfo pointer when the fast-path cache is still valid.
+				//! \return Cached QueryInfo pointer or nullptr.
 				GAIA_NODISCARD QueryInfo* try_query_info_fast() const {
 					if (m_pInfo == nullptr || m_identity.handle.id() == QueryIdBad || m_pCache == nullptr)
 						return nullptr;
@@ -41374,19 +41410,27 @@ namespace gaia {
 					return pInfo == m_pInfo ? pInfo : nullptr;
 				}
 
+				//! Caches the hot QueryInfo pointer locally.
+				//! \param queryInfo Query info
 				void cache_query_info(QueryInfo& queryInfo) {
 					m_pInfo = &queryInfo;
 				}
 
+				//! Returns whether storage owns a local QueryInfo instance.
+				//! \return True if a local QueryInfo exists. False otherwise.
 				GAIA_NODISCARD bool has_owned_query_info() const {
 					return m_pOwnedInfo != nullptr;
 				}
 
+				//! Returns the locally-owned QueryInfo.
+				//! \return Locally-owned QueryInfo.
 				GAIA_NODISCARD QueryInfo& owned_query_info() {
 					GAIA_ASSERT(m_pOwnedInfo != nullptr);
 					return *m_pOwnedInfo;
 				}
 
+				//! Stores a locally-owned QueryInfo, replacing the old one if present.
+				//! \param queryInfo Query info to store.
 				void init_owned_query_info(QueryInfo&& queryInfo) {
 					if (m_pOwnedInfo == nullptr)
 						m_pOwnedInfo = new QueryInfo(GAIA_MOV(queryInfo));
@@ -41394,7 +41438,8 @@ namespace gaia {
 						*m_pOwnedInfo = GAIA_MOV(queryInfo);
 				}
 
-				//! Returns true if the query is found in the query cache.
+				//! Returns whether the query is found in the query cache.
+				//! \return True if the query is found in the query cache. False otherwise.
 				GAIA_NODISCARD bool is_cached() const {
 					auto* pInfo = try_query_info_fast();
 					if (pInfo == nullptr)
@@ -41402,7 +41447,8 @@ namespace gaia {
 					return pInfo != nullptr;
 				}
 
-				//! Returns true if the query is ready to be used.
+				//! Returns whether the query is ready to be used.
+				//! \return True if the query is ready to be used. False otherwise.
 				GAIA_NODISCARD bool is_initialized() const {
 					return m_world != nullptr && m_pCache != nullptr;
 				}
@@ -41451,12 +41497,15 @@ namespace gaia {
 				}
 
 				//! Returns the per-thread scratch storage used by the direct entity-seeded query fast path.
+				//! \return Per-thread scratch storage.
 				GAIA_NODISCARD static DirectQueryScratch& direct_query_scratch() {
 					static thread_local DirectQueryScratch scratch;
 					return scratch;
 				}
 
 				//! Grows the direct-query seen/count array so the given entity id can be addressed directly.
+				//! \param scratch Scratch storage
+				//! \param entityId Entity id that must fit into the array.
 				static void ensure_direct_query_count_capacity(DirectQueryScratch& scratch, uint32_t entityId) {
 					if (entityId < scratch.counts.size())
 						return;
@@ -41468,6 +41517,8 @@ namespace gaia {
 				}
 
 				//! Advances the scratch version used to deduplicate direct seeded entities without clearing on every call.
+				//! \param scratch Scratch storage
+				//! \return Next seen-version value.
 				GAIA_NODISCARD static uint32_t next_direct_query_seen_version(DirectQueryScratch& scratch) {
 					update_version(scratch.seenVersion);
 					if (scratch.seenVersion == 0) {
@@ -41679,7 +41730,8 @@ namespace gaia {
 				static inline bool SilenceInvalidCacheKindAssertions = false;
 
 				//! Fetches the QueryInfo object.
-				//! \return QueryInfo object
+				//! Creates or refreshes the backing QueryInfo if needed.
+				//! \return QueryInfo object.
 				QueryInfo& fetch() {
 					GAIA_PROF_SCOPE(query::fetch);
 
@@ -41732,6 +41784,8 @@ namespace gaia {
 					return queryInfo;
 				}
 
+				//! Matches the query against all relevant archetypes.
+				//! \param queryInfo Query info
 				void match_all(QueryInfo& queryInfo) {
 					const auto kindError = validate_kind(queryInfo.ctx());
 					if (kindError != QueryKindRes::OK) {
@@ -41751,6 +41805,11 @@ namespace gaia {
 					m_storage.m_pCache->sync_archetype_cache(queryInfo);
 				}
 
+				//! Matches the query against a single archetype.
+				//! \param queryInfo Query info
+				//! \param archetype Archetype
+				//! \param targetEntities Optional target-entity filter
+				//! \return True if the archetype matches. False otherwise.
 				GAIA_NODISCARD bool match_one(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if (!uses_query_cache_storage()) {
 						return queryInfo.ensure_matches_one_transient(archetype, targetEntities, m_varBindings, m_varBindingsMask);
@@ -41759,6 +41818,11 @@ namespace gaia {
 					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
+				//! Returns whether any supplied target entity matches the query on @a archetype.
+				//! \param queryInfo Query info
+				//! \param archetype Archetype
+				//! \param targetEntities Candidate target entities
+				//! \return True if any target entity matches. False otherwise.
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					const auto kindError = validate_kind(queryInfo.ctx());
 					if (kindError != QueryKindRes::OK) {
@@ -41772,6 +41836,8 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
+				//! Returns the effective cache policy chosen for the query.
+				//! \return Effective cache policy.
 				GAIA_NODISCARD QueryCachePolicy cache_policy() {
 					return fetch().cache_policy();
 				}
@@ -41800,10 +41866,14 @@ namespace gaia {
 
 				//! Returns the traversed-source snapshot cap.
 				//! 0 disables explicit traversed-source snapshot caching.
+				//! \return Traversed-source snapshot cap.
 				GAIA_NODISCARD uint16_t cache_src_trav() const {
 					return m_cacheSrcTrav;
 				}
 
+				//! Sets the hard cache-kind requirement for the query.
+				//! \param cacheKind Requested cache-kind restriction.
+				//! \return Self reference.
 				QueryImpl& kind(QueryCacheKind cacheKind) {
 					if (m_cacheKind == cacheKind)
 						return *this;
@@ -41816,6 +41886,9 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Sets the cache scope used by cached queries.
+				//! \param cacheScope Whether cache-backed state stays local or can be shared across identical query shapes.
+				//! \return Self reference.
 				QueryImpl& scope(QueryCacheScope cacheScope) {
 					if (m_cacheScope == cacheScope)
 						return *this;
@@ -41828,57 +41901,79 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Makes the query include prefab entities in matches.
+				//! \return Self reference.
 				QueryImpl& match_prefab() {
 					QueryCmd_MatchPrefab cmd{};
 					add_cmd(cmd);
 					return *this;
 				}
 
+				//! Returns the currently requested cache scope.
+				//! \return Cache scope used by this query.
 				GAIA_NODISCARD QueryCacheScope scope() const {
 					return m_cacheScope;
 				}
 
+				//! Returns the currently requested cache kind.
+				//! \return Cache-kind restriction used by this query.
 				GAIA_NODISCARD QueryCacheKind kind() const {
 					return m_cacheKind;
 				}
 
+				//! Returns the validation result for the current query shape and requested kind.
+				//! \return Validation result for the query's kind requirement.
 				GAIA_NODISCARD QueryKindRes kind_error() {
 					return validate_kind(fetch().ctx());
 				}
 
+				//! Returns a human-readable description of the current kind validation result.
+				//! \return Validation message for the current kind requirement.
 				GAIA_NODISCARD const char* kind_error_str() {
 					return kind_error_str(kind_error());
 				}
 
+				//! Returns whether the current query shape satisfies the requested kind.
+				//! \return True when the current kind requirement is satisfied.
 				GAIA_NODISCARD bool valid() {
 					return kind_error() == QueryKindRes::OK;
 				}
 
 				//--------------------------------------------------------------------------------
 			private:
-				//! Returns true when the query requests traversed-source snapshots beyond the default automatic cache layers.
+				//! Returns whether the query requests traversed-source snapshots beyond the default automatic cache layers.
+				//! \param ctx Query context
+				//! \return True if manual traversed-source snapshot caching is requested. False otherwise.
 				GAIA_NODISCARD bool uses_manual_src_trav_cache(const QueryCtx& ctx) const {
 					return m_cacheSrcTrav != 0 && //
 								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms) && //
 								 ctx.data.deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms);
 				}
 
-				//! Returns true when the query uses the immediate structural cache layer.
+				//! Returns whether the query uses the immediate structural cache layer.
+				//! \param ctx Query context
+				//! \return True if the immediate structural cache layer is used. False otherwise.
 				GAIA_NODISCARD static bool uses_im_cache(const QueryCtx& ctx) {
 					return ctx.data.cachePolicy == QueryCachePolicy::Immediate;
 				}
 
-				//! Returns true when the query uses the lazy structural cache layer.
+				//! Returns whether the query uses the lazy structural cache layer.
+				//! \param ctx Query context
+				//! \return True if the lazy structural cache layer is used. False otherwise.
 				GAIA_NODISCARD static bool uses_lazy_cache(const QueryCtx& ctx) {
 					return ctx.data.cachePolicy == QueryCachePolicy::Lazy;
 				}
 
-				//! Returns true when the query uses the dynamic cache layer.
+				//! Returns whether the query uses the dynamic cache layer.
+				//! \param ctx Query context
+				//! \return True if the dynamic cache layer is used. False otherwise.
 				GAIA_NODISCARD static bool uses_dyn_cache(const QueryCtx& ctx) {
 					return ctx.data.cachePolicy == QueryCachePolicy::Dynamic;
 				}
 
 				//! Validates that the requested public kind can be satisfied by the current query shape.
+				//! \param ctx Query context
+				//! \return Validation result.
 				GAIA_NODISCARD QueryKindRes validate_kind(const QueryCtx& ctx) const {
 					if (m_cacheKind == QueryCacheKind::Auto) {
 						if (uses_manual_src_trav_cache(ctx))
@@ -41895,6 +41990,9 @@ namespace gaia {
 					return QueryKindRes::OK;
 				}
 
+				//! Returns a human-readable message for a query kind validation result.
+				//! \param error Validation result
+				//! \return Text description for @a error.
 				GAIA_NODISCARD static const char* kind_error_str(QueryKindRes error) {
 					switch (error) {
 						case QueryKindRes::OK:
@@ -41906,54 +42004,73 @@ namespace gaia {
 						case QueryKindRes::AllSrcTrav:
 							return "QueryCacheKind::All rejects explicit traversed-source snapshot caching";
 						default:
-							return "unknown query kind validation error";
+							return "Unknown query kind validation error";
 					}
 				}
 
+				//! Returns cached walk-iteration data if present.
+				//! \return Walk data pointer or nullptr.
 				GAIA_NODISCARD EachWalkData* each_walk_data() {
 					return m_eachWalkData.get();
 				}
 
+				//! Returns cached walk-iteration data if present.
+				//! \return Walk data pointer or nullptr.
 				GAIA_NODISCARD const EachWalkData* each_walk_data() const {
 					return m_eachWalkData.get();
 				}
 
+				//! Returns walk-iteration data, creating it if needed.
+				//! \return Walk data reference.
 				GAIA_NODISCARD EachWalkData& ensure_each_walk_data() {
 					return m_eachWalkData.ensure();
 				}
 
+				//! Invalidates cached each_walk state.
 				void invalidate_each_walk_cache() {
 					auto* pWalkData = each_walk_data();
 					if (pWalkData != nullptr)
 						pWalkData->cacheValid = false;
 				}
 
+				//! Returns cached direct-seed run data if present.
+				//! \return Direct-seed run data pointer or nullptr.
 				GAIA_NODISCARD DirectSeedRunData* direct_seed_run_data() {
 					return m_directSeedRunData.get();
 				}
 
+				//! Returns cached direct-seed run data if present.
+				//! \return Direct-seed run data pointer or nullptr.
 				GAIA_NODISCARD const DirectSeedRunData* direct_seed_run_data() const {
 					return m_directSeedRunData.get();
 				}
 
+				//! Returns direct-seed run data, creating it if needed.
+				//! \return Direct-seed run data reference.
 				GAIA_NODISCARD DirectSeedRunData& ensure_direct_seed_run_data() {
 					return m_directSeedRunData.ensure();
 				}
 
+				//! Invalidates cached direct-seed run state.
 				void invalidate_direct_seed_run_cache() {
 					auto* pRunData = direct_seed_run_data();
 					if (pRunData != nullptr)
 						pRunData->cacheValid = false;
 				}
 
+				//! Resets changed-filter bookkeeping for this query instance.
 				void reset_changed_filter_state() {
 					m_changedWorldVersion = 0;
 				}
 
+				//! Returns the last allocated archetype id in the world.
+				//! \return Last allocated archetype id.
 				ArchetypeId last_archetype_id() const {
 					return *m_nextArchetypeId - 1;
 				}
 
+				//! Returns a view over all archetypes in the parent world.
+				//! \return Span over all archetypes.
 				GAIA_NODISCARD std::span<const Archetype*> all_archetypes_view() const {
 					GAIA_ASSERT(m_allArchetypes != nullptr);
 					return {(const Archetype**)m_allArchetypes->data(), m_allArchetypes->size()};
@@ -43502,7 +43619,10 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				//! Returns true when a direct term is backed by non-fragmenting storage and must be evaluated per entity.
+				//! Returns whether a direct term is backed by non-fragmenting storage and must be evaluated per entity.
+				//! \param world World
+				//! \param term Query term
+				//! \return True if the term is backed by adjunct storage. False otherwise.
 				GAIA_NODISCARD static bool is_adjunct_direct_term(const World& world, const QueryTerm& term) {
 					if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 						return false;
@@ -43512,7 +43632,9 @@ namespace gaia {
 								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
 				}
 
-				//! Returns true when a term uses semantic `Is` matching rather than direct storage matching.
+				//! Returns whether a term uses semantic `Is` matching rather than direct storage matching.
+				//! \param term Query term
+				//! \return True if semantic `Is` matching is used. False otherwise.
 				GAIA_NODISCARD static bool uses_semantic_is_matching(const QueryTerm& term) {
 					const auto id = term.id;
 					return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
@@ -43520,7 +43642,9 @@ namespace gaia {
 								 !is_variable((EntityId)id.gen());
 				}
 
-				//! Returns true when a term uses strict semantic `Is` matching that excludes the base entity itself.
+				//! Returns whether a term uses strict semantic `Is` matching that excludes the base entity itself.
+				//! \param term Query term
+				//! \return True if strict semantic `Is` matching is used. False otherwise.
 				GAIA_NODISCARD static bool uses_in_is_matching(const QueryTerm& term) {
 					const auto id = term.id;
 					return term.matchKind == QueryMatchKind::In && term.src == EntityBad && term.entTrav == EntityBad &&
@@ -43528,12 +43652,17 @@ namespace gaia {
 								 !is_variable((EntityId)id.gen());
 				}
 
-				//! Returns true when a term uses any semantic `Is` matching rather than direct storage matching.
+				//! Returns whether a term uses any semantic `Is` matching rather than direct storage matching.
+				//! \param term Query term
+				//! \return True if any semantic `Is` matching is used. False otherwise.
 				GAIA_NODISCARD static bool uses_non_direct_is_matching(const QueryTerm& term) {
 					return uses_semantic_is_matching(term) || uses_in_is_matching(term);
 				}
 
-				//! Returns true when a term uses semantic inherited-id matching rather than direct storage matching.
+				//! Returns whether a term uses semantic inherited-id matching rather than direct storage matching.
+				//! \param world World
+				//! \param term Query term
+				//! \return True if inherited-id matching is used. False otherwise.
 				GAIA_NODISCARD static bool uses_inherited_id_matching(const World& world, const QueryTerm& term) {
 					const auto id = term.id;
 					return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
@@ -43858,7 +43987,11 @@ namespace gaia {
 					return plan;
 				}
 
-				//! Returns true when a repeated semantic/inherited seed can be cached as chunk runs.
+				//! Returns whether a repeated semantic or inherited seed can be cached as chunk runs.
+				//! \param world World
+				//! \param queryInfo Query info
+				//! \param seedTerm Seed term
+				//! \return True if direct-seed runs can be cached. False otherwise.
 				GAIA_NODISCARD static bool
 				can_use_direct_seed_run_cache(const World& world, const QueryInfo& queryInfo, const QueryTerm& seedTerm) {
 					if (!(uses_non_direct_is_matching(seedTerm) || uses_inherited_id_matching(world, seedTerm)))
@@ -44128,7 +44261,11 @@ namespace gaia {
 					return cnt;
 				}
 
-				//! Returns whether any entity survives the direct OR union after applying NOT terms and iterator constraints.
+				//! Returns whether the direct OR union becomes empty after applying NOT terms and iterator constraints.
+				//! \tparam TIter Iterator type
+				//! \param world World
+				//! \param queryInfo Query info
+				//! \return True if no surviving entity exists. False otherwise.
 				template <typename TIter>
 				GAIA_NODISCARD static bool is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo) {
 					auto& scratch = direct_query_scratch();
@@ -44225,7 +44362,9 @@ namespace gaia {
 					return seedInfo;
 				}
 
-				//! Returns true when direct OR evaluation still has direct NOT terms that must be checked per entity.
+				//! Returns whether direct OR evaluation still has direct NOT terms that must be checked per entity.
+				//! \param queryInfo Query info
+				//! \return True if direct NOT terms remain. False otherwise.
 				GAIA_NODISCARD static bool has_direct_not_terms(const QueryInfo& queryInfo) {
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
@@ -44238,6 +44377,11 @@ namespace gaia {
 				}
 
 				//! Visits the deduplicated OR union for direct-seeded queries without materializing an entity seed array first.
+				//! \tparam TIter Iterator type
+				//! \tparam Func Callback type
+				//! \param world World
+				//! \param queryInfo Query info
+				//! \param func Callback executed for each surviving entity.
 				template <typename TIter, typename Func>
 				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Func&& func) {
 					auto& scratch = direct_query_scratch();
@@ -44398,7 +44542,11 @@ namespace gaia {
 					return !hasOrTerms || anyOrMatched;
 				}
 
-				//! Checks whether any of the provided target entities matches the query semantics.
+				//! Returns whether any of the provided target entities matches the query semantics.
+				//! \param queryInfo Query info
+				//! \param archetype Archetype
+				//! \param targetEntities Candidate target entities
+				//! \return True if any target entity matches. False otherwise.
 				GAIA_NODISCARD bool
 				matches_target_entities(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
 					if (targetEntities.empty())
@@ -45223,12 +45371,16 @@ namespace gaia {
 					m_storage.init(&world, &queryCache);
 				}
 
+				//! Returns the cache handle id of this query.
+				//! \return Query id, or QueryIdBad for uncached queries.
 				GAIA_NODISCARD QueryId id() const {
 					if (!uses_query_cache_storage())
 						return QueryIdBad;
 					return m_storage.m_identity.handle.id();
 				}
 
+				//! Returns the cache handle generation of this query.
+				//! \return Query generation, or QueryIdBad for uncached queries.
 				GAIA_NODISCARD uint32_t gen() const {
 					if (!uses_query_cache_storage())
 						return QueryIdBad;
@@ -45247,6 +45399,7 @@ namespace gaia {
 					invalidate_direct_seed_run_cache();
 				}
 
+				//! Destroys the current cached query state and local scratch data.
 				void destroy() {
 					(void)m_storage.try_del_from_cache();
 					m_eachWalkData.reset();
@@ -45256,7 +45409,8 @@ namespace gaia {
 					invalidate_direct_seed_run_cache();
 				}
 
-				//! Returns true if the query is stored in the query cache
+				//! Returns whether the query is stored in the query cache.
+				//! \return True if the query is stored in the query cache. False otherwise.
 				GAIA_NODISCARD bool is_cached() const {
 					return uses_query_cache_storage() && m_storage.is_cached();
 				}
@@ -45581,6 +45735,9 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Adds a prebuilt query input item.
+				//! \param item Query term or filter description.
+				//! \return Self reference.
 				QueryImpl& add(QueryInput item) {
 					// Add commands to the command buffer
 					add_inter(item);
@@ -45589,12 +45746,20 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Adds a semantic `Is(entity)` requirement.
+				//! \param entity Target entity matched through the Is relation.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& is(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					return all(Pair(Is, entity), options);
 				}
 
 				//------------------------------------------------
 
+				//! Adds an inherited `in(entity)` requirement.
+				//! \param entity Target entity matched through inherited Is traversal.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& in(Entity entity, QueryTermOptions options = QueryTermOptions{}) {
 					options.in();
 					return all(Pair(Is, entity), options);
@@ -45602,11 +45767,19 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Adds a required entity or pair term.
+				//! \param entity Required entity or pair id.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& all(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::All, entity, options);
 					return *this;
 				}
 
+				//! Adds a required typed term.
+				//! \tparam T Component or pair type.
+				//! \param options Term options.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& all(const QueryTermOptions& options) {
 					add_inter<T>(QueryOpKind::All, options);
@@ -45614,6 +45787,9 @@ namespace gaia {
 				}
 
 #if GAIA_USE_VARIADIC_API
+				//! Adds one or more required typed terms.
+				//! \tparam T Component or pair types.
+				//! \return Self reference.
 				template <typename... T>
 				QueryImpl& all() {
 					// Add commands to the command buffer
@@ -45621,6 +45797,9 @@ namespace gaia {
 					return *this;
 				}
 #else
+				//! Adds a required typed term.
+				//! \tparam T Component or pair type.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& all() {
 					// Add commands to the command buffer
@@ -45631,11 +45810,19 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Adds an optional entity or pair term.
+				//! \param entity Optional entity or pair id.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& any(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Any, entity, options);
 					return *this;
 				}
 
+				//! Adds an optional typed term.
+				//! \tparam T Component or pair type.
+				//! \param options Term options.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& any(const QueryTermOptions& options) {
 					add_inter<T>(QueryOpKind::Any, options);
@@ -45643,6 +45830,9 @@ namespace gaia {
 				}
 
 #if GAIA_USE_VARIADIC_API
+				//! Adds one or more optional typed terms.
+				//! \tparam T Component or pair types.
+				//! \return Self reference.
 				template <typename... T>
 				QueryImpl& any() {
 					// Add commands to the command buffer
@@ -45650,6 +45840,9 @@ namespace gaia {
 					return *this;
 				}
 #else
+				//! Adds an optional typed term.
+				//! \tparam T Component or pair type.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& any() {
 					// Add commands to the command buffer
@@ -45662,11 +45855,18 @@ namespace gaia {
 
 				//! OR terms (at least one has to match).
 				//! A single OR term is canonicalized to ALL during query normalization.
+				//! \param entity Entity or pair id.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& or_(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Or, entity, options);
 					return *this;
 				}
 
+				//! Adds an OR typed term.
+				//! \tparam T Component or pair type.
+				//! \param options Term options.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& or_(const QueryTermOptions& options) {
 					add_inter<T>(QueryOpKind::Or, options);
@@ -45674,12 +45874,18 @@ namespace gaia {
 				}
 
 #if GAIA_USE_VARIADIC_API
+				//! Adds one or more OR typed terms.
+				//! \tparam T Component or pair types.
+				//! \return Self reference.
 				template <typename... T>
 				QueryImpl& or_() {
 					(add_inter<T>(QueryOpKind::Or), ...);
 					return *this;
 				}
 #else
+				//! Adds an OR typed term.
+				//! \tparam T Component or pair type.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& or_() {
 					add_inter<T>(QueryOpKind::Or);
@@ -45689,11 +45895,19 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Adds an excluded entity or pair term.
+				//! \param entity Entity or pair id that must not match.
+				//! \param options Term options.
+				//! \return Self reference.
 				QueryImpl& no(Entity entity, const QueryTermOptions& options = QueryTermOptions{}) {
 					add_entity_term(QueryOpKind::Not, entity, options);
 					return *this;
 				}
 
+				//! Adds an excluded typed term.
+				//! \tparam T Component or pair type.
+				//! \param options Term options.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& no(const QueryTermOptions& options) {
 					add_inter<T>(QueryOpKind::Not, options);
@@ -45701,6 +45915,9 @@ namespace gaia {
 				}
 
 #if GAIA_USE_VARIADIC_API
+				//! Adds one or more excluded typed terms.
+				//! \tparam T Component or pair types.
+				//! \return Self reference.
 				template <typename... T>
 				QueryImpl& no() {
 					// Add commands to the command buffer
@@ -45708,6 +45925,9 @@ namespace gaia {
 					return *this;
 				}
 #else
+				//! Adds an excluded typed term.
+				//! \tparam T Component or pair type.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& no() {
 					// Add commands to the command buffer
@@ -45787,12 +46007,18 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Marks a runtime component or pair for changed() filtering.
+				//! \param entity Component or pair id to monitor.
+				//! \return Self reference.
 				QueryImpl& changed(Entity entity) {
 					changed_inter(entity);
 					return *this;
 				}
 
 #if GAIA_USE_VARIADIC_API
+				//! Marks one or more typed terms for changed() filtering.
+				//! \tparam T Component or pair types.
+				//! \return Self reference.
 				template <typename... T>
 				QueryImpl& changed() {
 					// Add commands to the command buffer
@@ -45800,6 +46026,9 @@ namespace gaia {
 					return *this;
 				}
 #else
+				//! Marks a typed term for changed() filtering.
+				//! \tparam T Component or pair type.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& changed() {
 					// Add commands to the command buffer
@@ -45967,11 +46196,16 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Iterates query matches using the default execution mode.
+				//! \param func Callable invoked for each match.
 				template <typename Func>
 				void each(Func func) {
 					each_inter<QueryExecType::Default, Func>(func);
 				}
 
+				//! Iterates query matches using the selected execution mode.
+				//! \param func Callable invoked for each match.
+				//! \param execType Execution mode.
 				template <typename Func>
 				void each(Func func, QueryExecType execType) {
 					switch (execType) {
@@ -45992,6 +46226,8 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! Iterates matching archetypes instead of individual entities.
+				//! \param func Callable invoked for each matching archetype iterator.
 				template <typename Func>
 				void each_arch(Func func) {
 					auto& queryInfo = fetch();
@@ -46160,6 +46396,11 @@ namespace gaia {
 					}
 				}
 
+				//! Builds and caches BFS walk order for the current query result.
+				//! \param queryInfo Query info
+				//! \param relation Dependency relation used for the walk.
+				//! \param constraints Match constraints applied before ordering.
+				//! \return Ordered view of matched entities.
 				GAIA_NODISCARD std::span<const Entity> ordered_entities_walk(
 						QueryInfo& queryInfo, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
 					struct OrderedWalkTargetCtx {
@@ -46535,6 +46776,7 @@ namespace gaia {
 				}
 
 				//! Returns a textual dump of the generated query VM bytecode.
+				//! \return Bytecode dump.
 				GAIA_NODISCARD util::str bytecode() {
 					auto& queryInfo = fetch();
 					return queryInfo.bytecode();
@@ -46751,7 +46993,7 @@ namespace gaia {
 			Entity entity = EntityBad;
 			//! Called every time the observer ticked
 			TObserverIterFunc on_each_func;
-			//! Query associated with the system
+			//! Query associated with the observer
 			Query query;
 			//! Precomputed observer execution plan.
 			ObserverPlan plan;
@@ -49012,29 +49254,48 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns the internal record for @a entity.
+			//! \param entity Entity or exact pair record.
+			//! \return Mutable entity container record.
 			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
+#if GAIA_ASSERT_ENABLED
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
 					// Delete-time cleanup can still reference an exact pair record after one endpoint
 					// has already become invalid. As long as the pair record itself still exists,
 					// allow fetch() so cleanup can finish removing it.
-					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
-						GAIA_ASSERT(false);
+					const bool allowStaleExactPair = entity.pair() && m_recs.pairs.contains(EntityLookupKey(entity));
+					GAIA_ASSERT(allowStaleExactPair);
 				}
+#endif
 				return m_recs[entity];
 			}
 
+			//! Returns the internal record for @a entity.
+			//! \param entity Entity or exact pair record.
+			//! \return Const entity container record.
 			GAIA_NODISCARD const EntityContainer& fetch(Entity entity) const {
+#if GAIA_ASSERT_ENABLED
 				// Wildcard pairs are not a real entity so we can't accept them
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
-					if (!(entity.pair() && !is_wildcard(entity) && m_recs.pairs.contains(EntityLookupKey(entity))))
-						GAIA_ASSERT(false);
+					// Delete-time cleanup can still reference an exact pair record after one endpoint
+					// has already become invalid. As long as the pair record itself still exists,
+					// allow fetch() so cleanup can finish removing it.
+					const bool allowStaleExactPair = entity.pair() && m_recs.pairs.contains(EntityLookupKey(entity));
+					GAIA_ASSERT(allowStaleExactPair);
 				}
+#endif
 				return m_recs[entity];
 			}
 
+			//----------------------------------------------------------------------
+
+			//! Returns whether the record is already in delete-requested state.
+			//! Covers both explicit per-entity deletion and archetype-level forced teardown.
+			//! \param ec Entity container record
+			//! \return True if the record is marked for deletion. False otherwise.
 			GAIA_NODISCARD static bool is_req_del(const EntityContainer& ec) {
 				if ((ec.flags & EntityContainerFlags::DeleteRequested) != 0)
 					return true;
@@ -49042,14 +49303,24 @@ namespace gaia {
 				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
 
+			//! Returns whether @a entity is marked DontFragment.
+			//! \param entity Entity
+			//! \return True if @a entity is marked DontFragment. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
 				return (fetch(entity).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
+			//! Returns whether @a relation is a valid non-fragmenting relation entity.
+			//! \param relation Relation entity
+			//! \return True if @a relation is valid and non-fragmenting. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment_relation(Entity relation) const {
 				return valid(relation) && !relation.pair() && is_dont_fragment(relation);
 			}
 
+			//! Returns whether @a relation is both Exclusive and DontFragment.
+			//! Such relations are stored in the adjunct side structure instead of archetype identity.
+			//! \param relation Relation entity
+			//! \return True if @a relation is an exclusive non-fragmenting relation. False otherwise.
 			GAIA_NODISCARD bool is_exclusive_dont_fragment_relation(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
@@ -49095,6 +49366,10 @@ namespace gaia {
 				return is_fragmenting_hierarchy_relation(relation);
 			}
 
+			//! Returns whether @a component stores instance data out of line instead of in archetype chunks.
+			//! This is currently the storage path used for sparse plain generic AoS components.
+			//! \param component Component entity to inspect.
+			//! \return True when the component uses out-of-line storage.
 			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
 				if (!valid(component) || component.pair() || component.entity())
 					return false;
@@ -49106,12 +49381,18 @@ namespace gaia {
 				return component_has_out_of_line_data(pItem->comp);
 			}
 
+			//! Returns whether @a component is both out-of-line and non-fragmenting.
+			//! Non-fragmenting out-of-line components do not participate in archetype identity.
+			//! \param component Component entity to inspect.
+			//! \return True when the component uses out-of-line non-fragmenting storage.
 			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
 				if (!is_out_of_line_component(component))
 					return false;
 
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
+
+			//----------------------------------------------------------------------
 
 			//! Updates the cached component metadata in both the component cache and the core Component storage.
 			//! \param component Component entity.
@@ -49179,12 +49460,18 @@ namespace gaia {
 
 			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
+			//! \tparam T Component type to inspect.
+			//! \return True when @a T can use the out-of-line storage path.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool supports_out_of_line_component() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
 			}
 
+			//! Returns whether @a object is a usable out-of-line storage target for component type @a T.
+			//! \tparam T Component type to validate against.
+			//! \param object Component entity to inspect.
+			//! \return True when @a object can back an out-of-line store for @a T.
 			template <typename T>
 			GAIA_NODISCARD bool can_use_out_of_line_component(Entity object) const {
 				if constexpr (!supports_out_of_line_component<T>())
@@ -49203,6 +49490,10 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
 			GAIA_NODISCARD SparseComponentStore<T>* sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -49212,6 +49503,10 @@ namespace gaia {
 				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Pointer to the sparse store, or nullptr when absent.
 			template <typename T>
 			GAIA_NODISCARD const SparseComponentStore<T>* sparse_component_store(Entity component) const {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -49221,6 +49516,10 @@ namespace gaia {
 				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
 			}
 
+			//! Returns the sparse out-of-line component store for @a component, creating it if needed.
+			//! \tparam T Component payload type stored in the sparse store.
+			//! \param component Component entity identifying the store.
+			//! \return Mutable sparse store reference.
 			template <typename T>
 			GAIA_NODISCARD SparseComponentStore<T>& sparse_component_store_mut(Entity component) {
 				const auto key = EntityLookupKey(component);
@@ -49233,6 +49532,8 @@ namespace gaia {
 				return *pStore;
 			}
 
+			//! Removes all sparse out-of-line component instances owned by @a entity.
+			//! \param entity Entity
 			void del_sparse_components(Entity entity) {
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
 					(void)compKey;
@@ -49240,6 +49541,8 @@ namespace gaia {
 				}
 			}
 
+			//! Deletes the sparse out-of-line component store associated with @a component.
+			//! \param component Component entity identifying the store.
 			void del_sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
 				if (it == m_sparseComponentsByComp.end())
@@ -49250,6 +49553,9 @@ namespace gaia {
 				m_sparseComponentsByComp.erase(it);
 			}
 
+			//! Returns the exclusive adjunct store for @a relation, or nullptr when absent.
+			//! \param relation Relation entity
+			//! \return Exclusive adjunct store or nullptr if absent.
 			GAIA_NODISCARD const ExclusiveAdjunctStore* exclusive_adjunct_store(Entity relation) const {
 				const auto it = m_exclusiveAdjunctByRel.find(EntityLookupKey(relation));
 				if (it == m_exclusiveAdjunctByRel.end())
@@ -49258,6 +49564,9 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Returns the exclusive adjunct store for @a relation, creating it if needed.
+			//! \param relation Relation entity
+			//! \return Mutable exclusive adjunct store reference.
 			GAIA_NODISCARD ExclusiveAdjunctStore& exclusive_adjunct_store_mut(Entity relation) {
 				return m_exclusiveAdjunctByRel[EntityLookupKey(relation)];
 			}
@@ -49522,18 +49831,21 @@ namespace gaia {
 			}
 
 			//! Binds a pre-built runtime serializer handle.
+			//! \param serializer Serializer handle to store.
 			void set_serializer(ser::serializer serializer) {
 				GAIA_ASSERT(serializer.valid());
 				m_serializer = serializer;
 			}
 
 			//! Binds a concrete serializer object through ser::make_serializer().
+			//! \param serializer Serializer instance to wrap.
 			template <typename TSerializer>
 			void set_serializer(TSerializer& serializer) {
 				set_serializer(ser::make_serializer(serializer));
 			}
 
 			//! Returns the currently bound runtime serializer handle.
+			//! \return Bound serializer handle.
 			ser::serializer get_serializer() const {
 				return m_serializer;
 			}
@@ -51065,11 +51377,17 @@ namespace gaia {
 				return valid_entity_id(id) ? get(id) : EntityBad;
 			}
 
+			//! Returns the entity registered for component type @a T.
+			//! \tparam T Component type.
+			//! \return Component entity.
 			template <typename T>
 			GAIA_NODISCARD Entity get() const {
 				return comp_cache().get<T>().entity;
 			}
 
+			//! Returns the registered component cache item for @a T, auto-registering it when enabled.
+			//! \tparam T Component type.
+			//! \return Component cache item for @a T.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& reg_comp() {
 #if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
@@ -51089,34 +51407,35 @@ namespace gaia {
 				return EntityBuilder(*this, entity);
 			}
 
-			//! Creates a new empty entity
+			//! Creates a new empty entity.
 			//! \param kind Entity kind. Generic entity by default.
-			//! \return New entity
+			//! \return New entity.
 			GAIA_NODISCARD Entity add(EntityKind kind = EntityKind::EK_Gen) {
 				return add(*m_pEntityArchetype, true, false, kind);
 			}
 
 			//! Creates a new prefab entity.
+			//! \param kind Entity kind. Generic entity by default.
+			//! \return New prefab entity.
 			GAIA_NODISCARD Entity prefab(EntityKind kind = EntityKind::EK_Gen) {
 				const auto entity = add(kind);
 				add(entity, Prefab);
 				return entity;
 			}
 
-			//! Creates @a count new empty entities
-			//! \param count Number of enities to create
-			//! \param func Functor to execute every time an entity is added
+			//! Creates @a count new empty entities.
+			//! \param count Number of entities to create.
+			//! \param func Functor invoked for each new entity.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(uint32_t count, Func func = func_void_with_entity) {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
 			//! Creates @a count of entities of the same archetype as @a entity.
-			//! \param entity Source entity to copy
-			//! \param count Number of enities to create
-			//! \param func Functor to execute every time an entity is added
-			//! \note Similar to copy_n, but keeps component values uninitialized or default-initialized
-			//!       if they provide a constructor
+			//! \param entity Source entity whose archetype is reused.
+			//! \param count Number of entities to create.
+			//! \param func Functor invoked for each new entity.
+			//! \note Similar to copy_n(), but component payload is left uninitialized or default-initialized.
 			template <typename Func = TFunc_Void_With_Entity>
 			void add_n(Entity entity, uint32_t count, Func func = func_void_with_entity) {
 				auto& ec = m_recs.entities[entity.id()];
@@ -51214,9 +51533,9 @@ namespace gaia {
 				EntityBuilder(*this, entity).add(object);
 			}
 
-			//! Creates a new entity relationship pair
-			//! \param entity Source entity
-			//! \param pair Pair
+			//! Attaches a relationship pair to @a entity.
+			//! \param entity Source entity.
+			//! \param pair Pair to attach.
 			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
@@ -54179,6 +54498,10 @@ namespace gaia {
 				return depth;
 			}
 
+			//! Traverses transitive `Is` descendants of @a target.
+			//! The traversal uses the cached closure built by as_relations_trav_cache().
+			//! \param target Target entity
+			//! \param func void(Entity relation) functor executed for each descendant relation.
 			template <typename Func>
 			void as_relations_trav(Entity target, Func func) const {
 				if (!valid(target))
@@ -54189,6 +54512,11 @@ namespace gaia {
 					func(relation);
 			}
 
+			//! Traverses transitive `Is` descendants of @a target until @a func returns true.
+			//! \param target Target entity
+			//! \param func bool(Entity relation) functor executed for each descendant relation.
+			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool as_relations_trav_if(Entity target, Func func) const {
 				if (!valid(target))
@@ -54774,26 +55102,48 @@ namespace gaia {
 			}
 
 		public:
+			//! Counts entities directly matching @a term, including semantic `Is` inheritance expansion.
+			//! \param term Query term
+			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities(Entity term) const {
 				return count_direct_term_entities_inter(term, true);
 			}
 
+			//! Counts entities directly matching @a term without semantic `Is` expansion.
+			//! \param term Query term
+			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities_direct(Entity term) const {
 				return count_direct_term_entities_inter(term, false);
 			}
 
+			//! Appends entities directly matching @a term to @a out, including semantic `Is` expansion.
+			//! \param term Query term
+			//! \param out Output array
 			void collect_direct_term_entities(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, true);
 			}
 
+			//! Appends entities directly matching @a term to @a out without semantic `Is` expansion.
+			//! \param term Query term
+			//! \param out Output array
 			void collect_direct_term_entities_direct(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, false);
 			}
 
+			//! Visits entities directly matching @a term, including semantic `Is` expansion.
+			//! \param term Query term
+			//! \param ctx User context passed to @a func
+			//! \param func bool(void*, Entity) callback executed for each matching entity.
+			//! \return False when @a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, true);
 			}
 
+			//! Visits entities directly matching @a term without semantic `Is` expansion.
+			//! \param term Query term
+			//! \param ctx User context passed to @a func
+			//! \param func bool(void*, Entity) callback executed for each matching entity.
+			//! \return False when @a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool
 			for_each_direct_term_entity_direct(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, false);
@@ -54889,13 +55239,16 @@ namespace gaia {
 				return false;
 			}
 
-			//! Returns direct children in the ChildOf hierarchy.
+			//! Visits direct children in the `ChildOf` hierarchy.
+			//! \param parent Parent entity
+			//! \param func void(Entity child) functor executed for each child.
 			template <typename Func>
 			void children(Entity parent, Func func) const {
 				sources(ChildOf, parent, func);
 			}
 
-			//! Returns direct children in the ChildOf hierarchy.
+			//! Visits direct children in the `ChildOf` hierarchy until @a func returns false.
+			//! \param parent Parent entity
 			//! \param func bool(Entity child) functor executed for each child found.
 			//!             Stops if false is returned.
 			template <typename Func>
@@ -54903,20 +55256,28 @@ namespace gaia {
 				sources_if(ChildOf, parent, func);
 			}
 
-			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
+			//! \param root Root entity
+			//! \param func void(Entity child) functor executed for each descendant.
 			template <typename Func>
 			void children_bfs(Entity root, Func func) const {
 				sources_bfs(ChildOf, root, func);
 			}
 
-			//! Traverses descendants in the ChildOf hierarchy in breadth-first order.
+			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
+			//! \param root Root entity
 			//! \param func bool(Entity child) functor executed for each child found.
 			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool children_bfs_if(Entity root, Func func) const {
 				return sources_bfs_if(ChildOf, root, func);
 			}
 
+			//! Traverses transitive `Is` targets of @a relation.
+			//! The traversal uses the cached closure built by as_targets_trav_cache().
+			//! \param relation Relation entity
+			//! \param func void(Entity target) functor executed for each inherited target.
 			template <typename Func>
 			void as_targets_trav(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
@@ -54928,6 +55289,11 @@ namespace gaia {
 					func(target);
 			}
 
+			//! Traverses transitive `Is` targets of @a relation until @a func returns true.
+			//! \param relation Relation entity
+			//! \param func bool(Entity target) functor executed for each inherited target.
+			//!             Stops if true is returned.
+			//! \return True when traversal stopped early. False otherwise.
 			template <typename Func>
 			bool as_targets_trav_if(Entity relation, Func func) const {
 				GAIA_ASSERT(valid(relation));
@@ -54944,10 +55310,14 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Returns the single-threaded deferred command buffer owned by the world.
+			//! \return Single-threaded command buffer reference.
 			CommandBufferST& cmd_buffer_st() const {
 				return *m_pCmdBufferST;
 			}
 
+			//! Returns the multi-thread-safe deferred command buffer owned by the world.
+			//! \return Multi-thread-safe command buffer reference.
 			CommandBufferMT& cmd_buffer_mt() const {
 				return *m_pCmdBufferMT;
 			}
@@ -54962,22 +55332,24 @@ namespace gaia {
 			//! Executes all registered systems once.
 			void systems_run();
 
-			//! Provides a system set up to work with the parent world.
-			//! \return Entity holding the system.
+			//! Creates a system entity with a default local cached query.
+			//! \return System builder bound to the new system entity.
 			SystemBuilder system();
 
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
 
-			//! Provides a observer set up to work with the parent world.
-			//! \return Entity holding the observer.
+			//! Creates an observer entity with a default local cached query.
+			//! \return Observer builder bound to the new observer entity.
 			ObserverBuilder observer();
 
+			//! Returns the observer registry owned by the world.
 			ObserverRegistry& observers() {
 				return m_observers;
 			}
 
+			//! Returns the observer registry owned by the world.
 			const ObserverRegistry& observers() const {
 				return m_observers;
 			}
@@ -55120,6 +55492,9 @@ namespace gaia {
 				return it != m_relationVersions.end() ? it->second : 0;
 			}
 
+			//! Returns the version that changes when entity enabled state changes.
+			//! Hierarchy-aware cached traversals use this to invalidate ancestor gating state.
+			//! \return Enabled-hierarchy version.
 			GAIA_NODISCARD uint32_t enabled_hierarchy_version() const {
 				return m_enabledHierarchyVersion;
 			}
@@ -55685,10 +56060,21 @@ namespace gaia {
 			//! Non-fatal semantic issues are reported through @a diagnostics.
 			bool load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics);
 
+			//! Loads world state from a raw JSON buffer and discards non-fatal diagnostics.
+			//! \param json JSON buffer
+			//! \param len JSON buffer length
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(const char* json, uint32_t len);
 
+			//! Loads world state from a JSON string view and reports non-fatal diagnostics.
+			//! \param json JSON view
+			//! \param diagnostics Output diagnostics
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics);
 
+			//! Loads world state from a JSON string view and discards non-fatal diagnostics.
+			//! \param json JSON view
+			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json);
 
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
@@ -55984,6 +56370,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Loads a world state from a serializer-compatible stream wrapper.
+			//! \param inputSerializer Input serializer
+			//! \return True when loading succeeds. False otherwise.
 			template <typename TSerializer>
 			bool load(TSerializer& inputSerializer) {
 				return load(ser::make_serializer(inputSerializer));
@@ -58695,6 +59084,10 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the temporary serialization buffer used while building a query.
+			//! A fresh query id is allocated lazily when @a serId is QueryIdBad.
+			//! \param serId Query serialization id
+			//! \return Serialization buffer associated with @a serId.
 			QuerySerBuffer& query_buffer(QueryId& serId) {
 				// No serialization id set on the query, try creating a new record
 				if GAIA_UNLIKELY (serId == QueryIdBad) {
@@ -58727,6 +59120,8 @@ namespace gaia {
 				return m_querySerMap[serId];
 			}
 
+			//! Releases the temporary serialization buffer associated with @a serId.
+			//! \param serId Query serialization id reset to QueryIdBad on return.
 			void query_buffer_reset(QueryId& serId) {
 				auto it = m_querySerMap.find(serId);
 				if (it == m_querySerMap.end())
@@ -58736,14 +59131,20 @@ namespace gaia {
 				serId = QueryIdBad;
 			}
 
+			//! Invalidates cached queries structurally affected by @a entityKey.
+			//! \param entityKey Structural entity lookup key
 			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
 			}
 
+			//! Invalidates cached queries whose dynamic result depends on @a relation.
+			//! \param relation Relation entity
 			void invalidate_queries_for_rel(Entity relation) {
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
+			//! Invalidates cached sorted queries whose row ordering depends on @a entity.
+			//! \param entity Entity
 			void invalidate_sorted_queries_for_entity(Entity entity) {
 				m_queryCache.invalidate_sorted_queries_for_entity(entity);
 			}
@@ -58753,6 +59154,8 @@ namespace gaia {
 				m_queryCache.invalidate_sorted_queries();
 			}
 
+			//! Invalidates semantic `Is` queries affected by removing or changing @a is_pair.
+			//! \param is_pair `Is` pair
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
 
@@ -58774,6 +59177,10 @@ namespace gaia {
 				});
 			}
 
+			//! Resolves a textual id expression to an entity.
+			//! Supports names, aliases, wildcard `*`, and pair expressions like `(Rel, Target)`.
+			//! \param exprRaw Expression text
+			//! \return Resolved entity or EntityBad on failure.
 			Entity name_to_entity(std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
 
@@ -58807,6 +59214,11 @@ namespace gaia {
 				}
 			}
 
+			//! Resolves a textual id expression with `%e` placeholders to an entity.
+			//! Supports the same pair and wildcard syntax as name_to_entity().
+			//! \param args Vararg list consumed by `%e` placeholders
+			//! \param exprRaw Expression text
+			//! \return Resolved entity or EntityBad on failure.
 			Entity expr_to_entity(va_list& args, std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
 
@@ -59520,12 +59932,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Sets the hard cache-kind requirement for the observer query.
+			//! \param kind Requested cache-kind restriction.
+			//! \return Self reference.
 			ObserverBuilder& kind(QueryCacheKind kind) {
 				validate();
 				runtime_data().query.kind(kind);
 				return *this;
 			}
 
+			//! Sets the cache scope used by the observer query.
+			//! \param scope Requested scope.
+			//! \return Self reference.
 			ObserverBuilder& scope(QueryCacheScope scope) {
 				validate();
 				runtime_data().query.scope(scope);
@@ -59912,12 +60330,18 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Sets the hard cache-kind requirement for the system query.
+			//! \param kind Requested cache-kind restriction.
+			//! \return Self reference.
 			SystemBuilder& kind(QueryCacheKind kind) {
 				validate();
 				data().query.kind(kind);
 				return *this;
 			}
 
+			//! Sets the cache scope used by the system query.
+			//! \param scope Requested scope.
+			//! \return Self reference.
 			SystemBuilder& scope(QueryCacheScope scope) {
 				validate();
 				data().query.scope(scope);
@@ -61443,6 +61867,12 @@ namespace gaia {
 			return world.m_worldVersion;
 		}
 
+		//! Iterates direct targets of @a entity for the given relation.
+		//! \param world World to query.
+		//! \param entity Source entity.
+		//! \param relation Relation to traverse.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each target.
 		inline void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity)) {
 			world.targets(entity, relation, [ctx, func](Entity target) {
@@ -61450,6 +61880,9 @@ namespace gaia {
 			});
 		}
 
+		//! Acquires temporary scratch storage used during query matching.
+		//! \param world World providing the scratch stack.
+		//! \return Scratch storage reference.
 		inline QueryMatchScratch& query_match_scratch_acquire(World& world) {
 			if (world.m_queryMatchScratchDepth == world.m_queryMatchScratchStack.size())
 				world.m_queryMatchScratchStack.push_back(new QueryMatchScratch());
@@ -61459,6 +61892,9 @@ namespace gaia {
 			return scratch;
 		}
 
+		//! Releases previously acquired query-match scratch storage.
+		//! \param world World providing the scratch stack.
+		//! \param keepStamps Whether stamp buffers should be preserved.
 		inline void query_match_scratch_release(World& world, bool keepStamps) {
 			GAIA_ASSERT(world.m_queryMatchScratchDepth > 0);
 			auto& scratch = *world.m_queryMatchScratchStack[--world.m_queryMatchScratchDepth];
@@ -61468,14 +61904,24 @@ namespace gaia {
 				scratch.clear_temporary_matches();
 		}
 
+		//! Invalidates sorted queries affected by @a entity.
+		//! \param world World owning the queries.
+		//! \param entity Changed entity.
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
 			world.invalidate_sorted_queries_for_entity(entity);
 		}
 
+		//! Invalidates all sorted queries in @a world.
+		//! \param world World owning the queries.
 		inline void world_invalidate_sorted_queries(World& world) {
 			world.invalidate_sorted_queries();
 		}
 
+		//! Checks whether @a entity satisfies @a term using normal semantic matching.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity satisfies @a term.
 		inline bool world_has_entity_term(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -61485,6 +61931,11 @@ namespace gaia {
 			return world.has(entity, term);
 		}
 
+		//! Checks whether @a entity satisfies an inherited `in(...)` semantic term.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity matches @a term through inherited Is traversal.
 		inline bool world_has_entity_term_in(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -61494,48 +61945,89 @@ namespace gaia {
 			return false;
 		}
 
+		//! Returns whether @a term inherits by OnInstantiate(Inherit) policy.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return True if @a term uses inherit policy.
 		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
 			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
 		}
 
+		//! Checks whether @a entity directly owns @a term without inheritance.
+		//! \param world World to query.
+		//! \param entity Entity to test.
+		//! \param term Term to match.
+		//! \return True if @a entity directly owns @a term.
 		inline bool world_has_entity_term_direct(const World& world, Entity entity, Entity term) {
 			return world.has_direct(entity, term);
 		}
 
+		//! Returns whether @a relation is an exclusive non-fragmenting relation.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is exclusive and non-fragmenting.
 		inline bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation) {
 			return world.is_exclusive_dont_fragment_relation(relation);
 		}
 
+		//! Returns whether @a component uses out-of-line instance storage.
+		//! \param world World to query.
+		//! \param component Component entity to inspect.
+		//! \return True if @a component stores payload out of line.
 		inline bool world_is_out_of_line_component(const World& world, Entity component) {
 			return world.is_out_of_line_component(component);
 		}
 
+		//! Returns whether @a component is out-of-line and non-fragmenting.
+		//! \param world World to query.
+		//! \param component Component entity to inspect.
+		//! \return True if @a component uses non-fragmenting out-of-line storage.
 		inline bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component) {
 			return world.is_non_fragmenting_out_of_line_component(component);
 		}
 
+		//! Counts direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of direct entities.
 		inline uint32_t world_count_direct_term_entities(const World& world, Entity term) {
 			return world.count_direct_term_entities(term);
 		}
 
+		//! Counts direct relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \return Number of matching direct relations.
 		inline uint32_t world_count_in_term_entities(const World& world, Entity term) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return 0;
 
 			const auto target = world.get(term.gen());
 			return world.valid(target) ? (uint32_t)world.as_relations_trav_cache(target).size() : 0U;
 		}
 
+		//! Counts direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of direct entities.
 		inline uint32_t world_count_direct_term_entities_direct(const World& world, Entity term) {
 			return world.count_direct_term_entities_direct(term);
 		}
 
+		//! Collects direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param out Output array.
 		inline void world_collect_direct_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities(term, out);
 		}
 
+		//! Collects relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \param out Output array.
 		inline void world_collect_in_term_entities(const World& world, Entity term, cnt::darray<Entity>& out) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return;
 
 			const auto target = world.get(term.gen());
@@ -61548,17 +62040,33 @@ namespace gaia {
 				out.push_back(relation);
 		}
 
+		//! Collects direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param out Output array.
 		inline void world_collect_direct_term_entities_direct(const World& world, Entity term, cnt::darray<Entity>& out) {
 			world.collect_direct_term_entities_direct(term, out);
 		}
 
+		//! Iterates direct entities addressable by @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity(term, ctx, func);
 		}
 
+		//! Iterates relations reachable by an inherited `in(...)` term.
+		//! \param world World to query.
+		//! \param term Inherited semantic term.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
-			if (!(term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())))
+			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return true;
 
 			const auto target = world.get(term.gen());
@@ -61573,52 +62081,103 @@ namespace gaia {
 			return true;
 		}
 
+		//! Iterates direct entities addressable by @a term without semantic expansion.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \param ctx Opaque callback context.
+		//! \param func Callback invoked for each entity.
+		//! \return False if iteration was stopped by @a func.
 		inline bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity_direct(term, ctx, func);
 		}
 
+		//! Returns whether @a entity is enabled.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return True if @a entity is enabled.
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
 		}
 
+		//! Returns the live target of @a pair, or EntityBad if unavailable.
+		//! \param world World to query.
+		//! \param pair Pair entity.
+		//! \return Live pair target or EntityBad.
 		inline Entity world_pair_target_if_alive(const World& world, Entity pair) {
 			return world.pair_target_if_alive(pair);
 		}
 
+		//! Returns whether @a entity is enabled through the given hierarchy relation.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \param relation Hierarchy relation.
+		//! \return True if @a entity is enabled in the hierarchy.
 		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
 			return world.enabled_hierarchy(entity, relation);
 		}
 
+		//! Returns the version counter for hierarchy-enabled state.
+		//! \param world World to query.
+		//! \return Hierarchy-enabled version.
 		inline uint32_t world_enabled_hierarchy_version(const World& world) {
 			return world.enabled_hierarchy_version();
 		}
 
+		//! Returns whether @a relation is treated as a hierarchy relation.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is a hierarchy relation.
 		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {
 			return world.is_hierarchy_relation(relation);
 		}
 
+		//! Returns whether @a relation fragments archetypes.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is fragmenting.
 		inline bool world_is_fragmenting_relation(const World& world, Entity relation) {
 			return world.is_fragmenting_relation(relation);
 		}
 
+		//! Returns whether @a relation is both hierarchy-forming and fragmenting.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is a fragmenting hierarchy relation.
 		inline bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation) {
 			return world.is_fragmenting_hierarchy_relation(relation);
 		}
 
+		//! Returns whether @a relation supports cached depth-ordered iteration.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation supports depth ordering.
 		inline bool world_supports_depth_order(const World& world, Entity relation) {
 			return world.supports_depth_order(relation);
 		}
 
+		//! Returns whether disabled subtrees may be pruned for depth-ordered iteration.
+		//! \param world World to query.
+		//! \param relation Relation to inspect.
+		//! \return True if disabled subtree pruning is valid.
 		inline bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
 			return world.depth_order_prunes_disabled_subtrees(relation);
 		}
 
+		//! Returns whether @a entity currently belongs to a prefab archetype.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return True if @a entity is stored in a prefab archetype.
 		inline bool world_entity_prefab(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
 			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
+		//! Finds the first inherited owner providing @a term for @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to resolve.
+		//! \return First inherited owner providing @a term, or EntityBad.
 		inline Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term) {
 			const auto& chunks = archetype.chunks();
 			const Chunk* pFirstChunk = nullptr;
@@ -61642,10 +62201,18 @@ namespace gaia {
 			return EntityBad;
 		}
 
+		//! Returns the current archetype of @a entity.
+		//! \param world World to query.
+		//! \param entity Entity to inspect.
+		//! \return Archetype pointer, or nullptr when absent.
 		inline const Archetype* world_entity_archetype(const World& world, Entity entity) {
 			return world.fetch(entity).pArchetype;
 		}
 
+		//! Returns the size of the component-to-archetype bucket for @a term.
+		//! \param world World to query.
+		//! \param term Term to inspect.
+		//! \return Number of indexed archetype entries.
 		inline uint32_t world_component_index_bucket_size(const World& world, Entity term) {
 			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
 			if (it == world.m_entityToArchetypeMap.end())
@@ -61654,6 +62221,11 @@ namespace gaia {
 			return (uint32_t)it->second.size();
 		}
 
+		//! Returns the cached component index of @a term inside @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to inspect.
+		//! \return Component index, or BadIndex if unavailable.
 		inline uint32_t world_component_index_comp_idx(const World& world, const Archetype& archetype, Entity term) {
 			if (is_wildcard(term))
 				return BadIndex;
@@ -61671,6 +62243,11 @@ namespace gaia {
 			return it->second[idx].compIdx;
 		}
 
+		//! Returns the cached match count of @a term inside @a archetype.
+		//! \param world World to query.
+		//! \param archetype Archetype to inspect.
+		//! \param term Term to inspect.
+		//! \return Match count, or 0 if unavailable.
 		inline uint32_t world_component_index_match_count(const World& world, const Archetype& archetype, Entity term) {
 			const auto it = world.m_entityToArchetypeMap.find(EntityLookupKey(term));
 			if (it == world.m_entityToArchetypeMap.end())

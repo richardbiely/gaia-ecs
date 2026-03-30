@@ -449,12 +449,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Sets the hard cache-kind requirement for the observer query.
+			//! \param kind Requested cache-kind restriction.
+			//! \return Self reference.
 			ObserverBuilder& kind(QueryCacheKind kind) {
 				validate();
 				runtime_data().query.kind(kind);
 				return *this;
 			}
 
+			//! Sets the cache scope used by the observer query.
+			//! \param scope Requested scope.
+			//! \return Self reference.
 			ObserverBuilder& scope(QueryCacheScope scope) {
 				validate();
 				runtime_data().query.scope(scope);

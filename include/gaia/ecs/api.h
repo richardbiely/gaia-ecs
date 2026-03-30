@@ -33,6 +33,7 @@ namespace gaia {
 
 		Entity entity_from_id(const World& world, EntityId id);
 
+		//! Returns whether @a entity currently exists and its generation matches the world's record.
 		bool valid(const World& world, Entity entity);
 
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -43,18 +44,27 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
+		//! Invokes @a func for each live target of @a entity through @a relation.
+		//! This is a small C-style adapter used by header-only query/observer internals.
 		void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
 		Entity world_pair_target_if_alive(const World& world, Entity pair);
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
+		//! Returns the current world structural version.
 		uint32_t world_version(const World& world);
+		//! Returns the current version of @a relation-specific traversal metadata.
 		uint32_t world_rel_version(const World& world, Entity relation);
+		//! Returns whether @a relation is treated as a hierarchy relation by traversal helpers.
 		bool world_is_hierarchy_relation(const World& world, Entity relation);
+		//! Returns whether @a relation fragments archetypes.
 		bool world_is_fragmenting_relation(const World& world, Entity relation);
+		//! Returns whether @a relation is both hierarchy-like and fragmenting.
 		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
+		//! Returns whether @a relation supports cached depth-order traversal.
 		bool world_supports_depth_order(const World& world, Entity relation);
+		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
 		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
