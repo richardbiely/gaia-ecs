@@ -6,7 +6,7 @@
 # The output is then formatted with clang-format.
 # ---------------------------------------------------------------------------
 
-option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." OFF)
+option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." ON)
 
 if(GAIA_GENERATE_SINGLE_HEADER)
     set(GAIA_SH_INPUT "${CMAKE_SOURCE_DIR}/include/gaia.h")
