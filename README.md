@@ -1663,39 +1663,19 @@ ecs::Query q3 = w.query().add("Position, Velocity || Acceleration");
 ```
 
 ### Uncached query
-Uncached queries do not keep persistent match caches. They still keep an immutable compiled plan inside the query object itself and rebuild transient match results on demand.
-
-Two uncached queries with the same setup do not share state with each other, so each query pays for its own local warmup and temporary result storage.
-
-Prefer uncached queries for one-shot work or highly specialized query shapes that are unlikely to repeat. Prefer cached queries when the query object itself is reused, and prefer shared cached queries when the same query shape is rebuilt across frames, systems, or helper code.
+Uncached query is a special kind of query that does not build or keep persistent match cache.
 
 `World::uquery()` is equivalent to `World::query().kind(ecs::QueryCacheKind::None)`.
 
-Quick choice:
-
-| Need | Use |
-|---|---|
-| Normal reusable query | `w.query()` |
-| One-shot query or highly specialized shape | `w.uquery()` |
-| Same cached query shape rebuilt many times | `w.query().scope(ecs::QueryCacheScope::Shared)` |
+Most code should use `World::query()`. Use `World::uquery()` for one-shot work or highly specialized query shapes that are unlikely to repeat. For such cases it is more efficient to use than a regular cached query because building the cache takes time and memory.
 
 ```cpp
-// Cached query with local scope (default).
-ecs::Query q1 = w.query().all<Position>();
-
-// The same behavior written explicitly.
-ecs::Query q2 = w.query()
-  .kind(ecs::QueryCacheKind::Default)
-  .scope(ecs::QueryCacheScope::Local)
-  .all<Position>();
-
-// Shared cached query: identical query shapes may reuse one cache entry.
-ecs::Query q3 = w.query()
-  .scope(ecs::QueryCacheScope::Shared)
-  .all<Position>();
-
-// Uncached query: local plan only, transient results.
-ecs::Query q4 = w.uquery().all<Position>();
+// This query won't cache any of its results.
+ecs::Query q = w.uquery().all<Position>();
+// First matching attempt
+q.each(...) { ... };
+// Second matching attemp - will realculate all matches again (cached query would not)
+q.each(...) { ... };
 ```
 
 ### Query remarks
@@ -1735,29 +1715,29 @@ q2 = w.query(); // Last reference to cache query is destroyed. The cache is clea
 ```
 
 Technically, any query could be reset by default initializing it, e.g. ```myQuery = {}```. This, however, puts the query into an invalid state. Only queries created via `World::query()` or `World::uquery()` have a valid state.
+
 #### Query cache behavior
 
-Cached queries can use 3 internal cache layers. When the scope is `Shared`, identical query shapes also reuse one cached query record instead of rebuilding it for every query object.
+By default, cached queries keep their cache state locally inside that query object.
 
-* immediate cache - for plain structural queries that can be kept in sync immediately
-* lazy cache - for structural queries that stay cached, but rebuild on demand after relevant world changes
-* dynamic cache - for queries with dynamic inputs such as relations, variables, or source lookups
+`scope(ecs::QueryCacheScope::Shared)` is an advanced opt-in. It allows identical cached query shapes to reuse one shared cache entry instead of warming up separately. Use it only as an optimization for many identical live cached queries after you confirmed that it makes a difference.
 
-Quick guide:
+Simple rule of thumb:
 
 | Query shape | Recommended setup | Notes |
 |---|---|---|
-| Plain structural query reused through one query object | `ecs::Query` + local scope default | Best default choice for most user code. |
-| Same query shape rebuilt in many places | `ecs::Query` + `QueryCacheScope::Shared` | Reuses one cache entry across identical query shapes. |
-| Repeated direct source lookup (`src(entity)`) | Start with local scope default | Switch to shared scope only if identical shapes are rebuilt often enough to matter. |
-| Traversed source lookup (`src(entity).trav(...)`) | Start with local scope default | Add `cache_src_trav(...)` only after profiling. |
-| One-shot or highly specialized query | `ecs::Query` + `QueryCacheKind::None` / `World::uquery()` | Keeps only a local compiled plan and rebuilds transient results on demand. |
-| Automatic cache layers only | `QueryCacheKind::Auto` | Rejects explicit traversed-source snapshots. |
-| Immediate structural cache only | `QueryCacheKind::All` | Query creation fails unless the query can stay fully on the immediate structural cache layer. |
+| Normal reusable query | `w.query()` | Best default choice for most user code. |
+| One-shot or highly specialized query | `w.uquery()` | No persistent match cache. |
+| Many identical live cached queries | `w.query().scope(ecs::QueryCacheScope::Shared)` | Advanced optimization. |
 
-Use `World::uquery()` or `kind(ecs::QueryCacheKind::None)` for one-shot or highly specialized queries that are unlikely to be reused. Use `scope(ecs::QueryCacheScope::Shared)` when identical query shapes are frequently rebuilt and you want them to share warm state.
+`kind(...)` is the advanced cache-policy knob. It is a hard requirement on what cache behavior the query is allowed to use.
 
-Use shared scope only as an optimization for many identical live cached queries.
+If the query shape cannot satisfy the requested kind, the query is invalid for that kind (it won't be built and no matching will happen).
+
+* `kind(ecs::QueryCacheKind::Default)` - normal cached behavior. The engine may use any cache layer that fits the query shape, including explicit traversed-source snapshots.
+* `kind(ecs::QueryCacheKind::None)` - require uncached behavior, same as `uquery()`. The query keeps only its compiled plan and rebuilds transient matches on demand.
+* `kind(ecs::QueryCacheKind::Auto)` - require automatically derived cache layers only. The engine may use immediate, lazy, or dynamic cache layers, but explicit traversed-source snapshot opt-ins are rejected.
+* `kind(ecs::QueryCacheKind::All)` - require a fully immediate structural cache. Query shapes that need lazy caching, dynamic caching, or explicit traversed-source snapshots are rejected.
 
 ### Iteration
 To process data from queries one uses the `Query::each` function.
