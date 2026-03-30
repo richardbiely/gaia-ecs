@@ -824,10 +824,8 @@ namespace gaia {
 				Chunk* m_pChunk = nullptr;
 				//! ChunkHeader::MAX_COMPONENTS values for component indices mapping for the parent archetype
 				const uint8_t* m_pCompIndices = nullptr;
-				//! Optional per-term inherited owner entities for exact semantic self-source terms.
-				const Entity* m_pInheritedOwners = nullptr;
 				//! Optional inherited term data view for exact semantic self-source terms.
-				InheritedTermDataView m_inheritedData{};
+				InheritedTermDataView m_inheritedData;
 				//! Optional per-term ids used by one-row direct iterators when a term resolves semantically.
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
@@ -924,10 +922,6 @@ namespace gaia {
 					m_pCompIndices = pCompIndices;
 				}
 
-				void set_inherited_owners(const Entity* pInheritedOwners) {
-					m_pInheritedOwners = pInheritedOwners;
-				}
-
 				void set_inherited_data(InheritedTermDataView inheritedData) {
 					m_inheritedData = inheritedData;
 				}
@@ -938,10 +932,6 @@ namespace gaia {
 
 				GAIA_NODISCARD const uint8_t* comp_indices() const {
 					return m_pCompIndices;
-				}
-
-				GAIA_NODISCARD const Entity* inherited_owners() const {
-					return m_pInheritedOwners;
 				}
 
 				GAIA_NODISCARD InheritedTermDataView inherited_data() const {
@@ -1158,13 +1148,6 @@ namespace gaia {
 								const auto* pInheritedValue = reinterpret_cast<const U*>(m_inheritedData[termIdx]);
 								if (pInheritedValue != nullptr)
 									return EntityTermViewGet<U>::inherited(pInheritedValue, size());
-							}
-							if (m_pInheritedOwners != nullptr) {
-								const auto owner = m_pInheritedOwners[termIdx];
-								if (owner != EntityBad) {
-									return EntityTermViewGet<U>::inherited(
-											world_query_inherited_arg_data_const<U>(*const_cast<World*>(world()), owner, termId), size());
-								}
 							}
 							if (world_term_uses_inherit_policy(*world(), termId)) {
 								return EntityTermViewGet<U>::entity_chunk_stable(

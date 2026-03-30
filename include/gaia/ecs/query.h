@@ -463,7 +463,6 @@ namespace gaia {
 					const Archetype* pArchetype;
 					Chunk* pChunk;
 					const uint8_t* pCompIndices;
-					const Entity* pInheritedOwners;
 					InheritedTermDataView inheritedData;
 					GroupId groupId;
 					uint16_t from;
@@ -1757,7 +1756,6 @@ namespace gaia {
 					it.set_chunk(batch.pChunk, batch.from, batch.to);
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
-					it.set_inherited_owners(batch.pInheritedOwners);
 					it.set_inherited_data(batch.inheritedData);
 					func(it);
 					finish_iter_writes(it);
@@ -1774,7 +1772,6 @@ namespace gaia {
 					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
 					it.set_group_id(batch.groupId);
 					it.set_comp_indices(batch.pCompIndices);
-					it.set_inherited_owners(batch.pInheritedOwners);
 					it.set_inherited_data(batch.inheritedData);
 					func(it);
 					it.clear_touched_writes();
@@ -1794,7 +1791,6 @@ namespace gaia {
 
 					const Archetype* pLastArchetype = nullptr;
 					const uint8_t* pLastIndices = nullptr;
-					const Entity* pLastInheritedOwners = nullptr;
 					InheritedTermDataView lastInheritedData{};
 					GroupId lastGroupId = GroupIdMax;
 
@@ -1807,11 +1803,6 @@ namespace gaia {
 						if (batch.pCompIndices != pLastIndices) {
 							it.set_comp_indices(batch.pCompIndices);
 							pLastIndices = batch.pCompIndices;
-						}
-
-						if (batch.pInheritedOwners != pLastInheritedOwners) {
-							it.set_inherited_owners(batch.pInheritedOwners);
-							pLastInheritedOwners = batch.pInheritedOwners;
 						}
 
 						if (batch.inheritedData.data() != lastInheritedData.data()) {
@@ -1868,7 +1859,7 @@ namespace gaia {
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
-					const bool hasInheritedOwners = queryInfo.has_inherited_owner_payload();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
@@ -1907,14 +1898,11 @@ namespace gaia {
 							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
-							const auto* pInheritedOwners =
-									hasInheritedOwners ? queryInfo.inherited_owner_view(view.archetypeIdx).data() : nullptr;
 							const auto inheritedDataView =
-									hasInheritedOwners ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
 							chunkBatches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0U, startRow,
-									 endRow});
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
 								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
@@ -1929,9 +1917,8 @@ namespace gaia {
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
-							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
 							const auto inheritedDataView =
-									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							uint32_t chunkOffset = 0;
 							uint32_t itemsLeft = chunks.size();
@@ -1949,8 +1936,7 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back(
-											{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0});
+									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -1986,7 +1972,7 @@ namespace gaia {
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
-					const bool hasInheritedOwners = queryInfo.has_inherited_owner_payload();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
@@ -2019,14 +2005,11 @@ namespace gaia {
 							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
-							const auto* pInheritedOwners =
-									hasInheritedOwners ? queryInfo.inherited_owner_view(view.archetypeIdx).data() : nullptr;
 							const auto inheritedDataView =
-									hasInheritedOwners ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
 
 							m_batches.push_back(
-									{pArchetype, view.pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0U, startRow,
-									 endRow});
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
 						}
 					} else {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
@@ -2036,9 +2019,8 @@ namespace gaia {
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
-							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
 							const auto inheritedDataView =
-									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
 								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
@@ -2049,8 +2031,7 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back(
-										{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0});
+								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
 							}
 						}
 					}
@@ -2091,7 +2072,7 @@ namespace gaia {
 					ChunkBatchArray chunkBatches;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedOwners = queryInfo.has_inherited_owner_payload();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
@@ -2106,9 +2087,8 @@ namespace gaia {
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
-						const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
 						const auto inheritedDataView =
-								hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 						const auto& chunks = pArchetype->chunks();
 						const auto groupId = queryInfo.group_id(i);
 
@@ -2136,8 +2116,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back(
-										{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, groupId, 0, 0});
+								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -2170,7 +2149,7 @@ namespace gaia {
 					ChunkBatchArray chunkBatch;
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedOwners = queryInfo.has_inherited_owner_payload();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
@@ -2178,7 +2157,7 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
-						auto* pArchetype = cacheView[i];
+						const auto* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
 						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
 							continue;
@@ -2199,9 +2178,8 @@ namespace gaia {
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
-						const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
 						const auto inheritedDataView =
-								hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 						const auto groupId = queryInfo.group_id(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
@@ -2213,8 +2191,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back(
-									{pArchetype, pChunk, indicesView.data(), pInheritedOwners, inheritedDataView, groupId, 0, 0});
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
 						}
 					}
 
@@ -2304,9 +2281,9 @@ namespace gaia {
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
 						const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
-						const bool hasInheritedOwners = queryInfo.has_inherited_owner_payload();
+						const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 						if (needsBarrierCache)
-							const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+							queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
@@ -2314,10 +2291,9 @@ namespace gaia {
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
-							const auto* pInheritedOwners = hasInheritedOwners ? queryInfo.inherited_owner_view(i).data() : nullptr;
 							const auto inheritedDataView =
-									hasInheritedOwners ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
-							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), pInheritedOwners, inheritedDataView, 0, 0, 0};
+									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), inheritedDataView, 0, 0, 0};
 							run_query_arch_func<Func, Iter>(m_storage.world(), func, batch);
 						}
 					}
@@ -3757,8 +3733,6 @@ namespace gaia {
 
 						it.set_archetype(ec.pArchetype);
 						it.set_comp_indices(pIndices);
-						const auto inheritedOwnersView = queryInfo.inherited_owner_view(ec.pArchetype);
-						it.set_inherited_owners(inheritedOwnersView.empty() ? nullptr : inheritedOwnersView.data());
 						const auto inheritedDataView = queryInfo.inherited_data_view(ec.pArchetype);
 						it.set_inherited_data(inheritedDataView);
 						it.set_term_ids(pTermIds);
