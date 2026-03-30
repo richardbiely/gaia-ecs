@@ -109,5 +109,52 @@
       },
       "problemMatcher": []
     },
+    {
+      "label": "Run unit tests - all",
+      "type": "shell",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "windows": {
+        "command": ".vscode\\run_unit_tests.bat",
+        "args": [
+          "${input:buildType}"
+        ]
+      },
+      "linux": {
+        "command": "bash",
+        "args": [
+          ".vscode/run_unit_tests.sh",
+          "${input:buildType}"
+        ]
+      },
+      "osx": {
+        "command": "bash",
+        "args": [
+          ".vscode/run_unit_tests.sh",
+          "${input:buildType}"
+        ]
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "close": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Unit tests",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Run unit tests - all"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
   ]
 }

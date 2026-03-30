@@ -1,5 +1,4 @@
-set(PROJ_NAME "gaia_test")
-add_executable(${PROJ_NAME}
+set(GAIA_TEST_SOURCES
 	src/main.cpp
 	src/test_core.cpp
 	src/test_ecs_entity.cpp
@@ -11,21 +10,35 @@ add_executable(${PROJ_NAME}
 	src/test_misc.cpp
 )
 
-# System-specific threading library
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
+function(gaia_configure_test_target target_name)
+	add_executable(${target_name} ${GAIA_TEST_SOURCES})
 
-# Unit test framework
-target_link_libraries(${PROJ_NAME} PRIVATE doctest::doctest)
+	# System-specific threading library
+	set(THREADS_PREFER_PTHREAD_FLAG ON)
+	find_package(Threads REQUIRED)
+	target_link_libraries(${target_name} PRIVATE Threads::Threads)
 
-# Project files
-target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+	# Unit test framework
+	target_link_libraries(${target_name} PRIVATE doctest::doctest)
 
-if(MSVC)
-  enable_cxx_compiler_flag_if_supported("/bigobj")
-endif()
+	# Project files
+	target_include_directories(${target_name} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
+	if(MSVC)
+		enable_cxx_compiler_flag_if_supported("/bigobj")
+	endif()
+endfunction()
+
+set(PROJ_NAME "gaia_test")
+gaia_configure_test_target(${PROJ_NAME})
+
+set(PROJ_NAME_NO_AUTOREG "gaia_test_no_autoreg")
+gaia_configure_test_target(${PROJ_NAME_NO_AUTOREG})
+target_compile_definitions(${PROJ_NAME_NO_AUTOREG} PRIVATE GAIA_ECS_AUTO_COMPONENT_REGISTRATION=0)
 
 include(CTest)
 enable_testing()
 add_test(NAME ${PROJ_NAME} COMMAND ${PROJ_NAME})
+add_test(
+	NAME ${PROJ_NAME_NO_AUTOREG}
+	COMMAND ${PROJ_NAME_NO_AUTOREG} --test-case=*component registration*)

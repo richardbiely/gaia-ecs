@@ -1,5 +1,17 @@
 #include "test_common.h"
 
+struct AutoRegQueryProbe {
+	int value = 0;
+};
+
+struct AutoRegSystemProbe {
+	int value = 0;
+};
+
+struct AutoRegObserverProbe {
+	int value = 0;
+};
+
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
 	TestDataLayoutSoA_ECS<RotationSoA>();
@@ -331,6 +343,66 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(b.comp.id() == a.comp.id() + 1);
 		CHECK(c.comp.id() == b.comp.id() + 1);
 	}
+}
+
+#if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+TEST_CASE("Typed APIs - auto component registration is enabled") {
+#else
+TEST_CASE("Typed APIs - explicit component registration is required") {
+#endif
+	TestWorld twld;
+	auto& cc = wld.comp_cache();
+
+#if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
+	CHECK(cc.template find<AutoRegQueryProbe>() == nullptr);
+	auto q = wld.query().all<AutoRegQueryProbe>();
+	CHECK(cc.template find<AutoRegQueryProbe>() != nullptr);
+	CHECK(q.count() == 0);
+
+	CHECK(cc.template find<AutoRegSystemProbe>() == nullptr);
+	uint32_t systemHits = 0;
+	auto sys = wld.system().all<AutoRegSystemProbe>().on_each([&](const AutoRegSystemProbe&) {
+		++systemHits;
+	});
+	CHECK(cc.template find<AutoRegSystemProbe>() != nullptr);
+
+	CHECK(cc.template find<AutoRegObserverProbe>() == nullptr);
+	uint32_t observerHits = 0;
+	auto obs = wld.observer().event(ecs::ObserverEvent::OnAdd).all<AutoRegObserverProbe>().on_each([&](ecs::Entity) {
+		++observerHits;
+	});
+	CHECK(cc.template find<AutoRegObserverProbe>() != nullptr);
+#else
+	const auto& queryComp = wld.add<AutoRegQueryProbe>();
+	auto q = wld.query().all<AutoRegQueryProbe>();
+	CHECK(cc.template find<AutoRegQueryProbe>() == &queryComp);
+	CHECK(q.count() == 0);
+
+	const auto& systemComp = wld.add<AutoRegSystemProbe>();
+	uint32_t systemHits = 0;
+	auto sys = wld.system().all<AutoRegSystemProbe>().on_each([&](const AutoRegSystemProbe&) {
+		++systemHits;
+	});
+	CHECK(cc.template find<AutoRegSystemProbe>() == &systemComp);
+
+	const auto& observerComp = wld.add<AutoRegObserverProbe>();
+	uint32_t observerHits = 0;
+	auto obs = wld.observer().event(ecs::ObserverEvent::OnAdd).all<AutoRegObserverProbe>().on_each([&](ecs::Entity) {
+		++observerHits;
+	});
+	CHECK(cc.template find<AutoRegObserverProbe>() == &observerComp);
+#endif
+
+	const auto e = wld.add();
+	wld.add<AutoRegSystemProbe>(e, {1});
+	wld.update();
+	CHECK(systemHits == 1);
+	(void)sys;
+
+	const auto eObs = wld.add();
+	wld.add<AutoRegObserverProbe>(eObs, {1});
+	CHECK(observerHits == 1);
+	(void)obs;
 }
 
 //------------------------------------------------------------------------------

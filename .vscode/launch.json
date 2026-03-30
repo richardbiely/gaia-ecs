@@ -57,14 +57,6 @@
       "cwd": "${workspaceFolder}",
     },
     {
-      "name": "(lldb) unit test",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/build/${input:buildType}/src/test/gaia_test",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-    },
-    {
       "name": "(lldb) perf - duel",
       "type": "lldb",
       "request": "launch",
