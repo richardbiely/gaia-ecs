@@ -139,7 +139,8 @@ namespace gaia {
 					GAIA_ASSERT(idx < cnt);
 					if constexpr (WriteIm)
 						return world_query_entity_arg_by_id<U&>(*pWorld, pEntities[idx], id);
-					return world_query_entity_arg_by_id_raw<U&>(*pWorld, pEntities[idx], id);
+					else
+						return world_query_entity_arg_by_id_raw<U&>(*pWorld, pEntities[idx], id);
 				}
 
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {

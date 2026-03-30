@@ -6,3 +6,7 @@ target_include_directories(${PROJ_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(${PROJ_NAME} PRIVATE Threads::Threads)
+
+if(MSVC)
+  enable_cxx_compiler_flag_if_supported("/bigobj")
+endif()

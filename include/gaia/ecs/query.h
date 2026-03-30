@@ -1399,7 +1399,7 @@ namespace gaia {
 				}
 
 				void set_group_id_inter(Entity groupId) {
-					set_group_id_inter(groupId.value());
+					set_group_id_inter(groupId.id());
 				}
 
 				template <typename T>

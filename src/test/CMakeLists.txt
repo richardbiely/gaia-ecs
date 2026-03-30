@@ -23,10 +23,6 @@ function(gaia_configure_test_target target_name)
 
 	# Project files
 	target_include_directories(${target_name} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-
-	if(MSVC)
-		enable_cxx_compiler_flag_if_supported("/bigobj")
-	endif()
 endfunction()
 
 set(PROJ_NAME "gaia_test")
@@ -35,6 +31,10 @@ gaia_configure_test_target(${PROJ_NAME})
 set(PROJ_NAME_NO_AUTOREG "gaia_test_no_autoreg")
 gaia_configure_test_target(${PROJ_NAME_NO_AUTOREG})
 target_compile_definitions(${PROJ_NAME_NO_AUTOREG} PRIVATE GAIA_ECS_AUTO_COMPONENT_REGISTRATION=0)
+
+if(MSVC)
+	enable_cxx_compiler_flag_if_supported("/bigobj")
+endif()
 
 include(CTest)
 enable_testing()
