@@ -24649,6 +24649,7 @@ namespace gaia {
 		struct GAIA_API CantCombine_ {};
 		struct GAIA_API Exclusive_ {};
 		struct GAIA_API DontFragment_ {};
+		struct GAIA_API Sparse_ {};
 		struct GAIA_API Acyclic_ {};
 		struct GAIA_API All_ {};
 		struct GAIA_API ChildOf_ {};
@@ -24692,40 +24693,42 @@ namespace gaia {
 		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
+		// Entity storage
 		inline Entity DontFragment = Entity(11, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Sparse = Entity(12, 0, false, false, EntityKind::EK_Gen);
 		// Graph properties
-		inline Entity Acyclic = Entity(12, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Traversable = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Acyclic = Entity(13, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Traversable = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
-		inline Entity All = Entity(14, 0, false, false, EntityKind::EK_Gen);
+		inline Entity All = Entity(15, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a physical hierarchy.
 		// When the relationship target is deleted all children are deleted as well.
-		inline Entity ChildOf = Entity(15, 0, false, false, EntityKind::EK_Gen);
+		inline Entity ChildOf = Entity(16, 0, false, false, EntityKind::EK_Gen);
 		// Entity representing a logical/non-fragmenting hierarchy.
-		inline Entity Parent = Entity(16, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Parent = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
-		inline Entity Is = Entity(17, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Is = Entity(18, 0, false, false, EntityKind::EK_Gen);
 		// Template entity excluded from queries by default unless explicitly requested.
-		inline Entity Prefab = Entity(18, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Prefab = Entity(19, 0, false, false, EntityKind::EK_Gen);
 		// Prefab instantiation policy relation and values.
-		inline Entity OnInstantiate = Entity(19, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Override = Entity(20, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Inherit = Entity(21, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DontInherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity OnInstantiate = Entity(20, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Override = Entity(21, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Inherit = Entity(22, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DontInherit = Entity(23, 0, false, false, EntityKind::EK_Gen);
 		// Systems
-		inline Entity System = Entity(23, 0, false, false, EntityKind::EK_Gen);
-		inline Entity DependsOn = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity System = Entity(24, 0, false, false, EntityKind::EK_Gen);
+		inline Entity DependsOn = Entity(25, 0, false, false, EntityKind::EK_Gen);
 		// Observers
-		inline Entity Observer = Entity(25, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Observer = Entity(26, 0, false, false, EntityKind::EK_Gen);
 		// Query variables
-		inline Entity Var0 = Entity(26, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var1 = Entity(27, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var2 = Entity(28, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var3 = Entity(29, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var4 = Entity(30, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var5 = Entity(31, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var6 = Entity(32, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Var7 = Entity(33, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var0 = Entity(27, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var1 = Entity(28, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var2 = Entity(29, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var3 = Entity(30, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var4 = Entity(31, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -24737,7 +24740,7 @@ namespace gaia {
 		// remapped by the current core-id delta during load.
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
-		// Always has to match the last internal entity
+		// Always has to match the last internal entity.
 		inline Entity GAIA_ID(LastCoreComponent) = Var7;
 
 		//----------------------------------------------------------------------
@@ -24798,29 +24801,6 @@ namespace gaia {
 		using ChunkDataOffsetSpan = std::span<const ChunkDataOffset>;
 		using SortComponentCond = core::is_smaller<Entity>;
 
-		//----------------------------------------------------------------------
-		// Component storage
-		//----------------------------------------------------------------------
-
-#ifndef GAIA_STORAGE
-	#define GAIA_STORAGE(storage_name)                                                                                   \
-		static constexpr auto gaia_Storage_Type = ::gaia::ecs::DataStorageType::storage_name
-#endif
-
-		namespace detail {
-			template <typename, typename = void>
-			struct storage_type {
-				static constexpr DataStorageType value = DataStorageType::Table;
-			};
-			template <typename T>
-			struct storage_type<T, std::void_t<decltype(T::gaia_Storage_Type)>> {
-				static constexpr DataStorageType value = T::gaia_Storage_Type;
-			};
-		} // namespace detail
-
-		template <typename T>
-		inline constexpr DataStorageType storage_type_v = detail::storage_type<T>::value;
-
 		//! True when the component payload is stored inside archetype chunks.
 		//! Sparse AoS components are the notable false case: their id may still fragment,
 		//! but the payload itself lives in the world-side sparse store.
@@ -24849,11 +24829,6 @@ namespace gaia {
 							// SoA types need to be trivial. No restrictions otherwise.
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
-			template <typename T>
-			struct is_component_storage_valid:
-					std::bool_constant<
-							// Sparse storage currently supports only AoS payloads.
-							!(mem::is_soa_layout_v<T> && storage_type_v<T> == DataStorageType::Sparse)> {};
 		} // namespace detail
 
 		//----------------------------------------------------------------------
@@ -24869,9 +24844,6 @@ namespace gaia {
 					core::is_raw_v<U>,
 					"Components have to be \"raw\" types - no arrays, no const, reference, pointer or volatile");
 			static_assert(detail::is_component_type_valid<U>::value, "SoA components must be trivially copyable");
-			static_assert(
-					detail::is_component_storage_valid<U>::value,
-					"SoA components can't use GAIA_STORAGE(Sparse). SoA layouts are currently stored only in archetype chunks.");
 		}
 
 		//----------------------------------------------------------------------
@@ -25994,6 +25966,28 @@ namespace gaia {
 				uint32_t size = 0;
 			};
 
+			struct ComponentCacheItemCtx {
+				uint32_t compDescId = 0;
+				const char* nameStr = nullptr;
+				uint32_t nameLen = 0;
+				uint32_t size = 0;
+				uint32_t alig = 0;
+				DataStorageType storageType = DataStorageType::Table;
+				uint32_t soa = 0;
+				const uint8_t* pSoaSizes = nullptr;
+				ComponentLookupHash hashLookup = {};
+				FuncCtor* funcCtor = nullptr;
+				FuncMove* funcMoveCtor = nullptr;
+				FuncCopy* funcCopyCtor = nullptr;
+				FuncDtor* funcDtor = nullptr;
+				FuncCopy* funcCopy = nullptr;
+				FuncMove* funcMove = nullptr;
+				FuncSwap* funcSwap = nullptr;
+				FuncCmp* funcCmp = nullptr;
+				FuncSave* funcSave = nullptr;
+				FuncLoad* funcLoad = nullptr;
+			};
+
 			//! Component entity
 			Entity entity;
 			//! Unique component identifier
@@ -26255,32 +26249,9 @@ namespace gaia {
 				return addr;
 			}
 
+		private:
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
-				static_assert(core::is_raw_v<T>);
-
-				constexpr auto componentSize = detail::ComponentDesc<T>::size();
-				static_assert(
-						componentSize < Component::MaxComponentSizeInBytes,
-						"Trying to register a component larger than the maximum allowed component size! In the future this "
-						"restriction won't apply to components not stored inside archetype chunks.");
-
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
-				(void)new (cci) ComponentCacheItem();
-				cci->entity = entity;
-				cci->comp = Component(
-						// component id
-						detail::ComponentDesc<T>::id(),
-						// soa
-						detail::ComponentDesc<T>::soa(cci->soaSizes),
-						// size in bytes
-						componentSize,
-						// alignment
-						detail::ComponentDesc<T>::alig(),
-						// storage type
-						storage_type_v<T>);
-				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
-
+			GAIA_NODISCARD static uint32_t init_type_name(char (&nameTmp)[MaxNameLength]) {
 				auto ct_name = detail::ComponentDesc<T>::name();
 
 				// Allocate enough memory for the name string + the null-terminating character (
@@ -26290,7 +26261,6 @@ namespace gaia {
 				//   MSVC     : gaia::ecs::uni<struct Position>
 				// Therefore, we first copy the compile-time string and then tweak it so it is
 				// the same on all supported compilers.
-				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
 				GAIA_ASSERT(nameTmpLen < MaxNameLength);
 				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen);
@@ -26346,65 +26316,85 @@ namespace gaia {
 					}
 				}
 
-				// Allocate the final string
-				char* name = mem::AllocHelper::alloc<char>(nameTmpLen + 1);
-				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
-				name[nameTmpLen] = 0;
-
-				cci->name = SymbolLookupKey(name, nameTmpLen, 1);
-
-				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
-				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
-				cci->func_copy_ctor = detail::ComponentDesc<T>::func_copy_ctor();
-				cci->func_dtor = detail::ComponentDesc<T>::func_dtor();
-				cci->func_copy = detail::ComponentDesc<T>::func_copy();
-				cci->func_move = detail::ComponentDesc<T>::func_move();
-				cci->func_swap = detail::ComponentDesc<T>::func_swap();
-				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
-				cci->func_save = detail::ComponentDesc<T>::func_save();
-				cci->func_load = detail::ComponentDesc<T>::func_load();
-
-				return cci;
+				return nameTmpLen;
 			}
 
-			GAIA_NODISCARD static ComponentCacheItem* create(
-					Entity entity, uint32_t compDescId, const char* nameStr, uint32_t nameLen, uint32_t size, uint32_t alig,
-					DataStorageType storageType, uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {},
-					FuncCtor* funcCtor = nullptr, FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr,
-					FuncDtor* funcDtor = nullptr, FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr,
-					FuncSwap* funcSwap = nullptr, FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr,
-					FuncLoad* funcLoad = nullptr) {
-				GAIA_ASSERT(nameStr != nullptr && nameLen > 0 && nameLen < MaxNameLength);
-				GAIA_ASSERT(size < Component::MaxComponentSizeInBytes);
-				GAIA_ASSERT(alig > 0 && alig < Component::MaxAlignment);
-				GAIA_ASSERT(soa <= meta::StructToTupleMaxTypes);
+			static void init_name(SymbolLookupKey& nameOut, const char* nameStr, uint32_t nameLen) {
+				char* name = mem::AllocHelper::alloc<char>(nameLen + 1);
+				memcpy((void*)name, (const void*)nameStr, nameLen);
+				name[nameLen] = 0;
+				nameOut = SymbolLookupKey(name, nameLen, 1);
+			}
+
+		public:
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem*
+			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
+				static_assert(core::is_raw_v<T>);
+
+				constexpr auto componentSize = detail::ComponentDesc<T>::size();
+				static_assert(
+						componentSize < Component::MaxComponentSizeInBytes,
+						"Trying to register a component larger than the maximum allowed component size! In the future this "
+						"restriction won't apply to components not stored inside archetype chunks.");
+
+				char nameTmp[MaxNameLength];
+				const auto nameTmpLen = init_type_name<T>(nameTmp);
+
+				ComponentCacheItemCtx ctx{};
+				ctx.compDescId = detail::ComponentDesc<T>::id();
+				ctx.nameStr = nameTmp;
+				ctx.nameLen = nameTmpLen;
+				ctx.size = componentSize;
+				ctx.alig = detail::ComponentDesc<T>::alig();
+				ctx.storageType = storageType;
+				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
+				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
+				ctx.pSoaSizes = soaSizes;
+				ctx.hashLookup = detail::ComponentDesc<T>::hash_lookup();
+				ctx.funcCtor = detail::ComponentDesc<T>::func_ctor();
+				ctx.funcMoveCtor = detail::ComponentDesc<T>::func_move_ctor();
+				ctx.funcCopyCtor = detail::ComponentDesc<T>::func_copy_ctor();
+				ctx.funcDtor = detail::ComponentDesc<T>::func_dtor();
+				ctx.funcCopy = detail::ComponentDesc<T>::func_copy();
+				ctx.funcMove = detail::ComponentDesc<T>::func_move();
+				ctx.funcSwap = detail::ComponentDesc<T>::func_swap();
+				ctx.funcCmp = detail::ComponentDesc<T>::func_cmp();
+				ctx.funcSave = detail::ComponentDesc<T>::func_save();
+				ctx.funcLoad = detail::ComponentDesc<T>::func_load();
+				return create(entity, ctx);
+			}
+
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
+				GAIA_ASSERT(ctx.nameStr != nullptr && ctx.nameLen > 0 && ctx.nameLen < MaxNameLength);
+				GAIA_ASSERT(ctx.size < Component::MaxComponentSizeInBytes);
+				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
+				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
 
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(compDescId, soa, size, alig, storageType);
-				cci->hashLookup =
-						hashLookup.hash != 0 ? hashLookup : ComponentLookupHash{core::calculate_hash64(nameStr, nameLen)};
+				cci->comp = Component(ctx.compDescId, ctx.soa, ctx.size, ctx.alig, ctx.storageType);
+				cci->hashLookup = ctx.hashLookup.hash != 0
+															? ctx.hashLookup
+															: ComponentLookupHash{core::calculate_hash64(ctx.nameStr, ctx.nameLen)};
 
-				if (soa > 0 && pSoaSizes != nullptr) {
-					GAIA_FOR(soa) cci->soaSizes[i] = pSoaSizes[i];
+				if (ctx.soa > 0 && ctx.pSoaSizes != nullptr) {
+					GAIA_FOR(ctx.soa) cci->soaSizes[i] = ctx.pSoaSizes[i];
 				}
 
-				char* name = mem::AllocHelper::alloc<char>(nameLen + 1);
-				memcpy((void*)name, (const void*)nameStr, nameLen);
-				name[nameLen] = 0;
-				cci->name = SymbolLookupKey(name, nameLen, 1);
+				init_name(cci->name, ctx.nameStr, ctx.nameLen);
 
-				cci->func_ctor = funcCtor;
-				cci->func_move_ctor = funcMoveCtor;
-				cci->func_copy_ctor = funcCopyCtor;
-				cci->func_dtor = funcDtor;
-				cci->func_copy = funcCopy;
-				cci->func_move = funcMove;
-				cci->func_swap = funcSwap;
-				cci->func_cmp = funcCmp;
-				cci->func_save = funcSave;
-				cci->func_load = funcLoad;
+				cci->func_ctor = ctx.funcCtor;
+				cci->func_move_ctor = ctx.funcMoveCtor;
+				cci->func_copy_ctor = ctx.funcCopyCtor;
+				cci->func_dtor = ctx.funcDtor;
+				cci->func_copy = ctx.funcCopy;
+				cci->func_move = ctx.funcMove;
+				cci->func_swap = ctx.funcSwap;
+				cci->func_cmp = ctx.funcCmp;
+				cci->func_save = ctx.funcSave;
+				cci->func_load = ctx.funcLoad;
 
 				return cci;
 			}
@@ -26732,8 +26722,18 @@ namespace gaia {
 				}
 				m_nextRuntimeCompDescId = compDescId + 1;
 
-				const auto* pItem = ComponentCacheItem::create(
-						entity, compDescId, name, l, size, alig, storageType, soa, pSoaSizes, hashLookup);
+				ComponentCacheItem::ComponentCacheItemCtx ctx{};
+				ctx.compDescId = compDescId;
+				ctx.nameStr = name;
+				ctx.nameLen = l;
+				ctx.size = size;
+				ctx.alig = alig;
+				ctx.storageType = storageType;
+				ctx.soa = soa;
+				ctx.pSoaSizes = pSoaSizes;
+				ctx.hashLookup = hashLookup;
+
+				const auto* pItem = ComponentCacheItem::create(entity, ctx);
 				if (compDescId < FastComponentCacheSize) {
 					if (compDescId >= m_itemArr.size())
 						m_itemArr.resize(compDescId + 1U);
@@ -49140,10 +49140,7 @@ namespace gaia {
 				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
 					return false;
 
-				const auto& ec = fetch(component);
-				// Sparse AoS payloads live out-of-line even if the component still fragments.
-				// DontFragment uses that same storage model but also removes the id from archetype identity.
-				return component_has_out_of_line_data(pItem->comp) || (ec.flags & EntityContainerFlags::IsDontFragment) != 0;
+				return component_has_out_of_line_data(pItem->comp);
 			}
 
 			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
@@ -49151,6 +49148,70 @@ namespace gaia {
 					return false;
 
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
+			}
+
+			//! Updates the cached component metadata in both the component cache and the core Component storage.
+			//! \param component Component entity.
+			//! \param comp New component descriptor value.
+			void sync_component_record(Entity component, Component comp) {
+				auto& item = comp_cache_mut().get(component);
+				item.comp = comp;
+
+				auto& ec = m_recs.entities[component.id()];
+				if (ec.pArchetype == nullptr || ec.pChunk == nullptr)
+					return;
+
+				const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
+				if (compIdx == BadIndex)
+					return;
+
+				auto* pComp = reinterpret_cast<Component*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
+				*pComp = comp;
+			}
+
+			//! Latches DontFragment on a component entity record.
+			//! This first moves the payload out of chunks, then removes the id from archetype identity.
+			//! \param component Component entity.
+			//! \param ec Component entity container.
+			void set_component_dont_fragment(Entity component, EntityContainer& ec) {
+				if (component.comp())
+					set_component_sparse_storage(component);
+
+				if ((ec.flags & EntityContainerFlags::IsDontFragment) != 0)
+					return;
+
+				ec.flags |= EntityContainerFlags::IsDontFragment;
+			}
+
+			//! Latches Sparse storage on a component entity before any instances exist.
+			//! This moves the payload out of chunks while keeping the id in archetype identity.
+			//! Only plain generic AoS components are supported.
+			//! \param component Component entity.
+			void set_component_sparse_storage(Entity component) {
+				GAIA_ASSERT(valid(component));
+				GAIA_ASSERT(component.comp());
+				GAIA_ASSERT(!component.pair());
+				GAIA_ASSERT(!component.entity());
+				GAIA_ASSERT(component.kind() == EntityKind::EK_Gen);
+
+				const auto& item = comp_cache().get(component);
+				GAIA_ASSERT(item.entity == component);
+
+				if (item.comp.storage_type() == DataStorageType::Sparse)
+					return;
+
+				GAIA_ASSERT(item.comp.soa() == 0);
+				if (item.comp.soa() != 0)
+					return;
+
+				const auto directTermEntityCnt = count_direct_term_entities_direct(component);
+				GAIA_ASSERT(directTermEntityCnt == 0);
+				if (directTermEntityCnt != 0)
+					return;
+
+				auto comp = item.comp;
+				comp.data.storage = (IdentifierData)DataStorageType::Sparse;
+				sync_component_record(component, comp);
 			}
 
 			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
@@ -50139,7 +50200,8 @@ namespace gaia {
 					auto& ec = m_world.fetch(entity);
 					try_set_Is(ec, entity, enable);
 					try_set_IsExclusive(ecMain, entity, enable);
-					try_set_IsDontFragment(ecMain, entity, enable);
+					if (enable)
+						try_set_sticky_component_traits(ecMain, entity);
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
 					try_set_OnDeleteTarget(entity, enable);
@@ -50183,11 +50245,17 @@ namespace gaia {
 					set_flag(ec.flags, EntityContainerFlags::IsExclusive, enable);
 				}
 
-				void try_set_IsDontFragment(EntityContainer& ec, Entity entity, bool enable) {
-					if (entity.pair() || entity.id() != DontFragment.id())
+				void try_set_sticky_component_traits(EntityContainer& ecMain, Entity entity) {
+					if (entity.pair())
 						return;
 
-					set_flag(ec.flags, EntityContainerFlags::IsDontFragment, enable);
+					if (entity.id() == DontFragment.id()) {
+						m_world.set_component_dont_fragment(m_entity, ecMain);
+						return;
+					}
+
+					if (entity.id() == Sparse.id())
+						m_world.set_component_sparse_storage(m_entity);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -50469,7 +50537,17 @@ namespace gaia {
 					return true;
 				}
 
+				GAIA_NODISCARD bool is_sticky_component_trait(Entity entity) const noexcept {
+					if (entity.pair() || !m_entity.comp())
+						return false;
+
+					return entity.id() == DontFragment.id() || entity.id() == Sparse.id();
+				}
+
 				bool del_inter(Entity entity) {
+					if (is_sticky_component_trait(entity))
+						return true;
+
 					if (!can_del(entity))
 						return false;
 
@@ -51150,6 +51228,8 @@ namespace gaia {
 				}
 				// Register the default component symbol through the normal entity naming path.
 				name_raw(item.entity, item.name.str(), item.name.len());
+				if (item.comp.storage_type() == DataStorageType::Sparse)
+					add(item.entity, Sparse);
 				return item;
 			}
 
@@ -60243,6 +60323,7 @@ namespace gaia {
 				(void)reg_core_entity<CantCombine_>(CantCombine);
 				(void)reg_core_entity<Exclusive_>(Exclusive);
 				(void)reg_core_entity<DontFragment_>(DontFragment);
+				(void)reg_core_entity<Sparse_>(Sparse);
 				(void)reg_core_entity<Acyclic_>(Acyclic);
 				(void)reg_core_entity<Traversable_>(Traversable);
 				(void)reg_core_entity<All_>(All);
@@ -60313,6 +60394,10 @@ namespace gaia {
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
 				EntityBuilder(*this, DontFragment) //
+						.add(Core)
+						.add(Pair(OnDelete, Error))
+						.add(Acyclic);
+				EntityBuilder(*this, Sparse) //
 						.add(Core)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);

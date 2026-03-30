@@ -324,8 +324,18 @@ namespace gaia {
 				}
 				m_nextRuntimeCompDescId = compDescId + 1;
 
-				const auto* pItem = ComponentCacheItem::create(
-						entity, compDescId, name, l, size, alig, storageType, soa, pSoaSizes, hashLookup);
+				ComponentCacheItem::ComponentCacheItemCtx ctx{};
+				ctx.compDescId = compDescId;
+				ctx.nameStr = name;
+				ctx.nameLen = l;
+				ctx.size = size;
+				ctx.alig = alig;
+				ctx.storageType = storageType;
+				ctx.soa = soa;
+				ctx.pSoaSizes = pSoaSizes;
+				ctx.hashLookup = hashLookup;
+
+				const auto* pItem = ComponentCacheItem::create(entity, ctx);
 				if (compDescId < FastComponentCacheSize) {
 					if (compDescId >= m_itemArr.size())
 						m_itemArr.resize(compDescId + 1U);

@@ -2377,8 +2377,13 @@ namespace gaia {
 				item.comp = comp;
 
 				auto& ec = m_recs.entities[component.id()];
+				if (ec.pArchetype == nullptr || ec.pChunk == nullptr)
+					return;
+
 				const auto compIdx = core::get_index(ec.pArchetype->ids_view(), GAIA_ID(Component));
-				GAIA_ASSERT(compIdx != BadIndex);
+				if (compIdx == BadIndex)
+					return;
+
 				auto* pComp = reinterpret_cast<Component*>(ec.pChunk->comp_ptr_mut(compIdx, ec.row));
 				*pComp = comp;
 			}
@@ -2388,7 +2393,8 @@ namespace gaia {
 			//! \param component Component entity.
 			//! \param ec Component entity container.
 			void set_component_dont_fragment(Entity component, EntityContainer& ec) {
-				set_component_sparse_storage(component);
+				if (component.comp())
+					set_component_sparse_storage(component);
 
 				if ((ec.flags & EntityContainerFlags::IsDontFragment) != 0)
 					return;

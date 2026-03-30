@@ -49,6 +49,28 @@ namespace gaia {
 				uint32_t size = 0;
 			};
 
+			struct ComponentCacheItemCtx {
+				uint32_t compDescId = 0;
+				const char* nameStr = nullptr;
+				uint32_t nameLen = 0;
+				uint32_t size = 0;
+				uint32_t alig = 0;
+				DataStorageType storageType = DataStorageType::Table;
+				uint32_t soa = 0;
+				const uint8_t* pSoaSizes = nullptr;
+				ComponentLookupHash hashLookup = {};
+				FuncCtor* funcCtor = nullptr;
+				FuncMove* funcMoveCtor = nullptr;
+				FuncCopy* funcCopyCtor = nullptr;
+				FuncDtor* funcDtor = nullptr;
+				FuncCopy* funcCopy = nullptr;
+				FuncMove* funcMove = nullptr;
+				FuncSwap* funcSwap = nullptr;
+				FuncCmp* funcCmp = nullptr;
+				FuncSave* funcSave = nullptr;
+				FuncLoad* funcLoad = nullptr;
+			};
+
 			//! Component entity
 			Entity entity;
 			//! Unique component identifier
@@ -310,33 +332,9 @@ namespace gaia {
 				return addr;
 			}
 
+		private:
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem*
-			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
-				static_assert(core::is_raw_v<T>);
-
-				constexpr auto componentSize = detail::ComponentDesc<T>::size();
-				static_assert(
-						componentSize < Component::MaxComponentSizeInBytes,
-						"Trying to register a component larger than the maximum allowed component size! In the future this "
-						"restriction won't apply to components not stored inside archetype chunks.");
-
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
-				(void)new (cci) ComponentCacheItem();
-				cci->entity = entity;
-				cci->comp = Component(
-						// component id
-						detail::ComponentDesc<T>::id(),
-						// soa
-						detail::ComponentDesc<T>::soa(cci->soaSizes),
-						// size in bytes
-						componentSize,
-						// alignment
-						detail::ComponentDesc<T>::alig(),
-						// storage type
-						storageType);
-				cci->hashLookup = detail::ComponentDesc<T>::hash_lookup();
-
+			GAIA_NODISCARD static uint32_t init_type_name(char (&nameTmp)[MaxNameLength]) {
 				auto ct_name = detail::ComponentDesc<T>::name();
 
 				// Allocate enough memory for the name string + the null-terminating character (
@@ -346,7 +344,6 @@ namespace gaia {
 				//   MSVC     : gaia::ecs::uni<struct Position>
 				// Therefore, we first copy the compile-time string and then tweak it so it is
 				// the same on all supported compilers.
-				char nameTmp[MaxNameLength];
 				auto nameTmpLen = (uint32_t)ct_name.size();
 				GAIA_ASSERT(nameTmpLen < MaxNameLength);
 				memcpy((void*)nameTmp, (const void*)ct_name.data(), nameTmpLen);
@@ -402,65 +399,85 @@ namespace gaia {
 					}
 				}
 
-				// Allocate the final string
-				char* name = mem::AllocHelper::alloc<char>(nameTmpLen + 1);
-				memcpy((void*)name, (const void*)nameTmp, nameTmpLen + 1);
-				name[nameTmpLen] = 0;
-
-				cci->name = SymbolLookupKey(name, nameTmpLen, 1);
-
-				cci->func_ctor = detail::ComponentDesc<T>::func_ctor();
-				cci->func_move_ctor = detail::ComponentDesc<T>::func_move_ctor();
-				cci->func_copy_ctor = detail::ComponentDesc<T>::func_copy_ctor();
-				cci->func_dtor = detail::ComponentDesc<T>::func_dtor();
-				cci->func_copy = detail::ComponentDesc<T>::func_copy();
-				cci->func_move = detail::ComponentDesc<T>::func_move();
-				cci->func_swap = detail::ComponentDesc<T>::func_swap();
-				cci->func_cmp = detail::ComponentDesc<T>::func_cmp();
-				cci->func_save = detail::ComponentDesc<T>::func_save();
-				cci->func_load = detail::ComponentDesc<T>::func_load();
-
-				return cci;
+				return nameTmpLen;
 			}
 
-			GAIA_NODISCARD static ComponentCacheItem* create(
-					Entity entity, uint32_t compDescId, const char* nameStr, uint32_t nameLen, uint32_t size, uint32_t alig,
-					DataStorageType storageType, uint32_t soa, const uint8_t* pSoaSizes, ComponentLookupHash hashLookup = {},
-					FuncCtor* funcCtor = nullptr, FuncMove* funcMoveCtor = nullptr, FuncCopy* funcCopyCtor = nullptr,
-					FuncDtor* funcDtor = nullptr, FuncCopy* funcCopy = nullptr, FuncMove* funcMove = nullptr,
-					FuncSwap* funcSwap = nullptr, FuncCmp* funcCmp = nullptr, FuncSave* funcSave = nullptr,
-					FuncLoad* funcLoad = nullptr) {
-				GAIA_ASSERT(nameStr != nullptr && nameLen > 0 && nameLen < MaxNameLength);
-				GAIA_ASSERT(size < Component::MaxComponentSizeInBytes);
-				GAIA_ASSERT(alig > 0 && alig < Component::MaxAlignment);
-				GAIA_ASSERT(soa <= meta::StructToTupleMaxTypes);
+			static void init_name(SymbolLookupKey& nameOut, const char* nameStr, uint32_t nameLen) {
+				char* name = mem::AllocHelper::alloc<char>(nameLen + 1);
+				memcpy((void*)name, (const void*)nameStr, nameLen);
+				name[nameLen] = 0;
+				nameOut = SymbolLookupKey(name, nameLen, 1);
+			}
+
+		public:
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem*
+			create(Entity entity, DataStorageType storageType = DataStorageType::Table) {
+				static_assert(core::is_raw_v<T>);
+
+				constexpr auto componentSize = detail::ComponentDesc<T>::size();
+				static_assert(
+						componentSize < Component::MaxComponentSizeInBytes,
+						"Trying to register a component larger than the maximum allowed component size! In the future this "
+						"restriction won't apply to components not stored inside archetype chunks.");
+
+				char nameTmp[MaxNameLength];
+				const auto nameTmpLen = init_type_name<T>(nameTmp);
+
+				ComponentCacheItemCtx ctx{};
+				ctx.compDescId = detail::ComponentDesc<T>::id();
+				ctx.nameStr = nameTmp;
+				ctx.nameLen = nameTmpLen;
+				ctx.size = componentSize;
+				ctx.alig = detail::ComponentDesc<T>::alig();
+				ctx.storageType = storageType;
+				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
+				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
+				ctx.pSoaSizes = soaSizes;
+				ctx.hashLookup = detail::ComponentDesc<T>::hash_lookup();
+				ctx.funcCtor = detail::ComponentDesc<T>::func_ctor();
+				ctx.funcMoveCtor = detail::ComponentDesc<T>::func_move_ctor();
+				ctx.funcCopyCtor = detail::ComponentDesc<T>::func_copy_ctor();
+				ctx.funcDtor = detail::ComponentDesc<T>::func_dtor();
+				ctx.funcCopy = detail::ComponentDesc<T>::func_copy();
+				ctx.funcMove = detail::ComponentDesc<T>::func_move();
+				ctx.funcSwap = detail::ComponentDesc<T>::func_swap();
+				ctx.funcCmp = detail::ComponentDesc<T>::func_cmp();
+				ctx.funcSave = detail::ComponentDesc<T>::func_save();
+				ctx.funcLoad = detail::ComponentDesc<T>::func_load();
+				return create(entity, ctx);
+			}
+
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
+				GAIA_ASSERT(ctx.nameStr != nullptr && ctx.nameLen > 0 && ctx.nameLen < MaxNameLength);
+				GAIA_ASSERT(ctx.size < Component::MaxComponentSizeInBytes);
+				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
+				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
 
 				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
 				(void)new (cci) ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(compDescId, soa, size, alig, storageType);
-				cci->hashLookup =
-						hashLookup.hash != 0 ? hashLookup : ComponentLookupHash{core::calculate_hash64(nameStr, nameLen)};
+				cci->comp = Component(ctx.compDescId, ctx.soa, ctx.size, ctx.alig, ctx.storageType);
+				cci->hashLookup = ctx.hashLookup.hash != 0
+															? ctx.hashLookup
+															: ComponentLookupHash{core::calculate_hash64(ctx.nameStr, ctx.nameLen)};
 
-				if (soa > 0 && pSoaSizes != nullptr) {
-					GAIA_FOR(soa) cci->soaSizes[i] = pSoaSizes[i];
+				if (ctx.soa > 0 && ctx.pSoaSizes != nullptr) {
+					GAIA_FOR(ctx.soa) cci->soaSizes[i] = ctx.pSoaSizes[i];
 				}
 
-				char* name = mem::AllocHelper::alloc<char>(nameLen + 1);
-				memcpy((void*)name, (const void*)nameStr, nameLen);
-				name[nameLen] = 0;
-				cci->name = SymbolLookupKey(name, nameLen, 1);
+				init_name(cci->name, ctx.nameStr, ctx.nameLen);
 
-				cci->func_ctor = funcCtor;
-				cci->func_move_ctor = funcMoveCtor;
-				cci->func_copy_ctor = funcCopyCtor;
-				cci->func_dtor = funcDtor;
-				cci->func_copy = funcCopy;
-				cci->func_move = funcMove;
-				cci->func_swap = funcSwap;
-				cci->func_cmp = funcCmp;
-				cci->func_save = funcSave;
-				cci->func_load = funcLoad;
+				cci->func_ctor = ctx.funcCtor;
+				cci->func_move_ctor = ctx.funcMoveCtor;
+				cci->func_copy_ctor = ctx.funcCopyCtor;
+				cci->func_dtor = ctx.funcDtor;
+				cci->func_copy = ctx.funcCopy;
+				cci->func_move = ctx.funcMove;
+				cci->func_swap = ctx.funcSwap;
+				cci->func_cmp = ctx.funcCmp;
+				cci->func_save = ctx.funcSave;
+				cci->func_load = ctx.funcLoad;
 
 				return cci;
 			}
