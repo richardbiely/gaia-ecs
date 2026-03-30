@@ -592,40 +592,6 @@ namespace gaia {
 
 			//------------------------------------------------
 
-	#if GAIA_USE_VARIADIC_API
-			template <typename... T>
-			ObserverBuilder& all() {
-				validate();
-				auto& data = runtime_data();
-				data.query.all<T...>();
-				(reg_typed_term<QueryOpKind::All, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& any() {
-				validate();
-				auto& data = runtime_data();
-				data.query.any<T...>();
-				(reg_typed_term<QueryOpKind::Any, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& or_() {
-				validate();
-				auto& data = runtime_data();
-				data.query.or_<T...>();
-				(reg_typed_term<QueryOpKind::Or, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& no() {
-				validate();
-				auto& data = runtime_data();
-				data.query.no<T...>();
-				(reg_typed_term<QueryOpKind::Not, T>(data), ...);
-				return *this;
-			}
-	#else
 			template <typename T>
 			ObserverBuilder& all() {
 				validate();
@@ -634,6 +600,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::All, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& any() {
 				validate();
@@ -642,6 +609,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Any, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& or_() {
 				validate();
@@ -650,6 +618,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Or, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& no() {
 				validate();
@@ -658,7 +627,6 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Not, T>(data);
 				return *this;
 			}
-	#endif
 
 			//------------------------------------------------
 

@@ -1680,19 +1680,6 @@ q.each(...) { ... };
 
 ### Query remarks
 
-When the library is built with GAIA_USE_VARIADIC_API enabled (off by default) it is possible to use an even more convenient shortcut at the cost of possibly longer compilation time. This affects not only queries but some other features such as [EntityBuilder](#bulk-editing) or [systems](#systems) as well.
-
-```cpp
-ecs::Query q = w.query();
-  // Take into account everything with Position (mutable access)
-  // and at the same time everything with Velocity (mutable access)...
-  .all<Position&, Velocity&>()
-  // ... at least Something or SomethingElse (immutable access)...
-  .or_<Something, SomethingElse>()
-  // ... and no Player component (no access)...
-  .no<Player>(); 
-```
-
 Building cache requires memory. Because of that, sometimes it comes handy having the ability to release this data. Calling ```myQuery.reset()``` will remove any data allocated by the query. The next time the query is used to fetch results the cache is rebuilt.
 
 ```cpp

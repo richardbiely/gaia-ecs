@@ -4789,17 +4789,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more required typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& all() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::All), ...);
-					return *this;
-				}
-#else
 				//! Adds a required typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -4809,7 +4798,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::All);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -4832,17 +4820,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more optional typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& any() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::Any), ...);
-					return *this;
-				}
-#else
 				//! Adds an optional typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -4852,7 +4829,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Any);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -4876,16 +4852,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more OR typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& or_() {
-					(add_inter<T>(QueryOpKind::Or), ...);
-					return *this;
-				}
-#else
 				//! Adds an OR typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -4894,7 +4860,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Or);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -4917,17 +4882,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more excluded typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& no() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::Not), ...);
-					return *this;
-				}
-#else
 				//! Adds an excluded typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -4937,7 +4891,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Not);
 					return *this;
 				}
-#endif
 
 				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
 				//! The name can be used later by set_var(name, value).
@@ -5018,17 +4971,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Marks one or more typed terms for changed() filtering.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& changed() {
-					// Add commands to the command buffer
-					(changed_inter<T>(), ...);
-					return *this;
-				}
-#else
 				//! Marks a typed term for changed() filtering.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -5038,7 +4980,6 @@ namespace gaia {
 					changed_inter<T>();
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 

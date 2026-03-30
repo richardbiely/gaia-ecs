@@ -215,69 +215,40 @@ namespace gaia {
 
 			//------------------------------------------------
 
-	#if GAIA_USE_VARIADIC_API
-			template <typename... T>
-			SystemBuilder& all() {
-				validate();
-				data().query.all<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& any() {
-				validate();
-				data().query.any<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& or_() {
-				validate();
-				data().query.or_<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& no() {
-				validate();
-				data().query.no<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& changed() {
-				validate();
-				data().query.changed<T...>();
-				return *this;
-			}
-	#else
 			template <typename T>
 			SystemBuilder& all() {
 				validate();
 				data().query.all<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& any() {
 				validate();
 				data().query.any<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& or_() {
 				validate();
 				data().query.or_<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& no() {
 				validate();
 				data().query.no<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& changed() {
 				validate();
 				data().query.changed<T>();
 				return *this;
 			}
-	#endif
 
 			//------------------------------------------------
 

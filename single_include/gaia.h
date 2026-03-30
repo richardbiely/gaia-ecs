@@ -767,12 +767,6 @@ namespace gaia {
 	#define GAIA_USE_WEAK_ENTITY 1
 #endif
 
-//! If enabled, API supporting variadic template arguments is made available.
-//! More comfortable to use, but compilation times may suffer.
-#ifndef GAIA_USE_VARIADIC_API
-	#define GAIA_USE_VARIADIC_API 0
-#endif
-
 //! If enabled, a bloom filter is used for speed up matching of archetypes in queries.
 //! If disabled, no filter is applied.
 //! Possible values:
@@ -45786,17 +45780,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more required typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& all() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::All), ...);
-					return *this;
-				}
-#else
 				//! Adds a required typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -45806,7 +45789,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::All);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -45829,17 +45811,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more optional typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& any() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::Any), ...);
-					return *this;
-				}
-#else
 				//! Adds an optional typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -45849,7 +45820,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Any);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -45873,16 +45843,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more OR typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& or_() {
-					(add_inter<T>(QueryOpKind::Or), ...);
-					return *this;
-				}
-#else
 				//! Adds an OR typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -45891,7 +45851,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Or);
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -45914,17 +45873,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Adds one or more excluded typed terms.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& no() {
-					// Add commands to the command buffer
-					(add_inter<T>(QueryOpKind::Not), ...);
-					return *this;
-				}
-#else
 				//! Adds an excluded typed term.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -45934,7 +45882,6 @@ namespace gaia {
 					add_inter<T>(QueryOpKind::Not);
 					return *this;
 				}
-#endif
 
 				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
 				//! The name can be used later by set_var(name, value).
@@ -46015,17 +45962,6 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				//! Marks one or more typed terms for changed() filtering.
-				//! \tparam T Component or pair types.
-				//! \return Self reference.
-				template <typename... T>
-				QueryImpl& changed() {
-					// Add commands to the command buffer
-					(changed_inter<T>(), ...);
-					return *this;
-				}
-#else
 				//! Marks a typed term for changed() filtering.
 				//! \tparam T Component or pair type.
 				//! \return Self reference.
@@ -46035,7 +45971,6 @@ namespace gaia {
 					changed_inter<T>();
 					return *this;
 				}
-#endif
 
 				//------------------------------------------------
 
@@ -50199,21 +50134,12 @@ namespace gaia {
 					}
 				}
 
-#if GAIA_USE_VARIADIC_API
-				template <typename... T>
-				EntityBuilder& add() {
-					(verify_comp<T>(), ...);
-					(add(register_component<T>()), ...);
-					return *this;
-				}
-#else
 				template <typename T>
 				EntityBuilder& add() {
 					verify_comp<T>();
 					add(register_component<T>());
 					return *this;
 				}
-#endif
 
 				//! Prepares an archetype movement by following the "del" edge of the current archetype.
 				//! \param entity Removed entity
@@ -50236,21 +50162,12 @@ namespace gaia {
 					return *this;
 				}
 
-#if GAIA_USE_VARIADIC_API
-				template <typename... T>
-				EntityBuilder& del() {
-					(verify_comp<T>(), ...);
-					(del(register_component<T>()), ...);
-					return *this;
-				}
-#else
 				template <typename T>
 				EntityBuilder& del() {
 					verify_comp<T>();
 					del(register_component<T>());
 					return *this;
 				}
-#endif
 
 			private:
 				//! Triggers add hooks for the component if there are any.
@@ -60075,40 +59992,6 @@ namespace gaia {
 
 			//------------------------------------------------
 
-	#if GAIA_USE_VARIADIC_API
-			template <typename... T>
-			ObserverBuilder& all() {
-				validate();
-				auto& data = runtime_data();
-				data.query.all<T...>();
-				(reg_typed_term<QueryOpKind::All, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& any() {
-				validate();
-				auto& data = runtime_data();
-				data.query.any<T...>();
-				(reg_typed_term<QueryOpKind::Any, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& or_() {
-				validate();
-				auto& data = runtime_data();
-				data.query.or_<T...>();
-				(reg_typed_term<QueryOpKind::Or, T>(data), ...);
-				return *this;
-			}
-			template <typename... T>
-			ObserverBuilder& no() {
-				validate();
-				auto& data = runtime_data();
-				data.query.no<T...>();
-				(reg_typed_term<QueryOpKind::Not, T>(data), ...);
-				return *this;
-			}
-	#else
 			template <typename T>
 			ObserverBuilder& all() {
 				validate();
@@ -60117,6 +60000,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::All, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& any() {
 				validate();
@@ -60125,6 +60009,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Any, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& or_() {
 				validate();
@@ -60133,6 +60018,7 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Or, T>(data);
 				return *this;
 			}
+
 			template <typename T>
 			ObserverBuilder& no() {
 				validate();
@@ -60141,7 +60027,6 @@ namespace gaia {
 				reg_typed_term<QueryOpKind::Not, T>(data);
 				return *this;
 			}
-	#endif
 
 			//------------------------------------------------
 
@@ -60437,69 +60322,40 @@ namespace gaia {
 
 			//------------------------------------------------
 
-	#if GAIA_USE_VARIADIC_API
-			template <typename... T>
-			SystemBuilder& all() {
-				validate();
-				data().query.all<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& any() {
-				validate();
-				data().query.any<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& or_() {
-				validate();
-				data().query.or_<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& no() {
-				validate();
-				data().query.no<T...>();
-				return *this;
-			}
-			template <typename... T>
-			SystemBuilder& changed() {
-				validate();
-				data().query.changed<T...>();
-				return *this;
-			}
-	#else
 			template <typename T>
 			SystemBuilder& all() {
 				validate();
 				data().query.all<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& any() {
 				validate();
 				data().query.any<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& or_() {
 				validate();
 				data().query.or_<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& no() {
 				validate();
 				data().query.no<T>();
 				return *this;
 			}
+
 			template <typename T>
 			SystemBuilder& changed() {
 				validate();
 				data().query.changed<T>();
 				return *this;
 			}
-	#endif
 
 			//------------------------------------------------
 
