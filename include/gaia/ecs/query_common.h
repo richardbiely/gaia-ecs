@@ -533,8 +533,8 @@ namespace gaia {
 				DependencyHasSort = 0x40,
 				DependencyHasGroup = 0x80,
 				DependencyHasTraversalTerms = 0x100,
-				DependencyHasAdjunctTerms = 0x200,
-				DependencyHasInheritedTerms = 0x400,
+				DependencyHasEntityFilterTerms = 0x200,
+				DependencyHasInheritedDataTerms = 0x400,
 			};
 
 			struct Data {
@@ -744,7 +744,7 @@ namespace gaia {
 					bool hasPrefabTerms = false;
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
-					bool hasAdjunctTerms = false;
+					bool hasEntityFilterTerms = false;
 					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
 					bool singleDirectTargetEvalPossible = true;
 					QueryEntityArray idsNoSrc;
@@ -779,7 +779,7 @@ namespace gaia {
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
 								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(*w, id)));
-						hasAdjunctTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
+						hasEntityFilterTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
 					}
 
 					GAIA_FOR(cnt) {
@@ -809,6 +809,7 @@ namespace gaia {
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
 								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
+						const bool isCachedInheritedDataTerm = isInheritedTerm && !world_is_out_of_line_component(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -840,15 +841,15 @@ namespace gaia {
 						}
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
-							data.deps.set_dep_flag(DependencyHasAdjunctTerms);
-							if (isInheritedTerm)
-								data.deps.set_dep_flag(DependencyHasInheritedTerms);
+							data.deps.set_dep_flag(DependencyHasEntityFilterTerms);
+							if (isCachedInheritedDataTerm)
+								data.deps.set_dep_flag(DependencyHasInheritedDataTerms);
 							if (id.pair() && !is_wildcard(id.id()) && !is_variable((EntityId)id.id()))
 								data.deps.add_rel(entity_from_id(*w, id.id()));
 							continue;
 						}
 
-						if (hasAdjunctTerms && term.op == QueryOpKind::Or) {
+						if (hasEntityFilterTerms && term.op == QueryOpKind::Or) {
 							isComplex = true;
 							continue;
 						}
@@ -980,7 +981,8 @@ namespace gaia {
 
 					if (hasSourceTerms || hasVariableTerms)
 						data.cachePolicy = CachePolicy::Dynamic;
-					else if (!hasAdjunctTerms && data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
+					else if (
+							!hasEntityFilterTerms && data.sortByFunc == nullptr && data.groupBy == EntityBad && hasCreateSelector)
 						data.cachePolicy = CachePolicy::Immediate;
 					else
 						data.cachePolicy = CachePolicy::Lazy;

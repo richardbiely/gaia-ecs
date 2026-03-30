@@ -3633,7 +3633,7 @@ namespace gaia {
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
 					const auto& world = *queryCtx.w;
-					const bool hasAdjunctTerms = data.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
+					const bool hasEntityFilterTerms = data.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms);
 					auto isAdjunctDirectTerm = [&](const QueryTerm& term) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
@@ -3680,7 +3680,7 @@ namespace gaia {
 						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
-							if (p.src == EntityBad && hasAdjunctTerms)
+							if (p.src == EntityBad && hasEntityFilterTerms)
 								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
@@ -4006,8 +4006,9 @@ namespace gaia {
 					}
 
 					// Queries without direct id terms seed from all archetypes via explicit bytecode.
-					if (!m_compCtx.has_id_terms() && (m_compCtx.has_src_terms() || m_compCtx.has_variable_terms() ||
-																						queryCtx.data.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms))) {
+					if (!m_compCtx.has_id_terms() &&
+							(m_compCtx.has_src_terms() || m_compCtx.has_variable_terms() ||
+							 queryCtx.data.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms))) {
 						detail::CompiledOp op{};
 						op.opcode = detail::EOpcode::Seed_All;
 						(void)add_op(GAIA_MOV(op));

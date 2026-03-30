@@ -1385,7 +1385,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool has_inherited_data_payload() const {
-				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedTerms);
+				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedDataTerms);
 			}
 
 			void ensure_inherited_data() {
@@ -1783,7 +1783,7 @@ namespace gaia {
 			//! Returns true when direct non-fragmenting terms must be rechecked per entity.
 			GAIA_NODISCARD bool has_entity_filter_terms() const {
 				const auto& ctxData = m_plan.ctx.data;
-				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasAdjunctTerms);
+				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms);
 			}
 
 			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {

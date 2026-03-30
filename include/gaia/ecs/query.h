@@ -3477,11 +3477,11 @@ namespace gaia {
 					return true;
 				}
 
-				//! Evaluates the entity-level adjunct terms that are not represented by archetype membership.
+				//! Evaluates the entity-level terms that are not fully represented by archetype membership.
 				GAIA_NODISCARD static bool match_entity_filters(const World& world, Entity entity, const QueryInfo& queryInfo) {
 					bool hasOrTerms = false;
 					bool anyOrMatched = false;
-					const bool hasAdjunctTerms = queryInfo.has_entity_filter_terms();
+					const bool hasEntityFilterTerms = queryInfo.has_entity_filter_terms();
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
@@ -3493,8 +3493,8 @@ namespace gaia {
 						const bool isAdjunctTerm =
 								(id.pair() && world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, id.id()))) ||
 								(!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
-						const bool needsEntityFilter =
-								isAdjunctTerm || isDirectIsTerm || isInheritedTerm || (hasAdjunctTerms && term.op == QueryOpKind::Or);
+						const bool needsEntityFilter = isAdjunctTerm || isDirectIsTerm || isInheritedTerm ||
+																					 (hasEntityFilterTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
 							continue;
 
