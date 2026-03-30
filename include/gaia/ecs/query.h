@@ -84,6 +84,8 @@ namespace gaia {
 			Shared
 		};
 
+		enum class QueryKindRes : uint8_t { OK, AutoSrcTrav, AllNotIm, AllSrcTrav };
+
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 
 		namespace detail {
@@ -744,8 +746,9 @@ namespace gaia {
 				}
 
 				void match_all(QueryInfo& queryInfo) {
-					if (!validate_kind(queryInfo.ctx())) {
-						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
+					const auto kindError = validate_kind(queryInfo.ctx());
+					if (kindError != QueryKindRes::OK) {
+						GAIA_ASSERT2(SilenceInvalidCacheKindAssertions, kind_error_str(kindError));
 						queryInfo.reset();
 						return;
 					}
@@ -770,8 +773,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool matches_any(QueryInfo& queryInfo, const Archetype& archetype, EntitySpan targetEntities) {
-					if (!validate_kind(queryInfo.ctx())) {
-						GAIA_ASSERT(SilenceInvalidCacheKindAssertions && "Invalid kind selected for a query");
+					const auto kindError = validate_kind(queryInfo.ctx());
+					if (kindError != QueryKindRes::OK) {
+						GAIA_ASSERT2(SilenceInvalidCacheKindAssertions, kind_error_str(kindError));
 						queryInfo.reset();
 						return false;
 					}
@@ -843,16 +847,24 @@ namespace gaia {
 					return *this;
 				}
 
-				GAIA_NODISCARD QueryCacheKind kind() const {
-					return m_cacheKind;
-				}
-
 				GAIA_NODISCARD QueryCacheScope scope() const {
 					return m_cacheScope;
 				}
 
-				GAIA_NODISCARD bool valid() {
+				GAIA_NODISCARD QueryCacheKind kind() const {
+					return m_cacheKind;
+				}
+
+				GAIA_NODISCARD QueryKindRes kind_error() {
 					return validate_kind(fetch().ctx());
+				}
+
+				GAIA_NODISCARD const char* kind_error_str() {
+					return kind_error_str(kind_error());
+				}
+
+				GAIA_NODISCARD bool valid() {
+					return kind_error() == QueryKindRes::OK;
 				}
 
 				//--------------------------------------------------------------------------------
@@ -880,25 +892,35 @@ namespace gaia {
 				}
 
 				//! Validates that the requested public kind can be satisfied by the current query shape.
-				GAIA_NODISCARD bool validate_kind(const QueryCtx& ctx) const {
-					if (m_cacheKind == QueryCacheKind::None)
-						return true;
-
+				GAIA_NODISCARD QueryKindRes validate_kind(const QueryCtx& ctx) const {
 					if (m_cacheKind == QueryCacheKind::Auto) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesLazyLayer = uses_lazy_cache(ctx);
-						const bool usesDynamicLayer = uses_dyn_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return (usesImmediateLayer || usesLazyLayer || usesDynamicLayer) && !usesExplicitSrcTravLayer;
+						if (uses_manual_src_trav_cache(ctx))
+							return QueryKindRes::AutoSrcTrav;
 					}
 
 					if (m_cacheKind == QueryCacheKind::All) {
-						const bool usesImmediateLayer = uses_im_cache(ctx);
-						const bool usesExplicitSrcTravLayer = uses_manual_src_trav_cache(ctx);
-						return usesImmediateLayer && !usesExplicitSrcTravLayer;
+						if (uses_manual_src_trav_cache(ctx))
+							return QueryKindRes::AllSrcTrav;
+						if (!uses_im_cache(ctx))
+							return QueryKindRes::AllNotIm;
 					}
 
-					return true;
+					return QueryKindRes::OK;
+				}
+
+				GAIA_NODISCARD static const char* kind_error_str(QueryKindRes error) {
+					switch (error) {
+						case QueryKindRes::OK:
+							return "OK";
+						case QueryKindRes::AutoSrcTrav:
+							return "QueryCacheKind::Auto rejects explicit traversed-source snapshot caching";
+						case QueryKindRes::AllNotIm:
+							return "QueryCacheKind::All requires a fully immediate structural cache";
+						case QueryKindRes::AllSrcTrav:
+							return "QueryCacheKind::All rejects explicit traversed-source snapshot caching";
+						default:
+							return "Unknown query kind validation error";
+					}
 				}
 
 				GAIA_NODISCARD EachWalkData* each_walk_data() {

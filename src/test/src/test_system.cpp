@@ -90,6 +90,19 @@ TEST_CASE("System - builder exposes kind and scope") {
 	CHECK(sys.query.scope() == ecs::QueryCacheScope::Shared);
 }
 
+TEST_CASE("System - invalid kind reports reason") {
+	TestWorld twld;
+
+	const auto systemEntity =
+			wld.system().kind(ecs::QueryCacheKind::All).no<Position>().on_each([](ecs::Iter&) {}).entity();
+
+	auto ss = wld.acc_mut(systemEntity);
+	auto& sys = ss.smut<ecs::System_>();
+	CHECK_FALSE(sys.query.valid());
+	CHECK(sys.query.kind_error() == ecs::QueryKindRes::AllNotIm);
+	CHECK(std::string(sys.query.kind_error_str()).find("immediate") != std::string::npos);
+}
+
 TEST_CASE("System - dependency BFS order") {
 	cnt::darr<char> order;
 	TestWorld twld;

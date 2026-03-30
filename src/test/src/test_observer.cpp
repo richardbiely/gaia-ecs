@@ -181,6 +181,22 @@ TEST_CASE("Observer - builder exposes kind and scope") {
 	CHECK(obsData.query.scope() == ecs::QueryCacheScope::Shared);
 }
 
+TEST_CASE("Observer - invalid kind reports reason") {
+	TestWorld twld;
+
+	const auto observerEntity = wld.observer()
+																	.event(ecs::ObserverEvent::OnAdd)
+																	.kind(ecs::QueryCacheKind::All)
+																	.no<Position>()
+																	.on_each([](ecs::Iter&) {})
+																	.entity();
+
+	auto& obsData = wld.observers().data(observerEntity);
+	CHECK_FALSE(obsData.query.valid());
+	CHECK(obsData.query.kind_error() == ecs::QueryKindRes::AllNotIm);
+	CHECK(std::string(obsData.query.kind_error_str()).find("immediate") != std::string::npos);
+}
+
 TEST_CASE("Observer - OnSet") {
 	TestWorld twld;
 

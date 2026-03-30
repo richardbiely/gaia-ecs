@@ -4455,51 +4455,66 @@ TEST_CASE("Query - kind") {
 
 	CHECK(qDefault.kind() == ecs::QueryCacheKind::Default);
 	CHECK(qDefault.valid());
+	CHECK(qDefault.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qDefault.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
 	CHECK(qDefaultSrcTrav.kind() == ecs::QueryCacheKind::Default);
 	CHECK(qDefaultSrcTrav.valid());
+	CHECK(qDefaultSrcTrav.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qDefaultSrcTrav.cache_src_trav() > 0);
 
 	CHECK(qAuto.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAuto.valid());
+	CHECK(qAuto.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qAuto.cache_policy() == ecs::QueryCachePolicy::Lazy);
 
 	CHECK(qAutoDirectSrc.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAutoDirectSrc.valid());
+	CHECK(qAutoDirectSrc.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qAutoDirectSrc.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qAutoDirectSrc.cache_src_trav() == 0);
 
 	CHECK(qAutoTraversedSrc.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(qAutoTraversedSrc.valid());
+	CHECK(qAutoTraversedSrc.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qAutoTraversedSrc.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 	CHECK(qAutoTraversedSrc.cache_src_trav() == 0);
 
 	CHECK(qAutoSrcTrav.kind() == ecs::QueryCacheKind::Auto);
 	CHECK(!qAutoSrcTrav.valid());
+	CHECK(qAutoSrcTrav.kind_error() == ecs::QueryKindRes::AutoSrcTrav);
+	CHECK(std::string(qAutoSrcTrav.kind_error_str()).find("Auto") != std::string::npos);
 	CHECK(qAutoSrcTrav.count() == 0);
 
 	CHECK(qNone.kind() == ecs::QueryCacheKind::None);
 	CHECK(qNone.valid());
+	CHECK(qNone.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qNone.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
 	CHECK(qAll.kind() == ecs::QueryCacheKind::All);
 	CHECK(qAll.valid());
+	CHECK(qAll.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qAll.cache_policy() == ecs::QueryCachePolicy::Immediate);
 
 	CHECK(qAllFail.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllFail.valid());
+	CHECK(qAllFail.kind_error() == ecs::QueryKindRes::AllNotIm);
+	CHECK(std::string(qAllFail.kind_error_str()).find("immediate") != std::string::npos);
 	CHECK(qAllFail.count() == 0);
 
 	CHECK(qAllDynamic.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllDynamic.valid());
+	CHECK(qAllDynamic.kind_error() == ecs::QueryKindRes::AllNotIm);
 	CHECK(qAllDynamic.count() == 0);
 
 	CHECK(qAllSrcTrav.kind() == ecs::QueryCacheKind::All);
 	CHECK(!qAllSrcTrav.valid());
+	CHECK(qAllSrcTrav.kind_error() == ecs::QueryKindRes::AllSrcTrav);
+	CHECK(std::string(qAllSrcTrav.kind_error_str()).find("snapshot") != std::string::npos);
 	CHECK(qAllSrcTrav.count() == 0);
 
 	CHECK(qDynamic.valid());
+	CHECK(qDynamic.kind_error() == ecs::QueryKindRes::OK);
 	CHECK(qDynamic.cache_policy() == ecs::QueryCachePolicy::Dynamic);
 
 	ecs::Query::SilenceInvalidCacheKindAssertions = false;
