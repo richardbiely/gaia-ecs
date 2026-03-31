@@ -631,6 +631,8 @@ Observers are a mechanism that allows you to register to certain events and list
 
 Observers can be looked at as reactive alternative to systems. They allow different parts of the application to react to something happening immediately.
 
+The feature can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`, and is enabled by default.
+
 Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.
 
 Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
@@ -723,8 +725,6 @@ w.del<Velocity>(e);
 
 Listening to value changes uses `OnSet`:
 ```cpp
-ecs::World w;
-
 uint32_t hits = 0;
 
 w.observer()
@@ -748,9 +748,14 @@ w.acc_mut(e).sset<Position>({7.0f, 8.0f, 9.0f});
 
 w.modify<Position, true>(e);
 // OnSet triggered again.
-```
 
-Observers can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`. The feature is enabled by default.
+w.query().all<Position&>().each([&](Position& pos) {
+  // Still no new hit here. Query writes are deferred until the callback returns.
+  pos = {10.0f, 11.0f, 12.0f};
+});
+// OnSet triggered again after the callback completed.
+// For query writes, OnSet is delivered once per modified matching entity.
+```
 
 ### Bulk editing
 
