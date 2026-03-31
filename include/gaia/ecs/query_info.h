@@ -1800,6 +1800,16 @@ namespace gaia {
 				return m_plan.ctx.data.directTargetEvalId;
 			}
 
+			//! Returns true when the query can evaluate concrete target entities directly.
+			GAIA_NODISCARD bool can_direct_target_eval() const {
+				return m_plan.ctx.data.canDirectTargetEval;
+			}
+
+			//! Returns true when the query contains only direct OR/NOT terms and at least one OR term.
+			GAIA_NODISCARD bool has_only_direct_or_terms() const {
+				return m_plan.ctx.data.hasOnlyDirectOrTerms;
+			}
+
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
 				const auto& ctxData = m_plan.ctx.data;

@@ -2854,36 +2854,12 @@ namespace gaia {
 
 				//! Detects queries whose terms can be evaluated directly against concrete target entities.
 				GAIA_NODISCARD static bool can_use_direct_target_eval(const QueryInfo& queryInfo) {
-					bool hasPositiveTerm = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-
-						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
-							return false;
-
-						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or)
-							hasPositiveTerm = true;
-					}
-
-					return hasPositiveTerm;
+					return queryInfo.can_direct_target_eval();
 				}
 
 				//! Detects the special direct OR/NOT shape that can be answered from a union of direct term entity sets.
 				GAIA_NODISCARD static bool has_only_direct_or_terms(const QueryInfo& queryInfo) {
-					bool hasOr = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-						if (term.op == QueryOpKind::Or) {
-							hasOr = true;
-							continue;
-						}
-						if (term.op != QueryOpKind::Not)
-							return false;
-					}
-
-					return hasOr;
+					return queryInfo.has_only_direct_or_terms();
 				}
 
 				template <typename TIter>
@@ -4192,13 +4168,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
-					bool hasInheritedTerms = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (uses_inherited_id_matching(world, term)) {
-							hasInheritedTerms = true;
-							break;
-						}
-					}
+					const bool hasInheritedTerms = needsInheritedArgIds && queryInfo.has_potential_inherited_id_terms();
 
 					if (!hasWriteTerms && !plan.preferOrSeed) {
 						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);

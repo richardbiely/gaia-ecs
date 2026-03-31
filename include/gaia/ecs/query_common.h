@@ -671,6 +671,10 @@ namespace gaia {
 				DirectTargetEvalKind directTargetEvalKind = DirectTargetEvalKind::Generic;
 				//! Term id used by the specialized direct-target evaluation shape.
 				Entity directTargetEvalId = EntityBad;
+				//! True when the query can evaluate concrete target entities directly.
+				bool canDirectTargetEval = false;
+				//! True when the query contains only direct OR/NOT terms and at least one OR term.
+				bool hasOnlyDirectOrTerms = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -735,6 +739,8 @@ namespace gaia {
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
 				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
+				const auto canDirectTargetEval_old = data.canDirectTargetEval;
+				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -757,6 +763,10 @@ namespace gaia {
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasEntityFilterTerms = false;
+					bool canDirectTargetEval = true;
+					bool hasOnlyDirectOrTerms = true;
+					bool hasOrTerms = false;
+					bool hasDirectTargetEvalPositiveTerms = false;
 					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
 					bool singleDirectTargetEvalPossible = true;
 					QueryEntityArray idsNoSrc;
@@ -795,20 +805,31 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term)) {
 							singleDirectTargetEvalPossible = false;
+							canDirectTargetEval = false;
+							hasOnlyDirectOrTerms = false;
+						}
 						switch (term.op) {
 							case QueryOpKind::All:
+								hasDirectTargetEvalPositiveTerms = true;
 								if (pSingleDirectTargetAllTerm == nullptr)
 									pSingleDirectTargetAllTerm = &term;
 								else
 									singleDirectTargetEvalPossible = false;
+								hasOnlyDirectOrTerms = false;
 								break;
 							case QueryOpKind::Or:
+								hasDirectTargetEvalPositiveTerms = true;
+								hasOrTerms = true;
+								break;
 							case QueryOpKind::Not:
+								break;
 							case QueryOpKind::Any:
 							case QueryOpKind::Count:
 								singleDirectTargetEvalPossible = false;
+								canDirectTargetEval = false;
+								hasOnlyDirectOrTerms = false;
 								break;
 						}
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
@@ -937,6 +958,8 @@ namespace gaia {
 						}
 						data.directTargetEvalId = id;
 					}
+					data.canDirectTargetEval = canDirectTargetEval && hasDirectTargetEvalPositiveTerms;
+					data.hasOnlyDirectOrTerms = hasOnlyDirectOrTerms && hasOrTerms;
 
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
@@ -1030,12 +1053,14 @@ namespace gaia {
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
-						cachePolicy_old != data.cachePolicy || createArchetypeMatchKind_old != data.createArchetypeMatchKind ||
-						dependencyFlags_old != data.deps.flags || createSelectorCnt_old != data.deps.createSelectorCnt ||
-						exclusionCnt_old != data.deps.exclusionCnt || relationCnt_old != data.deps.relationCnt ||
-						sourceEntityCnt_old != data.deps.sourceEntityCnt || sourceTermCnt_old != data.deps.sourceTermCnt ||
-						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions ||
-						relations_old != data.deps.relations || sourceEntities_old != data.deps.sourceEntities)
+						canDirectTargetEval_old != data.canDirectTargetEval ||
+						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms || cachePolicy_old != data.cachePolicy ||
+						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
+						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
+						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
+						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
+						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations ||
+						sourceEntities_old != data.deps.sourceEntities)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 

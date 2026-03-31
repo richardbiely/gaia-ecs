@@ -31473,6 +31473,10 @@ namespace gaia {
 				DirectTargetEvalKind directTargetEvalKind = DirectTargetEvalKind::Generic;
 				//! Term id used by the specialized direct-target evaluation shape.
 				Entity directTargetEvalId = EntityBad;
+				//! True when the query can evaluate concrete target entities directly.
+				bool canDirectTargetEval = false;
+				//! True when the query contains only direct OR/NOT terms and at least one OR term.
+				bool hasOnlyDirectOrTerms = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -31537,6 +31541,8 @@ namespace gaia {
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
 				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
+				const auto canDirectTargetEval_old = data.canDirectTargetEval;
+				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -31559,6 +31565,10 @@ namespace gaia {
 					bool hasCreateSelector = false;
 					bool canDirectCreateArchetypeMatch = true;
 					bool hasEntityFilterTerms = false;
+					bool canDirectTargetEval = true;
+					bool hasOnlyDirectOrTerms = true;
+					bool hasOrTerms = false;
+					bool hasDirectTargetEvalPositiveTerms = false;
 					const QueryTerm* pSingleDirectTargetAllTerm = nullptr;
 					bool singleDirectTargetEvalPossible = true;
 					QueryEntityArray idsNoSrc;
@@ -31597,20 +31607,31 @@ namespace gaia {
 					GAIA_FOR(cnt) {
 						const auto& term = terms[i];
 						const auto id = term.id;
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term)) {
 							singleDirectTargetEvalPossible = false;
+							canDirectTargetEval = false;
+							hasOnlyDirectOrTerms = false;
+						}
 						switch (term.op) {
 							case QueryOpKind::All:
+								hasDirectTargetEvalPositiveTerms = true;
 								if (pSingleDirectTargetAllTerm == nullptr)
 									pSingleDirectTargetAllTerm = &term;
 								else
 									singleDirectTargetEvalPossible = false;
+								hasOnlyDirectOrTerms = false;
 								break;
 							case QueryOpKind::Or:
+								hasDirectTargetEvalPositiveTerms = true;
+								hasOrTerms = true;
+								break;
 							case QueryOpKind::Not:
+								break;
 							case QueryOpKind::Any:
 							case QueryOpKind::Count:
 								singleDirectTargetEvalPossible = false;
+								canDirectTargetEval = false;
+								hasOnlyDirectOrTerms = false;
 								break;
 						}
 						const bool isDirectIsTerm = term.src == EntityBad && term.entTrav == EntityBad &&
@@ -31739,6 +31760,8 @@ namespace gaia {
 						}
 						data.directTargetEvalId = id;
 					}
+					data.canDirectTargetEval = canDirectTargetEval && hasDirectTargetEvalPositiveTerms;
+					data.hasOnlyDirectOrTerms = hasOnlyDirectOrTerms && hasOrTerms;
 
 					// Update the mask
 					data.as_mask_0 = as_mask_0;
@@ -31832,12 +31855,14 @@ namespace gaia {
 						isComplex_old != (data.flags & QueryFlags::Complex) ||
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
-						cachePolicy_old != data.cachePolicy || createArchetypeMatchKind_old != data.createArchetypeMatchKind ||
-						dependencyFlags_old != data.deps.flags || createSelectorCnt_old != data.deps.createSelectorCnt ||
-						exclusionCnt_old != data.deps.exclusionCnt || relationCnt_old != data.deps.relationCnt ||
-						sourceEntityCnt_old != data.deps.sourceEntityCnt || sourceTermCnt_old != data.deps.sourceTermCnt ||
-						createSelectors_old != data.deps.createSelectors || exclusions_old != data.deps.exclusions ||
-						relations_old != data.deps.relations || sourceEntities_old != data.deps.sourceEntities)
+						canDirectTargetEval_old != data.canDirectTargetEval ||
+						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms || cachePolicy_old != data.cachePolicy ||
+						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
+						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
+						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
+						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
+						exclusions_old != data.deps.exclusions || relations_old != data.deps.relations ||
+						sourceEntities_old != data.deps.sourceEntities)
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
@@ -40050,6 +40075,16 @@ namespace gaia {
 				return m_plan.ctx.data.directTargetEvalId;
 			}
 
+			//! Returns true when the query can evaluate concrete target entities directly.
+			GAIA_NODISCARD bool can_direct_target_eval() const {
+				return m_plan.ctx.data.canDirectTargetEval;
+			}
+
+			//! Returns true when the query contains only direct OR/NOT terms and at least one OR term.
+			GAIA_NODISCARD bool has_only_direct_or_terms() const {
+				return m_plan.ctx.data.hasOnlyDirectOrTerms;
+			}
+
 			//! Returns true when prefab-tagged entities should participate in query results.
 			GAIA_NODISCARD bool matches_prefab_entities() const {
 				const auto& ctxData = m_plan.ctx.data;
@@ -43799,36 +43834,12 @@ namespace gaia {
 
 				//! Detects queries whose terms can be evaluated directly against concrete target entities.
 				GAIA_NODISCARD static bool can_use_direct_target_eval(const QueryInfo& queryInfo) {
-					bool hasPositiveTerm = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-
-						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
-							return false;
-
-						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or)
-							hasPositiveTerm = true;
-					}
-
-					return hasPositiveTerm;
+					return queryInfo.can_direct_target_eval();
 				}
 
 				//! Detects the special direct OR/NOT shape that can be answered from a union of direct term entity sets.
 				GAIA_NODISCARD static bool has_only_direct_or_terms(const QueryInfo& queryInfo) {
-					bool hasOr = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-						if (term.op == QueryOpKind::Or) {
-							hasOr = true;
-							continue;
-						}
-						if (term.op != QueryOpKind::Not)
-							return false;
-					}
-
-					return hasOr;
+					return queryInfo.has_only_direct_or_terms();
 				}
 
 				template <typename TIter>
@@ -45137,13 +45148,7 @@ namespace gaia {
 					auto& world = *queryInfo.world();
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
-					bool hasInheritedTerms = false;
-					for (const auto& term: queryInfo.ctx().data.terms_view()) {
-						if (uses_inherited_id_matching(world, term)) {
-							hasInheritedTerms = true;
-							break;
-						}
-					}
+					const bool hasInheritedTerms = needsInheritedArgIds && queryInfo.has_potential_inherited_id_terms();
 
 					if (!hasWriteTerms && !plan.preferOrSeed) {
 						const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
