@@ -750,7 +750,7 @@ w.modify<Position, true>(e);
 // OnSet triggered again.
 ```
 
-Observers can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`. The feature is currently disabled by default.
+Observers can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`. The feature is enabled by default.
 
 ### Bulk editing
 
