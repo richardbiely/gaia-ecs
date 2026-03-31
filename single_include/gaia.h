@@ -31475,6 +31475,8 @@ namespace gaia {
 				Entity directTargetEvalId = EntityBad;
 				//! True when the query can evaluate concrete target entities directly.
 				bool canDirectTargetEval = false;
+				//! True when the query shape is eligible for direct entity seed evaluation.
+				bool canDirectEntitySeedEvalShape = false;
 				//! True when the query contains only direct OR/NOT terms and at least one OR term.
 				bool hasOnlyDirectOrTerms = false;
 				//! Explicit dependency metadata derived from query shape.
@@ -31542,6 +31544,7 @@ namespace gaia {
 				const auto cachePolicy_old = data.cachePolicy;
 				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
 				const auto canDirectTargetEval_old = data.canDirectTargetEval;
+				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
@@ -31761,6 +31764,8 @@ namespace gaia {
 						data.directTargetEvalId = id;
 					}
 					data.canDirectTargetEval = canDirectTargetEval && hasDirectTargetEvalPositiveTerms;
+					data.canDirectEntitySeedEvalShape =
+							data.canDirectTargetEval && data.sortByFunc == nullptr && data.groupBy == EntityBad;
 					data.hasOnlyDirectOrTerms = hasOnlyDirectOrTerms && hasOrTerms;
 
 					// Update the mask
@@ -31856,6 +31861,7 @@ namespace gaia {
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						canDirectTargetEval_old != data.canDirectTargetEval ||
+						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
 						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms || cachePolicy_old != data.cachePolicy ||
 						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
@@ -40080,6 +40086,11 @@ namespace gaia {
 				return m_plan.ctx.data.canDirectTargetEval;
 			}
 
+			//! Returns true when the query shape is eligible for direct entity seed evaluation.
+			GAIA_NODISCARD bool can_direct_entity_seed_eval_shape() const {
+				return m_plan.ctx.data.canDirectEntitySeedEvalShape;
+			}
+
 			//! Returns true when the query contains only direct OR/NOT terms and at least one OR term.
 			GAIA_NODISCARD bool has_only_direct_or_terms() const {
 				return m_plan.ctx.data.hasOnlyDirectOrTerms;
@@ -43806,30 +43817,20 @@ namespace gaia {
 
 				//! Detects queries that can skip archetype seeding and start directly from entity-backed term indices.
 				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
-					const auto& ctxData = queryInfo.ctx().data;
-					if (ctxData.sortByFunc != nullptr || ctxData.groupBy != EntityBad)
+					if (!queryInfo.can_direct_entity_seed_eval_shape())
 						return false;
 
 					const auto& world = *queryInfo.world();
-					bool hasPositiveTerm = false;
 					bool hasSeedableTerm = false;
-					for (const auto& term: ctxData.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-
-						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
-							return false;
-
-						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
-							hasPositiveTerm = true;
-							if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
-									uses_in_is_matching(term) || is_adjunct_direct_term(world, term)) {
-								hasSeedableTerm = true;
-							}
-						}
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Or)
+							continue;
+						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
+								uses_in_is_matching(term) || is_adjunct_direct_term(world, term))
+							hasSeedableTerm = true;
 					}
 
-					return hasPositiveTerm && hasSeedableTerm;
+					return hasSeedableTerm;
 				}
 
 				//! Detects queries whose terms can be evaluated directly against concrete target entities.

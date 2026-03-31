@@ -673,6 +673,8 @@ namespace gaia {
 				Entity directTargetEvalId = EntityBad;
 				//! True when the query can evaluate concrete target entities directly.
 				bool canDirectTargetEval = false;
+				//! True when the query shape is eligible for direct entity seed evaluation.
+				bool canDirectEntitySeedEvalShape = false;
 				//! True when the query contains only direct OR/NOT terms and at least one OR term.
 				bool hasOnlyDirectOrTerms = false;
 				//! Explicit dependency metadata derived from query shape.
@@ -740,6 +742,7 @@ namespace gaia {
 				const auto cachePolicy_old = data.cachePolicy;
 				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
 				const auto canDirectTargetEval_old = data.canDirectTargetEval;
+				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
@@ -959,6 +962,8 @@ namespace gaia {
 						data.directTargetEvalId = id;
 					}
 					data.canDirectTargetEval = canDirectTargetEval && hasDirectTargetEvalPositiveTerms;
+					data.canDirectEntitySeedEvalShape =
+							data.canDirectTargetEval && data.sortByFunc == nullptr && data.groupBy == EntityBad;
 					data.hasOnlyDirectOrTerms = hasOnlyDirectOrTerms && hasOrTerms;
 
 					// Update the mask
@@ -1054,6 +1059,7 @@ namespace gaia {
 						hasSourceTerms_old != (data.flags & QueryFlags::HasSourceTerms) ||
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						canDirectTargetEval_old != data.canDirectTargetEval ||
+						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
 						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms || cachePolicy_old != data.cachePolicy ||
 						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||

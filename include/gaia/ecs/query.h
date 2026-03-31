@@ -2826,30 +2826,20 @@ namespace gaia {
 
 				//! Detects queries that can skip archetype seeding and start directly from entity-backed term indices.
 				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
-					const auto& ctxData = queryInfo.ctx().data;
-					if (ctxData.sortByFunc != nullptr || ctxData.groupBy != EntityBad)
+					if (!queryInfo.can_direct_entity_seed_eval_shape())
 						return false;
 
 					const auto& world = *queryInfo.world();
-					bool hasPositiveTerm = false;
 					bool hasSeedableTerm = false;
-					for (const auto& term: ctxData.terms_view()) {
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-							return false;
-
-						if (term.op == QueryOpKind::Any || term.op == QueryOpKind::Count)
-							return false;
-
-						if (term.op == QueryOpKind::All || term.op == QueryOpKind::Or) {
-							hasPositiveTerm = true;
-							if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
-									uses_in_is_matching(term) || is_adjunct_direct_term(world, term)) {
-								hasSeedableTerm = true;
-							}
-						}
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Or)
+							continue;
+						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
+								uses_in_is_matching(term) || is_adjunct_direct_term(world, term))
+							hasSeedableTerm = true;
 					}
 
-					return hasPositiveTerm && hasSeedableTerm;
+					return hasSeedableTerm;
 				}
 
 				//! Detects queries whose terms can be evaluated directly against concrete target entities.

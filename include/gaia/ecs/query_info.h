@@ -1805,6 +1805,11 @@ namespace gaia {
 				return m_plan.ctx.data.canDirectTargetEval;
 			}
 
+			//! Returns true when the query shape is eligible for direct entity seed evaluation.
+			GAIA_NODISCARD bool can_direct_entity_seed_eval_shape() const {
+				return m_plan.ctx.data.canDirectEntitySeedEvalShape;
+			}
+
 			//! Returns true when the query contains only direct OR/NOT terms and at least one OR term.
 			GAIA_NODISCARD bool has_only_direct_or_terms() const {
 				return m_plan.ctx.data.hasOnlyDirectOrTerms;
