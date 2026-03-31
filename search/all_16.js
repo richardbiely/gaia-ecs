@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['valid_0',['valid',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aeefc15922f8bbaabc60c1ce58b9d72cd',1,'gaia::ecs::detail::QueryImpl::valid()'],['../classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8',1,'gaia::ecs::World::valid()']]],
+  ['validate_1',['validate',['../structgaia_1_1cnt_1_1ilist.html#a8a613813700bf24ced262d814c3458fd',1,'gaia::cnt::ilist']]],
+  ['value_2',['Set or get component value',['../index.html#set-or-get-component-value',1,'']]],
+  ['var_5fname_3',['var_name',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a7d9c714c761b9d2e455ea9cb2e3d9a47',1,'gaia::ecs::detail::QueryImpl::var_name(Entity varEntity, util::str_view name)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8deb4230c373006a4e44e5ca348a9859',1,'gaia::ecs::detail::QueryImpl::var_name(Entity varEntity, const char *name)']]],
+  ['var_5fprograms_4',['var_programs',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#a98746e294febdf74b44063e0fd6da5a6',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['varbindingmask_5',['varBindingMask',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#ad94e413ca9e847e411c9b9b26d56f6ff',1,'gaia::ecs::vm::MatchingCtx']]],
+  ['varbindings_6',['varbindings',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1VarBindings.html',1,'gaia::ecs::vm::detail::VarBindings'],['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a1f8559b9c87500828070e99f0fc4f3ac',1,'gaia::ecs::vm::MatchingCtx::varBindings']]],
+  ['variable_20queries_7',['Multi-variable queries',['../index.html#multi-variable-queries',1,'']]],
+  ['variables_8',['Query variables',['../index.html#query-variables',1,'']]],
+  ['varmaskall_9',['varMaskAll',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#a5a1684afb54cb516ea69db22162df620',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['varprogram_10',['VarProgram',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarProgram.html',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['varprogramopcodemeta_11',['VarProgramOpcodeMeta',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1VarProgramOpcodeMeta.html',1,'gaia::ecs::vm::detail']]],
+  ['varprogramstep_12',['VarProgramStep',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarProgramStep.html',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['varsearchmeta_13',['VarSearchMeta',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarSearchMeta.html',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['vartermmatchcursor_14',['VarTermMatchCursor',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1VarTermMatchCursor.html',1,'gaia::ecs::vm::detail']]],
+  ['vartermop_15',['VarTermOp',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarTermOp.html',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
+  ['view_16',['view',['../classgaia_1_1ecs_1_1CopyIter.html#a10641b96cfe5d6f58fd9924c7a41f34d',1,'gaia::ecs::CopyIter::view()'],['../structgaia_1_1util_1_1str.html#a76fc00e7a68ac94fbb337b92a000a895',1,'gaia::util::str::view()'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ad4ab8321e14502b84e87268c6cdcba71',1,'gaia::ecs::detail::ChunkIterImpl::view()'],['../classgaia_1_1ecs_1_1Chunk.html#a60130ebc353694de70e8f1efc49d2dc4',1,'gaia::ecs::Chunk::view()'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a1e9c3d595ce151e158603234673f880d',1,'gaia::ecs::detail::ChunkIterImpl::view() const']]],
+  ['view_5fany_17',['view_any',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a6ea0f40f35e74006c40f3e731da3a748',1,'gaia::ecs::detail::ChunkIterImpl::view_any() const'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a31b8b3ecc3547d9576ff02efaba5b7f9',1,'gaia::ecs::detail::ChunkIterImpl::view_any(uint32_t termIdx)']]],
+  ['view_5fauto_18',['view_auto',['../classgaia_1_1ecs_1_1Chunk.html#a62c7d2f4005ddcaf13096e63ae8f514e',1,'gaia::ecs::Chunk::view_auto()'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a6ceb7a9d2fba9596f615914504bfc8d9',1,'gaia::ecs::detail::ChunkIterImpl::view_auto()'],['../classgaia_1_1ecs_1_1CopyIter.html#a9328cc57587523d532e2e766e59f420d',1,'gaia::ecs::CopyIter::view_auto()']]],
+  ['view_5fauto_5fany_19',['view_auto_any',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a3f253d58ce4561e9b269175ba20a2c00',1,'gaia::ecs::detail::ChunkIterImpl']]],
+  ['view_5fmut_20',['view_mut',['../classgaia_1_1ecs_1_1Chunk.html#ad69ffee1e4e89508e29347e4be9b19ae',1,'gaia::ecs::Chunk::view_mut()'],['../classgaia_1_1ecs_1_1CopyIter.html#a76115a161b437a54ef0068cc8f7d043a',1,'gaia::ecs::CopyIter::view_mut()'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#acfe5edfdee6f94848bca4132a5b7332b',1,'gaia::ecs::detail::ChunkIterImpl::view_mut(uint32_t termIdx)'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aef3ee789403ce82ad314c400be6a40fd',1,'gaia::ecs::detail::ChunkIterImpl::view_mut()']]],
+  ['view_5fmut_5fany_21',['view_mut_any',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a5558bb4ca5b21048ae894ce1f1ec065e',1,'gaia::ecs::detail::ChunkIterImpl::view_mut_any()'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aeeb3e9f5628c89ebac6d6520fd94ff59',1,'gaia::ecs::detail::ChunkIterImpl::view_mut_any(uint32_t termIdx)']]],
+  ['virtualmachine_22',['VirtualMachine',['../classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html',1,'gaia::ecs::vm']]]
+];

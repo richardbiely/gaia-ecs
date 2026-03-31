@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['lastmatchedarchetypeidx_5fall_0',['lastMatchedArchetypeIdx_All',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7a44050adc01a9484c9930620df2ec0e',1,'gaia::ecs::QueryCtx::Data']]],
+  ['layouts_1',['Data layouts',['../index.html#data-layouts',1,'']]],
+  ['level_20api_2',['Query low-level API',['../index.html#query-low-level-api',1,'']]],
+  ['license_3',['License',['../index.html#license',1,'']]],
+  ['lifespan_4',['lifespan',['../index.html#archetype-lifespan',1,'Archetype lifespan'],['../index.html#entity-lifespan',1,'Entity lifespan']]],
+  ['lifespancountdown_5',['lifespanCountdown',['../structgaia_1_1ecs_1_1ChunkHeader.html#ab29fbd8fc76a61bc3236c229d87c9aa2',1,'gaia::ecs::ChunkHeader']]],
+  ['link_6',['link',['../structgaia_1_1cnt_1_1fwd__llist.html#a42c83b416835cde7c33102ae01a9d271',1,'gaia::cnt::fwd_llist']]],
+  ['linked_7',['linked',['../structgaia_1_1cnt_1_1fwd__llist__link.html#a2c3b8effd9adaf0a34981209e8c44206',1,'gaia::cnt::fwd_llist_link']]],
+  ['load_8',['load',['../classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4',1,'gaia::ecs::World::load(ser::serializer inputSerializer={})'],['../classgaia_1_1ecs_1_1World.html#afa3df647ce9f4adb27988c184d987889',1,'gaia::ecs::World::load(TSerializer &amp;inputSerializer)'],['../classgaia_1_1ser_1_1bin__stream.html#a3c761e7876cd90aabc8d32c6f5a07ecd',1,'gaia::ser::bin_stream::load()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#adccfd383b3750cf127ada5918ac0383c',1,'gaia::ser::detail::ser_buffer_binary_impl::load()']]],
+  ['load_5fjson_9',['load_json',['../classgaia_1_1ecs_1_1World.html#a84ee2d1b5371ee39e14bf958ac170e91',1,'gaia::ecs::World::load_json(ser::json_str_view json)'],['../classgaia_1_1ecs_1_1World.html#a52ac717ca4eb6a24ab006e79261bc986',1,'gaia::ecs::World::load_json(ser::json_str_view json, ser::JsonDiagnostics &amp;diagnostics)'],['../classgaia_1_1ecs_1_1World.html#a2fe1090b1cbe781833375a5e52995320',1,'gaia::ecs::World::load_json(const char *json, uint32_t len, ser::JsonDiagnostics &amp;diagnostics)'],['../classgaia_1_1ecs_1_1World.html#a5a81ff38e50558e4f91d91ee6f27fc65',1,'gaia::ecs::World::load_json(const char *json, uint32_t len)']]],
+  ['load_5fraw_10',['load_raw',['../classgaia_1_1ser_1_1bin__stream.html#a29b9f66a732ae55c16da95d793d10c84',1,'gaia::ser::bin_stream::load_raw()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#acaff03db41e7f7a570f8785f431cb241',1,'gaia::ser::detail::ser_buffer_binary_impl::load_raw()']]],
+  ['load_5ftag_11',['load_tag',['../structgaia_1_1ser_1_1load__tag.html',1,'gaia::ser']]],
+  ['lock_5fscope_12',['lock_scope',['../structgaia_1_1core_1_1lock__scope.html',1,'gaia::core']]],
+  ['locked_13',['locked',['../classgaia_1_1ecs_1_1World.html#a5a6d9c6d46e7d5dfc80dd66c2952bd48',1,'gaia::ecs::World']]],
+  ['log_14',['log',['../structgaia_1_1util_1_1detail_1_1LogBuffer.html#a6542b143286867769f82b24c88d3a5bd',1,'gaia::util::detail::LogBuffer']]],
+  ['logbuffer_15',['LogBuffer',['../structgaia_1_1util_1_1detail_1_1LogBuffer.html',1,'gaia::util::detail']]],
+  ['logging_16',['Logging',['../index.html#logging',1,'']]],
+  ['logrecord_17',['LogRecord',['../structgaia_1_1util_1_1detail_1_1LogBuffer_1_1LogRecord.html',1,'gaia::util::detail::LogBuffer']]],
+  ['lookup_18',['Names and lookup',['../index.html#names-and-lookup',1,'']]],
+  ['lookup_5fpath_19',['lookup_path',['../classgaia_1_1ecs_1_1World.html#a218403b8accf45e60aac615f1261d7b6',1,'gaia::ecs::World::lookup_path(std::span&lt; const Entity &gt; scopes)'],['../classgaia_1_1ecs_1_1World.html#a8f5b06977b8b60942f8accc21cf1d770',1,'gaia::ecs::World::lookup_path() const']]],
+  ['lookupterms_20',['lookupTerms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a032a850ff27a2b99a38dcab933ea98b3',1,'gaia::ecs::QueryCtx::Data']]],
+  ['low_20level_20api_21',['Query low-level API',['../index.html#query-low-level-api',1,'']]]
+];
