@@ -107,19 +107,13 @@ namespace gaia {
 		}
 
 		template <typename... T>
-		static bool observer_has_inherited_query_terms(Query& query, World& world, core::func_type_list<T...>) {
+		static bool observer_uses_inherited_arg_path(Query& query, core::func_type_list<T...>) {
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 			if constexpr (!needsInheritedArgIds)
 				return false;
-			else {
-				auto& queryInfo = query.fetch();
-				for (const auto& term: queryInfo.ctx().data.terms_view()) {
-					if (Query::uses_inherited_id_matching(world, term))
-						return true;
-				}
-				return false;
-			}
+			else
+				return query.fetch().has_potential_inherited_id_terms();
 		}
 
 		template <typename... T>
@@ -673,7 +667,7 @@ namespace gaia {
 				} else {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
-					const bool hasInheritedTerms = observer_has_inherited_query_terms(ctx.query, m_world, InputArgs{});
+					const bool hasInheritedTerms = observer_uses_inherited_arg_path(ctx.query, InputArgs{});
 					Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
 					observer_init_inherited_arg_ids(inheritedArgIds, m_world, InputArgs{});
 

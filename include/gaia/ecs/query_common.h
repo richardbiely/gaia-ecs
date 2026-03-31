@@ -450,6 +450,17 @@ namespace gaia {
 			return is_variable(EntityId(term.id.id()));
 		}
 
+		//! Returns whether a term shape can resolve through inherited-id matching.
+		//! This ignores mutable world metadata such as the current OnInstantiate policy.
+		//! \param term Query term.
+		//! \return True if the term shape can use inherited-id matching.
+		GAIA_NODISCARD inline bool query_term_uses_potential_inherited_id_matching(const QueryTerm& term) {
+			const auto id = term.id;
+			return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
+						 !term_has_variables(term) && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+						 (!id.pair() || !is_variable((EntityId)id.gen()));
+		}
+
 		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
@@ -535,6 +546,7 @@ namespace gaia {
 				DependencyHasTraversalTerms = 0x100,
 				DependencyHasEntityFilterTerms = 0x200,
 				DependencyHasInheritedDataTerms = 0x400,
+				DependencyHasPotentialInheritedIdTerms = 0x800,
 			};
 
 			struct Data {
@@ -771,10 +783,8 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
-						const bool isInheritedTerm =
-								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
-								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
+						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
+						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -805,10 +815,8 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
-						const bool isInheritedTerm =
-								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
-								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
+						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
+						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
 						const bool isCachedInheritedDataTerm = isInheritedTerm && !world_is_out_of_line_component(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
@@ -839,6 +847,9 @@ namespace gaia {
 							isComplex = true;
 							continue;
 						}
+
+						if (isPotentialInheritedTerm)
+							data.deps.set_dep_flag(DependencyHasPotentialInheritedIdTerms);
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.set_dep_flag(DependencyHasEntityFilterTerms);

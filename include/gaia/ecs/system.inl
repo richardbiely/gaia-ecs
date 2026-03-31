@@ -365,25 +365,30 @@ namespace gaia {
 				validate();
 
 				auto& ctx = data();
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-
-	#if GAIA_ASSERT_ENABLED
-				// Make sure we only use components specified in the query.
-				// Constness is respected. Therefore, if a type is const when registered to query,
-				// it has to be const (or immutable) also in each().
 				if constexpr (
-						!std::is_invocable_v<Func, IterAll&> && //
-						!std::is_invocable_v<Func, Iter&> && //
-						!std::is_invocable_v<Func, IterDisabled&> //
+						std::is_invocable_v<Func, IterAll&> || //
+						std::is_invocable_v<Func, Iter&> || //
+						std::is_invocable_v<Func, IterDisabled&> //
 				) {
-					auto& queryInfo = ctx.query.fetch();
-					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+					ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+						query.each(func, execType);
+					};
+				} else {
+					const bool hasInheritedTerms = ctx.query.fetch().has_potential_inherited_id_terms();
+					if (hasInheritedTerms) {
+						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+							query.each(func, execType);
+						};
+					} else {
+						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+							query.each(
+									[&query, func](Iter& it) mutable {
+										query.each_iter(it, func);
+									},
+									execType);
+						};
+					}
 				}
-	#endif
-
-				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-					query.each(func, execType);
-				};
 
 				return (SystemBuilder&)*this;
 			}

@@ -1786,6 +1786,12 @@ namespace gaia {
 				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms);
 			}
 
+			//! Returns true when the query shape can resolve through inherited-id matching.
+			GAIA_NODISCARD bool has_potential_inherited_id_terms() const {
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasPotentialInheritedIdTerms);
+			}
+
 			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {
 				return m_plan.ctx.data.directTargetEvalKind;
 			}

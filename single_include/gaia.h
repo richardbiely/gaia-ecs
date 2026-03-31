@@ -31252,6 +31252,17 @@ namespace gaia {
 			return is_variable(EntityId(term.id.id()));
 		}
 
+		//! Returns whether a term shape can resolve through inherited-id matching.
+		//! This ignores mutable world metadata such as the current OnInstantiate policy.
+		//! \param term Query term.
+		//! \return True if the term shape can use inherited-id matching.
+		GAIA_NODISCARD inline bool query_term_uses_potential_inherited_id_matching(const QueryTerm& term) {
+			const auto id = term.id;
+			return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
+						 !term_has_variables(term) && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
+						 (!id.pair() || !is_variable((EntityId)id.gen()));
+		}
+
 		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
 		using QueryTermSpan = std::span<QueryTerm>;
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
@@ -31337,6 +31348,7 @@ namespace gaia {
 				DependencyHasTraversalTerms = 0x100,
 				DependencyHasEntityFilterTerms = 0x200,
 				DependencyHasInheritedDataTerms = 0x400,
+				DependencyHasPotentialInheritedIdTerms = 0x800,
 			};
 
 			struct Data {
@@ -31573,10 +31585,8 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
-						const bool isInheritedTerm =
-								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
-								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
+						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
+						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
 								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, entity_from_id(*w, id.id()))) ||
@@ -31607,10 +31617,8 @@ namespace gaia {
 																				!term_has_variables(term) && term.matchKind != QueryMatchKind::Direct &&
 																				id.pair() && id.id() == Is.id() && !is_wildcard(id.gen()) &&
 																				!is_variable((EntityId)id.gen());
-						const bool isInheritedTerm =
-								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								term.matchKind == QueryMatchKind::Semantic && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
-								(!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(*w, id);
+						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
+						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
 						const bool isCachedInheritedDataTerm = isInheritedTerm && !world_is_out_of_line_component(*w, id);
 						const bool isAdjunctTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
@@ -31641,6 +31649,9 @@ namespace gaia {
 							isComplex = true;
 							continue;
 						}
+
+						if (isPotentialInheritedTerm)
+							data.deps.set_dep_flag(DependencyHasPotentialInheritedIdTerms);
 
 						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.set_dep_flag(DependencyHasEntityFilterTerms);
@@ -40025,6 +40036,12 @@ namespace gaia {
 				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms);
 			}
 
+			//! Returns true when the query shape can resolve through inherited-id matching.
+			GAIA_NODISCARD bool has_potential_inherited_id_terms() const {
+				const auto& ctxData = m_plan.ctx.data;
+				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasPotentialInheritedIdTerms);
+			}
+
 			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {
 				return m_plan.ctx.data.directTargetEvalKind;
 			}
@@ -42615,6 +42632,16 @@ namespace gaia {
 							...);
 				}
 
+				//! Finishes typed writes for a single chunk row.
+				//! \tparam T Query argument types.
+				//! \param world World owning the chunk.
+				//! \param pChunk Chunk containing the write.
+				//! \param row Row index to finalize.
+				template <typename... T>
+				static void finish_typed_chunk_write_row(World& world, Chunk* pChunk, uint16_t row) {
+					finish_typed_chunk_writes<T...>(world, pChunk, row, (uint16_t)(row + 1));
+				}
+
 				template <typename T, typename TIter>
 				static void finish_typed_iter_write_arg(TIter& it, uint32_t fieldIdx) {
 					if constexpr (!is_write_query_arg<T>())
@@ -43376,6 +43403,98 @@ namespace gaia {
 					it.clear_touched_writes();
 				}
 
+				//! Runs a typed callback over a direct chunk range without using query field-index mapping.
+				//! Writeback is finalized from the typed term ids themselves.
+				//! \tparam TIter Iterator type.
+				//! \tparam Func Callback type.
+				//! \tparam T Query argument types.
+				//! \param it Iterator positioned on the current chunk range.
+				//! \param func Callback to invoke.
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_chunk_direct_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					auto& queryInfo = fetch();
+					auto& world = *queryInfo.world();
+					run_query_on_chunk_rows_direct(const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), func, types);
+					finish_typed_chunk_writes<T...>(world, const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end());
+				}
+
+				//! Runs a typed callback on an iterator without relying on query field-to-term mapping.
+				//! This is used by adapters that first normalize execution to `Iter&`.
+				//! \tparam TIter Iterator type.
+				//! \tparam Func Callback type.
+				//! \tparam T Query argument types.
+				//! \param it Iterator positioned on the current chunk range.
+				//! \param func Callback to invoke.
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void
+				run_query_on_chunk_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					auto& queryInfo = fetch();
+					auto& world = *queryInfo.world();
+					if (can_use_direct_chunk_term_eval<T...>(world, queryInfo))
+						run_query_on_chunk_direct_unmapped(it, func, types);
+					else
+						run_query_on_chunk_unmapped(queryInfo, it, func, types);
+				}
+
+				//! Runs a typed callback on an iterator without using query field-index mapping.
+				//! Writeback is resolved by the actual typed term ids, which keeps the adapter independent
+				//! from callback field ordering.
+				//! \tparam TIter Iterator type.
+				//! \tparam Func Callback type.
+				//! \tparam T Query argument types.
+				//! \param queryInfo Query info.
+				//! \param it Iterator positioned on the current chunk range.
+				//! \param func Callback to invoke.
+				template <typename TIter, typename Func, typename... T>
+				GAIA_FORCEINLINE void run_query_on_chunk_unmapped(
+						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
+					auto& world = *const_cast<World*>(queryInfo.world());
+					auto* pChunk = const_cast<Chunk*>(it.chunk());
+					const auto cnt = it.size();
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+
+					if constexpr (sizeof...(T) > 0) {
+						auto dataPointerTuple = std::make_tuple(it.template view_auto_any<T>()...);
+
+						if (!hasEntityFilters) {
+							GAIA_FOR(cnt) {
+								func(
+										std::get<decltype(it.template view_auto_any<T>())>(
+												dataPointerTuple)[it.template acc_index<T>(i)]...);
+							}
+
+							finish_typed_chunk_writes<T...>(world, pChunk, it.row_begin(), it.row_end());
+						} else {
+							const auto entities = it.template view<Entity>();
+							GAIA_FOR(cnt) {
+								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									continue;
+
+								func(
+										std::get<decltype(it.template view_auto_any<T>())>(
+												dataPointerTuple)[it.template acc_index<T>(i)]...);
+								finish_typed_chunk_write_row<T...>(world, pChunk, (uint16_t)(it.row_begin() + i));
+							}
+						}
+					} else {
+						if (!hasEntityFilters) {
+							GAIA_FOR(cnt) {
+								func();
+							}
+						} else {
+							const auto entities = it.template view<Entity>();
+							GAIA_FOR(cnt) {
+								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									continue;
+								func();
+							}
+						}
+					}
+
+					it.clear_touched_writes();
+				}
+
 				template <typename... T>
 				GAIA_NODISCARD static constexpr bool has_write_query_args() {
 					return (is_write_query_arg<T>() || ...);
@@ -43566,15 +43685,20 @@ namespace gaia {
 					return uses_semantic_is_matching(term) || uses_in_is_matching(term);
 				}
 
+				//! Returns whether a term could use inherited-id matching based on query shape alone.
+				//! This intentionally ignores mutable world metadata such as current OnInstantiate policy.
+				//! \param term Query term
+				//! \return True if the term shape can resolve through inherited-id matching.
+				GAIA_NODISCARD static bool uses_potential_inherited_id_matching(const QueryTerm& term) {
+					return query_term_uses_potential_inherited_id_matching(term);
+				}
+
 				//! Returns whether a term uses semantic inherited-id matching rather than direct storage matching.
 				//! \param world World
 				//! \param term Query term
 				//! \return True if inherited-id matching is used. False otherwise.
 				GAIA_NODISCARD static bool uses_inherited_id_matching(const World& world, const QueryTerm& term) {
-					const auto id = term.id;
-					return term.matchKind == QueryMatchKind::Semantic && term.src == EntityBad && term.entTrav == EntityBad &&
-								 !term_has_variables(term) && !is_wildcard(id) && !is_variable((EntityId)id.id()) &&
-								 (!id.pair() || !is_variable((EntityId)id.gen())) && world_term_uses_inherit_policy(world, id);
+					return uses_potential_inherited_id_matching(term) && world_term_uses_inherit_policy(world, term.id);
 				}
 
 				//! Evaluates term presence for a concrete entity using either direct or semantic semantics.
@@ -46068,6 +46192,25 @@ namespace gaia {
 							each_inter<QueryExecType::Default, Func>(func);
 							break;
 					}
+				}
+
+				//! Runs a typed callback against an already prepared iterator.
+				//! This is used by higher-level adapters that normalize execution to `Iter&` first and
+				//! then materialize typed arguments on top of the iterator.
+				//! \tparam TIter Iterator type.
+				//! \tparam Func Callback type.
+				//! \param it Iterator positioned on the current chunk range.
+				//! \param func Callback to invoke.
+				template <typename TIter, typename Func>
+				void each_iter(TIter& it, Func func) {
+					using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+					auto& queryInfo = fetch();
+					GAIA_ASSERT(unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+#endif
+
+					run_query_on_chunk_unmapped(it, func, InputArgs{});
 				}
 
 				//------------------------------------------------
@@ -59419,19 +59562,13 @@ namespace gaia {
 		}
 
 		template <typename... T>
-		static bool observer_has_inherited_query_terms(Query& query, World& world, core::func_type_list<T...>) {
+		static bool observer_uses_inherited_arg_path(Query& query, core::func_type_list<T...>) {
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 			if constexpr (!needsInheritedArgIds)
 				return false;
-			else {
-				auto& queryInfo = query.fetch();
-				for (const auto& term: queryInfo.ctx().data.terms_view()) {
-					if (Query::uses_inherited_id_matching(world, term))
-						return true;
-				}
-				return false;
-			}
+			else
+				return query.fetch().has_potential_inherited_id_terms();
 		}
 
 		template <typename... T>
@@ -59985,7 +60122,7 @@ namespace gaia {
 				} else {
 					using InputArgs = decltype(core::func_args(&Func::operator()));
 
-					const bool hasInheritedTerms = observer_has_inherited_query_terms(ctx.query, m_world, InputArgs{});
+					const bool hasInheritedTerms = observer_uses_inherited_arg_path(ctx.query, InputArgs{});
 					Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
 					observer_init_inherited_arg_ids(inheritedArgIds, m_world, InputArgs{});
 
@@ -60384,25 +60521,30 @@ namespace gaia {
 				validate();
 
 				auto& ctx = data();
-				using InputArgs = decltype(core::func_args(&Func::operator()));
-
-	#if GAIA_ASSERT_ENABLED
-				// Make sure we only use components specified in the query.
-				// Constness is respected. Therefore, if a type is const when registered to query,
-				// it has to be const (or immutable) also in each().
 				if constexpr (
-						!std::is_invocable_v<Func, IterAll&> && //
-						!std::is_invocable_v<Func, Iter&> && //
-						!std::is_invocable_v<Func, IterDisabled&> //
+						std::is_invocable_v<Func, IterAll&> || //
+						std::is_invocable_v<Func, Iter&> || //
+						std::is_invocable_v<Func, IterDisabled&> //
 				) {
-					auto& queryInfo = ctx.query.fetch();
-					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
+					ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+						query.each(func, execType);
+					};
+				} else {
+					const bool hasInheritedTerms = ctx.query.fetch().has_potential_inherited_id_terms();
+					if (hasInheritedTerms) {
+						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+							query.each(func, execType);
+						};
+					} else {
+						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+							query.each(
+									[&query, func](Iter& it) mutable {
+										query.each_iter(it, func);
+									},
+									execType);
+						};
+					}
 				}
-	#endif
-
-				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-					query.each(func, execType);
-				};
 
 				return (SystemBuilder&)*this;
 			}
