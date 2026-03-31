@@ -71,6 +71,7 @@ namespace gaia {
 		class ObserverBuilder;
 #endif
 		class World;
+		
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 		void world_finish_write(World& world, Entity term, Entity entity);
 		template <typename T>
@@ -13069,6 +13070,12 @@ namespace gaia {
 			return it->second[idx].matchCount;
 		}
 
+		//! Returns typed inherited component data for a resolved owner entity.
+		//! \tparam T Component type.
+		//! \param world World to query.
+		//! \param owner Entity providing the inherited value.
+		//! \param id Component or pair id to fetch.
+		//! \return Pointer to inherited component data.
 		template <typename T>
 		inline const std::remove_cv_t<std::remove_reference_t<T>>*
 		world_query_inherited_arg_data_const(World& world, Entity owner, Entity id) {
@@ -13076,12 +13083,22 @@ namespace gaia {
 			return &world.template get<Arg>(owner, id);
 		}
 
+		//! Returns raw inherited component data for a resolved owner entity.
+		//! \param world World to query.
+		//! \param owner Entity providing the inherited value.
+		//! \param id Component or pair id to fetch.
+		//! \return Pointer to inherited component data.
 		inline const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id) {
 			const auto& ec = world.fetch(owner);
 			const auto row = id.kind() == EntityKind::EK_Gen ? ec.row : 0;
 			return ec.pChunk->comp_ptr(ec.pChunk->comp_idx(id), row);
 		}
 
+		//! Returns a direct query argument for @a entity using immediate-write access for mutable references.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read or mutate.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13093,6 +13110,11 @@ namespace gaia {
 				return world.template get<Arg>(entity);
 		}
 
+		//! Returns a direct query argument for @a entity using raw mutable access.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read or mutate.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13104,6 +13126,10 @@ namespace gaia {
 				return world.template get<Arg>(entity);
 		}
 
+		//! Returns the component or pair id represented by query argument type @a T.
+		//! \tparam T Query argument type.
+		//! \param world World providing component metadata.
+		//! \return Component or pair entity id.
 		template <typename T>
 		inline Entity world_query_arg_id(World& world) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13116,6 +13142,11 @@ namespace gaia {
 				return comp_cache(world).template get<FT>().entity;
 		}
 
+		//! Returns the query argument for @a entity using the id implied by @a T.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read or mutate.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13127,6 +13158,13 @@ namespace gaia {
 			}
 		}
 
+		//! Returns the query argument for @a entity using explicit term id @a id.
+		//! Mutable references materialize an override when inherited data must become direct.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read or mutate.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13146,6 +13184,13 @@ namespace gaia {
 				return world.template get<Arg>(entity, termId);
 		}
 
+		//! Returns the query argument for @a entity using explicit term id @a id and raw mutable access.
+		//! Mutable references materialize an override when inherited data must become direct.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read or mutate.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -13166,6 +13211,15 @@ namespace gaia {
 				return world.template get<Arg>(entity, termId);
 		}
 
+		//! Initializes chunk-stable cached lookup state for inherited const query arguments.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param chunk Chunk currently being iterated.
+		//! \param pEntities Entities belonging to @a chunk.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \param[out] direct True when the argument is stored directly on the chunk archetype.
+		//! \param[out] compIdx Component index inside @a chunk when @a direct is true.
+		//! \param[out] pDataInherited Pointer to inherited data when @a direct is false.
 		template <typename T>
 		inline void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
@@ -13203,6 +13257,15 @@ namespace gaia {
 			pDataInherited = &world.template get<Arg>(owner, termId);
 		}
 
+		//! Returns a cached const query argument while reusing per-archetype direct/inherited state.
+		//! \tparam T Query argument type.
+		//! \param world World to query.
+		//! \param entity Entity to read.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \param[in,out] pLastArchetype Last archetype used by the caller cache.
+		//! \param[in,out] cachedOwner Cached inherited owner entity.
+		//! \param[in,out] cachedDirect Cached flag telling whether the value is direct.
+		//! \return Query argument bound to @a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id_cached_const(
 				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
@@ -13237,6 +13300,12 @@ namespace gaia {
 			return world.template get<Arg>(cachedOwner, termId);
 		}
 
+		//! Dispatches OnSet observers for a contiguous row range in @a chunk.
+		//! \param world World owning the chunk.
+		//! \param term Component or pair id that was written.
+		//! \param chunk Chunk containing the written rows.
+		//! \param from First row index, inclusive.
+		//! \param to Last row index, exclusive.
 		inline void world_notify_on_set(World& world, Entity term, Chunk& chunk, uint16_t from, uint16_t to) {
 #if GAIA_OBSERVERS_ENABLED
 			if (world.tearing_down())
@@ -13328,6 +13397,10 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
+		//! Dispatches OnSet observers for a single entity write.
+		//! \param world World owning the entity.
+		//! \param term Component or pair id that was written.
+		//! \param entity Entity that was written.
 		inline void world_notify_on_set_entity(World& world, Entity term, Entity entity) {
 #if GAIA_OBSERVERS_ENABLED
 			if (world.tearing_down())
@@ -13345,6 +13418,10 @@ namespace gaia {
 #endif
 		}
 
+		//! Finalizes a write to @a term on @a entity.
+		//! \param world World owning the entity.
+		//! \param term Component or pair id that was written.
+		//! \param entity Entity that was written.
 		inline void world_finish_write(World& world, Entity term, Entity entity) {
 			world.finish_write(entity, term);
 		}

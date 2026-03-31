@@ -67,7 +67,7 @@ namespace gaia {
 		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
 		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
-		GAIA_NODISCARD decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
+		decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 
 		// Traversal API
 
