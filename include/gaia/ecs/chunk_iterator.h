@@ -1016,22 +1016,40 @@ namespace gaia {
 					return cmd_buffer_mt_get(*pWorld);
 				}
 
+				struct IterTermDesc {
+					Entity termId = EntityBad;
+					bool isEntity = false;
+					bool isOutOfLine = false;
+				};
+
 				template <typename T>
-				GAIA_NODISCARD bool uses_out_of_line_component() const {
+				GAIA_NODISCARD IterTermDesc term_desc() const {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return false;
-					else {
-						using FT = typename component_type_t<Arg>::TypeFull;
-						if constexpr (is_pair<FT>::value || mem::is_soa_layout_v<Arg>)
-							return false;
-						else {
-							const auto* pItem = comp_cache(*world()).template find<FT>();
+					if constexpr (std::is_same_v<Arg, Entity>) {
+						return {.termId = EntityBad, .isEntity = true, .isOutOfLine = false};
+					} else {
+						IterTermDesc desc;
+						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(world()));
+						if constexpr (!is_pair<typename component_type_t<Arg>::TypeFull>::value && !mem::is_soa_layout_v<Arg>) {
 							// Type-based iteration switches to the world/store path as soon as the
 							// payload stops being chunk-backed, even if the id still fragments.
-							return pItem != nullptr && world_is_out_of_line_component(*world(), pItem->entity);
+							desc.isOutOfLine = world_is_out_of_line_component(*world(), desc.termId);
 						}
+						return desc;
 					}
+				}
+
+				GAIA_NODISCARD IterTermDesc resolved_term_desc(uint32_t termIdx, IterTermDesc desc) const {
+					if (m_pTermIdMapping != nullptr) {
+						const auto mappedTermId = m_pTermIdMapping[termIdx];
+						if (mappedTermId != EntityBad)
+							desc.termId = mappedTermId;
+					}
+
+					if (!desc.isEntity && desc.termId != EntityBad)
+						desc.isOutOfLine = world_is_out_of_line_component(*world(), desc.termId);
+
+					return desc;
 				}
 
 				void touch_comp_idx(uint8_t compIdx) {
@@ -1056,33 +1074,13 @@ namespace gaia {
 					m_touchedTerms[m_touchedTermCnt++] = term;
 				}
 
-				template <typename T>
-				void touch_term_by_type() {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
+				void touch_term_desc(const IterTermDesc& desc) {
+					if (desc.isEntity)
 						return;
-					else {
-						const auto term = world_query_arg_id<Arg>(*world());
-						if (world_is_out_of_line_component(*world(), term))
-							touch_term(term);
-						else
-							touch_comp_idx((uint8_t)m_pChunk->comp_idx(term));
-					}
-				}
-
-				template <typename T>
-				GAIA_NODISCARD Entity fallback_term_id(uint32_t termIdx) const {
-					if (m_pTermIdMapping != nullptr) {
-						const auto termId = m_pTermIdMapping[termIdx];
-						if (termId != EntityBad)
-							return termId;
-					}
-
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return EntityBad;
+					if (desc.isOutOfLine)
+						touch_term(desc.termId);
 					else
-						return world_query_arg_id<Arg>(*const_cast<World*>(world()));
+						touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
 				}
 
 				//! Returns a read-only entity or component view that can resolve non-direct storage.
@@ -1097,12 +1095,8 @@ namespace gaia {
 					if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 						return m_pChunk->view<T>(from(), to());
 					else {
-						Entity id = EntityBad;
-						if (uses_out_of_line_component<T>()) {
-							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-							using FT = typename component_type_t<Arg>::TypeFull;
-							id = comp_cache(*world()).template get<FT>().entity;
-						}
+						const auto desc = term_desc<T>();
+						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
 							return EntityTermViewGet<U>::entity(
@@ -1128,35 +1122,35 @@ namespace gaia {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							const auto* pEntities = m_pChunk->entity_view().data() + from();
-							const auto termId = fallback_term_id<T>(termIdx);
-							GAIA_ASSERT(termId != EntityBad);
-							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), termId, 0, size()};
+							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
+							GAIA_ASSERT(desc.termId != EntityBad);
+							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), desc.termId, 0, size()};
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 						return SoATermViewGet<U>{
 								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
 					} else {
-						const auto termId = fallback_term_id<T>(termIdx);
+						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
 						const auto compIdx = m_pCompIndices[termIdx];
-						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
+						if (desc.isOutOfLine)
 							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
+									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), desc.termId, size());
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(termId != EntityBad);
+							GAIA_ASSERT(desc.termId != EntityBad);
 							if (!m_inheritedData.empty()) {
 								const auto* pInheritedValue = reinterpret_cast<const U*>(m_inheritedData[termIdx]);
 								if (pInheritedValue != nullptr)
 									return EntityTermViewGet<U>::inherited(pInheritedValue, size());
 							}
-							if (world_term_uses_inherit_policy(*world(), termId)) {
+							if (world_term_uses_inherit_policy(*world(), desc.termId)) {
 								return EntityTermViewGet<U>::entity_chunk_stable(
-										m_pChunk->entity_view().data() + from(), m_pChunk, const_cast<World*>(world()), termId, from(),
+										m_pChunk->entity_view().data() + from(), m_pChunk, const_cast<World*>(world()), desc.termId, from(),
 										size());
 							}
 							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), termId, size());
+									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), desc.termId, size());
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
@@ -1220,24 +1214,21 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
-						touch_term_by_type<T>();
+						const auto desc = term_desc<T>();
+						touch_term_desc(desc);
 						if (m_writeIm)
 							return m_pChunk->view_mut<T>(from(), to());
 						return m_pChunk->sview_mut<T>(from(), to());
 					} else {
-						Entity id = EntityBad;
-						if (uses_out_of_line_component<T>()) {
-							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-							using FT = typename component_type_t<Arg>::TypeFull;
-							id = comp_cache(*world()).template get<FT>().entity;
-						}
+						const auto desc = term_desc<T>();
+						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad) {
 							touch_term(id);
 							return entity_view_set<U>(id, m_writeIm);
 						}
 
-						touch_term_by_type<T>();
+						touch_term_desc(desc);
 						auto* pData = reinterpret_cast<U*>((m_writeIm ? m_pChunk->template view_mut<T>(from(), to())
 																													: m_pChunk->template sview_mut<T>(from(), to()))
 																									 .data());
@@ -1255,7 +1246,8 @@ namespace gaia {
 				GAIA_NODISCARD auto view_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					touch_term_by_type<T>();
+					const auto desc = term_desc<T>();
+					touch_term_desc(desc);
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto view = m_writeIm ? m_pChunk->view_mut<T>(from(), to()) : m_pChunk->sview_mut<T>(from(), to());
 						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
@@ -1310,10 +1302,10 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							const auto termId = fallback_term_id<T>(termIdx);
-							GAIA_ASSERT(termId != EntityBad);
-							touch_term(termId);
-							return entity_soa_view_set<U>(termId, m_writeIm);
+							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
+							GAIA_ASSERT(desc.termId != EntityBad);
+							touch_term(desc.termId);
+							return entity_soa_view_set<U>(desc.termId, m_writeIm);
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
@@ -1329,17 +1321,17 @@ namespace gaia {
 																		 size(),
 																		 m_writeIm};
 					} else {
-						const auto termId = fallback_term_id<T>(termIdx);
+						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
 						const auto compIdx = m_pCompIndices[termIdx];
-						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId)) {
-							touch_term(termId);
-							return entity_view_set<U>(termId, m_writeIm);
+						if (desc.isOutOfLine) {
+							touch_term(desc.termId);
+							return entity_view_set<U>(desc.termId, m_writeIm);
 						}
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(termId != EntityBad);
-							touch_term(termId);
-							return entity_view_set<U>(termId, m_writeIm);
+							GAIA_ASSERT(desc.termId != EntityBad);
+							touch_term(desc.termId);
+							return entity_view_set<U>(desc.termId, m_writeIm);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
 
@@ -1366,12 +1358,8 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>)
 						return m_pChunk->sview_mut<T>(from(), to());
 					else {
-						Entity id = EntityBad;
-						if (uses_out_of_line_component<T>()) {
-							using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-							using FT = typename component_type_t<Arg>::TypeFull;
-							id = comp_cache(*world()).template get<FT>().entity;
-						}
+						const auto desc = term_desc<T>();
+						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
 							return entity_view_set<U>(id, false);
@@ -1438,9 +1426,9 @@ namespace gaia {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							const auto termId = fallback_term_id<T>(termIdx);
-							GAIA_ASSERT(termId != EntityBad);
-							return entity_soa_view_set<U>(termId, false);
+							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
+							GAIA_ASSERT(desc.termId != EntityBad);
+							return entity_soa_view_set<U>(desc.termId, false);
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
@@ -1453,14 +1441,14 @@ namespace gaia {
 																		 size(),
 																		 false};
 					} else {
-						const auto termId = fallback_term_id<T>(termIdx);
+						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
 						const auto compIdx = m_pCompIndices[termIdx];
-						if (termId != EntityBad && world_is_out_of_line_component(*world(), termId))
-							return entity_view_set<U>(termId, false);
+						if (desc.isOutOfLine)
+							return entity_view_set<U>(desc.termId, false);
 
 						if (compIdx == 0xFF) {
-							GAIA_ASSERT(termId != EntityBad);
-							return entity_view_set<U>(termId, false);
+							GAIA_ASSERT(desc.termId != EntityBad);
+							return entity_view_set<U>(desc.termId, false);
 						}
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
 
@@ -1619,14 +1607,6 @@ namespace gaia {
 						return idx + from();
 					else
 						return idx;
-				}
-
-				//! Returns the local row index for direct iterator views.
-				//! Direct views already encode the iterator row base, so no additional adjustment is needed.
-				template <typename T>
-				uint32_t acc_index_direct(uint32_t idx) const noexcept {
-					(void)sizeof(typename actual_type_t<T>::Type);
-					return idx;
 				}
 
 			protected:

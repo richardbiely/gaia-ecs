@@ -9,72 +9,7 @@
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		template <typename T>
-		inline Entity world_query_arg_id(World& world);
-
-		template <typename T>
-		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
-
-		template <typename T>
-		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
-
 		inline void world_finish_write(World& world, Entity term, Entity entity);
-
-		template <typename T>
-		static Entity observer_inherited_arg_id(World& world) {
-			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-			if constexpr (std::is_same_v<Arg, Entity>)
-				return EntityBad;
-			else
-				return world_query_arg_id<Arg>(world);
-		}
-
-		template <typename T>
-		static decltype(auto) observer_inherited_entity_arg_by_id(World& world, Entity entity, Entity termId) {
-			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-			if constexpr (std::is_same_v<Arg, Entity>)
-				return entity;
-			else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-				return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
-			else
-				return world_query_entity_arg_by_id<T>(world, entity, termId);
-		}
-
-		template <typename... T, typename Func, size_t... I>
-		static void observer_invoke_inherited_args_by_id(
-				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
-			func(observer_inherited_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
-		}
-
-		template <typename T>
-		GAIA_NODISCARD static constexpr bool observer_is_write_arg() {
-			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-			return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
-						 !std::is_same_v<Arg, Entity>;
-		}
-
-		template <typename... T, size_t... I>
-		static void
-		observer_finish_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
-			Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-			uint32_t seenCnt = 0;
-			const auto finish_term = [&](Entity term) {
-				GAIA_FOR(seenCnt) {
-					if (seenTerms[i] == term)
-						return;
-				}
-
-				seenTerms[seenCnt++] = term;
-				world_finish_write(world, term, entity);
-			};
-
-			(
-					[&] {
-						if constexpr (observer_is_write_arg<T>())
-							finish_term(pArgIds[I]);
-					}(),
-					...);
-		}
 
 		static void observer_finish_iter_writes(Iter& it) {
 			auto* pChunk = const_cast<Chunk*>(it.chunk());
@@ -116,27 +51,18 @@ namespace gaia {
 				return query.fetch().has_potential_inherited_id_terms();
 		}
 
-		template <typename... T>
-		static void observer_init_inherited_arg_ids(Entity* pArgIds, World& world, core::func_type_list<T...>) {
-			if constexpr (sizeof...(T) > 0) {
-				const Entity ids[] = {observer_inherited_arg_id<T>(world)...};
-				GAIA_FOR(sizeof...(T)) pArgIds[i] = ids[i];
-			}
-		}
-
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
-				bool hasInheritedTerms, const Entity* pInheritedArgIds) {
+				bool hasInheritedTerms, const Entity* pInheritedArgIds, const bool* pWriteFlags) {
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 			if constexpr (!needsInheritedArgIds)
 				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
 			else {
 				if (hasInheritedTerms) {
-					observer_invoke_inherited_args_by_id<T...>(
-							world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
-					observer_finish_args_by_id<T...>(world, entity, pInheritedArgIds, std::index_sequence_for<T...>{});
+					invoke_typed_query_args_by_id<T...>(world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
+					finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, sizeof...(T));
 					return;
 				}
 
@@ -669,7 +595,8 @@ namespace gaia {
 
 					const bool hasInheritedTerms = observer_uses_inherited_arg_path(ctx.query, InputArgs{});
 					Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
-					observer_init_inherited_arg_ids(inheritedArgIds, m_world, InputArgs{});
+					bool inheritedArgWriteFlags[ChunkHeader::MAX_COMPONENTS] = {};
+					init_typed_query_arg_descs(inheritedArgIds, inheritedArgWriteFlags, m_world, InputArgs{});
 
 	#if GAIA_ASSERT_ENABLED
 					// Make sure we only use components specified in the query.
@@ -680,11 +607,13 @@ namespace gaia {
 					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
 	#endif
 
-					ctx.on_each_func = [e = m_entity, func, hasInheritedTerms, inheritedArgIds](Iter& it) mutable {
+					ctx.on_each_func = [e = m_entity, func, hasInheritedTerms, inheritedArgIds,
+															inheritedArgWriteFlags](Iter& it) mutable {
 						auto& obs = it.world()->observers().data(e);
 						auto& world = *it.world();
 						const auto entity = it.view<Entity>()[0];
-						observer_run_typed_on_entity(obs, world, entity, it, func, InputArgs{}, hasInheritedTerms, inheritedArgIds);
+						observer_run_typed_on_entity(
+								obs, world, entity, it, func, InputArgs{}, hasInheritedTerms, inheritedArgIds, inheritedArgWriteFlags);
 					};
 				}
 

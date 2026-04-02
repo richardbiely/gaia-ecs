@@ -3867,8 +3867,15 @@ namespace gaia {
 						QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func,
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
-					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
-					if constexpr ((can_use_raw_chunk_row_arg<T>() && ...)) {
+					const bool canUseBasicInit = can_use_direct_chunk_term_eval<T...>(world, queryInfo);
+					if constexpr (sizeof...(T) > 0) {
+						const DirectChunkArgEvalDesc descs[] = {direct_chunk_arg_eval_desc<T>(world)...};
+						if (canUseBasicInit && can_use_raw_chunk_row_args(descs, sizeof...(T))) {
+							for (const auto& run: runs)
+								run_query_on_chunk_rows_direct(run.pChunk, run.from, run.to, func, core::func_type_list<T...>{});
+							return;
+						}
+					} else {
 						if (canUseBasicInit) {
 							for (const auto& run: runs)
 								run_query_on_chunk_rows_direct(run.pChunk, run.from, run.to, func, core::func_type_list<T...>{});
@@ -3931,31 +3938,71 @@ namespace gaia {
 					}
 				}
 
+				struct DirectChunkArgEvalDesc {
+					Entity id = EntityBad;
+					bool isEntity = false;
+					bool isPair = false;
+					bool isWrite = false;
+				};
+
 				template <typename T>
-				GAIA_NODISCARD static bool can_use_direct_bfs_chunk_term_eval(World& world, const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static DirectChunkArgEvalDesc direct_chunk_arg_eval_desc(World& world) {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					const bool isWrite = std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
+															 !std::is_same_v<Arg, Entity>;
 					if constexpr (std::is_same_v<Arg, Entity>)
-						return true;
+						return {.id = EntityBad, .isEntity = true, .isPair = false, .isWrite = isWrite};
 					else {
 						using FT = typename component_type_t<Arg>::TypeFull;
 						if constexpr (is_pair<FT>::value)
-							return false;
-						const auto id = comp_cache(world).template get<FT>().entity;
-						if (world_is_out_of_line_component(world, id))
-							return false;
-						for (const auto& term: queryInfo.ctx().data.terms_view()) {
-							if (term.id != id)
-								continue;
-							if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
-								return false;
-							if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
-									is_adjunct_direct_term(world, term))
-								return false;
-							return true;
-						}
-
-						return false;
+							return {.id = EntityBad, .isEntity = false, .isPair = true, .isWrite = isWrite};
+						else
+							return {
+									.id = comp_cache(world).template get<FT>().entity,
+									.isEntity = false,
+									.isPair = false,
+									.isWrite = isWrite};
 					}
+				}
+
+				//! Returns whether a runtime query argument descriptor can use direct chunk access.
+				//! \param world World
+				//! \param queryInfo Query info
+				//! \param desc Typed argument descriptor
+				//! \return True if the argument can use direct chunk access. False otherwise.
+				GAIA_NODISCARD static bool can_use_direct_chunk_term_eval_arg(
+						World& world, const QueryInfo& queryInfo, const DirectChunkArgEvalDesc& desc) {
+					if (desc.isEntity)
+						return true;
+					if (desc.isPair)
+						return false;
+					if (world_is_out_of_line_component(world, desc.id))
+						return false;
+
+					for (const auto& term: queryInfo.ctx().data.terms_view()) {
+						if (term.id != desc.id)
+							continue;
+						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+							return false;
+						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
+								is_adjunct_direct_term(world, term))
+							return false;
+						return true;
+					}
+
+					return false;
+				}
+
+				//! Returns whether all runtime query argument descriptors can use raw chunk-row access.
+				//! \param pDescs Query argument descriptors
+				//! \param count Number of descriptors
+				//! \return True if all arguments can use raw chunk-row access. False otherwise.
+				GAIA_NODISCARD static bool can_use_raw_chunk_row_args(const DirectChunkArgEvalDesc* pDescs, uint32_t count) {
+					GAIA_FOR(count) {
+						if (!pDescs[i].isEntity && pDescs[i].isWrite)
+							return false;
+					}
+					return true;
 				}
 
 				template <typename... T>
@@ -3965,17 +4012,14 @@ namespace gaia {
 
 					if constexpr (sizeof...(T) == 0)
 						return true;
-					else
-						return (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
-				}
-
-				template <typename T>
-				GAIA_NODISCARD static constexpr bool can_use_raw_chunk_row_arg() {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
+					else {
+						const DirectChunkArgEvalDesc descs[] = {direct_chunk_arg_eval_desc<T>(world)...};
+						for (const auto& desc: descs) {
+							if (!can_use_direct_chunk_term_eval_arg(world, queryInfo, desc))
+								return false;
+						}
 						return true;
-					else
-						return !std::is_lvalue_reference_v<T> || std::is_const_v<std::remove_reference_t<T>>;
+					}
 				}
 
 				template <typename TIter, typename Func, typename... T>
@@ -3983,7 +4027,7 @@ namespace gaia {
 						QueryInfo& queryInfo, std::span<const Entity> entities, Func func,
 						[[maybe_unused]] core::func_type_list<T...>) {
 					auto& world = *queryInfo.world();
-					const bool canUseBasicInit = (can_use_direct_bfs_chunk_term_eval<T>(world, queryInfo) && ...);
+					const bool canUseBasicInit = can_use_direct_chunk_term_eval<T...>(world, queryInfo);
 					auto& walkData = ensure_each_walk_data();
 					if (!walkData.cachedRuns.empty()) {
 						each_chunk_runs<TIter>(queryInfo, walkData.cachedRuns, func, core::func_type_list<T...>{});
@@ -4010,33 +4054,6 @@ namespace gaia {
 				}
 
 				template <typename T>
-				static Entity inherited_query_arg_id(World& world) {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return EntityBad;
-					else {
-						using FT = typename component_type_t<Arg>::TypeFull;
-						if constexpr (is_pair<FT>::value) {
-							const auto rel = comp_cache(world).template get<typename FT::rel>().entity;
-							const auto tgt = comp_cache(world).template get<typename FT::tgt>().entity;
-							return (Entity)Pair(rel, tgt);
-						} else
-							return comp_cache(world).template get<FT>().entity;
-					}
-				}
-
-				template <typename T>
-				static decltype(auto) inherited_query_entity_arg_by_id(World& world, Entity entity, Entity termId) {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return entity;
-					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-						return world_query_entity_arg_by_id_raw<T>(world, entity, termId);
-					else
-						return world_query_entity_arg_by_id<T>(world, entity, termId);
-				}
-
-				template <typename T>
 				static decltype(auto) inherited_query_entity_arg_by_id_cached(
 						World& world, Entity entity, Entity termId, const Archetype*& pLastArchetype, Entity& cachedOwner,
 						bool& cachedDirect) {
@@ -4044,16 +4061,10 @@ namespace gaia {
 					if constexpr (std::is_same_v<Arg, Entity>)
 						return entity;
 					else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-						return inherited_query_entity_arg_by_id<T>(world, entity, termId);
+						return typed_query_entity_arg_by_id<T>(world, entity, termId);
 					else
 						return world_query_entity_arg_by_id_cached_const<T>(
 								world, entity, termId, pLastArchetype, cachedOwner, cachedDirect);
-				}
-
-				template <typename... T, typename Func, size_t... I>
-				static void invoke_inherited_query_args_by_id(
-						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
-					func(inherited_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
 				}
 
 				template <typename... T, typename Func, size_t... I>
@@ -4069,28 +4080,6 @@ namespace gaia {
 				static void invoke_query_args_by_id(
 						World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
 					func(world_query_entity_arg_by_id<T>(world, entity, pArgIds[I])...);
-				}
-
-				template <typename... T, size_t... I>
-				static void
-				finish_query_args_by_id(World& world, Entity entity, const Entity* pArgIds, std::index_sequence<I...>) {
-					Entity seenTerms[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-					uint32_t seenCnt = 0;
-					const auto finish_term = [&](Entity term) {
-						GAIA_FOR(seenCnt) {
-							if (seenTerms[i] == term)
-								return;
-						}
-						seenTerms[seenCnt++] = term;
-						world_finish_write(world, term, entity);
-					};
-
-					(
-							[&] {
-								if constexpr (is_write_query_arg<T>())
-									finish_term(pArgIds[I]);
-							}(),
-							...);
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
@@ -4173,7 +4162,8 @@ namespace gaia {
 										core::func_type_list<T...>{});
 							} else {
 								const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
-								Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1] = {inherited_query_arg_id<T>(world)...};
+								Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+								init_typed_query_arg_descs(inheritedArgIds, nullptr, world, core::func_type_list<T...>{});
 								const Archetype* lastArchetypes[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
 								Entity cachedOwners[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
 								bool cachedDirect[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
@@ -4228,12 +4218,14 @@ namespace gaia {
 					if constexpr (!needsInheritedArgIds)
 						walk_entities(exec_direct_entity);
 					else {
-						Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1] = {inherited_query_arg_id<T>(world)...};
+						Entity inheritedArgIds[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+						bool inheritedArgWriteFlags[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
+						init_typed_query_arg_descs(inheritedArgIds, inheritedArgWriteFlags, world, core::func_type_list<T...>{});
 						auto exec_entity = [&](Entity entity) {
 							if (hasInheritedTerms) {
-								invoke_inherited_query_args_by_id<T...>(
+								invoke_typed_query_args_by_id<T...>(
 										world, entity, inheritedArgIds, func, std::index_sequence_for<T...>{});
-								finish_query_args_by_id<T...>(world, entity, inheritedArgIds, std::index_sequence_for<T...>{});
+								finish_typed_query_args_by_id(world, entity, inheritedArgIds, inheritedArgWriteFlags, sizeof...(T));
 								return;
 							}
 
@@ -4277,7 +4269,7 @@ namespace gaia {
 						}
 					}
 
-					auto& world = *const_cast<World*>(queryInfo.world());
+					auto& world = *queryInfo.world();
 					if constexpr (!UseFilters) {
 						if (!queryInfo.has_entity_filter_terms() &&
 								can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
@@ -4294,7 +4286,7 @@ namespace gaia {
 							}
 
 							for (uint32_t i = idxFrom; i < idxTo; ++i) {
-								auto* pArchetype = cacheView[i];
+								const auto* pArchetype = cacheView[i];
 								if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
 									continue;
 
@@ -4324,7 +4316,7 @@ namespace gaia {
 					const auto sortView = queryInfo.cache_sort_view();
 					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
-						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 					uint32_t idxFrom = 0;
 					uint32_t idxTo = (uint32_t)cacheView.size();
 					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
