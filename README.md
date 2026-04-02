@@ -1758,7 +1758,7 @@ Processing via an iterator gives you even more expressive power, and opens doors
 
 The iterator exposes two families of accessors:
 * `view`, `view_mut`, `sview_mut`, `view_auto`, `sview_auto` - the fast path for terms stored directly in the current chunk
-* `view_any`, `view_mut_any`, `sview_mut_any`, `view_auto_any`, `sview_auto_any` - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity
+* `view_any`, `view_any_mut`, `sview_any_mut`, `view_auto_any`, `sview_auto_any` - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity
 
 Use plain `view*` whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the `*_any` variant explicitly.
 
@@ -2503,7 +2503,7 @@ Currently supported policies:
 
 Typed queries and typed systems also resolve inherited prefab data and create a local override on first mutable access.
 
-`ecs::Iter` fallback accessors (`view_any`, `view_mut_any`, `sview_mut_any`, `view_auto_any`, `sview_auto_any`) also resolve inherited prefab data and create a local override on first mutable access.
+`ecs::Iter` fallback accessors (`view_any`, `view_any_mut`, `sview_any_mut`, `view_auto_any`, `sview_auto_any`) also resolve inherited prefab data and create a local override on first mutable access.
 
 This applies to table, sparse, AoS and SoA component layouts. Mutable inherited query access always turns into a local override on the instance before the write is applied, so the prefab source data stays unchanged.
 

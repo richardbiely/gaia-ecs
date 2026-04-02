@@ -229,10 +229,10 @@ void BM_ECS_Iter(picobench::state& state) {
 
 	w.system().name("update_pos").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_any<Position>(0);
+		auto p = it.view_any_mut<Position>(0);
 		auto v = it.view_any<Velocity>(1);
 #else
-		auto p = it.view_mut_any<Position>();
+		auto p = it.view_any_mut<Position>();
 		auto v = it.view_any<Velocity>();
 #endif
 		const float cdt = dt;
@@ -247,11 +247,11 @@ void BM_ECS_Iter(picobench::state& state) {
 
 	w.system().name("handle_collision").all<Position&>().all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_any<Position>(0);
-		auto v = it.view_mut_any<Velocity>(1);
+		auto p = it.view_any_mut<Position>(0);
+		auto v = it.view_any_mut<Velocity>(1);
 #else
-		auto p = it.view_mut_any<Position>();
-		auto v = it.view_mut_any<Velocity>();
+		auto p = it.view_any_mut<Position>();
+		auto v = it.view_any_mut<Velocity>();
 #endif
 
 		const auto cnt = it.size();
@@ -265,9 +265,9 @@ void BM_ECS_Iter(picobench::state& state) {
 
 	w.system().name("apply_gravity").all<Velocity>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto v = it.view_mut_any<Velocity>(0);
+		auto v = it.view_any_mut<Velocity>(0);
 #else
-		auto v = it.view_mut_any<Velocity>();
+		auto v = it.view_any_mut<Velocity>();
 #endif
 		const float cdt = dt;
 
@@ -409,10 +409,10 @@ void BM_ECS_Iter_SoA(picobench::state& state) {
 
 	w.system().name("update_pos").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_any<PositionSoA>(0);
+		auto p = it.view_any_mut<PositionSoA>(0);
 		auto v = it.view_any<VelocitySoA>(1);
 #else
-		auto p = it.view_mut_any<PositionSoA>();
+		auto p = it.view_any_mut<PositionSoA>();
 		auto v = it.view_any<VelocitySoA>();
 #endif
 		const float cdt = dt;
@@ -435,11 +435,11 @@ void BM_ECS_Iter_SoA(picobench::state& state) {
 
 	w.system().name("handle_collision").all<PositionSoA&>().all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto p = it.view_mut_any<PositionSoA>(0);
-		auto v = it.view_mut_any<VelocitySoA>(1);
+		auto p = it.view_any_mut<PositionSoA>(0);
+		auto v = it.view_any_mut<VelocitySoA>(1);
 #else
-		auto p = it.view_mut_any<PositionSoA>();
-		auto v = it.view_mut_any<VelocitySoA>();
+		auto p = it.view_any_mut<PositionSoA>();
+		auto v = it.view_any_mut<VelocitySoA>();
 #endif
 		auto ppy = p.set<1>();
 		auto vvy = v.set<1>();
@@ -455,9 +455,9 @@ void BM_ECS_Iter_SoA(picobench::state& state) {
 
 	w.system().name("apply_gravity").all<VelocitySoA>().on_each([](ecs::Iter& it) {
 #if ECS_ITER_COMPIDX_CACHING
-		auto v = it.view_mut_any<VelocitySoA>(0);
+		auto v = it.view_any_mut<VelocitySoA>(0);
 #else
-		auto v = it.view_mut_any<VelocitySoA>();
+		auto v = it.view_any_mut<VelocitySoA>();
 #endif
 		const float cdt = dt;
 

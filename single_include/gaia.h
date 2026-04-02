@@ -33309,8 +33309,13 @@ namespace gaia {
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-						return SoATermViewGet<U>{
-								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
+						return SoATermViewGet<U>{m_pChunk->comp_ptr(compIdx),
+																		 m_pChunk->capacity(),
+																		 nullptr,
+																		 const_cast<World*>(world()),
+																		 EntityBad,
+																		 from(),
+																		 size()};
 					} else {
 						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
 						const auto compIdx = m_pCompIndices[termIdx];
@@ -33391,7 +33396,7 @@ namespace gaia {
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut_any() {
+				GAIA_NODISCARD auto view_any_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -33419,7 +33424,7 @@ namespace gaia {
 
 				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
 				//! Updates world versioning through the underlying chunk view and skips all non-direct dispatch.
-				//! Use view_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! Use view_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
 				//! entity-backed storage.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view with read-write access
@@ -33442,7 +33447,7 @@ namespace gaia {
 
 				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
 				//! Updates world versioning for the selected chunk column before handing out mutable access.
-				//! Use view_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! Use view_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
 				//! \warning Passing a non-mapped or entity-backed term index is invalid.
 				//! \tparam T Component or Entity
@@ -33477,7 +33482,7 @@ namespace gaia {
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut_any(uint32_t termIdx) {
+				GAIA_NODISCARD auto view_any_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -33533,7 +33538,7 @@ namespace gaia {
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut_any() {
+				GAIA_NODISCARD auto sview_any_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -33552,7 +33557,7 @@ namespace gaia {
 
 				//! Returns a mutable component view for the owned chunk-backed fast path.
 				//! Doesn't update the world version when the access is acquired and skips all non-direct dispatch.
-				//! Use sview_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! Use sview_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
 				//! entity-backed storage.
 				//! \tparam T Component
 				//! \return Direct component view with read-write access
@@ -33571,7 +33576,7 @@ namespace gaia {
 
 				//! Returns a mutable component view for a query-term owned chunk-backed term.
 				//! Doesn't update the world version when the access is acquired.
-				//! Use sview_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! Use sview_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
 				//! \warning Passing a non-mapped or entity-backed term index is invalid.
 				//! \tparam T Component
@@ -33601,7 +33606,7 @@ namespace gaia {
 				//! \param termIdx Query term index
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut_any(uint32_t termIdx) {
+				GAIA_NODISCARD auto sview_any_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -33672,7 +33677,7 @@ namespace gaia {
 				GAIA_NODISCARD auto view_auto_any() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
 					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut_any<T>();
+						return view_any_mut<T>();
 					else
 						return view_any<T>();
 				}
@@ -33688,7 +33693,7 @@ namespace gaia {
 				GAIA_NODISCARD auto sview_auto_any() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
 					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut_any<T>();
+						return sview_any_mut<T>();
 					else
 						return view_any<T>();
 				}
@@ -45203,53 +45208,12 @@ namespace gaia {
 					}
 
 					auto& world = *queryInfo.world();
-					if constexpr (!UseFilters) {
-						if (!queryInfo.has_entity_filter_terms() &&
-								can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
-								can_use_direct_chunk_iteration_fastpath(queryInfo)) {
-							const auto cacheView = queryInfo.cache_archetype_view();
-							uint32_t idxFrom = 0;
-							uint32_t idxTo = (uint32_t)cacheView.size();
-							if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-								const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-								if (pGroupData == nullptr)
-									return;
-								idxFrom = pGroupData->idxFirst;
-								idxTo = pGroupData->idxLast + 1;
-							}
-
-							for (uint32_t i = idxFrom; i < idxTo; ++i) {
-								const auto* pArchetype = cacheView[i];
-								if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype))
-									continue;
-
-								GAIA_PROF_SCOPE(query::arr);
-								TIter it;
-								it.set_world(queryInfo.world());
-								it.set_archetype(pArchetype);
-
-								const auto& chunks = pArchetype->chunks();
-								for (auto* pChunk: chunks) {
-									const auto from = TIter::start_index(pChunk);
-									const auto to = TIter::end_index(pChunk);
-									if GAIA_UNLIKELY (from == to)
-										continue;
-
-									it.set_chunk(pChunk, from, to);
-									it.set_group_id(0);
-									const auto dataView = it.template sview_auto<ContainerItemType>();
-									for (uint16_t row = 0; row < it.size(); ++row)
-										outArray.push_back(dataView[row]);
-								}
-							}
-
-							return;
-						}
-					}
-
 					TIter it;
 					it.set_world(queryInfo.world());
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					const bool canUseDirectChunkEval = !UseFilters && !hasEntityFilters &&
+																						 can_use_direct_chunk_term_eval<ContainerItemType>(world, queryInfo) &&
+																						 can_use_direct_chunk_iteration_fastpath(queryInfo);
 					const auto cacheView = queryInfo.cache_archetype_view();
 					const auto sortView = queryInfo.cache_sort_view();
 					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
@@ -45275,6 +45239,7 @@ namespace gaia {
 
 						it.set_archetype(pArchetype);
 						it.set_chunk(pChunk, from, to);
+						it.set_group_id(0);
 
 						const auto cnt = it.size();
 						if (cnt == 0)
@@ -45285,21 +45250,29 @@ namespace gaia {
 								return;
 						}
 
-						const auto dataView = it.template view<ContainerItemType>();
-						if (!hasEntityFilters) {
+						if (canUseDirectChunkEval) {
+							const auto dataView = it.template sview_auto<ContainerItemType>();
 							GAIA_FOR(cnt) {
-								const auto idx = it.template acc_index<ContainerItemType>(i);
-								auto tmp = dataView[idx];
+								auto tmp = dataView[i];
 								outArray.push_back(tmp);
 							}
 						} else {
-							const auto entities = it.template view<Entity>();
-							GAIA_FOR(cnt) {
-								if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
-									continue;
-								const auto idx = it.template acc_index<ContainerItemType>(i);
-								auto tmp = dataView[idx];
-								outArray.push_back(tmp);
+							const auto dataView = it.template view<ContainerItemType>();
+							if (!hasEntityFilters) {
+								GAIA_FOR(cnt) {
+									const auto idx = it.template acc_index<ContainerItemType>(i);
+									auto tmp = dataView[idx];
+									outArray.push_back(tmp);
+								}
+							} else {
+								const auto entities = it.template view<Entity>();
+								GAIA_FOR(cnt) {
+									if (!match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+										continue;
+									const auto idx = it.template acc_index<ContainerItemType>(i);
+									auto tmp = dataView[idx];
+									outArray.push_back(tmp);
+								}
 							}
 						}
 					};

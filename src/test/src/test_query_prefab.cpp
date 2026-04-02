@@ -2800,7 +2800,7 @@ TEST_CASE("Prefab - inherited Iter query writes local overrides") {
 
 	auto qWrite = wld.query().all<Position&>();
 	qWrite.each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_any<Position>(1);
+		auto posView = it.view_any_mut<Position>(1);
 		GAIA_EACH(it) {
 			posView[i].x += 4.0f;
 		}
@@ -2840,7 +2840,7 @@ TEST_CASE("Prefab - inherited Iter SoA query writes local overrides") {
 
 	auto qWrite = wld.query().all<PositionSoA&>();
 	qWrite.each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_any<PositionSoA>(1);
+		auto posView = it.view_any_mut<PositionSoA>(1);
 		auto xs = posView.template set<0>();
 		auto ys = posView.template set<1>();
 		GAIA_EACH(it) {

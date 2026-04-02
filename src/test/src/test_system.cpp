@@ -541,7 +541,7 @@ TEST_CASE("System - inherited prefab Iter query term-indexed access") {
 	sysRead.exec();
 
 	auto sysWrite = wld.system().all<Position&>().on_each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_any<Position>(1);
+		auto posView = it.view_any_mut<Position>(1);
 		GAIA_EACH(it) {
 			posView[i].x += 3.0f;
 		}
@@ -578,7 +578,7 @@ TEST_CASE("System - inherited prefab Iter SoA query term-indexed access") {
 	sysRead.exec();
 
 	auto sysWrite = wld.system().all<PositionSoA&>().on_each([&](ecs::Iter& it) {
-		auto posView = it.view_mut_any<PositionSoA>(1);
+		auto posView = it.view_any_mut<PositionSoA>(1);
 		auto xs = posView.template set<0>();
 		auto zs = posView.template set<2>();
 		GAIA_EACH(it) {

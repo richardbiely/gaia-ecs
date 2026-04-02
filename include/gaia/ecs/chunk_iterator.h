@@ -1128,8 +1128,13 @@ namespace gaia {
 						}
 
 						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-						return SoATermViewGet<U>{
-								m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), nullptr, world(), EntityBad, from(), size()};
+						return SoATermViewGet<U>{m_pChunk->comp_ptr(compIdx),
+																		 m_pChunk->capacity(),
+																		 nullptr,
+																		 const_cast<World*>(world()),
+																		 EntityBad,
+																		 from(),
+																		 size()};
 					} else {
 						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
 						const auto compIdx = m_pCompIndices[termIdx];
@@ -1210,7 +1215,7 @@ namespace gaia {
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut_any() {
+				GAIA_NODISCARD auto view_any_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1238,7 +1243,7 @@ namespace gaia {
 
 				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
 				//! Updates world versioning through the underlying chunk view and skips all non-direct dispatch.
-				//! Use view_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! Use view_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
 				//! entity-backed storage.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view with read-write access
@@ -1261,7 +1266,7 @@ namespace gaia {
 
 				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
 				//! Updates world versioning for the selected chunk column before handing out mutable access.
-				//! Use view_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! Use view_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
 				//! \warning Passing a non-mapped or entity-backed term index is invalid.
 				//! \tparam T Component or Entity
@@ -1296,7 +1301,7 @@ namespace gaia {
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto view_mut_any(uint32_t termIdx) {
+				GAIA_NODISCARD auto view_any_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1352,7 +1357,7 @@ namespace gaia {
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut_any() {
+				GAIA_NODISCARD auto sview_any_mut() {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>)
@@ -1371,7 +1376,7 @@ namespace gaia {
 
 				//! Returns a mutable component view for the owned chunk-backed fast path.
 				//! Doesn't update the world version when the access is acquired and skips all non-direct dispatch.
-				//! Use sview_mut_any() when the term may resolve to inherited, sparse, out-of-line, or other
+				//! Use sview_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
 				//! entity-backed storage.
 				//! \tparam T Component
 				//! \return Direct component view with read-write access
@@ -1390,7 +1395,7 @@ namespace gaia {
 
 				//! Returns a mutable component view for a query-term owned chunk-backed term.
 				//! Doesn't update the world version when the access is acquired.
-				//! Use sview_mut_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
+				//! Use sview_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
 				//! other non-direct storage.
 				//! \warning Passing a non-mapped or entity-backed term index is invalid.
 				//! \tparam T Component
@@ -1420,7 +1425,7 @@ namespace gaia {
 				//! \param termIdx Query term index
 				//! \return Component view with read-write access
 				template <typename T>
-				GAIA_NODISCARD auto sview_mut_any(uint32_t termIdx) {
+				GAIA_NODISCARD auto sview_any_mut(uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -1491,7 +1496,7 @@ namespace gaia {
 				GAIA_NODISCARD auto view_auto_any() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
 					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut_any<T>();
+						return view_any_mut<T>();
 					else
 						return view_any<T>();
 				}
@@ -1507,7 +1512,7 @@ namespace gaia {
 				GAIA_NODISCARD auto sview_auto_any() {
 					using UOriginal = typename actual_type_t<T>::TypeOriginal;
 					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut_any<T>();
+						return sview_any_mut<T>();
 					else
 						return view_any<T>();
 				}
