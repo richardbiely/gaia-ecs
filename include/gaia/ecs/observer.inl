@@ -311,11 +311,12 @@ namespace gaia {
 				mark_unsupported();
 			}
 
-			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data);
-
-			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options);
+			void reg_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				cache_term_id(data, term);
+				data.plan.add_term_descriptor(op, is_fast_path_eligible_term(term, options));
+				register_diff_term(data, op, term, options);
+				m_world.observers().add(m_world, term, m_entity, options.matchKind);
+			}
 
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
@@ -387,10 +388,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.all(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::All, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::All, entity, options);
 				return *this;
 			}
 
@@ -398,10 +396,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.any(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Any, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Any, entity, options);
 				return *this;
 			}
 
@@ -409,10 +404,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Or, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Or, entity, options);
 				return *this;
 			}
 
@@ -420,10 +412,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.no(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Not, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Not, entity, options);
 				return *this;
 			}
 

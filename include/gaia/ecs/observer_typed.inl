@@ -5,26 +5,14 @@
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		template <QueryOpKind Op, typename T>
-		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data) {
-			reg_typed_term<Op, T>(data, QueryTermOptions{});
-		}
-
-		template <QueryOpKind Op, typename T>
-		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
-			const auto term = m_world.template reg_comp<T>().entity;
-			cache_term_id(data, term);
-			data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-			register_diff_term(data, Op, term, options);
-			m_world.observers().add(m_world, term, m_entity, options.matchKind);
-		}
-
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::all(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template all<T>(options);
-			reg_typed_term<QueryOpKind::All, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::All, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.all(term, resolvedOptions);
+			reg_term(data, QueryOpKind::All, term, resolvedOptions);
 			return *this;
 		}
 
@@ -32,8 +20,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::any(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template any<T>(options);
-			reg_typed_term<QueryOpKind::Any, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Any, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.any(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Any, term, resolvedOptions);
 			return *this;
 		}
 
@@ -41,8 +31,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::or_(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template or_<T>(options);
-			reg_typed_term<QueryOpKind::Or, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Or, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.or_(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Or, term, resolvedOptions);
 			return *this;
 		}
 
@@ -50,8 +42,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::no(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template no<T>(options);
-			reg_typed_term<QueryOpKind::Not, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Not, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.no(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Not, term, resolvedOptions);
 			return *this;
 		}
 
@@ -77,11 +71,7 @@ namespace gaia {
 
 		template <typename Rel>
 		inline ObserverBuilder& ObserverBuilder::depth_order() {
-			using UO = typename component_type_t<Rel>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
-
-			const auto& desc = comp_cache_add<Rel>(m_world);
-			return depth_order(desc.entity);
+			return depth_order(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
 		template <typename Func, typename... T>
@@ -99,16 +89,14 @@ namespace gaia {
 
 		static void observer_run_typed_on_entity_erased(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount,
-				const Entity* pInheritedArgIds, const bool* pWriteFlags,
+				const TypedQueryBindState& bindState, const TypedQueryExecState& state,
 				void (*runDirect)(Query&, Iter&, void*, const TypedQueryExecState&),
 				void (*runMapped)(Query&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
 				void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
 			auto& queryInfo = obs.query.fetch();
-			const auto state = detail::build_typed_query_exec_state(obs.query, world, queryInfo, pArgMetas, argCount);
 			if (state.hasInheritedTerms) {
-				invokeInherited(world, entity, pInheritedArgIds, pFunc);
-				finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, argCount);
+				invokeInherited(world, entity, bindState.argIds, pFunc);
+				finish_typed_query_args_by_id(world, entity, bindState.argIds, bindState.writeFlags, bindState.argCount);
 				return;
 			}
 
@@ -121,10 +109,9 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount,
-				const Entity* pInheritedArgIds, const bool* pWriteFlags, core::func_type_list<T...>) {
+				const TypedQueryBindState& bindState, const TypedQueryExecState& state, core::func_type_list<T...>) {
 			observer_run_typed_on_entity_erased(
-					obs, world, entity, it, pFunc, pArgMetas, argCount, pInheritedArgIds, pWriteFlags,
+					obs, world, entity, it, pFunc, bindState, state,
 					&observer_run_typed_direct_cb<Func, T...>, &observer_run_typed_mapped_cb<Func, T...>,
 					&invoke_typed_query_args_by_id_erased<Func, T...>);
 		}
@@ -136,24 +123,20 @@ namespace gaia {
 			auto& ctx = runtime_data();
 			using InputArgs = decltype(core::func_args(&Func::operator()));
 
-			TypedQueryArgMeta argMetas[MAX_ITEMS_IN_QUERY] = {};
-			const auto argCount = init_typed_query_arg_metas(argMetas, m_world, InputArgs{});
-			Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
-			bool inheritedArgWriteFlags[ChunkHeader::MAX_COMPONENTS] = {};
-			init_typed_query_arg_descs_from_metas(inheritedArgIds, inheritedArgWriteFlags, argMetas, argCount);
+			const auto bindState = build_typed_query_bind_state(m_world, InputArgs{});
+			auto& queryInfo = ctx.query.fetch();
+			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, bindState);
 
 	#if GAIA_ASSERT_ENABLED
-			auto& queryInfo = ctx.query.fetch();
 			ctx.query.match_all(queryInfo);
 			GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 	#endif
 
-			ctx.on_each_func = [e = m_entity, func, argMetas, inheritedArgIds, inheritedArgWriteFlags, argCount](Iter& it) mutable {
+			ctx.on_each_func = [e = m_entity, func, bindState, execState](Iter& it) mutable {
 				auto& obs = it.world()->observers().data(e);
 				auto& world = *it.world();
 				const auto entity = it.view<Entity>()[0];
-				observer_run_typed_on_entity<Func>(
-						obs, world, entity, it, &func, argMetas, argCount, inheritedArgIds, inheritedArgWriteFlags, InputArgs{});
+				observer_run_typed_on_entity<Func>(obs, world, entity, it, &func, bindState, execState, InputArgs{});
 			};
 
 			return *this;

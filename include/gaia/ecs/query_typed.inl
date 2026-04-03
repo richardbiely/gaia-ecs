@@ -27,12 +27,34 @@ namespace gaia {
 				return state;
 			}
 
+			inline TypedQueryExecState build_typed_query_exec_state(
+					QueryImpl& query, World& world, const QueryInfo& queryInfo, const TypedQueryBindState& bindState) {
+				TypedQueryExecState state{};
+				state.argCount = bindState.argCount;
+				state.hasWriteArgs = bindState.hasWriteArgs;
+				state.needsInheritedArgIds = bindState.needsInheritedArgIds;
+
+				QueryImpl::DirectChunkArgEvalDesc descs[MAX_ITEMS_IN_QUERY]{};
+				GAIA_FOR(bindState.argCount) {
+					state.argIds[i] = bindState.argIds[i];
+					state.writeFlags[i] = bindState.writeFlags[i];
+					descs[i] = {
+							.id = bindState.metas[i].termId,
+							.isEntity = bindState.metas[i].isEntity,
+							.isPair = bindState.metas[i].isPair};
+				}
+
+				state.canUseDirectChunkEval =
+						QueryImpl::can_use_direct_chunk_term_eval_descs(world, queryInfo, descs, bindState.argCount);
+				if (state.needsInheritedArgIds)
+					state.hasInheritedTerms = queryInfo.has_potential_inherited_id_terms();
+				return state;
+			}
+
 			template <typename... T>
 			inline TypedQueryExecState build_typed_query_exec_state(
 					QueryImpl& query, World& world, const QueryInfo& queryInfo, core::func_type_list<T...>) {
-				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
-				return build_typed_query_exec_state(query, world, queryInfo, metas, argCount);
+				return build_typed_query_exec_state(query, world, queryInfo, build_typed_query_bind_state(world, core::func_type_list<T...>{}));
 			}
 
 			inline void finish_typed_chunk_state(
@@ -526,12 +548,8 @@ namespace gaia {
 
 			template <typename... T>
 			inline void QueryImpl::finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to) {
-				TypedQueryArgMeta metas[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				Entity argIds[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				bool writeFlags[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
-				init_typed_query_arg_descs_from_metas(argIds, writeFlags, metas, argCount);
-				finish_typed_chunk_writes_runtime(world, pChunk, from, to, argIds, writeFlags, sizeof...(T));
+				const auto bindState = build_typed_query_bind_state(world, core::func_type_list<T...>{});
+				finish_typed_chunk_writes_runtime(world, pChunk, from, to, bindState.argIds, bindState.writeFlags, bindState.argCount);
 			}
 
 			template <typename TIter>
@@ -684,8 +702,29 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 #endif
+				const auto bindState = build_typed_query_bind_state(*const_cast<World*>(queryInfo.world()), InputArgs{});
+				each_typed_inter<ExecType>(queryInfo, func, bindState);
+			}
+
+			template <QueryExecType ExecType, typename Func>
+			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryBindState& bindState) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				auto& world = *const_cast<World*>(queryInfo.world());
-				const auto state = build_typed_query_exec_state(*this, world, queryInfo, InputArgs{});
+				const auto state = build_typed_query_exec_state(*this, world, queryInfo, bindState);
+				each_typed_inter<ExecType>(queryInfo, func, state);
+			}
+
+			template <QueryExecType ExecType, typename Func>
+			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryExecState& state) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				each_typed_inter_dispatch<ExecType>(*this, queryInfo, func, state, InputArgs{});
 			}
 
@@ -723,7 +762,30 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 #endif
-				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, InputArgs{});
+				const auto bindState = build_typed_query_bind_state(*it.world(), InputArgs{});
+				each_iter(it, func, bindState);
+			}
+
+			template <typename TIter, typename Func>
+			inline void QueryImpl::each_iter(TIter& it, Func func, const TypedQueryBindState& bindState) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+				auto& queryInfo = fetch();
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
+				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, bindState);
+				each_iter(it, func, state);
+			}
+
+			template <typename TIter, typename Func>
+			inline void QueryImpl::each_iter(TIter& it, Func func, const TypedQueryExecState& state) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+				auto& queryInfo = fetch();
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
 			}
 

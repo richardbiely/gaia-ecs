@@ -19,6 +19,15 @@ namespace gaia {
 			bool isPair = false;
 		};
 
+		struct TypedQueryBindState {
+			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+			Entity argIds[MAX_ITEMS_IN_QUERY]{};
+			bool writeFlags[MAX_ITEMS_IN_QUERY]{};
+			uint32_t argCount = 0;
+			bool hasWriteArgs = false;
+			bool needsInheritedArgIds = false;
+		};
+
 		inline void init_typed_query_arg_descs_from_metas(
 				Entity* pArgIds, bool* pWriteFlags, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
 			GAIA_FOR(argCount) {
@@ -62,6 +71,26 @@ namespace gaia {
 				}
 			}
 			return (uint32_t)sizeof...(T);
+		}
+
+		inline void init_typed_query_bind_state(
+				TypedQueryBindState& state, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
+			state.argCount = argCount;
+			state.needsInheritedArgIds = typed_query_arg_metas_need_inherited_ids(pMetas, argCount);
+			GAIA_FOR(argCount) {
+				state.metas[i] = pMetas[i];
+				state.hasWriteArgs = state.hasWriteArgs || pMetas[i].isWrite;
+			}
+			init_typed_query_arg_descs_from_metas(state.argIds, state.writeFlags, state.metas, state.argCount);
+		}
+
+		template <typename... T>
+		inline TypedQueryBindState build_typed_query_bind_state(World& world, core::func_type_list<T...> args) {
+			TypedQueryBindState state{};
+			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+			const auto argCount = init_typed_query_arg_metas(metas, world, args);
+			init_typed_query_bind_state(state, metas, argCount);
+			return state;
 		}
 
 #if GAIA_ASSERT_ENABLED

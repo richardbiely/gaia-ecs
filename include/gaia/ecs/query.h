@@ -101,6 +101,7 @@ namespace gaia {
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
+		struct TypedQueryBindState;
 
 		namespace detail {
 			template <typename Func>
@@ -469,6 +470,7 @@ namespace gaia {
 			};
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				friend class SystemBuilder;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -2265,6 +2267,12 @@ namespace gaia {
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
+
+				template <QueryExecType ExecType, typename Func>
+				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryBindState& bindState);
+
+				template <QueryExecType ExecType, typename Func>
+				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryExecState& state);
 
 				template <typename TIter>
 				void each_walk_inter(
@@ -4353,6 +4361,12 @@ namespace gaia {
 				//! \param func Callback to invoke.
 				template <typename TIter, typename Func>
 				void each_iter(TIter& it, Func func);
+
+				template <typename TIter, typename Func>
+				void each_iter(TIter& it, Func func, const TypedQueryBindState& bindState);
+
+				template <typename TIter, typename Func>
+				void each_iter(TIter& it, Func func, const TypedQueryExecState& state);
 
 				//------------------------------------------------
 

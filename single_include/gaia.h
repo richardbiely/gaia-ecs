@@ -41177,6 +41177,7 @@ namespace gaia {
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
+		struct TypedQueryBindState;
 
 		namespace detail {
 			template <typename Func>
@@ -41545,6 +41546,7 @@ namespace gaia {
 			};
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
+				friend class SystemBuilder;
 
 				struct ChunkBatch {
 					const Archetype* pArchetype;
@@ -43341,6 +43343,12 @@ namespace gaia {
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
+
+				template <QueryExecType ExecType, typename Func>
+				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryBindState& bindState);
+
+				template <QueryExecType ExecType, typename Func>
+				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryExecState& state);
 
 				template <typename TIter>
 				void each_walk_inter(
@@ -45430,6 +45438,12 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_iter(TIter& it, Func func);
 
+				template <typename TIter, typename Func>
+				void each_iter(TIter& it, Func func, const TypedQueryBindState& bindState);
+
+				template <typename TIter, typename Func>
+				void each_iter(TIter& it, Func func, const TypedQueryExecState& state);
+
 				//------------------------------------------------
 
 				//! Iterates matching archetypes instead of individual entities.
@@ -45963,9 +45977,49 @@ namespace gaia {
 	namespace ecs {
 		namespace detail {
 			template <typename T>
+			GAIA_NODISCARD inline Entity typed_query_raw_entity(World& world) {
+				using U = typename component_type_t<T>::Type;
+				static_assert(core::is_raw_v<U>, "Use raw types only");
+
+				const auto& desc = comp_cache_add<T>(world);
+				return desc.entity;
+			}
+
+			template <typename Rel, typename Tgt>
+			GAIA_NODISCARD inline Entity typed_query_pair_entity(World& world) {
+				using URel = typename component_type_t<Rel>::Type;
+				using UTgt = typename component_type_t<Tgt>::Type;
+				static_assert(core::is_raw_v<URel>, "Use raw relation types only");
+				static_assert(core::is_raw_v<UTgt>, "Use raw target types only");
+
+				const auto& descRel = comp_cache_add<Rel>(world);
+				const auto& descTgt = comp_cache_add<Tgt>(world);
+				return Pair(descRel.entity, descTgt.entity);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD inline Entity typed_query_term_entity(World& world) {
+				using FT = typename component_type_t<T>::TypeFull;
+				if constexpr (is_pair<FT>::value) {
+					return typed_query_pair_entity<typename FT::rel_type, typename FT::tgt_type>(world);
+				} else {
+					return typed_query_raw_entity<T>(world);
+				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD inline QueryTermOptions typed_query_term_options(QueryOpKind op, QueryTermOptions options) {
+				if (op != QueryOpKind::Not && op != QueryOpKind::Any && options.access == QueryAccess::None) {
+					constexpr auto isReadWrite = core::is_mut_v<T>;
+					options.access = isReadWrite ? QueryAccess::Write : QueryAccess::Read;
+				}
+				return options;
+			}
+
+			template <typename T>
 			inline QueryImpl& QueryImpl::all(const QueryTermOptions& options) {
-				add_inter<T>(QueryOpKind::All, options);
-				return *this;
+				return all(
+						typed_query_term_entity<T>(*m_storage.world()), typed_query_term_options<T>(QueryOpKind::All, options));
 			}
 
 			template <typename T>
@@ -45975,8 +46029,8 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::any(const QueryTermOptions& options) {
-				add_inter<T>(QueryOpKind::Any, options);
-				return *this;
+				return any(
+						typed_query_term_entity<T>(*m_storage.world()), typed_query_term_options<T>(QueryOpKind::Any, options));
 			}
 
 			template <typename T>
@@ -45986,8 +46040,8 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::or_(const QueryTermOptions& options) {
-				add_inter<T>(QueryOpKind::Or, options);
-				return *this;
+				return or_(
+						typed_query_term_entity<T>(*m_storage.world()), typed_query_term_options<T>(QueryOpKind::Or, options));
 			}
 
 			template <typename T>
@@ -45997,8 +46051,8 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::no(const QueryTermOptions& options) {
-				add_inter<T>(QueryOpKind::Not, options);
-				return *this;
+				return no(
+						typed_query_term_entity<T>(*m_storage.world()), typed_query_term_options<T>(QueryOpKind::Not, options));
 			}
 
 			template <typename T>
@@ -46008,11 +46062,7 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::changed() {
-				using UO = typename component_type_t<T>::TypeOriginal;
-				static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
-
-				const auto& desc = comp_cache_add<T>(*m_storage.world());
-				return changed(desc.entity);
+				return changed(typed_query_raw_entity<T>(*m_storage.world()));
 			}
 
 			template <typename T>
@@ -46021,71 +46071,38 @@ namespace gaia {
 				if constexpr (std::is_same_v<UO, Entity>) {
 					return sort_by(EntityBad, func);
 				} else {
-					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
-
-					const auto& desc = comp_cache_add<T>(*m_storage.world());
-					return sort_by(desc.entity, func);
+					return sort_by(typed_query_raw_entity<T>(*m_storage.world()), func);
 				}
 			}
 
 			template <typename Rel, typename Tgt>
 			inline QueryImpl& QueryImpl::sort_by(TSortByFunc func) {
-				using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
-				using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
-				static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
-				static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
-
-				const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
-				const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
-				return sort_by({descRel.entity, descTgt.entity}, func);
+				return sort_by(typed_query_pair_entity<Rel, Tgt>(*m_storage.world()), func);
 			}
 
 			template <typename Rel>
 			inline QueryImpl& QueryImpl::depth_order() {
-				using UO = typename component_type_t<Rel>::TypeOriginal;
-				static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
-
-				const auto& desc = comp_cache_add<Rel>(*m_storage.world());
-				return depth_order(desc.entity);
+				return depth_order(typed_query_raw_entity<Rel>(*m_storage.world()));
 			}
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::group_by(TGroupByFunc func) {
-				using UO = typename component_type_t<T>::TypeOriginal;
-				static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
-
-				const auto& desc = comp_cache_add<T>(*m_storage.world());
-				return group_by(desc.entity, func);
+				return group_by(typed_query_raw_entity<T>(*m_storage.world()), func);
 			}
 
 			template <typename Rel, typename Tgt>
 			inline QueryImpl& QueryImpl::group_by(TGroupByFunc func) {
-				using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
-				using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
-				static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
-				static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
-
-				const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
-				const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
-				return group_by({descRel.entity, descTgt.entity}, func);
+				return group_by(typed_query_pair_entity<Rel, Tgt>(*m_storage.world()), func);
 			}
 
 			template <typename Rel>
 			inline QueryImpl& QueryImpl::group_dep() {
-				using UO = typename component_type_t<Rel>::TypeOriginal;
-				static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
-
-				const auto& desc = comp_cache_add<Rel>(*m_storage.world());
-				return group_dep(desc.entity);
+				return group_dep(typed_query_raw_entity<Rel>(*m_storage.world()));
 			}
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::group_id() {
-				using UO = typename component_type_t<T>::TypeOriginal;
-				static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
-
-				const auto& desc = comp_cache_add<T>(*m_storage.world());
-				return group_id(desc.entity);
+				return group_id(typed_query_raw_entity<T>(*m_storage.world()));
 			}
 		} // namespace detail
 	} // namespace ecs
@@ -46108,6 +46125,15 @@ namespace gaia {
 			bool isWrite = false;
 			bool isEntity = false;
 			bool isPair = false;
+		};
+
+		struct TypedQueryBindState {
+			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+			Entity argIds[MAX_ITEMS_IN_QUERY]{};
+			bool writeFlags[MAX_ITEMS_IN_QUERY]{};
+			uint32_t argCount = 0;
+			bool hasWriteArgs = false;
+			bool needsInheritedArgIds = false;
 		};
 
 		inline void init_typed_query_arg_descs_from_metas(
@@ -46154,6 +46180,26 @@ namespace gaia {
 				}
 			}
 			return (uint32_t)sizeof...(T);
+		}
+
+		inline void
+		init_typed_query_bind_state(TypedQueryBindState& state, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
+			state.argCount = argCount;
+			state.needsInheritedArgIds = typed_query_arg_metas_need_inherited_ids(pMetas, argCount);
+			GAIA_FOR(argCount) {
+				state.metas[i] = pMetas[i];
+				state.hasWriteArgs = state.hasWriteArgs || pMetas[i].isWrite;
+			}
+			init_typed_query_arg_descs_from_metas(state.argIds, state.writeFlags, state.metas, state.argCount);
+		}
+
+		template <typename... T>
+		inline TypedQueryBindState build_typed_query_bind_state(World& world, core::func_type_list<T...> args) {
+			TypedQueryBindState state{};
+			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+			const auto argCount = init_typed_query_arg_metas(metas, world, args);
+			init_typed_query_bind_state(state, metas, argCount);
+			return state;
 		}
 
 #if GAIA_ASSERT_ENABLED
@@ -46234,12 +46280,35 @@ namespace gaia {
 				return state;
 			}
 
+			inline TypedQueryExecState build_typed_query_exec_state(
+					QueryImpl& query, World& world, const QueryInfo& queryInfo, const TypedQueryBindState& bindState) {
+				TypedQueryExecState state{};
+				state.argCount = bindState.argCount;
+				state.hasWriteArgs = bindState.hasWriteArgs;
+				state.needsInheritedArgIds = bindState.needsInheritedArgIds;
+
+				QueryImpl::DirectChunkArgEvalDesc descs[MAX_ITEMS_IN_QUERY]{};
+				GAIA_FOR(bindState.argCount) {
+					state.argIds[i] = bindState.argIds[i];
+					state.writeFlags[i] = bindState.writeFlags[i];
+					descs[i] = {
+							.id = bindState.metas[i].termId,
+							.isEntity = bindState.metas[i].isEntity,
+							.isPair = bindState.metas[i].isPair};
+				}
+
+				state.canUseDirectChunkEval =
+						QueryImpl::can_use_direct_chunk_term_eval_descs(world, queryInfo, descs, bindState.argCount);
+				if (state.needsInheritedArgIds)
+					state.hasInheritedTerms = queryInfo.has_potential_inherited_id_terms();
+				return state;
+			}
+
 			template <typename... T>
 			inline TypedQueryExecState build_typed_query_exec_state(
 					QueryImpl& query, World& world, const QueryInfo& queryInfo, core::func_type_list<T...>) {
-				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
-				return build_typed_query_exec_state(query, world, queryInfo, metas, argCount);
+				return build_typed_query_exec_state(
+						query, world, queryInfo, build_typed_query_bind_state(world, core::func_type_list<T...>{}));
 			}
 
 			inline void finish_typed_chunk_state(
@@ -46733,12 +46802,9 @@ namespace gaia {
 
 			template <typename... T>
 			inline void QueryImpl::finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to) {
-				TypedQueryArgMeta metas[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				Entity argIds[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				bool writeFlags[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
-				init_typed_query_arg_descs_from_metas(argIds, writeFlags, metas, argCount);
-				finish_typed_chunk_writes_runtime(world, pChunk, from, to, argIds, writeFlags, sizeof...(T));
+				const auto bindState = build_typed_query_bind_state(world, core::func_type_list<T...>{});
+				finish_typed_chunk_writes_runtime(
+						world, pChunk, from, to, bindState.argIds, bindState.writeFlags, bindState.argCount);
 			}
 
 			template <typename TIter>
@@ -46891,8 +46957,29 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 #endif
+				const auto bindState = build_typed_query_bind_state(*const_cast<World*>(queryInfo.world()), InputArgs{});
+				each_typed_inter<ExecType>(queryInfo, func, bindState);
+			}
+
+			template <QueryExecType ExecType, typename Func>
+			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryBindState& bindState) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				auto& world = *const_cast<World*>(queryInfo.world());
-				const auto state = build_typed_query_exec_state(*this, world, queryInfo, InputArgs{});
+				const auto state = build_typed_query_exec_state(*this, world, queryInfo, bindState);
+				each_typed_inter<ExecType>(queryInfo, func, state);
+			}
+
+			template <QueryExecType ExecType, typename Func>
+			inline void QueryImpl::each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryExecState& state) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				each_typed_inter_dispatch<ExecType>(*this, queryInfo, func, state, InputArgs{});
 			}
 
@@ -46930,7 +47017,30 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 #endif
-				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, InputArgs{});
+				const auto bindState = build_typed_query_bind_state(*it.world(), InputArgs{});
+				each_iter(it, func, bindState);
+			}
+
+			template <typename TIter, typename Func>
+			inline void QueryImpl::each_iter(TIter& it, Func func, const TypedQueryBindState& bindState) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+				auto& queryInfo = fetch();
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
+				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, bindState);
+				each_iter(it, func, state);
+			}
+
+			template <typename TIter, typename Func>
+			inline void QueryImpl::each_iter(TIter& it, Func func, const TypedQueryExecState& state) {
+				using InputArgs = decltype(core::func_args(&Func::operator()));
+				auto& queryInfo = fetch();
+
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
+#endif
 				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
 			}
 
@@ -60170,11 +60280,12 @@ namespace gaia {
 				mark_unsupported();
 			}
 
-			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data);
-
-			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options);
+			void reg_term(ObserverRuntimeData& data, QueryOpKind op, Entity term, const QueryTermOptions& options) {
+				cache_term_id(data, term);
+				data.plan.add_term_descriptor(op, is_fast_path_eligible_term(term, options));
+				register_diff_term(data, op, term, options);
+				m_world.observers().add(m_world, term, m_entity, options.matchKind);
+			}
 
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
@@ -60246,10 +60357,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.all(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::All, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::All, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::All, entity, options);
 				return *this;
 			}
 
@@ -60257,10 +60365,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.any(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Any, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Any, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Any, entity, options);
 				return *this;
 			}
 
@@ -60268,10 +60373,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.or_(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Or, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Or, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Or, entity, options);
 				return *this;
 			}
 
@@ -60279,10 +60381,7 @@ namespace gaia {
 				validate();
 				auto& data = runtime_data();
 				data.query.no(entity, options);
-				cache_term_id(data, entity);
-				data.plan.add_term_descriptor(QueryOpKind::Not, is_fast_path_eligible_term(entity, options));
-				register_diff_term(data, QueryOpKind::Not, entity, options);
-				m_world.observers().add(m_world, entity, m_entity, options.matchKind);
+				reg_term(data, QueryOpKind::Not, entity, options);
 				return *this;
 			}
 
@@ -60378,26 +60477,14 @@ namespace gaia {
 	#if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
-		template <QueryOpKind Op, typename T>
-		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data) {
-			reg_typed_term<Op, T>(data, QueryTermOptions{});
-		}
-
-		template <QueryOpKind Op, typename T>
-		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
-			const auto term = m_world.template reg_comp<T>().entity;
-			cache_term_id(data, term);
-			data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-			register_diff_term(data, Op, term, options);
-			m_world.observers().add(m_world, term, m_entity, options.matchKind);
-		}
-
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::all(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template all<T>(options);
-			reg_typed_term<QueryOpKind::All, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::All, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.all(term, resolvedOptions);
+			reg_term(data, QueryOpKind::All, term, resolvedOptions);
 			return *this;
 		}
 
@@ -60405,8 +60492,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::any(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template any<T>(options);
-			reg_typed_term<QueryOpKind::Any, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Any, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.any(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Any, term, resolvedOptions);
 			return *this;
 		}
 
@@ -60414,8 +60503,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::or_(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template or_<T>(options);
-			reg_typed_term<QueryOpKind::Or, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Or, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.or_(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Or, term, resolvedOptions);
 			return *this;
 		}
 
@@ -60423,8 +60514,10 @@ namespace gaia {
 		inline ObserverBuilder& ObserverBuilder::no(const QueryTermOptions& options) {
 			validate();
 			auto& data = runtime_data();
-			data.query.template no<T>(options);
-			reg_typed_term<QueryOpKind::Not, T>(data, options);
+			const auto resolvedOptions = detail::typed_query_term_options<T>(QueryOpKind::Not, options);
+			const auto term = detail::typed_query_term_entity<T>(m_world);
+			data.query.no(term, resolvedOptions);
+			reg_term(data, QueryOpKind::Not, term, resolvedOptions);
 			return *this;
 		}
 
@@ -60450,11 +60543,7 @@ namespace gaia {
 
 		template <typename Rel>
 		inline ObserverBuilder& ObserverBuilder::depth_order() {
-			using UO = typename component_type_t<Rel>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
-
-			const auto& desc = comp_cache_add<Rel>(m_world);
-			return depth_order(desc.entity);
+			return depth_order(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
 		template <typename Func, typename... T>
@@ -60472,15 +60561,14 @@ namespace gaia {
 
 		static void observer_run_typed_on_entity_erased(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount, const Entity* pInheritedArgIds, const bool* pWriteFlags,
+				const TypedQueryBindState& bindState, const TypedQueryExecState& state,
 				void (*runDirect)(Query&, Iter&, void*, const TypedQueryExecState&),
 				void (*runMapped)(Query&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
 				void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
 			auto& queryInfo = obs.query.fetch();
-			const auto state = detail::build_typed_query_exec_state(obs.query, world, queryInfo, pArgMetas, argCount);
 			if (state.hasInheritedTerms) {
-				invokeInherited(world, entity, pInheritedArgIds, pFunc);
-				finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, argCount);
+				invokeInherited(world, entity, bindState.argIds, pFunc);
+				finish_typed_query_args_by_id(world, entity, bindState.argIds, bindState.writeFlags, bindState.argCount);
 				return;
 			}
 
@@ -60493,12 +60581,10 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount, const Entity* pInheritedArgIds, const bool* pWriteFlags,
-				core::func_type_list<T...>) {
+				const TypedQueryBindState& bindState, const TypedQueryExecState& state, core::func_type_list<T...>) {
 			observer_run_typed_on_entity_erased(
-					obs, world, entity, it, pFunc, pArgMetas, argCount, pInheritedArgIds, pWriteFlags,
-					&observer_run_typed_direct_cb<Func, T...>, &observer_run_typed_mapped_cb<Func, T...>,
-					&invoke_typed_query_args_by_id_erased<Func, T...>);
+					obs, world, entity, it, pFunc, bindState, state, &observer_run_typed_direct_cb<Func, T...>,
+					&observer_run_typed_mapped_cb<Func, T...>, &invoke_typed_query_args_by_id_erased<Func, T...>);
 		}
 
 		template <typename Func, std::enable_if_t<!std::is_invocable_v<Func, Iter&>, int>>
@@ -60508,25 +60594,20 @@ namespace gaia {
 			auto& ctx = runtime_data();
 			using InputArgs = decltype(core::func_args(&Func::operator()));
 
-			TypedQueryArgMeta argMetas[MAX_ITEMS_IN_QUERY] = {};
-			const auto argCount = init_typed_query_arg_metas(argMetas, m_world, InputArgs{});
-			Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
-			bool inheritedArgWriteFlags[ChunkHeader::MAX_COMPONENTS] = {};
-			init_typed_query_arg_descs_from_metas(inheritedArgIds, inheritedArgWriteFlags, argMetas, argCount);
+			const auto bindState = build_typed_query_bind_state(m_world, InputArgs{});
+			auto& queryInfo = ctx.query.fetch();
+			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, bindState);
 
 		#if GAIA_ASSERT_ENABLED
-			auto& queryInfo = ctx.query.fetch();
 			ctx.query.match_all(queryInfo);
 			GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 		#endif
 
-			ctx.on_each_func = [e = m_entity, func, argMetas, inheritedArgIds, inheritedArgWriteFlags,
-													argCount](Iter& it) mutable {
+			ctx.on_each_func = [e = m_entity, func, bindState, execState](Iter& it) mutable {
 				auto& obs = it.world()->observers().data(e);
 				auto& world = *it.world();
 				const auto entity = it.view<Entity>()[0];
-				observer_run_typed_on_entity<Func>(
-						obs, world, entity, it, &func, argMetas, argCount, inheritedArgIds, inheritedArgWriteFlags, InputArgs{});
+				observer_run_typed_on_entity<Func>(obs, world, entity, it, &func, bindState, execState, InputArgs{});
 			};
 
 			return *this;
@@ -60880,29 +60961,29 @@ namespace gaia {
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::all(const QueryTermOptions& options) {
 			validate();
-			data().query.template all<T>(options);
-			return *this;
+			return all(
+					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::All, options));
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::any(const QueryTermOptions& options) {
 			validate();
-			data().query.template any<T>(options);
-			return *this;
+			return any(
+					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Any, options));
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::or_(const QueryTermOptions& options) {
 			validate();
-			data().query.template or_<T>(options);
-			return *this;
+			return or_(
+					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Or, options));
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::no(const QueryTermOptions& options) {
 			validate();
-			data().query.template no<T>(options);
-			return *this;
+			return no(
+					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Not, options));
 		}
 
 		template <typename T>
@@ -60927,59 +61008,32 @@ namespace gaia {
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::changed() {
-			using UO = typename component_type_t<T>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
-
-			const auto& desc = comp_cache_add<T>(m_world);
-			return changed(desc.entity);
+			return changed(detail::typed_query_raw_entity<T>(m_world));
 		}
 
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::depth_order() {
-			using UO = typename component_type_t<Rel>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
-
-			const auto& desc = comp_cache_add<Rel>(m_world);
-			return depth_order(desc.entity);
+			return depth_order(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
-			using UO = typename component_type_t<T>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
-
-			const auto& desc = comp_cache_add<T>(m_world);
-			return group_by(desc.entity, func);
+			return group_by(detail::typed_query_raw_entity<T>(m_world), func);
 		}
 
 		template <typename Rel, typename Tgt>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
-			using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
-			using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
-			static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
-			static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
-
-			const auto& descRel = comp_cache_add<Rel>(m_world);
-			const auto& descTgt = comp_cache_add<Tgt>(m_world);
-			return group_by({descRel.entity, descTgt.entity}, func);
+			return group_by(detail::typed_query_pair_entity<Rel, Tgt>(m_world), func);
 		}
 
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::group_dep() {
-			using UO = typename component_type_t<Rel>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
-
-			const auto& desc = comp_cache_add<Rel>(m_world);
-			return group_dep(desc.entity);
+			return group_dep(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_id() {
-			using UO = typename component_type_t<T>::TypeOriginal;
-			static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
-
-			const auto& desc = comp_cache_add<T>(m_world);
-			return group_id(desc.entity);
+			return group_id(detail::typed_query_raw_entity<T>(m_world));
 		}
 
 		template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int>>
@@ -60987,16 +61041,35 @@ namespace gaia {
 			validate();
 
 			auto& ctx = data();
-			const bool hasInheritedTerms = ctx.query.fetch().has_potential_inherited_id_terms();
+			using InputArgs = decltype(core::func_args(&Func::operator()));
+			const auto bindState = build_typed_query_bind_state(m_world, InputArgs{});
+			auto& queryInfo = ctx.query.fetch();
+			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, bindState);
+			const bool hasInheritedTerms = execState.hasInheritedTerms;
 			if (hasInheritedTerms) {
-				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-					query.each(func, execType);
+				ctx.on_each_func = [func, execState](Query& query, QueryExecType execType) {
+					auto& queryInfo = query.fetch();
+					query.match_all(queryInfo);
+					switch (execType) {
+						case QueryExecType::Parallel:
+							query.each_typed_inter<QueryExecType::Parallel>(queryInfo, func, execState);
+							break;
+						case QueryExecType::ParallelPerf:
+							query.each_typed_inter<QueryExecType::ParallelPerf>(queryInfo, func, execState);
+							break;
+						case QueryExecType::ParallelEff:
+							query.each_typed_inter<QueryExecType::ParallelEff>(queryInfo, func, execState);
+							break;
+						default:
+							query.each_typed_inter<QueryExecType::Default>(queryInfo, func, execState);
+							break;
+					}
 				};
 			} else {
-				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+				ctx.on_each_func = [func, execState](Query& query, QueryExecType execType) {
 					query.each(
-							[&query, func](Iter& it) mutable {
-								query.each_iter(it, func);
+							[&query, func, execState](Iter& it) mutable {
+								query.each_iter(it, func, execState);
 							},
 							execType);
 				};
