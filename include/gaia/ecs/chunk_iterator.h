@@ -40,6 +40,9 @@ namespace gaia {
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		namespace detail {
+			template <Constraints IterConstraint>
+			struct ChunkIterTypedOps;
+
 			struct BfsChunkRun {
 				const Archetype* pArchetype = nullptr;
 				Chunk* pChunk = nullptr;
@@ -814,6 +817,8 @@ namespace gaia {
 
 			template <Constraints IterConstraint>
 			class ChunkIterImpl {
+				friend struct ChunkIterTypedOps<IterConstraint>;
+
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
@@ -1024,19 +1029,7 @@ namespace gaia {
 
 				template <typename T>
 				GAIA_NODISCARD IterTermDesc term_desc() const {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>) {
-						return {.termId = EntityBad, .isEntity = true, .isOutOfLine = false};
-					} else {
-						IterTermDesc desc;
-						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(world()));
-						if constexpr (!is_pair<typename component_type_t<Arg>::TypeFull>::value && !mem::is_soa_layout_v<Arg>) {
-							// Type-based iteration switches to the world/store path as soon as the
-							// payload stops being chunk-backed, even if the id still fragments.
-							desc.isOutOfLine = world_is_out_of_line_component(*world(), desc.termId);
-						}
-						return desc;
-					}
+					return ChunkIterTypedOps<IterConstraint>::template term_desc<T>(*this);
 				}
 
 				GAIA_NODISCARD IterTermDesc resolved_term_desc(uint32_t termIdx, IterTermDesc desc) const {
@@ -1091,20 +1084,7 @@ namespace gaia {
 				//! \return Entity of component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view_any() const {
-					using U = typename actual_type_t<T>::Type;
-					if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
-						return m_pChunk->view<T>(from(), to());
-					else {
-						const auto desc = term_desc<T>();
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
-
-						if (id != EntityBad)
-							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), id, size());
-
-						auto* pData = reinterpret_cast<const U*>(m_pChunk->template view<T>(from(), to()).data());
-						return EntityTermViewGet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_any<T>(*this);
 				}
 
 				//! Returns a read-only entity or component view for a query-term index that can resolve non-direct storage.
@@ -1116,52 +1096,7 @@ namespace gaia {
 				//! \return Entity or component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view_any(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-
-					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (compIdx == 0xFF) {
-							const auto* pEntities = m_pChunk->entity_view().data() + from();
-							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-							GAIA_ASSERT(desc.termId != EntityBad);
-							return SoATermViewGet<U>{nullptr, 0, pEntities, const_cast<World*>(world()), desc.termId, 0, size()};
-						}
-
-						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-						return SoATermViewGet<U>{m_pChunk->comp_ptr(compIdx),
-																		 m_pChunk->capacity(),
-																		 nullptr,
-																		 const_cast<World*>(world()),
-																		 EntityBad,
-																		 from(),
-																		 size()};
-					} else {
-						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (desc.isOutOfLine)
-							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), desc.termId, size());
-
-						if (compIdx == 0xFF) {
-							GAIA_ASSERT(desc.termId != EntityBad);
-							if (!m_inheritedData.empty()) {
-								const auto* pInheritedValue = reinterpret_cast<const U*>(m_inheritedData[termIdx]);
-								if (pInheritedValue != nullptr)
-									return EntityTermViewGet<U>::inherited(pInheritedValue, size());
-							}
-							if (world_term_uses_inherit_policy(*world(), desc.termId)) {
-								return EntityTermViewGet<U>::entity_chunk_stable(
-										m_pChunk->entity_view().data() + from(), m_pChunk, const_cast<World*>(world()), desc.termId, from(),
-										size());
-							}
-							return EntityTermViewGet<U>::entity(
-									m_pChunk->entity_view().data() + from(), const_cast<World*>(world()), desc.termId, size());
-						}
-						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-
-						auto* pData = reinterpret_cast<const U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewGet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_any<T>(*this, termIdx);
 				}
 
 				//! Returns a read-only entity or component view for the owned chunk-backed fast path.
@@ -1174,16 +1109,7 @@ namespace gaia {
 				//! \return Direct read-only entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view() const {
-					using U = typename actual_type_t<T>::Type;
-					if constexpr (std::is_same_v<U, Entity>)
-						return m_pChunk->view<T>(from(), to());
-					else if constexpr (mem::is_soa_layout_v<U>) {
-						const auto view = m_pChunk->view<T>(from(), to());
-						return SoATermViewGetPointer<U>{(const uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
-					} else {
-						auto* pData = reinterpret_cast<const U*>(m_pChunk->template view<T>(from(), to()).data());
-						return EntityTermViewGetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view<T>(*this);
 				}
 
 				//! Returns a read-only entity or component view for a query-term owned chunk-backed term.
@@ -1196,16 +1122,7 @@ namespace gaia {
 				//! \return Direct read-only entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) const {
-					using U = typename actual_type_t<T>::Type;
-					const auto compIdx = m_pCompIndices[termIdx];
-					GAIA_ASSERT(compIdx != 0xFF);
-
-					if constexpr (mem::is_soa_layout_v<U>)
-						return SoATermViewGetPointer<U>{m_pChunk->comp_ptr(compIdx), m_pChunk->capacity(), from(), size()};
-					else {
-						auto* pData = reinterpret_cast<const U*>(m_pChunk->comp_ptr(compIdx, from()));
-						return EntityTermViewGetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable entity or component view that can resolve non-direct storage.
@@ -1216,29 +1133,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_any_mut() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto desc = term_desc<T>();
-						touch_term_desc(desc);
-						if (m_writeIm)
-							return m_pChunk->view_mut<T>(from(), to());
-						return m_pChunk->sview_mut<T>(from(), to());
-					} else {
-						const auto desc = term_desc<T>();
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
-
-						if (id != EntityBad) {
-							touch_term(id);
-							return entity_view_set<U>(id, m_writeIm);
-						}
-
-						touch_term_desc(desc);
-						auto* pData = reinterpret_cast<U*>((m_writeIm ? m_pChunk->template view_mut<T>(from(), to())
-																													: m_pChunk->template sview_mut<T>(from(), to()))
-																									 .data());
-						return EntityTermViewSet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_any_mut<T>(*this);
 				}
 
 				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
@@ -1249,19 +1144,7 @@ namespace gaia {
 				//! \return Direct entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					const auto desc = term_desc<T>();
-					touch_term_desc(desc);
-					if constexpr (mem::is_soa_layout_v<U>) {
-						auto view = m_writeIm ? m_pChunk->view_mut<T>(from(), to()) : m_pChunk->sview_mut<T>(from(), to());
-						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
-					} else {
-						auto* pData = reinterpret_cast<U*>((m_writeIm ? m_pChunk->template view_mut<T>(from(), to())
-																													: m_pChunk->template sview_mut<T>(from(), to()))
-																									 .data());
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_mut<T>(*this);
 				}
 
 				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
@@ -1274,22 +1157,7 @@ namespace gaia {
 				//! \return Direct entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					const auto compIdx = m_pCompIndices[termIdx];
-					GAIA_ASSERT(compIdx != 0xFF);
-					touch_comp_idx(compIdx);
-
-					if constexpr (mem::is_soa_layout_v<U>) {
-						if (m_writeIm)
-							m_pChunk->update_world_version(compIdx);
-						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
-					} else {
-						if (m_writeIm)
-							m_pChunk->update_world_version(compIdx);
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable entity or component view for a query-term index that can resolve non-direct storage.
@@ -1302,51 +1170,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_any_mut(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-
-					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (compIdx == 0xFF) {
-							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-							GAIA_ASSERT(desc.termId != EntityBad);
-							touch_term(desc.termId);
-							return entity_soa_view_set<U>(desc.termId, m_writeIm);
-						}
-
-						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
-						touch_comp_idx(compIdx);
-						if (m_writeIm)
-							m_pChunk->update_world_version(compIdx);
-						return SoATermViewSet<U>{m_pChunk->comp_ptr_mut(compIdx),
-																		 m_pChunk->capacity(),
-																		 nullptr,
-																		 world(),
-																		 EntityBad,
-																		 from(),
-																		 size(),
-																		 m_writeIm};
-					} else {
-						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (desc.isOutOfLine) {
-							touch_term(desc.termId);
-							return entity_view_set<U>(desc.termId, m_writeIm);
-						}
-
-						if (compIdx == 0xFF) {
-							GAIA_ASSERT(desc.termId != EntityBad);
-							touch_term(desc.termId);
-							return entity_view_set<U>(desc.termId, m_writeIm);
-						}
-						GAIA_ASSERT(compIdx < m_pChunk->comp_rec_view().size());
-
-						touch_comp_idx(compIdx);
-						if (m_writeIm)
-							m_pChunk->update_world_version(compIdx);
-
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template view_any_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable component view that can resolve non-direct storage.
@@ -1358,20 +1182,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_any_mut() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>)
-						return m_pChunk->sview_mut<T>(from(), to());
-					else {
-						const auto desc = term_desc<T>();
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
-
-						if (id != EntityBad)
-							return entity_view_set<U>(id, false);
-
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
-						return EntityTermViewSet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template sview_any_mut<T>(*this);
 				}
 
 				//! Returns a mutable component view for the owned chunk-backed fast path.
@@ -1382,15 +1193,7 @@ namespace gaia {
 				//! \return Direct component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
-					if constexpr (mem::is_soa_layout_v<U>) {
-						auto view = m_pChunk->sview_mut<T>(from(), to());
-						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), from(), size()};
-					} else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->template sview_mut<T>(from(), to()).data());
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template sview_mut<T>(*this);
 				}
 
 				//! Returns a mutable component view for a query-term owned chunk-backed term.
@@ -1403,17 +1206,7 @@ namespace gaia {
 				//! \return Direct component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
-					const auto compIdx = m_pCompIndices[termIdx];
-					GAIA_ASSERT(compIdx != 0xFF);
-
-					if constexpr (mem::is_soa_layout_v<U>)
-						return SoATermViewSetPointer<U>{m_pChunk->comp_ptr_mut(compIdx), m_pChunk->capacity(), from(), size()};
-					else {
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSetPointer<U>{pData, size()};
-					}
+					return ChunkIterTypedOps<IterConstraint>::template sview_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable component view for a query-term index that can resolve non-direct storage.
@@ -1426,40 +1219,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_any_mut(uint32_t termIdx) {
-					using U = typename actual_type_t<T>::Type;
-
-					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (compIdx == 0xFF) {
-							const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-							GAIA_ASSERT(desc.termId != EntityBad);
-							return entity_soa_view_set<U>(desc.termId, false);
-						}
-
-						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-						return SoATermViewSet<U>{m_pChunk->comp_ptr_mut(compIdx),
-																		 m_pChunk->capacity(),
-																		 nullptr,
-																		 world(),
-																		 EntityBad,
-																		 from(),
-																		 size(),
-																		 false};
-					} else {
-						const auto desc = resolved_term_desc(termIdx, term_desc<T>());
-						const auto compIdx = m_pCompIndices[termIdx];
-						if (desc.isOutOfLine)
-							return entity_view_set<U>(desc.termId, false);
-
-						if (compIdx == 0xFF) {
-							GAIA_ASSERT(desc.termId != EntityBad);
-							return entity_view_set<U>(desc.termId, false);
-						}
-						GAIA_ASSERT(compIdx < m_pChunk->ids_view().size());
-
-						auto* pData = reinterpret_cast<U*>(m_pChunk->comp_ptr_mut(compIdx, from()));
-						return EntityTermViewSet<U>::pointer(pData, size());
-					}
+					return ChunkIterTypedOps<IterConstraint>::template sview_any_mut<T>(*this, termIdx);
 				}
 
 				//! Marks the component @a T as modified. Best used with sview to manually trigger
@@ -1467,7 +1227,7 @@ namespace gaia {
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
-					m_pChunk->modify<T, TriggerHooks>();
+					ChunkIterTypedOps<IterConstraint>::template modify<T, TriggerHooks>(*this);
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -1479,11 +1239,7 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut<T>();
-					else
-						return view<T>();
+					return ChunkIterTypedOps<IterConstraint>::template view_auto<T>(*this);
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -1494,11 +1250,7 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto_any() {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_any_mut<T>();
-					else
-						return view_any<T>();
+					return ChunkIterTypedOps<IterConstraint>::template view_auto_any<T>(*this);
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -1510,11 +1262,7 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto_any() {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_any_mut<T>();
-					else
-						return view_any<T>();
+					return ChunkIterTypedOps<IterConstraint>::template sview_auto_any<T>(*this);
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -1527,11 +1275,7 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut<T>();
-					else
-						return view<T>();
+					return ChunkIterTypedOps<IterConstraint>::template sview_auto<T>(*this);
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
@@ -1560,7 +1304,7 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
-					return m_pChunk->has<T>();
+					return ChunkIterTypedOps<IterConstraint>::template has<T>(*this);
 				}
 
 				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
@@ -1606,12 +1350,7 @@ namespace gaia {
 				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
 				template <typename T>
 				uint32_t acc_index(uint32_t idx) const noexcept {
-					using U = typename actual_type_t<T>::Type;
-
-					if constexpr (mem::is_soa_layout_v<U>)
-						return idx + from();
-					else
-						return idx;
+					return ChunkIterTypedOps<IterConstraint>::template acc_index<T>(*this, idx);
 				}
 
 			protected:
@@ -1737,18 +1476,14 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
-			GAIA_NODISCARD auto view() const {
-				return m_pChunk->view<T>(from(), to());
-			}
+			GAIA_NODISCARD auto view() const;
 
 			//! Returns a mutable entity or component view.
 			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto view_mut() {
-				return m_pChunk->view_mut<T>(from(), to());
-			}
+			GAIA_NODISCARD auto view_mut();
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
@@ -1756,17 +1491,13 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto sview_mut() {
-				return m_pChunk->sview_mut<T>(from(), to());
-			}
+			GAIA_NODISCARD auto sview_mut();
 
 			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
-			void modify() {
-				m_pChunk->modify<T, TriggerHooks>();
-			}
+			void modify();
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -1774,9 +1505,7 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto view_auto() {
-				return m_pChunk->view_auto<T>(from(), to());
-			}
+			GAIA_NODISCARD auto view_auto();
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -1785,9 +1514,7 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto() {
-				return m_pChunk->sview_auto<T>(from(), to());
-			}
+			GAIA_NODISCARD auto sview_auto();
 
 			//! Checks if the entity at the current iterator index is enabled.
 			//! \return True it the entity is enabled. False otherwise.
@@ -1814,9 +1541,7 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
-			GAIA_NODISCARD bool has() const {
-				return m_pChunk->has<T>();
-			}
+			GAIA_NODISCARD bool has() const;
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint16_t size() const noexcept {
@@ -1836,3 +1561,5 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+
+#include "gaia/ecs/chunk_iterator_typed.inl"

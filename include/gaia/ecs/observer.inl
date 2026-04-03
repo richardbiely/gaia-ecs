@@ -41,35 +41,6 @@ namespace gaia {
 			}
 		}
 
-		template <typename... T>
-		static bool observer_uses_inherited_arg_path(Query& query, core::func_type_list<T...>) {
-			constexpr bool needsInheritedArgIds =
-					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
-			if constexpr (!needsInheritedArgIds)
-				return false;
-			else
-				return query.fetch().has_potential_inherited_id_terms();
-		}
-
-		template <typename Func, typename... T>
-		static void observer_run_typed_on_entity(
-				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
-				bool hasInheritedTerms, const Entity* pInheritedArgIds, const bool* pWriteFlags) {
-			constexpr bool needsInheritedArgIds =
-					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
-			if constexpr (!needsInheritedArgIds)
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
-			else {
-				if (hasInheritedTerms) {
-					invoke_typed_query_args_by_id<T...>(world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
-					finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, sizeof...(T));
-					return;
-				}
-
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
-			}
-		}
-
 		inline void ObserverRuntimeData::exec(Iter& iter, EntitySpan targets) {
 			const auto& queryInfo = query.fetch();
 
@@ -341,22 +312,10 @@ namespace gaia {
 			}
 
 			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data) {
-				const auto term = m_world.template reg_comp<T>().entity;
-				cache_term_id(data, term);
-				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-				register_diff_term(data, Op, term, QueryTermOptions{});
-				m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
-			}
+			void reg_typed_term(ObserverRuntimeData& data);
 
 			template <QueryOpKind Op, typename T>
-			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options) {
-				const auto term = m_world.template reg_comp<T>().entity;
-				cache_term_id(data, term);
-				data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, options));
-				register_diff_term(data, Op, term, options);
-				m_world.observers().add(m_world, term, m_entity, options.matchKind);
-			}
+			void reg_typed_term(ObserverRuntimeData& data, const QueryTermOptions& options);
 
 		public:
 			ObserverBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
@@ -475,78 +434,30 @@ namespace gaia {
 			}
 
 			template <typename T>
-			ObserverBuilder& all(const QueryTermOptions& options) {
-				validate();
-				auto& data = runtime_data();
-				data.query.template all<T>(options);
-				reg_typed_term<QueryOpKind::All, T>(data, options);
-				return *this;
-			}
+			ObserverBuilder& all(const QueryTermOptions& options);
 
 			template <typename T>
-			ObserverBuilder& any(const QueryTermOptions& options) {
-				validate();
-				auto& data = runtime_data();
-				data.query.template any<T>(options);
-				reg_typed_term<QueryOpKind::Any, T>(data, options);
-				return *this;
-			}
+			ObserverBuilder& any(const QueryTermOptions& options);
 
 			template <typename T>
-			ObserverBuilder& or_(const QueryTermOptions& options) {
-				validate();
-				auto& data = runtime_data();
-				data.query.template or_<T>(options);
-				reg_typed_term<QueryOpKind::Or, T>(data, options);
-				return *this;
-			}
+			ObserverBuilder& or_(const QueryTermOptions& options);
 
 			template <typename T>
-			ObserverBuilder& no(const QueryTermOptions& options) {
-				validate();
-				auto& data = runtime_data();
-				data.query.template no<T>(options);
-				reg_typed_term<QueryOpKind::Not, T>(data, options);
-				return *this;
-			}
+			ObserverBuilder& no(const QueryTermOptions& options);
 
 			//------------------------------------------------
 
 			template <typename T>
-			ObserverBuilder& all() {
-				validate();
-				auto& data = runtime_data();
-				data.query.all<T>();
-				reg_typed_term<QueryOpKind::All, T>(data);
-				return *this;
-			}
+			ObserverBuilder& all();
 
 			template <typename T>
-			ObserverBuilder& any() {
-				validate();
-				auto& data = runtime_data();
-				data.query.any<T>();
-				reg_typed_term<QueryOpKind::Any, T>(data);
-				return *this;
-			}
+			ObserverBuilder& any();
 
 			template <typename T>
-			ObserverBuilder& or_() {
-				validate();
-				auto& data = runtime_data();
-				data.query.or_<T>();
-				reg_typed_term<QueryOpKind::Or, T>(data);
-				return *this;
-			}
+			ObserverBuilder& or_();
 
 			template <typename T>
-			ObserverBuilder& no() {
-				validate();
-				auto& data = runtime_data();
-				data.query.no<T>();
-				reg_typed_term<QueryOpKind::Not, T>(data);
-				return *this;
-			}
+			ObserverBuilder& no();
 
 			//------------------------------------------------
 
@@ -561,11 +472,7 @@ namespace gaia {
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
-			ObserverBuilder& depth_order() {
-				validate();
-				runtime_data().query.template depth_order<Rel>();
-				return *this;
-			}
+			ObserverBuilder& depth_order();
 
 			//------------------------------------------------
 
@@ -581,44 +488,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			template <typename Func>
+			template <typename Func, std::enable_if_t<std::is_invocable_v<Func, Iter&>, int> = 0>
 			ObserverBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = runtime_data();
-				if constexpr (std::is_invocable_v<Func, Iter&>) {
-					ctx.on_each_func = [func](Iter& it) {
-						func(it);
-					};
-				} else {
-					using InputArgs = decltype(core::func_args(&Func::operator()));
-
-					const bool hasInheritedTerms = observer_uses_inherited_arg_path(ctx.query, InputArgs{});
-					Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
-					bool inheritedArgWriteFlags[ChunkHeader::MAX_COMPONENTS] = {};
-					init_typed_query_arg_descs(inheritedArgIds, inheritedArgWriteFlags, m_world, InputArgs{});
-
-	#if GAIA_ASSERT_ENABLED
-					// Make sure we only use components specified in the query.
-					// Constness is respected. Therefore, if a type is const when registered to query,
-					// it has to be const (or immutable) also in each().
-					auto& queryInfo = ctx.query.fetch();
-					ctx.query.match_all(queryInfo);
-					GAIA_ASSERT(ctx.query.unpack_args_into_query_has_all(queryInfo, InputArgs{}));
-	#endif
-
-					ctx.on_each_func = [e = m_entity, func, hasInheritedTerms, inheritedArgIds,
-															inheritedArgWriteFlags](Iter& it) mutable {
-						auto& obs = it.world()->observers().data(e);
-						auto& world = *it.world();
-						const auto entity = it.view<Entity>()[0];
-						observer_run_typed_on_entity(
-								obs, world, entity, it, func, InputArgs{}, hasInheritedTerms, inheritedArgIds, inheritedArgWriteFlags);
-					};
-				}
+				ctx.on_each_func = [func](Iter& it) {
+					func(it);
+				};
 
 				return (ObserverBuilder&)*this;
 			}
+
+			template <typename Func, std::enable_if_t<!std::is_invocable_v<Func, Iter&>, int> = 0>
+			ObserverBuilder& on_each(Func func);
 
 			GAIA_NODISCARD Entity entity() const {
 				return m_entity;
@@ -632,5 +515,7 @@ namespace gaia {
 
 	} // namespace ecs
 } // namespace gaia
+
+	#include "gaia/ecs/observer_typed.inl"
 
 #endif

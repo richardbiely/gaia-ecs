@@ -186,69 +186,33 @@ namespace gaia {
 			}
 
 			template <typename T>
-			SystemBuilder& all(const QueryTermOptions& options) {
-				validate();
-				data().query.template all<T>(options);
-				return *this;
-			}
+			SystemBuilder& all(const QueryTermOptions& options);
 
 			template <typename T>
-			SystemBuilder& any(const QueryTermOptions& options) {
-				validate();
-				data().query.template any<T>(options);
-				return *this;
-			}
+			SystemBuilder& any(const QueryTermOptions& options);
 
 			template <typename T>
-			SystemBuilder& or_(const QueryTermOptions& options) {
-				validate();
-				data().query.template or_<T>(options);
-				return *this;
-			}
+			SystemBuilder& or_(const QueryTermOptions& options);
 
 			template <typename T>
-			SystemBuilder& no(const QueryTermOptions& options) {
-				validate();
-				data().query.template no<T>(options);
-				return *this;
-			}
+			SystemBuilder& no(const QueryTermOptions& options);
 
 			//------------------------------------------------
 
 			template <typename T>
-			SystemBuilder& all() {
-				validate();
-				data().query.all<T>();
-				return *this;
-			}
+			SystemBuilder& all();
 
 			template <typename T>
-			SystemBuilder& any() {
-				validate();
-				data().query.any<T>();
-				return *this;
-			}
+			SystemBuilder& any();
 
 			template <typename T>
-			SystemBuilder& or_() {
-				validate();
-				data().query.or_<T>();
-				return *this;
-			}
+			SystemBuilder& or_();
 
 			template <typename T>
-			SystemBuilder& no() {
-				validate();
-				data().query.no<T>();
-				return *this;
-			}
+			SystemBuilder& no();
 
 			template <typename T>
-			SystemBuilder& changed() {
-				validate();
-				data().query.changed<T>();
-				return *this;
-			}
+			SystemBuilder& changed();
 
 			//------------------------------------------------
 
@@ -262,10 +226,7 @@ namespace gaia {
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
 			template <typename Rel>
-			SystemBuilder& depth_order() {
-				data().query.template depth_order<Rel>();
-				return *this;
-			}
+			SystemBuilder& depth_order();
 
 			//------------------------------------------------
 
@@ -281,20 +242,14 @@ namespace gaia {
 			//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename T>
-			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
-				data().query.group_by<T>(func);
-				return *this;
-			}
+			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
 			//! Organizes matching archetypes into groups according to the grouping function.
 			//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
 			//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
 			template <typename Rel, typename Tgt>
-			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default) {
-				data().query.group_by<Rel, Tgt>(func);
-				return *this;
-			}
+			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
 			//------------------------------------------------
 
@@ -310,10 +265,7 @@ namespace gaia {
 			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 			//! \tparam Rel Relation the group depends on.
 			template <typename Rel>
-			SystemBuilder& group_dep() {
-				data().query.template group_dep<Rel>();
-				return *this;
-			}
+			SystemBuilder& group_dep();
 
 			//------------------------------------------------
 
@@ -335,10 +287,7 @@ namespace gaia {
 			//! Selects the group to iterate over.
 			//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 			template <typename T>
-			SystemBuilder& group_id() {
-				data().query.template group_id<T>();
-				return *this;
-			}
+			SystemBuilder& group_id();
 
 			//------------------------------------------------
 
@@ -360,38 +309,20 @@ namespace gaia {
 				return *this;
 			}
 
-			template <typename Func>
+			template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 			SystemBuilder& on_each(Func func) {
 				validate();
 
 				auto& ctx = data();
-				if constexpr (
-						std::is_invocable_v<Func, IterAll&> || //
-						std::is_invocable_v<Func, Iter&> || //
-						std::is_invocable_v<Func, IterDisabled&> //
-				) {
-					ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-						query.each(func, execType);
-					};
-				} else {
-					const bool hasInheritedTerms = ctx.query.fetch().has_potential_inherited_id_terms();
-					if (hasInheritedTerms) {
-						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-							query.each(func, execType);
-						};
-					} else {
-						ctx.on_each_func = [func](Query& query, QueryExecType execType) {
-							query.each(
-									[&query, func](Iter& it) mutable {
-										query.each_iter(it, func);
-									},
-									execType);
-						};
-					}
-				}
+				ctx.on_each_func = [func](Query& query, QueryExecType execType) {
+					query.each(func, execType);
+				};
 
 				return (SystemBuilder&)*this;
 			}
+
+			template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
+			SystemBuilder& on_each(Func func);
 
 			GAIA_NODISCARD Entity entity() const {
 				return m_entity;
@@ -410,5 +341,7 @@ namespace gaia {
 
 	} // namespace ecs
 } // namespace gaia
+
+	#include "gaia/ecs/system_typed.inl"
 
 #endif
