@@ -2261,46 +2261,6 @@ namespace gaia {
 				void run_query_on_chunks_direct(
 						QueryInfo& queryInfo, Func func, const TypedQueryExecState<T...>& state, core::func_type_list<T...>);
 
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void run_query_on_chunk(
-						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE static void
-				run_query_on_chunk_direct_views(TIter& it, Func& func, [[maybe_unused]] core::func_type_list<T...>);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				//! Runs a typed callback on an iterator without relying on query field-to-term mapping.
-				//! This is used by adapters that first normalize execution to `Iter&`.
-				//! \tparam TIter Iterator type.
-				//! \tparam Func Callback type.
-				//! \tparam T Query argument types.
-				//! \param it Iterator positioned on the current chunk range.
-				//! \param func Callback to invoke.
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				//! Runs a typed callback on an iterator without using query field-index mapping.
-				//! Writeback is resolved by the actual typed term ids, which keeps the adapter independent
-				//! from callback field ordering.
-				//! \tparam TIter Iterator type.
-				//! \tparam Func Callback type.
-				//! \tparam T Query argument types.
-				//! \param queryInfo Query info.
-				//! \param it Iterator positioned on the current chunk range.
-				//! \param func Callback to invoke.
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void run_query_on_chunk_unmapped(
-						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
 				template <typename... T>
 				GAIA_NODISCARD static constexpr bool has_write_query_args();
 

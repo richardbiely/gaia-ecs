@@ -116,18 +116,26 @@ namespace gaia {
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
 				bool hasInheritedTerms, const Entity* pInheritedArgIds, const bool* pWriteFlags) {
+			auto& queryInfo = obs.query.fetch();
+			const auto state = detail::build_typed_query_exec_state(obs.query, world, queryInfo, core::func_type_list<T...>{});
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
-			if constexpr (!needsInheritedArgIds)
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
-			else {
+			if constexpr (!needsInheritedArgIds) {
+				if (state.canUseDirectChunkEval)
+					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+				else
+					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
+			} else {
 				if (hasInheritedTerms) {
 					invoke_typed_query_args_by_id<T...>(world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
 					finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, sizeof...(T));
 					return;
 				}
 
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+				if (state.canUseDirectChunkEval)
+					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+				else
+					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 		}
 

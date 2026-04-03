@@ -468,58 +468,6 @@ namespace gaia {
 				m_changedWorldVersion = *m_worldVersion;
 			}
 
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				auto& queryInfo = fetch();
-				auto& world = *const_cast<World*>(queryInfo.world());
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
-				if (state.canUseDirectChunkEval)
-					run_typed_chunk_direct(*this, it, func, state, types);
-				else
-					run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void QueryImpl::run_query_on_chunk(
-					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
-				run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_direct_views(TIter& it, Func& func, [[maybe_unused]] core::func_type_list<T...>) {
-				run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, core::func_type_list<T...>{});
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), fetch());
-				run_typed_chunk_direct(*this, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				auto& queryInfo = fetch();
-				auto& world = *queryInfo.world();
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
-				if (state.canUseDirectChunkEval) {
-					run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, types);
-					finish_typed_chunk_state(*this, world, const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
-				} else
-					run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void QueryImpl::run_query_on_chunk_unmapped(
-					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
-				run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
-			}
-
 			template <QueryExecType ExecType, typename Func, typename... T>
 			inline void QueryImpl::each_inter(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
 				if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {

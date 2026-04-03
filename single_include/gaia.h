@@ -43389,46 +43389,6 @@ namespace gaia {
 				void run_query_on_chunks_direct(
 						QueryInfo& queryInfo, Func func, const TypedQueryExecState<T...>& state, core::func_type_list<T...>);
 
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void run_query_on_chunk(
-						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE static void
-				run_query_on_chunk_direct_views(TIter& it, Func& func, [[maybe_unused]] core::func_type_list<T...>);
-
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				//! Runs a typed callback on an iterator without relying on query field-to-term mapping.
-				//! This is used by adapters that first normalize execution to `Iter&`.
-				//! \tparam TIter Iterator type.
-				//! \tparam Func Callback type.
-				//! \tparam T Query argument types.
-				//! \param it Iterator positioned on the current chunk range.
-				//! \param func Callback to invoke.
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void
-				run_query_on_chunk_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
-				//! Runs a typed callback on an iterator without using query field-index mapping.
-				//! Writeback is resolved by the actual typed term ids, which keeps the adapter independent
-				//! from callback field ordering.
-				//! \tparam TIter Iterator type.
-				//! \tparam Func Callback type.
-				//! \tparam T Query argument types.
-				//! \param queryInfo Query info.
-				//! \param it Iterator positioned on the current chunk range.
-				//! \param func Callback to invoke.
-				template <typename TIter, typename Func, typename... T>
-				GAIA_FORCEINLINE void run_query_on_chunk_unmapped(
-						const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types);
-
 				template <typename... T>
 				GAIA_NODISCARD static constexpr bool has_write_query_args();
 
@@ -46746,58 +46706,6 @@ namespace gaia {
 				commit_cmd_buffer_st(*m_storage.world());
 				commit_cmd_buffer_mt(*m_storage.world());
 				m_changedWorldVersion = *m_worldVersion;
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				auto& queryInfo = fetch();
-				auto& world = *const_cast<World*>(queryInfo.world());
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
-				if (state.canUseDirectChunkEval)
-					run_typed_chunk_direct(*this, it, func, state, types);
-				else
-					run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void QueryImpl::run_query_on_chunk(
-					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
-				run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_direct_views(TIter& it, Func& func, [[maybe_unused]] core::func_type_list<T...>) {
-				run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, core::func_type_list<T...>{});
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), fetch());
-				run_typed_chunk_direct(*this, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void
-			QueryImpl::run_query_on_chunk_unmapped(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				auto& queryInfo = fetch();
-				auto& world = *queryInfo.world();
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
-				if (state.canUseDirectChunkEval) {
-					run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, types);
-					finish_typed_chunk_state(*this, world, const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
-				} else
-					run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
-			}
-
-			template <typename TIter, typename Func, typename... T>
-			inline void QueryImpl::run_query_on_chunk_unmapped(
-					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
-				run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
 			}
 
 			template <QueryExecType ExecType, typename Func, typename... T>
@@ -60427,18 +60335,27 @@ namespace gaia {
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
 				bool hasInheritedTerms, const Entity* pInheritedArgIds, const bool* pWriteFlags) {
+			auto& queryInfo = obs.query.fetch();
+			const auto state =
+					detail::build_typed_query_exec_state(obs.query, world, queryInfo, core::func_type_list<T...>{});
 			constexpr bool needsInheritedArgIds =
 					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
-			if constexpr (!needsInheritedArgIds)
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
-			else {
+			if constexpr (!needsInheritedArgIds) {
+				if (state.canUseDirectChunkEval)
+					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+				else
+					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
+			} else {
 				if (hasInheritedTerms) {
 					invoke_typed_query_args_by_id<T...>(world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
 					finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, sizeof...(T));
 					return;
 				}
 
-				obs.query.run_query_on_chunk(it, func, core::func_type_list<T...>{});
+				if (state.canUseDirectChunkEval)
+					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+				else
+					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 		}
 
