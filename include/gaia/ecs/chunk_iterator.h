@@ -1027,11 +1027,6 @@ namespace gaia {
 					bool isOutOfLine = false;
 				};
 
-				template <typename T>
-				GAIA_NODISCARD IterTermDesc term_desc() const {
-					return ChunkIterTypedOps<IterConstraint>::template term_desc<T>(*this);
-				}
-
 				GAIA_NODISCARD IterTermDesc resolved_term_desc(uint32_t termIdx, IterTermDesc desc) const {
 					if (m_pTermIdMapping != nullptr) {
 						const auto mappedTermId = m_pTermIdMapping[termIdx];
@@ -1227,7 +1222,7 @@ namespace gaia {
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
-					ChunkIterTypedOps<IterConstraint>::template modify<T, TriggerHooks>(*this);
+					m_pChunk->template modify<T, TriggerHooks>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -1239,7 +1234,11 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					return ChunkIterTypedOps<IterConstraint>::template view_auto<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return view_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -1250,7 +1249,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto_any() {
-					return ChunkIterTypedOps<IterConstraint>::template view_auto_any<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return view_any_mut<T>();
+					else
+						return view_any<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -1262,7 +1265,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto_any() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_auto_any<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_any_mut<T>();
+					else
+						return view_any<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -1275,7 +1282,11 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_auto<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
@@ -1304,7 +1315,7 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
-					return ChunkIterTypedOps<IterConstraint>::template has<T>(*this);
+					return m_pChunk->template has<T>();
 				}
 
 				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
@@ -1350,7 +1361,11 @@ namespace gaia {
 				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
 				template <typename T>
 				uint32_t acc_index(uint32_t idx) const noexcept {
-					return ChunkIterTypedOps<IterConstraint>::template acc_index<T>(*this, idx);
+					using U = typename actual_type_t<T>::Type;
+					if constexpr (mem::is_soa_layout_v<U>)
+						return idx + from();
+					else
+						return idx;
 				}
 
 			protected:
@@ -1476,14 +1491,18 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
-			GAIA_NODISCARD auto view() const;
+			GAIA_NODISCARD auto view() const {
+				return m_pChunk->template view<T>(from(), to());
+			}
 
 			//! Returns a mutable entity or component view.
 			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto view_mut();
+			GAIA_NODISCARD auto view_mut() {
+				return m_pChunk->template view_mut<T>(from(), to());
+			}
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
@@ -1491,13 +1510,17 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto sview_mut();
+			GAIA_NODISCARD auto sview_mut() {
+				return m_pChunk->template sview_mut<T>(from(), to());
+			}
 
 			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
-			void modify();
+			void modify() {
+				m_pChunk->template modify<T, TriggerHooks>();
+			}
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -1505,7 +1528,9 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto view_auto();
+			GAIA_NODISCARD auto view_auto() {
+				return m_pChunk->template view_auto<T>(from(), to());
+			}
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -1514,7 +1539,9 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto();
+			GAIA_NODISCARD auto sview_auto() {
+				return m_pChunk->template sview_auto<T>(from(), to());
+			}
 
 			//! Checks if the entity at the current iterator index is enabled.
 			//! \return True it the entity is enabled. False otherwise.
@@ -1541,7 +1568,9 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
-			GAIA_NODISCARD bool has() const;
+			GAIA_NODISCARD bool has() const {
+				return m_pChunk->template has<T>();
+			}
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint16_t size() const noexcept {

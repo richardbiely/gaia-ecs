@@ -61,38 +61,22 @@ namespace gaia {
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::all() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template all<T>();
-			reg_typed_term<QueryOpKind::All, T>(data);
-			return *this;
+			return all<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::any() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template any<T>();
-			reg_typed_term<QueryOpKind::Any, T>(data);
-			return *this;
+			return any<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::or_() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template or_<T>();
-			reg_typed_term<QueryOpKind::Or, T>(data);
-			return *this;
+			return or_<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::no() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template no<T>();
-			reg_typed_term<QueryOpKind::Not, T>(data);
-			return *this;
+			return no<T>(QueryTermOptions{});
 		}
 
 		template <typename Rel>
@@ -171,8 +155,7 @@ namespace gaia {
 				auto& world = *it.world();
 				const auto entity = it.view<Entity>()[0];
 				observer_run_typed_on_entity<Func>(
-						obs, world, entity, it, &func, argMetas, argCount, inheritedArgIds,
-						inheritedArgWriteFlags, InputArgs{});
+						obs, world, entity, it, &func, argMetas, argCount, inheritedArgIds, inheritedArgWriteFlags, InputArgs{});
 			};
 
 			return *this;

@@ -33142,11 +33142,6 @@ namespace gaia {
 					bool isOutOfLine = false;
 				};
 
-				template <typename T>
-				GAIA_NODISCARD IterTermDesc term_desc() const {
-					return ChunkIterTypedOps<IterConstraint>::template term_desc<T>(*this);
-				}
-
 				GAIA_NODISCARD IterTermDesc resolved_term_desc(uint32_t termIdx, IterTermDesc desc) const {
 					if (m_pTermIdMapping != nullptr) {
 						const auto mappedTermId = m_pTermIdMapping[termIdx];
@@ -33342,7 +33337,7 @@ namespace gaia {
 				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
-					ChunkIterTypedOps<IterConstraint>::template modify<T, TriggerHooks>(*this);
+					m_pChunk->template modify<T, TriggerHooks>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -33354,7 +33349,11 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto() {
-					return ChunkIterTypedOps<IterConstraint>::template view_auto<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return view_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -33365,7 +33364,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view_auto_any() {
-					return ChunkIterTypedOps<IterConstraint>::template view_auto_any<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return view_any_mut<T>();
+					else
+						return view_any<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
@@ -33377,7 +33380,11 @@ namespace gaia {
 				//! \return Entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto_any() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_auto_any<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_any_mut<T>();
+					else
+						return view_any<T>();
 				}
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
@@ -33390,7 +33397,11 @@ namespace gaia {
 				//! \return Direct entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto sview_auto() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_auto<T>(*this);
+					using UOriginal = typename actual_type_t<T>::TypeOriginal;
+					if constexpr (core::is_mut_v<UOriginal>)
+						return sview_mut<T>();
+					else
+						return view<T>();
 				}
 
 				//! Checks if the entity at the current iterator index is enabled.
@@ -33419,7 +33430,7 @@ namespace gaia {
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
 				GAIA_NODISCARD bool has() const {
-					return ChunkIterTypedOps<IterConstraint>::template has<T>(*this);
+					return m_pChunk->template has<T>();
 				}
 
 				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
@@ -33465,7 +33476,11 @@ namespace gaia {
 				//! always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}.
 				template <typename T>
 				uint32_t acc_index(uint32_t idx) const noexcept {
-					return ChunkIterTypedOps<IterConstraint>::template acc_index<T>(*this, idx);
+					using U = typename actual_type_t<T>::Type;
+					if constexpr (mem::is_soa_layout_v<U>)
+						return idx + from();
+					else
+						return idx;
 				}
 
 			protected:
@@ -33591,14 +33606,18 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
-			GAIA_NODISCARD auto view() const;
+			GAIA_NODISCARD auto view() const {
+				return m_pChunk->template view<T>(from(), to());
+			}
 
 			//! Returns a mutable entity or component view.
 			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto view_mut();
+			GAIA_NODISCARD auto view_mut() {
+				return m_pChunk->template view_mut<T>(from(), to());
+			}
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
@@ -33606,13 +33625,17 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
-			GAIA_NODISCARD auto sview_mut();
+			GAIA_NODISCARD auto sview_mut() {
+				return m_pChunk->template sview_mut<T>(from(), to());
+			}
 
 			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
 			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
-			void modify();
+			void modify() {
+				m_pChunk->template modify<T, TriggerHooks>();
+			}
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -33620,7 +33643,9 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto view_auto();
+			GAIA_NODISCARD auto view_auto() {
+				return m_pChunk->template view_auto<T>(from(), to());
+			}
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
@@ -33629,7 +33654,9 @@ namespace gaia {
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
-			GAIA_NODISCARD auto sview_auto();
+			GAIA_NODISCARD auto sview_auto() {
+				return m_pChunk->template sview_auto<T>(from(), to());
+			}
 
 			//! Checks if the entity at the current iterator index is enabled.
 			//! \return True it the entity is enabled. False otherwise.
@@ -33656,7 +33683,9 @@ namespace gaia {
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
-			GAIA_NODISCARD bool has() const;
+			GAIA_NODISCARD bool has() const {
+				return m_pChunk->template has<T>();
+			}
 
 			//! Returns the number of entities accessible via the iterator
 			GAIA_NODISCARD uint16_t size() const noexcept {
@@ -33682,40 +33711,25 @@ namespace gaia {
 		namespace detail {
 			template <Constraints IterConstraint>
 			struct ChunkIterTypedOps {
-				struct ArgMeta {
-					Entity termId = EntityBad;
-					bool isEntity = false;
-					bool isPair = false;
-				};
-
-				template <typename T>
-				static auto arg_meta(const ChunkIterImpl<IterConstraint>& self) -> ArgMeta {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return {.termId = EntityBad, .isEntity = true, .isPair = false};
-					else {
-						using FT = typename component_type_t<Arg>::TypeFull;
-						if constexpr (is_pair<FT>::value)
-							return {.termId = EntityBad, .isEntity = false, .isPair = true};
-						else
-							return {
-									.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world())),
-									.isEntity = false,
-									.isPair = false};
-					}
-				}
-
 				template <typename T>
 				static auto term_desc(const ChunkIterImpl<IterConstraint>& self) ->
 						typename ChunkIterImpl<IterConstraint>::IterTermDesc {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					const auto meta = arg_meta<T>(self);
 					typename ChunkIterImpl<IterConstraint>::IterTermDesc desc;
-					desc.termId = meta.termId;
-					desc.isEntity = meta.isEntity;
-					if constexpr (!mem::is_soa_layout_v<Arg>) {
-						if (!meta.isEntity && !meta.isPair)
-							desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
+					if constexpr (std::is_same_v<Arg, Entity>) {
+						desc.termId = EntityBad;
+						desc.isEntity = true;
+					} else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value) {
+							desc.termId = EntityBad;
+							desc.isEntity = false;
+						} else {
+							desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
+							desc.isEntity = false;
+							if constexpr (!mem::is_soa_layout_v<Arg>)
+								desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
+						}
 					}
 					return desc;
 				}
@@ -34025,98 +34039,9 @@ namespace gaia {
 						return EntityTermViewSet<U>::pointer(pData, self.size());
 					}
 				}
-
-				template <typename T, bool TriggerHooks>
-				static void modify(ChunkIterImpl<IterConstraint>& self) {
-					self.m_pChunk->template modify<T, TriggerHooks>();
-				}
-
-				template <typename T>
-				static auto view_auto(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut<T>(self);
-					else
-						return view<T>(self);
-				}
-
-				template <typename T>
-				static auto view_auto_any(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_any_mut<T>(self);
-					else
-						return view_any<T>(self);
-				}
-
-				template <typename T>
-				static auto sview_auto_any(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_any_mut<T>(self);
-					else
-						return view_any<T>(self);
-				}
-
-				template <typename T>
-				static auto sview_auto(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut<T>(self);
-					else
-						return view<T>(self);
-				}
-
-				template <typename T>
-				static bool has(const ChunkIterImpl<IterConstraint>& self) {
-					return self.m_pChunk->template has<T>();
-				}
-
-				template <typename T>
-				static uint32_t acc_index(const ChunkIterImpl<IterConstraint>& self, uint32_t idx) noexcept {
-					using U = typename actual_type_t<T>::Type;
-					if constexpr (mem::is_soa_layout_v<U>)
-						return idx + self.from();
-					else
-						return idx;
-				}
 			};
 		} // namespace detail
 
-		template <typename T>
-		inline auto CopyIter::view() const {
-			return m_pChunk->template view<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::view_mut() {
-			return m_pChunk->template view_mut<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::sview_mut() {
-			return m_pChunk->template sview_mut<T>(from(), to());
-		}
-
-		template <typename T, bool TriggerHooks>
-		inline void CopyIter::modify() {
-			m_pChunk->template modify<T, TriggerHooks>();
-		}
-
-		template <typename T>
-		inline auto CopyIter::view_auto() {
-			return m_pChunk->template view_auto<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::sview_auto() {
-			return m_pChunk->template sview_auto<T>(from(), to());
-		}
-
-		template <typename T>
-		inline bool CopyIter::has() const {
-			return m_pChunk->template has<T>();
-		}
 	} // namespace ecs
 } // namespace gaia
 
@@ -46045,8 +45970,7 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::all() {
-				add_inter<T>(QueryOpKind::All);
-				return *this;
+				return all<T>(QueryTermOptions{});
 			}
 
 			template <typename T>
@@ -46057,8 +45981,7 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::any() {
-				add_inter<T>(QueryOpKind::Any);
-				return *this;
+				return any<T>(QueryTermOptions{});
 			}
 
 			template <typename T>
@@ -46069,8 +45992,7 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::or_() {
-				add_inter<T>(QueryOpKind::Or);
-				return *this;
+				return or_<T>(QueryTermOptions{});
 			}
 
 			template <typename T>
@@ -46081,8 +46003,7 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::no() {
-				add_inter<T>(QueryOpKind::Not);
-				return *this;
+				return no<T>(QueryTermOptions{});
 			}
 
 			template <typename T>
@@ -60482,38 +60403,22 @@ namespace gaia {
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::all() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template all<T>();
-			reg_typed_term<QueryOpKind::All, T>(data);
-			return *this;
+			return all<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::any() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template any<T>();
-			reg_typed_term<QueryOpKind::Any, T>(data);
-			return *this;
+			return any<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::or_() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template or_<T>();
-			reg_typed_term<QueryOpKind::Or, T>(data);
-			return *this;
+			return or_<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline ObserverBuilder& ObserverBuilder::no() {
-			validate();
-			auto& data = runtime_data();
-			data.query.template no<T>();
-			reg_typed_term<QueryOpKind::Not, T>(data);
-			return *this;
+			return no<T>(QueryTermOptions{});
 		}
 
 		template <typename Rel>
@@ -60973,30 +60878,22 @@ namespace gaia {
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::all() {
-			validate();
-			data().query.template all<T>();
-			return *this;
+			return all<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::any() {
-			validate();
-			data().query.template any<T>();
-			return *this;
+			return any<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::or_() {
-			validate();
-			data().query.template or_<T>();
-			return *this;
+			return or_<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::no() {
-			validate();
-			data().query.template no<T>();
-			return *this;
+			return no<T>(QueryTermOptions{});
 		}
 
 		template <typename T>

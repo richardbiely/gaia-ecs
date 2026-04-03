@@ -33,30 +33,22 @@ namespace gaia {
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::all() {
-			validate();
-			data().query.template all<T>();
-			return *this;
+			return all<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::any() {
-			validate();
-			data().query.template any<T>();
-			return *this;
+			return any<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::or_() {
-			validate();
-			data().query.template or_<T>();
-			return *this;
+			return or_<T>(QueryTermOptions{});
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::no() {
-			validate();
-			data().query.template no<T>();
-			return *this;
+			return no<T>(QueryTermOptions{});
 		}
 
 		template <typename T>

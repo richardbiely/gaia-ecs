@@ -5,40 +5,25 @@ namespace gaia {
 		namespace detail {
 			template <Constraints IterConstraint>
 			struct ChunkIterTypedOps {
-				struct ArgMeta {
-					Entity termId = EntityBad;
-					bool isEntity = false;
-					bool isPair = false;
-				};
-
-				template <typename T>
-				static auto arg_meta(const ChunkIterImpl<IterConstraint>& self) -> ArgMeta {
-					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>)
-						return {.termId = EntityBad, .isEntity = true, .isPair = false};
-					else {
-						using FT = typename component_type_t<Arg>::TypeFull;
-						if constexpr (is_pair<FT>::value)
-							return {.termId = EntityBad, .isEntity = false, .isPair = true};
-						else
-							return {
-									.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world())),
-									.isEntity = false,
-									.isPair = false};
-					}
-				}
-
 				template <typename T>
 				static auto term_desc(const ChunkIterImpl<IterConstraint>& self) ->
 						typename ChunkIterImpl<IterConstraint>::IterTermDesc {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					const auto meta = arg_meta<T>(self);
 					typename ChunkIterImpl<IterConstraint>::IterTermDesc desc;
-					desc.termId = meta.termId;
-					desc.isEntity = meta.isEntity;
-					if constexpr (!mem::is_soa_layout_v<Arg>) {
-						if (!meta.isEntity && !meta.isPair)
-							desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
+					if constexpr (std::is_same_v<Arg, Entity>) {
+						desc.termId = EntityBad;
+						desc.isEntity = true;
+					} else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value) {
+							desc.termId = EntityBad;
+							desc.isEntity = false;
+						} else {
+							desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
+							desc.isEntity = false;
+							if constexpr (!mem::is_soa_layout_v<Arg>)
+								desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
+						}
 					}
 					return desc;
 				}
@@ -349,96 +334,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T, bool TriggerHooks>
-				static void modify(ChunkIterImpl<IterConstraint>& self) {
-					self.m_pChunk->template modify<T, TriggerHooks>();
-				}
-
-				template <typename T>
-				static auto view_auto(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_mut<T>(self);
-					else
-						return view<T>(self);
-				}
-
-				template <typename T>
-				static auto view_auto_any(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return view_any_mut<T>(self);
-					else
-						return view_any<T>(self);
-				}
-
-				template <typename T>
-				static auto sview_auto_any(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_any_mut<T>(self);
-					else
-						return view_any<T>(self);
-				}
-
-				template <typename T>
-				static auto sview_auto(ChunkIterImpl<IterConstraint>& self) {
-					using UOriginal = typename actual_type_t<T>::TypeOriginal;
-					if constexpr (core::is_mut_v<UOriginal>)
-						return sview_mut<T>(self);
-					else
-						return view<T>(self);
-				}
-
-				template <typename T>
-				static bool has(const ChunkIterImpl<IterConstraint>& self) {
-					return self.m_pChunk->template has<T>();
-				}
-
-				template <typename T>
-				static uint32_t acc_index(const ChunkIterImpl<IterConstraint>& self, uint32_t idx) noexcept {
-					using U = typename actual_type_t<T>::Type;
-					if constexpr (mem::is_soa_layout_v<U>)
-						return idx + self.from();
-					else
-						return idx;
-				}
 			};
 		} // namespace detail
 
-		template <typename T>
-		inline auto CopyIter::view() const {
-			return m_pChunk->template view<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::view_mut() {
-			return m_pChunk->template view_mut<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::sview_mut() {
-			return m_pChunk->template sview_mut<T>(from(), to());
-		}
-
-		template <typename T, bool TriggerHooks>
-		inline void CopyIter::modify() {
-			m_pChunk->template modify<T, TriggerHooks>();
-		}
-
-		template <typename T>
-		inline auto CopyIter::view_auto() {
-			return m_pChunk->template view_auto<T>(from(), to());
-		}
-
-		template <typename T>
-		inline auto CopyIter::sview_auto() {
-			return m_pChunk->template sview_auto<T>(from(), to());
-		}
-
-		template <typename T>
-		inline bool CopyIter::has() const {
-			return m_pChunk->template has<T>();
-		}
 	} // namespace ecs
 } // namespace gaia
