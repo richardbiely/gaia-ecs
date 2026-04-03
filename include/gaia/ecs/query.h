@@ -2255,16 +2255,21 @@ namespace gaia {
 						QueryInfo& queryInfo, const TypedQueryExecState& state, void* pFunc,
 						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
 
-				template <QueryExecType ExecType, typename... T>
+				template <QueryExecType ExecType>
 				void each_inter(
 						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-						void (*invokeInherited)(World&, Entity, const Entity*, void*));
+						bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
+
+				template <typename TIter>
+				void each_walk_inter(
+						QueryInfo& queryInfo, std::span<const Entity> entities, void* pFunc, const TypedQueryExecState& state,
+						void (*runChunk)(QueryImpl&, const QueryInfo&, TIter&, void*, const TypedQueryExecState&));
 
 				template <QueryExecType ExecType, typename Func>
 				void each_runtime_inter(Func func) {
@@ -3573,10 +3578,10 @@ namespace gaia {
 				}
 
 				//! Runs a typed each() callback over directly seeded entities.
-				template <typename TIter, typename... T>
+				template <typename TIter>
 				void each_direct_inter(
 						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectChunk)(QueryImpl&, TIter&, void*, const TypedQueryExecState&),
+						void (*runDirectChunk)(QueryImpl&, TIter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
 						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
 				template <bool UseFilters, typename TIter, typename ContainerOut>
