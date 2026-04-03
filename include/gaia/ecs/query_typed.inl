@@ -7,9 +7,10 @@ namespace gaia {
 		namespace detail {
 			inline TypedQueryExecState build_typed_query_exec_state(
 					QueryImpl& query, World& world, const QueryInfo& queryInfo, const TypedQueryArgMeta* pMetas,
-					uint32_t argCount, bool needsInheritedIds) {
+					uint32_t argCount) {
 				TypedQueryExecState state{};
 				state.argCount = argCount;
+				state.needsInheritedArgIds = typed_query_arg_metas_need_inherited_ids(pMetas, argCount);
 
 				QueryImpl::DirectChunkArgEvalDesc descs[MAX_ITEMS_IN_QUERY]{};
 				GAIA_FOR(argCount) {
@@ -21,7 +22,7 @@ namespace gaia {
 
 				state.canUseDirectChunkEval =
 						QueryImpl::can_use_direct_chunk_term_eval_descs(world, queryInfo, descs, argCount);
-				if (needsInheritedIds)
+				if (state.needsInheritedArgIds)
 					state.hasInheritedTerms = queryInfo.has_potential_inherited_id_terms();
 				return state;
 			}
@@ -30,10 +31,8 @@ namespace gaia {
 			inline TypedQueryExecState build_typed_query_exec_state(
 					QueryImpl& query, World& world, const QueryInfo& queryInfo, core::func_type_list<T...>) {
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-				if constexpr (sizeof...(T) > 0)
-					init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
-				return build_typed_query_exec_state(
-						query, world, queryInfo, metas, (uint32_t)sizeof...(T), typed_query_args_need_inherited_ids<T...>());
+				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
+				return build_typed_query_exec_state(query, world, queryInfo, metas, argCount);
 			}
 
 			inline void finish_typed_chunk_state(
@@ -92,12 +91,6 @@ namespace gaia {
 				run_typed_chunk_direct_finish(query, it, func, state, core::func_type_list<T...>{});
 			}
 
-			template <typename Func, typename... T>
-			inline void invoke_typed_inherited_entity_cb(World& world, Entity entity, const Entity* pArgIds, void* pFunc) {
-				auto& func = *static_cast<Func*>(pFunc);
-				invoke_typed_query_args_by_id<T...>(world, entity, pArgIds, func, std::index_sequence_for<T...>{});
-			}
-
 			template <QueryExecType ExecType, typename Func, typename... T>
 			inline void each_typed_inter_dispatch(
 					QueryImpl& query, QueryInfo& queryInfo, Func& func, const TypedQueryExecState& state,
@@ -105,7 +98,7 @@ namespace gaia {
 				query.template each_inter<ExecType>(
 						queryInfo, &func, state, &run_typed_chunk_direct_iter_fast_cb<Func, T...>,
 						&run_typed_chunk_direct_iter_cb<Func, T...>, &run_typed_chunk_mapped_iter_cb<Func, T...>,
-						typed_query_args_need_inherited_ids<T...>(), &invoke_typed_inherited_entity_cb<Func, T...>);
+						state.needsInheritedArgIds, &invoke_typed_query_args_by_id_erased<Func, T...>);
 			}
 
 			template <typename TIter, typename Func, typename... T>
@@ -533,9 +526,11 @@ namespace gaia {
 
 			template <typename... T>
 			inline void QueryImpl::finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to) {
+				TypedQueryArgMeta metas[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
 				Entity argIds[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
 				bool writeFlags[sizeof...(T) > 0 ? sizeof...(T) : 1]{};
-				init_typed_query_arg_descs(argIds, writeFlags, world, core::func_type_list<T...>{});
+				const auto argCount = init_typed_query_arg_metas(metas, world, core::func_type_list<T...>{});
+				init_typed_query_arg_descs_from_metas(argIds, writeFlags, metas, argCount);
 				finish_typed_chunk_writes_runtime(world, pChunk, from, to, argIds, writeFlags, sizeof...(T));
 			}
 

@@ -115,22 +115,15 @@ namespace gaia {
 			detail::run_typed_chunk_mapped_finish(query, queryInfo, it, func, state, core::func_type_list<T...>{});
 		}
 
-		template <typename Func, typename... T>
-		static void observer_invoke_typed_inherited_cb(World& world, Entity entity, const Entity* pArgIds, void* pFunc) {
-			auto& func = *static_cast<Func*>(pFunc);
-			invoke_typed_query_args_by_id<T...>(world, entity, pArgIds, func, std::index_sequence_for<T...>{});
-		}
-
 		static void observer_run_typed_on_entity_erased(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount, bool needsInheritedArgIds,
+				const TypedQueryArgMeta* pArgMetas, uint32_t argCount,
 				const Entity* pInheritedArgIds, const bool* pWriteFlags,
 				void (*runDirect)(Query&, Iter&, void*, const TypedQueryExecState&),
 				void (*runMapped)(Query&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
 				void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
 			auto& queryInfo = obs.query.fetch();
-			const auto state =
-					detail::build_typed_query_exec_state(obs.query, world, queryInfo, pArgMetas, argCount, needsInheritedArgIds);
+			const auto state = detail::build_typed_query_exec_state(obs.query, world, queryInfo, pArgMetas, argCount);
 			if (state.hasInheritedTerms) {
 				invokeInherited(world, entity, pInheritedArgIds, pFunc);
 				finish_typed_query_args_by_id(world, entity, pInheritedArgIds, pWriteFlags, argCount);
@@ -146,21 +139,12 @@ namespace gaia {
 		template <typename Func, typename... T>
 		static void observer_run_typed_on_entity(
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount, bool needsInheritedArgIds,
-				const Entity* pInheritedArgIds, const bool* pWriteFlags) {
-			observer_run_typed_on_entity_erased(
-					obs, world, entity, it, pFunc, pArgMetas, argCount, needsInheritedArgIds, pInheritedArgIds, pWriteFlags,
-					&observer_run_typed_direct_cb<Func, T...>, &observer_run_typed_mapped_cb<Func, T...>,
-					&observer_invoke_typed_inherited_cb<Func, T...>);
-		}
-
-		template <typename Func, typename... T>
-		static void observer_run_typed_on_entity_dispatch(
-				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, void* pFunc,
-				const TypedQueryArgMeta* pArgMetas, uint32_t argCount, bool needsInheritedArgIds,
+				const TypedQueryArgMeta* pArgMetas, uint32_t argCount,
 				const Entity* pInheritedArgIds, const bool* pWriteFlags, core::func_type_list<T...>) {
-			observer_run_typed_on_entity<Func, T...>(
-					obs, world, entity, it, pFunc, pArgMetas, argCount, needsInheritedArgIds, pInheritedArgIds, pWriteFlags);
+			observer_run_typed_on_entity_erased(
+					obs, world, entity, it, pFunc, pArgMetas, argCount, pInheritedArgIds, pWriteFlags,
+					&observer_run_typed_direct_cb<Func, T...>, &observer_run_typed_mapped_cb<Func, T...>,
+					&invoke_typed_query_args_by_id_erased<Func, T...>);
 		}
 
 		template <typename Func, std::enable_if_t<!std::is_invocable_v<Func, Iter&>, int>>
@@ -171,12 +155,10 @@ namespace gaia {
 			using InputArgs = decltype(core::func_args(&Func::operator()));
 
 			TypedQueryArgMeta argMetas[MAX_ITEMS_IN_QUERY] = {};
-			init_typed_query_arg_metas(argMetas, m_world, InputArgs{});
+			const auto argCount = init_typed_query_arg_metas(argMetas, m_world, InputArgs{});
 			Entity inheritedArgIds[ChunkHeader::MAX_COMPONENTS] = {};
 			bool inheritedArgWriteFlags[ChunkHeader::MAX_COMPONENTS] = {};
-			init_typed_query_arg_descs(inheritedArgIds, inheritedArgWriteFlags, m_world, InputArgs{});
-			constexpr bool needsInheritedArgIds = typed_query_args_need_inherited_ids(InputArgs{});
-			constexpr uint32_t argCount = typed_query_arg_count(InputArgs{});
+			init_typed_query_arg_descs_from_metas(inheritedArgIds, inheritedArgWriteFlags, argMetas, argCount);
 
 	#if GAIA_ASSERT_ENABLED
 			auto& queryInfo = ctx.query.fetch();
@@ -184,13 +166,12 @@ namespace gaia {
 			GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 	#endif
 
-			ctx.on_each_func = [e = m_entity, func, argMetas, inheritedArgIds, inheritedArgWriteFlags, argCount,
-													needsInheritedArgIds](Iter& it) mutable {
+			ctx.on_each_func = [e = m_entity, func, argMetas, inheritedArgIds, inheritedArgWriteFlags, argCount](Iter& it) mutable {
 				auto& obs = it.world()->observers().data(e);
 				auto& world = *it.world();
 				const auto entity = it.view<Entity>()[0];
-				observer_run_typed_on_entity_dispatch<Func>(
-						obs, world, entity, it, &func, argMetas, argCount, needsInheritedArgIds, inheritedArgIds,
+				observer_run_typed_on_entity<Func>(
+						obs, world, entity, it, &func, argMetas, argCount, inheritedArgIds,
 						inheritedArgWriteFlags, InputArgs{});
 			};
 
