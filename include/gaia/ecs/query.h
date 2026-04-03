@@ -2252,11 +2252,16 @@ namespace gaia {
 				}
 
 				void run_query_on_chunks_direct(
-						QueryInfo& queryInfo, const TypedQueryExecState& state, void* pCtx,
-						void (*runChunk)(void* pCtx, Iter& it, const TypedQueryExecState& state));
+						QueryInfo& queryInfo, const TypedQueryExecState& state, void* pFunc,
+						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
 
-				template <QueryExecType ExecType, typename Func, typename... T>
-				void each_inter(QueryInfo& queryInfo, Func func, core::func_type_list<T...>);
+				template <QueryExecType ExecType, typename... T>
+				void each_inter(
+						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
+						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
+						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
+						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
@@ -3568,8 +3573,11 @@ namespace gaia {
 				}
 
 				//! Runs a typed each() callback over directly seeded entities.
-				template <typename TIter, typename Func, typename... T>
-				void each_direct_inter(QueryInfo& queryInfo, Func func, [[maybe_unused]] core::func_type_list<T...>);
+				template <typename TIter, typename... T>
+				void each_direct_inter(
+						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectChunk)(QueryImpl&, TIter&, void*, const TypedQueryExecState&),
+						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
 				template <bool UseFilters, typename TIter, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray);

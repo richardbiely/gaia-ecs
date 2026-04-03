@@ -7,6 +7,16 @@ namespace gaia {
 			return (!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 		}
 
+		template <typename... T>
+		GAIA_NODISCARD inline constexpr bool typed_query_args_need_inherited_ids(core::func_type_list<T...>) {
+			return typed_query_args_need_inherited_ids<T...>();
+		}
+
+		template <typename... T>
+		GAIA_NODISCARD inline constexpr uint32_t typed_query_arg_count(core::func_type_list<T...>) {
+			return (uint32_t)sizeof...(T);
+		}
+
 		struct TypedQueryExecState {
 			uint32_t argCount = 0;
 			Entity argIds[MAX_ITEMS_IN_QUERY]{};
