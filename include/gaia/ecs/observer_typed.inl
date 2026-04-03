@@ -7,11 +7,7 @@ namespace gaia {
 	namespace ecs {
 		template <QueryOpKind Op, typename T>
 		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data) {
-			const auto term = m_world.template reg_comp<T>().entity;
-			cache_term_id(data, term);
-			data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-			register_diff_term(data, Op, term, QueryTermOptions{});
-			m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
+			reg_typed_term<Op, T>(data, QueryTermOptions{});
 		}
 
 		template <QueryOpKind Op, typename T>
@@ -81,9 +77,11 @@ namespace gaia {
 
 		template <typename Rel>
 		inline ObserverBuilder& ObserverBuilder::depth_order() {
-			validate();
-			runtime_data().query.template depth_order<Rel>();
-			return *this;
+			using UO = typename component_type_t<Rel>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
+
+			const auto& desc = comp_cache_add<Rel>(m_world);
+			return depth_order(desc.entity);
 		}
 
 		template <typename Func, typename... T>

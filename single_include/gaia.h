@@ -46008,20 +46008,36 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::changed() {
-				changed_inter<T>();
-				return *this;
+				using UO = typename component_type_t<T>::TypeOriginal;
+				static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+				const auto& desc = comp_cache_add<T>(*m_storage.world());
+				return changed(desc.entity);
 			}
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::sort_by(TSortByFunc func) {
-				sort_by_inter<T>(func);
-				return *this;
+				using UO = typename component_type_t<T>::TypeOriginal;
+				if constexpr (std::is_same_v<UO, Entity>) {
+					return sort_by(EntityBad, func);
+				} else {
+					static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+					const auto& desc = comp_cache_add<T>(*m_storage.world());
+					return sort_by(desc.entity, func);
+				}
 			}
 
 			template <typename Rel, typename Tgt>
 			inline QueryImpl& QueryImpl::sort_by(TSortByFunc func) {
-				sort_by_inter<Rel, Tgt>(func);
-				return *this;
+				using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+				using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+				static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+				static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
+
+				const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+				const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+				return sort_by({descRel.entity, descTgt.entity}, func);
 			}
 
 			template <typename Rel>
@@ -46035,26 +46051,41 @@ namespace gaia {
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::group_by(TGroupByFunc func) {
-				group_by_inter<T>(func);
-				return *this;
+				using UO = typename component_type_t<T>::TypeOriginal;
+				static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+				const auto& desc = comp_cache_add<T>(*m_storage.world());
+				return group_by(desc.entity, func);
 			}
 
 			template <typename Rel, typename Tgt>
 			inline QueryImpl& QueryImpl::group_by(TGroupByFunc func) {
-				group_by_inter<Rel, Tgt>(func);
-				return *this;
+				using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+				using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+				static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+				static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
+
+				const auto& descRel = comp_cache_add<Rel>(*m_storage.world());
+				const auto& descTgt = comp_cache_add<Tgt>(*m_storage.world());
+				return group_by({descRel.entity, descTgt.entity}, func);
 			}
 
 			template <typename Rel>
 			inline QueryImpl& QueryImpl::group_dep() {
-				group_dep_inter<Rel>();
-				return *this;
+				using UO = typename component_type_t<Rel>::TypeOriginal;
+				static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
+
+				const auto& desc = comp_cache_add<Rel>(*m_storage.world());
+				return group_dep(desc.entity);
 			}
 
 			template <typename T>
 			inline QueryImpl& QueryImpl::group_id() {
-				set_group_id_inter<T>();
-				return *this;
+				using UO = typename component_type_t<T>::TypeOriginal;
+				static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
+
+				const auto& desc = comp_cache_add<T>(*m_storage.world());
+				return group_id(desc.entity);
 			}
 		} // namespace detail
 	} // namespace ecs
@@ -60349,11 +60380,7 @@ namespace gaia {
 	namespace ecs {
 		template <QueryOpKind Op, typename T>
 		inline void ObserverBuilder::reg_typed_term(ObserverRuntimeData& data) {
-			const auto term = m_world.template reg_comp<T>().entity;
-			cache_term_id(data, term);
-			data.plan.add_term_descriptor(Op, is_fast_path_eligible_term(term, QueryTermOptions{}));
-			register_diff_term(data, Op, term, QueryTermOptions{});
-			m_world.observers().add(m_world, term, m_entity, QueryMatchKind::Semantic);
+			reg_typed_term<Op, T>(data, QueryTermOptions{});
 		}
 
 		template <QueryOpKind Op, typename T>
@@ -60423,9 +60450,11 @@ namespace gaia {
 
 		template <typename Rel>
 		inline ObserverBuilder& ObserverBuilder::depth_order() {
-			validate();
-			runtime_data().query.template depth_order<Rel>();
-			return *this;
+			using UO = typename component_type_t<Rel>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
+
+			const auto& desc = comp_cache_add<Rel>(m_world);
+			return depth_order(desc.entity);
 		}
 
 		template <typename Func, typename... T>
@@ -60898,44 +60927,59 @@ namespace gaia {
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::changed() {
-			validate();
-			data().query.template changed<T>();
-			return *this;
+			using UO = typename component_type_t<T>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+			const auto& desc = comp_cache_add<T>(m_world);
+			return changed(desc.entity);
 		}
 
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::depth_order() {
-			validate();
-			data().query.template depth_order<Rel>();
-			return *this;
+			using UO = typename component_type_t<Rel>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use depth_order() with raw relation types only");
+
+			const auto& desc = comp_cache_add<Rel>(m_world);
+			return depth_order(desc.entity);
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
-			validate();
-			data().query.template group_by<T>(func);
-			return *this;
+			using UO = typename component_type_t<T>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use changed() with raw types only");
+
+			const auto& desc = comp_cache_add<T>(m_world);
+			return group_by(desc.entity, func);
 		}
 
 		template <typename Rel, typename Tgt>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
-			validate();
-			data().query.template group_by<Rel, Tgt>(func);
-			return *this;
+			using UO_Rel = typename component_type_t<Rel>::TypeOriginal;
+			using UO_Tgt = typename component_type_t<Tgt>::TypeOriginal;
+			static_assert(core::is_raw_v<UO_Rel>, "Use group_by() with raw types only");
+			static_assert(core::is_raw_v<UO_Tgt>, "Use group_by() with raw types only");
+
+			const auto& descRel = comp_cache_add<Rel>(m_world);
+			const auto& descTgt = comp_cache_add<Tgt>(m_world);
+			return group_by({descRel.entity, descTgt.entity}, func);
 		}
 
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::group_dep() {
-			validate();
-			data().query.template group_dep<Rel>();
-			return *this;
+			using UO = typename component_type_t<Rel>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use group_dep() with raw types only");
+
+			const auto& desc = comp_cache_add<Rel>(m_world);
+			return group_dep(desc.entity);
 		}
 
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_id() {
-			validate();
-			data().query.template group_id<T>();
-			return *this;
+			using UO = typename component_type_t<T>::TypeOriginal;
+			static_assert(core::is_raw_v<UO>, "Use group_id() with raw types only");
+
+			const auto& desc = comp_cache_add<T>(m_world);
+			return group_id(desc.entity);
 		}
 
 		template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int>>
