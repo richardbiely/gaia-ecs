@@ -87,34 +87,36 @@ namespace gaia {
 
 			auto& ctx = data();
 			using InputArgs = decltype(core::func_args(&Func::operator()));
-			const auto bindState = build_typed_query_bind_state(m_world, InputArgs{});
 			auto& queryInfo = ctx.query.fetch();
-			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, bindState);
+			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+			const auto argCount = init_typed_query_arg_metas(metas, m_world, InputArgs{});
+			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, metas, argCount);
+			const auto thunks = detail::build_typed_query_thunk_set<Func>(InputArgs{});
 			const bool hasInheritedTerms = execState.hasInheritedTerms;
 			if (hasInheritedTerms) {
-				ctx.on_each_func = [func, execState](Query& query, QueryExecType execType) {
+				ctx.on_each_func = [func, execState, thunks](Query& query, QueryExecType execType) mutable {
 					auto& queryInfo = query.fetch();
 					query.match_all(queryInfo);
 					switch (execType) {
 						case QueryExecType::Parallel:
-							query.each_typed_inter<QueryExecType::Parallel>(queryInfo, func, execState);
+							query.each_typed_inter_erased<QueryExecType::Parallel>(queryInfo, &func, execState, thunks);
 							break;
 						case QueryExecType::ParallelPerf:
-							query.each_typed_inter<QueryExecType::ParallelPerf>(queryInfo, func, execState);
+							query.each_typed_inter_erased<QueryExecType::ParallelPerf>(queryInfo, &func, execState, thunks);
 							break;
 						case QueryExecType::ParallelEff:
-							query.each_typed_inter<QueryExecType::ParallelEff>(queryInfo, func, execState);
+							query.each_typed_inter_erased<QueryExecType::ParallelEff>(queryInfo, &func, execState, thunks);
 							break;
 						default:
-							query.each_typed_inter<QueryExecType::Default>(queryInfo, func, execState);
+							query.each_typed_inter_erased<QueryExecType::Default>(queryInfo, &func, execState, thunks);
 							break;
 					}
 				};
 			} else {
-				ctx.on_each_func = [func, execState](Query& query, QueryExecType execType) {
+				ctx.on_each_func = [func, execState, thunks](Query& query, QueryExecType execType) mutable {
 					query.each(
-							[&query, func, execState](Iter& it) mutable {
-								query.each_iter(it, func, execState);
+							[&query, &func, &execState, &thunks](Iter& it) mutable {
+								query.each_iter_erased(it, &func, execState, thunks);
 							},
 							execType);
 				};

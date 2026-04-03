@@ -19,31 +19,12 @@ namespace gaia {
 			bool isPair = false;
 		};
 
-		struct TypedQueryBindState {
-			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-			Entity argIds[MAX_ITEMS_IN_QUERY]{};
-			bool writeFlags[MAX_ITEMS_IN_QUERY]{};
-			uint32_t argCount = 0;
-			bool hasWriteArgs = false;
-			bool needsInheritedArgIds = false;
+		struct TypedQueryThunkSet {
+			void (*runDirectFastChunk)(detail::QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+			void (*runDirectChunk)(detail::QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+			void (*runMappedChunk)(detail::QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+			void (*invokeInherited)(World&, Entity, const Entity*, void*) = nullptr;
 		};
-
-		inline void init_typed_query_arg_descs_from_metas(
-				Entity* pArgIds, bool* pWriteFlags, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
-			GAIA_FOR(argCount) {
-				pArgIds[i] = pMetas[i].termId;
-				if (pWriteFlags != nullptr)
-					pWriteFlags[i] = pMetas[i].isWrite;
-			}
-		}
-
-		GAIA_NODISCARD inline bool typed_query_arg_metas_need_inherited_ids(const TypedQueryArgMeta* pMetas, uint32_t argCount) {
-			GAIA_FOR(argCount) {
-				if (!pMetas[i].isEntity)
-					return true;
-			}
-			return false;
-		}
 
 		template <typename T>
 		GAIA_NODISCARD inline TypedQueryArgMeta typed_query_arg_meta(World& world) {
@@ -73,26 +54,6 @@ namespace gaia {
 			return (uint32_t)sizeof...(T);
 		}
 
-		inline void init_typed_query_bind_state(
-				TypedQueryBindState& state, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
-			state.argCount = argCount;
-			state.needsInheritedArgIds = typed_query_arg_metas_need_inherited_ids(pMetas, argCount);
-			GAIA_FOR(argCount) {
-				state.metas[i] = pMetas[i];
-				state.hasWriteArgs = state.hasWriteArgs || pMetas[i].isWrite;
-			}
-			init_typed_query_arg_descs_from_metas(state.argIds, state.writeFlags, state.metas, state.argCount);
-		}
-
-		template <typename... T>
-		inline TypedQueryBindState build_typed_query_bind_state(World& world, core::func_type_list<T...> args) {
-			TypedQueryBindState state{};
-			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
-			const auto argCount = init_typed_query_arg_metas(metas, world, args);
-			init_typed_query_bind_state(state, metas, argCount);
-			return state;
-		}
-
 #if GAIA_ASSERT_ENABLED
 		template <typename... T>
 		GAIA_NODISCARD inline bool
@@ -107,16 +68,15 @@ namespace gaia {
 		template <typename... T, typename Func, size_t... I>
 		inline void invoke_typed_query_args_by_id(
 				World& world, Entity entity, const Entity* pArgIds, Func& func, std::index_sequence<I...>) {
-			func(
-					([&]() -> decltype(auto) {
-						using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-						if constexpr (std::is_same_v<Arg, Entity>)
-							return entity;
-						else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
-							return world_query_entity_arg_by_id_raw<T>(world, entity, pArgIds[I]);
-						else
-							return world_query_entity_arg_by_id<T>(world, entity, pArgIds[I]);
-					}())...);
+			func(([&]() -> decltype(auto) {
+				using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+				if constexpr (std::is_same_v<Arg, Entity>)
+					return entity;
+				else if constexpr (std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>>)
+					return world_query_entity_arg_by_id_raw<T>(world, entity, pArgIds[I]);
+				else
+					return world_query_entity_arg_by_id<T>(world, entity, pArgIds[I]);
+			}())...);
 		}
 
 		template <typename Func, typename... T>

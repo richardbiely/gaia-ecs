@@ -101,7 +101,7 @@ namespace gaia {
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
-		struct TypedQueryBindState;
+		struct TypedQueryThunkSet;
 
 		namespace detail {
 			template <typename Func>
@@ -2268,11 +2268,9 @@ namespace gaia {
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
 
-				template <QueryExecType ExecType, typename Func>
-				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryBindState& bindState);
-
-				template <QueryExecType ExecType, typename Func>
-				void each_typed_inter(QueryInfo& queryInfo, Func func, const TypedQueryExecState& state);
+				template <QueryExecType ExecType>
+				void each_typed_inter_erased(
+						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state, const TypedQueryThunkSet& thunks);
 
 				template <typename TIter>
 				void each_walk_inter(
@@ -4362,11 +4360,8 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_iter(TIter& it, Func func);
 
-				template <typename TIter, typename Func>
-				void each_iter(TIter& it, Func func, const TypedQueryBindState& bindState);
-
-				template <typename TIter, typename Func>
-				void each_iter(TIter& it, Func func, const TypedQueryExecState& state);
+				void
+				each_iter_erased(Iter& it, void* pFunc, const TypedQueryExecState& state, const TypedQueryThunkSet& thunks);
 
 				//------------------------------------------------
 
