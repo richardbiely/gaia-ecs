@@ -9,6 +9,21 @@ namespace gaia {
 						 !std::is_same_v<Arg, Entity>;
 		}
 
+		template <typename... T>
+		GAIA_NODISCARD inline constexpr bool typed_query_args_need_inherited_ids() {
+			return (!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+		}
+
+		template <typename... T>
+		struct TypedQueryExecState {
+			static constexpr uint32_t ArgCount = sizeof...(T) > 0 ? (uint32_t)sizeof...(T) : 1u;
+
+			Entity argIds[ArgCount]{};
+			bool writeFlags[ArgCount]{};
+			bool canUseDirectChunkEval = false;
+			bool hasInheritedTerms = false;
+		};
+
 		struct TypedDirectChunkArgEvalDesc {
 			Entity id = EntityBad;
 			bool isEntity = false;
