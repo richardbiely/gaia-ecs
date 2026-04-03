@@ -121,9 +121,9 @@ namespace gaia {
 			constexpr bool needsInheritedArgIds = typed_query_args_need_inherited_ids<T...>();
 			if constexpr (!needsInheritedArgIds) {
 				if (state.canUseDirectChunkEval)
-					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+					detail::run_typed_chunk_direct_finish(obs.query, it, func, state, core::func_type_list<T...>{});
 				else
-					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
+					detail::run_typed_chunk_mapped_finish(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			} else {
 				if (hasInheritedTerms) {
 					invoke_typed_query_args_by_id<T...>(world, entity, pInheritedArgIds, func, std::index_sequence_for<T...>{});
@@ -132,9 +132,9 @@ namespace gaia {
 				}
 
 				if (state.canUseDirectChunkEval)
-					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});
+					detail::run_typed_chunk_direct_finish(obs.query, it, func, state, core::func_type_list<T...>{});
 				else
-					detail::run_typed_chunk_mapped(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
+					detail::run_typed_chunk_mapped_finish(obs.query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 		}
 

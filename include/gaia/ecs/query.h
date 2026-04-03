@@ -1651,11 +1651,6 @@ namespace gaia {
 				static void
 				finish_typed_iter_writes_runtime(TIter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt);
 
-				template <typename TIter, typename Func, typename ViewsTuple, typename OnRowDone, typename... T>
-				GAIA_FORCEINLINE static void run_query_tuple_rows(
-						const QueryInfo* pQueryInfo, TIter& it, Func& func, ViewsTuple& dataPointerTuple, bool directLocalIndex,
-						OnRowDone&& onRowDone, core::func_type_list<T...>);
-
 				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
 
 				template <typename TIter>
@@ -2256,9 +2251,9 @@ namespace gaia {
 					return data.sortByFunc == nullptr && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				}
 
-				template <typename Func, typename... T>
 				void run_query_on_chunks_direct(
-						QueryInfo& queryInfo, Func func, const TypedQueryExecState& state, core::func_type_list<T...>);
+						QueryInfo& queryInfo, const TypedQueryExecState& state, void* pCtx,
+						void (*runChunk)(void* pCtx, Iter& it, const TypedQueryExecState& state));
 
 				template <QueryExecType ExecType, typename Func, typename... T>
 				void each_inter(QueryInfo& queryInfo, Func func, core::func_type_list<T...>);
@@ -3491,13 +3486,6 @@ namespace gaia {
 
 					return true;
 				}
-
-				template <typename... T>
-				GAIA_NODISCARD static bool can_use_direct_chunk_term_eval(World& world, const QueryInfo& queryInfo);
-
-				template <typename... T>
-				GAIA_NODISCARD static bool can_use_direct_chunk_term_eval_args(
-						World& world, const QueryInfo& queryInfo, [[maybe_unused]] core::func_type_list<T...>);
 
 				template <typename TIter, typename Func>
 				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
