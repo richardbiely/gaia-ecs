@@ -16,9 +16,60 @@ namespace gaia {
 				return state;
 			}
 
+			template <typename... T>
+			inline TypedQueryExecState<T...> build_typed_query_exec_state(
+					QueryImpl& query, World& world, const QueryInfo& queryInfo, core::func_type_list<T...>) {
+				return build_typed_query_exec_state<T...>(query, world, queryInfo);
+			}
+
+			template <bool DirectViews, typename TIter, typename Func, typename OnRowDone, typename... T>
+			inline void run_typed_chunk_views(
+					const QueryInfo* pQueryInfo, TIter& it, Func& func, OnRowDone&& onRowDone, core::func_type_list<T...>);
+
 			template <typename TIter, typename Func, typename... T>
-			inline void
-			run_typed_cached_seed_runs_basic(QueryImpl& query, World& world, Func& func, std::span<const BfsChunkRun> runs) {
+			inline void run_typed_chunk_mapped(
+					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, Func& func, const TypedQueryExecState<T...>& state,
+					core::func_type_list<T...> types) {
+				run_typed_chunk_views<false>(&queryInfo, it, func, [](uint32_t) {}, types);
+				finish_typed_iter_state(query, it, state);
+			}
+
+			template <typename TIter, typename Func, typename... T>
+			inline void run_typed_chunk_direct(
+					QueryImpl& query, TIter& it, Func& func, const TypedQueryExecState<T...>& state, core::func_type_list<T...>) {
+				run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, core::func_type_list<T...>{});
+				finish_typed_iter_state(query, it, state);
+			}
+
+			template <typename TIter, typename Func, typename... T>
+			inline void run_typed_chunk_unmapped(
+					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, Func& func, const TypedQueryExecState<T...>& state,
+					core::func_type_list<T...> types) {
+				auto& world = *const_cast<World*>(queryInfo.world());
+				auto* pChunk = const_cast<Chunk*>(it.chunk());
+				const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+
+				if (!hasEntityFilters) {
+					run_typed_chunk_views<false>(&queryInfo, it, func, [](uint32_t) {}, types);
+					finish_typed_chunk_state(query, world, pChunk, it.row_begin(), it.row_end(), state);
+				} else {
+					run_typed_chunk_views<false>(
+							&queryInfo, it, func,
+							[&](uint32_t row) {
+								finish_typed_chunk_state(
+										query, world, pChunk, (uint16_t)(it.row_begin() + row), (uint16_t)(it.row_begin() + row + 1),
+										state);
+							},
+							types);
+				}
+
+				it.clear_touched_writes();
+			}
+
+			template <typename TIter, typename Func, typename... T>
+			inline void run_typed_cached_seed_runs_basic(
+					QueryImpl& query, World& world, Func& func, std::span<const BfsChunkRun> runs,
+					const TypedQueryExecState<T...>& state) {
 				TIter it;
 				it.set_world(&world);
 				const Archetype* pLastArchetype = nullptr;
@@ -30,13 +81,14 @@ namespace gaia {
 
 					it.set_chunk(run.pChunk, run.from, run.to);
 					it.set_group_id(0);
-					query.run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					run_typed_chunk_direct(query, it, func, state, core::func_type_list<T...>{});
 				}
 			}
 
 			template <typename TIter, typename Func, typename... T>
 			inline void run_typed_cached_seed_runs_entity_init(
-					QueryImpl& query, QueryInfo& queryInfo, World& world, Func& func, std::span<const BfsChunkRun> runs) {
+					QueryImpl& query, QueryInfo& queryInfo, World& world, Func& func, std::span<const BfsChunkRun> runs,
+					const TypedQueryExecState<T...>& state) {
 				TIter it;
 				it.set_world(&world);
 				const Archetype* pLastArchetype = nullptr;
@@ -47,18 +99,18 @@ namespace gaia {
 					query.init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 					it.set_chunk(run.pChunk, run.from, run.to);
 					it.set_group_id(0);
-					query.run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					run_typed_chunk_direct(query, it, func, state, core::func_type_list<T...>{});
 				}
 			}
 
 			template <typename TIter, typename Func, typename... T>
 			inline void run_typed_cached_seed_runs(
 					QueryImpl& query, QueryInfo& queryInfo, World& world, Func& func, std::span<const BfsChunkRun> runs,
-					bool canUseBasicInit) {
+					bool canUseBasicInit, const TypedQueryExecState<T...>& state) {
 				if (canUseBasicInit)
-					run_typed_cached_seed_runs_basic<TIter, Func, T...>(query, world, func, runs);
+					run_typed_cached_seed_runs_basic<TIter, Func, T...>(query, world, func, runs, state);
 				else
-					run_typed_cached_seed_runs_entity_init<TIter, Func, T...>(query, queryInfo, world, func, runs);
+					run_typed_cached_seed_runs_entity_init<TIter, Func, T...>(query, queryInfo, world, func, runs, state);
 			}
 
 			template <typename... T>
@@ -355,9 +407,9 @@ namespace gaia {
 			}
 
 			template <typename Func, typename... T>
-			inline void QueryImpl::run_query_on_chunks_direct(QueryInfo& queryInfo, Func func, core::func_type_list<T...>) {
+			inline void QueryImpl::run_query_on_chunks_direct(
+					QueryInfo& queryInfo, Func func, const TypedQueryExecState<T...>& state, core::func_type_list<T...>) {
 				auto& world = *queryInfo.world();
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
 				if constexpr (has_write_query_args<T...>())
 					::gaia::ecs::update_version(*m_worldVersion);
 
@@ -405,8 +457,8 @@ namespace gaia {
 						}
 						it.set_chunk(pChunk, from, to);
 						it.set_group_id(0);
-						run_query_on_chunk_direct_views(it, func, core::func_type_list<T...>{});
-						finish_typed_chunk_writes_runtime(world, pChunk, from, to, state.argIds, state.writeFlags, sizeof...(T));
+						run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, core::func_type_list<T...>{});
+						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
 				}
 
@@ -423,17 +475,16 @@ namespace gaia {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
 				if (state.canUseDirectChunkEval)
-					run_query_on_chunk_direct(it, func, types);
+					run_typed_chunk_direct(*this, it, func, state, types);
 				else
-					run_query_on_chunk(queryInfo, it, func, types);
+					run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
 			}
 
 			template <typename TIter, typename Func, typename... T>
 			inline void QueryImpl::run_query_on_chunk(
 					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
-				run_typed_chunk_views<false>(&queryInfo, it, func, [](uint32_t) {}, types);
-				finish_typed_iter_state(*this, it, state);
+				run_typed_chunk_mapped(*this, queryInfo, it, func, state, types);
 			}
 
 			template <typename TIter, typename Func, typename... T>
@@ -446,8 +497,7 @@ namespace gaia {
 			inline void
 			QueryImpl::run_query_on_chunk_direct(TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
 				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), fetch());
-				run_query_on_chunk_direct_views(it, func, types);
-				finish_typed_iter_state(*this, it, state);
+				run_typed_chunk_direct(*this, it, func, state, types);
 			}
 
 			template <typename TIter, typename Func, typename... T>
@@ -457,35 +507,17 @@ namespace gaia {
 				auto& world = *queryInfo.world();
 				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
 				if (state.canUseDirectChunkEval) {
-					run_query_on_chunk_direct_views(it, func, types);
+					run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, types);
 					finish_typed_chunk_state(*this, world, const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
 				} else
-					run_query_on_chunk_unmapped(queryInfo, it, func, types);
+					run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
 			}
 
 			template <typename TIter, typename Func, typename... T>
 			inline void QueryImpl::run_query_on_chunk_unmapped(
 					const QueryInfo& queryInfo, TIter& it, Func func, [[maybe_unused]] core::func_type_list<T...> types) {
-				auto& world = *const_cast<World*>(queryInfo.world());
-				auto* pChunk = const_cast<Chunk*>(it.chunk());
-				const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
-				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
-
-				if (!hasEntityFilters) {
-					run_typed_chunk_views<false>(&queryInfo, it, func, [](uint32_t) {}, types);
-					finish_typed_chunk_state(*this, world, pChunk, it.row_begin(), it.row_end(), state);
-				} else {
-					run_typed_chunk_views<false>(
-							&queryInfo, it, func,
-							[&](uint32_t row) {
-								finish_typed_chunk_state(
-										*this, world, pChunk, (uint16_t)(it.row_begin() + row), (uint16_t)(it.row_begin() + row + 1),
-										state);
-							},
-							types);
-				}
-
-				it.clear_touched_writes();
+				const auto state = build_typed_query_exec_state<T...>(*this, *it.world(), queryInfo);
+				run_typed_chunk_unmapped(*this, queryInfo, it, func, state, types);
 			}
 
 			template <QueryExecType ExecType, typename Func, typename... T>
@@ -497,21 +529,22 @@ namespace gaia {
 				}
 
 				auto& world = *const_cast<World*>(queryInfo.world());
-				if (can_use_direct_chunk_term_eval<T...>(world, queryInfo)) {
+				const auto state = build_typed_query_exec_state<T...>(*this, world, queryInfo);
+				if (state.canUseDirectChunkEval) {
 					if constexpr (ExecType == QueryExecType::Default) {
 						if (can_use_direct_chunk_iteration_fastpath(queryInfo)) {
-							run_query_on_chunks_direct(queryInfo, func, core::func_type_list<T...>{});
+							run_query_on_chunks_direct(queryInfo, func, state, core::func_type_list<T...>{});
 							return;
 						}
 					}
 					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+						run_typed_chunk_direct(*this, it, func, state, core::func_type_list<T...>{});
 					});
 				} else {
 					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
-						run_query_on_chunk(queryInfo, it, func, core::func_type_list<T...>{});
+						run_typed_chunk_mapped(*this, queryInfo, it, func, state, core::func_type_list<T...>{});
 					});
 				}
 			}
@@ -556,13 +589,18 @@ namespace gaia {
 			template <typename TIter, typename Func>
 			inline void QueryImpl::each_iter(TIter& it, Func func) {
 				using InputArgs = decltype(core::func_args(&Func::operator()));
+				auto& queryInfo = fetch();
 
 #if GAIA_ASSERT_ENABLED
-				auto& queryInfo = fetch();
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 #endif
-
-				run_query_on_chunk_unmapped(it, func, InputArgs{});
+				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, InputArgs{});
+				if (state.canUseDirectChunkEval) {
+					run_typed_chunk_views<true>(nullptr, it, func, [](uint32_t) {}, InputArgs{});
+					finish_typed_chunk_state(
+							*this, *it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+				} else
+					run_typed_chunk_unmapped(*this, queryInfo, it, func, state, InputArgs{});
 			}
 
 			template <typename TIter, typename Func, typename... T>
@@ -581,8 +619,9 @@ namespace gaia {
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
 					TIter it;
 					init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
-					run_query_on_chunk_direct(it, func, core::func_type_list<T...>{});
+					run_typed_chunk_direct(*this, it, func, state, core::func_type_list<T...>{});
 				};
+				
 				auto exec_entity = [&](Entity entity) {
 					if constexpr (needsInheritedArgIds) {
 						if (state.hasInheritedTerms) {
@@ -605,7 +644,7 @@ namespace gaia {
 						if (!state.hasInheritedTerms) {
 							const auto runs = cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							run_typed_cached_seed_runs<TIter, Func, T...>(
-									*this, queryInfo, world, func, runs, state.canUseDirectChunkEval);
+									*this, queryInfo, world, func, runs, state.canUseDirectChunkEval, state);
 						} else {
 							const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
 							for (const auto entity: entities)
@@ -659,33 +698,43 @@ namespace gaia {
 					return;
 
 				auto& world = *queryInfo.world();
-				const bool canUseDirectChunkEval = can_use_direct_chunk_term_eval_args(world, queryInfo, InputArgs{});
-
-				switch (constraints) {
-					case Constraints::EnabledOnly:
-						each_direct_entities_iter<Iter>(queryInfo, ordered, [&](Iter& it) {
-							if (canUseDirectChunkEval)
-								run_query_on_chunk_direct(it, func, InputArgs{});
-							else
-								run_query_on_chunk(queryInfo, it, func, InputArgs{});
-						});
-						break;
-					case Constraints::DisabledOnly:
-						each_direct_entities_iter<IterDisabled>(queryInfo, ordered, [&](IterDisabled& it) {
-							if (canUseDirectChunkEval)
-								run_query_on_chunk_direct(it, func, InputArgs{});
-							else
-								run_query_on_chunk(queryInfo, it, func, InputArgs{});
-						});
-						break;
-					case Constraints::AcceptAll:
-						each_direct_entities_iter<IterAll>(queryInfo, ordered, [&](IterAll& it) {
-							if (canUseDirectChunkEval)
-								run_query_on_chunk_direct(it, func, InputArgs{});
-							else
-								run_query_on_chunk(queryInfo, it, func, InputArgs{});
-						});
-						break;
+				const auto state = build_typed_query_exec_state(*this, world, queryInfo, InputArgs{});
+				if (state.canUseDirectChunkEval) {
+					switch (constraints) {
+						case Constraints::DisabledOnly:
+							each_direct_entities_iter<IterDisabled>(queryInfo, ordered, [&](IterDisabled& it) {
+								run_typed_chunk_direct(*this, it, func, state, InputArgs{});
+							});
+							break;
+						case Constraints::AcceptAll:
+							each_direct_entities_iter<IterAll>(queryInfo, ordered, [&](IterAll& it) {
+								run_typed_chunk_direct(*this, it, func, state, InputArgs{});
+							});
+							break;
+						default:
+							each_direct_entities_iter<Iter>(queryInfo, ordered, [&](Iter& it) {
+								run_typed_chunk_direct(*this, it, func, state, InputArgs{});
+							});
+							break;
+					}
+				} else {
+					switch (constraints) {
+						case Constraints::DisabledOnly:
+							each_direct_entities_iter<IterDisabled>(queryInfo, ordered, [&](IterDisabled& it) {
+								run_typed_chunk_mapped(*this, queryInfo, it, func, state, InputArgs{});
+							});
+							break;
+						case Constraints::AcceptAll:
+							each_direct_entities_iter<IterAll>(queryInfo, ordered, [&](IterAll& it) {
+								run_typed_chunk_mapped(*this, queryInfo, it, func, state, InputArgs{});
+							});
+							break;
+						default:
+							each_direct_entities_iter<Iter>(queryInfo, ordered, [&](Iter& it) {
+								run_typed_chunk_mapped(*this, queryInfo, it, func, state, InputArgs{});
+							});
+							break;
+					}
 				}
 			}
 
