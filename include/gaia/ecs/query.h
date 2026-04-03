@@ -100,7 +100,6 @@ namespace gaia {
 		};
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
-		template <typename... T>
 		struct TypedQueryExecState;
 
 		namespace detail {
@@ -2259,10 +2258,7 @@ namespace gaia {
 
 				template <typename Func, typename... T>
 				void run_query_on_chunks_direct(
-						QueryInfo& queryInfo, Func func, const TypedQueryExecState<T...>& state, core::func_type_list<T...>);
-
-				template <typename... T>
-				GAIA_NODISCARD static constexpr bool has_write_query_args();
+						QueryInfo& queryInfo, Func func, const TypedQueryExecState& state, core::func_type_list<T...>);
 
 				template <QueryExecType ExecType, typename Func, typename... T>
 				void each_inter(QueryInfo& queryInfo, Func func, core::func_type_list<T...>);

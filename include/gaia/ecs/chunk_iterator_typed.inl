@@ -5,19 +5,42 @@ namespace gaia {
 		namespace detail {
 			template <Constraints IterConstraint>
 			struct ChunkIterTypedOps {
+				struct ArgMeta {
+					Entity termId = EntityBad;
+					bool isEntity = false;
+					bool isPair = false;
+				};
+
+				template <typename T>
+				static auto arg_meta(const ChunkIterImpl<IterConstraint>& self) -> ArgMeta {
+					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
+					if constexpr (std::is_same_v<Arg, Entity>)
+						return {.termId = EntityBad, .isEntity = true, .isPair = false};
+					else {
+						using FT = typename component_type_t<Arg>::TypeFull;
+						if constexpr (is_pair<FT>::value)
+							return {.termId = EntityBad, .isEntity = false, .isPair = true};
+						else
+							return {
+									.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world())),
+									.isEntity = false,
+									.isPair = false};
+					}
+				}
+
 				template <typename T>
 				static auto term_desc(const ChunkIterImpl<IterConstraint>& self) ->
 						typename ChunkIterImpl<IterConstraint>::IterTermDesc {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					if constexpr (std::is_same_v<Arg, Entity>) {
-						return {.termId = EntityBad, .isEntity = true, .isOutOfLine = false};
-					} else {
-						typename ChunkIterImpl<IterConstraint>::IterTermDesc desc;
-						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
-						if constexpr (!is_pair<typename component_type_t<Arg>::TypeFull>::value && !mem::is_soa_layout_v<Arg>)
+					const auto meta = arg_meta<T>(self);
+					typename ChunkIterImpl<IterConstraint>::IterTermDesc desc;
+					desc.termId = meta.termId;
+					desc.isEntity = meta.isEntity;
+					if constexpr (!mem::is_soa_layout_v<Arg>) {
+						if (!meta.isEntity && !meta.isPair)
 							desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
-						return desc;
 					}
+					return desc;
 				}
 
 				template <typename T>

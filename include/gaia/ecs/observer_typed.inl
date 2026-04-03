@@ -104,8 +104,7 @@ namespace gaia {
 
 		template <typename... T>
 		static bool observer_uses_inherited_arg_path(Query& query, core::func_type_list<T...>) {
-			constexpr bool needsInheritedArgIds =
-					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+			constexpr bool needsInheritedArgIds = typed_query_args_need_inherited_ids<T...>();
 			if constexpr (!needsInheritedArgIds)
 				return false;
 			else
@@ -117,9 +116,9 @@ namespace gaia {
 				ObserverRuntimeData& obs, World& world, Entity entity, Iter& it, Func& func, core::func_type_list<T...>,
 				bool hasInheritedTerms, const Entity* pInheritedArgIds, const bool* pWriteFlags) {
 			auto& queryInfo = obs.query.fetch();
-			const auto state = detail::build_typed_query_exec_state(obs.query, world, queryInfo, core::func_type_list<T...>{});
-			constexpr bool needsInheritedArgIds =
-					(!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
+			const auto state =
+					detail::build_typed_query_exec_state(obs.query, world, queryInfo, core::func_type_list<T...>{});
+			constexpr bool needsInheritedArgIds = typed_query_args_need_inherited_ids<T...>();
 			if constexpr (!needsInheritedArgIds) {
 				if (state.canUseDirectChunkEval)
 					detail::run_typed_chunk_direct(obs.query, it, func, state, core::func_type_list<T...>{});

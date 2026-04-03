@@ -2,24 +2,16 @@
 
 namespace gaia {
 	namespace ecs {
-		template <typename T>
-		GAIA_NODISCARD inline constexpr bool typed_query_arg_is_write() {
-			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-			return std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> &&
-						 !std::is_same_v<Arg, Entity>;
-		}
-
 		template <typename... T>
 		GAIA_NODISCARD inline constexpr bool typed_query_args_need_inherited_ids() {
 			return (!std::is_same_v<std::remove_cv_t<std::remove_reference_t<T>>, Entity> || ... || false);
 		}
 
-		template <typename... T>
 		struct TypedQueryExecState {
-			static constexpr uint32_t ArgCount = sizeof...(T) > 0 ? (uint32_t)sizeof...(T) : 1u;
-
-			Entity argIds[ArgCount]{};
-			bool writeFlags[ArgCount]{};
+			uint32_t argCount = 0;
+			Entity argIds[MAX_ITEMS_IN_QUERY]{};
+			bool writeFlags[MAX_ITEMS_IN_QUERY]{};
+			bool hasWriteArgs = false;
 			bool canUseDirectChunkEval = false;
 			bool hasInheritedTerms = false;
 		};
@@ -30,34 +22,33 @@ namespace gaia {
 			bool isPair = false;
 		};
 
-		struct TypedQueryArgDesc {
+		struct TypedQueryArgMeta {
 			Entity termId = EntityBad;
 			bool isWrite = false;
+			bool isEntity = false;
+			bool isPair = false;
 		};
 
 		template <typename T>
-		GAIA_NODISCARD inline TypedQueryArgDesc typed_query_arg_desc(World& world) {
+		GAIA_NODISCARD inline TypedQueryArgMeta typed_query_arg_meta(World& world) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
 			const bool isWrite =
 					std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> && !std::is_same_v<Arg, Entity>;
 			if constexpr (std::is_same_v<Arg, Entity>)
-				return {.termId = EntityBad, .isWrite = isWrite};
-			else
-				return {.termId = world_query_arg_id<Arg>(world), .isWrite = isWrite};
+				return {.termId = EntityBad, .isWrite = isWrite, .isEntity = true, .isPair = false};
+			else {
+				using FT = typename component_type_t<Arg>::TypeFull;
+				if constexpr (is_pair<FT>::value)
+					return {.termId = EntityBad, .isWrite = isWrite, .isEntity = false, .isPair = true};
+				else
+					return {.termId = world_query_arg_id<Arg>(world), .isWrite = isWrite, .isEntity = false, .isPair = false};
+			}
 		}
 
 		template <typename T>
 		GAIA_NODISCARD inline TypedDirectChunkArgEvalDesc typed_direct_chunk_arg_eval_desc(World& world) {
-			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-			if constexpr (std::is_same_v<Arg, Entity>)
-				return {.id = EntityBad, .isEntity = true, .isPair = false};
-			else {
-				using FT = typename component_type_t<Arg>::TypeFull;
-				if constexpr (is_pair<FT>::value)
-					return {.id = EntityBad, .isEntity = false, .isPair = true};
-				else
-					return {.id = comp_cache(world).template get<FT>().entity, .isEntity = false, .isPair = false};
-			}
+			const auto meta = typed_query_arg_meta<T>(world);
+			return {.id = meta.termId, .isEntity = meta.isEntity, .isPair = meta.isPair};
 		}
 
 		template <typename T>
@@ -75,11 +66,22 @@ namespace gaia {
 		inline void init_typed_query_arg_descs(
 				Entity* pArgIds, bool* pWriteFlags, World& world, [[maybe_unused]] core::func_type_list<T...>) {
 			if constexpr (sizeof...(T) > 0) {
-				const TypedQueryArgDesc descs[] = {typed_query_arg_desc<T>(world)...};
+				const TypedQueryArgMeta descs[] = {typed_query_arg_meta<T>(world)...};
 				GAIA_FOR(sizeof...(T)) {
 					pArgIds[i] = descs[i].termId;
 					if (pWriteFlags != nullptr)
 						pWriteFlags[i] = descs[i].isWrite;
+				}
+			}
+		}
+
+		template <typename... T>
+		inline void
+		init_typed_query_arg_metas(TypedQueryArgMeta* pMetas, World& world, [[maybe_unused]] core::func_type_list<T...>) {
+			if constexpr (sizeof...(T) > 0) {
+				const TypedQueryArgMeta descs[] = {typed_query_arg_meta<T>(world)...};
+				GAIA_FOR(sizeof...(T)) {
+					pMetas[i] = descs[i];
 				}
 			}
 		}
