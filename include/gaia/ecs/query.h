@@ -1667,13 +1667,28 @@ namespace gaia {
 					return exec_payload_kind(queryInfo, constraints) == ExecPayloadKind::NonTrivial;
 				}
 
+				struct IterModeEnabled final {};
+				struct IterModeDisabledOnly final {};
+				struct IterModeAcceptAll final {};
+
+				template <typename TMode>
+				GAIA_NODISCARD static constexpr Constraints iter_mode_constraints() {
+					if constexpr (std::is_same_v<TMode, IterModeDisabledOnly>)
+						return Constraints::DisabledOnly;
+					else if constexpr (std::is_same_v<TMode, IterModeAcceptAll>)
+						return Constraints::AcceptAll;
+					else
+						return Constraints::EnabledOnly;
+				}
+
 				//--------------------------------------------------------------------------------
 
 				//! Execute the functor for a given chunk batch
-				template <typename Func, typename TIter>
+				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
-					TIter it;
+					Iter it;
 					it.set_world(pWorld);
+					it.set_constraints(iter_mode_constraints<TMode>());
 					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					it.set_chunk(batch.pChunk, batch.from, batch.to);
@@ -1702,15 +1717,16 @@ namespace gaia {
 				}
 
 				//! Execute the functor in batches
-				template <typename Func, typename TIter>
+				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
 
 					const auto chunkCnt = batches.size();
 					GAIA_ASSERT(chunkCnt > 0);
 
-					TIter it;
+					Iter it;
 					it.set_world(pWorld);
+					it.set_constraints(iter_mode_constraints<TMode>());
 					it.set_write_im(false);
 
 					const Archetype* pLastArchetype = nullptr;
@@ -1773,18 +1789,20 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				template <bool HasFilters, typename TIter, typename Func>
+				template <bool HasFilters, typename TMode, typename Func>
 				void run_query_batch_no_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const auto payloadKind = exec_payload_kind(queryInfo, TIter::ConstraintMode);
+					constexpr auto constraints = iter_mode_constraints<TMode>();
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
+																				 std::is_same_v<TMode, IterModeEnabled> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -1797,15 +1815,15 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = TIter::size(view.pChunk);
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
 							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
 
-							const auto minStartRow = TIter::start_index(view.pChunk);
-							const auto minEndRow = TIter::end_index(view.pChunk);
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -1819,8 +1837,7 @@ namespace gaia {
 
 							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(
-																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
@@ -1830,7 +1847,7 @@ namespace gaia {
 									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
-								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								run_query_func<Func, TMode>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
 						}
@@ -1838,8 +1855,7 @@ namespace gaia {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(
-																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1854,7 +1870,7 @@ namespace gaia {
 
 								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 								for (auto* pChunk: chunkSpan) {
-									if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+									if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
 										continue;
 
 									if constexpr (HasFilters) {
@@ -1866,7 +1882,7 @@ namespace gaia {
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
-									run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+									run_query_func<Func, TMode>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 									chunkBatches.clear();
 								}
 
@@ -1878,7 +1894,7 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
-						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+						run_query_func<Func, TMode>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
 					// Commit the command buffer.
@@ -1887,34 +1903,36 @@ namespace gaia {
 					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
-				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				template <bool HasFilters, typename TMode, typename Func, QueryExecType ExecType>
 				void run_query_batch_no_group_id_par(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					static_assert(ExecType != QueryExecType::Default);
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const auto payloadKind = exec_payload_kind(queryInfo, TIter::ConstraintMode);
+					constexpr auto constraints = iter_mode_constraints<TMode>();
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial && std::is_same_v<TIter, Iter> &&
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
+																				 std::is_same_v<TMode, IterModeEnabled> &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = TIter::size(view.pChunk);
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
 							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
 
-							const auto minStartRow = TIter::start_index(view.pChunk);
-							const auto minEndRow = TIter::end_index(view.pChunk);
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -1928,8 +1946,7 @@ namespace gaia {
 
 							const auto* pArchetype = cacheView[view.archetypeIdx];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(
-																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
@@ -1942,8 +1959,7 @@ namespace gaia {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(
-																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1951,7 +1967,7 @@ namespace gaia {
 									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
-								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -1976,7 +1992,7 @@ namespace gaia {
 						j.priority = mt::JobPriority::Low;
 
 					j.func = [&](const mt::JobArgs& args) {
-						run_query_func<Func, TIter>(
+						run_query_func<Func, TMode>(
 								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
@@ -1992,7 +2008,7 @@ namespace gaia {
 					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
-				template <bool HasFilters, typename TIter, typename Func>
+				template <bool HasFilters, typename TMode, typename Func>
 				void run_query_batch_with_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id);
@@ -2001,8 +2017,9 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, TIter::ConstraintMode) &&
-																				 TIter::ConstraintMode == Constraints::EnabledOnly &&
+					constexpr auto constraints = iter_mode_constraints<TMode>();
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+																				 constraints == Constraints::EnabledOnly &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2012,8 +2029,7 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter(
-																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2038,7 +2054,7 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -2050,7 +2066,7 @@ namespace gaia {
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
-								run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+								run_query_func<Func, TMode>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 								chunkBatches.clear();
 							}
 
@@ -2061,7 +2077,7 @@ namespace gaia {
 
 					// Take care of any leftovers not processed during run_query
 					if (!chunkBatches.empty())
-						run_query_func<Func, TIter>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
+						run_query_func<Func, TMode>(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()});
 
 					unlock(*m_storage.world());
 					// Commit the command buffer.
@@ -2070,7 +2086,7 @@ namespace gaia {
 					commit_cmd_buffer_mt(*m_storage.world());
 				}
 
-				template <bool HasFilters, typename TIter, typename Func, QueryExecType ExecType>
+				template <bool HasFilters, typename TMode, typename Func, QueryExecType ExecType>
 				void run_query_batch_with_group_id_par(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
 					static_assert(ExecType != QueryExecType::Default);
@@ -2080,8 +2096,9 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, TIter::ConstraintMode) &&
-																				 TIter::ConstraintMode == Constraints::EnabledOnly &&
+					constexpr auto constraints = iter_mode_constraints<TMode>();
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+																				 constraints == Constraints::EnabledOnly &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2090,8 +2107,7 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter(
-																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 							continue;
 
 						const auto groupId = queryInfo.group_id(i);
@@ -2106,8 +2122,7 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter(
-																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2116,7 +2131,7 @@ namespace gaia {
 						const auto groupId = queryInfo.group_id(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (TIter::size(pChunk) == 0)
+							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -2140,7 +2155,7 @@ namespace gaia {
 						j.priority = mt::JobPriority::Low;
 
 					j.func = [&](const mt::JobArgs& args) {
-						run_query_func<Func, TIter>(
+						run_query_func<Func, TMode>(
 								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
@@ -2158,7 +2173,7 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				template <bool HasFilters, QueryExecType ExecType, typename TIter, typename Func>
+				template <bool HasFilters, QueryExecType ExecType, typename TMode, typename Func>
 				void run_query(const QueryInfo& queryInfo, Func func) {
 					GAIA_PROF_SCOPE(query::run_query);
 
@@ -2178,9 +2193,9 @@ namespace gaia {
 						const auto idxFrom = 0;
 						const auto idxTo = (uint32_t)cache_view.size();
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_no_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
 						else
-							run_query_batch_no_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
 						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
@@ -2190,9 +2205,9 @@ namespace gaia {
 						const auto idxFrom = pGroupData->idxFirst;
 						const auto idxTo = pGroupData->idxLast + 1;
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_with_group_id_par<HasFilters, TIter, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
 						else
-							run_query_batch_with_group_id<HasFilters, TIter, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
 					}
 				}
 
@@ -2238,16 +2253,16 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				template <QueryExecType ExecType, typename TIter, typename Func>
+				template <QueryExecType ExecType, typename TMode, typename Func>
 				void run_query_on_chunks(QueryInfo& queryInfo, Func func) {
 					// Update the world version
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters)
-						run_query<true, ExecType, TIter>(queryInfo, func);
+						run_query<true, ExecType, TMode>(queryInfo, func);
 					else
-						run_query<false, ExecType, TIter>(queryInfo, func);
+						run_query<false, ExecType, TMode>(queryInfo, func);
 
 					// Changed-filter state is instance-local for cached queries.
 					m_changedWorldVersion = *m_worldVersion;
@@ -2763,25 +2778,25 @@ namespace gaia {
 						case Constraints::DisabledOnly:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::Parallel, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::Default, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
@@ -2791,25 +2806,25 @@ namespace gaia {
 						case Constraints::AcceptAll:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::Parallel, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+									run_query_on_chunks<QueryExecType::Default, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
@@ -2819,25 +2834,25 @@ namespace gaia {
 						default:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, [&](Iter& it) {
+									run_query_on_chunks<QueryExecType::Parallel, IterModeEnabled>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, [&](Iter& it) {
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeEnabled>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, [&](Iter& it) {
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeEnabled>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
+									run_query_on_chunks<QueryExecType::Default, IterModeEnabled>(queryInfo, [&](Iter& it) {
 										GAIA_PROF_SCOPE(query_func);
 										invoke(pFunc, it);
 									});

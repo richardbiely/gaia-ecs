@@ -643,12 +643,12 @@ namespace gaia {
 							return;
 						}
 					}
-					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
 						runDirectChunk(*this, it, pFunc, state);
 					});
 				} else {
-					run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, [&](Iter& it) {
 						GAIA_PROF_SCOPE(query_func);
 						runMappedChunk(*this, queryInfo, it, pFunc, state);
 					});
@@ -714,7 +714,7 @@ namespace gaia {
 					return;
 				}
 
-				run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
+				run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, [&](Iter& it) {
 					GAIA_PROF_SCOPE(query_func);
 					each_iter_erased(it, pFunc, state, runDirectFastChunk, runMappedChunk);
 				});

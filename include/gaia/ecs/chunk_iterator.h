@@ -1448,54 +1448,6 @@ namespace gaia {
 			}
 		};
 
-		namespace detail {
-			class IterDisabledOnly final: public Iter {
-			public:
-				static constexpr Constraints ConstraintMode = Constraints::DisabledOnly;
-
-				using Iter::size;
-
-				IterDisabledOnly() {
-					this->set_constraints(ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::start_index(pChunk, ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::end_index(pChunk, ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::size(pChunk, ConstraintMode);
-				}
-			};
-
-			class IterAcceptAll final: public Iter {
-			public:
-				static constexpr Constraints ConstraintMode = Constraints::AcceptAll;
-
-				using Iter::size;
-
-				IterAcceptAll() {
-					this->set_constraints(ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::start_index(pChunk, ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::end_index(pChunk, ConstraintMode);
-				}
-
-				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::size(pChunk, ConstraintMode);
-				}
-			};
-		} // namespace detail
-
 		//! Iterator used when copying entities.
 		class GAIA_API CopyIter final {
 		protected:
