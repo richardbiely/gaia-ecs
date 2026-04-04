@@ -71,7 +71,7 @@ namespace gaia {
 		class ObserverBuilder;
 #endif
 		class World;
-		
+
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 		void world_finish_write(World& world, Entity term, Entity entity);
 		template <typename T>
@@ -660,14 +660,6 @@ namespace gaia {
 						bool resetTraversalCaches = false;
 					};
 
-					struct CollectMatchedEntity {
-						cnt::darray<Entity>* pOut = nullptr;
-
-						void operator()(Entity entity) const {
-							pOut->push_back(entity);
-						}
-					};
-
 					static void collect_query_matches(World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
 						out.clear();
 						if (!world.valid(obs.entity))
@@ -678,7 +670,7 @@ namespace gaia {
 							return;
 
 						obs.query.reset();
-						obs.query.each(CollectMatchedEntity{&out});
+						obs.query.collect_entities_enabled(out);
 
 						core::sort(out, [](Entity left, Entity right) {
 							return left.value() < right.value();

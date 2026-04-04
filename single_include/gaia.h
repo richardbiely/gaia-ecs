@@ -45577,6 +45577,99 @@ namespace gaia {
 					return entCnt;
 				}
 
+				void collect_entities_enabled(cnt::darray<Entity>& out) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					::gaia::ecs::update_version(*m_worldVersion);
+
+					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
+						auto& world = *queryInfo.world();
+						if (has_only_direct_or_terms(queryInfo)) {
+							for_each_direct_or_union<Iter>(world, queryInfo, [&](Entity entity) {
+								out.push_back(entity);
+								return true;
+							});
+						} else {
+							const auto plan = direct_entity_seed_plan(world, queryInfo);
+							(void)for_each_direct_all_seed<Iter>(world, queryInfo, plan, [&](Entity entity) {
+								out.push_back(entity);
+								return true;
+							});
+						}
+
+						m_changedWorldVersion = *m_worldVersion;
+						return;
+					}
+
+					const bool hasFilters = queryInfo.has_filters();
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					const auto cacheView = queryInfo.cache_archetype_view();
+					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
+
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr) {
+							m_changedWorldVersion = *m_worldVersion;
+							return;
+						}
+
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
+
+					Iter it;
+					it.set_world(queryInfo.world());
+					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
+						const auto* pArchetype = cacheView[qi];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(qi);
+						if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype, barrierPasses))
+							continue;
+
+						const auto& chunks = pArchetype->chunks();
+						if (!hasEntityFilters) {
+							for (auto* pChunk: chunks) {
+								const auto from = Iter::start_index(pChunk);
+								const auto to = Iter::end_index(pChunk);
+								if (from == to)
+									continue;
+								if (hasFilters && !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+
+								const auto oldSize = out.size();
+								const auto entityCnt = (uint32_t)(to - from);
+								const auto entities = pChunk->entity_view();
+								out.resize(oldSize + entityCnt);
+								GAIA_FOR(entityCnt) {
+									out[oldSize + i] = entities[from + i];
+								}
+							}
+							continue;
+						}
+
+						it.set_archetype(pArchetype);
+						for (auto* pChunk: chunks) {
+							it.set_chunk(pChunk);
+							const auto entityCnt = it.size();
+							if (entityCnt == 0)
+								continue;
+							if (hasFilters && !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+								continue;
+
+							const auto entities = it.view<Entity>();
+							GAIA_FOR(entityCnt) {
+								if (match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									out.push_back(entities[i]);
+							}
+						}
+					}
+
+					m_changedWorldVersion = *m_worldVersion;
+				}
+
 				//! Appends all components or entities matching the query to the output array
 				//! \tparam Container Container type
 				//! \param[out] outArray Container storing entities or components
@@ -48100,14 +48193,6 @@ namespace gaia {
 						bool resetTraversalCaches = false;
 					};
 
-					struct CollectMatchedEntity {
-						cnt::darray<Entity>* pOut = nullptr;
-
-						void operator()(Entity entity) const {
-							pOut->push_back(entity);
-						}
-					};
-
 					static void collect_query_matches(World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
 						out.clear();
 						if (!world.valid(obs.entity))
@@ -48118,7 +48203,7 @@ namespace gaia {
 							return;
 
 						obs.query.reset();
-						obs.query.each(CollectMatchedEntity{&out});
+						obs.query.collect_entities_enabled(out);
 
 						core::sort(out, [](Entity left, Entity right) {
 							return left.value() < right.value();
