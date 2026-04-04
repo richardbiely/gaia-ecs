@@ -19,13 +19,6 @@ namespace gaia {
 			bool isPair = false;
 		};
 
-		struct TypedQueryThunkSet {
-			void (*runDirectFastChunk)(detail::QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
-			void (*runDirectChunk)(detail::QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
-			void (*runMappedChunk)(detail::QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&) = nullptr;
-			void (*invokeInherited)(World&, Entity, const Entity*, void*) = nullptr;
-		};
-
 		template <typename T>
 		GAIA_NODISCARD inline TypedQueryArgMeta typed_query_arg_meta(World& world) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -83,6 +76,11 @@ namespace gaia {
 		inline void invoke_typed_query_args_by_id_erased(World& world, Entity entity, const Entity* pArgIds, void* pFunc) {
 			auto& func = *static_cast<Func*>(pFunc);
 			invoke_typed_query_args_by_id<T...>(world, entity, pArgIds, func, std::index_sequence_for<T...>{});
+		}
+
+		template <typename Func, typename... T>
+		GAIA_NODISCARD inline auto typed_invoke_inherited_ptr(core::func_type_list<T...>) {
+			return &invoke_typed_query_args_by_id_erased<Func, T...>;
 		}
 
 		inline void finish_typed_query_args_by_id(

@@ -85,28 +85,31 @@ namespace gaia {
 			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 			const auto argCount = init_typed_query_arg_metas(metas, m_world, InputArgs{});
 			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, metas, argCount);
-			const auto thunks = detail::build_typed_query_thunk_set<Func>(InputArgs{});
+			const auto runDirectChunk = detail::typed_run_direct_chunk_ptr<Func>(InputArgs{});
+			const auto runMappedChunk = detail::typed_run_mapped_chunk_ptr<Func>(InputArgs{});
+			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
 
 	#if GAIA_ASSERT_ENABLED
 			ctx.query.match_all(queryInfo);
 			GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));
 	#endif
 
-			ctx.on_each_func = [e = m_entity, func, execState, thunks](Iter& it) mutable {
+			ctx.on_each_func = [e = m_entity, func, execState, runDirectChunk, runMappedChunk, invokeInherited](
+									 Iter& it) mutable {
 				auto& obs = it.world()->observers().data(e);
 				auto& world = *it.world();
 				const auto entity = it.view<Entity>()[0];
 				auto& queryInfo = obs.query.fetch();
 				if (execState.hasInheritedTerms) {
-					thunks.invokeInherited(world, entity, execState.argIds, &func);
+					invokeInherited(world, entity, execState.argIds, &func);
 					finish_typed_query_args_by_id(world, entity, execState.argIds, execState.writeFlags, execState.argCount);
 					return;
 				}
 
 				if (execState.canUseDirectChunkEval)
-					thunks.runDirectChunk(obs.query, it, &func, execState);
+					runDirectChunk(obs.query, it, &func, execState);
 				else
-					thunks.runMappedChunk(obs.query, queryInfo, it, &func, execState);
+					runMappedChunk(obs.query, queryInfo, it, &func, execState);
 			};
 
 			return *this;

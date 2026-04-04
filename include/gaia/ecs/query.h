@@ -101,7 +101,6 @@ namespace gaia {
 
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
-		struct TypedQueryThunkSet;
 
 		namespace detail {
 			template <typename Func>
@@ -2269,8 +2268,10 @@ namespace gaia {
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
 
 				template <QueryExecType ExecType>
-				void each_typed_inter_erased(
-						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state, const TypedQueryThunkSet& thunks);
+				void each_iter_inter_erased(
+						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
+						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
 
 				template <typename TIter>
 				void each_walk_inter(
@@ -4360,8 +4361,15 @@ namespace gaia {
 				template <typename TIter, typename Func>
 				void each_iter(TIter& it, Func func);
 
-				void
-				each_iter_erased(Iter& it, void* pFunc, const TypedQueryExecState& state, const TypedQueryThunkSet& thunks);
+				void each_iter_erased(
+						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
+						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
+
+				void each_iter_erased(
+						Iter& it, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
+						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
 
 				//------------------------------------------------
 

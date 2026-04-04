@@ -660,6 +660,14 @@ namespace gaia {
 						bool resetTraversalCaches = false;
 					};
 
+					struct CollectMatchedEntity {
+						cnt::darray<Entity>* pOut = nullptr;
+
+						void operator()(Entity entity) const {
+							pOut->push_back(entity);
+						}
+					};
+
 					static void collect_query_matches(World& world, ObserverRuntimeData& obs, cnt::darray<Entity>& out) {
 						out.clear();
 						if (!world.valid(obs.entity))
@@ -670,9 +678,7 @@ namespace gaia {
 							return;
 
 						obs.query.reset();
-						obs.query.each([&](Entity entity) {
-							out.push_back(entity);
-						});
+						obs.query.each(CollectMatchedEntity{&out});
 
 						core::sort(out, [](Entity left, Entity right) {
 							return left.value() < right.value();
@@ -12591,6 +12597,31 @@ namespace gaia {
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
+		namespace detail {
+			struct RunSystemEntity {
+				World* pWorld = nullptr;
+
+				void operator()(Entity systemEntity) const {
+					if (!pWorld->valid(systemEntity) || !pWorld->has(systemEntity, System))
+						return;
+					if (!pWorld->enabled_hierarchy(systemEntity, ChildOf))
+						return;
+
+					auto ss = pWorld->acc_mut(systemEntity);
+					auto& sys = ss.smut<ecs::System_>();
+					sys.exec();
+				}
+			};
+
+			struct CollectSystemEntity {
+				cnt::darray<Entity>* pOut = nullptr;
+
+				void operator()(Entity systemEntity) const {
+					pOut->push_back(systemEntity);
+				}
+			};
+		} // namespace detail
+
 		inline void World::systems_init() {
 			m_systemsQuery = query().all(System).depth_order(DependsOn);
 		}
@@ -12599,23 +12630,12 @@ namespace gaia {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
 
-			m_systemsQuery.each([&](Entity systemEntity) {
-				if (!valid(systemEntity) || !has(systemEntity, System))
-					return;
-				if (!enabled_hierarchy(systemEntity, ChildOf))
-					return;
-
-				auto ss = acc_mut(systemEntity);
-				auto& sys = ss.smut<ecs::System_>();
-				sys.exec();
-			});
+			m_systemsQuery.each(detail::RunSystemEntity{this});
 		}
 
 		inline void World::systems_done() {
 			cnt::darray<Entity> tmpEntities;
-			m_systemsQuery.each([&](Entity systemEntity) {
-				tmpEntities.push_back(systemEntity);
-			});
+			m_systemsQuery.each(detail::CollectSystemEntity{&tmpEntities});
 
 			// Wait for every outstanding system job before mutating any system runtime state.
 			// This keeps dependency chains intact while jobs are still live.
