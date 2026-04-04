@@ -43356,40 +43356,37 @@ namespace gaia {
 
 				template <QueryExecType ExecType, typename Func>
 				void each_runtime_inter(Func func) {
+					if constexpr (std::is_invocable_v<Func, IterAll&>)
+						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, IterAll>);
+					else if constexpr (std::is_invocable_v<Func, Iter&>)
+						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>);
+					else if constexpr (std::is_invocable_v<Func, IterDisabled&>)
+						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, IterDisabled>);
+				}
+
+				template <typename Func, typename TIter>
+				static void invoke_runtime_iter(void* pFunc, TIter& it) {
+					auto& func = *static_cast<Func*>(pFunc);
+					func(it);
+				}
+
+				template <QueryExecType ExecType, typename TIter>
+				void each_runtime_erased(void* pFunc, void (*invoke)(void*, TIter&)) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-							GAIA_PROF_SCOPE(query_func);
-							each_direct_iter_inter<IterAll>(queryInfo, func);
-							return;
-						}
-						run_query_on_chunks<ExecType, IterAll>(queryInfo, [&](IterAll& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						GAIA_PROF_SCOPE(query_func);
+						each_direct_iter_inter<TIter>(queryInfo, [&](TIter& it) {
+							invoke(pFunc, it);
 						});
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-							GAIA_PROF_SCOPE(query_func);
-							each_direct_iter_inter<Iter>(queryInfo, func);
-							return;
-						}
-						run_query_on_chunks<ExecType, Iter>(queryInfo, [&](Iter& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-							GAIA_PROF_SCOPE(query_func);
-							each_direct_iter_inter<IterDisabled>(queryInfo, func);
-							return;
-						}
-						run_query_on_chunks<ExecType, IterDisabled>(queryInfo, [&](IterDisabled& it) {
-							GAIA_PROF_SCOPE(query_func);
-							func(it);
-						});
+						return;
 					}
+
+					run_query_on_chunks<ExecType, TIter>(queryInfo, [&](TIter& it) {
+						GAIA_PROF_SCOPE(query_func);
+						invoke(pFunc, it);
+					});
 				}
 
 				//------------------------------------------------
