@@ -1776,6 +1776,8 @@ This affects the iterator directly:
 
 In `AcceptAll` mode, disabled rows come first and enabled rows follow them inside the iterator view. In `EnabledOnly` and `DisabledOnly` modes, the iterator is already filtered, so there is usually no reason to branch on `it.enabled(i)` inside the loop.
 
+`i` is always local to the iterator window, not an absolute row inside the chunk. That means `p[i]`, `v[i]`, and `it.enabled(i)` all operate on the currently visible subset selected by the constraint.
+
 ```cpp
 ecs::Query q = w.query();
   .all<Position&>()
