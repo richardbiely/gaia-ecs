@@ -1762,21 +1762,31 @@ The iterator exposes two families of accessors:
 
 Use plain `view*` whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the `*_any` variant explicitly.
 
-There are three types of iterators:
-1) `Iter` - iterates over enabled entities
-2) `IterDisabled` - iterates over disabled entities
-3) `IterAll` - iterates over all entities
+Iterator behavior can be controlled via `Constraints`.
+
+`Constraints` decide which subset of rows inside the current chunk the iterator exposes:
+* `ecs::Constraints::EnabledOnly` - only enabled entities are visible
+* `ecs::Constraints::DisabledOnly` - only disabled entities are visible
+* `ecs::Constraints::AcceptAll` - both disabled and enabled entities are visible
+
+This affects the iterator directly:
+* `it.size()` returns the number of rows visible under the selected constraint
+* `GAIA_EACH(it)` iterates only over those visible rows
+* `it.enabled(i)` reports whether the currently visible row is enabled
+
+In `AcceptAll` mode, disabled rows come first and enabled rows follow them inside the iterator view. In `EnabledOnly` and `DisabledOnly` modes, the iterator is already filtered, so there is usually no reason to branch on `it.enabled(i)` inside the loop.
 
 ```cpp
 ecs::Query q = w.query();
   .all<Position&>()
   .all<Velocity>();
 
-q.each([](ecs::IterAll& it) {
+q.each([](ecs::Iter& it) {
   auto p = it.view_mut<Position>(); // Read-write access to Position
   auto v = it.view<Velocity>(); // Read-only access to Velocity
 
-  // Iterate over all enabled entities and update their x-axis position.
+  // AcceptAll exposes both disabled and enabled rows.
+  // Disabled rows come first, so enabled(i) is relevant here.
   // GAIA_EACH(it) translates to: for (uint32_t i=0; i<it.size(); ++i)
   GAIA_EACH(it) {
     if (!it.enabled(i))
@@ -1790,7 +1800,7 @@ q.each([](ecs::IterAll& it) {
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
   }
-});
+}, ecs::Constraints::AcceptAll);
 ```
 
 Performance of views can be improved slightly by explicitly providing the index of the component in the query.
@@ -1802,18 +1812,27 @@ q.any<Something>()
  .all<Position&>()
  .all<Velocity>();
 
-q.each([](ecs::IterAll& it) {
+q.each([](ecs::Iter& it) {
   auto s = it.view<Something>(0); // Something is fhe first defined component in the query
   auto p = it.view_mut<Position>(1); // Position is the second defined component in the query
   auto v = it.view<Velocity>(2); // Velocity is the third defined component in the query
   ....
-}
+}, ecs::Constraints::AcceptAll);
 ```
 
 >**NOTE:**<br/>The functor accepting an iterator can be called any number of times per one `Query::each`. Currently, the functor is invoked once per archetype chunk that matches the query. In the future, this can change. Therefore, it is best to make no assumptions about it and simply expect that the functor might be triggered multiple times per call to `each`.
 
 ### Constraints
-Query behavior can also be modified by setting constraints. By default, only enabled entities are taken into account. However, by changing constraints, we can filter disabled entities exclusively or make the query consider both enabled and disabled entities at the same time.
+By default, Gaia queries operate on enabled entities only. `Constraints` let you switch that row-selection behavior without changing archetypes:
+
+* `ecs::Constraints::EnabledOnly`
+  The default. `Iter` exposes only enabled rows. `it.size()` is the enabled count.
+* `ecs::Constraints::DisabledOnly`
+  `Iter` exposes only disabled rows. `it.size()` is the disabled count.
+* `ecs::Constraints::AcceptAll`
+  `Iter` exposes the whole chunk slice. Disabled rows are first, enabled rows are after them.
+
+The important consequence is that constraints are not just a post-filter on callback invocation. They change the visible iterator window itself.
 
 Disabling or enabling an entity is a special operation that is invisible to queries. The entity’s archetype is not changed, so the operation is fast.
 
@@ -1841,30 +1860,33 @@ cnt::darray<ecs::Entity> entities;
 q.arr(entities);
 
 // Fills the array with both e1 and e2.
-q.arr(entities, ecs::Query::Constraint::AcceptAll);
+q.arr(entities, ecs::Constraints::AcceptAll);
 
 // Fills the array with only e1 because e1 is disabled.
-q.arr(entities, ecs::Query::Constraint::DisabledOnly);
+q.arr(entities, ecs::Constraints::DisabledOnly);
 
 q.each([](ecs::Iter& it) {
   auto p = it.view_mut<Position>(); // Read-Write access to Position
-  // Iterates over enabled entities
+  // Iterates only over enabled entities.
+  // Every row seen by the iterator is enabled.
   GAIA_EACH(it) p[i] = {}; // reset the position of each enabled entity
 });
-q.each([](ecs::IterDisabled& it) {
+q.each([](ecs::Iter& it) {
   auto p = it.view_mut<Position>(); // Read-Write access to Position
-  // Iterates over disabled entities
+  // Iterates only over disabled entities.
+  // Every row seen by the iterator is disabled.
   GAIA_EACH(it) p[i] = {}; // reset the position of each disabled entity
-});
-q.each([](ecs::IterAll& it) {
+}, ecs::Constraints::DisabledOnly);
+q.each([](ecs::Iter& it) {
   auto p = it.view_mut<Position>(); // Read-Write access to Position
-  // Iterates over all entities
+  // Iterates over both disabled and enabled entities.
+  // In this mode, use enabled(i) if the two subsets need different handling.
   GAIA_EACH(it) {
     if (it.enabled(i)) {
       p[i] = {}; // reset the position of each enabled entity
     }
   }
-});
+}, ecs::Constraints::AcceptAll);
 ```
 
 If you do not wish to fragment entities inside the chunk you can simply create a tag component and assign it to your entity. This will move the entity to a new archetype so it is a lot slower. However, because disabled entities are now clearly separated calling some query operations might be slightly faster (no need to check if the entity is disabled or not internally).

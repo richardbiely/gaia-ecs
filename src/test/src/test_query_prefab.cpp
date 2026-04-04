@@ -52,13 +52,13 @@ TEST_CASE("Enable") {
 		auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 			{
 				uint32_t cnt = 0;
-				q.each([&]([[maybe_unused]] ecs::IterAll& it) {
+				q.each([&]([[maybe_unused]] ecs::Iter& it) {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it)++ c;
 					CHECK(c == cExpected);
 					cnt += c;
-				});
+				}, ecs::Constraints::AcceptAll);
 				CHECK(cnt == expectedCountAll);
 
 				cnt = q.count(ecs::Constraints::AcceptAll);
@@ -83,7 +83,7 @@ TEST_CASE("Enable") {
 			}
 			{
 				uint32_t cnt = 0;
-				q.each([&]([[maybe_unused]] ecs::IterDisabled& it) {
+				q.each([&]([[maybe_unused]] ecs::Iter& it) {
 					const uint32_t cExpected = it.size();
 					uint32_t c = 0;
 					GAIA_EACH(it) {
@@ -92,7 +92,7 @@ TEST_CASE("Enable") {
 					}
 					CHECK(c == cExpected);
 					cnt += c;
-				});
+				}, ecs::Constraints::DisabledOnly);
 				CHECK(cnt == expectedCountDisabled);
 
 				cnt = q.count(ecs::Constraints::DisabledOnly);

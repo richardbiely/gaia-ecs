@@ -40,8 +40,42 @@ namespace gaia {
 		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
 
 		namespace detail {
-			template <Constraints IterConstraint>
-			struct ChunkIterTypedOps;
+			class ChunkIterImpl;
+
+			struct IterTermDesc {
+				Entity termId = EntityBad;
+				bool isEntity = false;
+				bool isOutOfLine = false;
+			};
+
+			struct ChunkIterTypedOps {
+				template <typename T>
+				static IterTermDesc term_desc(const ChunkIterImpl& self);
+				template <typename T>
+				static auto view_any(const ChunkIterImpl& self);
+				template <typename T>
+				static auto view_any(ChunkIterImpl& self, uint32_t termIdx);
+				template <typename T>
+				static auto view(const ChunkIterImpl& self);
+				template <typename T>
+				static auto view(const ChunkIterImpl& self, uint32_t termIdx);
+				template <typename T>
+				static auto view_any_mut(ChunkIterImpl& self);
+				template <typename T>
+				static auto view_mut(ChunkIterImpl& self);
+				template <typename T>
+				static auto view_mut(ChunkIterImpl& self, uint32_t termIdx);
+				template <typename T>
+				static auto view_any_mut(ChunkIterImpl& self, uint32_t termIdx);
+				template <typename T>
+				static auto sview_any_mut(ChunkIterImpl& self);
+				template <typename T>
+				static auto sview_mut(ChunkIterImpl& self);
+				template <typename T>
+				static auto sview_mut(ChunkIterImpl& self, uint32_t termIdx);
+				template <typename T>
+				static auto sview_any_mut(ChunkIterImpl& self, uint32_t termIdx);
+			};
 
 			struct BfsChunkRun {
 				const Archetype* pArchetype = nullptr;
@@ -815,9 +849,8 @@ namespace gaia {
 				}
 			};
 
-			template <Constraints IterConstraint>
 			class ChunkIterImpl {
-				friend struct ChunkIterTypedOps<IterConstraint>;
+				friend struct ChunkIterTypedOps;
 
 			protected:
 				using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
@@ -836,6 +869,8 @@ namespace gaia {
 				const Entity* m_pTermIdMapping = nullptr;
 				//! Whether mutable access should finish writes immediately or defer them until the callback returns.
 				bool m_writeIm = true;
+				//! Which entity subset the iterator currently exposes from the chunk.
+				Constraints m_constraints = Constraints::EnabledOnly;
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
 				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS]{};
 				uint8_t m_touchedCompCnt = 0;
@@ -894,16 +929,8 @@ namespace gaia {
 					GAIA_ASSERT(pChunk != nullptr);
 					m_pChunk = pChunk;
 					m_entitySnapshotValid = false;
-
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
-						m_from = m_pChunk->size_disabled();
-					else
-						m_from = 0;
-
-					if constexpr (IterConstraint == Constraints::DisabledOnly)
-						m_to = m_pChunk->size_disabled();
-					else
-						m_to = m_pChunk->size();
+					m_from = start_index(m_pChunk, m_constraints);
+					m_to = end_index(m_pChunk, m_constraints);
 				}
 
 				void set_chunk(Chunk* pChunk, uint16_t from, uint16_t to) {
@@ -953,8 +980,21 @@ namespace gaia {
 					clear_touched_writes();
 				}
 
+				void set_constraints(Constraints constraints) {
+					m_constraints = constraints;
+					if (m_pChunk != nullptr) {
+						m_from = start_index(m_pChunk, m_constraints);
+						m_to = end_index(m_pChunk, m_constraints);
+						m_entitySnapshotValid = false;
+					}
+				}
+
 				GAIA_NODISCARD bool write_im() const {
 					return m_writeIm;
+				}
+
+				GAIA_NODISCARD Constraints constraints() const {
+					return m_constraints;
 				}
 
 				void clear_touched_writes() {
@@ -1021,12 +1061,6 @@ namespace gaia {
 					return cmd_buffer_mt_get(*pWorld);
 				}
 
-				struct IterTermDesc {
-					Entity termId = EntityBad;
-					bool isEntity = false;
-					bool isOutOfLine = false;
-				};
-
 				GAIA_NODISCARD IterTermDesc resolved_term_desc(uint32_t termIdx, IterTermDesc desc) const {
 					if (m_pTermIdMapping != nullptr) {
 						const auto mappedTermId = m_pTermIdMapping[termIdx];
@@ -1079,7 +1113,7 @@ namespace gaia {
 				//! \return Entity of component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view_any() const {
-					return ChunkIterTypedOps<IterConstraint>::template view_any<T>(*this);
+					return ChunkIterTypedOps::template view_any<T>(*this);
 				}
 
 				//! Returns a read-only entity or component view for a query-term index that can resolve non-direct storage.
@@ -1091,7 +1125,7 @@ namespace gaia {
 				//! \return Entity or component view with read-only access
 				template <typename T>
 				GAIA_NODISCARD auto view_any(uint32_t termIdx) {
-					return ChunkIterTypedOps<IterConstraint>::template view_any<T>(*this, termIdx);
+					return ChunkIterTypedOps::template view_any<T>(*this, termIdx);
 				}
 
 				//! Returns a read-only entity or component view for the owned chunk-backed fast path.
@@ -1104,7 +1138,7 @@ namespace gaia {
 				//! \return Direct read-only entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view() const {
-					return ChunkIterTypedOps<IterConstraint>::template view<T>(*this);
+					return ChunkIterTypedOps::template view<T>(*this);
 				}
 
 				//! Returns a read-only entity or component view for a query-term owned chunk-backed term.
@@ -1117,7 +1151,7 @@ namespace gaia {
 				//! \return Direct read-only entity or component view
 				template <typename T>
 				GAIA_NODISCARD auto view(uint32_t termIdx) const {
-					return ChunkIterTypedOps<IterConstraint>::template view<T>(*this, termIdx);
+					return ChunkIterTypedOps::template view<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable entity or component view that can resolve non-direct storage.
@@ -1128,7 +1162,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_any_mut() {
-					return ChunkIterTypedOps<IterConstraint>::template view_any_mut<T>(*this);
+					return ChunkIterTypedOps::template view_any_mut<T>(*this);
 				}
 
 				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
@@ -1139,7 +1173,7 @@ namespace gaia {
 				//! \return Direct entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut() {
-					return ChunkIterTypedOps<IterConstraint>::template view_mut<T>(*this);
+					return ChunkIterTypedOps::template view_mut<T>(*this);
 				}
 
 				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
@@ -1152,7 +1186,7 @@ namespace gaia {
 				//! \return Direct entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_mut(uint32_t termIdx) {
-					return ChunkIterTypedOps<IterConstraint>::template view_mut<T>(*this, termIdx);
+					return ChunkIterTypedOps::template view_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable entity or component view for a query-term index that can resolve non-direct storage.
@@ -1165,7 +1199,7 @@ namespace gaia {
 				//! \return Entity or component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto view_any_mut(uint32_t termIdx) {
-					return ChunkIterTypedOps<IterConstraint>::template view_any_mut<T>(*this, termIdx);
+					return ChunkIterTypedOps::template view_any_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable component view that can resolve non-direct storage.
@@ -1177,7 +1211,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_any_mut() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_any_mut<T>(*this);
+					return ChunkIterTypedOps::template sview_any_mut<T>(*this);
 				}
 
 				//! Returns a mutable component view for the owned chunk-backed fast path.
@@ -1188,7 +1222,7 @@ namespace gaia {
 				//! \return Direct component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut() {
-					return ChunkIterTypedOps<IterConstraint>::template sview_mut<T>(*this);
+					return ChunkIterTypedOps::template sview_mut<T>(*this);
 				}
 
 				//! Returns a mutable component view for a query-term owned chunk-backed term.
@@ -1201,7 +1235,7 @@ namespace gaia {
 				//! \return Direct component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_mut(uint32_t termIdx) {
-					return ChunkIterTypedOps<IterConstraint>::template sview_mut<T>(*this, termIdx);
+					return ChunkIterTypedOps::template sview_mut<T>(*this, termIdx);
 				}
 
 				//! Returns a mutable component view for a query-term index that can resolve non-direct storage.
@@ -1214,7 +1248,7 @@ namespace gaia {
 				//! \return Component view with read-write access
 				template <typename T>
 				GAIA_NODISCARD auto sview_any_mut(uint32_t termIdx) {
-					return ChunkIterTypedOps<IterConstraint>::template sview_any_mut<T>(*this, termIdx);
+					return ChunkIterTypedOps::template sview_any_mut<T>(*this, termIdx);
 				}
 
 				//! Marks the component @a T as modified. Best used with sview to manually trigger
@@ -1318,27 +1352,24 @@ namespace gaia {
 					return m_pChunk->template has<T>();
 				}
 
-				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
+				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk, Constraints constraints) noexcept {
+					if (constraints == Constraints::EnabledOnly)
 						return pChunk->size_disabled();
-					else
-						return 0;
+					return 0;
 				}
 
-				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-					if constexpr (IterConstraint == Constraints::DisabledOnly)
-						return pChunk->size_enabled();
-					else
-						return pChunk->size();
+				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk, Constraints constraints) noexcept {
+					if (constraints == Constraints::DisabledOnly)
+						return pChunk->size_disabled();
+					return pChunk->size();
 				}
 
-				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-					if constexpr (IterConstraint == Constraints::EnabledOnly)
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk, Constraints constraints) noexcept {
+					if (constraints == Constraints::EnabledOnly)
 						return pChunk->size_enabled();
-					else if constexpr (IterConstraint == Constraints::DisabledOnly)
+					if (constraints == Constraints::DisabledOnly)
 						return pChunk->size_disabled();
-					else
-						return pChunk->size();
+					return pChunk->size();
 				}
 
 				//! Returns the number of entities accessible via the iterator
@@ -1381,15 +1412,28 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		//! Iterator for iterating enabled entities
-		class GAIA_API Iter final: public detail::ChunkIterImpl<Constraints::EnabledOnly> {};
-		//! Iterator for iterating disabled entities
-		class GAIA_API IterDisabled final: public detail::ChunkIterImpl<Constraints::DisabledOnly> {};
-
-		//! Iterator for iterating both enabled and disabled entities.
-		//! Disabled entities always precede enabled ones.
-		class GAIA_API IterAll final: public detail::ChunkIterImpl<Constraints::AcceptAll> {
+		//! Iterator for iterating entity subsets selected by Constraints.
+		//! Disabled entities always precede enabled ones in AcceptAll mode.
+		class GAIA_API Iter: public detail::ChunkIterImpl {
 		public:
+			using detail::ChunkIterImpl::size;
+
+			Iter() {
+				set_constraints(Constraints::EnabledOnly);
+			}
+
+			GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
+				return detail::ChunkIterImpl::start_index(pChunk, Constraints::EnabledOnly);
+			}
+
+			GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
+				return detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
+			}
+
+			GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+				return detail::ChunkIterImpl::size(pChunk, Constraints::EnabledOnly);
+			}
+
 			//! Returns the number of enabled entities accessible via the iterator.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
 				return m_pChunk->size_enabled();
@@ -1401,6 +1445,50 @@ namespace gaia {
 				return m_pChunk->size_disabled();
 			}
 		};
+
+		namespace detail {
+			class IterDisabledOnly final: public Iter {
+			public:
+				using Iter::size;
+
+				IterDisabledOnly() {
+					this->set_constraints(Constraints::DisabledOnly);
+				}
+
+				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::start_index(pChunk, Constraints::DisabledOnly);
+				}
+
+				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::end_index(pChunk, Constraints::DisabledOnly);
+				}
+
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::size(pChunk, Constraints::DisabledOnly);
+				}
+			};
+
+			class IterAcceptAll final: public Iter {
+			public:
+				using Iter::size;
+
+				IterAcceptAll() {
+					this->set_constraints(Constraints::AcceptAll);
+				}
+
+				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::start_index(pChunk, Constraints::AcceptAll);
+				}
+
+				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::end_index(pChunk, Constraints::AcceptAll);
+				}
+
+				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
+					return ChunkIterImpl::size(pChunk, Constraints::AcceptAll);
+				}
+			};
+		} // namespace detail
 
 		//! Iterator used when copying entities.
 		class GAIA_API CopyIter final {

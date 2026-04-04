@@ -900,10 +900,10 @@ namespace gaia {
 				if (state.canUseDirectChunkEval) {
 					switch (constraints) {
 						case Constraints::DisabledOnly:
-							each_walk_dispatch_direct<IterDisabled>(*this, queryInfo, ordered, func, state, InputArgs{});
+							each_walk_dispatch_direct<detail::IterDisabledOnly>(*this, queryInfo, ordered, func, state, InputArgs{});
 							break;
 						case Constraints::AcceptAll:
-							each_walk_dispatch_direct<IterAll>(*this, queryInfo, ordered, func, state, InputArgs{});
+							each_walk_dispatch_direct<detail::IterAcceptAll>(*this, queryInfo, ordered, func, state, InputArgs{});
 							break;
 						default:
 							each_walk_dispatch_direct<Iter>(*this, queryInfo, ordered, func, state, InputArgs{});
@@ -912,10 +912,10 @@ namespace gaia {
 				} else {
 					switch (constraints) {
 						case Constraints::DisabledOnly:
-							each_walk_dispatch_mapped<IterDisabled>(*this, queryInfo, ordered, func, state, InputArgs{});
+							each_walk_dispatch_mapped<detail::IterDisabledOnly>(*this, queryInfo, ordered, func, state, InputArgs{});
 							break;
 						case Constraints::AcceptAll:
-							each_walk_dispatch_mapped<IterAll>(*this, queryInfo, ordered, func, state, InputArgs{});
+							each_walk_dispatch_mapped<detail::IterAcceptAll>(*this, queryInfo, ordered, func, state, InputArgs{});
 							break;
 						default:
 							each_walk_dispatch_mapped<Iter>(*this, queryInfo, ordered, func, state, InputArgs{});
@@ -1018,10 +1018,10 @@ namespace gaia {
 							arr_inter<true, Iter>(queryInfo, outArray);
 							break;
 						case Constraints::DisabledOnly:
-							arr_inter<true, IterDisabled>(queryInfo, outArray);
+							arr_inter<true, detail::IterDisabledOnly>(queryInfo, outArray);
 							break;
 						case Constraints::AcceptAll:
-							arr_inter<true, IterAll>(queryInfo, outArray);
+							arr_inter<true, detail::IterAcceptAll>(queryInfo, outArray);
 							break;
 					}
 				} else {
@@ -1030,10 +1030,10 @@ namespace gaia {
 							arr_inter<false, Iter>(queryInfo, outArray);
 							break;
 						case Constraints::DisabledOnly:
-							arr_inter<false, IterDisabled>(queryInfo, outArray);
+							arr_inter<false, detail::IterDisabledOnly>(queryInfo, outArray);
 							break;
 						case Constraints::AcceptAll:
-							arr_inter<false, IterAll>(queryInfo, outArray);
+							arr_inter<false, detail::IterAcceptAll>(queryInfo, outArray);
 							break;
 					}
 				}

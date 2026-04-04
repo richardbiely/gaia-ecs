@@ -116,7 +116,7 @@ void bench_query_each(picobench::state& state, ecs::Query& query) {
 	}
 }
 
-template <typename TIter, typename TQuery>
+template <ecs::Constraints Constraints, typename TQuery>
 void bench_query_each_iter(picobench::state& state, TQuery& query) {
 	GAIA_PROF_SCOPE(bench_query_each_iter);
 
@@ -132,9 +132,9 @@ void bench_query_each_iter(picobench::state& state, TQuery& query) {
 		state.start_timer();
 
 		uint32_t iters = 0;
-		query.each([&](TIter& it) {
+		query.each([&](ecs::Iter& it) {
 			iters += it.size();
-		});
+		}, Constraints);
 		gaia::dont_optimize(iters);
 
 		state.stop_timer();
@@ -316,14 +316,14 @@ DEFINE_EACH(1, 1, 1)
 DEFINE_EACH(100, 10, 1)
 DEFINE_EACH(1000, 10, 1)
 
-template <bool UseCachedQuery, uint32_t QueryComponents, typename IterKind>
+template <bool UseCachedQuery, uint32_t QueryComponents, ecs::Constraints Constraints>
 void BM_Each_Iter(picobench::state& state, uint32_t ArchetypeCount, uint32_t MaxIdsPerArchetype) {
 	ecs::World w;
 	auto types = create_archetypes<true>(w, ArchetypeCount, MaxIdsPerArchetype, nullptr);
 	ecs::Entity tmp[QueryComponents];
 	prepare_query_types({types.data(), types.size()}, tmp);
 	auto query = create_query<UseCachedQuery>(w, tmp);
-	bench_query_each_iter<IterKind>(state, query);
+	bench_query_each_iter<Constraints>(state, query);
 }
 
 template <uint32_t NViews, bool ViewWithIndex>
@@ -408,15 +408,15 @@ void BM_Each_View(picobench::state& state) {
 	bench_query_each_view<NViews, ViewWithIndex>(state, w);
 }
 
-#define DEFINE_EACH_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                                \
-	void BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                            \
-		GAIA_PROF_SCOPE(BM_Each_##IterKind##_##ArchetypeCount##_##QueryComponents);                                        \
-		BM_Each_Iter<true, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                     \
+#define DEFINE_EACH_ITER(Name, Constraints, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                      \
+	void BM_Each_##Name##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                                \
+		GAIA_PROF_SCOPE(BM_Each_##Name##_##ArchetypeCount##_##QueryComponents);                                            \
+		BM_Each_Iter<true, QueryComponents, Constraints>(state, ArchetypeCount, MaxIdsPerArchetype);                      \
 	}
-#define DEFINE_EACH_U_ITER(IterKind, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                              \
-	void BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                          \
-		GAIA_PROF_SCOPE(BM_Each_U_##IterKind##_##ArchetypeCount##_##QueryComponents);                                      \
-		BM_Each_Iter<false, QueryComponents, ecs::IterKind>(state, ArchetypeCount, MaxIdsPerArchetype);                    \
+#define DEFINE_EACH_U_ITER(Name, Constraints, ArchetypeCount, MaxIdsPerArchetype, QueryComponents)                    \
+	void BM_Each_U_##Name##_##ArchetypeCount##_##QueryComponents(picobench::state& state) {                              \
+		GAIA_PROF_SCOPE(BM_Each_U_##Name##_##ArchetypeCount##_##QueryComponents);                                          \
+		BM_Each_Iter<false, QueryComponents, Constraints>(state, ArchetypeCount, MaxIdsPerArchetype);                     \
 	}
 
 #define DEFINE_EACH_VIEW(NViews, ViewWithIndex)                                                                        \
@@ -425,25 +425,25 @@ void BM_Each_View(picobench::state& state) {
 		BM_Each_View<NViews, ViewWithIndex>(state);                                                                        \
 	}
 
-DEFINE_EACH_ITER(IterAll, 1, 1, 1)
-DEFINE_EACH_ITER(Iter, 1, 1, 1)
-DEFINE_EACH_U_ITER(Iter, 1, 1, 1)
+DEFINE_EACH_ITER(IterAcceptAll, ecs::Constraints::AcceptAll, 1, 1, 1)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 1, 1, 1)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 1, 1, 1)
 
-DEFINE_EACH_ITER(IterAll, 100, 10, 1)
-DEFINE_EACH_ITER(Iter, 100, 10, 1)
-DEFINE_EACH_U_ITER(Iter, 100, 10, 1)
+DEFINE_EACH_ITER(IterAcceptAll, ecs::Constraints::AcceptAll, 100, 10, 1)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 100, 10, 1)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 100, 10, 1)
 
-DEFINE_EACH_ITER(IterAll, 1000, 10, 1)
-DEFINE_EACH_ITER(Iter, 1000, 10, 1)
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 1)
+DEFINE_EACH_ITER(IterAcceptAll, ecs::Constraints::AcceptAll, 1000, 10, 1)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 1)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 1)
 
-DEFINE_EACH_ITER(Iter, 1000, 10, 3)
-DEFINE_EACH_ITER(Iter, 1000, 10, 5)
-DEFINE_EACH_ITER(Iter, 1000, 10, 7)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 3)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 5)
+DEFINE_EACH_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 7)
 
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 3)
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 5)
-DEFINE_EACH_U_ITER(Iter, 1000, 10, 7)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 3)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 5)
+DEFINE_EACH_U_ITER(Iter, ecs::Constraints::EnabledOnly, 1000, 10, 7)
 
 DEFINE_EACH_VIEW(1, false)
 DEFINE_EACH_VIEW(1, true)
@@ -476,17 +476,17 @@ void register_legacy_iter(PerfRunMode mode) {
 		case PerfRunMode::Normal:
 			PICOBENCH_SUITE_REG("1 archetype");
 			PICOBENCH_REG(BM_Each_1_1).PICO_SETTINGS().label("each, 1 comp");
-			PICOBENCH_REG(BM_Each_IterAll_1_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAcceptAll_1_1).PICO_SETTINGS().label("Iter AcceptAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_1_1).PICO_SETTINGS().label("Iter, 1 comp");
 			PICOBENCH_REG(BM_Each_U_Iter_1_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("100 archetypes");
 			PICOBENCH_REG(BM_Each_100_1).PICO_SETTINGS().label("each, 1 comp");
-			PICOBENCH_REG(BM_Each_IterAll_100_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAcceptAll_100_1).PICO_SETTINGS().label("Iter AcceptAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_100_1).PICO_SETTINGS().label("Iter, 1 comp");
 			PICOBENCH_REG(BM_Each_U_Iter_100_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("1000 archetypes");
 			PICOBENCH_REG(BM_Each_1000_1).PICO_SETTINGS().label("each, 1 comp");
-			PICOBENCH_REG(BM_Each_IterAll_1000_1).PICO_SETTINGS().label("IterAll, 1 comp");
+			PICOBENCH_REG(BM_Each_IterAcceptAll_1000_1).PICO_SETTINGS().label("Iter AcceptAll, 1 comp");
 			PICOBENCH_REG(BM_Each_Iter_1000_1).PICO_SETTINGS().label("Iter, 1 comp");
 			PICOBENCH_REG(BM_Each_U_Iter_1000_1).PICO_SETTINGS().label("(u) Iter, 1 comp");
 			PICOBENCH_SUITE_REG("1000 archetypes, Iter");

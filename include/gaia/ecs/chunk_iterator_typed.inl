@@ -3,13 +3,10 @@
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			template <Constraints IterConstraint>
-			struct ChunkIterTypedOps {
-				template <typename T>
-				static auto term_desc(const ChunkIterImpl<IterConstraint>& self) ->
-						typename ChunkIterImpl<IterConstraint>::IterTermDesc {
+			template <typename T>
+			IterTermDesc ChunkIterTypedOps::term_desc(const ChunkIterImpl& self) {
 					using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
-					typename ChunkIterImpl<IterConstraint>::IterTermDesc desc;
+					IterTermDesc desc;
 					if constexpr (std::is_same_v<Arg, Entity>) {
 						desc.termId = EntityBad;
 						desc.isEntity = true;
@@ -28,13 +25,13 @@ namespace gaia {
 					return desc;
 				}
 
-				template <typename T>
-				static auto view_any(const ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_any(const ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 						return self.m_pChunk->template view<T>(self.from(), self.to());
 					else {
-						const auto desc = term_desc<T>(self);
+						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
@@ -46,15 +43,15 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view_any(ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_any(ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
 							const auto* pEntities = self.m_pChunk->entity_view().data() + self.from();
-							const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+							const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 							GAIA_ASSERT(desc.termId != EntityBad);
 							return SoATermViewGet<U>{nullptr,			0, pEntities,	 const_cast<World*>(self.world()),
 																			 desc.termId, 0, self.size()};
@@ -70,7 +67,7 @@ namespace gaia {
 								self.from(),
 								self.size()};
 					} else {
-						const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (desc.isOutOfLine)
 							return EntityTermViewGet<U>::entity(
@@ -100,8 +97,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view(const ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::view(const ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					if constexpr (std::is_same_v<U, Entity>)
 						return self.m_pChunk->template view<T>(self.from(), self.to());
@@ -115,8 +112,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view(const ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::view(const ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 					const auto compIdx = self.m_pCompIndices[termIdx];
 					GAIA_ASSERT(compIdx != 0xFF);
@@ -130,18 +127,18 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view_any_mut(ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
-						const auto desc = term_desc<T>(self);
+						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 						self.touch_term_desc(desc);
 						if (self.m_writeIm)
 							return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 						return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 					} else {
-						const auto desc = term_desc<T>(self);
+						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad) {
@@ -158,11 +155,11 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view_mut(ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
-					const auto desc = term_desc<T>(self);
+					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					self.touch_term_desc(desc);
 					if constexpr (mem::is_soa_layout_v<U>) {
 						auto view = self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
@@ -177,8 +174,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view_mut(ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_mut(ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					const auto compIdx = self.m_pCompIndices[termIdx];
@@ -198,14 +195,14 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto view_any_mut(ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::view_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+							const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 							GAIA_ASSERT(desc.termId != EntityBad);
 							self.touch_term(desc.termId);
 							return self.template entity_soa_view_set<U>(desc.termId, self.m_writeIm);
@@ -225,7 +222,7 @@ namespace gaia {
 								self.size(),
 								self.m_writeIm};
 					} else {
-						const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (desc.isOutOfLine) {
 							self.touch_term(desc.termId);
@@ -248,14 +245,14 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto sview_any_mut(ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>)
 						return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 					else {
-						const auto desc = term_desc<T>(self);
+						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
@@ -266,8 +263,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto sview_mut(ChunkIterImpl<IterConstraint>& self) {
+			template <typename T>
+			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
@@ -279,8 +276,8 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto sview_mut(ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::sview_mut(ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 					const auto compIdx = self.m_pCompIndices[termIdx];
@@ -295,14 +292,14 @@ namespace gaia {
 					}
 				}
 
-				template <typename T>
-				static auto sview_any_mut(ChunkIterImpl<IterConstraint>& self, uint32_t termIdx) {
+			template <typename T>
+			auto ChunkIterTypedOps::sview_any_mut(ChunkIterImpl& self, uint32_t termIdx) {
 					using U = typename actual_type_t<T>::Type;
 
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (compIdx == 0xFF) {
-							const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+							const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 							GAIA_ASSERT(desc.termId != EntityBad);
 							return self.template entity_soa_view_set<U>(desc.termId, false);
 						}
@@ -318,7 +315,7 @@ namespace gaia {
 								self.size(),
 								false};
 					} else {
-						const auto desc = self.resolved_term_desc(termIdx, term_desc<T>(self));
+						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (desc.isOutOfLine)
 							return self.template entity_view_set<U>(desc.termId, false);
@@ -334,7 +331,6 @@ namespace gaia {
 					}
 				}
 
-			};
 		} // namespace detail
 
 	} // namespace ecs

@@ -104,9 +104,7 @@ namespace gaia {
 
 		namespace detail {
 			template <typename Func>
-			inline constexpr bool is_query_iter_callback_v =
-					std::is_invocable_v<Func, IterAll&> || std::is_invocable_v<Func, Iter&> ||
-					std::is_invocable_v<Func, IterDisabled&>;
+			inline constexpr bool is_query_iter_callback_v = std::is_invocable_v<Func, Iter&>;
 
 			template <typename Func>
 			inline constexpr bool is_query_walk_core_callback_v =
@@ -2279,13 +2277,8 @@ namespace gaia {
 						void (*runChunk)(QueryImpl&, const QueryInfo&, TIter&, void*, const TypedQueryExecState&));
 
 				template <QueryExecType ExecType, typename Func>
-				void each_runtime_inter(Func func) {
-					if constexpr (std::is_invocable_v<Func, IterAll&>)
-						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, IterAll>);
-					else if constexpr (std::is_invocable_v<Func, Iter&>)
-						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>);
-					else if constexpr (std::is_invocable_v<Func, IterDisabled&>)
-						each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, IterDisabled>);
+				void each_runtime_inter(Func func, Constraints constraints = Constraints::EnabledOnly) {
+					each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 				}
 
 				template <typename Func, typename TIter>
@@ -2295,22 +2288,37 @@ namespace gaia {
 				}
 
 				template <QueryExecType ExecType, typename TIter>
-				void each_runtime_erased(void* pFunc, void (*invoke)(void*, TIter&)) {
+				void each_runtime_erased(void* pFunc, void (*invoke)(void*, TIter&), Constraints constraints) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
-					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-						GAIA_PROF_SCOPE(query_func);
-						each_direct_iter_inter<TIter>(queryInfo, [&](TIter& it) {
+					const auto run = [&](auto* pTag) {
+						using TIterActual = std::remove_pointer_t<decltype(pTag)>;
+						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+							GAIA_PROF_SCOPE(query_func);
+							each_direct_iter_inter<TIterActual>(queryInfo, [&](TIterActual& it) {
+								invoke(pFunc, it);
+							});
+							return;
+						}
+
+						run_query_on_chunks<ExecType, TIterActual>(queryInfo, [&](TIterActual& it) {
+							GAIA_PROF_SCOPE(query_func);
 							invoke(pFunc, it);
 						});
-						return;
-					}
+					};
 
-					run_query_on_chunks<ExecType, TIter>(queryInfo, [&](TIter& it) {
-						GAIA_PROF_SCOPE(query_func);
-						invoke(pFunc, it);
-					});
+					switch (constraints) {
+						case Constraints::DisabledOnly:
+							run((detail::IterDisabledOnly*)nullptr);
+							break;
+						case Constraints::AcceptAll:
+							run((detail::IterAcceptAll*)nullptr);
+							break;
+						default:
+							run((Iter*)nullptr);
+							break;
+					}
 				}
 
 				//------------------------------------------------
@@ -2469,12 +2477,12 @@ namespace gaia {
 
 				template <typename TIter>
 				GAIA_NODISCARD static constexpr Constraints direct_seed_constraints() {
-					if constexpr (std::is_same_v<TIter, Iter>)
-						return Constraints::EnabledOnly;
-					else if constexpr (std::is_same_v<TIter, IterDisabled>)
+					if constexpr (std::is_same_v<TIter, detail::IterDisabledOnly>)
 						return Constraints::DisabledOnly;
-					else
+					else if constexpr (std::is_same_v<TIter, detail::IterAcceptAll>)
 						return Constraints::AcceptAll;
+					else
+						return Constraints::EnabledOnly;
 				}
 
 				static void
@@ -2678,17 +2686,18 @@ namespace gaia {
 					return true;
 				}
 
-				template <typename TIter>
 				GAIA_NODISCARD std::span<const detail::BfsChunkRun>
-				cached_direct_seed_runs(QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+				cached_direct_seed_runs(
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo,
+						Constraints constraints) {
 					auto& runData = ensure_direct_seed_run_data();
 					auto& world = *queryInfo.world();
-					const auto constraints = direct_seed_constraints<TIter>();
+					const auto cachedConstraints = constraints;
 					const auto relVersion = world_rel_version(world, Is);
 					const auto worldVersion = ::gaia::ecs::world_version(world);
 
 					if (runData.cacheValid && runData.cachedSeedTerm == seedTerm.id &&
-							runData.cachedSeedMatchKind == seedTerm.matchKind && runData.cachedConstraints == constraints &&
+							runData.cachedSeedMatchKind == seedTerm.matchKind && runData.cachedConstraints == cachedConstraints &&
 							runData.cachedRelVersion == relVersion && runData.cachedWorldVersion == worldVersion) {
 						return {runData.cachedRuns.data(), runData.cachedRuns.size()};
 					}
@@ -2701,7 +2710,7 @@ namespace gaia {
 					chunkOrderedEntities.clear();
 
 					(void)for_each_direct_term_entity(world, seedTerm, [&](Entity entity) {
-						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+						if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 							return true;
 
 						if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
@@ -2730,7 +2739,7 @@ namespace gaia {
 
 					runData.cachedSeedTerm = seedTerm.id;
 					runData.cachedSeedMatchKind = seedTerm.matchKind;
-					runData.cachedConstraints = constraints;
+					runData.cachedConstraints = cachedConstraints;
 					runData.cachedRelVersion = relVersion;
 					runData.cachedWorldVersion = worldVersion;
 					runData.cacheValid = true;
@@ -2738,16 +2747,29 @@ namespace gaia {
 				}
 
 				template <typename TIter>
+				GAIA_NODISCARD std::span<const detail::BfsChunkRun>
+				cached_direct_seed_runs(QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+					return cached_direct_seed_runs(queryInfo, seedTerm, seedInfo, direct_seed_constraints<TIter>());
+				}
+
 				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_chunk_entities(
-						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
-					(void)cached_direct_seed_runs<TIter>(queryInfo, seedTerm, seedInfo);
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo,
+						Constraints constraints) {
+					(void)cached_direct_seed_runs(queryInfo, seedTerm, seedInfo, constraints);
 					auto& runData = ensure_direct_seed_run_data();
 					return {runData.cachedChunkOrderedEntities.data(), runData.cachedChunkOrderedEntities.size()};
 				}
 
-				template <typename TIter, typename Func>
+				template <typename TIter>
+				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_chunk_entities(
+						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
+					return cached_direct_seed_chunk_entities(queryInfo, seedTerm, seedInfo, direct_seed_constraints<TIter>());
+				}
+
+				template <typename Func>
 				GAIA_NODISCARD static bool for_each_direct_all_seed(
-						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
+						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan,
+						Constraints constraints, Func&& func) {
 					const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
 					GAIA_ASSERT(pSeedTerm != nullptr);
 					if (pSeedTerm == nullptr)
@@ -2772,7 +2794,7 @@ namespace gaia {
 					// Stream the chosen ALL seed term directly. This avoids materializing a temporary
 					// entity array for the common `all<T>().is(base)` shape.
 					return for_each_direct_term_entity(world, *pSeedTerm, [&](Entity entity) {
-						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+						if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 							return true;
 
 						if (evalPlan.alwaysMatch)
@@ -2801,19 +2823,30 @@ namespace gaia {
 					});
 				}
 
+				template <typename TIter, typename Func>
+				GAIA_NODISCARD static bool for_each_direct_all_seed(
+						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
+					return for_each_direct_all_seed(world, queryInfo, plan, direct_seed_constraints<TIter>(), GAIA_FWD(func));
+				}
+
 				//! Applies iterator-specific entity state constraints to the direct seeded path.
-				template <typename TIter>
 				GAIA_NODISCARD static bool
-				match_direct_entity_constraints(const World& world, const QueryInfo& queryInfo, Entity entity) {
+				match_direct_entity_constraints(
+						const World& world, const QueryInfo& queryInfo, Entity entity, Constraints constraints) {
 					if (!queryInfo.matches_prefab_entities() && world_entity_prefab(world, entity))
 						return false;
 
-					if constexpr (std::is_same_v<TIter, Iter>)
+					if (constraints == Constraints::EnabledOnly)
 						return world_entity_enabled(world, entity);
-					else if constexpr (std::is_same_v<TIter, IterDisabled>)
+					if (constraints == Constraints::DisabledOnly)
 						return !world_entity_enabled(world, entity);
-					else
-						return true;
+					return true;
+				}
+
+				template <typename TIter>
+				GAIA_NODISCARD static bool
+				match_direct_entity_constraints(const World& world, const QueryInfo& queryInfo, Entity entity) {
+					return match_direct_entity_constraints(world, queryInfo, entity, direct_seed_constraints<TIter>());
 				}
 
 				//! Detects when a direct seed can be counted by archetype buckets instead of per entity checks.
@@ -4318,7 +4351,7 @@ namespace gaia {
 				//! \param func Callable invoked for each match.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func) {
-					each_runtime_inter<QueryExecType::Default, Func>(func);
+					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
 				}
 
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
@@ -4329,18 +4362,28 @@ namespace gaia {
 				//! \param execType Execution mode.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType) {
+					each(func, execType, Constraints::EnabledOnly);
+				}
+
+				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
+				void each(Func func, Constraints constraints) {
+					each(func, QueryExecType::Default, constraints);
+				}
+
+				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
+				void each(Func func, QueryExecType execType, Constraints constraints) {
 					switch (execType) {
 						case QueryExecType::Parallel:
-							each_runtime_inter<QueryExecType::Parallel, Func>(func);
+							each_runtime_inter<QueryExecType::Parallel, Func>(func, constraints);
 							break;
 						case QueryExecType::ParallelPerf:
-							each_runtime_inter<QueryExecType::ParallelPerf, Func>(func);
+							each_runtime_inter<QueryExecType::ParallelPerf, Func>(func, constraints);
 							break;
 						case QueryExecType::ParallelEff:
-							each_runtime_inter<QueryExecType::ParallelEff, Func>(func);
+							each_runtime_inter<QueryExecType::ParallelEff, Func>(func, constraints);
 							break;
 						default:
-							each_runtime_inter<QueryExecType::Default, Func>(func);
+							each_runtime_inter<QueryExecType::Default, Func>(func, constraints);
 							break;
 					}
 				}
@@ -4373,26 +4416,13 @@ namespace gaia {
 				//! Iterates matching archetypes instead of individual entities.
 				//! \param func Callable invoked for each matching archetype iterator.
 				template <typename Func>
-				void each_arch(Func func) {
+				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
-
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						run_query_on_archetypes<QueryExecType::Default, IterAll>(queryInfo, [&](IterAll& it) {
-							GAIA_PROF_SCOPE(query_func_a);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						run_query_on_archetypes<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
-							GAIA_PROF_SCOPE(query_func_a);
-							func(it);
-						});
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						run_query_on_archetypes<QueryExecType::Default, IterDisabled>(queryInfo, [&](IterDisabled& it) {
-							GAIA_PROF_SCOPE(query_func_a);
-							func(it);
-						});
-					}
+					run_query_on_archetypes<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
+						GAIA_PROF_SCOPE(query_func_a);
+						func(it);
+					}, constraints);
 				}
 
 				//------------------------------------------------
@@ -4412,9 +4442,9 @@ namespace gaia {
 							case Constraints::EnabledOnly:
 								return empty_inter<false, Iter>(queryInfo);
 							case Constraints::DisabledOnly:
-								return empty_inter<false, IterDisabled>(queryInfo);
+								return empty_inter<false, detail::IterDisabledOnly>(queryInfo);
 							case Constraints::AcceptAll:
-								return empty_inter<false, IterAll>(queryInfo);
+								return empty_inter<false, detail::IterAcceptAll>(queryInfo);
 						}
 					}
 
@@ -4426,18 +4456,18 @@ namespace gaia {
 							case Constraints::EnabledOnly:
 								return empty_inter<true, Iter>(queryInfo);
 							case Constraints::DisabledOnly:
-								return empty_inter<true, IterDisabled>(queryInfo);
+								return empty_inter<true, detail::IterDisabledOnly>(queryInfo);
 							case Constraints::AcceptAll:
-								return empty_inter<true, IterAll>(queryInfo);
+								return empty_inter<true, detail::IterAcceptAll>(queryInfo);
 						}
 					} else {
 						switch (constraints) {
 							case Constraints::EnabledOnly:
 								return empty_inter<false, Iter>(queryInfo);
 							case Constraints::DisabledOnly:
-								return empty_inter<false, IterDisabled>(queryInfo);
+								return empty_inter<false, detail::IterDisabledOnly>(queryInfo);
 							case Constraints::AcceptAll:
-								return empty_inter<false, IterAll>(queryInfo);
+								return empty_inter<false, detail::IterAcceptAll>(queryInfo);
 						}
 					}
 
@@ -4458,9 +4488,9 @@ namespace gaia {
 							case Constraints::EnabledOnly:
 								return count_inter<false, Iter>(queryInfo);
 							case Constraints::DisabledOnly:
-								return count_inter<false, IterDisabled>(queryInfo);
+								return count_inter<false, detail::IterDisabledOnly>(queryInfo);
 							case Constraints::AcceptAll:
-								return count_inter<false, IterAll>(queryInfo);
+								return count_inter<false, detail::IterAcceptAll>(queryInfo);
 						}
 					}
 
@@ -4475,10 +4505,10 @@ namespace gaia {
 								entCnt += count_inter<true, Iter>(queryInfo);
 							} break;
 							case Constraints::DisabledOnly: {
-								entCnt += count_inter<true, IterDisabled>(queryInfo);
+								entCnt += count_inter<true, detail::IterDisabledOnly>(queryInfo);
 							} break;
 							case Constraints::AcceptAll: {
-								entCnt += count_inter<true, IterAll>(queryInfo);
+								entCnt += count_inter<true, detail::IterAcceptAll>(queryInfo);
 							} break;
 						}
 					} else {
@@ -4487,10 +4517,10 @@ namespace gaia {
 								entCnt += count_inter<false, Iter>(queryInfo);
 							} break;
 							case Constraints::DisabledOnly: {
-								entCnt += count_inter<false, IterDisabled>(queryInfo);
+								entCnt += count_inter<false, detail::IterDisabledOnly>(queryInfo);
 							} break;
 							case Constraints::AcceptAll: {
-								entCnt += count_inter<false, IterAll>(queryInfo);
+								entCnt += count_inter<false, detail::IterAcceptAll>(queryInfo);
 							} break;
 						}
 					}
@@ -4929,12 +4959,18 @@ namespace gaia {
 					match_all(queryInfo);
 					const auto ordered = ordered_entities_walk(queryInfo, relation, constraints);
 
-					if constexpr (std::is_invocable_v<Func, IterAll&>) {
-						each_direct_entities_iter<IterAll>(queryInfo, ordered, func);
-					} else if constexpr (std::is_invocable_v<Func, Iter&>) {
-						each_direct_entities_iter<Iter>(queryInfo, ordered, func);
-					} else if constexpr (std::is_invocable_v<Func, IterDisabled&>) {
-						each_direct_entities_iter<IterDisabled>(queryInfo, ordered, func);
+					if constexpr (std::is_invocable_v<Func, Iter&>) {
+						switch (constraints) {
+							case Constraints::DisabledOnly:
+								each_direct_entities_iter<detail::IterDisabledOnly>(queryInfo, ordered, func);
+								break;
+							case Constraints::AcceptAll:
+								each_direct_entities_iter<detail::IterAcceptAll>(queryInfo, ordered, func);
+								break;
+							default:
+								each_direct_entities_iter<Iter>(queryInfo, ordered, func);
+								break;
+						}
 					} else if constexpr (std::is_invocable_v<Func, const Entity&> || std::is_invocable_v<Func, Entity>) {
 						for (const auto entity: ordered)
 							func(entity);
