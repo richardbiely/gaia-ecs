@@ -1416,22 +1416,24 @@ namespace gaia {
 		//! Disabled entities always precede enabled ones in AcceptAll mode.
 		class GAIA_API Iter: public detail::ChunkIterImpl {
 		public:
+			static constexpr Constraints ConstraintMode = Constraints::EnabledOnly;
+
 			using detail::ChunkIterImpl::size;
 
 			Iter() {
-				set_constraints(Constraints::EnabledOnly);
+				set_constraints(ConstraintMode);
 			}
 
 			GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-				return detail::ChunkIterImpl::start_index(pChunk, Constraints::EnabledOnly);
+				return detail::ChunkIterImpl::start_index(pChunk, ConstraintMode);
 			}
 
 			GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-				return detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
+				return detail::ChunkIterImpl::end_index(pChunk, ConstraintMode);
 			}
 
 			GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-				return detail::ChunkIterImpl::size(pChunk, Constraints::EnabledOnly);
+				return detail::ChunkIterImpl::size(pChunk, ConstraintMode);
 			}
 
 			//! Returns the number of enabled entities accessible via the iterator.
@@ -1449,43 +1451,47 @@ namespace gaia {
 		namespace detail {
 			class IterDisabledOnly final: public Iter {
 			public:
+				static constexpr Constraints ConstraintMode = Constraints::DisabledOnly;
+
 				using Iter::size;
 
 				IterDisabledOnly() {
-					this->set_constraints(Constraints::DisabledOnly);
+					this->set_constraints(ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::start_index(pChunk, Constraints::DisabledOnly);
+					return ChunkIterImpl::start_index(pChunk, ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::end_index(pChunk, Constraints::DisabledOnly);
+					return ChunkIterImpl::end_index(pChunk, ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::size(pChunk, Constraints::DisabledOnly);
+					return ChunkIterImpl::size(pChunk, ConstraintMode);
 				}
 			};
 
 			class IterAcceptAll final: public Iter {
 			public:
+				static constexpr Constraints ConstraintMode = Constraints::AcceptAll;
+
 				using Iter::size;
 
 				IterAcceptAll() {
-					this->set_constraints(Constraints::AcceptAll);
+					this->set_constraints(ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::start_index(pChunk, Constraints::AcceptAll);
+					return ChunkIterImpl::start_index(pChunk, ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::end_index(pChunk, Constraints::AcceptAll);
+					return ChunkIterImpl::end_index(pChunk, ConstraintMode);
 				}
 
 				GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
-					return ChunkIterImpl::size(pChunk, Constraints::AcceptAll);
+					return ChunkIterImpl::size(pChunk, ConstraintMode);
 				}
 			};
 		} // namespace detail

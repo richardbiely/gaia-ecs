@@ -1592,12 +1592,12 @@ namespace gaia {
 					return true;
 				}
 
-				template <typename TIter>
 				GAIA_NODISCARD bool can_process_archetype_inter(
-						const QueryInfo& queryInfo, const Archetype& archetype, int8_t barrierPasses = -1) const {
+						const QueryInfo& queryInfo, const Archetype& archetype, Constraints constraints,
+						int8_t barrierPasses = -1) const {
 					if (!can_process_archetype(queryInfo, archetype))
 						return false;
-					if constexpr (std::is_same_v<TIter, Iter>) {
+					if (constraints == Constraints::EnabledOnly) {
 						if (has_depth_order_hierarchy_enabled_barrier(queryInfo)) {
 							if (barrierPasses >= 0)
 								return barrierPasses != 0;
@@ -1646,28 +1646,25 @@ namespace gaia {
 				template <typename... T>
 				static void finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to);
 
-				template <typename TIter>
 				static void
-				finish_typed_iter_writes_runtime(TIter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt);
+				finish_typed_iter_writes_runtime(Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt);
 
 				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
 
-				template <typename TIter>
-				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo, Constraints constraints) {
 					if (queryInfo.has_sorted_payload())
 						return ExecPayloadKind::NonTrivial;
 					if (!queryInfo.has_grouped_payload())
 						return ExecPayloadKind::Plain;
-					if constexpr (std::is_same_v<TIter, Iter>) {
+					if (constraints == Constraints::EnabledOnly) {
 						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
 							return ExecPayloadKind::NonTrivial;
 					}
 					return ExecPayloadKind::Grouped;
 				}
 
-				template <typename TIter>
-				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo) {
-					return exec_payload_kind<TIter>(queryInfo) == ExecPayloadKind::NonTrivial;
+				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo, Constraints constraints) {
+					return exec_payload_kind(queryInfo, constraints) == ExecPayloadKind::NonTrivial;
 				}
 
 				//--------------------------------------------------------------------------------
@@ -1689,10 +1686,11 @@ namespace gaia {
 				}
 
 				//! Execute the functor for a given chunk batch
-				template <typename Func, typename TIter>
-				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch) {
-					TIter it;
+				template <typename Func>
+				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch, Constraints constraints) {
+					Iter it;
 					it.set_world(pWorld);
+					it.set_constraints(constraints);
 					it.set_write_im(false);
 					it.set_archetype(batch.pArchetype);
 					// it.set_chunk(nullptr, 0, 0); We do not need this, and calling it would assert
@@ -1781,7 +1779,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
+					const auto payloadKind = exec_payload_kind(queryInfo, TIter::ConstraintMode);
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
@@ -1821,7 +1819,8 @@ namespace gaia {
 
 							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(
+																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
@@ -1839,7 +1838,8 @@ namespace gaia {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(
+																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1894,7 +1894,7 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					const auto payloadKind = exec_payload_kind<TIter>(queryInfo);
+					const auto payloadKind = exec_payload_kind(queryInfo, TIter::ConstraintMode);
 					auto sortView = queryInfo.cache_sort_view();
 					if (payloadKind != ExecPayloadKind::NonTrivial)
 						sortView = {};
@@ -1928,7 +1928,8 @@ namespace gaia {
 
 							const auto* pArchetype = cacheView[view.archetypeIdx];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(
+																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
@@ -1941,7 +1942,8 @@ namespace gaia {
 						for (uint32_t i = idxFrom; i < idxTo; ++i) {
 							const auto* pArchetype = cacheView[i];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(
+																		queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
@@ -1999,7 +2001,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, TIter::ConstraintMode) &&
+																				 TIter::ConstraintMode == Constraints::EnabledOnly &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2009,7 +2012,8 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2076,7 +2080,8 @@ namespace gaia {
 
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = needs_nontrivial_payload<TIter>(queryInfo) && std::is_same_v<TIter, Iter> &&
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, TIter::ConstraintMode) &&
+																				 TIter::ConstraintMode == Constraints::EnabledOnly &&
 																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2085,7 +2090,8 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const auto* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 							continue;
 
 						const auto groupId = queryInfo.group_id(i);
@@ -2100,7 +2106,8 @@ namespace gaia {
 					for (uint32_t i = idxFrom; i < idxTo; ++i) {
 						const Archetype* pArchetype = cacheView[i];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *pArchetype, TIter::ConstraintMode, barrierPasses))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -2191,8 +2198,8 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				template <QueryExecType ExecType, typename TIter, typename Func>
-				void run_query_on_archetypes(QueryInfo& queryInfo, Func func) {
+				template <QueryExecType ExecType, typename Func>
+				void run_query_on_archetypes(QueryInfo& queryInfo, Func func, Constraints constraints) {
 					// Update the world version
 					// We do read-only access. No need to update the version
 					//::gaia::ecs::update_version(*m_worldVersion);
@@ -2206,21 +2213,22 @@ namespace gaia {
 						//       Make it so only valid pointers are linked together.
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
-						const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+						const bool needsBarrierCache =
+								constraints == Constraints::EnabledOnly && has_depth_order_hierarchy_enabled_barrier(queryInfo);
 						const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 						if (needsBarrierCache)
 							queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 						GAIA_EACH(cache_view) {
 							const auto* pArchetype = cache_view[i];
 							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
-							if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype, barrierPasses))
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							auto indicesView = queryInfo.indices_mapping_view(i);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							ChunkBatch batch{pArchetype, nullptr, indicesView.data(), inheritedDataView, 0, 0, 0};
-							run_query_arch_func<Func, Iter>(m_storage.world(), func, batch);
+							run_query_arch_func(m_storage.world(), func, batch, constraints);
 						}
 					}
 
@@ -2242,6 +2250,457 @@ namespace gaia {
 						run_query<false, ExecType, TIter>(queryInfo, func);
 
 					// Changed-filter state is instance-local for cached queries.
+					m_changedWorldVersion = *m_worldVersion;
+				}
+
+				template <typename Func>
+				static void
+				run_query_func_runtime(World* pWorld, Func func, std::span<ChunkBatch> batches, Constraints constraints) {
+					GAIA_PROF_SCOPE(query::run_query_func);
+
+					const auto chunkCnt = batches.size();
+					GAIA_ASSERT(chunkCnt > 0);
+
+					Iter it;
+					it.set_world(pWorld);
+					it.set_constraints(constraints);
+					it.set_write_im(false);
+
+					const Archetype* pLastArchetype = nullptr;
+					const uint8_t* pLastIndices = nullptr;
+					InheritedTermDataView lastInheritedData{};
+					GroupId lastGroupId = GroupIdMax;
+
+					const auto apply_batch = [&](const ChunkBatch& batch) {
+						if (batch.pArchetype != pLastArchetype) {
+							it.set_archetype(batch.pArchetype);
+							pLastArchetype = batch.pArchetype;
+						}
+
+						if (batch.pCompIndices != pLastIndices) {
+							it.set_comp_indices(batch.pCompIndices);
+							pLastIndices = batch.pCompIndices;
+						}
+
+						if (batch.inheritedData.data() != lastInheritedData.data()) {
+							it.set_inherited_data(batch.inheritedData);
+							lastInheritedData = batch.inheritedData;
+						}
+
+						if (batch.groupId != lastGroupId) {
+							it.set_group_id(batch.groupId);
+							lastGroupId = batch.groupId;
+						}
+
+						it.set_chunk(batch.pChunk, batch.from, batch.to);
+						func(it);
+						finish_iter_writes(it);
+						it.clear_touched_writes();
+					};
+
+					if GAIA_UNLIKELY (chunkCnt == 1) {
+						apply_batch(batches[0]);
+						return;
+					}
+
+					gaia::prefetch(batches[1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+					apply_batch(batches[0]);
+
+					uint32_t chunkIdx = 1;
+					for (; chunkIdx < chunkCnt - 1; ++chunkIdx) {
+						gaia::prefetch(batches[chunkIdx + 1].pChunk, PrefetchHint::PREFETCH_HINT_T2);
+						apply_batch(batches[chunkIdx]);
+					}
+
+					apply_batch(batches[chunkIdx]);
+				}
+
+				template <bool HasFilters, typename Func>
+				void run_query_batch_no_group_id_runtime(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Constraints constraints,
+						Func func) {
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					auto sortView = queryInfo.cache_sort_view();
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					lock(*m_storage.world());
+					ChunkBatchArray chunkBatches;
+
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							const auto totalRows = endRow - startRow;
+							if (totalRows == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+
+							chunkBatches.push_back(
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func_runtime(
+										m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+								chunkBatches.clear();
+							}
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+
+							auto indicesView = queryInfo.indices_mapping_view(i);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+							const auto& chunks = pArchetype->chunks();
+							uint32_t chunkOffset = 0;
+							uint32_t itemsLeft = chunks.size();
+							while (itemsLeft > 0) {
+								const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+								const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+								for (auto* pChunk: chunkSpan) {
+									if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+										continue;
+
+									if constexpr (HasFilters) {
+										if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+											continue;
+									}
+
+									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+								}
+
+								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+									run_query_func_runtime(
+											m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+									chunkBatches.clear();
+								}
+
+								itemsLeft -= batchSize;
+								chunkOffset += batchSize;
+							}
+						}
+					}
+
+					if (!chunkBatches.empty())
+						run_query_func_runtime(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
+				}
+
+				template <bool HasFilters, typename Func, QueryExecType ExecType>
+				void run_query_batch_no_group_id_runtime_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Constraints constraints,
+						Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
+
+					auto cacheView = queryInfo.cache_archetype_view();
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					auto sortView = queryInfo.cache_sort_view();
+					if (payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							const auto totalRows = endRow - startRow;
+							if (totalRows == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+
+							m_batches.push_back(
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+						}
+					} else {
+						for (uint32_t i = idxFrom; i < idxTo; ++i) {
+							const auto* pArchetype = cacheView[i];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+
+							auto indicesView = queryInfo.indices_mapping_view(i);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+							const auto& chunks = pArchetype->chunks();
+							for (auto* pChunk: chunks) {
+								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+										continue;
+								}
+
+								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+							}
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					lock(*m_storage.world());
+
+					mt::JobParallel j;
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func_runtime(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart),
+								constraints);
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					tp.wait(jobHandle);
+					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
+				}
+
+				template <bool HasFilters, typename Func>
+				void run_query_batch_with_group_id_runtime(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Constraints constraints,
+						Func func) {
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id);
+
+					ChunkBatchArray chunkBatches;
+					auto cacheView = queryInfo.cache_archetype_view();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					lock(*m_storage.world());
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const auto* pArchetype = cacheView[i];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+							continue;
+
+						auto indicesView = queryInfo.indices_mapping_view(i);
+						const auto inheritedDataView =
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+						const auto& chunks = pArchetype->chunks();
+						const auto groupId = queryInfo.group_id(i);
+
+						uint32_t chunkOffset = 0;
+						uint32_t itemsLeft = chunks.size();
+						while (itemsLeft > 0) {
+							const auto maxBatchSize = chunkBatches.max_size() - chunkBatches.size();
+							const auto batchSize = itemsLeft > maxBatchSize ? maxBatchSize : itemsLeft;
+
+							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
+							for (auto* pChunk: chunkSpan) {
+								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+									continue;
+
+								if constexpr (HasFilters) {
+									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+										continue;
+								}
+
+								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+							}
+
+							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
+								run_query_func_runtime(
+										m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+								chunkBatches.clear();
+							}
+
+							itemsLeft -= batchSize;
+							chunkOffset += batchSize;
+						}
+					}
+
+					if (!chunkBatches.empty())
+						run_query_func_runtime(m_storage.world(), func, {chunkBatches.data(), chunkBatches.size()}, constraints);
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
+				}
+
+				template <bool HasFilters, typename Func, QueryExecType ExecType>
+				void run_query_batch_with_group_id_runtime_par(
+						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Constraints constraints,
+						Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					GAIA_PROF_SCOPE(query::run_query_batch_with_group_id_par);
+
+					ChunkBatchArray chunkBatch;
+					auto cacheView = queryInfo.cache_archetype_view();
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					for (uint32_t i = idxFrom; i < idxTo; ++i) {
+						const auto* pArchetype = cacheView[i];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+							continue;
+
+						auto indicesView = queryInfo.indices_mapping_view(i);
+						const auto inheritedDataView =
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+						const auto groupId = queryInfo.group_id(i);
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+						}
+					}
+
+					if (m_batches.empty())
+						return;
+
+					lock(*m_storage.world());
+
+					mt::JobParallel j;
+					if constexpr (ExecType == QueryExecType::ParallelEff)
+						j.priority = mt::JobPriority::Low;
+
+					j.func = [&](const mt::JobArgs& args) {
+						run_query_func_runtime(
+								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart),
+								constraints);
+					};
+
+					auto& tp = mt::ThreadPool::get();
+					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					tp.wait(jobHandle);
+					m_batches.clear();
+
+					unlock(*m_storage.world());
+					commit_cmd_buffer_st(*m_storage.world());
+					commit_cmd_buffer_mt(*m_storage.world());
+				}
+
+				template <bool HasFilters, QueryExecType ExecType, typename Func>
+				void run_query_runtime(const QueryInfo& queryInfo, Constraints constraints, Func func) {
+					GAIA_PROF_SCOPE(query::run_query);
+
+					auto cache_view = queryInfo.cache_archetype_view();
+					if (cache_view.empty())
+						return;
+
+					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
+					const bool isGroupSet = m_groupIdSet != 0;
+					if (!isGroupBy || !isGroupSet) {
+						const auto idxFrom = 0;
+						const auto idxTo = (uint32_t)cache_view.size();
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_no_group_id_runtime_par<HasFilters, Func, ExecType>(
+									queryInfo, idxFrom, idxTo, constraints, func);
+						else
+							run_query_batch_no_group_id_runtime<HasFilters>(queryInfo, idxFrom, idxTo, constraints, func);
+					} else {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr)
+							return;
+
+						const auto idxFrom = pGroupData->idxFirst;
+						const auto idxTo = pGroupData->idxLast + 1;
+						if constexpr (ExecType != QueryExecType::Default)
+							run_query_batch_with_group_id_runtime_par<HasFilters, Func, ExecType>(
+									queryInfo, idxFrom, idxTo, constraints, func);
+						else
+							run_query_batch_with_group_id_runtime<HasFilters>(queryInfo, idxFrom, idxTo, constraints, func);
+					}
+				}
+
+				template <QueryExecType ExecType, typename Func>
+				void run_query_on_chunks_runtime(QueryInfo& queryInfo, Constraints constraints, Func func) {
+					::gaia::ecs::update_version(*m_worldVersion);
+
+					const bool hasFilters = queryInfo.has_filters();
+					if (hasFilters)
+						run_query_runtime<true, ExecType>(queryInfo, constraints, func);
+					else
+						run_query_runtime<false, ExecType>(queryInfo, constraints, func);
+
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
@@ -2271,14 +2730,14 @@ namespace gaia {
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
 
-				template <typename TIter>
 				void each_walk_inter(
-						QueryInfo& queryInfo, std::span<const Entity> entities, void* pFunc, const TypedQueryExecState& state,
-						void (*runChunk)(QueryImpl&, const QueryInfo&, TIter&, void*, const TypedQueryExecState&));
+						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, void* pFunc,
+						const TypedQueryExecState& state,
+						void (*runChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
 
 				template <QueryExecType ExecType, typename Func>
 				void each_runtime_inter(Func func, Constraints constraints = Constraints::EnabledOnly) {
-					each_runtime_erased<ExecType>(static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
+					each_runtime_erased(ExecType, static_cast<void*>(&func), &invoke_runtime_iter<Func, Iter>, constraints);
 				}
 
 				template <typename Func, typename TIter>
@@ -2287,36 +2746,103 @@ namespace gaia {
 					func(it);
 				}
 
-				template <QueryExecType ExecType, typename TIter>
-				void each_runtime_erased(void* pFunc, void (*invoke)(void*, TIter&), Constraints constraints) {
+				void each_runtime_erased(
+						QueryExecType execType, void* pFunc, void (*invoke)(void*, Iter&), Constraints constraints) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
 
-					const auto run = [&](auto* pTag) {
-						using TIterActual = std::remove_pointer_t<decltype(pTag)>;
-						if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-							GAIA_PROF_SCOPE(query_func);
-							each_direct_iter_inter<TIterActual>(queryInfo, [&](TIterActual& it) {
-								invoke(pFunc, it);
-							});
-							return;
-						}
-
-						run_query_on_chunks<ExecType, TIterActual>(queryInfo, [&](TIterActual& it) {
-							GAIA_PROF_SCOPE(query_func);
+					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
+						GAIA_PROF_SCOPE(query_func);
+						each_direct_iter_inter(queryInfo, constraints, [&](Iter& it) {
 							invoke(pFunc, it);
 						});
-					};
+						return;
+					}
 
 					switch (constraints) {
 						case Constraints::DisabledOnly:
-							run((detail::IterDisabledOnly*)nullptr);
+							switch (execType) {
+								case QueryExecType::Parallel:
+									run_query_on_chunks<QueryExecType::Parallel, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelPerf:
+									run_query_on_chunks<QueryExecType::ParallelPerf, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelEff:
+									run_query_on_chunks<QueryExecType::ParallelEff, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								default:
+									run_query_on_chunks<QueryExecType::Default, detail::IterDisabledOnly>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+							}
 							break;
 						case Constraints::AcceptAll:
-							run((detail::IterAcceptAll*)nullptr);
+							switch (execType) {
+								case QueryExecType::Parallel:
+									run_query_on_chunks<QueryExecType::Parallel, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelPerf:
+									run_query_on_chunks<QueryExecType::ParallelPerf, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelEff:
+									run_query_on_chunks<QueryExecType::ParallelEff, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								default:
+									run_query_on_chunks<QueryExecType::Default, detail::IterAcceptAll>(queryInfo, [&](auto& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+							}
 							break;
 						default:
-							run((Iter*)nullptr);
+							switch (execType) {
+								case QueryExecType::Parallel:
+									run_query_on_chunks<QueryExecType::Parallel, Iter>(queryInfo, [&](Iter& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelPerf:
+									run_query_on_chunks<QueryExecType::ParallelPerf, Iter>(queryInfo, [&](Iter& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								case QueryExecType::ParallelEff:
+									run_query_on_chunks<QueryExecType::ParallelEff, Iter>(queryInfo, [&](Iter& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+								default:
+									run_query_on_chunks<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
+										GAIA_PROF_SCOPE(query_func);
+										invoke(pFunc, it);
+									});
+									break;
+							}
 							break;
 					}
 				}
@@ -2473,16 +2999,6 @@ namespace gaia {
 				//! Detects the special direct OR/NOT shape that can be answered from a union of direct term entity sets.
 				GAIA_NODISCARD static bool has_only_direct_or_terms(const QueryInfo& queryInfo) {
 					return queryInfo.has_only_direct_or_terms();
-				}
-
-				template <typename TIter>
-				GAIA_NODISCARD static constexpr Constraints direct_seed_constraints() {
-					if constexpr (std::is_same_v<TIter, detail::IterDisabledOnly>)
-						return Constraints::DisabledOnly;
-					else if constexpr (std::is_same_v<TIter, detail::IterAcceptAll>)
-						return Constraints::AcceptAll;
-					else
-						return Constraints::EnabledOnly;
 				}
 
 				static void
@@ -2686,8 +3202,7 @@ namespace gaia {
 					return true;
 				}
 
-				GAIA_NODISCARD std::span<const detail::BfsChunkRun>
-				cached_direct_seed_runs(
+				GAIA_NODISCARD std::span<const detail::BfsChunkRun> cached_direct_seed_runs(
 						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo,
 						Constraints constraints) {
 					auto& runData = ensure_direct_seed_run_data();
@@ -2746,12 +3261,6 @@ namespace gaia {
 					return {runs.data(), runs.size()};
 				}
 
-				template <typename TIter>
-				GAIA_NODISCARD std::span<const detail::BfsChunkRun>
-				cached_direct_seed_runs(QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
-					return cached_direct_seed_runs(queryInfo, seedTerm, seedInfo, direct_seed_constraints<TIter>());
-				}
-
 				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_chunk_entities(
 						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo,
 						Constraints constraints) {
@@ -2760,16 +3269,10 @@ namespace gaia {
 					return {runData.cachedChunkOrderedEntities.data(), runData.cachedChunkOrderedEntities.size()};
 				}
 
-				template <typename TIter>
-				GAIA_NODISCARD std::span<const Entity> cached_direct_seed_chunk_entities(
-						QueryInfo& queryInfo, const QueryTerm& seedTerm, const DirectEntitySeedInfo& seedInfo) {
-					return cached_direct_seed_chunk_entities(queryInfo, seedTerm, seedInfo, direct_seed_constraints<TIter>());
-				}
-
 				template <typename Func>
 				GAIA_NODISCARD static bool for_each_direct_all_seed(
-						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan,
-						Constraints constraints, Func&& func) {
+						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Constraints constraints,
+						Func&& func) {
 					const auto* pSeedTerm = find_direct_all_seed_term(queryInfo, plan);
 					GAIA_ASSERT(pSeedTerm != nullptr);
 					if (pSeedTerm == nullptr)
@@ -2823,15 +3326,8 @@ namespace gaia {
 					});
 				}
 
-				template <typename TIter, typename Func>
-				GAIA_NODISCARD static bool for_each_direct_all_seed(
-						const World& world, const QueryInfo& queryInfo, const DirectEntitySeedPlan& plan, Func&& func) {
-					return for_each_direct_all_seed(world, queryInfo, plan, direct_seed_constraints<TIter>(), GAIA_FWD(func));
-				}
-
 				//! Applies iterator-specific entity state constraints to the direct seeded path.
-				GAIA_NODISCARD static bool
-				match_direct_entity_constraints(
+				GAIA_NODISCARD static bool match_direct_entity_constraints(
 						const World& world, const QueryInfo& queryInfo, Entity entity, Constraints constraints) {
 					if (!queryInfo.matches_prefab_entities() && world_entity_prefab(world, entity))
 						return false;
@@ -2841,12 +3337,6 @@ namespace gaia {
 					if (constraints == Constraints::DisabledOnly)
 						return !world_entity_enabled(world, entity);
 					return true;
-				}
-
-				template <typename TIter>
-				GAIA_NODISCARD static bool
-				match_direct_entity_constraints(const World& world, const QueryInfo& queryInfo, Entity entity) {
-					return match_direct_entity_constraints(world, queryInfo, entity, direct_seed_constraints<TIter>());
 				}
 
 				//! Detects when a direct seed can be counted by archetype buckets instead of per entity checks.
@@ -2874,10 +3364,9 @@ namespace gaia {
 				}
 
 				//! Groups seeded entities by archetype and counts whole buckets when only structural ALL/NOT terms remain.
-				template <typename TIter>
 				GAIA_NODISCARD static uint32_t count_direct_entity_seed_by_archetype(
 						const World& world, const QueryInfo& queryInfo, const cnt::darray<Entity>& seedEntities,
-						const DirectEntitySeedInfo& seedInfo) {
+						const DirectEntitySeedInfo& seedInfo, Constraints constraints) {
 					auto& scratch = direct_query_scratch();
 
 					scratch.archetypes.clear();
@@ -2885,7 +3374,7 @@ namespace gaia {
 					scratch.counts.clear();
 
 					for (const auto entity: seedEntities) {
-						if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+						if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 							continue;
 
 						const auto* pArchetype = world_entity_archetype(world, entity);
@@ -2910,8 +3399,8 @@ namespace gaia {
 				}
 
 				//! Counts the union of direct OR term entity sets while deduplicating entities across terms.
-				template <typename TIter>
-				GAIA_NODISCARD static uint32_t count_direct_or_union(const World& world, const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static uint32_t
+				count_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
@@ -2922,7 +3411,7 @@ namespace gaia {
 							continue;
 
 						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -2958,8 +3447,8 @@ namespace gaia {
 				//! \param world World
 				//! \param queryInfo Query info
 				//! \return True if no surviving entity exists. False otherwise.
-				template <typename TIter>
-				GAIA_NODISCARD static bool is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo) {
+				GAIA_NODISCARD static bool
+				is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					const bool hasDirectNotTerms = has_direct_not_terms(queryInfo);
@@ -2969,7 +3458,7 @@ namespace gaia {
 							continue;
 
 						const bool completed = for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -3074,8 +3563,8 @@ namespace gaia {
 				//! \param world World
 				//! \param queryInfo Query info
 				//! \param func Callback executed for each surviving entity.
-				template <typename TIter, typename Func>
-				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Func&& func) {
+				template <typename Func>
+				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
 					auto& scratch = direct_query_scratch();
 					const auto seenVersion = next_direct_query_seen_version(scratch);
 					DirectEntitySeedInfo seedInfo{};
@@ -3086,7 +3575,7 @@ namespace gaia {
 							continue;
 
 						(void)for_each_direct_term_entity(world, term, [&](Entity entity) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								return true;
 
 							const auto entityId = (uint32_t)entity.id();
@@ -3106,18 +3595,18 @@ namespace gaia {
 				}
 
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
-				template <bool UseFilters, typename TIter>
-				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo) const {
+				template <bool UseFilters>
+				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
 
 					if constexpr (!UseFilters) {
 						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
 							if (has_only_direct_or_terms(queryInfo))
-								return is_empty_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
+								return is_empty_direct_or_union(*queryInfo.world(), queryInfo, constraints);
 
 							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
 							bool empty = true;
-							(void)for_each_direct_all_seed<TIter>(*queryInfo.world(), queryInfo, plan, [&](Entity) {
+							(void)for_each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
 								empty = false;
 								return false;
 							});
@@ -3143,15 +3632,21 @@ namespace gaia {
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(qi);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 							continue;
 
 						GAIA_PROF_SCOPE(query::empty);
 
 						const auto& chunks = pArchetype->chunks();
+						Iter it;
+						it.set_world(queryInfo.world());
+						it.set_constraints(constraints);
+						it.set_archetype(pArchetype);
+
 						if (!hasEntityFilters) {
 							for (auto* pChunk: chunks) {
-								if (TIter::size(pChunk) == 0)
+								it.set_chunk(pChunk);
+								if (it.size() == 0)
 									continue;
 								if constexpr (UseFilters) {
 									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
@@ -3161,10 +3656,6 @@ namespace gaia {
 							}
 							continue;
 						}
-
-						TIter it;
-						it.set_world(queryInfo.world());
-						it.set_archetype(pArchetype);
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
 							it.set_chunk(pChunk);
@@ -3252,13 +3743,13 @@ namespace gaia {
 							const auto termId = queryInfo.direct_target_eval_id();
 							if (targetEntities.size() == 1) {
 								const auto entity = targetEntities[0];
-								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									return false;
 								return match_single_direct_target_term(world, entity, termId, directTargetEvalKind);
 							}
 
 							for (const auto entity: targetEntities) {
-								if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+								if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 									continue;
 								if (match_single_direct_target_term(world, entity, termId, directTargetEvalKind))
 									return true;
@@ -3270,13 +3761,13 @@ namespace gaia {
 						const DirectEntitySeedInfo seedInfo{};
 						if (targetEntities.size() == 1) {
 							const auto entity = targetEntities[0];
-							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 								return false;
 							return match_direct_entity_terms(world, entity, queryInfo, seedInfo);
 						}
 
 						for (const auto entity: targetEntities) {
-							if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 								continue;
 							if (match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 								return true;
@@ -3292,7 +3783,7 @@ namespace gaia {
 						return true;
 
 					for (const auto entity: targetEntities) {
-						if (!match_direct_entity_constraints<Iter>(world, queryInfo, entity))
+						if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly))
 							continue;
 						if (match_entity_filters(world, entity, queryInfo))
 							return true;
@@ -3302,25 +3793,25 @@ namespace gaia {
 				}
 
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
-				template <bool UseFilters, typename TIter>
-				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo) const {
+				template <bool UseFilters>
+				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
 
 					if constexpr (!UseFilters) {
 						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
 							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
-								return count_direct_or_union<TIter>(*queryInfo.world(), queryInfo);
+								return count_direct_or_union(*queryInfo.world(), queryInfo, constraints);
 
 							const auto plan = direct_entity_seed_plan(*queryInfo.world(), queryInfo);
 							const auto seedInfo = build_direct_entity_seed(*queryInfo.world(), queryInfo, scratch.entities);
 
 							if (can_use_archetype_bucket_count(*queryInfo.world(), queryInfo, seedInfo))
-								return count_direct_entity_seed_by_archetype<TIter>(
-										*queryInfo.world(), queryInfo, scratch.entities, seedInfo);
+								return count_direct_entity_seed_by_archetype(
+										*queryInfo.world(), queryInfo, scratch.entities, seedInfo, constraints);
 
 							uint32_t cnt = 0;
-							(void)for_each_direct_all_seed<TIter>(*queryInfo.world(), queryInfo, plan, [&](Entity) {
+							(void)for_each_direct_all_seed(*queryInfo.world(), queryInfo, plan, constraints, [&](Entity) {
 								++cnt;
 								return true;
 							});
@@ -3350,15 +3841,21 @@ namespace gaia {
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(qi);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 							continue;
 
 						GAIA_PROF_SCOPE(query::count);
 
 						const auto& chunks = pArchetype->chunks();
+						Iter it;
+						it.set_world(queryInfo.world());
+						it.set_constraints(constraints);
+						it.set_archetype(pArchetype);
+
 						if (!hasEntityFilters) {
 							for (auto* pChunk: chunks) {
-								const auto entityCnt = TIter::size(pChunk);
+								it.set_chunk(pChunk);
+								const auto entityCnt = it.size();
 								if (entityCnt == 0)
 									continue;
 
@@ -3371,10 +3868,6 @@ namespace gaia {
 							}
 							continue;
 						}
-
-						TIter it;
-						it.set_world(queryInfo.world());
-						it.set_archetype(pArchetype);
 						for (auto* pChunk: chunks) {
 							it.set_chunk(pChunk);
 
@@ -3405,9 +3898,8 @@ namespace gaia {
 					return cnt;
 				}
 
-				template <typename TIter>
 				static void init_direct_entity_iter(
-						const QueryInfo& queryInfo, const World& world, const EntityContainer& ec, TIter& it, uint8_t* pIndices,
+						const QueryInfo& queryInfo, const World& world, const EntityContainer& ec, Iter& it, uint8_t* pIndices,
 						Entity* pTermIds, const Archetype*& pLastArchetype) {
 					GAIA_ASSERT(ec.pArchetype != nullptr);
 					GAIA_ASSERT(ec.pChunk != nullptr);
@@ -3456,9 +3948,8 @@ namespace gaia {
 					it.set_group_id(0);
 				}
 
-				template <typename TIter>
 				static void init_direct_entity_iter(
-						const QueryInfo& queryInfo, const World& world, Entity entity, TIter& it, uint8_t* pIndices,
+						const QueryInfo& queryInfo, const World& world, Entity entity, Iter& it, uint8_t* pIndices,
 						Entity* pTermIds) {
 					const auto& ec = ::gaia::ecs::fetch(world, entity);
 					const Archetype* pLastArchetype = nullptr;
@@ -3466,11 +3957,13 @@ namespace gaia {
 					init_direct_entity_iter(queryInfo, world, ec, it, pIndices, pTermIds, pLastArchetype);
 				}
 
-				template <typename TIter, typename Func>
-				void each_chunk_runs_iter(QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Func func) {
+				template <typename Func>
+				void each_chunk_runs_iter(
+						QueryInfo& queryInfo, std::span<const detail::BfsChunkRun> runs, Constraints constraints, Func func) {
 					auto& world = *queryInfo.world();
-					TIter it;
+					Iter it;
 					it.set_world(&world);
+					it.set_constraints(constraints);
 					it.set_write_im(false);
 					const Archetype* pLastArchetype = nullptr;
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
@@ -3534,15 +4027,17 @@ namespace gaia {
 					return true;
 				}
 
-				template <typename TIter, typename Func>
-				void each_direct_entities_iter(QueryInfo& queryInfo, std::span<const Entity> entities, Func func) {
+				template <typename Func>
+				void each_direct_entities_iter(
+						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, Func func) {
 					auto& world = *queryInfo.world();
 					auto& walkData = ensure_each_walk_data();
-					TIter it;
+					Iter it;
 					it.set_world(&world);
+					it.set_constraints(constraints);
 					it.set_write_im(false);
 					if (!walkData.cachedRuns.empty()) {
-						each_chunk_runs_iter<TIter>(queryInfo, walkData.cachedRuns, func);
+						each_chunk_runs_iter(queryInfo, walkData.cachedRuns, constraints, func);
 						return;
 					}
 
@@ -3559,8 +4054,8 @@ namespace gaia {
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
-				template <typename TIter, typename Func>
-				void each_direct_iter_inter(QueryInfo& queryInfo, Func func) {
+				template <typename Func>
+				void each_direct_iter_inter(QueryInfo& queryInfo, Constraints constraints, Func func) {
 					auto& world = *queryInfo.world();
 					const bool hasWriteTerms = queryInfo.ctx().data.readWriteMask != 0;
 					const auto plan = direct_entity_seed_plan(world, queryInfo);
@@ -3568,7 +4063,8 @@ namespace gaia {
 					auto exec_entity = [&](Entity entity) {
 						uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 						Entity termIds[ChunkHeader::MAX_COMPONENTS];
-						TIter it;
+						Iter it;
+						it.set_constraints(constraints);
 						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						it.set_write_im(false);
 						func(it);
@@ -3581,7 +4077,7 @@ namespace gaia {
 						// so direct-seeded execution must iterate a stable snapshot.
 						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
 						for (const auto entity: scratch.entities) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								continue;
 							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 								continue;
@@ -3597,32 +4093,31 @@ namespace gaia {
 							seedInfo.seededAllTerm = pSeedTerm->id;
 							seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 							seedInfo.seededFromAll = true;
-							each_chunk_runs_iter<TIter>(
-									queryInfo, cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo), func);
+							each_chunk_runs_iter(
+									queryInfo, cached_direct_seed_runs(queryInfo, *pSeedTerm, seedInfo, constraints), constraints, func);
 							return;
 						}
 					}
 
 					if (plan.preferOrSeed) {
-						for_each_direct_or_union<TIter>(world, queryInfo, exec_entity);
+						for_each_direct_or_union(world, queryInfo, constraints, exec_entity);
 						return;
 					}
 
-					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
+					(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 						exec_entity(entity);
 						return true;
 					});
 				}
 
 				//! Runs a typed each() callback over directly seeded entities.
-				template <typename TIter>
 				void each_direct_inter(
-						QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectChunk)(QueryImpl&, TIter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
+						QueryInfo& queryInfo, Constraints constraints, void* pFunc, const TypedQueryExecState& state,
+						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
 						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
-				template <bool UseFilters, typename TIter, typename ContainerOut>
-				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray);
+				template <bool UseFilters, typename ContainerOut>
+				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray, Constraints constraints);
 
 			public:
 				QueryImpl() = default;
@@ -4394,12 +4889,11 @@ namespace gaia {
 				//! Runs a typed callback against an already prepared iterator.
 				//! This is used by higher-level adapters that normalize execution to `Iter&` first and
 				//! then materialize typed arguments on top of the iterator.
-				//! \tparam TIter Iterator type.
 				//! \tparam Func Callback type.
 				//! \param it Iterator positioned on the current chunk range.
 				//! \param func Callback to invoke.
-				template <typename TIter, typename Func>
-				void each_iter(TIter& it, Func func);
+				template <typename Func>
+				void each_iter(Iter& it, Func func);
 
 				void each_iter_erased(
 						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
@@ -4419,10 +4913,13 @@ namespace gaia {
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
-					run_query_on_archetypes<QueryExecType::Default, Iter>(queryInfo, [&](Iter& it) {
-						GAIA_PROF_SCOPE(query_func_a);
-						func(it);
-					}, constraints);
+					run_query_on_archetypes<QueryExecType::Default>(
+							queryInfo,
+							[&](Iter& it) {
+								GAIA_PROF_SCOPE(query_func_a);
+								func(it);
+							},
+							constraints);
 				}
 
 				//------------------------------------------------
@@ -4438,40 +4935,17 @@ namespace gaia {
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
-						switch (constraints) {
-							case Constraints::EnabledOnly:
-								return empty_inter<false, Iter>(queryInfo);
-							case Constraints::DisabledOnly:
-								return empty_inter<false, detail::IterDisabledOnly>(queryInfo);
-							case Constraints::AcceptAll:
-								return empty_inter<false, detail::IterAcceptAll>(queryInfo);
-						}
+						return empty_inter<false>(queryInfo, constraints);
 					}
 
 					match_all(queryInfo);
 
 					const bool hasFilters = queryInfo.has_filters();
 					if (hasFilters) {
-						switch (constraints) {
-							case Constraints::EnabledOnly:
-								return empty_inter<true, Iter>(queryInfo);
-							case Constraints::DisabledOnly:
-								return empty_inter<true, detail::IterDisabledOnly>(queryInfo);
-							case Constraints::AcceptAll:
-								return empty_inter<true, detail::IterAcceptAll>(queryInfo);
-						}
+						return empty_inter<true>(queryInfo, constraints);
 					} else {
-						switch (constraints) {
-							case Constraints::EnabledOnly:
-								return empty_inter<false, Iter>(queryInfo);
-							case Constraints::DisabledOnly:
-								return empty_inter<false, detail::IterDisabledOnly>(queryInfo);
-							case Constraints::AcceptAll:
-								return empty_inter<false, detail::IterAcceptAll>(queryInfo);
-						}
+						return empty_inter<false>(queryInfo, constraints);
 					}
-
-					return true;
 				}
 
 				//! Calculates the number of entities matching the query
@@ -4484,48 +4958,13 @@ namespace gaia {
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
-						switch (constraints) {
-							case Constraints::EnabledOnly:
-								return count_inter<false, Iter>(queryInfo);
-							case Constraints::DisabledOnly:
-								return count_inter<false, detail::IterDisabledOnly>(queryInfo);
-							case Constraints::AcceptAll:
-								return count_inter<false, detail::IterAcceptAll>(queryInfo);
-						}
+						return count_inter<false>(queryInfo, constraints);
 					}
 
 					match_all(queryInfo);
 
-					uint32_t entCnt = 0;
-
 					const bool hasFilters = queryInfo.has_filters();
-					if (hasFilters) {
-						switch (constraints) {
-							case Constraints::EnabledOnly: {
-								entCnt += count_inter<true, Iter>(queryInfo);
-							} break;
-							case Constraints::DisabledOnly: {
-								entCnt += count_inter<true, detail::IterDisabledOnly>(queryInfo);
-							} break;
-							case Constraints::AcceptAll: {
-								entCnt += count_inter<true, detail::IterAcceptAll>(queryInfo);
-							} break;
-						}
-					} else {
-						switch (constraints) {
-							case Constraints::EnabledOnly: {
-								entCnt += count_inter<false, Iter>(queryInfo);
-							} break;
-							case Constraints::DisabledOnly: {
-								entCnt += count_inter<false, detail::IterDisabledOnly>(queryInfo);
-							} break;
-							case Constraints::AcceptAll: {
-								entCnt += count_inter<false, detail::IterAcceptAll>(queryInfo);
-							} break;
-						}
-					}
-
-					return entCnt;
+					return hasFilters ? count_inter<true>(queryInfo, constraints) : count_inter<false>(queryInfo, constraints);
 				}
 
 				void collect_entities_enabled(cnt::darray<Entity>& out) {
@@ -4536,13 +4975,13 @@ namespace gaia {
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						auto& world = *queryInfo.world();
 						if (has_only_direct_or_terms(queryInfo)) {
-							for_each_direct_or_union<Iter>(world, queryInfo, [&](Entity entity) {
+							for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
 								out.push_back(entity);
 								return true;
 							});
 						} else {
 							const auto plan = direct_entity_seed_plan(world, queryInfo);
-							(void)for_each_direct_all_seed<Iter>(world, queryInfo, plan, [&](Entity entity) {
+							(void)for_each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
 								out.push_back(entity);
 								return true;
 							});
@@ -4577,7 +5016,8 @@ namespace gaia {
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
 						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(qi);
-						if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype, barrierPasses))
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *pArchetype, Constraints::EnabledOnly, barrierPasses))
 							continue;
 
 						const auto& chunks = pArchetype->chunks();
@@ -4960,17 +5400,7 @@ namespace gaia {
 					const auto ordered = ordered_entities_walk(queryInfo, relation, constraints);
 
 					if constexpr (std::is_invocable_v<Func, Iter&>) {
-						switch (constraints) {
-							case Constraints::DisabledOnly:
-								each_direct_entities_iter<detail::IterDisabledOnly>(queryInfo, ordered, func);
-								break;
-							case Constraints::AcceptAll:
-								each_direct_entities_iter<detail::IterAcceptAll>(queryInfo, ordered, func);
-								break;
-							default:
-								each_direct_entities_iter<Iter>(queryInfo, ordered, func);
-								break;
-						}
+						each_direct_entities_iter(queryInfo, ordered, constraints, func);
 					} else if constexpr (std::is_invocable_v<Func, const Entity&> || std::is_invocable_v<Func, Entity>) {
 						for (const auto entity: ordered)
 							func(entity);

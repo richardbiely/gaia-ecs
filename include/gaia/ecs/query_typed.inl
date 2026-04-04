@@ -31,22 +31,19 @@ namespace gaia {
 
 			inline void finish_typed_iter_state(QueryImpl& query, Iter& it, const TypedQueryExecState& state);
 
-			template <typename TIter>
-			inline void finish_typed_iter_state(QueryImpl& query, TIter& it, const TypedQueryExecState& state);
-
 			inline void noop_row_done(uint32_t) {}
 
-			template <typename TIter, typename Func, typename ViewsTuple, typename... T>
+			template <typename Func, typename ViewsTuple, typename... T>
 			inline void invoke_typed_query_row_erased(
-					void* pFunc, TIter& it, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex);
+					void* pFunc, Iter& it, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex);
 
-			template <typename TIter, typename OnRowDone, typename... T>
+			template <typename OnRowDone, typename... T>
 			inline void run_typed_chunk_views(
-					const QueryInfo* pQueryInfo, TIter& it, void* pFunc, bool directViews, OnRowDone&& onRowDone,
+					const QueryInfo* pQueryInfo, Iter& it, void* pFunc, bool directViews, OnRowDone&& onRowDone,
 					void (*invokeDirectRow)(
-							void*, TIter&, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>&, uint32_t, bool),
+							void*, Iter&, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>&, uint32_t, bool),
 					void (*invokeMappedRow)(
-							void*, TIter&, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>&, uint32_t,
+							void*, Iter&, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>&, uint32_t,
 							bool),
 					core::func_type_list<T...>);
 
@@ -81,9 +78,9 @@ namespace gaia {
 				run_typed_chunk_views(
 						nullptr, it, pFunc, true, noop_row_done,
 						&invoke_typed_query_row_erased<
-								Iter, Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 						&invoke_typed_query_row_erased<
-								Iter, Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 						core::func_type_list<T...>{});
 			}
 
@@ -101,17 +98,17 @@ namespace gaia {
 				run_typed_chunk_mapped_finish(query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void each_iter_dispatch(
-					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, Func& func, const TypedQueryExecState& state,
+					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...>) {
 				if (state.canUseDirectChunkEval) {
 					run_typed_chunk_views(
 							nullptr, it, &func, true, noop_row_done,
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 							core::func_type_list<T...>{});
 					finish_typed_chunk_state(
 							query, *it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
@@ -119,65 +116,65 @@ namespace gaia {
 					run_typed_chunk_unmapped(query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_chunk_direct_finish(
-					QueryImpl& query, TIter& it, Func& func, const TypedQueryExecState& state, core::func_type_list<T...>) {
+					QueryImpl& query, Iter& it, Func& func, const TypedQueryExecState& state, core::func_type_list<T...>) {
 				run_typed_chunk_views(
 						nullptr, it, &func, true, noop_row_done,
 						&invoke_typed_query_row_erased<
-								TIter, Func, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 						&invoke_typed_query_row_erased<
-								TIter, Func, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 						core::func_type_list<T...>{});
 				finish_typed_iter_state(query, it, state);
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_chunk_mapped_finish(
-					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, Func& func, const TypedQueryExecState& state,
+					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...>) {
 				run_typed_chunk_views(
 						&queryInfo, it, &func, false, noop_row_done,
 						&invoke_typed_query_row_erased<
-								TIter, Func, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 						&invoke_typed_query_row_erased<
-								TIter, Func, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>, T...>,
+								Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 						core::func_type_list<T...>{});
 				finish_typed_iter_state(query, it, state);
 			}
 
-			template <typename Func, typename TIter, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_chunk_direct_walk_cb(
-					QueryImpl& query, const QueryInfo&, TIter& it, void* pFunc, const TypedQueryExecState& state) {
+					QueryImpl& query, const QueryInfo&, Iter& it, void* pFunc, const TypedQueryExecState& state) {
 				run_typed_chunk_direct_finish(query, it, *static_cast<Func*>(pFunc), state, core::func_type_list<T...>{});
 			}
 
-			template <typename Func, typename TIter, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_chunk_mapped_walk_cb(
-					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, void* pFunc, const TypedQueryExecState& state) {
+					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, void* pFunc, const TypedQueryExecState& state) {
 				run_typed_chunk_mapped_finish(
 						query, queryInfo, it, *static_cast<Func*>(pFunc), state, core::func_type_list<T...>{});
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void each_walk_dispatch_direct(
-					QueryImpl& query, QueryInfo& queryInfo, std::span<const Entity> entities, Func& func,
+					QueryImpl& query, QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, Func& func,
 					const TypedQueryExecState& state, core::func_type_list<T...>) {
-				query.template each_walk_inter<TIter>(
-						queryInfo, entities, &func, state, &run_typed_chunk_direct_walk_cb<Func, TIter, T...>);
+				query.each_walk_inter(
+						queryInfo, entities, constraints, &func, state, &run_typed_chunk_direct_walk_cb<Func, T...>);
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void each_walk_dispatch_mapped(
-					QueryImpl& query, QueryInfo& queryInfo, std::span<const Entity> entities, Func& func,
+					QueryImpl& query, QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, Func& func,
 					const TypedQueryExecState& state, core::func_type_list<T...>) {
-				query.template each_walk_inter<TIter>(
-						queryInfo, entities, &func, state, &run_typed_chunk_mapped_walk_cb<Func, TIter, T...>);
+				query.each_walk_inter(
+						queryInfo, entities, constraints, &func, state, &run_typed_chunk_mapped_walk_cb<Func, T...>);
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_chunk_unmapped(
-					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, Func& func, const TypedQueryExecState& state,
+					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, Func& func, const TypedQueryExecState& state,
 					core::func_type_list<T...> types) {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				auto* pChunk = const_cast<Chunk*>(it.chunk());
@@ -187,9 +184,9 @@ namespace gaia {
 					run_typed_chunk_views(
 							&queryInfo, it, &func, false, noop_row_done,
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 							types);
 					finish_typed_chunk_state(query, world, pChunk, it.row_begin(), it.row_end(), state);
 				} else {
@@ -201,21 +198,22 @@ namespace gaia {
 										state);
 							},
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
 							&invoke_typed_query_row_erased<
-									TIter, Func, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>, T...>,
+									Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 							types);
 				}
 
 				it.clear_touched_writes();
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_cached_seed_runs_basic(
-					QueryImpl& query, World& world, Func& func, std::span<const BfsChunkRun> runs,
+					QueryImpl& query, World& world, Constraints constraints, Func& func, std::span<const BfsChunkRun> runs,
 					const TypedQueryExecState& state) {
-				TIter it;
+				Iter it;
 				it.set_world(&world);
+				it.set_constraints(constraints);
 				const Archetype* pLastArchetype = nullptr;
 				for (const auto& run: runs) {
 					if (run.pArchetype != pLastArchetype) {
@@ -229,12 +227,13 @@ namespace gaia {
 				}
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_cached_seed_runs_entity_init(
-					QueryImpl& query, QueryInfo& queryInfo, World& world, Func& func, std::span<const BfsChunkRun> runs,
-					const TypedQueryExecState& state) {
-				TIter it;
+					QueryImpl& query, QueryInfo& queryInfo, World& world, Constraints constraints, Func& func,
+					std::span<const BfsChunkRun> runs, const TypedQueryExecState& state) {
+				Iter it;
 				it.set_world(&world);
+				it.set_constraints(constraints);
 				const Archetype* pLastArchetype = nullptr;
 				uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 				Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -247,24 +246,25 @@ namespace gaia {
 				}
 			}
 
-			template <typename TIter, typename Func, typename... T>
+			template <typename Func, typename... T>
 			inline void run_typed_cached_seed_runs(
-					QueryImpl& query, QueryInfo& queryInfo, World& world, Func& func, std::span<const BfsChunkRun> runs,
-					bool canUseBasicInit, const TypedQueryExecState& state) {
+					QueryImpl& query, QueryInfo& queryInfo, World& world, Constraints constraints, Func& func,
+					std::span<const BfsChunkRun> runs, bool canUseBasicInit, const TypedQueryExecState& state) {
 				if (canUseBasicInit)
-					run_typed_cached_seed_runs_basic<TIter, Func, T...>(query, world, func, runs, state);
+					run_typed_cached_seed_runs_basic<Func, T...>(query, world, constraints, func, runs, state);
 				else
-					run_typed_cached_seed_runs_entity_init<TIter, Func, T...>(query, queryInfo, world, func, runs, state);
+					run_typed_cached_seed_runs_entity_init<Func, T...>(query, queryInfo, world, constraints, func, runs, state);
 			}
 
-			template <typename TIter>
 			inline void QueryImpl::each_walk_inter(
-					QueryInfo& queryInfo, std::span<const Entity> entities, void* pFunc, const TypedQueryExecState& state,
-					void (*runChunk)(QueryImpl&, const QueryInfo&, TIter&, void*, const TypedQueryExecState&)) {
+					QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, void* pFunc,
+					const TypedQueryExecState& state,
+					void (*runChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&)) {
 				auto& world = *queryInfo.world();
 				auto& walkData = ensure_each_walk_data();
-				TIter it;
+				Iter it;
 				it.set_world(&world);
+				it.set_constraints(constraints);
 				it.set_write_im(false);
 				if (!walkData.cachedRuns.empty()) {
 					const auto& runs = walkData.cachedRuns;
@@ -298,12 +298,6 @@ namespace gaia {
 				it.clear_touched_writes();
 			}
 
-			template <typename TIter>
-			inline void finish_typed_iter_state(QueryImpl& query, TIter& it, const TypedQueryExecState& state) {
-				query.finish_typed_iter_writes_runtime(it, state.argIds, state.writeFlags, state.argCount);
-				it.clear_touched_writes();
-			}
-
 			inline void finish_typed_chunk_state(
 					QueryImpl& query, World& world, Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state) {
 				(void)query;
@@ -311,9 +305,9 @@ namespace gaia {
 						world, pChunk, from, to, state.argIds, state.writeFlags, state.argCount);
 			}
 
-			template <typename TIter, typename InvokeRow, typename OnRowDone>
+			template <typename InvokeRow, typename OnRowDone>
 			inline void run_typed_query_rows_runtime(
-					const QueryInfo* pQueryInfo, TIter& it, InvokeRow&& invokeRow, OnRowDone&& onRowDone) {
+					const QueryInfo* pQueryInfo, Iter& it, InvokeRow&& invokeRow, OnRowDone&& onRowDone) {
 				const auto cnt = it.size();
 				const bool hasEntityFilters = pQueryInfo != nullptr && pQueryInfo->has_entity_filter_terms();
 
@@ -334,9 +328,9 @@ namespace gaia {
 				}
 			}
 
-			template <typename TIter, typename Func, typename ViewsTuple, typename... T>
+			template <typename Func, typename ViewsTuple, typename... T>
 			inline void invoke_typed_query_row(
-					TIter& it, Func& func, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex,
+					Iter& it, Func& func, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex,
 					core::func_type_list<T...>) {
 				if constexpr (sizeof...(T) > 0) {
 					if (directLocalIndex) {
@@ -356,17 +350,17 @@ namespace gaia {
 					func();
 			}
 
-			template <typename TIter, typename Func, typename ViewsTuple, typename... T>
+			template <typename Func, typename ViewsTuple, typename... T>
 			inline void invoke_typed_query_row_erased(
-					void* pFunc, TIter& it, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex) {
+					void* pFunc, Iter& it, ViewsTuple& dataPointerTuple, uint32_t row, bool directLocalIndex) {
 				auto& func = *static_cast<Func*>(pFunc);
 				invoke_typed_query_row(it, func, dataPointerTuple, row, directLocalIndex, core::func_type_list<T...>{});
 			}
 
-			template <typename TIter, typename OnRowDone, typename ViewsTuple>
+			template <typename OnRowDone, typename ViewsTuple>
 			inline void run_typed_tuple_rows(
-					const QueryInfo* pQueryInfo, TIter& it, void* pFunc, ViewsTuple& dataPointerTuple, bool directLocalIndex,
-					void (*invokeRow)(void*, TIter&, ViewsTuple&, uint32_t, bool), OnRowDone&& onRowDone) {
+					const QueryInfo* pQueryInfo, Iter& it, void* pFunc, ViewsTuple& dataPointerTuple, bool directLocalIndex,
+					void (*invokeRow)(void*, Iter&, ViewsTuple&, uint32_t, bool), OnRowDone&& onRowDone) {
 				run_typed_query_rows_runtime(
 						pQueryInfo, it,
 						[&](uint32_t row) {
@@ -375,13 +369,13 @@ namespace gaia {
 						std::forward<OnRowDone>(onRowDone));
 			}
 
-			template <typename TIter, typename OnRowDone, typename... T>
+			template <typename OnRowDone, typename... T>
 			inline void run_typed_chunk_views(
-					const QueryInfo* pQueryInfo, TIter& it, void* pFunc, bool directViews, OnRowDone&& onRowDone,
+					const QueryInfo* pQueryInfo, Iter& it, void* pFunc, bool directViews, OnRowDone&& onRowDone,
 					void (*invokeDirectRow)(
-							void*, TIter&, std::tuple<decltype(std::declval<TIter&>().template sview_auto<T>())...>&, uint32_t, bool),
+							void*, Iter&, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>&, uint32_t, bool),
 					void (*invokeMappedRow)(
-							void*, TIter&, std::tuple<decltype(std::declval<TIter&>().template view_auto_any<T>())...>&, uint32_t,
+							void*, Iter&, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>&, uint32_t,
 							bool),
 					core::func_type_list<T...>) {
 				if constexpr (sizeof...(T) > 0) {
@@ -413,14 +407,14 @@ namespace gaia {
 				}
 			}
 
-			template <bool UseFilters, typename TIter, typename ContainerOut>
+			template <bool UseFilters, typename ContainerOut>
 			inline void run_typed_arr_rows(
-					QueryImpl& query, const QueryInfo& queryInfo, TIter& it, ContainerOut& outArray, uint32_t changedWorldVersion,
+					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, ContainerOut& outArray, uint32_t changedWorldVersion,
 					uint32_t archetypeIdx, const Archetype* pArchetype, Chunk* pChunk, uint16_t from, uint16_t to,
 					bool needsBarrierCache, bool canUseDirectChunkEval) {
 				using ContainerItemType = typename ContainerOut::value_type;
 				const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(archetypeIdx);
-				if GAIA_UNLIKELY (!query.template can_process_archetype_inter<TIter>(queryInfo, *pArchetype, barrierPasses))
+				if GAIA_UNLIKELY (!query.can_process_archetype_inter(queryInfo, *pArchetype, it.constraints(), barrierPasses))
 					return;
 
 				GAIA_PROF_SCOPE(query::arr);
@@ -518,9 +512,8 @@ namespace gaia {
 				finish_typed_chunk_writes_runtime(world, pChunk, from, to, argIds, writeFlags, argCount);
 			}
 
-			template <typename TIter>
 			inline void QueryImpl::finish_typed_iter_writes_runtime(
-					TIter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt) {
+					Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt) {
 				auto* pChunk = const_cast<Chunk*>(it.chunk());
 				if (pChunk == nullptr || it.row_begin() >= it.row_end())
 					return;
@@ -596,7 +589,7 @@ namespace gaia {
 
 				for (uint32_t i = idxFrom; i < idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
-					if GAIA_UNLIKELY (!can_process_archetype_inter<Iter>(queryInfo, *pArchetype))
+					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
 					const auto& chunks = pArchetype->chunks();
@@ -638,7 +631,8 @@ namespace gaia {
 					bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
 				if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
 					GAIA_PROF_SCOPE(query_func);
-					each_direct_inter<Iter>(queryInfo, pFunc, state, runDirectChunk, needsInheritedArgIds, invokeInherited);
+					each_direct_inter(
+							queryInfo, Constraints::EnabledOnly, pFunc, state, runDirectChunk, needsInheritedArgIds, invokeInherited);
 					return;
 				}
 
@@ -714,7 +708,7 @@ namespace gaia {
 					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&)) {
 				if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
 					GAIA_PROF_SCOPE(query_func);
-					each_direct_iter_inter<Iter>(queryInfo, [&](Iter& it) {
+					each_direct_iter_inter(queryInfo, Constraints::EnabledOnly, [&](Iter& it) {
 						each_iter_erased(it, pFunc, state, runDirectFastChunk, runMappedChunk);
 					});
 					return;
@@ -735,7 +729,8 @@ namespace gaia {
 
 				switch (execType) {
 					case QueryExecType::Parallel:
-						each_iter_inter_erased<QueryExecType::Parallel>(queryInfo, pFunc, state, runDirectFastChunk, runMappedChunk);
+						each_iter_inter_erased<QueryExecType::Parallel>(
+								queryInfo, pFunc, state, runDirectFastChunk, runMappedChunk);
 						break;
 					case QueryExecType::ParallelPerf:
 						each_iter_inter_erased<QueryExecType::ParallelPerf>(
@@ -751,8 +746,8 @@ namespace gaia {
 				}
 			}
 
-			template <typename TIter, typename Func>
-			inline void QueryImpl::each_iter(TIter& it, Func func) {
+			template <typename Func>
+			inline void QueryImpl::each_iter(Iter& it, Func func) {
 				using InputArgs = decltype(core::func_args(&Func::operator()));
 				auto& queryInfo = fetch();
 
@@ -778,10 +773,9 @@ namespace gaia {
 					runMappedChunk(*this, queryInfo, it, pFunc, state);
 			}
 
-			template <typename TIter>
 			inline void QueryImpl::each_direct_inter(
-					QueryInfo& queryInfo, void* pFunc, const TypedQueryExecState& state,
-					void (*runDirectChunk)(QueryImpl&, TIter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
+					QueryInfo& queryInfo, Constraints constraints, void* pFunc, const TypedQueryExecState& state,
+					void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
 					void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
 				auto& world = *queryInfo.world();
 				const auto plan = direct_entity_seed_plan(world, queryInfo);
@@ -790,7 +784,8 @@ namespace gaia {
 				auto exec_direct_entity = [&](Entity entity) {
 					uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 					Entity termIds[ChunkHeader::MAX_COMPONENTS];
-					TIter it;
+					Iter it;
+					it.set_constraints(constraints);
 					init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 					runDirectChunk(*this, it, pFunc, state);
 				};
@@ -813,10 +808,11 @@ namespace gaia {
 						seedInfo.seededAllMatchKind = pSeedTerm->matchKind;
 						seedInfo.seededFromAll = true;
 						if (!state.hasInheritedTerms) {
-							const auto runs = cached_direct_seed_runs<TIter>(queryInfo, *pSeedTerm, seedInfo);
+							const auto runs = cached_direct_seed_runs(queryInfo, *pSeedTerm, seedInfo, constraints);
 							if (state.canUseDirectChunkEval) {
-								TIter it;
+								Iter it;
 								it.set_world(&world);
+								it.set_constraints(constraints);
 								const Archetype* pLastArchetype = nullptr;
 								for (const auto& run: runs) {
 									if (run.pArchetype != pLastArchetype) {
@@ -828,8 +824,9 @@ namespace gaia {
 									runDirectChunk(*this, it, pFunc, state);
 								}
 							} else {
-								TIter it;
+								Iter it;
 								it.set_world(&world);
+								it.set_constraints(constraints);
 								const Archetype* pLastArchetype = nullptr;
 								uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 								Entity termIds[ChunkHeader::MAX_COMPONENTS];
@@ -842,7 +839,7 @@ namespace gaia {
 								}
 							}
 						} else {
-							const auto entities = cached_direct_seed_chunk_entities<TIter>(queryInfo, *pSeedTerm, seedInfo);
+							const auto entities = cached_direct_seed_chunk_entities(queryInfo, *pSeedTerm, seedInfo, constraints);
 							for (const auto entity: entities)
 								exec_entity(entity);
 						}
@@ -855,7 +852,7 @@ namespace gaia {
 						auto& scratch = direct_query_scratch();
 						const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
 						for (const auto entity: scratch.entities) {
-							if (!match_direct_entity_constraints<TIter>(world, queryInfo, entity))
+							if (!match_direct_entity_constraints(world, queryInfo, entity, constraints))
 								continue;
 							if (!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
 								continue;
@@ -865,14 +862,14 @@ namespace gaia {
 					}
 
 					if (plan.preferOrSeed) {
-						for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+						for_each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
 							execEntity(entity);
 							return true;
 						});
 						return;
 					}
 
-					(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
+					(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 						execEntity(entity);
 						return true;
 					});
@@ -898,47 +895,27 @@ namespace gaia {
 				const auto argCount = init_typed_query_arg_metas(metas, world, InputArgs{});
 				const auto state = build_typed_query_exec_state(*this, world, queryInfo, metas, argCount);
 				if (state.canUseDirectChunkEval) {
-					switch (constraints) {
-						case Constraints::DisabledOnly:
-							each_walk_dispatch_direct<detail::IterDisabledOnly>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-						case Constraints::AcceptAll:
-							each_walk_dispatch_direct<detail::IterAcceptAll>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-						default:
-							each_walk_dispatch_direct<Iter>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-					}
+					each_walk_dispatch_direct(*this, queryInfo, ordered, constraints, func, state, InputArgs{});
 				} else {
-					switch (constraints) {
-						case Constraints::DisabledOnly:
-							each_walk_dispatch_mapped<detail::IterDisabledOnly>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-						case Constraints::AcceptAll:
-							each_walk_dispatch_mapped<detail::IterAcceptAll>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-						default:
-							each_walk_dispatch_mapped<Iter>(*this, queryInfo, ordered, func, state, InputArgs{});
-							break;
-					}
+					each_walk_dispatch_mapped(*this, queryInfo, ordered, constraints, func, state, InputArgs{});
 				}
 			}
 
-			template <bool UseFilters, typename TIter, typename ContainerOut>
-			inline void QueryImpl::arr_inter(QueryInfo& queryInfo, ContainerOut& outArray) {
+			template <bool UseFilters, typename ContainerOut>
+			inline void QueryImpl::arr_inter(QueryInfo& queryInfo, ContainerOut& outArray, Constraints constraints) {
 				using ContainerItemType = typename ContainerOut::value_type;
 				if constexpr (!UseFilters) {
 					if (can_use_direct_entity_seed_eval(queryInfo)) {
 						auto& world = *queryInfo.world();
 						const auto plan = direct_entity_seed_plan(world, queryInfo);
 						if (plan.preferOrSeed) {
-							for_each_direct_or_union<TIter>(world, queryInfo, [&](Entity entity) {
+							for_each_direct_or_union(world, queryInfo, constraints, [&](Entity entity) {
 								typed_arr_push(world, entity, outArray);
 							});
 							return;
 						}
 
-						(void)for_each_direct_all_seed<TIter>(world, queryInfo, plan, [&](Entity entity) {
+						(void)for_each_direct_all_seed(world, queryInfo, plan, constraints, [&](Entity entity) {
 							typed_arr_push(world, entity, outArray);
 							return true;
 						});
@@ -950,8 +927,9 @@ namespace gaia {
 				auto& world = *queryInfo.world();
 				const auto meta = typed_query_arg_meta<ContainerItemType>(world);
 				const DirectChunkArgEvalDesc desc = {.id = meta.termId, .isEntity = meta.isEntity, .isPair = meta.isPair};
-				TIter it;
+				Iter it;
 				it.set_world(queryInfo.world());
+				it.set_constraints(constraints);
 				const bool canUseDirectChunkEval = !UseFilters && !queryInfo.has_entity_filter_terms() &&
 																					 can_use_direct_chunk_term_eval_descs(world, queryInfo, &desc, 1) &&
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
@@ -975,8 +953,8 @@ namespace gaia {
 						if (view.archetypeIdx < idxFrom || view.archetypeIdx >= idxTo)
 							continue;
 
-						const auto minStartRow = TIter::start_index(view.pChunk);
-						const auto minEndRow = TIter::end_index(view.pChunk);
+						const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+						const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
 						const auto viewFrom = view.startRow;
 						const auto viewTo = (uint16_t)(view.startRow + view.count);
 						const auto startRow = core::get_max(minStartRow, viewFrom);
@@ -1013,29 +991,9 @@ namespace gaia {
 
 				const bool hasFilters = queryInfo.has_filters();
 				if (hasFilters) {
-					switch (constraints) {
-						case Constraints::EnabledOnly:
-							arr_inter<true, Iter>(queryInfo, outArray);
-							break;
-						case Constraints::DisabledOnly:
-							arr_inter<true, detail::IterDisabledOnly>(queryInfo, outArray);
-							break;
-						case Constraints::AcceptAll:
-							arr_inter<true, detail::IterAcceptAll>(queryInfo, outArray);
-							break;
-					}
+					arr_inter<true>(queryInfo, outArray, constraints);
 				} else {
-					switch (constraints) {
-						case Constraints::EnabledOnly:
-							arr_inter<false, Iter>(queryInfo, outArray);
-							break;
-						case Constraints::DisabledOnly:
-							arr_inter<false, detail::IterDisabledOnly>(queryInfo, outArray);
-							break;
-						case Constraints::AcceptAll:
-							arr_inter<false, detail::IterAcceptAll>(queryInfo, outArray);
-							break;
-					}
+					arr_inter<false>(queryInfo, outArray, constraints);
 				}
 			}
 		} // namespace detail
