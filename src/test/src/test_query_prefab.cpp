@@ -52,13 +52,15 @@ TEST_CASE("Enable") {
 		auto checkQuery = [&q](uint32_t expectedCountAll, uint32_t expectedCountEnabled, uint32_t expectedCountDisabled) {
 			{
 				uint32_t cnt = 0;
-				q.each([&]([[maybe_unused]] ecs::Iter& it) {
-					const uint32_t cExpected = it.size();
-					uint32_t c = 0;
-					GAIA_EACH(it)++ c;
-					CHECK(c == cExpected);
-					cnt += c;
-				}, ecs::Constraints::AcceptAll);
+				q.each(
+						[&](ecs::Iter& it) {
+							const uint32_t cExpected = it.size();
+							uint32_t c = 0;
+							GAIA_EACH(it)++ c;
+							CHECK(c == cExpected);
+							cnt += c;
+						},
+						ecs::Constraints::AcceptAll);
 				CHECK(cnt == expectedCountAll);
 
 				cnt = q.count(ecs::Constraints::AcceptAll);
@@ -83,16 +85,18 @@ TEST_CASE("Enable") {
 			}
 			{
 				uint32_t cnt = 0;
-				q.each([&]([[maybe_unused]] ecs::Iter& it) {
-					const uint32_t cExpected = it.size();
-					uint32_t c = 0;
-					GAIA_EACH(it) {
-						CHECK_FALSE(it.enabled(i));
-						++c;
-					}
-					CHECK(c == cExpected);
-					cnt += c;
-				}, ecs::Constraints::DisabledOnly);
+				q.each(
+						[&]([[maybe_unused]] ecs::Iter& it) {
+							const uint32_t cExpected = it.size();
+							uint32_t c = 0;
+							GAIA_EACH(it) {
+								CHECK_FALSE(it.enabled(i));
+								++c;
+							}
+							CHECK(c == cExpected);
+							cnt += c;
+						},
+						ecs::Constraints::DisabledOnly);
 				CHECK(cnt == expectedCountDisabled);
 
 				cnt = q.count(ecs::Constraints::DisabledOnly);
@@ -830,12 +834,12 @@ TEST_CASE("Add - mixed") {
 			CHECK(p.z == 30.f);
 		}
 		{
-			// Because "e" was moved to a new archetype nobody ever set the value.
-			// Therefore, it is garbage and won't match the original chunk.
-			auto p = wld.get<ecs::uni<Position>>(e);
-			CHECK_FALSE(p.x == 1.f);
-			CHECK_FALSE(p.y == 2.f);
-			CHECK_FALSE(p.z == 3.f);
+			// Because "e" was moved to a new archetype nobody ever set the unique Position value again.
+			// The bytes are unspecified here, so only verify the value after writing it explicitly below.
+			// auto p = wld.get<ecs::uni<Position>>(e);
+			// CHECK_FALSE(p.x == 1.f);
+			// CHECK_FALSE(p.y == 2.f);
+			// CHECK_FALSE(p.z == 3.f);
 		}
 		wld.set<ecs::uni<Position>>(e) = {100.0f, 200.0f, 300.0f};
 		{

@@ -432,6 +432,7 @@ namespace gaia {
 						MemoryBlockUsableOffset +
 						// Chunk "header" area (before actual entity/component data starts)
 						sizeof(ChunkHeader) + sizeof(ChunkRecords);
+				static_assert(dataAreaOffset % MemoryBlockAlignment == 0);
 				static_assert(dataAreaOffset < UINT16_MAX);
 				return dataAreaOffset;
 			}

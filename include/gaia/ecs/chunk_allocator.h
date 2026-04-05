@@ -14,11 +14,25 @@
 
 namespace gaia {
 	namespace ecs {
+		namespace detail {
+			struct MemoryBlockHeader final {
+				uintptr_t m_pageAddr = 0;
+				uint32_t m_reserved = 0;
+#if GAIA_DEBUG
+				uint32_t m_requestedBytes = 0;
+#endif
+			};
+
+			class ChunkAllocatorImpl;
+		} // namespace detail
+
+		static constexpr uint32_t MemoryBlockAlignment = 64;
 		static constexpr uint32_t MinMemoryBlockSize = 1024 * 8;
 		//! Size of one allocated block of memory in kiB
 		static constexpr uint32_t MaxMemoryBlockSize = MinMemoryBlockSize * 4;
-		//! Unusable area at the beginning of the allocated block designated for special purposes
-		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
+		//! Reserved bytes at the start of each block for allocator metadata and chunk header alignment headroom.
+		//! Validated against the actual chunk layout in Chunk::chunk_header_size().
+		static constexpr uint32_t MemoryBlockUsableOffset = 40;
 
 		constexpr uint16_t mem_block_size(uint32_t sizeType) {
 			constexpr uint16_t sizes[] = {MinMemoryBlockSize, MinMemoryBlockSize * 2, MaxMemoryBlockSize};
@@ -26,6 +40,7 @@ namespace gaia {
 		}
 
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
+			GAIA_ASSERT(sizeBytes > 0);
 			// Ceil division by smallest block size
 			const uint32_t blocks = (sizeBytes + MinMemoryBlockSize - 1) / MinMemoryBlockSize;
 			return blocks > 2 ? 2 : static_cast<uint8_t>(blocks - 1);
@@ -35,24 +50,28 @@ namespace gaia {
 		struct GAIA_API ChunkAllocatorPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
-			//! Memory actively used
+			//! Memory actively reserved by live blocks
 			uint64_t mem_used;
 			//! Number of allocated pages
 			uint32_t num_pages;
-			//! Number of free pages
+			//! Number of reusable pages (partial + empty)
 			uint32_t num_pages_free;
+	#if GAIA_DEBUG
+			//! Bytes explicitly requested by callers
+			uint64_t mem_requested;
+			//! Number of completely empty pages
+			uint32_t num_pages_empty;
+	#endif
 		};
 
 		struct GAIA_API ChunkAllocatorStats final {
 			ChunkAllocatorPageStats stats[3];
 		};
 
-		namespace detail {
-			class ChunkAllocatorImpl;
-		}
 		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
 
 		namespace detail {
+			static_assert(sizeof(MemoryBlockHeader) <= MemoryBlockUsableOffset);
 
 			struct MemoryPageHeader {
 				//! Pointer to data managed by page
@@ -85,11 +104,18 @@ namespace gaia {
 				//! Free bits to use in the future
 				// uint32_t m_unused : 6;
 
+	#if GAIA_ASSERT_ENABLED
+				uint64_t m_usedMask = 0;
+	#endif
+
 				MemoryPage(void* ptr, uint8_t sizeType):
 						MemoryPageHeader(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0),
 						m_freeBlocks(0) {
-					// One cacheline long on x86. The point is for this to be as small as possible
+	#if GAIA_ASSERT_ENABLED
+					static_assert(sizeof(MemoryPage) <= 72);
+	#else
 					static_assert(sizeof(MemoryPage) <= 64);
+	#endif
 				}
 
 				void write_block_idx(uint32_t blockIdx, uint32_t value) {
@@ -109,35 +135,48 @@ namespace gaia {
 					return BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.get(bitPosition);
 				}
 
-				GAIA_NODISCARD void* alloc_block() {
+				GAIA_NODISCARD void* alloc_block(
+	#if GAIA_DEBUG
+						uint32_t bytesWanted
+	#endif
+				) {
 					auto StoreBlockAddress = [&](uint32_t index) {
 						// Encode info about chunk's page in the memory block.
 						// The actual pointer returned is offset by MemoryBlockUsableOffset bytes
-						uint8_t* pMemoryBlock = (uint8_t*)m_data + (index * mem_block_size(m_sizeType));
-						GAIA_ASSERT((uintptr_t)pMemoryBlock % sizeof(uintptr_t) == 0);
-						mem::unaligned_ref<uintptr_t>{pMemoryBlock} = (uintptr_t)this;
+						auto* pMemoryBlock = (uint8_t*)m_data + (index * mem_block_size(m_sizeType));
+						GAIA_ASSERT((uintptr_t)pMemoryBlock % MemoryBlockAlignment == 0);
+						auto& header = block_header(pMemoryBlock);
+						header.m_pageAddr = (uintptr_t)this;
+						header.m_reserved = 0;
+	#if GAIA_DEBUG
+						header.m_requestedBytes = bytesWanted;
+	#endif
 						return (void*)(pMemoryBlock + MemoryBlockUsableOffset);
 					};
 
 					// We don't want to go out of range for new blocks
 					GAIA_ASSERT(!full() && "Trying to allocate too many blocks!");
 
+					uint32_t index = 0;
 					if (m_freeBlocks == 0U) {
-						const auto index = m_blockCnt;
+						index = m_blockCnt;
 						++m_usedBlocks;
 						++m_blockCnt;
 						write_block_idx(index, index);
+					} else {
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle list broken!");
 
-						return StoreBlockAddress(index);
+						++m_usedBlocks;
+						--m_freeBlocks;
+
+						index = m_nextFreeBlock;
+						m_nextFreeBlock = read_block_idx(m_nextFreeBlock);
 					}
 
-					GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle list broken!");
-
-					++m_usedBlocks;
-					--m_freeBlocks;
-
-					const auto index = m_nextFreeBlock;
-					m_nextFreeBlock = read_block_idx(m_nextFreeBlock);
+	#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT((m_usedMask & (uint64_t(1) << index)) == 0 && "Block already marked as live");
+					m_usedMask |= uint64_t(1) << index;
+	#endif
 
 					return StoreBlockAddress(index);
 				}
@@ -150,7 +189,7 @@ namespace gaia {
 					// Offset the chunk memory so we get the real block address
 					const auto* pMemoryBlock = (uint8_t*)pBlock - MemoryBlockUsableOffset;
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
-					GAIA_ASSERT(blckAddr % sizeof(uintptr_t) == 0);
+					GAIA_ASSERT(blckAddr % MemoryBlockAlignment == 0);
 					const auto dataAddr = (uintptr_t)m_data;
 					const auto blockSize = (uintptr_t)mem_block_size(m_sizeType);
 					const auto pageSize = blockSize * NBlocks;
@@ -159,6 +198,14 @@ namespace gaia {
 					GAIA_ASSERT((blckAddr - dataAddr) % blockSize == 0);
 					const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / blockSize);
 					GAIA_ASSERT(blockIdx < m_blockCnt);
+
+	#if GAIA_DEBUG
+					GAIA_ASSERT(block_header(pMemoryBlock).m_requestedBytes > 0);
+	#endif
+	#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT((m_usedMask & (uint64_t(1) << blockIdx)) != 0 && "Double free or corrupted block state");
+					m_usedMask &= ~(uint64_t(1) << blockIdx);
+	#endif
 
 					// Update our implicit list
 					if (m_freeBlocks == 0U)
@@ -182,18 +229,59 @@ namespace gaia {
 				GAIA_NODISCARD bool empty() const {
 					return used_blocks_cnt() == 0;
 				}
+
+	#if GAIA_DEBUG
+				GAIA_NODISCARD uint64_t requested_bytes() const {
+					if (m_usedBlocks == 0)
+						return 0;
+
+					uint64_t freeMask = 0;
+					uint32_t next = m_nextFreeBlock;
+					GAIA_FOR(m_freeBlocks) {
+						GAIA_ASSERT(next < m_blockCnt);
+						const auto bit = uint64_t(1) << next;
+						GAIA_ASSERT((freeMask & bit) == 0 && "Free list contains a cycle");
+						freeMask |= bit;
+						next = read_block_idx(next);
+					}
+
+					uint64_t requested = 0;
+					GAIA_FOR(m_blockCnt) {
+						if ((freeMask & (uint64_t(1) << i)) != 0)
+							continue;
+
+						const auto* pMemoryBlock = (const uint8_t*)m_data + (i * mem_block_size(m_sizeType));
+						requested += block_header(pMemoryBlock).m_requestedBytes;
+					}
+
+					return requested;
+				}
+	#endif
+
+			private:
+				static MemoryBlockHeader& block_header(void* pMemoryBlock) {
+					return *(MemoryBlockHeader*)pMemoryBlock;
+				}
+
+				static const MemoryBlockHeader& block_header(const void* pMemoryBlock) {
+					return *(const MemoryBlockHeader*)pMemoryBlock;
+				}
 			};
 
-				struct MemoryPageContainer {
-					//! Array of available pages
-					cnt::fwd_llist<MemoryPage> pagesFree;
-					//! Array of full pages
-					cnt::fwd_llist<MemoryPage> pagesFull;
+			enum class MemoryPageState : uint8_t { Detached, Empty, Partial, Full };
 
-					GAIA_NODISCARD bool empty() const {
-						return pagesFree.empty() && pagesFull.empty();
-					}
-				};
+			struct MemoryPageContainer {
+				//! Pages with no live blocks
+				cnt::fwd_llist<MemoryPage> pagesEmpty;
+				//! Pages with some live blocks and spare capacity
+				cnt::fwd_llist<MemoryPage> pagesPartial;
+				//! Array of full pages
+				cnt::fwd_llist<MemoryPage> pagesFull;
+
+				GAIA_NODISCARD bool empty() const {
+					return pagesEmpty.empty() && pagesPartial.empty() && pagesFull.empty();
+				}
+			};
 
 			//! Allocator for ECS Chunks. Memory is organized in pages of chunks.
 			class ChunkAllocatorImpl {
@@ -234,32 +322,33 @@ namespace gaia {
 
 				//! Allocates memory
 				void* alloc(uint32_t bytesWanted) {
+					GAIA_ASSERT(bytesWanted > 0);
 					GAIA_ASSERT(bytesWanted <= MaxMemoryBlockSize);
+					if (bytesWanted == 0 || bytesWanted > MaxMemoryBlockSize)
+						return nullptr;
 
-					void* pBlock = nullptr;
 					const auto sizeType = mem_block_size_type(bytesWanted);
 					auto& container = m_pages[sizeType];
 
-					// Free list contains only pages with available capacity.
-					auto* pPage = container.pagesFree.first;
-					GAIA_ASSERT(pPage == nullptr || !pPage->full());
+					MemoryPageState prevState = MemoryPageState::Partial;
+					auto* pPage = container.pagesPartial.first;
 					if (pPage == nullptr) {
-						// Allocate a new page if no free page was found
-						pPage = alloc_page(sizeType);
-						container.pagesFree.link(pPage);
+						prevState = MemoryPageState::Empty;
+						pPage = container.pagesEmpty.first;
+						if (pPage == nullptr) {
+							prevState = MemoryPageState::Detached;
+							pPage = alloc_page(sizeType);
+						}
 					}
 
 					// Allocate a new chunk of memory
-					pBlock = pPage->alloc_block();
+	#if GAIA_DEBUG
+					void* pBlock = pPage->alloc_block(bytesWanted);
+	#else
+					void* pBlock = pPage->alloc_block();
+	#endif
 
-					// Handle full pages
-					if (pPage->full()) {
-						// Remove the page from the open list
-						container.pagesFree.unlink(pPage);
-						// Move our page to the full list
-						container.pagesFull.link(pPage);
-					}
-
+					move_page(container, pPage, prevState, state_for(*pPage));
 					return pBlock;
 				}
 
@@ -269,21 +358,31 @@ namespace gaia {
 
 				//! Releases memory allocated for pointer
 				void free(void* pBlock) {
+					GAIA_ASSERT(pBlock != nullptr);
+					if (pBlock == nullptr)
+						return;
+
 					// Decode the page from the address
-					const auto pageAddr = *(uintptr_t*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
+					const auto& header = *(const MemoryBlockHeader*)((uint8_t*)pBlock - MemoryBlockUsableOffset);
+					const auto pageAddr = header.m_pageAddr;
 					GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
+	#if GAIA_DEBUG
+					GAIA_ASSERT(header.m_requestedBytes > 0);
+	#endif
 					auto* pPage = (MemoryPage*)pageAddr;
-					const bool wasFull = pPage->full();
+					const auto prevState = state_for(*pPage);
 
 					auto& container = m_pages[pPage->m_sizeType];
 
 	#if GAIA_ASSERT_ENABLED
-					if (wasFull) {
+					if (prevState == MemoryPageState::Full) {
 						const auto res = container.pagesFull.has(pPage);
 						GAIA_ASSERT(res && "Memory page couldn't be found among full pages");
+					} else if (prevState == MemoryPageState::Partial) {
+						const auto res = container.pagesPartial.has(pPage);
+						GAIA_ASSERT(res && "Memory page couldn't be found among partial pages");
 					} else {
-						const auto res = container.pagesFree.has(pPage);
-						GAIA_ASSERT(res && "Memory page couldn't be found among free pages");
+						GAIA_ASSERT(false && "Allocated block can't belong to an empty page");
 					}
 	#endif
 
@@ -291,19 +390,12 @@ namespace gaia {
 					pPage->free_block(pBlock);
 
 					// Update lists
-					if (wasFull) {
-						// Our page is no longer full
-						container.pagesFull.unlink(pPage);
-						// Move our page to the open list
-						container.pagesFree.link(pPage);
-					}
+					move_page(container, pPage, prevState, state_for(*pPage));
 
 					// Special handling for the allocator signaled to destroy itself
 					if (m_isDone) {
-						// Remove the page right away
 						if (pPage->empty()) {
-							GAIA_ASSERT(!container.pagesFree.empty());
-							container.pagesFree.unlink(pPage);
+							container.pagesEmpty.unlink(pPage);
 							free_page(pPage);
 						}
 
@@ -315,7 +407,7 @@ namespace gaia {
 
 				//! Returns allocator statistics
 				ChunkAllocatorStats stats() const {
-					ChunkAllocatorStats stats;
+					ChunkAllocatorStats stats{};
 					stats.stats[0] = page_stats(0);
 					stats.stats[1] = page_stats(1);
 					stats.stats[2] = page_stats(2);
@@ -323,29 +415,11 @@ namespace gaia {
 				}
 
 				//! Flushes unused memory.
-				//! By default keeps one empty page per size class warm to reduce allocation churn.
+				//! Keeps a small, size-class-specific empty-page cache warm by default.
 				void flush(bool releaseAll = false) {
-					auto flushPages = [releaseAll](MemoryPageContainer& container) {
-						bool keptWarmPage = false;
-						for (auto it = container.pagesFree.begin(); it != container.pagesFree.end();) {
-							auto* pPage = &(*it);
-							++it;
-
-							// Skip non-empty pages
-							if (!pPage->empty())
-								continue;
-							if (!releaseAll && !keptWarmPage) {
-								keptWarmPage = true;
-								continue;
-							}
-
-							container.pagesFree.unlink(pPage);
-							free_page(pPage);
-						}
-					};
-
-					for (auto& c: m_pages)
-						flushPages(c);
+					uint32_t i = 0;
+					for (auto& page: m_pages)
+						flushPages(page, i++, releaseAll);
 				}
 
 				//! Performs diagnostics of the memory used.
@@ -353,13 +427,22 @@ namespace gaia {
 					auto diagPage = [](const ChunkAllocatorPageStats& stats, uint32_t sizeType) {
 						GAIA_LOG_N("ChunkAllocator %uK stats", mem_block_size(sizeType) / 1024);
 						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
-						GAIA_LOG_N("  Used: %" PRIu64 " B", stats.mem_used);
-						GAIA_LOG_N("  Overhead: %" PRIu64 " B", stats.mem_total - stats.mem_used);
+						GAIA_LOG_N("  Reserved by live blocks: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Pages: %u", stats.num_pages);
+						GAIA_LOG_N("  Reusable pages: %u", stats.num_pages_free);
+	#if !GAIA_DEBUG
 						GAIA_LOG_N(
 								"  Utilization: %.1f%%",
 								stats.mem_total ? 100.0 * ((double)stats.mem_used / (double)stats.mem_total) : 0);
-						GAIA_LOG_N("  Pages: %u", stats.num_pages);
-						GAIA_LOG_N("  Free pages: %u", stats.num_pages_free);
+	#else
+						GAIA_LOG_N("  Requested: %" PRIu64 " B", stats.mem_requested);
+						GAIA_LOG_N("  Free capacity: %" PRIu64 " B", stats.mem_total - stats.mem_used);
+						GAIA_LOG_N("  Internal slack: %" PRIu64 " B", stats.mem_used - stats.mem_requested);
+						GAIA_LOG_N(
+								"  Utilization: %.1f%%",
+								stats.mem_total ? 100.0 * ((double)stats.mem_requested / (double)stats.mem_total) : 0);
+						GAIA_LOG_N("  Empty pages: %u", stats.num_pages_empty);
+	#endif
 					};
 
 					auto memStats = stats();
@@ -374,7 +457,7 @@ namespace gaia {
 
 				static MemoryPage* alloc_page(uint8_t sizeType) {
 					const uint32_t size = mem_block_size(sizeType) * MemoryPage::NBlocks;
-					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(s_strChunkAlloc_Chunk, 16U, size);
+					auto* pPageData = mem::AllocHelper::alloc_alig<uint8_t>(s_strChunkAlloc_Chunk, MemoryBlockAlignment, size);
 					auto* pMemoryPage = mem::AllocHelper::alloc<MemoryPage>(s_strChunkAlloc_MemPage);
 					return new (pMemoryPage) MemoryPage(pPageData, sizeType);
 				}
@@ -400,20 +483,92 @@ namespace gaia {
 						delete this;
 				}
 
+				static constexpr uint32_t warm_pages_to_keep(uint32_t sizeType) {
+					constexpr uint8_t WarmPagesPerSizeClass[] = {1, 1, 0};
+					return WarmPagesPerSizeClass[sizeType];
+				}
+
+				static MemoryPageState state_for(const MemoryPage& page) {
+					if (page.empty())
+						return MemoryPageState::Empty;
+					if (page.full())
+						return MemoryPageState::Full;
+					return MemoryPageState::Partial;
+				}
+
+				static cnt::fwd_llist<MemoryPage>& page_list(MemoryPageContainer& container, MemoryPageState state) {
+					switch (state) {
+						case MemoryPageState::Empty:
+							return container.pagesEmpty;
+						case MemoryPageState::Partial:
+							return container.pagesPartial;
+						default:
+							GAIA_ASSERT(state == MemoryPageState::Full);
+							return container.pagesFull;
+					}
+				}
+
+				static void move_page(
+						MemoryPageContainer& container, MemoryPage* pPage, MemoryPageState fromState, MemoryPageState toState) {
+					if (fromState == toState)
+						return;
+
+					if (fromState != MemoryPageState::Detached)
+						page_list(container, fromState).unlink(pPage);
+					page_list(container, toState).link(pPage);
+				}
+
 				ChunkAllocatorPageStats page_stats(uint32_t sizeType) const {
 					ChunkAllocatorPageStats stats{};
 					const auto& container = m_pages[sizeType];
-					const auto blockSize = (size_t)mem_block_size(sizeType);
+					const auto blockSize = (uint64_t)mem_block_size(sizeType);
+					const auto pageSize = blockSize * MemoryPage::NBlocks;
 
-					stats.num_pages = (uint32_t)container.pagesFree.size() + (uint32_t)container.pagesFull.size();
-					stats.num_pages_free = (uint32_t)container.pagesFree.size();
-					stats.mem_total = stats.num_pages * blockSize * MemoryPage::NBlocks;
-					stats.mem_used = container.pagesFull.size() * blockSize * MemoryPage::NBlocks;
+					stats.num_pages = (uint32_t)container.pagesEmpty.size() + (uint32_t)container.pagesPartial.size() +
+														(uint32_t)container.pagesFull.size();
+					stats.num_pages_free = (uint32_t)container.pagesEmpty.size() + (uint32_t)container.pagesPartial.size();
+					stats.mem_total = stats.num_pages * pageSize;
+					stats.mem_used = container.pagesFull.size() * pageSize;
 
-					const auto& pagesFree = container.pagesFree;
-					for (const auto& page: pagesFree)
+	#if GAIA_DEBUG
+					stats.num_pages_empty = (uint32_t)container.pagesEmpty.size();
+
+					for (const auto& page: container.pagesFull)
+						stats.mem_requested += page.requested_bytes();
+
+					for (const auto& page: container.pagesPartial) {
 						stats.mem_used += page.used_blocks_cnt() * blockSize;
+						stats.mem_requested += page.requested_bytes();
+					}
+	#else
+					for (const auto& page: container.pagesPartial)
+						stats.mem_used += page.used_blocks_cnt() * blockSize;
+	#endif
+
 					return stats;
+				}
+
+				//! Flushes unused memory.
+				//! Keeps a small, size-class-specific empty-page cache warm by default.
+				void flushPages(MemoryPageContainer& container, uint32_t sizeType, bool releaseAll) {
+					const bool keepWarmPage = !releaseAll && warm_pages_to_keep(sizeType) != 0;
+					bool keptWarmPage = false;
+					for (auto it = container.pagesEmpty.begin(); it != container.pagesEmpty.end();) {
+						auto* pPage = &(*it);
+						++it;
+
+						// Skip non-empty pages
+						if (!pPage->empty())
+							continue;
+
+						if (keepWarmPage && !keptWarmPage) {
+							keptWarmPage = true;
+							continue;
+						}
+
+						container.pagesEmpty.unlink(pPage);
+						free_page(pPage);
+					}
 				}
 			};
 		} // namespace detail
