@@ -506,7 +506,7 @@ namespace gaia {
 #endif
 			}
 
-			void save(ser::serializer& s) {
+			void save(ser::serializer& s) const {
 				s.save(m_header.count);
 				if (m_header.count == 0)
 					return;

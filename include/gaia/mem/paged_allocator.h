@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 #include "gaia/cnt/fwd_llist.h"
@@ -46,6 +47,10 @@ namespace gaia {
 			static constexpr uint16_t NBlocks = 48;
 			static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
 			static constexpr uint32_t InvalidBlockId = NBlocks + 1;
+#if GAIA_DEBUG
+			static constexpr uint8_t FreedBlockPattern = 0xDD;
+			static constexpr uintptr_t FreedPageMarker = ~(uintptr_t)0;
+#endif
 			static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
 
 			using Page = MemoryPage<T, RequestedBlockSize>;
@@ -131,9 +136,8 @@ namespace gaia {
 				auto ReadBlockAddress = [&](void* pMemory) {
 					// Offset the chunk memory so we get the real block address
 					const auto* pMemoryBlock = (uint8_t*)pMemory - MemoryBlockUsableOffset;
-					// Page pointer is written to the start of the memory block
-					[[maybe_unused]] const auto* pPage = (const Page**)pMemoryBlock;
-					GAIA_ASSERT(*pPage == this);
+					const auto pageAddr = (uintptr_t)mem::unaligned_ref<uintptr_t>{(void*)pMemoryBlock};
+					GAIA_ASSERT(pageAddr == (uintptr_t)this);
 					const auto blckAddr = (uintptr_t)pMemoryBlock;
 					GAIA_ASSERT(blckAddr % 16 == 0);
 					const auto dataAddr = (uintptr_t)m_data;
@@ -141,6 +145,11 @@ namespace gaia {
 					return blockIdx;
 				};
 				const auto blockIdx = ReadBlockAddress(pBlock);
+
+#if GAIA_DEBUG
+				mem::unaligned_ref<uintptr_t>{(uint8_t*)pBlock - MemoryBlockUsableOffset} = FreedPageMarker;
+				std::memset(pBlock, FreedBlockPattern, MemoryBlockBytes - MemoryBlockUsableOffset);
+#endif
 
 				// Update our implicit list
 				if (m_freeBlocks == 0U)
@@ -163,6 +172,41 @@ namespace gaia {
 
 			GAIA_NODISCARD bool empty() const {
 				return used_blocks_cnt() == 0;
+			}
+
+			void verify() const {
+#if GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(m_blockCnt <= NBlocks);
+				GAIA_ASSERT(m_usedBlocks <= m_blockCnt);
+				GAIA_ASSERT(m_freeBlocks <= m_blockCnt);
+				GAIA_ASSERT(m_usedBlocks + m_freeBlocks == m_blockCnt);
+				GAIA_ASSERT(((uintptr_t)m_data % MemoryBlockAlignment) == 0);
+
+				uint64_t freeMask = 0;
+				if (m_freeBlocks != 0) {
+					uint32_t next = m_nextFreeBlock;
+					GAIA_FOR(m_freeBlocks) {
+						GAIA_ASSERT(next < m_blockCnt);
+						const auto bit = uint64_t(1) << next;
+						GAIA_ASSERT((freeMask & bit) == 0 && "Free list contains a cycle");
+						freeMask |= bit;
+						next = read_block_idx(next);
+					}
+
+					GAIA_ASSERT(next == InvalidBlockId);
+				}
+
+				GAIA_FOR(m_blockCnt) {
+					const auto* pMemoryBlock = (const uint8_t*)m_data + (i * MemoryBlockBytes);
+					GAIA_ASSERT(((uintptr_t)pMemoryBlock % MemoryBlockAlignment) == 0);
+
+	#if GAIA_DEBUG
+					const bool isFree = (freeMask & (uint64_t(1) << i)) != 0;
+					const auto pageAddr = (uintptr_t)mem::unaligned_ref<uintptr_t>{(void*)pMemoryBlock};
+					GAIA_ASSERT(pageAddr == (isFree ? FreedPageMarker : (uintptr_t)this));
+	#endif
+				}
+#endif
 			}
 		};
 
@@ -274,6 +318,7 @@ namespace gaia {
 						m_pages.pagesFull.link(pPage);
 					}
 
+					verify();
 					return pBlock;
 				}
 
@@ -309,6 +354,8 @@ namespace gaia {
 						// Move our page to the open list
 						m_pages.pagesFree.link(pPage);
 					}
+
+					verify();
 
 					// Special handling for the allocator signaled to destroy itself
 					if (m_isDone) {
@@ -351,6 +398,8 @@ namespace gaia {
 						m_pages.pagesFree.unlink(pPage);
 						free_page(pPage);
 					}
+
+					verify();
 				}
 
 				//! Performs diagnostics of the memory used.
@@ -365,6 +414,22 @@ namespace gaia {
 							memStats.mem_total != 0 ? 100.0 * ((double)memStats.mem_used / (double)memStats.mem_total) : 0.0);
 					GAIA_LOG_N("  Pages: %u", memStats.num_pages);
 					GAIA_LOG_N("  Free pages: %u", memStats.num_pages_free);
+				}
+
+				void verify() const {
+#if GAIA_ASSERT_ENABLED
+					for (const auto& page: m_pages.pagesFree) {
+						GAIA_ASSERT(page.get_fwd_llist_link().linked());
+						GAIA_ASSERT(!page.full());
+						page.verify();
+					}
+
+					for (const auto& page: m_pages.pagesFull) {
+						GAIA_ASSERT(page.get_fwd_llist_link().linked());
+						GAIA_ASSERT(page.full());
+						page.verify();
+					}
+#endif
 				}
 
 			private:
