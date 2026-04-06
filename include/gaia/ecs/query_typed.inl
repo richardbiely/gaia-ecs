@@ -366,7 +366,7 @@ namespace gaia {
 						[&](uint32_t row) {
 							invokeRow(pFunc, it, dataPointerTuple, row, directLocalIndex);
 						},
-						std::forward<OnRowDone>(onRowDone));
+						GAIA_FWD(onRowDone));
 			}
 
 			template <typename OnRowDone, typename... T>
@@ -381,18 +381,16 @@ namespace gaia {
 				if constexpr (sizeof...(T) > 0) {
 					if (directViews) {
 						auto dataPointerTuple = std::make_tuple(it.template sview_auto<T>()...);
-						run_typed_tuple_rows(
-								pQueryInfo, it, pFunc, dataPointerTuple, true, invokeDirectRow, std::forward<OnRowDone>(onRowDone));
+						run_typed_tuple_rows(pQueryInfo, it, pFunc, dataPointerTuple, true, invokeDirectRow, GAIA_FWD(onRowDone));
 					} else {
 						auto dataPointerTuple = std::make_tuple(it.template view_auto_any<T>()...);
-						run_typed_tuple_rows(
-								pQueryInfo, it, pFunc, dataPointerTuple, false, invokeMappedRow, std::forward<OnRowDone>(onRowDone));
+						run_typed_tuple_rows(pQueryInfo, it, pFunc, dataPointerTuple, false, invokeMappedRow, GAIA_FWD(onRowDone));
 					}
 				} else {
 					auto dataPointerTuple = std::tuple<>{};
 					run_typed_tuple_rows(
 							pQueryInfo, it, pFunc, dataPointerTuple, directViews, directViews ? invokeDirectRow : invokeMappedRow,
-							std::forward<OnRowDone>(onRowDone));
+							GAIA_FWD(onRowDone));
 				}
 			}
 

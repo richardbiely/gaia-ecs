@@ -46,6 +46,7 @@ int main(int argc, char* argv[]) {
 	register_legacy_entity(mode);
 	register_legacy_iter(mode);
 	register_containers(mode);
+	register_allocators(mode);
 
 	picobench::runner r;
 	r.parse_cmd_line((int)picobenchArgs.size(), picobenchArgs.data());

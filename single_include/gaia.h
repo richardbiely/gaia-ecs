@@ -5525,6 +5525,2037 @@ namespace gaia {
 } // namespace gaia
 
 #include <cinttypes>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
+namespace gaia {
+	namespace cnt {
+		template <class T>
+		struct fwd_llist_link {
+			//! Pointer the the next element
+			T* next = nullptr;
+			//! Pointer to the memory address of the previous node's "next". This is not meant for traversal.
+			//! It merely allows for maintaining the forward links of the list when removing an item, and allows
+			//! O(1) removals even in a forward list.
+			T** prevs_next = nullptr;
+
+			//! Returns true if the node is linked with another
+			GAIA_NODISCARD bool linked() const {
+				return next != nullptr || prevs_next != nullptr;
+			}
+		};
+
+		//! Each fwd_llist node either has to inherit from fwd_llist_base
+		//! or it has to provide get_fwd_llist_link() member functions.
+		template <class T>
+		struct fwd_llist_base {
+			fwd_llist_link<T> fwd_link_GAIA;
+
+			fwd_llist_link<T>& get_fwd_llist_link() {
+				return fwd_link_GAIA;
+			}
+			const fwd_llist_link<T>& get_fwd_llist_link() const {
+				return fwd_link_GAIA;
+			}
+		};
+
+		template <typename T>
+		struct fwd_llist_iterator {
+			using iterator_category = core::forward_iterator_tag;
+			using value_type = T;
+			using pointer = T*;
+			using reference = T&;
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+			using iterator = fwd_llist_iterator;
+
+		private:
+			T* m_pNode;
+
+		public:
+			explicit fwd_llist_iterator(T* pNode): m_pNode(pNode) {}
+
+			reference operator*() const {
+				return *m_pNode;
+			}
+			pointer operator->() const {
+				return m_pNode;
+			}
+
+			iterator& operator++() {
+				auto& list = m_pNode->get_fwd_llist_link();
+				m_pNode = list.next;
+				return *this;
+			}
+			iterator operator++(int) {
+				iterator temp(*this);
+				++*this;
+				return temp;
+			}
+
+			GAIA_NODISCARD bool operator==(const iterator& other) const {
+				return m_pNode == other.m_pNode;
+			}
+			GAIA_NODISCARD bool operator!=(const iterator& other) const {
+				return m_pNode != other.m_pNode;
+			}
+		};
+
+		//! Forward list container.
+		//! No memory allocation is performed because the list is stored directly inside allocated nodes.
+		//! Inserts: O(1)
+		//! Removals: O(1)
+		//! Iteration: O(N)
+		template <class T>
+		struct fwd_llist {
+			uint32_t count = 0;
+			T* first = nullptr;
+
+			//! Clears the list.
+			void clear() {
+				count = 0;
+				first = nullptr;
+			}
+
+			//! Links the node in the list.
+			void link(T* pNode) {
+				GAIA_ASSERT(pNode != nullptr);
+
+				auto& link = pNode->get_fwd_llist_link();
+				link.next = first;
+				if (first != nullptr) {
+					auto& linkFirst = first->get_fwd_llist_link();
+					linkFirst.prevs_next = &(link.next);
+					first = pNode;
+				}
+				link.prevs_next = &first;
+				first = pNode;
+
+				++count;
+			}
+
+			//! Unlinks the node from the list.
+			void unlink(T* pNode) {
+				GAIA_ASSERT(pNode != nullptr);
+
+				auto& link = pNode->get_fwd_llist_link();
+				*(link.prevs_next) = link.next;
+				if (link.next != nullptr) {
+					auto& linkNext = link.next->get_fwd_llist_link();
+					linkNext.prevs_next = link.prevs_next;
+				}
+
+				// Reset the node's link
+				link = {};
+
+				--count;
+			}
+
+			//! Checks if the node \param pNode is linked in the list.
+			GAIA_NODISCARD bool has(T* pNode) const {
+				GAIA_ASSERT(pNode != nullptr);
+
+				for (auto& curr: *this) {
+					if (&curr == pNode)
+						return true;
+				}
+
+				return false;
+			}
+
+			//! Returns true if the list is empty. False otherwise.
+			GAIA_NODISCARD bool empty() const {
+				GAIA_ASSERT(count == 0);
+				return first == nullptr;
+			}
+
+			//! Returns the number of nodes linked in the list.
+			GAIA_NODISCARD uint32_t size() const {
+				return count;
+			}
+
+			fwd_llist_iterator<T> begin() {
+				return fwd_llist_iterator<T>(first);
+			}
+
+			fwd_llist_iterator<const T> begin() const {
+				return fwd_llist_iterator((const T*)first);
+			}
+
+			fwd_llist_iterator<const T> cbegin() const {
+				return fwd_llist_iterator((const T*)first);
+			}
+
+			fwd_llist_iterator<T> end() {
+				return fwd_llist_iterator<T>(nullptr);
+			}
+
+			fwd_llist_iterator<const T> end() const {
+				return fwd_llist_iterator((const T*)nullptr);
+			}
+
+			fwd_llist_iterator<const T> cend() const {
+				return fwd_llist_iterator((const T*)nullptr);
+			}
+		};
+	} // namespace cnt
+} // namespace gaia
+
+#include <cstddef>
+#include <new>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace cnt {
+		namespace sarr_detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+		} // namespace sarr_detail
+
+		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Interface compatiblity with std::array where it matters.
+		template <typename T, sarr_detail::size_type N>
+		class sarr {
+		public:
+			static_assert(N > 0);
+
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = const T*;
+			using view_policy = mem::data_view_policy_aos<T>;
+			using difference_type = sarr_detail::difference_type;
+			using size_type = sarr_detail::size_type;
+
+			using iterator = pointer;
+			using const_iterator = const_pointer;
+			using iterator_category = core::random_access_iterator_tag;
+
+			static constexpr size_t value_size = sizeof(T);
+			static constexpr size_type extent = N;
+			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
+
+			mem::raw_data_holder<T, allocated_bytes> m_data;
+
+			constexpr sarr() noexcept {
+				core::call_ctor_raw_n(data(), extent);
+			}
+
+			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
+			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			constexpr sarr(core::zero_t) noexcept {
+				core::call_ctor_raw_n(data(), extent);
+
+				// explicit zeroing
+				for (auto i = (size_type)0; i < extent; ++i)
+					operator[](i) = {};
+			}
+
+			~sarr() {
+				core::call_dtor_n(data(), extent);
+			}
+
+			template <typename InputIt>
+			constexpr sarr(InputIt first, InputIt last) noexcept {
+				core::call_ctor_raw_n(data(), extent);
+
+				const auto count = (size_type)core::distance(first, last);
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						operator[](i) = first[i];
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						operator[](i) = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						operator[](++i) = *it;
+				}
+			}
+
+			constexpr sarr(std::initializer_list<T> il): sarr(il.begin(), il.end()) {}
+
+			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
+
+			constexpr sarr(sarr&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				core::call_ctor_raw_n(data(), extent);
+				mem::move_elements<T, false>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
+			}
+
+			sarr& operator=(std::initializer_list<T> il) {
+				*this = sarr(il.begin(), il.end());
+				return *this;
+			}
+
+			constexpr sarr& operator=(const sarr& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				core::call_ctor_raw_n(data(), extent);
+				mem::copy_elements<T, false>(
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
+						other.extent);
+
+				return *this;
+			}
+
+			constexpr sarr& operator=(sarr&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				core::call_ctor_raw_n(data(), extent);
+				mem::move_elements<T, false>(
+						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
+						other.extent);
+
+				return *this;
+			}
+
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+			GAIA_NODISCARD constexpr pointer data() noexcept {
+				return GAIA_ACC((pointer)&m_data[0]);
+			}
+
+			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
+				return GAIA_ACC((const_pointer)&m_data[0]);
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
+				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
+				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
+			}
+
+			GAIA_CLANG_WARNING_POP()
+
+			GAIA_NODISCARD constexpr size_type size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr bool empty() const noexcept {
+				return begin() == end();
+			}
+
+			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
+				return (reference)*begin();
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
+				return (const_reference)*begin();
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
+				return (reference) operator[](N - 1);
+			}
+
+			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
+				return (const_reference) operator[](N - 1);
+			}
+
+			GAIA_NODISCARD constexpr auto begin() noexcept {
+				return iterator(GAIA_ACC(&m_data[0]));
+			}
+
+			GAIA_NODISCARD constexpr auto begin() const noexcept {
+				return const_iterator(GAIA_ACC(&m_data[0]));
+			}
+
+			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
+				return const_iterator(GAIA_ACC(&m_data[0]));
+			}
+
+			GAIA_NODISCARD constexpr auto rbegin() noexcept {
+				return iterator((pointer)&back());
+			}
+
+			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
+				return const_iterator((const_pointer)&back());
+			}
+
+			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
+				return const_iterator((const_pointer)&back());
+			}
+
+			GAIA_NODISCARD constexpr auto end() noexcept {
+				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
+			}
+
+			GAIA_NODISCARD constexpr auto end() const noexcept {
+				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+			}
+
+			GAIA_NODISCARD constexpr auto cend() const noexcept {
+				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+			}
+
+			GAIA_NODISCARD constexpr auto rend() noexcept {
+				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
+			}
+
+			GAIA_NODISCARD constexpr auto rend() const noexcept {
+				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+			}
+
+			GAIA_NODISCARD constexpr auto crend() const noexcept {
+				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+			}
+
+			GAIA_NODISCARD constexpr bool operator==(const sarr& other) const {
+				for (size_type i = 0; i < N; ++i)
+					if (!(operator[](i) == other[i]))
+						return false;
+				return true;
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(const sarr& other) const {
+				return !operator==(other);
+			}
+		};
+
+		namespace detail {
+			template <typename T, uint32_t N, uint32_t... I>
+			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+				return {{a[I]...}};
+			}
+		} // namespace detail
+
+		template <typename T, uint32_t N>
+		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
+			return detail::to_array_impl(a, std::make_index_sequence<N>{});
+		}
+
+		template <typename T, typename... U>
+		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
+
+	} // namespace cnt
+} // namespace gaia
+
+namespace std {
+	template <typename T, uint32_t N>
+	struct tuple_size<gaia::cnt::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
+
+	template <size_t I, typename T, uint32_t N>
+	struct tuple_element<I, gaia::cnt::sarr<T, N>> {
+		using type = T;
+	};
+} // namespace std
+
+namespace gaia {
+	namespace cnt {
+		template <typename T, sarr_detail::size_type N>
+		using sarray = cnt::sarr<T, N>;
+	} // namespace cnt
+} // namespace gaia
+
+namespace gaia {
+	namespace core {
+		//! Gaia-ECS is a header-only library which means we want to avoid using global
+		//! static variables because they would get copied to each translation units.
+		//! At the same time the goal is for users to not see any memory allocation used
+		//! by the library. Therefore, the only solution is a static variable with local
+		//! scope.
+		//!
+		//! Being a static variable with local scope which means the singleton is guaranteed
+		//! to be younger than its caller. Because static variables are released in the reverse
+		//! order in which they are created, if used with a static World it would mean we first
+		//! release the singleton and only then proceed with the world itself. As a result, in
+		//! its destructor the world could access memory that has already been released.
+		//!
+		//! Instead, we let the singleton allocate the object on the heap and once singleton's
+		//! destructor is called we tell the internal object it should destroy itself. This way
+		//! there are no memory leaks or access-after-freed issues on app exit reported.
+		template <typename T>
+		class dyn_singleton final {
+			T* m_obj = new T();
+
+			dyn_singleton() = default;
+
+		public:
+			static T& get() noexcept {
+				static dyn_singleton<T> singleton;
+				return *singleton.m_obj;
+			}
+
+			dyn_singleton(dyn_singleton&& world) = delete;
+			dyn_singleton(const dyn_singleton& world) = delete;
+			dyn_singleton& operator=(dyn_singleton&&) = delete;
+			dyn_singleton& operator=(const dyn_singleton&) = delete;
+
+			~dyn_singleton() {
+				get().done();
+			}
+		};
+	} // namespace core
+} // namespace gaia
+
+#include <cstdarg>
+#include <cstdint>
+#include <cstdio>
+
+#include <cstddef>
+#include <initializer_list>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace cnt {
+		namespace darr_ext_detail {
+			using difference_type = uint32_t;
+			using size_type = uint32_t;
+		} // namespace darr_ext_detail
+
+		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
+		//! If the number of elements is bellow \tparam N the stack storage is used.
+		//! If the number of elements is above \tparam N the heap storage is used.
+		//! Interface compatiblity with std::vector and std::array where it matters.
+		template <typename T, darr_ext_detail::size_type N, typename Allocator = mem::DefaultAllocatorAdaptor>
+		class darr_ext {
+		public:
+			static_assert(N > 0);
+
+			using value_type = T;
+			using reference = T&;
+			using const_reference = const T&;
+			using pointer = T*;
+			using const_pointer = const T*;
+			using view_policy = mem::data_view_policy_aos<T>;
+			using difference_type = darr_ext_detail::difference_type;
+			using size_type = darr_ext_detail::size_type;
+
+			using iterator = pointer;
+			using const_iterator = const_pointer;
+			using iterator_category = core::random_access_iterator_tag;
+
+			static constexpr size_t value_size = sizeof(T);
+			static constexpr size_type extent = N;
+			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
+
+		private:
+			//! Data allocated on the stack
+			mem::raw_data_holder<T, allocated_bytes> m_data;
+			//! Data allocated on the heap
+			uint8_t* m_pDataHeap = nullptr;
+			//! Pointer to the currently used data
+			uint8_t* m_pData = m_data;
+			//! Number of currently used items ín this container
+			size_type m_cnt = size_type(0);
+			//! Allocated capacity of m_dataDyn or the extend
+			size_type m_cap = extent;
+
+			void try_grow() {
+				const auto cnt = size();
+				const auto cap = capacity();
+
+				// Unless we reached the capacity don't do anything
+				if GAIA_LIKELY (cnt < cap)
+					return;
+
+				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
+				// This means we prefer more frequent allocations over memory fragmentation.
+				m_cap = (cap * 3 + 1) / 2;
+
+				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
+					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
+					mem::move_elements<T, false>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
+				} else {
+					// Move items from the old heap array to the new one. Delete the old
+					auto* pDataOld = m_pDataHeap;
+					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
+					view_policy::template free<Allocator>(pDataOld, cap, cnt);
+				}
+
+				m_pData = m_pDataHeap;
+			}
+
+		public:
+			darr_ext() noexcept = default;
+			darr_ext(core::zero_t) noexcept {}
+
+			darr_ext(size_type count, const_reference value) {
+				resize(count, value);
+			}
+
+			darr_ext(size_type count) {
+				resize(count);
+			}
+
+			template <typename InputIt>
+			darr_ext(InputIt first, InputIt last) {
+				const auto count = (size_type)core::distance(first, last);
+				resize(count);
+
+				if constexpr (std::is_pointer_v<InputIt>) {
+					for (size_type i = 0; i < count; ++i)
+						operator[](i) = first[i];
+				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
+					for (size_type i = 0; i < count; ++i)
+						operator[](i) = *(first[i]);
+				} else {
+					size_type i = 0;
+					for (auto it = first; it != last; ++it)
+						operator[](++i) = *it;
+				}
+			}
+
+			darr_ext(std::initializer_list<T> il): darr_ext(il.begin(), il.end()) {}
+
+			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
+
+			darr_ext(darr_ext&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				// Moving from stack-allocated source
+				if (other.m_pDataHeap == nullptr) {
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
+					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
+					m_pDataHeap = nullptr;
+					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
+				}
+
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
+				other.m_pDataHeap = nullptr;
+				other.m_pData = other.m_data;
+				other.m_cnt = size_type(0);
+				other.m_cap = extent;
+			}
+
+			darr_ext& operator=(std::initializer_list<T> il) {
+				*this = darr_ext(il.begin(), il.end());
+				return *this;
+			}
+
+			darr_ext& operator=(const darr_ext& other) {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				resize(other.size());
+				mem::copy_elements<T, false>(
+						m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
+
+				return *this;
+			}
+
+			darr_ext& operator=(darr_ext&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+
+				// Release previously allocated memory if there was anything
+				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+
+				// Moving from stack-allocated source
+				if (other.m_pDataHeap == nullptr) {
+					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
+					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
+					m_pDataHeap = nullptr;
+					m_pData = m_data;
+				} else {
+					m_pDataHeap = other.m_pDataHeap;
+					m_pData = m_pDataHeap;
+				}
+
+				m_cnt = other.m_cnt;
+				m_cap = other.m_cap;
+
+				other.m_pDataHeap = nullptr;
+				other.m_pData = other.m_data;
+				other.m_cnt = size_type(0);
+				other.m_cap = extent;
+
+				return *this;
+			}
+
+			~darr_ext() {
+				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+			}
+
+			GAIA_CLANG_WARNING_PUSH()
+			// Memory is aligned so we can silence this warning
+			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
+
+			GAIA_NODISCARD pointer data() noexcept {
+				return reinterpret_cast<pointer>(m_pData);
+			}
+
+			GAIA_NODISCARD const_pointer data() const noexcept {
+				return reinterpret_cast<const_pointer>(m_pData);
+			}
+
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
+				GAIA_ASSERT(pos < size());
+				return view_policy::set({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+			}
+
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
+				GAIA_ASSERT(pos < size());
+				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
+			}
+
+			GAIA_CLANG_WARNING_POP()
+
+			void reserve(size_type cap) {
+				if (cap <= m_cap)
+					return;
+
+				auto* pDataOld = m_pDataHeap;
+				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
+				if (pDataOld != nullptr) {
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
+					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
+				} else {
+					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
+				}
+
+				m_cap = cap;
+				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count) {
+				if (count == m_cnt)
+					return;
+
+				// Resizing to a smaller size
+				if (count < m_cnt) {
+					// Destroy elements at the end
+					core::call_dtor_n(&data()[count], m_cnt - count);
+					GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, m_cnt - count);
+
+					m_cnt = count;
+					return;
+				}
+
+				// Resizing to a bigger size but still within allocated capacity
+				if (count <= m_cap) {
+					// Construct new elements
+					GAIA_MEM_SANI_PUSH_N(value_size, data(), m_cap, m_cnt, count - m_cnt);
+					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
+
+					m_cnt = count;
+					return;
+				}
+
+				auto* pDataOld = m_pDataHeap;
+				m_pDataHeap = view_policy::template alloc<Allocator>(count);
+				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
+				auto* pDataNew = reinterpret_cast<pointer>(m_pDataHeap);
+				if (pDataOld != nullptr) {
+					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
+					core::call_ctor_n(&pDataNew[m_cnt], count - m_cnt);
+					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
+				} else {
+					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
+				}
+
+				m_cap = count;
+				m_cnt = count;
+				m_pData = m_pDataHeap;
+			}
+
+			void resize(size_type count, const_reference value) {
+				const auto oldCount = m_cnt;
+				resize(count);
+
+				if constexpr (std::is_copy_constructible_v<value_type>) {
+					const value_type valueCopy = value;
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = valueCopy;
+				} else {
+					for (size_type i = oldCount; i < m_cnt; ++i)
+						operator[](i) = value;
+				}
+			}
+
+			void push_back(const T& arg) {
+				try_grow();
+
+				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
+				auto* ptr = &data()[m_cnt++];
+				core::call_ctor(ptr, arg);
+			}
+
+			void push_back(T&& arg) {
+				try_grow();
+
+				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
+				auto* ptr = &data()[m_cnt++];
+				core::call_ctor(ptr, GAIA_MOV(arg));
+			}
+
+			template <typename... Args>
+			decltype(auto) emplace_back(Args&&... args) {
+				try_grow();
+
+				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
+				auto* ptr = &data()[m_cnt++];
+				core::call_ctor(ptr, GAIA_FWD(args)...);
+				return (reference)*ptr;
+			}
+
+			void pop_back() noexcept {
+				GAIA_ASSERT(!empty());
+
+				auto* ptr = &data()[m_cnt - 1];
+				core::call_dtor(ptr);
+				GAIA_MEM_SANI_POP(value_size, data(), m_cap, m_cnt);
+
+				--m_cnt;
+			}
+
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Position in the container
+			//! \param arg Data to insert
+			iterator insert(iterator pos, const T& arg) {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
+				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
+
+				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
+				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
+				auto* ptr = &data()[idxSrc];
+				core::call_ctor(ptr, arg);
+
+				++m_cnt;
+
+				return iterator(ptr);
+			}
+
+			//! Insert the element to the position given by iterator @a pos
+			//! \param pos Positing in the container
+			//! \param arg Data to insert
+			iterator insert(iterator pos, T&& arg) {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				try_grow();
+				const auto idxDst = (size_type)core::distance(begin(), end());
+
+				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
+				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
+				auto* ptr = &data()[idxSrc];
+				core::call_ctor(ptr, GAIA_MOV(arg));
+
+				++m_cnt;
+
+				return iterator(ptr);
+			}
+
+			//! Removes the element at pos
+			//! \param pos Iterator to the element to remove
+			iterator erase(iterator pos) noexcept {
+				GAIA_ASSERT(pos >= data());
+				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
+
+				if (empty())
+					return end();
+
+				const auto idxSrc = (size_type)core::distance(begin(), pos);
+				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
+
+				mem::shift_elements_left<T, false>(m_pData, idxDst, idxSrc, m_cap);
+				// Destroy if it's the last element
+				auto* ptr = &data()[m_cnt - 1];
+				core::call_dtor(ptr);
+				GAIA_MEM_SANI_POP(value_size, data(), m_cap, m_cnt);
+
+				--m_cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			//! Removes the elements in the range [first, last)
+			//! \param first Iterator to the element to remove
+			//! \param last Iterator to the one beyond the last element to remove
+			iterator erase(iterator first, iterator last) noexcept {
+				GAIA_ASSERT(first >= data())
+				GAIA_ASSERT(empty() || (first < iterator(data() + size())));
+				GAIA_ASSERT(last > first);
+				GAIA_ASSERT(last <= iterator(data() + size()));
+
+				if (empty())
+					return end();
+
+				const auto idxSrc = (size_type)core::distance(begin(), first);
+				const auto idxDst = size();
+				const auto cnt = (size_type)(last - first);
+
+				mem::shift_elements_left_fast<T, false>(m_pData, idxDst, idxSrc, cnt, m_cap);
+				// Destroy if it's the last element
+				core::call_dtor_n(&data()[m_cnt - cnt], cnt);
+				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, cnt);
+
+				m_cnt -= cnt;
+
+				return iterator(&data()[idxSrc]);
+			}
+
+			void clear() noexcept {
+				resize(0);
+			}
+
+			void shrink_to_fit() {
+				const auto cap = capacity();
+				const auto cnt = size();
+
+				if (cap == cnt)
+					return;
+
+				if (m_pDataHeap != nullptr) {
+					auto* pDataOld = m_pDataHeap;
+
+					if (cnt < extent) {
+						mem::move_elements<T, false>(m_data, pDataOld, cnt, 0);
+						m_pData = m_data;
+						m_cap = extent;
+					} else {
+						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
+						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
+						mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0);
+						m_pData = m_pDataHeap;
+					}
+
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
+					view_policy::template free<Allocator>(pDataOld);
+				} else
+					resize(cnt);
+			}
+
+			//! Removes all elements that fail the predicate.
+			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
+			//! \return The new size of the array.
+			template <typename Func>
+			auto retain(Func&& func) noexcept {
+				size_type erased = 0;
+				size_type idxDst = 0;
+				size_type idxSrc = 0;
+
+				while (idxSrc < m_cnt) {
+					if (func(operator[](idxSrc))) {
+						if (idxDst < idxSrc) {
+							auto* ptr = (uint8_t*)data();
+							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
+							auto* ptr2 = &data()[idxSrc];
+							core::call_dtor(ptr2);
+						}
+						++idxDst;
+					} else {
+						auto* ptr = &data()[idxSrc];
+						core::call_dtor(ptr);
+						++erased;
+					}
+
+					++idxSrc;
+				}
+
+				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, erased);
+
+				m_cnt -= erased;
+				return idxDst;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_cnt;
+			}
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return size() == 0;
+			}
+
+			GAIA_NODISCARD size_type capacity() const noexcept {
+				return m_cap;
+			}
+
+			GAIA_NODISCARD size_type max_size() const noexcept {
+				return N;
+			}
+
+			GAIA_NODISCARD decltype(auto) front() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference)*begin();
+			}
+
+			GAIA_NODISCARD decltype(auto) back() noexcept {
+				GAIA_ASSERT(!empty());
+				return (reference) operator[](m_cnt - 1);
+			}
+
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
+				GAIA_ASSERT(!empty());
+				return (const_reference) operator[](m_cnt - 1);
+			}
+
+			GAIA_NODISCARD auto begin() noexcept {
+				return iterator(data());
+			}
+
+			GAIA_NODISCARD auto begin() const noexcept {
+				return const_iterator(data());
+			}
+
+			GAIA_NODISCARD auto cbegin() const noexcept {
+				return const_iterator(data());
+			}
+
+			GAIA_NODISCARD auto rbegin() noexcept {
+				return iterator((pointer)&back());
+			}
+
+			GAIA_NODISCARD auto rbegin() const noexcept {
+				return const_iterator((const_pointer)&back());
+			}
+
+			GAIA_NODISCARD auto crbegin() const noexcept {
+				return const_iterator((const_pointer)&back());
+			}
+
+			GAIA_NODISCARD auto end() noexcept {
+				return iterator(data() + size());
+			}
+
+			GAIA_NODISCARD auto end() const noexcept {
+				return const_iterator(data() + size());
+			}
+
+			GAIA_NODISCARD auto cend() const noexcept {
+				return const_iterator(data() + size());
+			}
+
+			GAIA_NODISCARD auto rend() noexcept {
+				return iterator(data() - 1);
+			}
+
+			GAIA_NODISCARD auto rend() const noexcept {
+				return const_iterator(data() - 1);
+			}
+
+			GAIA_NODISCARD auto crend() const noexcept {
+				return const_iterator(data() - 1);
+			}
+
+			GAIA_NODISCARD bool operator==(const darr_ext& other) const noexcept {
+				if (m_cnt != other.m_cnt)
+					return false;
+				const size_type n = size();
+				for (size_type i = 0; i < n; ++i)
+					if (!(operator[](i) == other[i]))
+						return false;
+				return true;
+			}
+
+			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const noexcept {
+				return !operator==(other);
+			}
+		};
+
+		namespace detail {
+			template <typename T, uint32_t N, uint32_t... I>
+			darr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+				return {{a[I]...}};
+			}
+		} // namespace detail
+
+		template <typename T, uint32_t N>
+		darr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
+			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
+		}
+
+	} // namespace cnt
+
+} // namespace gaia
+
+namespace gaia {
+	namespace cnt {
+		template <typename T, darr_ext_detail::size_type N>
+		using darray_ext = cnt::darr_ext<T, N>;
+	} // namespace cnt
+} // namespace gaia
+
+// Controls how logs can grow in bytes before flush is triggered
+#ifndef GAIA_LOG_BUFFER_SIZE
+	#define GAIA_LOG_BUFFER_SIZE 32 * 1024
+#endif
+// Controls how many log entries are possible before flush
+#ifndef GAIA_LOG_BUFFER_ENTRIES
+	#define GAIA_LOG_BUFFER_ENTRIES 2048
+#endif
+
+namespace gaia {
+	namespace util {
+		using LogLevelType = uint8_t;
+
+		enum class LogLevel : LogLevelType { Debug = 0x1, Info = 0x2, Warning = 0x4, Error = 0x8 };
+		inline LogLevelType g_logLevelMask = (LogLevelType)LogLevel::Debug | (LogLevelType)LogLevel::Info |
+																				 (LogLevelType)LogLevel::Warning | (LogLevelType)LogLevel::Error;
+
+		//! Enables logging for a given log level
+		//! \param level Logging level
+		//! \param value True to enable the given logging level. False otherwise.
+		inline void log_enable(LogLevel level, bool value) {
+			if (value)
+				gaia::util::g_logLevelMask |= ((LogLevelType)level);
+			else
+				gaia::util::g_logLevelMask &= ~((LogLevelType)level);
+		}
+
+		//! Returns true if a given logging level is enabled. False otherwise.
+		inline bool is_logging_enabled(LogLevel level) {
+			return ((LogLevelType)level & g_logLevelMask) != 0;
+		}
+
+		using LogLineFunc = void (*)(LogLevel, const char*);
+		using LogFunc = void (*)(LogLevel, const char*, va_list);
+		using LogFlushFunc = void (*)();
+
+		namespace detail {
+			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
+			inline constexpr uint32_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
+
+			inline FILE* get_log_out(LogLevel level) {
+				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)LogLevel::Warning);
+				// If a warning or error level is set we will use stderr for output.
+				return mask != 0 ? stderr : stdout;
+			}
+
+			// LCOV_EXCL_START
+
+			//! Default implementation of logging a line
+			inline void log_line(LogLevel level, const char* msg) {
+				FILE* out = get_log_out(level);
+
+				static constexpr const char* colors[] = {
+						"\033[1;32mD: ", // Debug
+						"\033[0mI: ", // Info
+						"\033[1;33mW: ", // Warning
+						"\033[1;31mE: " // Error
+				};
+				// LogLevel is a bitmask. Calculate what bit is and use it as an index.
+				const auto lvl = (uint32_t)level;
+				const auto idx = GAIA_CLZ(lvl);
+				fprintf(out, "%s%s\033[0m\n", colors[idx], msg);
+			}
+			inline LogLineFunc g_log_line_func = log_line;
+
+			// LCOV_EXCL_STOP
+
+			struct LogBuffer {
+				struct LogRecord {
+					uint32_t offset : 29;
+					uint32_t level : 3; // 3 bits for LogLevel mask
+				};
+
+				char m_buffer[LOG_BUFFER_SIZE];
+				LogRecord m_recs[LOG_RECORD_LIMIT];
+				uint32_t m_buffer_pos = 0;
+				uint32_t m_recs_pos = 0;
+
+				//! Logs a message.
+				//! We implement a buffering strategy. Warnings and errors flush immediately.
+				//! Otherwise, we flush once the buffer is filled or on-demand manually.
+				//! \param level Logging level
+				//! \param len Length of the messagage (including the null-terminating character)
+				//! \param msg Message to log
+				void log(LogLevel level, uint32_t len, const char* msg) {
+					FILE* out = get_log_out(level);
+					const bool is_assert = out == stderr;
+
+					// Big message? Write directly
+					if (is_assert || len >= detail::LOG_BUFFER_SIZE) {
+						// Flush existing buffer first
+						flush();
+
+						// Print message directly (bypass cache)
+						g_log_line_func(level, msg);
+						fflush(out);
+						return;
+					}
+
+					// Normal caching path. If the message doesn't fit, or if there are too many records, flush.
+					if (m_buffer_pos + len > detail::LOG_BUFFER_SIZE || m_recs_pos >= detail::LOG_RECORD_LIMIT)
+						flush();
+
+					// Append message to cache
+					auto& rec = m_recs[m_recs_pos];
+					rec.offset = m_buffer_pos;
+					rec.level = (LogLevelType)level;
+					memcpy(m_buffer + m_buffer_pos, msg, len);
+
+					m_buffer_pos += len;
+					++m_recs_pos;
+				}
+
+				void flush() {
+					if (m_recs_pos == 0)
+						return;
+
+					for (size_t i = 0; i < m_recs_pos; ++i) {
+						const auto& rec = m_recs[i];
+						g_log_line_func((LogLevel)rec.level, &m_buffer[rec.offset]);
+					}
+
+					m_recs_pos = 0;
+					m_buffer_pos = 0;
+					fflush(stdout);
+				}
+
+				LogBuffer() {
+					// Disable flushing on the new lines. We will control flushing fully.
+					// To avoid issues with Windows’ UCRT we set some reasonable non-zero value.
+					setvbuf(stdout, nullptr, _IOFBF, 4096);
+					setvbuf(stderr, nullptr, _IOFBF, 4096);
+				}
+				~LogBuffer() {
+					// Flush before the object disappears
+					flush();
+				}
+
+				LogBuffer(const LogBuffer&) = delete;
+				LogBuffer(LogBuffer&&) = delete;
+				LogBuffer& operator=(const LogBuffer&) = delete;
+				LogBuffer& operator=(LogBuffer&&) = delete;
+			};
+
+			inline LogBuffer* g_log() {
+				static LogBuffer* s_log = nullptr;
+				if (s_log == nullptr) {
+					s_log = new LogBuffer();
+					// Register automatic cleanup
+					static struct LogAtExit {
+						LogAtExit() = default;
+						~LogAtExit() {
+							if (s_log != nullptr) {
+								s_log->flush();
+								delete s_log;
+								s_log = nullptr;
+							}
+						}
+
+						LogAtExit(const LogAtExit&) = delete;
+						LogAtExit(LogAtExit&&) = delete;
+						LogAtExit& operator=(const LogAtExit&) = delete;
+						LogAtExit& operator=(LogAtExit&&) = delete;
+					} s_logDeleter;
+				}
+				return s_log;
+			}
+
+			//! Default implementation of log handler
+			inline void log_cached(LogLevel level, const char* fmt, va_list args) {
+				va_list args_copy{};
+
+				GAIA_CLANG_WARNING_PUSH()
+				GAIA_GCC_WARNING_PUSH()
+				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
+				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
+				// Early exit if there is nothing to write
+				va_copy(args_copy, args);
+				int l = vsnprintf(nullptr, 0, fmt, args_copy);
+				va_end(args_copy);
+				if (l <= 0)
+					return;
+
+				const auto len = (uint32_t)l;
+				cnt::darray_ext<char, 1024> msg(len + 1);
+
+				va_copy(args_copy, args);
+				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
+				va_end(args_copy);
+				GAIA_GCC_WARNING_POP()
+				GAIA_CLANG_WARNING_POP()
+
+				// Always null-terminate logs
+				msg[len] = 0;
+
+				// Log a message.
+				// We implement a buffering strategy. Warnings and errors flush immediately.
+				// Otherwise, we flush once the buffer is filled or on-demand manually.
+				g_log()->log(level, msg.size(), msg.data());
+			}
+
+			//! Default implementation of log flushing
+			inline void log_flush_cached() {
+				g_log()->flush();
+			}
+
+			// LCOV_EXCL_START
+
+			//! Implementation of log handler that logs data directly (no caching)
+			inline void log_default(LogLevel level, const char* fmt, va_list args) {
+				va_list args_copy{};
+
+				GAIA_CLANG_WARNING_PUSH()
+				GAIA_GCC_WARNING_PUSH()
+				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
+				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
+				// Early exit if there is nothing to write
+				va_copy(args_copy, args);
+				int l = vsnprintf(nullptr, 0, fmt, args_copy);
+				va_end(args_copy);
+				if (l <= 0)
+					return;
+
+				const auto len = (uint32_t)l;
+				cnt::darray_ext<char, 1024> msg(len + 1);
+
+				va_copy(args_copy, args);
+				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
+				va_end(args_copy);
+				GAIA_GCC_WARNING_POP()
+				GAIA_CLANG_WARNING_POP()
+
+				// Always null-terminate logs
+				msg[len] = 0;
+
+				g_log_line_func(level, msg.data());
+			}
+
+			// LCOV_EXCL_STOP
+
+			//! Implementation of log handler that flushes directly (no cachce)
+			inline void log_flush_default() {}
+
+			inline LogFunc g_log_func = log_default;
+			inline LogFlushFunc g_log_flush_func = log_flush_default;
+		} // namespace detail
+
+		//! Set the default function for handling of logs.
+		//! This will fully override the default implementation or logging from gaia (format of logs, caching, etc.).
+		//! \param func Function pointer. If set to nullptr, default implementation is used.
+		inline void set_log_func(LogFunc func) {
+			detail::g_log_func = func != nullptr ? func : detail::log_default;
+		}
+
+		//! Set the default function for handling one line of log.
+		//! \param func Function pointer. If set to nullptr, default implementation is used.
+		inline void set_log_line_func(LogLineFunc func) {
+			detail::g_log_line_func = func != nullptr ? func : detail::log_line;
+		}
+
+		//! Set the default function for handling of log flushing.
+		//! \param func Function pointer. If set to nullptr, default implementation is used.
+		inline void set_log_flush_func(LogFlushFunc func) {
+			detail::g_log_flush_func = func != nullptr ? func : detail::log_flush_default;
+		}
+
+		//! Logs a message with a given log level
+		//! \param level Logging level
+		//! \param fmt Formated message in a format you would use for printf of std::format
+		inline void log(LogLevel level, const char* fmt, ...) {
+			if (!is_logging_enabled(level))
+				return;
+
+			va_list args;
+			va_start(args, fmt);
+			detail::g_log_func(level, fmt, args);
+			va_end(args);
+		}
+
+		inline void log_flush() {
+			detail::g_log_flush_func();
+		}
+	} // namespace util
+} // namespace gaia
+
+// LCOV_EXCL_START
+extern "C" {
+
+typedef void (*gaia_log_line_func_t)(gaia::util::LogLevelType level, const char* msg);
+inline void gaia_set_log_func(gaia_log_line_func_t func) {
+	gaia::util::set_log_line_func((gaia::util::LogLineFunc)func);
+}
+
+inline void gaia_log(uint8_t level, const char* msg) {
+	gaia::util::log((gaia::util::LogLevel)level, "%s", msg);
+}
+
+typedef void (*gaia_log_flush_func_t)();
+inline void gaia_set_flush_func(gaia_log_flush_func_t func) {
+	gaia::util::set_log_flush_func((gaia::util::LogFlushFunc)func);
+}
+
+inline void gaia_flush_logs() {
+	gaia::util::log_flush();
+}
+
+inline void gaia_log_enable(gaia::util::LogLevelType level, bool value) {
+	gaia::util::log_enable((gaia::util::LogLevel)level, value);
+}
+
+inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
+	return gaia::util::is_logging_enabled((gaia::util::LogLevel)level);
+}
+}
+// LCOV_EXCL_STOP
+
+#define GAIA_LOG_D(...) gaia::util::log(gaia::util::LogLevel::Debug, __VA_ARGS__)
+#define GAIA_LOG_N(...) gaia::util::log(gaia::util::LogLevel::Info, __VA_ARGS__)
+#define GAIA_LOG_W(...) gaia::util::log(gaia::util::LogLevel::Warning, __VA_ARGS__)
+#define GAIA_LOG_E(...) gaia::util::log(gaia::util::LogLevel::Error, __VA_ARGS__)
+
+namespace gaia {
+	namespace mem {
+		static constexpr uint32_t SmallBlockAlignment = (uint32_t)alignof(std::max_align_t);
+		static constexpr uint32_t SmallBlockGranularity = SmallBlockAlignment;
+		static constexpr uint32_t SmallBlockMaxSize = 512;
+		static constexpr uint32_t SmallBlockSizeTypeCount = SmallBlockMaxSize / SmallBlockGranularity;
+
+		//! Returns the usable block size for the given size class.
+		//! \param sizeType Size class index.
+		//! \return Usable bytes available to the caller.
+		constexpr uint32_t small_block_size(uint32_t sizeType) {
+			GAIA_ASSERT(sizeType < SmallBlockSizeTypeCount);
+			return (sizeType + 1) * SmallBlockGranularity;
+		}
+
+		//! Returns the size class for the requested byte count.
+		//! \param sizeBytes Requested usable bytes.
+		//! \return Size class index able to satisfy the request.
+		constexpr uint8_t small_block_size_type(uint32_t sizeBytes) {
+			GAIA_ASSERT(sizeBytes > 0);
+			GAIA_ASSERT(sizeBytes <= SmallBlockMaxSize);
+			return (uint8_t)((align(sizeBytes, SmallBlockGranularity) / SmallBlockGranularity) - 1);
+		}
+
+		namespace detail {
+			struct SmallBlockHeader final {
+				uintptr_t m_pageAddr = 0;
+#if GAIA_DEBUG
+				uint32_t m_requestedBytes = 0;
+				uint32_t m_reserved = 0;
+#else
+				uint64_t m_reserved = 0;
+#endif
+			};
+		} // namespace detail
+
+		static constexpr uint32_t SmallBlockUsableOffset =
+				align((uint32_t)sizeof(detail::SmallBlockHeader), SmallBlockAlignment);
+
+		struct GAIA_API SmallBlockAllocatorPageStats final {
+			//! Total allocated memory for this size class.
+			uint64_t mem_total;
+			//! Memory reserved by live blocks for this size class.
+			uint64_t mem_used;
+			//! Number of allocated pages.
+			uint32_t num_pages;
+			//! Number of reusable pages (partial + empty).
+			uint32_t num_pages_free;
+#if GAIA_DEBUG
+			//! Bytes explicitly requested by callers.
+			uint64_t mem_requested;
+			//! Number of completely empty pages.
+			uint32_t num_pages_empty;
+#endif
+		};
+
+		struct GAIA_API SmallBlockAllocatorStats final {
+			SmallBlockAllocatorPageStats stats[SmallBlockSizeTypeCount];
+		};
+
+		namespace detail {
+			static_assert(sizeof(SmallBlockHeader) <= SmallBlockUsableOffset);
+
+			constexpr uint32_t small_block_stride(uint32_t sizeType) {
+				return SmallBlockUsableOffset + small_block_size(sizeType);
+			}
+
+			class SmallBlockAllocatorImpl;
+
+			struct SmallBlockPage final: cnt::fwd_llist_base<SmallBlockPage> {
+				static constexpr uint16_t NBlocks = 64;
+				static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
+				static constexpr uint16_t SizeTypeBits = (uint16_t)core::count_bits(SmallBlockSizeTypeCount - 1);
+				static constexpr uint32_t InvalidBlockId = NBlocks + 1;
+#if GAIA_DEBUG
+				static constexpr uint8_t FreedBlockPattern = 0xDD;
+#endif
+				static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
+
+				using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
+				using BitView = core::bit_view<NBlocks_Bits>;
+
+				void* m_data;
+				BlockArray m_blocks;
+
+				uint32_t m_sizeType : SizeTypeBits;
+				uint32_t m_blockCnt : NBlocks_Bits;
+				uint32_t m_usedBlocks : NBlocks_Bits;
+				uint32_t m_nextFreeBlock : NBlocks_Bits;
+				uint32_t m_freeBlocks : NBlocks_Bits;
+
+#if GAIA_ASSERT_ENABLED
+				uint64_t m_usedMask = 0;
+#endif
+
+				//! Constructs a page for the given size class.
+				//! \param ptr Raw page data.
+				//! \param sizeType Size class index.
+				SmallBlockPage(void* ptr, uint8_t sizeType):
+						m_data(ptr), m_sizeType(sizeType), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {}
+
+				//! Returns the stride of one block in this page.
+				GAIA_NODISCARD uint32_t block_stride() const {
+					return small_block_stride(m_sizeType);
+				}
+
+				void write_block_idx(uint32_t blockIdx, uint32_t value) {
+					const uint32_t bitPosition = blockIdx * NBlocks_Bits;
+
+					GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
+					GAIA_ASSERT(value <= InvalidBlockId);
+
+					BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.set(bitPosition, (uint8_t)value);
+				}
+
+				GAIA_NODISCARD uint8_t read_block_idx(uint32_t blockIdx) const {
+					const uint32_t bitPosition = blockIdx * NBlocks_Bits;
+
+					GAIA_ASSERT(bitPosition < NBlocks * NBlocks_Bits);
+
+					return BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.get(bitPosition);
+				}
+
+				//! Allocates one block from this page.
+				//! \param bytesWanted Requested usable bytes.
+				//! \return Pointer to the usable storage.
+				GAIA_NODISCARD void* alloc_block(
+#if GAIA_DEBUG
+						uint32_t bytesWanted
+#endif
+				) {
+					auto store_block_address = [&](uint32_t index) {
+						auto* pMemoryBlock = (uint8_t*)m_data + (index * block_stride());
+						GAIA_ASSERT((uintptr_t)pMemoryBlock % SmallBlockAlignment == 0);
+						auto& header = block_header(pMemoryBlock);
+						header.m_pageAddr = (uintptr_t)this;
+#if GAIA_DEBUG
+						header.m_requestedBytes = bytesWanted;
+						header.m_reserved = 0;
+#else
+						header.m_reserved = 0;
+#endif
+						auto* pData = pMemoryBlock + SmallBlockUsableOffset;
+						GAIA_ASSERT((uintptr_t)pData % SmallBlockAlignment == 0);
+						return (void*)pData;
+					};
+
+					GAIA_ASSERT(!full() && "Trying to allocate too many blocks!");
+
+					uint32_t index = 0;
+					if (m_freeBlocks == 0U) {
+						index = m_blockCnt;
+						++m_usedBlocks;
+						++m_blockCnt;
+						write_block_idx(index, index);
+					} else {
+						GAIA_ASSERT(m_nextFreeBlock < m_blockCnt && "Block allocator recycle list broken!");
+
+						++m_usedBlocks;
+						--m_freeBlocks;
+
+						index = m_nextFreeBlock;
+						m_nextFreeBlock = read_block_idx(m_nextFreeBlock);
+					}
+
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT((m_usedMask & (uint64_t(1) << index)) == 0 && "Block already marked as live");
+					m_usedMask |= uint64_t(1) << index;
+#endif
+
+					return store_block_address(index);
+				}
+
+				//! Frees one block back to this page.
+				//! \param pBlock Pointer previously returned by alloc_block().
+				void free_block(void* pBlock) {
+					GAIA_ASSERT(pBlock != nullptr);
+					GAIA_ASSERT(m_usedBlocks > 0);
+					GAIA_ASSERT(m_freeBlocks <= NBlocks);
+
+					const auto* pMemoryBlock = (uint8_t*)pBlock - SmallBlockUsableOffset;
+					const auto blckAddr = (uintptr_t)pMemoryBlock;
+					GAIA_ASSERT(blckAddr % SmallBlockAlignment == 0);
+					const auto dataAddr = (uintptr_t)m_data;
+					const auto blockStride = (uintptr_t)block_stride();
+					const auto pageSize = blockStride * NBlocks;
+					GAIA_ASSERT(blckAddr >= dataAddr);
+					GAIA_ASSERT(blckAddr < dataAddr + pageSize);
+					GAIA_ASSERT((blckAddr - dataAddr) % blockStride == 0);
+					const auto blockIdx = (uint32_t)((blckAddr - dataAddr) / blockStride);
+					GAIA_ASSERT(blockIdx < m_blockCnt);
+
+#if GAIA_DEBUG
+					auto& header = block_header((void*)pMemoryBlock);
+					GAIA_ASSERT(header.m_requestedBytes > 0);
+#endif
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT((m_usedMask & (uint64_t(1) << blockIdx)) != 0 && "Double free or corrupted block state");
+					m_usedMask &= ~(uint64_t(1) << blockIdx);
+#endif
+
+#if GAIA_DEBUG
+					header.m_requestedBytes = 0;
+					std::memset(pBlock, FreedBlockPattern, small_block_size(m_sizeType));
+#endif
+
+					if (m_freeBlocks == 0U)
+						write_block_idx(blockIdx, InvalidBlockId);
+					else
+						write_block_idx(blockIdx, m_nextFreeBlock);
+					m_nextFreeBlock = blockIdx;
+
+					++m_freeBlocks;
+					--m_usedBlocks;
+				}
+
+				//! Returns the number of live blocks.
+				GAIA_NODISCARD uint32_t used_blocks_cnt() const {
+					return m_usedBlocks;
+				}
+
+				//! Returns true when the page is full.
+				GAIA_NODISCARD bool full() const {
+					return used_blocks_cnt() >= NBlocks;
+				}
+
+				//! Returns true when the page is empty.
+				GAIA_NODISCARD bool empty() const {
+					return used_blocks_cnt() == 0;
+				}
+
+				//! Verifies internal page invariants.
+				void verify() const {
+#if GAIA_ASSERT_ENABLED
+					GAIA_ASSERT(m_sizeType < SmallBlockSizeTypeCount);
+					GAIA_ASSERT(m_blockCnt <= NBlocks);
+					GAIA_ASSERT(m_usedBlocks <= m_blockCnt);
+					GAIA_ASSERT(m_freeBlocks <= m_blockCnt);
+					GAIA_ASSERT(m_usedBlocks + m_freeBlocks == m_blockCnt);
+					GAIA_ASSERT(((uintptr_t)m_data % SmallBlockAlignment) == 0);
+
+					[[maybe_unused]] uint64_t freeMask = 0;
+
+					if (m_freeBlocks != 0) {
+						uint32_t next = m_nextFreeBlock;
+						GAIA_FOR(m_freeBlocks) {
+							GAIA_ASSERT(next < m_blockCnt);
+	#if GAIA_DEBUG
+							const auto bit = uint64_t(1) << next;
+							GAIA_ASSERT((freeMask & bit) == 0 && "Free list contains a cycle");
+							freeMask |= bit;
+	#endif
+							next = read_block_idx(next);
+						}
+
+						GAIA_ASSERT(next == InvalidBlockId);
+					}
+
+					GAIA_FOR(m_blockCnt) {
+						const auto* pMemoryBlock = (const uint8_t*)m_data + (i * block_stride());
+						const auto& header = block_header(pMemoryBlock);
+						GAIA_ASSERT(header.m_pageAddr == (uintptr_t)this);
+						GAIA_ASSERT(((uintptr_t)pMemoryBlock % SmallBlockAlignment) == 0);
+
+	#if GAIA_DEBUG
+						const bool isFree = (freeMask & (uint64_t(1) << i)) != 0;
+						GAIA_ASSERT((header.m_requestedBytes == 0) == isFree);
+	#endif
+					}
+
+	#if GAIA_DEBUG
+					GAIA_ASSERT((m_usedMask & freeMask) == 0);
+					const auto liveMask = m_blockCnt == 64 ? ~uint64_t(0) : ((uint64_t(1) << m_blockCnt) - 1);
+					GAIA_ASSERT((m_usedMask | freeMask) == liveMask);
+	#endif
+#endif
+				}
+
+#if GAIA_DEBUG
+				//! Returns the number of caller-requested bytes held by live blocks.
+				GAIA_NODISCARD uint64_t requested_bytes() const {
+					if (m_usedBlocks == 0)
+						return 0;
+
+					uint64_t freeMask = 0;
+					uint32_t next = m_nextFreeBlock;
+					GAIA_FOR(m_freeBlocks) {
+						GAIA_ASSERT(next < m_blockCnt);
+						const auto bit = uint64_t(1) << next;
+						GAIA_ASSERT((freeMask & bit) == 0 && "Free list contains a cycle");
+						freeMask |= bit;
+						next = read_block_idx(next);
+					}
+
+					uint64_t requested = 0;
+					GAIA_FOR(m_blockCnt) {
+						if ((freeMask & (uint64_t(1) << i)) != 0)
+							continue;
+
+						const auto* pMemoryBlock = (const uint8_t*)m_data + (i * block_stride());
+						requested += block_header(pMemoryBlock).m_requestedBytes;
+					}
+
+					return requested;
+				}
+#endif
+
+			private:
+				static SmallBlockHeader& block_header(void* pMemoryBlock) {
+					return *(SmallBlockHeader*)pMemoryBlock;
+				}
+
+				static const SmallBlockHeader& block_header(const void* pMemoryBlock) {
+					return *(const SmallBlockHeader*)pMemoryBlock;
+				}
+			};
+
+			enum class SmallBlockPageState : uint8_t { Detached, Empty, Partial, Full };
+
+			struct SmallBlockPageContainer final {
+				cnt::fwd_llist<SmallBlockPage> pagesEmpty;
+				cnt::fwd_llist<SmallBlockPage> pagesPartial;
+				cnt::fwd_llist<SmallBlockPage> pagesFull;
+			};
+		} // namespace detail
+
+		using SmallBlockAllocator = core::dyn_singleton<detail::SmallBlockAllocatorImpl>;
+
+		namespace detail {
+			//! General-purpose allocator for small, variable-sized allocations up to 512 bytes.
+			class SmallBlockAllocatorImpl final {
+				friend ::gaia::mem::SmallBlockAllocator;
+
+				SmallBlockPageContainer m_pages[SmallBlockSizeTypeCount];
+				bool m_isDone = false;
+
+				SmallBlockAllocatorImpl() = default;
+
+			public:
+				static constexpr uint32_t MAX_SIZE = SmallBlockMaxSize;
+
+				~SmallBlockAllocatorImpl() {
+					flush(true);
+
+#if GAIA_ASSERT_ENABLED
+					for (const auto& container: m_pages) {
+						const bool hasPages = container.pagesEmpty.first != nullptr || container.pagesPartial.first != nullptr ||
+																	container.pagesFull.first != nullptr;
+						GAIA_ASSERT(!hasPages && "SmallBlockAllocator leaking memory");
+					}
+#endif
+				}
+
+				SmallBlockAllocatorImpl(SmallBlockAllocatorImpl&&) = delete;
+				SmallBlockAllocatorImpl(const SmallBlockAllocatorImpl&) = delete;
+				SmallBlockAllocatorImpl& operator=(SmallBlockAllocatorImpl&&) = delete;
+				SmallBlockAllocatorImpl& operator=(const SmallBlockAllocatorImpl&) = delete;
+
+				//! Allocates storage for up to 512 bytes.
+				//! \param bytesWanted Requested usable bytes.
+				//! \return Pointer to aligned usable storage.
+				GAIA_NODISCARD void* alloc(uint32_t bytesWanted) {
+					GAIA_ASSERT(bytesWanted > 0);
+					GAIA_ASSERT(bytesWanted <= MAX_SIZE);
+					if (bytesWanted == 0 || bytesWanted > MAX_SIZE)
+						return nullptr;
+
+					const auto sizeType = small_block_size_type(bytesWanted);
+					auto& container = m_pages[sizeType];
+
+					SmallBlockPageState prevState = SmallBlockPageState::Partial;
+					auto* pPage = container.pagesPartial.first;
+					if (pPage == nullptr) {
+						prevState = SmallBlockPageState::Empty;
+						pPage = container.pagesEmpty.first;
+						if (pPage == nullptr) {
+							prevState = SmallBlockPageState::Detached;
+							pPage = alloc_page(sizeType);
+						}
+					}
+
+#if GAIA_DEBUG
+					void* pBlock = pPage->alloc_block(bytesWanted);
+#else
+					void* pBlock = pPage->alloc_block();
+#endif
+					move_page(container, pPage, prevState, state_for(*pPage));
+					verify();
+					return pBlock;
+				}
+
+				//! Releases storage allocated for the given pointer.
+				//! \param pBlock Pointer previously returned by alloc().
+				void free(void* pBlock) {
+					GAIA_ASSERT(pBlock != nullptr);
+					if (pBlock == nullptr)
+						return;
+
+					const auto& header = *(const SmallBlockHeader*)((uint8_t*)pBlock - SmallBlockUsableOffset);
+					const auto pageAddr = header.m_pageAddr;
+					GAIA_ASSERT(pageAddr % sizeof(uintptr_t) == 0);
+#if GAIA_DEBUG
+					GAIA_ASSERT(header.m_requestedBytes > 0);
+#endif
+					auto* pPage = (SmallBlockPage*)pageAddr;
+					const auto prevState = state_for(*pPage);
+					auto& container = m_pages[pPage->m_sizeType];
+
+					pPage->free_block(pBlock);
+					move_page(container, pPage, prevState, state_for(*pPage));
+					verify();
+
+					if (m_isDone) {
+						if (pPage->empty()) {
+							container.pagesEmpty.unlink(pPage);
+							free_page(pPage);
+						}
+
+						try_delete_this();
+					}
+				}
+
+				//! Flushes unused pages.
+				//! \param releaseAll When true, all empty pages are released.
+				void flush(bool releaseAll = false) {
+					for (uint32_t i = 0; i < SmallBlockSizeTypeCount; ++i)
+						flush_pages(m_pages[i], releaseAll);
+					verify();
+				}
+
+				//! Returns allocator statistics per size class.
+				GAIA_NODISCARD SmallBlockAllocatorStats stats() const {
+					SmallBlockAllocatorStats stats{};
+					for (uint32_t sizeType = 0; sizeType < SmallBlockSizeTypeCount; ++sizeType)
+						stats.stats[sizeType] = page_stats(sizeType);
+					return stats;
+				}
+
+				//! Performs diagnostics of allocator memory usage.
+				void diag() const {
+					const auto allStats = stats();
+					for (uint32_t sizeType = 0; sizeType < SmallBlockSizeTypeCount; ++sizeType) {
+						const auto& stats = allStats.stats[sizeType];
+						if (stats.num_pages == 0)
+							continue;
+
+						GAIA_LOG_N("SmallBlockAllocator %u B stats", small_block_size(sizeType));
+						GAIA_LOG_N("  Allocated: %" PRIu64 " B", stats.mem_total);
+						GAIA_LOG_N("  Reserved by live blocks: %" PRIu64 " B", stats.mem_used);
+						GAIA_LOG_N("  Pages: %u", stats.num_pages);
+						GAIA_LOG_N("  Reusable pages: %u", stats.num_pages_free);
+#if !GAIA_DEBUG
+						GAIA_LOG_N(
+								"  Utilization: %.1f%%",
+								stats.mem_total ? 100.0 * ((double)stats.mem_used / (double)stats.mem_total) : 0.0);
+#else
+						GAIA_LOG_N("  Requested: %" PRIu64 " B", stats.mem_requested);
+						GAIA_LOG_N("  Free capacity: %" PRIu64 " B", stats.mem_total - stats.mem_used);
+						GAIA_LOG_N("  Internal slack: %" PRIu64 " B", stats.mem_used - stats.mem_requested);
+						GAIA_LOG_N(
+								"  Utilization: %.1f%%",
+								stats.mem_total ? 100.0 * ((double)stats.mem_requested / (double)stats.mem_total) : 0.0);
+						GAIA_LOG_N("  Empty pages: %u", stats.num_pages_empty);
+#endif
+					}
+				}
+
+				//! Verifies allocator invariants.
+				void verify() const {
+#if GAIA_ASSERT_ENABLED
+					for (uint32_t sizeType = 0; sizeType < SmallBlockSizeTypeCount; ++sizeType)
+						verify_container(m_pages[sizeType], sizeType);
+#endif
+				}
+
+			private:
+				static constexpr const char* s_strSmallBlockData = "SmallBlockData";
+				static constexpr const char* s_strSmallBlockPage = "SmallBlockPage";
+
+				static SmallBlockPage* alloc_page(uint8_t sizeType) {
+					const uint32_t size = small_block_stride(sizeType) * SmallBlockPage::NBlocks;
+					auto* pPageData = AllocHelper::alloc_alig<uint8_t>(s_strSmallBlockData, SmallBlockAlignment, size);
+					auto* pMemoryPage = AllocHelper::alloc<SmallBlockPage>(s_strSmallBlockPage);
+					return new (pMemoryPage) SmallBlockPage(pPageData, sizeType);
+				}
+
+				static void free_page(SmallBlockPage* pPage) {
+					GAIA_ASSERT(pPage != nullptr);
+
+					AllocHelper::free_alig(s_strSmallBlockData, pPage->m_data);
+					pPage->~SmallBlockPage();
+					AllocHelper::free(s_strSmallBlockPage, pPage);
+				}
+
+				void done() {
+					m_isDone = true;
+				}
+
+				void try_delete_this() {
+					bool allEmpty = true;
+					for (const auto& container: m_pages) {
+						const bool hasPages = container.pagesEmpty.first != nullptr || container.pagesPartial.first != nullptr ||
+																	container.pagesFull.first != nullptr;
+						allEmpty = allEmpty && !hasPages;
+					}
+
+					if (allEmpty)
+						delete this;
+				}
+
+				static constexpr uint32_t warm_pages_to_keep() {
+					return 1;
+				}
+
+				static SmallBlockPageState state_for(const SmallBlockPage& page) {
+					if (page.empty())
+						return SmallBlockPageState::Empty;
+					if (page.full())
+						return SmallBlockPageState::Full;
+					return SmallBlockPageState::Partial;
+				}
+
+				static cnt::fwd_llist<SmallBlockPage>&
+				page_list(SmallBlockPageContainer& container, SmallBlockPageState state) {
+					switch (state) {
+						case SmallBlockPageState::Empty:
+							return container.pagesEmpty;
+						case SmallBlockPageState::Partial:
+							return container.pagesPartial;
+						default:
+							GAIA_ASSERT(state == SmallBlockPageState::Full);
+							return container.pagesFull;
+					}
+				}
+
+				static void move_page(
+						SmallBlockPageContainer& container, SmallBlockPage* pPage, SmallBlockPageState fromState,
+						SmallBlockPageState toState) {
+					if (fromState == toState)
+						return;
+
+					if (fromState != SmallBlockPageState::Detached)
+						page_list(container, fromState).unlink(pPage);
+					page_list(container, toState).link(pPage);
+				}
+
+				static void
+				verify_page_membership(const SmallBlockPage& page, uint32_t sizeType, SmallBlockPageState expectedState) {
+					GAIA_ASSERT(page.m_sizeType == sizeType);
+					GAIA_ASSERT(state_for(page) == expectedState);
+					GAIA_ASSERT(page.get_fwd_llist_link().linked());
+				}
+
+				static void verify_container(const SmallBlockPageContainer& container, uint32_t sizeType) {
+					for (const auto& page: container.pagesEmpty) {
+						verify_page_membership(page, sizeType, SmallBlockPageState::Empty);
+						page.verify();
+					}
+
+					for (const auto& page: container.pagesPartial) {
+						verify_page_membership(page, sizeType, SmallBlockPageState::Partial);
+						page.verify();
+					}
+
+					for (const auto& page: container.pagesFull) {
+						verify_page_membership(page, sizeType, SmallBlockPageState::Full);
+						page.verify();
+					}
+				}
+
+				GAIA_NODISCARD SmallBlockAllocatorPageStats page_stats(uint32_t sizeType) const {
+					SmallBlockAllocatorPageStats stats{};
+					const auto& container = m_pages[sizeType];
+					const auto blockStride = (uint64_t)small_block_stride(sizeType);
+					const auto pageSize = blockStride * SmallBlockPage::NBlocks;
+
+					stats.num_pages = (uint32_t)container.pagesEmpty.size() + (uint32_t)container.pagesPartial.size() +
+														(uint32_t)container.pagesFull.size();
+					stats.num_pages_free = (uint32_t)container.pagesEmpty.size() + (uint32_t)container.pagesPartial.size();
+					stats.mem_total = stats.num_pages * pageSize;
+					stats.mem_used = container.pagesFull.size() * pageSize;
+
+#if GAIA_DEBUG
+					stats.num_pages_empty = (uint32_t)container.pagesEmpty.size();
+
+					for (const auto& page: container.pagesFull)
+						stats.mem_requested += page.requested_bytes();
+
+					for (const auto& page: container.pagesPartial) {
+						stats.mem_used += page.used_blocks_cnt() * blockStride;
+						stats.mem_requested += page.requested_bytes();
+					}
+#else
+					for (const auto& page: container.pagesPartial)
+						stats.mem_used += page.used_blocks_cnt() * blockStride;
+#endif
+
+					return stats;
+				}
+
+				static void flush_pages(SmallBlockPageContainer& container, bool releaseAll) {
+					const bool keepWarmPage = !releaseAll && warm_pages_to_keep() != 0;
+					bool keptWarmPage = false;
+
+					for (auto it = container.pagesEmpty.begin(); it != container.pagesEmpty.end();) {
+						auto* pPage = &(*it);
+						++it;
+
+						if (!pPage->empty())
+							continue;
+
+						if (keepWarmPage && !keptWarmPage) {
+							keptWarmPage = true;
+							continue;
+						}
+
+						container.pagesEmpty.unlink(pPage);
+						free_page(pPage);
+					}
+				}
+			};
+		} // namespace detail
+	} // namespace mem
+} // namespace gaia
+
+#include <cinttypes>
 
 namespace gaia {
 	namespace mem {
@@ -6665,603 +8696,6 @@ namespace gaia {
 	namespace cnt {
 		template <typename T>
 		using darray = cnt::darr<T>;
-	} // namespace cnt
-} // namespace gaia
-
-#include <cstddef>
-#include <initializer_list>
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace cnt {
-		namespace darr_ext_detail {
-			using difference_type = uint32_t;
-			using size_type = uint32_t;
-		} // namespace darr_ext_detail
-
-		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
-		//! If the number of elements is bellow \tparam N the stack storage is used.
-		//! If the number of elements is above \tparam N the heap storage is used.
-		//! Interface compatiblity with std::vector and std::array where it matters.
-		template <typename T, darr_ext_detail::size_type N, typename Allocator = mem::DefaultAllocatorAdaptor>
-		class darr_ext {
-		public:
-			static_assert(N > 0);
-
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = darr_ext_detail::difference_type;
-			using size_type = darr_ext_detail::size_type;
-
-			using iterator = pointer;
-			using const_iterator = const_pointer;
-			using iterator_category = core::random_access_iterator_tag;
-
-			static constexpr size_t value_size = sizeof(T);
-			static constexpr size_type extent = N;
-			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
-
-		private:
-			//! Data allocated on the stack
-			mem::raw_data_holder<T, allocated_bytes> m_data;
-			//! Data allocated on the heap
-			uint8_t* m_pDataHeap = nullptr;
-			//! Pointer to the currently used data
-			uint8_t* m_pData = m_data;
-			//! Number of currently used items ín this container
-			size_type m_cnt = size_type(0);
-			//! Allocated capacity of m_dataDyn or the extend
-			size_type m_cap = extent;
-
-			void try_grow() {
-				const auto cnt = size();
-				const auto cap = capacity();
-
-				// Unless we reached the capacity don't do anything
-				if GAIA_LIKELY (cnt < cap)
-					return;
-
-				// We increase the capacity in multiples of 1.5 which is about the golden ratio (1.618).
-				// This means we prefer more frequent allocations over memory fragmentation.
-				m_cap = (cap * 3 + 1) / 2;
-
-				if GAIA_UNLIKELY (m_pDataHeap == nullptr) {
-					// If no heap memory is allocated yet we need to allocate it and move the old stack elements to it
-					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T, false>(m_pDataHeap, m_data, cnt, 0, m_cap, cap);
-				} else {
-					// Move items from the old heap array to the new one. Delete the old
-					auto* pDataOld = m_pDataHeap;
-					m_pDataHeap = view_policy::template alloc<Allocator>(m_cap);
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, cnt);
-					mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0, m_cap, cap);
-					view_policy::template free<Allocator>(pDataOld, cap, cnt);
-				}
-
-				m_pData = m_pDataHeap;
-			}
-
-		public:
-			darr_ext() noexcept = default;
-			darr_ext(core::zero_t) noexcept {}
-
-			darr_ext(size_type count, const_reference value) {
-				resize(count, value);
-			}
-
-			darr_ext(size_type count) {
-				resize(count);
-			}
-
-			template <typename InputIt>
-			darr_ext(InputIt first, InputIt last) {
-				const auto count = (size_type)core::distance(first, last);
-				resize(count);
-
-				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_type i = 0; i < count; ++i)
-						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
-					for (size_type i = 0; i < count; ++i)
-						operator[](i) = *(first[i]);
-				} else {
-					size_type i = 0;
-					for (auto it = first; it != last; ++it)
-						operator[](++i) = *it;
-				}
-			}
-
-			darr_ext(std::initializer_list<T> il): darr_ext(il.begin(), il.end()) {}
-
-			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
-
-			darr_ext(darr_ext&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				// Moving from stack-allocated source
-				if (other.m_pDataHeap == nullptr) {
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
-					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
-					m_pDataHeap = nullptr;
-					m_pData = m_data;
-				} else {
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				}
-
-				m_cnt = other.m_cnt;
-				m_cap = other.m_cap;
-
-				other.m_pDataHeap = nullptr;
-				other.m_pData = other.m_data;
-				other.m_cnt = size_type(0);
-				other.m_cap = extent;
-			}
-
-			darr_ext& operator=(std::initializer_list<T> il) {
-				*this = darr_ext(il.begin(), il.end());
-				return *this;
-			}
-
-			darr_ext& operator=(const darr_ext& other) {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				resize(other.size());
-				mem::copy_elements<T, false>(
-						m_pData, (const uint8_t*)other.m_pData, other.size(), 0, capacity(), other.capacity());
-
-				return *this;
-			}
-
-			darr_ext& operator=(darr_ext&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				// Release previously allocated memory if there was anything
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
-
-				// Moving from stack-allocated source
-				if (other.m_pDataHeap == nullptr) {
-					GAIA_MEM_SANI_ADD_BLOCK(value_size, m_data, extent, other.size());
-					mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, other.m_data, extent, other.size());
-					m_pDataHeap = nullptr;
-					m_pData = m_data;
-				} else {
-					m_pDataHeap = other.m_pDataHeap;
-					m_pData = m_pDataHeap;
-				}
-
-				m_cnt = other.m_cnt;
-				m_cap = other.m_cap;
-
-				other.m_pDataHeap = nullptr;
-				other.m_pData = other.m_data;
-				other.m_cnt = size_type(0);
-				other.m_cap = extent;
-
-				return *this;
-			}
-
-			~darr_ext() {
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
-			}
-
-			GAIA_CLANG_WARNING_PUSH()
-			// Memory is aligned so we can silence this warning
-			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
-
-			GAIA_NODISCARD pointer data() noexcept {
-				return reinterpret_cast<pointer>(m_pData);
-			}
-
-			GAIA_NODISCARD const_pointer data() const noexcept {
-				return reinterpret_cast<const_pointer>(m_pData);
-			}
-
-			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
-				GAIA_ASSERT(pos < size());
-				return view_policy::set({(typename view_policy::TargetCastType)m_pData, size()}, pos);
-			}
-
-			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
-				GAIA_ASSERT(pos < size());
-				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
-			}
-
-			GAIA_CLANG_WARNING_POP()
-
-			void reserve(size_type cap) {
-				if (cap <= m_cap)
-					return;
-
-				auto* pDataOld = m_pDataHeap;
-				m_pDataHeap = view_policy::template alloc<Allocator>(cap);
-				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, cap, m_cnt);
-				if (pDataOld != nullptr) {
-					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, cap, m_cap);
-					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
-				} else {
-					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, cap, m_cap);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
-				}
-
-				m_cap = cap;
-				m_pData = m_pDataHeap;
-			}
-
-			void resize(size_type count) {
-				if (count == m_cnt)
-					return;
-
-				// Resizing to a smaller size
-				if (count < m_cnt) {
-					// Destroy elements at the end
-					core::call_dtor_n(&data()[count], m_cnt - count);
-					GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, m_cnt - count);
-
-					m_cnt = count;
-					return;
-				}
-
-				// Resizing to a bigger size but still within allocated capacity
-				if (count <= m_cap) {
-					// Construct new elements
-					GAIA_MEM_SANI_PUSH_N(value_size, data(), m_cap, m_cnt, count - m_cnt);
-					core::call_ctor_n(&data()[m_cnt], count - m_cnt);
-
-					m_cnt = count;
-					return;
-				}
-
-				auto* pDataOld = m_pDataHeap;
-				m_pDataHeap = view_policy::template alloc<Allocator>(count);
-				GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, count, count);
-				auto* pDataNew = reinterpret_cast<pointer>(m_pDataHeap);
-				if (pDataOld != nullptr) {
-					mem::move_elements<T, false>(m_pDataHeap, pDataOld, m_cnt, 0, count, m_cap);
-					core::call_ctor_n(&pDataNew[m_cnt], count - m_cnt);
-					view_policy::template free<Allocator>(pDataOld, m_cap, m_cnt);
-				} else {
-					mem::move_elements<T, false>(m_pDataHeap, m_data, m_cnt, 0, count, m_cap);
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, m_cap, m_cnt);
-				}
-
-				m_cap = count;
-				m_cnt = count;
-				m_pData = m_pDataHeap;
-			}
-
-			void resize(size_type count, const_reference value) {
-				const auto oldCount = m_cnt;
-				resize(count);
-
-				if constexpr (std::is_copy_constructible_v<value_type>) {
-					const value_type valueCopy = value;
-					for (size_type i = oldCount; i < m_cnt; ++i)
-						operator[](i) = valueCopy;
-				} else {
-					for (size_type i = oldCount; i < m_cnt; ++i)
-						operator[](i) = value;
-				}
-			}
-
-			void push_back(const T& arg) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, arg);
-			}
-
-			void push_back(T&& arg) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, GAIA_MOV(arg));
-			}
-
-			template <typename... Args>
-			decltype(auto) emplace_back(Args&&... args) {
-				try_grow();
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				auto* ptr = &data()[m_cnt++];
-				core::call_ctor(ptr, GAIA_FWD(args)...);
-				return (reference)*ptr;
-			}
-
-			void pop_back() noexcept {
-				GAIA_ASSERT(!empty());
-
-				auto* ptr = &data()[m_cnt - 1];
-				core::call_dtor(ptr);
-				GAIA_MEM_SANI_POP(value_size, data(), m_cap, m_cnt);
-
-				--m_cnt;
-			}
-
-			//! Insert the element to the position given by iterator @a pos
-			//! \param pos Position in the container
-			//! \param arg Data to insert
-			iterator insert(iterator pos, const T& arg) {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
-
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
-				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end()) + 1;
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
-				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, arg);
-
-				++m_cnt;
-
-				return iterator(ptr);
-			}
-
-			//! Insert the element to the position given by iterator @a pos
-			//! \param pos Positing in the container
-			//! \param arg Data to insert
-			iterator insert(iterator pos, T&& arg) {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
-
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
-				try_grow();
-				const auto idxDst = (size_type)core::distance(begin(), end());
-
-				GAIA_MEM_SANI_PUSH(value_size, data(), m_cap, m_cnt);
-				mem::shift_elements_right<T, false>(m_pData, idxDst, idxSrc, m_cap);
-				auto* ptr = &data()[idxSrc];
-				core::call_ctor(ptr, GAIA_MOV(arg));
-
-				++m_cnt;
-
-				return iterator(ptr);
-			}
-
-			//! Removes the element at pos
-			//! \param pos Iterator to the element to remove
-			iterator erase(iterator pos) noexcept {
-				GAIA_ASSERT(pos >= data());
-				GAIA_ASSERT(empty() || (pos < iterator(data() + size())));
-
-				if (empty())
-					return end();
-
-				const auto idxSrc = (size_type)core::distance(begin(), pos);
-				const auto idxDst = (size_type)core::distance(begin(), end()) - 1;
-
-				mem::shift_elements_left<T, false>(m_pData, idxDst, idxSrc, m_cap);
-				// Destroy if it's the last element
-				auto* ptr = &data()[m_cnt - 1];
-				core::call_dtor(ptr);
-				GAIA_MEM_SANI_POP(value_size, data(), m_cap, m_cnt);
-
-				--m_cnt;
-
-				return iterator(&data()[idxSrc]);
-			}
-
-			//! Removes the elements in the range [first, last)
-			//! \param first Iterator to the element to remove
-			//! \param last Iterator to the one beyond the last element to remove
-			iterator erase(iterator first, iterator last) noexcept {
-				GAIA_ASSERT(first >= data())
-				GAIA_ASSERT(empty() || (first < iterator(data() + size())));
-				GAIA_ASSERT(last > first);
-				GAIA_ASSERT(last <= iterator(data() + size()));
-
-				if (empty())
-					return end();
-
-				const auto idxSrc = (size_type)core::distance(begin(), first);
-				const auto idxDst = size();
-				const auto cnt = (size_type)(last - first);
-
-				mem::shift_elements_left_fast<T, false>(m_pData, idxDst, idxSrc, cnt, m_cap);
-				// Destroy if it's the last element
-				core::call_dtor_n(&data()[m_cnt - cnt], cnt);
-				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, cnt);
-
-				m_cnt -= cnt;
-
-				return iterator(&data()[idxSrc]);
-			}
-
-			void clear() noexcept {
-				resize(0);
-			}
-
-			void shrink_to_fit() {
-				const auto cap = capacity();
-				const auto cnt = size();
-
-				if (cap == cnt)
-					return;
-
-				if (m_pDataHeap != nullptr) {
-					auto* pDataOld = m_pDataHeap;
-
-					if (cnt < extent) {
-						mem::move_elements<T, false>(m_data, pDataOld, cnt, 0);
-						m_pData = m_data;
-						m_cap = extent;
-					} else {
-						m_pDataHeap = view_policy::template alloc<Allocator>(m_cap = cnt);
-						GAIA_MEM_SANI_ADD_BLOCK(value_size, m_pDataHeap, m_cap, m_cnt);
-						mem::move_elements<T, false>(m_pDataHeap, pDataOld, cnt, 0);
-						m_pData = m_pDataHeap;
-					}
-
-					GAIA_MEM_SANI_DEL_BLOCK(value_size, pDataOld, cap, cnt);
-					view_policy::template free<Allocator>(pDataOld);
-				} else
-					resize(cnt);
-			}
-
-			//! Removes all elements that fail the predicate.
-			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
-			//! \return The new size of the array.
-			template <typename Func>
-			auto retain(Func&& func) noexcept {
-				size_type erased = 0;
-				size_type idxDst = 0;
-				size_type idxSrc = 0;
-
-				while (idxSrc < m_cnt) {
-					if (func(operator[](idxSrc))) {
-						if (idxDst < idxSrc) {
-							auto* ptr = (uint8_t*)data();
-							mem::move_element<T, false>(ptr, ptr, idxDst, idxSrc, m_cap, m_cap);
-							auto* ptr2 = &data()[idxSrc];
-							core::call_dtor(ptr2);
-						}
-						++idxDst;
-					} else {
-						auto* ptr = &data()[idxSrc];
-						core::call_dtor(ptr);
-						++erased;
-					}
-
-					++idxSrc;
-				}
-
-				GAIA_MEM_SANI_POP_N(value_size, data(), m_cap, m_cnt, erased);
-
-				m_cnt -= erased;
-				return idxDst;
-			}
-
-			GAIA_NODISCARD size_type size() const noexcept {
-				return m_cnt;
-			}
-
-			GAIA_NODISCARD bool empty() const noexcept {
-				return size() == 0;
-			}
-
-			GAIA_NODISCARD size_type capacity() const noexcept {
-				return m_cap;
-			}
-
-			GAIA_NODISCARD size_type max_size() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD decltype(auto) front() noexcept {
-				GAIA_ASSERT(!empty());
-				return (reference)*begin();
-			}
-
-			GAIA_NODISCARD decltype(auto) front() const noexcept {
-				GAIA_ASSERT(!empty());
-				return (const_reference)*begin();
-			}
-
-			GAIA_NODISCARD decltype(auto) back() noexcept {
-				GAIA_ASSERT(!empty());
-				return (reference) operator[](m_cnt - 1);
-			}
-
-			GAIA_NODISCARD decltype(auto) back() const noexcept {
-				GAIA_ASSERT(!empty());
-				return (const_reference) operator[](m_cnt - 1);
-			}
-
-			GAIA_NODISCARD auto begin() noexcept {
-				return iterator(data());
-			}
-
-			GAIA_NODISCARD auto begin() const noexcept {
-				return const_iterator(data());
-			}
-
-			GAIA_NODISCARD auto cbegin() const noexcept {
-				return const_iterator(data());
-			}
-
-			GAIA_NODISCARD auto rbegin() noexcept {
-				return iterator((pointer)&back());
-			}
-
-			GAIA_NODISCARD auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
-			}
-
-			GAIA_NODISCARD auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
-			}
-
-			GAIA_NODISCARD auto end() noexcept {
-				return iterator(data() + size());
-			}
-
-			GAIA_NODISCARD auto end() const noexcept {
-				return const_iterator(data() + size());
-			}
-
-			GAIA_NODISCARD auto cend() const noexcept {
-				return const_iterator(data() + size());
-			}
-
-			GAIA_NODISCARD auto rend() noexcept {
-				return iterator(data() - 1);
-			}
-
-			GAIA_NODISCARD auto rend() const noexcept {
-				return const_iterator(data() - 1);
-			}
-
-			GAIA_NODISCARD auto crend() const noexcept {
-				return const_iterator(data() - 1);
-			}
-
-			GAIA_NODISCARD bool operator==(const darr_ext& other) const noexcept {
-				if (m_cnt != other.m_cnt)
-					return false;
-				const size_type n = size();
-				for (size_type i = 0; i < n; ++i)
-					if (!(operator[](i) == other[i]))
-						return false;
-				return true;
-			}
-
-			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const noexcept {
-				return !operator==(other);
-			}
-		};
-
-		namespace detail {
-			template <typename T, uint32_t N, uint32_t... I>
-			darr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
-				return {{a[I]...}};
-			}
-		} // namespace detail
-
-		template <typename T, uint32_t N>
-		darr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
-			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
-		}
-
-	} // namespace cnt
-
-} // namespace gaia
-
-namespace gaia {
-	namespace cnt {
-		template <typename T, darr_ext_detail::size_type N>
-		using darray_ext = cnt::darr_ext<T, N>;
 	} // namespace cnt
 } // namespace gaia
 
@@ -9178,179 +10612,6 @@ namespace gaia {
 	} // namespace cnt
 } // namespace gaia
 
-namespace gaia {
-	namespace cnt {
-		template <class T>
-		struct fwd_llist_link {
-			//! Pointer the the next element
-			T* next = nullptr;
-			//! Pointer to the memory address of the previous node's "next". This is not meant for traversal.
-			//! It merely allows for maintaining the forward links of the list when removing an item, and allows
-			//! O(1) removals even in a forward list.
-			T** prevs_next = nullptr;
-
-			//! Returns true if the node is linked with another
-			GAIA_NODISCARD bool linked() const {
-				return next != nullptr || prevs_next != nullptr;
-			}
-		};
-
-		//! Each fwd_llist node either has to inherit from fwd_llist_base
-		//! or it has to provide get_fwd_llist_link() member functions.
-		template <class T>
-		struct fwd_llist_base {
-			fwd_llist_link<T> fwd_link_GAIA;
-
-			fwd_llist_link<T>& get_fwd_llist_link() {
-				return fwd_link_GAIA;
-			}
-			const fwd_llist_link<T>& get_fwd_llist_link() const {
-				return fwd_link_GAIA;
-			}
-		};
-
-		template <typename T>
-		struct fwd_llist_iterator {
-			using iterator_category = core::forward_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = uint32_t;
-			using size_type = uint32_t;
-			using iterator = fwd_llist_iterator;
-
-		private:
-			T* m_pNode;
-
-		public:
-			explicit fwd_llist_iterator(T* pNode): m_pNode(pNode) {}
-
-			reference operator*() const {
-				return *m_pNode;
-			}
-			pointer operator->() const {
-				return m_pNode;
-			}
-
-			iterator& operator++() {
-				auto& list = m_pNode->get_fwd_llist_link();
-				m_pNode = list.next;
-				return *this;
-			}
-			iterator operator++(int) {
-				iterator temp(*this);
-				++*this;
-				return temp;
-			}
-
-			GAIA_NODISCARD bool operator==(const iterator& other) const {
-				return m_pNode == other.m_pNode;
-			}
-			GAIA_NODISCARD bool operator!=(const iterator& other) const {
-				return m_pNode != other.m_pNode;
-			}
-		};
-
-		//! Forward list container.
-		//! No memory allocation is performed because the list is stored directly inside allocated nodes.
-		//! Inserts: O(1)
-		//! Removals: O(1)
-		//! Iteration: O(N)
-		template <class T>
-		struct fwd_llist {
-			uint32_t count = 0;
-			T* first = nullptr;
-
-			//! Clears the list.
-			void clear() {
-				count = 0;
-				first = nullptr;
-			}
-
-			//! Links the node in the list.
-			void link(T* pNode) {
-				GAIA_ASSERT(pNode != nullptr);
-
-				auto& link = pNode->get_fwd_llist_link();
-				link.next = first;
-				if (first != nullptr) {
-					auto& linkFirst = first->get_fwd_llist_link();
-					linkFirst.prevs_next = &(link.next);
-					first = pNode;
-				}
-				link.prevs_next = &first;
-				first = pNode;
-
-				++count;
-			}
-
-			//! Unlinks the node from the list.
-			void unlink(T* pNode) {
-				GAIA_ASSERT(pNode != nullptr);
-
-				auto& link = pNode->get_fwd_llist_link();
-				*(link.prevs_next) = link.next;
-				if (link.next != nullptr) {
-					auto& linkNext = link.next->get_fwd_llist_link();
-					linkNext.prevs_next = link.prevs_next;
-				}
-
-				// Reset the node's link
-				link = {};
-
-				--count;
-			}
-
-			//! Checks if the node \param pNode is linked in the list.
-			GAIA_NODISCARD bool has(T* pNode) const {
-				GAIA_ASSERT(pNode != nullptr);
-
-				for (auto& curr: *this) {
-					if (&curr == pNode)
-						return true;
-				}
-
-				return false;
-			}
-
-			//! Returns true if the list is empty. False otherwise.
-			GAIA_NODISCARD bool empty() const {
-				GAIA_ASSERT(count == 0);
-				return first == nullptr;
-			}
-
-			//! Returns the number of nodes linked in the list.
-			GAIA_NODISCARD uint32_t size() const {
-				return count;
-			}
-
-			fwd_llist_iterator<T> begin() {
-				return fwd_llist_iterator<T>(first);
-			}
-
-			fwd_llist_iterator<const T> begin() const {
-				return fwd_llist_iterator((const T*)first);
-			}
-
-			fwd_llist_iterator<const T> cbegin() const {
-				return fwd_llist_iterator((const T*)first);
-			}
-
-			fwd_llist_iterator<T> end() {
-				return fwd_llist_iterator<T>(nullptr);
-			}
-
-			fwd_llist_iterator<const T> end() const {
-				return fwd_llist_iterator((const T*)nullptr);
-			}
-
-			fwd_llist_iterator<const T> cend() const {
-				return fwd_llist_iterator((const T*)nullptr);
-			}
-		};
-	} // namespace cnt
-} // namespace gaia
-
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -10827,331 +12088,6 @@ namespace gaia {
 	#endif
 	} // namespace ser
 } // namespace gaia
-
-	#include <cstdarg>
-	#include <cstdint>
-	#include <cstdio>
-
-	// Controls how logs can grow in bytes before flush is triggered
-	#ifndef GAIA_LOG_BUFFER_SIZE
-		#define GAIA_LOG_BUFFER_SIZE 32 * 1024
-	#endif
-	// Controls how many log entries are possible before flush
-	#ifndef GAIA_LOG_BUFFER_ENTRIES
-		#define GAIA_LOG_BUFFER_ENTRIES 2048
-	#endif
-
-namespace gaia {
-	namespace util {
-		using LogLevelType = uint8_t;
-
-		enum class LogLevel : LogLevelType { Debug = 0x1, Info = 0x2, Warning = 0x4, Error = 0x8 };
-		inline LogLevelType g_logLevelMask = (LogLevelType)LogLevel::Debug | (LogLevelType)LogLevel::Info |
-																				 (LogLevelType)LogLevel::Warning | (LogLevelType)LogLevel::Error;
-
-		//! Enables logging for a given log level
-		//! \param level Logging level
-		//! \param value True to enable the given logging level. False otherwise.
-		inline void log_enable(LogLevel level, bool value) {
-			if (value)
-				gaia::util::g_logLevelMask |= ((LogLevelType)level);
-			else
-				gaia::util::g_logLevelMask &= ~((LogLevelType)level);
-		}
-
-		//! Returns true if a given logging level is enabled. False otherwise.
-		inline bool is_logging_enabled(LogLevel level) {
-			return ((LogLevelType)level & g_logLevelMask) != 0;
-		}
-
-		using LogLineFunc = void (*)(LogLevel, const char*);
-		using LogFunc = void (*)(LogLevel, const char*, va_list);
-		using LogFlushFunc = void (*)();
-
-		namespace detail {
-			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
-			inline constexpr uint32_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
-
-			inline FILE* get_log_out(LogLevel level) {
-				const auto mask = (LogLevelType)level & ((LogLevelType)LogLevel::Error | (LogLevelType)LogLevel::Warning);
-				// If a warning or error level is set we will use stderr for output.
-				return mask != 0 ? stderr : stdout;
-			}
-
-			// LCOV_EXCL_START
-
-			//! Default implementation of logging a line
-			inline void log_line(LogLevel level, const char* msg) {
-				FILE* out = get_log_out(level);
-
-				static constexpr const char* colors[] = {
-						"\033[1;32mD: ", // Debug
-						"\033[0mI: ", // Info
-						"\033[1;33mW: ", // Warning
-						"\033[1;31mE: " // Error
-				};
-				// LogLevel is a bitmask. Calculate what bit is and use it as an index.
-				const auto lvl = (uint32_t)level;
-				const auto idx = GAIA_CLZ(lvl);
-				fprintf(out, "%s%s\033[0m\n", colors[idx], msg);
-			}
-			inline LogLineFunc g_log_line_func = log_line;
-
-			// LCOV_EXCL_STOP
-
-			struct LogBuffer {
-				struct LogRecord {
-					uint32_t offset : 29;
-					uint32_t level : 3; // 3 bits for LogLevel mask
-				};
-
-				char m_buffer[LOG_BUFFER_SIZE];
-				LogRecord m_recs[LOG_RECORD_LIMIT];
-				uint32_t m_buffer_pos = 0;
-				uint32_t m_recs_pos = 0;
-
-				//! Logs a message.
-				//! We implement a buffering strategy. Warnings and errors flush immediately.
-				//! Otherwise, we flush once the buffer is filled or on-demand manually.
-				//! \param level Logging level
-				//! \param len Length of the messagage (including the null-terminating character)
-				//! \param msg Message to log
-				void log(LogLevel level, uint32_t len, const char* msg) {
-					FILE* out = get_log_out(level);
-					const bool is_assert = out == stderr;
-
-					// Big message? Write directly
-					if (is_assert || len >= detail::LOG_BUFFER_SIZE) {
-						// Flush existing buffer first
-						flush();
-
-						// Print message directly (bypass cache)
-						g_log_line_func(level, msg);
-						fflush(out);
-						return;
-					}
-
-					// Normal caching path. If the message doesn't fit, or if there are too many records, flush.
-					if (m_buffer_pos + len > detail::LOG_BUFFER_SIZE || m_recs_pos >= detail::LOG_RECORD_LIMIT)
-						flush();
-
-					// Append message to cache
-					auto& rec = m_recs[m_recs_pos];
-					rec.offset = m_buffer_pos;
-					rec.level = (LogLevelType)level;
-					memcpy(m_buffer + m_buffer_pos, msg, len);
-
-					m_buffer_pos += len;
-					++m_recs_pos;
-				}
-
-				void flush() {
-					if (m_recs_pos == 0)
-						return;
-
-					for (size_t i = 0; i < m_recs_pos; ++i) {
-						const auto& rec = m_recs[i];
-						g_log_line_func((LogLevel)rec.level, &m_buffer[rec.offset]);
-					}
-
-					m_recs_pos = 0;
-					m_buffer_pos = 0;
-					fflush(stdout);
-				}
-
-				LogBuffer() {
-					// Disable flushing on the new lines. We will control flushing fully.
-					// To avoid issues with Windows’ UCRT we set some reasonable non-zero value.
-					setvbuf(stdout, nullptr, _IOFBF, 4096);
-					setvbuf(stderr, nullptr, _IOFBF, 4096);
-				}
-				~LogBuffer() {
-					// Flush before the object disappears
-					flush();
-				}
-
-				LogBuffer(const LogBuffer&) = delete;
-				LogBuffer(LogBuffer&&) = delete;
-				LogBuffer& operator=(const LogBuffer&) = delete;
-				LogBuffer& operator=(LogBuffer&&) = delete;
-			};
-
-			inline LogBuffer* g_log() {
-				static LogBuffer* s_log = nullptr;
-				if (s_log == nullptr) {
-					s_log = new LogBuffer();
-					// Register automatic cleanup
-					static struct LogAtExit {
-						LogAtExit() = default;
-						~LogAtExit() {
-							if (s_log != nullptr) {
-								s_log->flush();
-								delete s_log;
-								s_log = nullptr;
-							}
-						}
-
-						LogAtExit(const LogAtExit&) = delete;
-						LogAtExit(LogAtExit&&) = delete;
-						LogAtExit& operator=(const LogAtExit&) = delete;
-						LogAtExit& operator=(LogAtExit&&) = delete;
-					} s_logDeleter;
-				}
-				return s_log;
-			}
-
-			//! Default implementation of log handler
-			inline void log_cached(LogLevel level, const char* fmt, va_list args) {
-				va_list args_copy{};
-
-				GAIA_CLANG_WARNING_PUSH()
-				GAIA_GCC_WARNING_PUSH()
-				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
-				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
-				// Early exit if there is nothing to write
-				va_copy(args_copy, args);
-				int l = vsnprintf(nullptr, 0, fmt, args_copy);
-				va_end(args_copy);
-				if (l <= 0)
-					return;
-
-				const auto len = (uint32_t)l;
-				cnt::darray_ext<char, 1024> msg(len + 1);
-
-				va_copy(args_copy, args);
-				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
-				va_end(args_copy);
-				GAIA_GCC_WARNING_POP()
-				GAIA_CLANG_WARNING_POP()
-
-				// Always null-terminate logs
-				msg[len] = 0;
-
-				// Log a message.
-				// We implement a buffering strategy. Warnings and errors flush immediately.
-				// Otherwise, we flush once the buffer is filled or on-demand manually.
-				g_log()->log(level, msg.size(), msg.data());
-			}
-
-			//! Default implementation of log flushing
-			inline void log_flush_cached() {
-				g_log()->flush();
-			}
-
-			// LCOV_EXCL_START
-
-			//! Implementation of log handler that logs data directly (no caching)
-			inline void log_default(LogLevel level, const char* fmt, va_list args) {
-				va_list args_copy{};
-
-				GAIA_CLANG_WARNING_PUSH()
-				GAIA_GCC_WARNING_PUSH()
-				GAIA_CLANG_WARNING_DISABLE("-Wformat-nonliteral")
-				GAIA_GCC_WARNING_DISABLE("-Wformat-nonliteral")
-				// Early exit if there is nothing to write
-				va_copy(args_copy, args);
-				int l = vsnprintf(nullptr, 0, fmt, args_copy);
-				va_end(args_copy);
-				if (l <= 0)
-					return;
-
-				const auto len = (uint32_t)l;
-				cnt::darray_ext<char, 1024> msg(len + 1);
-
-				va_copy(args_copy, args);
-				vsnprintf(msg.data(), msg.size(), fmt, args_copy);
-				va_end(args_copy);
-				GAIA_GCC_WARNING_POP()
-				GAIA_CLANG_WARNING_POP()
-
-				// Always null-terminate logs
-				msg[len] = 0;
-
-				g_log_line_func(level, msg.data());
-			}
-
-			// LCOV_EXCL_STOP
-
-			//! Implementation of log handler that flushes directly (no cachce)
-			inline void log_flush_default() {}
-
-			inline LogFunc g_log_func = log_default;
-			inline LogFlushFunc g_log_flush_func = log_flush_default;
-		} // namespace detail
-
-		//! Set the default function for handling of logs.
-		//! This will fully override the default implementation or logging from gaia (format of logs, caching, etc.).
-		//! \param func Function pointer. If set to nullptr, default implementation is used.
-		inline void set_log_func(LogFunc func) {
-			detail::g_log_func = func != nullptr ? func : detail::log_default;
-		}
-
-		//! Set the default function for handling one line of log.
-		//! \param func Function pointer. If set to nullptr, default implementation is used.
-		inline void set_log_line_func(LogLineFunc func) {
-			detail::g_log_line_func = func != nullptr ? func : detail::log_line;
-		}
-
-		//! Set the default function for handling of log flushing.
-		//! \param func Function pointer. If set to nullptr, default implementation is used.
-		inline void set_log_flush_func(LogFlushFunc func) {
-			detail::g_log_flush_func = func != nullptr ? func : detail::log_flush_default;
-		}
-
-		//! Logs a message with a given log level
-		//! \param level Logging level
-		//! \param fmt Formated message in a format you would use for printf of std::format
-		inline void log(LogLevel level, const char* fmt, ...) {
-			if (!is_logging_enabled(level))
-				return;
-
-			va_list args;
-			va_start(args, fmt);
-			detail::g_log_func(level, fmt, args);
-			va_end(args);
-		}
-
-		inline void log_flush() {
-			detail::g_log_flush_func();
-		}
-	} // namespace util
-} // namespace gaia
-
-// LCOV_EXCL_START
-extern "C" {
-
-typedef void (*gaia_log_line_func_t)(gaia::util::LogLevelType level, const char* msg);
-inline void gaia_set_log_func(gaia_log_line_func_t func) {
-	gaia::util::set_log_line_func((gaia::util::LogLineFunc)func);
-}
-
-inline void gaia_log(uint8_t level, const char* msg) {
-	gaia::util::log((gaia::util::LogLevel)level, "%s", msg);
-}
-
-typedef void (*gaia_log_flush_func_t)();
-inline void gaia_set_flush_func(gaia_log_flush_func_t func) {
-	gaia::util::set_log_flush_func((gaia::util::LogFlushFunc)func);
-}
-
-inline void gaia_flush_logs() {
-	gaia::util::log_flush();
-}
-
-inline void gaia_log_enable(gaia::util::LogLevelType level, bool value) {
-	gaia::util::log_enable((gaia::util::LogLevel)level, value);
-}
-
-inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
-	return gaia::util::is_logging_enabled((gaia::util::LogLevel)level);
-}
-}
-// LCOV_EXCL_STOP
-
-	#define GAIA_LOG_D(...) gaia::util::log(gaia::util::LogLevel::Debug, __VA_ARGS__)
-	#define GAIA_LOG_N(...) gaia::util::log(gaia::util::LogLevel::Info, __VA_ARGS__)
-	#define GAIA_LOG_W(...) gaia::util::log(gaia::util::LogLevel::Warning, __VA_ARGS__)
-	#define GAIA_LOG_E(...) gaia::util::log(gaia::util::LogLevel::Error, __VA_ARGS__)
 
 	// #define ROBIN_HOOD_STD_SMARTPOINTERS
 	#if defined(ROBIN_HOOD_STD_SMARTPOINTERS)
@@ -13477,312 +14413,6 @@ namespace gaia {
 #include <cstdint>
 #include <cstring>
 #include <type_traits>
-
-#include <cstddef>
-#include <new>
-#include <tuple>
-#include <type_traits>
-#include <utility>
-
-namespace gaia {
-	namespace cnt {
-		namespace sarr_detail {
-			using difference_type = uint32_t;
-			using size_type = uint32_t;
-		} // namespace sarr_detail
-
-		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
-		//! Interface compatiblity with std::array where it matters.
-		template <typename T, sarr_detail::size_type N>
-		class sarr {
-		public:
-			static_assert(N > 0);
-
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = sarr_detail::difference_type;
-			using size_type = sarr_detail::size_type;
-
-			using iterator = pointer;
-			using const_iterator = const_pointer;
-			using iterator_category = core::random_access_iterator_tag;
-
-			static constexpr size_t value_size = sizeof(T);
-			static constexpr size_type extent = N;
-			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
-
-			mem::raw_data_holder<T, allocated_bytes> m_data;
-
-			constexpr sarr() noexcept {
-				core::call_ctor_raw_n(data(), extent);
-			}
-
-			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
-			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
-			constexpr sarr(core::zero_t) noexcept {
-				core::call_ctor_raw_n(data(), extent);
-
-				// explicit zeroing
-				for (auto i = (size_type)0; i < extent; ++i)
-					operator[](i) = {};
-			}
-
-			~sarr() {
-				core::call_dtor_n(data(), extent);
-			}
-
-			template <typename InputIt>
-			constexpr sarr(InputIt first, InputIt last) noexcept {
-				core::call_ctor_raw_n(data(), extent);
-
-				const auto count = (size_type)core::distance(first, last);
-
-				if constexpr (std::is_pointer_v<InputIt>) {
-					for (size_type i = 0; i < count; ++i)
-						operator[](i) = first[i];
-				} else if constexpr (std::is_same_v<typename InputIt::iterator_category, core::random_access_iterator_tag>) {
-					for (size_type i = 0; i < count; ++i)
-						operator[](i) = *(first[i]);
-				} else {
-					size_type i = 0;
-					for (auto it = first; it != last; ++it)
-						operator[](++i) = *it;
-				}
-			}
-
-			constexpr sarr(std::initializer_list<T> il): sarr(il.begin(), il.end()) {}
-
-			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
-
-			constexpr sarr(sarr&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T, false>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
-			}
-
-			sarr& operator=(std::initializer_list<T> il) {
-				*this = sarr(il.begin(), il.end());
-				return *this;
-			}
-
-			constexpr sarr& operator=(const sarr& other) {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				core::call_ctor_raw_n(data(), extent);
-				mem::copy_elements<T, false>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
-						other.extent);
-
-				return *this;
-			}
-
-			constexpr sarr& operator=(sarr&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T, false>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
-						other.extent);
-
-				return *this;
-			}
-
-			GAIA_CLANG_WARNING_PUSH()
-			// Memory is aligned so we can silence this warning
-			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
-
-			GAIA_NODISCARD constexpr pointer data() noexcept {
-				return GAIA_ACC((pointer)&m_data[0]);
-			}
-
-			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
-				return GAIA_ACC((const_pointer)&m_data[0]);
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
-				GAIA_ASSERT(pos < size());
-				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
-				GAIA_ASSERT(pos < size());
-				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
-			}
-
-			GAIA_CLANG_WARNING_POP()
-
-			GAIA_NODISCARD constexpr size_type size() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return begin() == end();
-			}
-
-			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
-				return N;
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
-				return (reference)*begin();
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
-				return (const_reference)*begin();
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
-				return (reference) operator[](N - 1);
-			}
-
-			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
-				return (const_reference) operator[](N - 1);
-			}
-
-			GAIA_NODISCARD constexpr auto begin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]));
-			}
-
-			GAIA_NODISCARD constexpr auto begin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]));
-			}
-
-			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]));
-			}
-
-			GAIA_NODISCARD constexpr auto rbegin() noexcept {
-				return iterator((pointer)&back());
-			}
-
-			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
-			}
-
-			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
-				return const_iterator((const_pointer)&back());
-			}
-
-			GAIA_NODISCARD constexpr auto end() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
-			}
-
-			GAIA_NODISCARD constexpr auto end() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
-			}
-
-			GAIA_NODISCARD constexpr auto cend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
-			}
-
-			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
-			}
-
-			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
-			}
-
-			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
-			}
-
-			GAIA_NODISCARD constexpr bool operator==(const sarr& other) const {
-				for (size_type i = 0; i < N; ++i)
-					if (!(operator[](i) == other[i]))
-						return false;
-				return true;
-			}
-
-			GAIA_NODISCARD constexpr bool operator!=(const sarr& other) const {
-				return !operator==(other);
-			}
-		};
-
-		namespace detail {
-			template <typename T, uint32_t N, uint32_t... I>
-			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
-				return {{a[I]...}};
-			}
-		} // namespace detail
-
-		template <typename T, uint32_t N>
-		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
-			return detail::to_array_impl(a, std::make_index_sequence<N>{});
-		}
-
-		template <typename T, typename... U>
-		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
-
-	} // namespace cnt
-} // namespace gaia
-
-namespace std {
-	template <typename T, uint32_t N>
-	struct tuple_size<gaia::cnt::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
-
-	template <size_t I, typename T, uint32_t N>
-	struct tuple_element<I, gaia::cnt::sarr<T, N>> {
-		using type = T;
-	};
-} // namespace std
-
-namespace gaia {
-	namespace cnt {
-		template <typename T, sarr_detail::size_type N>
-		using sarray = cnt::sarr<T, N>;
-	} // namespace cnt
-} // namespace gaia
-
-namespace gaia {
-	namespace core {
-		//! Gaia-ECS is a header-only library which means we want to avoid using global
-		//! static variables because they would get copied to each translation units.
-		//! At the same time the goal is for users to not see any memory allocation used
-		//! by the library. Therefore, the only solution is a static variable with local
-		//! scope.
-		//!
-		//! Being a static variable with local scope which means the singleton is guaranteed
-		//! to be younger than its caller. Because static variables are released in the reverse
-		//! order in which they are created, if used with a static World it would mean we first
-		//! release the singleton and only then proceed with the world itself. As a result, in
-		//! its destructor the world could access memory that has already been released.
-		//!
-		//! Instead, we let the singleton allocate the object on the heap and once singleton's
-		//! destructor is called we tell the internal object it should destroy itself. This way
-		//! there are no memory leaks or access-after-freed issues on app exit reported.
-		template <typename T>
-		class dyn_singleton final {
-			T* m_obj = new T();
-
-			dyn_singleton() = default;
-
-		public:
-			static T& get() noexcept {
-				static dyn_singleton<T> singleton;
-				return *singleton.m_obj;
-			}
-
-			dyn_singleton(dyn_singleton&& world) = delete;
-			dyn_singleton(const dyn_singleton& world) = delete;
-			dyn_singleton& operator=(dyn_singleton&&) = delete;
-			dyn_singleton& operator=(const dyn_singleton&) = delete;
-
-			~dyn_singleton() {
-				get().done();
-			}
-		};
-	} // namespace core
-} // namespace gaia
 
 namespace gaia {
 	namespace mem {
@@ -18846,6 +19476,190 @@ namespace gaia {
 
 	} // namespace cnt
 
+} // namespace gaia
+
+#include <cstddef>
+#include <cstdint>
+#include <new>
+#include <type_traits>
+#include <utility>
+
+namespace gaia {
+	namespace util {
+		//! Move-only function wrapper with inline storage, SmallBlockAllocator spill storage,
+		//! and default-heap fallback for oversized callables.
+		class SmallFunc {
+			static constexpr uint32_t MaxSize = mem::SmallBlockMaxSize;
+			static constexpr uint32_t BufferSize = 24;
+
+			enum class Op : uint8_t { Invoke, Destroy, Move };
+			using OpFn = void (*)(Op op, SmallFunc* dst, SmallFunc* src);
+
+			OpFn m_func = nullptr;
+			alignas(std::max_align_t) uint8_t m_storage[BufferSize]{};
+
+			void destroy() {
+				if (m_func != nullptr) {
+					m_func(Op::Destroy, this, nullptr);
+					m_func = nullptr;
+				}
+			}
+
+		public:
+			//! Constructs an empty function wrapper.
+			SmallFunc() = default;
+
+			//! Destroys the stored callable, if any.
+			~SmallFunc() {
+				destroy();
+			}
+
+			SmallFunc(const SmallFunc&) = delete;
+			SmallFunc& operator=(const SmallFunc&) = delete;
+
+			//! Move-constructs the wrapper.
+			//! \param other Source wrapper.
+			SmallFunc(SmallFunc&& other) noexcept {
+				if (other.m_func != nullptr)
+					other.m_func(Op::Move, this, &other);
+			}
+
+			//! Move-assigns the wrapper.
+			//! \param other Source wrapper.
+			//! \return Reference to this wrapper.
+			SmallFunc& operator=(SmallFunc&& other) noexcept {
+				if (this != &other) {
+					destroy();
+					if (other.m_func != nullptr)
+						other.m_func(Op::Move, this, &other);
+				}
+				return *this;
+			}
+
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
+			SmallFunc(F&& f): SmallFunc(create(GAIA_FWD(f))) {}
+
+			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
+			SmallFunc& operator=(F&& f) {
+				*this = create(GAIA_FWD(f));
+				return *this;
+			}
+
+			//! Creates a wrapper from a callable compatible with void().
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return New function wrapper.
+			template <typename F>
+			static SmallFunc create(F&& f) {
+				using Fn = std::decay_t<F>;
+				static_assert(std::is_invocable_r_v<void, Fn&>, "SmallFunc requires a callable compatible with void()");
+				static_assert(std::is_move_constructible_v<Fn>, "Callable must be move-constructible");
+
+				SmallFunc func;
+
+				if constexpr (sizeof(Fn) <= BufferSize && alignof(Fn) <= alignof(std::max_align_t)) {
+					new (func.m_storage) Fn(GAIA_FWD(f));
+
+					func.m_func = [](Op op, SmallFunc* dst, SmallFunc* src) {
+						auto* pFn = reinterpret_cast<Fn*>(dst->m_storage);
+
+						switch (op) {
+							case Op::Invoke:
+								(*pFn)();
+								break;
+							case Op::Destroy:
+								pFn->~Fn();
+								break;
+							case Op::Move: {
+								GAIA_ASSERT(src != nullptr);
+								auto* pSrcFn = reinterpret_cast<Fn*>(src->m_storage);
+								new (dst->m_storage) Fn(GAIA_MOV(*pSrcFn));
+								pSrcFn->~Fn();
+								dst->m_func = src->m_func;
+								src->m_func = nullptr;
+								break;
+							}
+						}
+					};
+				} else {
+					static_assert(
+							alignof(Fn) <= alignof(std::max_align_t), "Over-aligned callables are not supported for SmallFunc");
+
+					constexpr bool UseSmallBlock = sizeof(Fn) <= MaxSize;
+					auto* pStorage = UseSmallBlock ? mem::SmallBlockAllocator::get().alloc((uint32_t)sizeof(Fn))
+																				 : mem::AllocHelper::alloc<Fn>();
+					GAIA_ASSERT((uintptr_t)pStorage % alignof(Fn) == 0);
+					auto* pFunc = new (pStorage) Fn(GAIA_FWD(f));
+					*reinterpret_cast<Fn**>(func.m_storage) = pFunc;
+
+					func.m_func = [](Op op, SmallFunc* dst, SmallFunc* src) {
+						auto*& pFn = *reinterpret_cast<Fn**>(dst->m_storage);
+
+						switch (op) {
+							case Op::Invoke:
+								GAIA_ASSERT(pFn != nullptr);
+								(*pFn)();
+								break;
+							case Op::Destroy:
+								GAIA_ASSERT(pFn != nullptr);
+								pFn->~Fn();
+								if constexpr (UseSmallBlock)
+									mem::SmallBlockAllocator::get().free(pFn);
+								else
+									mem::AllocHelper::free(pFn);
+								pFn = nullptr;
+								break;
+							case Op::Move:
+								GAIA_ASSERT(src != nullptr);
+								*reinterpret_cast<Fn**>(dst->m_storage) = *reinterpret_cast<Fn**>(src->m_storage);
+								dst->m_func = src->m_func;
+								*reinterpret_cast<Fn**>(src->m_storage) = nullptr;
+								src->m_func = nullptr;
+								break;
+						}
+					};
+				}
+
+				return func;
+			}
+
+			//! Destroys the callable held by the wrapper.
+			//! \param func Wrapper to clear.
+			static void destroy(SmallFunc& func) {
+				func.destroy();
+			}
+
+			//! Executes the stored callable.
+			void exec() {
+				GAIA_ASSERT(m_func != nullptr);
+				m_func(Op::Invoke, this, nullptr);
+			}
+
+			//! Executes the stored callable.
+			void operator()() {
+				exec();
+			}
+
+			//! Clears the wrapper.
+			void reset() {
+				destroy();
+			}
+
+			//! Returns true when a callable is stored.
+			explicit operator bool() const {
+				return m_func != nullptr;
+			}
+		};
+
+#if __cplusplus < 202002L
+	#define CreateSmallFunc(x)                                                                                           \
+		::gaia::util::SmallFunc::create([y = GAIA_MOV(x)]() {                                                              \
+			y();                                                                                                             \
+		})
+#else
+	#define CreateSmallFunc(x) ::gaia::util::SmallFunc::create(GAIA_MOV(x))
+#endif
+	} // namespace util
 } // namespace gaia
 
 #include <tuple>
@@ -47510,7 +48324,7 @@ namespace gaia {
 						[&](uint32_t row) {
 							invokeRow(pFunc, it, dataPointerTuple, row, directLocalIndex);
 						},
-						std::forward<OnRowDone>(onRowDone));
+						GAIA_FWD(onRowDone));
 			}
 
 			template <typename OnRowDone, typename... T>
@@ -47525,18 +48339,16 @@ namespace gaia {
 				if constexpr (sizeof...(T) > 0) {
 					if (directViews) {
 						auto dataPointerTuple = std::make_tuple(it.template sview_auto<T>()...);
-						run_typed_tuple_rows(
-								pQueryInfo, it, pFunc, dataPointerTuple, true, invokeDirectRow, std::forward<OnRowDone>(onRowDone));
+						run_typed_tuple_rows(pQueryInfo, it, pFunc, dataPointerTuple, true, invokeDirectRow, GAIA_FWD(onRowDone));
 					} else {
 						auto dataPointerTuple = std::make_tuple(it.template view_auto_any<T>()...);
-						run_typed_tuple_rows(
-								pQueryInfo, it, pFunc, dataPointerTuple, false, invokeMappedRow, std::forward<OnRowDone>(onRowDone));
+						run_typed_tuple_rows(pQueryInfo, it, pFunc, dataPointerTuple, false, invokeMappedRow, GAIA_FWD(onRowDone));
 					}
 				} else {
 					auto dataPointerTuple = std::tuple<>{};
 					run_typed_tuple_rows(
 							pQueryInfo, it, pFunc, dataPointerTuple, directViews, directViews ? invokeDirectRow : invokeMappedRow,
-							std::forward<OnRowDone>(onRowDone));
+							GAIA_FWD(onRowDone));
 				}
 			}
 

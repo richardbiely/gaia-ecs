@@ -18,3 +18,4 @@ void register_sparse(PerfRunMode mode);
 void register_legacy_entity(PerfRunMode mode);
 void register_legacy_iter(PerfRunMode mode);
 void register_containers(PerfRunMode mode);
+void register_allocators(PerfRunMode mode);

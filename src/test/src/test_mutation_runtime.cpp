@@ -4,6 +4,93 @@ namespace {
 	struct PagedAllocatorProbe {
 		uint32_t value = 0;
 	};
+
+	struct SmallFuncLargeCallable {
+		uint32_t* pValue = nullptr;
+		uint8_t payload[128]{};
+
+		void operator()() {
+			GAIA_ASSERT(pValue != nullptr);
+			++(*pValue);
+		}
+	};
+
+	struct SmallFuncTrackedSmallCallable {
+		uint32_t* pCalls = nullptr;
+		uint32_t* pDtors = nullptr;
+
+		SmallFuncTrackedSmallCallable(uint32_t& calls, uint32_t& dtors): pCalls(&calls), pDtors(&dtors) {}
+		SmallFuncTrackedSmallCallable(SmallFuncTrackedSmallCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		SmallFuncTrackedSmallCallable(const SmallFuncTrackedSmallCallable&) = delete;
+		SmallFuncTrackedSmallCallable& operator=(SmallFuncTrackedSmallCallable&&) = delete;
+		SmallFuncTrackedSmallCallable& operator=(const SmallFuncTrackedSmallCallable&) = delete;
+
+		~SmallFuncTrackedSmallCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		void operator()() {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+		}
+	};
+
+	struct SmallFuncTrackedLargeCallable {
+		uint32_t* pCalls = nullptr;
+		uint32_t* pDtors = nullptr;
+		uint8_t payload[128]{};
+
+		SmallFuncTrackedLargeCallable(uint32_t& calls, uint32_t& dtors): pCalls(&calls), pDtors(&dtors) {}
+		SmallFuncTrackedLargeCallable(SmallFuncTrackedLargeCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		SmallFuncTrackedLargeCallable(const SmallFuncTrackedLargeCallable&) = delete;
+		SmallFuncTrackedLargeCallable& operator=(SmallFuncTrackedLargeCallable&&) = delete;
+		SmallFuncTrackedLargeCallable& operator=(const SmallFuncTrackedLargeCallable&) = delete;
+
+		~SmallFuncTrackedLargeCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		void operator()() {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+		}
+	};
+
+	struct SmallFuncTrackedHeapCallable {
+		uint32_t* pCalls = nullptr;
+		uint32_t* pDtors = nullptr;
+		uint8_t payload[640]{};
+
+		SmallFuncTrackedHeapCallable(uint32_t& calls, uint32_t& dtors): pCalls(&calls), pDtors(&dtors) {}
+		SmallFuncTrackedHeapCallable(SmallFuncTrackedHeapCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		SmallFuncTrackedHeapCallable(const SmallFuncTrackedHeapCallable&) = delete;
+		SmallFuncTrackedHeapCallable& operator=(SmallFuncTrackedHeapCallable&&) = delete;
+		SmallFuncTrackedHeapCallable& operator=(const SmallFuncTrackedHeapCallable&) = delete;
+
+		~SmallFuncTrackedHeapCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		void operator()() {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+		}
+	};
 } // namespace
 
 TEST_CASE("add_n") {
@@ -847,6 +934,371 @@ TEST_CASE("PagedAllocator") {
 
 	alloc.flush();
 	alloc.verify();
+}
+
+TEST_CASE("SmallBlockAllocator") {
+	SUBCASE("size class helpers cover the full range") {
+		CHECK(mem::small_block_size_type(1) == 0);
+		CHECK(mem::small_block_size_type(mem::SmallBlockAlignment) == 0);
+		CHECK(mem::small_block_size_type(mem::SmallBlockAlignment + 1) == 1);
+		CHECK(mem::small_block_size_type(mem::SmallBlockMaxSize) == mem::SmallBlockSizeTypeCount - 1);
+
+		GAIA_FOR(mem::SmallBlockSizeTypeCount) {
+			const auto expectedSize = (i + 1) * mem::SmallBlockGranularity;
+			const auto classMin = i == 0 ? 1U : i * mem::SmallBlockGranularity + 1;
+			CHECK(mem::small_block_size(i) == expectedSize);
+			CHECK(mem::small_block_size_type(classMin) == i);
+			CHECK(mem::small_block_size_type(expectedSize) == i);
+		}
+	}
+
+	SUBCASE("allocations are aligned and same-class frees are reused") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		void* pSmall = alloc.alloc(1);
+		void* pMid = alloc.alloc(128);
+		void* pMax = alloc.alloc(mem::SmallBlockMaxSize);
+
+		CHECK(pSmall != nullptr);
+		CHECK(pMid != nullptr);
+		CHECK(pMax != nullptr);
+		CHECK((uintptr_t)pSmall % alignof(std::max_align_t) == 0);
+		CHECK((uintptr_t)pMid % alignof(std::max_align_t) == 0);
+		CHECK((uintptr_t)pMax % alignof(std::max_align_t) == 0);
+
+		alloc.free(pSmall);
+		alloc.free(pMax);
+		alloc.free(pMid);
+		alloc.verify();
+
+		void* pMidReused = alloc.alloc(128);
+		CHECK(pMidReused == pMid);
+		alloc.free(pMidReused);
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("stats report usage per size class") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		constexpr uint32_t NBlocks = mem::detail::SmallBlockPage::NBlocks;
+		constexpr uint32_t SizeTypeSmall = mem::small_block_size_type(64);
+		constexpr uint32_t SizeTypeLarge = mem::small_block_size_type(128);
+		const uint64_t strideSmall = mem::detail::small_block_stride(SizeTypeSmall);
+		const uint64_t strideLarge = mem::detail::small_block_stride(SizeTypeLarge);
+
+		void* pSmall = alloc.alloc(64);
+		void* pLarge = alloc.alloc(128);
+
+		{
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[SizeTypeSmall].num_pages == 1);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_free == 1);
+			CHECK(stats.stats[SizeTypeSmall].mem_total == strideSmall * NBlocks);
+			CHECK(stats.stats[SizeTypeSmall].mem_used == strideSmall);
+
+			CHECK(stats.stats[SizeTypeLarge].num_pages == 1);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_free == 1);
+			CHECK(stats.stats[SizeTypeLarge].mem_total == strideLarge * NBlocks);
+			CHECK(stats.stats[SizeTypeLarge].mem_used == strideLarge);
+#if GAIA_DEBUG
+			CHECK(stats.stats[SizeTypeSmall].mem_requested == 64);
+			CHECK(stats.stats[SizeTypeLarge].mem_requested == 128);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_empty == 0);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_empty == 0);
+#endif
+		}
+
+		alloc.free(pSmall);
+		alloc.free(pLarge);
+		alloc.flush();
+		alloc.verify();
+
+		{
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[SizeTypeSmall].num_pages == 1);
+			CHECK(stats.stats[SizeTypeLarge].num_pages == 1);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_free == 1);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_free == 1);
+			CHECK(stats.stats[SizeTypeSmall].mem_used == 0);
+			CHECK(stats.stats[SizeTypeLarge].mem_used == 0);
+#if GAIA_DEBUG
+			CHECK(stats.stats[SizeTypeSmall].mem_requested == 0);
+			CHECK(stats.stats[SizeTypeLarge].mem_requested == 0);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_empty == 1);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_empty == 1);
+#endif
+		}
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("allocator spills to another page and prefers recycled blocks") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		constexpr uint32_t NBlocks = mem::detail::SmallBlockPage::NBlocks;
+		void* blocks[NBlocks + 1]{};
+
+		GAIA_FOR(NBlocks) {
+			blocks[i] = alloc.alloc(128);
+		}
+		blocks[NBlocks] = alloc.alloc(128);
+		alloc.verify();
+
+		alloc.free(blocks[0]);
+		const void* recycledPtr = blocks[0];
+		blocks[0] = nullptr;
+		alloc.verify();
+
+		void* recycled = alloc.alloc(128);
+		CHECK(recycled == recycledPtr);
+
+		for (void*& p: blocks) {
+			if (p != nullptr) {
+				alloc.free(p);
+				p = nullptr;
+			}
+		}
+		alloc.free(recycled);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("flush keeps one warm empty page by default") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		void* p = alloc.alloc(64);
+		alloc.free(p);
+		alloc.flush();
+		alloc.verify();
+
+		void* reused = alloc.alloc(64);
+		CHECK(reused == p);
+		alloc.free(reused);
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("diag is callable") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		void* p = alloc.alloc(32);
+
+		const auto logLevelBackup = util::g_logLevelMask;
+		util::g_logLevelMask = 0;
+		alloc.diag();
+		util::g_logLevelMask = logLevelBackup;
+
+		alloc.free(p);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+#if GAIA_DEBUG
+	SUBCASE("freed blocks are poisoned") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		void* p = alloc.alloc(64);
+		const auto* bytes = (const uint8_t*)p;
+		alloc.free(p);
+		alloc.verify();
+
+		GAIA_FOR(32) {
+			CHECK(bytes[i] == mem::detail::SmallBlockPage::FreedBlockPattern);
+		}
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+#endif
+}
+
+TEST_CASE("SmallFunc") {
+	SUBCASE("stores small callables inline") {
+		uint32_t value = 0;
+		util::SmallFunc func([&]() {
+			value = 42;
+		});
+
+		CHECK((bool)func);
+		func();
+		CHECK(value == 42);
+	}
+
+	SUBCASE("default construction and reset clear the wrapper") {
+		util::SmallFunc func;
+		CHECK(!(bool)func);
+
+		uint32_t value = 0;
+		func = [&]() {
+			++value;
+		};
+		CHECK((bool)func);
+		func();
+		CHECK(value == 1);
+
+		func.reset();
+		CHECK(!(bool)func);
+	}
+
+	SUBCASE("reset destroys an inline callable exactly once") {
+		uint32_t calls = 0;
+		uint32_t dtors = 0;
+
+		util::SmallFunc func(SmallFuncTrackedSmallCallable(calls, dtors));
+		CHECK(dtors == 0);
+
+		func();
+		CHECK(calls == 1);
+		func.reset();
+		CHECK(dtors == 1);
+		CHECK(!(bool)func);
+	}
+
+	SUBCASE("supports move-only callables") {
+		uint32_t value = 0;
+		util::SmallFunc func([ptr = std::make_unique<uint32_t>(7), &value]() mutable {
+			value = *ptr;
+			ptr.reset();
+		});
+
+		util::SmallFunc moved = GAIA_MOV(func);
+		CHECK(!(bool)func);
+		CHECK((bool)moved);
+
+		moved();
+		CHECK(value == 7);
+	}
+
+	SUBCASE("move assignment transfers inline callable ownership") {
+		uint32_t calls = 0;
+		uint32_t dtors = 0;
+
+		util::SmallFunc src(SmallFuncTrackedSmallCallable(calls, dtors));
+		util::SmallFunc dst;
+		dst = GAIA_MOV(src);
+
+		CHECK(!(bool)src);
+		CHECK((bool)dst);
+
+		dst();
+		CHECK(calls == 1);
+
+		dst.reset();
+		CHECK(dtors == 1);
+	}
+
+	SUBCASE("spills larger callables to the small block allocator") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		uint32_t value = 0;
+		util::SmallFunc func(SmallFuncLargeCallable{&value, {}});
+
+		func();
+		CHECK(value == 1);
+
+		func.reset();
+		alloc.verify();
+
+		void* p = alloc.alloc(sizeof(SmallFuncLargeCallable));
+		CHECK(p != nullptr);
+		alloc.free(p);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("destroying a spilled callable releases allocator storage exactly once") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		uint32_t calls = 0;
+		uint32_t dtors = 0;
+		{
+			util::SmallFunc func(SmallFuncTrackedLargeCallable(calls, dtors));
+			func();
+			CHECK(calls == 1);
+			CHECK(dtors == 0);
+		}
+		CHECK(dtors == 1);
+
+		void* p = alloc.alloc(sizeof(SmallFuncTrackedLargeCallable));
+		CHECK(p != nullptr);
+		alloc.free(p);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("oversized callables fall back to the default heap") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		uint32_t calls = 0;
+		uint32_t dtors = 0;
+		{
+			util::SmallFunc func(SmallFuncTrackedHeapCallable(calls, dtors));
+			func();
+			CHECK(calls == 1);
+			CHECK(dtors == 0);
+
+			util::SmallFunc moved = GAIA_MOV(func);
+			CHECK(!(bool)func);
+			CHECK((bool)moved);
+
+			moved();
+			CHECK(calls == 2);
+		}
+		CHECK(dtors == 1);
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("reassignment destroys the previous callable across inline and spilled storage") {
+		uint32_t smallCalls = 0;
+		uint32_t smallDtors = 0;
+		uint32_t largeCalls = 0;
+		uint32_t largeDtors = 0;
+
+		util::SmallFunc func(SmallFuncTrackedSmallCallable(smallCalls, smallDtors));
+		func = SmallFuncTrackedLargeCallable(largeCalls, largeDtors);
+		CHECK(smallDtors == 1);
+		CHECK(largeDtors == 0);
+
+		func();
+		CHECK(largeCalls == 1);
+
+		func = []() {};
+		CHECK(largeDtors == 1);
+	}
+
+	SUBCASE("CreateSmallFunc supports move-only lambdas in C++17 mode") {
+		uint32_t value = 0;
+		auto lambda = [ptr = std::make_unique<uint32_t>(11), &value]() {
+			value = *ptr;
+		};
+
+		util::SmallFunc func = CreateSmallFunc(GAIA_MOV(lambda));
+		CHECK((bool)func);
+		func();
+		CHECK(value == 11);
+	}
 }
 
 TEST_CASE("CommandBuffer") {

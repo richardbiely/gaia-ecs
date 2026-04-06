@@ -15,6 +15,7 @@
 #include "gaia/mem/mem_sani.h"
 #include "gaia/mem/mem_utils.h"
 #include "gaia/mem/raw_data_holder.h"
+#include "gaia/mem/smallblock_allocator.h"
 #include "gaia/mem/stack_allocator.h"
 
 #include "gaia/cnt/bitset.h"
@@ -37,6 +38,7 @@
 #include "gaia/cnt/sringbuffer.h"
 
 #include "gaia/util/logging.h"
+#include "gaia/util/small_func.h"
 #include "gaia/util/signal.h"
 #include "gaia/util/str.h"
 
