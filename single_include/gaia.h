@@ -7316,6 +7316,7 @@ namespace gaia {
 #else
 					void* pBlock = pPage->alloc_block();
 #endif
+					GAIA_PROF_ALLOC(pBlock, bytesWanted);
 					move_page(container, pPage, prevState, state_for(*pPage));
 					verify();
 					return pBlock;
@@ -7338,6 +7339,7 @@ namespace gaia {
 					const auto prevState = state_for(*pPage);
 					auto& container = m_pages[pPage->m_sizeType];
 
+					GAIA_PROF_FREE(pBlock);
 					pPage->free_block(pBlock);
 					move_page(container, pPage, prevState, state_for(*pPage));
 					verify();
@@ -7441,7 +7443,7 @@ namespace gaia {
 				}
 
 				static constexpr uint32_t warm_pages_to_keep() {
-					return 1;
+					return 0;
 				}
 
 				static SmallBlockPageState state_for(const SmallBlockPage& page) {
@@ -7554,6 +7556,25 @@ namespace gaia {
 		} // namespace detail
 	} // namespace mem
 } // namespace gaia
+
+//! Defines class-local new/delete operators backed by SmallBlockAllocator.
+#define GAIA_USE_SMALLBLOCK(name)                                                                                      \
+	void _smallblockallocator_verify_size() {                                                                            \
+		static_assert(                                                                                                     \
+				sizeof(*this) <= ::gaia::mem::SmallBlockMaxSize, "Object is too large to be used with SmallBlockAllocator");   \
+	}                                                                                                                    \
+	static void* operator new(size_t size) {                                                                             \
+		return ::gaia::mem::SmallBlockAllocator::get().alloc((uint32_t)size);                                              \
+	}                                                                                                                    \
+	static void* operator new[](size_t size) {                                                                           \
+		return ::gaia::mem::mem_alloc(#name, (uint32_t)size);                                                              \
+	}                                                                                                                    \
+	static void operator delete(void* p) noexcept {                                                                      \
+		::gaia::mem::SmallBlockAllocator::get().free(p);                                                                   \
+	}                                                                                                                    \
+	static void operator delete[](void* p) {                                                                             \
+		return ::gaia::mem::mem_free(#name, p);                                                                            \
+	}
 
 #include <cinttypes>
 
@@ -27081,6 +27102,8 @@ namespace gaia {
 		struct ComponentRecord;
 
 		struct GAIA_API ComponentCacheItem final {
+			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+
 			static constexpr uint32_t MaxNameLength = 256;
 
 			using SymbolLookupKey = core::StringLookupKey<512>;
@@ -27511,8 +27534,7 @@ namespace gaia {
 				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
 				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
 
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
-				(void)new (cci) ComponentCacheItem();
+				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(ctx.compDescId, ctx.soa, ctx.size, ctx.alig, ctx.storageType);
 				cci->hashLookup = ctx.hashLookup.hash != 0
@@ -27548,8 +27570,7 @@ namespace gaia {
 					pItem->name = {};
 				}
 
-				pItem->~ComponentCacheItem();
-				mem::AllocHelper::free("ComponentCacheItem", pItem);
+				delete pItem;
 			}
 		};
 	} // namespace ecs
@@ -28477,6 +28498,8 @@ namespace gaia {
 		class WeakEntity;
 
 		struct WeakEntityTracker {
+			GAIA_USE_SMALLBLOCK(WeakEntityTracker)
+
 			WeakEntityTracker* next = nullptr;
 			WeakEntityTracker* prev = nullptr;
 			WeakEntity* pWeakEntity = nullptr;
@@ -39575,6 +39598,8 @@ namespace gaia {
 		};
 
 		struct QueryMatchScratch {
+			GAIA_USE_SMALLBLOCK(QueryMatchScratch)
+
 			//! Ordered list of matched archetypes emitted by the VM for the current run.
 			cnt::darr<const Archetype*> matchesArr;
 			//! Paged O(1) dedup table keyed by world-local archetype ids.
@@ -49286,6 +49311,8 @@ namespace gaia {
 
 			template <typename T>
 			struct SparseComponentStore final {
+				GAIA_USE_SMALLBLOCK(SparseComponentStore)
+
 				cnt::sparse_storage<SparseComponentRecord<T>> data;
 
 				static cnt::sparse_id sid(Entity entity) {

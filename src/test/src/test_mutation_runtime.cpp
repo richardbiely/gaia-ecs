@@ -91,6 +91,22 @@ namespace {
 			++(*pCalls);
 		}
 	};
+
+	struct SmallBlockMacroSmallObject {
+		uint32_t value = 0;
+		uint32_t* pDtors = nullptr;
+		uint8_t payload[64]{};
+
+		GAIA_USE_SMALLBLOCK(SmallBlockMacroSmallObject);
+
+		SmallBlockMacroSmallObject() = default;
+		SmallBlockMacroSmallObject(uint32_t v, uint32_t& dtors): value(v), pDtors(&dtors) {}
+
+		~SmallBlockMacroSmallObject() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+	};
 } // namespace
 
 TEST_CASE("add_n") {
@@ -1021,17 +1037,17 @@ TEST_CASE("SmallBlockAllocator") {
 
 		{
 			const auto stats = alloc.stats();
-			CHECK(stats.stats[SizeTypeSmall].num_pages == 1);
-			CHECK(stats.stats[SizeTypeLarge].num_pages == 1);
-			CHECK(stats.stats[SizeTypeSmall].num_pages_free == 1);
-			CHECK(stats.stats[SizeTypeLarge].num_pages_free == 1);
+			CHECK(stats.stats[SizeTypeSmall].num_pages == 0);
+			CHECK(stats.stats[SizeTypeLarge].num_pages == 0);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_free == 0);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_free == 0);
 			CHECK(stats.stats[SizeTypeSmall].mem_used == 0);
 			CHECK(stats.stats[SizeTypeLarge].mem_used == 0);
 #if GAIA_DEBUG
 			CHECK(stats.stats[SizeTypeSmall].mem_requested == 0);
 			CHECK(stats.stats[SizeTypeLarge].mem_requested == 0);
-			CHECK(stats.stats[SizeTypeSmall].num_pages_empty == 1);
-			CHECK(stats.stats[SizeTypeLarge].num_pages_empty == 1);
+			CHECK(stats.stats[SizeTypeSmall].num_pages_empty == 0);
+			CHECK(stats.stats[SizeTypeLarge].num_pages_empty == 0);
 #endif
 		}
 
@@ -1072,7 +1088,7 @@ TEST_CASE("SmallBlockAllocator") {
 		alloc.verify();
 	}
 
-	SUBCASE("flush keeps one warm empty page by default") {
+	SUBCASE("flush releases empty pages by default") {
 		auto& alloc = mem::SmallBlockAllocator::get();
 		alloc.flush(true);
 		alloc.verify();
@@ -1082,9 +1098,14 @@ TEST_CASE("SmallBlockAllocator") {
 		alloc.flush();
 		alloc.verify();
 
-		void* reused = alloc.alloc(64);
-		CHECK(reused == p);
-		alloc.free(reused);
+		const auto stats = alloc.stats();
+		constexpr auto sizeType = mem::small_block_size_type(64);
+		CHECK(stats.stats[sizeType].num_pages == 0);
+		CHECK(stats.stats[sizeType].mem_used == 0);
+
+		void* pNew = alloc.alloc(64);
+		CHECK(pNew != nullptr);
+		alloc.free(pNew);
 
 		alloc.flush(true);
 		alloc.verify();
@@ -1101,6 +1122,98 @@ TEST_CASE("SmallBlockAllocator") {
 		util::g_logLevelMask = logLevelBackup;
 
 		alloc.free(p);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("GAIA_USE_SMALLBLOCK routes supported objects through the allocator") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		constexpr auto SmallSizeType = mem::small_block_size_type((uint32_t)sizeof(SmallBlockMacroSmallObject));
+
+		uint32_t smallDtors = 0;
+		{
+			auto* pObj = new SmallBlockMacroSmallObject(77, smallDtors);
+			CHECK(pObj != nullptr);
+			CHECK(pObj->value == 77);
+
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[SmallSizeType].num_pages == 1);
+			CHECK(stats.stats[SmallSizeType].mem_used != 0);
+
+			delete pObj;
+		}
+		CHECK(smallDtors == 1);
+
+		alloc.flush(true);
+		alloc.verify();
+
+		const auto emptyStats = alloc.stats();
+		GAIA_FOR(mem::SmallBlockSizeTypeCount) {
+			CHECK(emptyStats.stats[i].num_pages == 0);
+			CHECK(emptyStats.stats[i].mem_used == 0);
+		}
+	}
+
+	SUBCASE("ComponentCacheItem uses SmallBlockAllocator") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};
+		ctx.compDescId = 1;
+		ctx.nameStr = "TestComponent";
+		ctx.nameLen = 13;
+		ctx.size = 4;
+		ctx.alig = 4;
+
+		constexpr auto sizeType = mem::small_block_size_type((uint32_t)sizeof(ecs::ComponentCacheItem));
+
+		auto* pItem = ecs::ComponentCacheItem::create(ecs::Entity(1, 0), ctx);
+		CHECK(pItem != nullptr);
+
+		{
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[sizeType].num_pages == 1);
+			CHECK(stats.stats[sizeType].mem_used != 0);
+		}
+
+		ecs::ComponentCacheItem::destroy(pItem);
+		alloc.flush(true);
+		alloc.verify();
+
+		{
+			const auto stats = alloc.stats();
+			CHECK(stats.stats[sizeType].num_pages == 0);
+			CHECK(stats.stats[sizeType].mem_used == 0);
+		}
+	}
+
+	SUBCASE("GAIA_USE_SMALLBLOCK leaves array allocation on the generic allocator") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		SmallBlockMacroSmallObject* pObjs = new SmallBlockMacroSmallObject[4];
+		CHECK(pObjs != nullptr);
+
+		pObjs[0].value = 10;
+		pObjs[1].value = 11;
+		pObjs[2].value = 12;
+		pObjs[3].value = 13;
+
+		CHECK(pObjs[0].value == 10);
+		CHECK(pObjs[3].value == 13);
+
+		const auto stats = alloc.stats();
+		GAIA_FOR(mem::SmallBlockSizeTypeCount) {
+			CHECK(stats.stats[i].num_pages == 0);
+			CHECK(stats.stats[i].mem_used == 0);
+		}
+
+		delete[] pObjs;
 		alloc.flush(true);
 		alloc.verify();
 	}

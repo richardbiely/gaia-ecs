@@ -400,6 +400,7 @@ namespace gaia {
 #else
 					void* pBlock = pPage->alloc_block();
 #endif
+					GAIA_PROF_ALLOC(pBlock, bytesWanted);
 					move_page(container, pPage, prevState, state_for(*pPage));
 					verify();
 					return pBlock;
@@ -422,6 +423,7 @@ namespace gaia {
 					const auto prevState = state_for(*pPage);
 					auto& container = m_pages[pPage->m_sizeType];
 
+					GAIA_PROF_FREE(pBlock);
 					pPage->free_block(pBlock);
 					move_page(container, pPage, prevState, state_for(*pPage));
 					verify();
@@ -525,7 +527,7 @@ namespace gaia {
 				}
 
 				static constexpr uint32_t warm_pages_to_keep() {
-					return 1;
+					return 0;
 				}
 
 				static SmallBlockPageState state_for(const SmallBlockPage& page) {
@@ -638,3 +640,22 @@ namespace gaia {
 		} // namespace detail
 	} // namespace mem
 } // namespace gaia
+
+//! Defines class-local new/delete operators backed by SmallBlockAllocator.
+#define GAIA_USE_SMALLBLOCK(name)                                                                                      \
+	void _smallblockallocator_verify_size() {                                                                            \
+		static_assert(                                                                                                     \
+				sizeof(*this) <= ::gaia::mem::SmallBlockMaxSize, "Object is too large to be used with SmallBlockAllocator");   \
+	}                                                                                                                    \
+	static void* operator new(size_t size) {                                                                             \
+		return ::gaia::mem::SmallBlockAllocator::get().alloc((uint32_t)size);                                              \
+	}                                                                                                                    \
+	static void* operator new[](size_t size) {                                                                           \
+		return ::gaia::mem::mem_alloc(#name, (uint32_t)size);                                                              \
+	}                                                                                                                    \
+	static void operator delete(void* p) noexcept {                                                                      \
+		::gaia::mem::SmallBlockAllocator::get().free(p);                                                                   \
+	}                                                                                                                    \
+	static void operator delete[](void* p) {                                                                             \
+		return ::gaia::mem::mem_free(#name, p);                                                                            \
+	}

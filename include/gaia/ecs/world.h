@@ -147,6 +147,8 @@ namespace gaia {
 
 			template <typename T>
 			struct SparseComponentStore final {
+				GAIA_USE_SMALLBLOCK(SparseComponentStore)
+
 				cnt::sparse_storage<SparseComponentRecord<T>> data;
 
 				static cnt::sparse_id sid(Entity entity) {

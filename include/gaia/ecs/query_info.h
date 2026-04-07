@@ -16,6 +16,7 @@
 #include "gaia/ecs/query_match_stamps.h"
 #include "gaia/ecs/vm.h"
 #include "gaia/mem/mem_utils.h"
+#include "gaia/mem/smallblock_allocator.h"
 
 namespace gaia {
 	namespace ecs {
@@ -36,6 +37,8 @@ namespace gaia {
 		};
 
 		struct QueryMatchScratch {
+			GAIA_USE_SMALLBLOCK(QueryMatchScratch)
+
 			//! Ordered list of matched archetypes emitted by the VM for the current run.
 			cnt::darr<const Archetype*> matchesArr;
 			//! Paged O(1) dedup table keyed by world-local archetype ids.

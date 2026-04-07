@@ -9,6 +9,7 @@
 #include "gaia/cnt/paged_storage.h"
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/id.h"
+#include "gaia/mem/smallblock_allocator.h"
 
 namespace gaia {
 	namespace ecs {
@@ -270,6 +271,8 @@ namespace gaia {
 		class WeakEntity;
 
 		struct WeakEntityTracker {
+			GAIA_USE_SMALLBLOCK(WeakEntityTracker)
+
 			WeakEntityTracker* next = nullptr;
 			WeakEntityTracker* prev = nullptr;
 			WeakEntity* pWeakEntity = nullptr;

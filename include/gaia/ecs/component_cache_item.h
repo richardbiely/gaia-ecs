@@ -12,6 +12,7 @@
 #include "gaia/ecs/id.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/mem_utils.h"
+#include "gaia/mem/smallblock_allocator.h"
 #include "gaia/ser/ser_common.h"
 #include "gaia/ser/ser_rt.h"
 #include "gaia/util/str.h"
@@ -23,6 +24,8 @@ namespace gaia {
 		struct ComponentRecord;
 
 		struct GAIA_API ComponentCacheItem final {
+			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+
 			static constexpr uint32_t MaxNameLength = 256;
 
 			using SymbolLookupKey = core::StringLookupKey<512>;
@@ -453,8 +456,7 @@ namespace gaia {
 				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
 				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
 
-				auto* cci = mem::AllocHelper::alloc<ComponentCacheItem>("ComponentCacheItem");
-				(void)new (cci) ComponentCacheItem();
+				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
 				cci->comp = Component(ctx.compDescId, ctx.soa, ctx.size, ctx.alig, ctx.storageType);
 				cci->hashLookup = ctx.hashLookup.hash != 0
@@ -490,8 +492,7 @@ namespace gaia {
 					pItem->name = {};
 				}
 
-				pItem->~ComponentCacheItem();
-				mem::AllocHelper::free("ComponentCacheItem", pItem);
+				delete pItem;
 			}
 		};
 	} // namespace ecs
