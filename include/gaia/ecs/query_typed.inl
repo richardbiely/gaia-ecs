@@ -673,12 +673,12 @@ namespace gaia {
 						invokeInherited);
 			}
 
-			template <typename Func, std::enable_if_t<!is_query_iter_callback_v<Func>, int>>
+			template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int>>
 			inline void QueryImpl::each(Func func) {
 				each(func, QueryExecType::Default);
 			}
 
-			template <typename Func, std::enable_if_t<!is_query_iter_callback_v<Func>, int>>
+			template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int>>
 			inline void QueryImpl::each(Func func, QueryExecType execType) {
 				auto& queryInfo = fetch();
 				match_all(queryInfo);
@@ -876,7 +876,7 @@ namespace gaia {
 				walk_entities(exec_entity);
 			}
 
-			template <typename Func, std::enable_if_t<!is_query_walk_core_callback_v<Func>, int>>
+			template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int>>
 			inline void QueryImpl::each_walk(Func func, Entity relation, Constraints constraints) {
 				auto& queryInfo = fetch();
 				match_all(queryInfo);
