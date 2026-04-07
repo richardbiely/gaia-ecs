@@ -6993,11 +6993,11 @@ namespace gaia {
 				void* m_data;
 				BlockArray m_blocks;
 
-				uint32_t m_sizeType : SizeTypeBits;
-				uint32_t m_blockCnt : NBlocks_Bits;
-				uint32_t m_usedBlocks : NBlocks_Bits;
-				uint32_t m_nextFreeBlock : NBlocks_Bits;
-				uint32_t m_freeBlocks : NBlocks_Bits;
+				uint32_t m_sizeType: SizeTypeBits;
+				uint32_t m_blockCnt: NBlocks_Bits;
+				uint32_t m_usedBlocks: NBlocks_Bits;
+				uint32_t m_nextFreeBlock: NBlocks_Bits;
+				uint32_t m_freeBlocks: NBlocks_Bits;
 
 #if GAIA_ASSERT_ENABLED
 				uint64_t m_usedMask = 0;
@@ -47752,11 +47752,10 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD inline Entity typed_query_term_entity(World& world) {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (is_pair<FT>::value) {
+				if constexpr (is_pair<FT>::value)
 					return typed_query_pair_entity<typename FT::rel_type, typename FT::tgt_type>(world);
-				} else {
+				else
 					return typed_query_raw_entity<T>(world);
-				}
 			}
 
 			template <typename T>
@@ -47820,11 +47819,10 @@ namespace gaia {
 			template <typename T>
 			inline QueryImpl& QueryImpl::sort_by(TSortByFunc func) {
 				using UO = typename component_type_t<T>::TypeOriginal;
-				if constexpr (std::is_same_v<UO, Entity>) {
+				if constexpr (std::is_same_v<UO, Entity>)
 					return sort_by(EntityBad, func);
-				} else {
+				else
 					return sort_by(typed_query_raw_entity<T>(*m_storage.world()), func);
-				}
 			}
 
 			template <typename Rel, typename Tgt>
