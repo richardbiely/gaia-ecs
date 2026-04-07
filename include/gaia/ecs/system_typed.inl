@@ -1,5 +1,8 @@
 #pragma once
 
+#include "gaia/ecs/query_builder_typed.inl"
+#include "gaia/ecs/query_typed.inl"
+
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
