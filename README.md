@@ -67,7 +67,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Simple query](#simple-query)
     * [Query traversal](#query-traversal)
     * [Traversal order](#traversal-order)
-    * [Query variables](query-variables)
+    * [Query variables](#query-variables)
     * [Multi-variable queries](#multi-variable-queries)
     * [Query low-level API](#query-low-level-api)
     * [Query string](#query-string)
