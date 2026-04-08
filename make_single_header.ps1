@@ -41,7 +41,7 @@ function Resolve-ClangFormat {
         }
     }
 
-    throw 'ERROR: clang-format not found. Install clang-format and make sure it is on PATH.'
+    return $null
 }
 
 function Resolve-IncludePath {
@@ -76,7 +76,12 @@ $clangFormat = Resolve-ClangFormat $ClangFormatArg
 
 Write-Host "Input        : $input"
 Write-Host "Output       : $output"
-Write-Host "clang-format : $clangFormat"
+if ($clangFormat) {
+    Write-Host "clang-format : $clangFormat"
+}
+else {
+    Write-Host 'clang-format : not found - formatting will be skipped'
+}
 
 [System.IO.Directory]::CreateDirectory((Split-Path -Parent $output)) | Out-Null
 
@@ -141,10 +146,15 @@ Append-File $input
 $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($output, $builder.ToString(), $utf8NoBom)
 
-Write-Host "Formatting   : $output"
-& $clangFormat -i --style=file $output
-if ($LASTEXITCODE -ne 0) {
-    throw 'ERROR: clang-format failed.'
+if ($clangFormat) {
+    Write-Host "Formatting   : $output"
+    & $clangFormat -i --style=file $output
+    if ($LASTEXITCODE -ne 0) {
+        throw 'ERROR: clang-format failed.'
+    }
+}
+else {
+    Write-Host 'Formatting   : skipped'
 }
 
 $lineCount = ([System.IO.File]::ReadLines($output) | Measure-Object -Line).Lines

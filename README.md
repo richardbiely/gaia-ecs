@@ -3690,7 +3690,8 @@ On Windows you can call:
 ./make_single_header.bat [clang-format-executable] 
 ```
 
-Creation of the single header can be automated via -GAIA_GENERATE_SINGLE_HEADER=ON  (OFF by default).
+Creation of the single header can be automated via `-DGAIA_GENERATE_SINGLE_HEADER=ON` (ON by default).
+If `clang-format` is not available the header is still generated, it just skips the formatting pass.
 
 # Repository structure
 

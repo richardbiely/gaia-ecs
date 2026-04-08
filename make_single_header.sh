@@ -6,8 +6,8 @@
 # file under include/ are inlined. Everything else — system headers, external
 # dependencies, preprocessor definitions, conditionals — passes through verbatim.
 #
-# The output is then formatted with clang-format using the project's
-# .clang-format config (auto-discovered via --style=file).
+# The output is formatted with clang-format using the project's .clang-format
+# config (auto-discovered via --style=file) when clang-format is available.
 #
 # Usage:
 #   ./make_single_header.sh [clang-format-executable]
@@ -43,8 +43,7 @@ resolve_clang_format() {
         fi
     done
 
-    echo "ERROR: clang-format not found. Install clang-format and make sure it is on PATH." >&2
-    exit 1
+    CLANG_FORMAT=""
 }
 
 # ---------------------------------------------------------------------------
@@ -139,7 +138,11 @@ trap 'rm -f "$VISITED_FILE"' EXIT
 
 echo "Input        : $INPUT"
 echo "Output       : $OUTPUT"
-echo "clang-format : $CLANG_FORMAT"
+if [[ -n "$CLANG_FORMAT" ]]; then
+    echo "clang-format : $CLANG_FORMAT"
+else
+    echo "clang-format : not found - formatting will be skipped"
+fi
 
 mkdir -p "$(dirname "$OUTPUT")"
 rm -f "$OUTPUT"
@@ -152,7 +155,11 @@ rm -f "$OUTPUT"
     walker "$INPUT"
 } > "$OUTPUT"
 
-echo "Formatting   : $OUTPUT"
-"$CLANG_FORMAT" -i --style=file "$OUTPUT"
+if [[ -n "$CLANG_FORMAT" ]]; then
+    echo "Formatting   : $OUTPUT"
+    "$CLANG_FORMAT" -i --style=file "$OUTPUT"
+else
+    echo "Formatting   : skipped"
+fi
 
 echo "Done: $OUTPUT ($(wc -l < "$OUTPUT") lines)"

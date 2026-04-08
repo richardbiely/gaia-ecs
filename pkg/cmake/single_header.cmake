@@ -3,7 +3,7 @@
 #
 # Uses the shell include-walker (make_single_header.sh / .bat) which inlines
 # only headers found under include/, passing everything else through verbatim.
-# The output is then formatted with clang-format.
+# The output is formatted with clang-format when it is available.
 # ---------------------------------------------------------------------------
 
 option(GAIA_GENERATE_SINGLE_HEADER "Generate the single file header automatically." ON)
@@ -13,7 +13,7 @@ if(GAIA_GENERATE_SINGLE_HEADER)
     set(GAIA_SH_OUTPUT "${CMAKE_SOURCE_DIR}/single_include/gaia.h")
 
     # -----------------------------------------------------------------------
-    # Require clang-format
+    # Discover clang-format if it is available
     # -----------------------------------------------------------------------
     find_program(CLANG_FORMAT_EXE
         NAMES clang-format
@@ -21,14 +21,12 @@ if(GAIA_GENERATE_SINGLE_HEADER)
         DOC "clang-format executable used to format the single-header output"
     )
 
-    if(NOT CLANG_FORMAT_EXE)
-        message(FATAL_ERROR
-            "GAIA_GENERATE_SINGLE_HEADER is ON but clang-format was not found. "
-            "Install clang-format or set CLANG_FORMAT_EXE manually.")
-    endif()
-
     message(STATUS "Single-header generator: shell include-walker")
-    message(STATUS "clang-format: ${CLANG_FORMAT_EXE}")
+    if(CLANG_FORMAT_EXE)
+        message(STATUS "clang-format: ${CLANG_FORMAT_EXE}")
+    else()
+        message(WARNING "clang-format was not found. single_include/gaia.h will be generated without formatting.")
+    endif()
 
     # -----------------------------------------------------------------------
     # Glob all headers so the command reruns when any of them change
@@ -44,10 +42,14 @@ if(GAIA_GENERATE_SINGLE_HEADER)
     # -----------------------------------------------------------------------
     if(CMAKE_HOST_WIN32)
         set(_script "${CMAKE_SOURCE_DIR}/make_single_header.bat")
-        set(_amalgam_cmd "${_script}" "${CLANG_FORMAT_EXE}")
+        set(_amalgam_cmd "${_script}")
     else()
         set(_script "${CMAKE_SOURCE_DIR}/make_single_header.sh")
-        set(_amalgam_cmd bash "${_script}" "${CLANG_FORMAT_EXE}")
+        set(_amalgam_cmd bash "${_script}")
+    endif()
+
+    if(CLANG_FORMAT_EXE)
+        list(APPEND _amalgam_cmd "${CLANG_FORMAT_EXE}")
     endif()
 
     # -----------------------------------------------------------------------
@@ -60,7 +62,7 @@ if(GAIA_GENERATE_SINGLE_HEADER)
         COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_SOURCE_DIR}/single_include"
         COMMAND ${_amalgam_cmd}
         DEPENDS ${GAIA_ALL_HEADERS} "${_script}"
-        COMMENT "Generating and formatting single_include/gaia.h"
+        COMMENT "Generating single_include/gaia.h"
         VERBATIM
     )
 
