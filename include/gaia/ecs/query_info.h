@@ -809,18 +809,18 @@ namespace gaia {
 
 			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			//! \param entityToArchetypeMap Lookup of archetypes by queried id
+			//! \param entityToArchetypeMap Lookup of archetypes by entity
 			//! \param allArchetypes List of all archetypes
 			//! \param archetypeLastId Last recorded archetype id
+			//! \param runtimeVarBindings Runtime variable bindings for dynamic queries
+			//! \param runtimeVarBindingMask Mask indicating which runtime variables are bound
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			template <typename ArchetypeLookup>
 			void match(
-					// entity -> archetypes mapping
 					const ArchetypeLookup& entityToArchetypeMap,
-					// all archetypes in the world
 					std::span<const Archetype*> allArchetypes,
-					// last matched archetype id
-					ArchetypeId archetypeLastId, const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
+					ArchetypeId archetypeLastId,
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
 					uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
 
@@ -911,6 +911,8 @@ namespace gaia {
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
+			//! \param runtimeVarBindings Runtime bindings for query variables.
+			//! \param runtimeVarBindingMask Bitmask of variables already bound in @a runtimeVarBindings.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,

@@ -833,9 +833,7 @@ namespace gaia {
 			}
 		};
 
-		//! Array with variable size of elements of type \tparam T allocated on heap.
-		//! Allocates enough memory to support \tparam PageCapacity elements.
-		//! Uses \tparam Allocator to allocate memory.
+		//! Heap-allocated paged storage for elements of type @a T.
 		template <typename T>
 		class page_storage {
 		public:

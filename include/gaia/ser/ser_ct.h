@@ -108,6 +108,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
+		//! \param writer Writer used to serialize @a data.
 		//!
 		//! \warning Writer has to implement a save function as follows:
 		//! 					template <typename T> void save(const T& arg);

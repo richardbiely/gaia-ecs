@@ -300,6 +300,7 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
+			//! \param changeKind Type of change that invalidated the cached queries.
 			void invalidate_queries_for_entity(EntityLookupKey entityKey, ChangeKind changeKind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
@@ -540,6 +541,7 @@ namespace gaia {
 
 			//! Adds an entity to the <entity, query> map
 			//! \param entities Entities getting added
+			//! \param handle Query receiving the entity mapping.
 			void add_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
 				for (auto entity: entities) {
 					add_entity_query_pair(entity, handle);
@@ -548,6 +550,7 @@ namespace gaia {
 
 			//! Deletes an entity from the <entity, query> map
 			//! \param entities Entities getting deleted
+			//! \param handle Query losing the entity mapping.
 			void del_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
 				for (auto entity: entities) {
 					del_entity_query_pair(entity, handle);

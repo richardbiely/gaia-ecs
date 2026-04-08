@@ -3458,9 +3458,9 @@ namespace gaia {
 				}
 
 				//! Returns whether the direct OR union becomes empty after applying NOT terms and iterator constraints.
-				//! \tparam TIter Iterator type
 				//! \param world World
 				//! \param queryInfo Query info
+				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \return True if no surviving entity exists. False otherwise.
 				GAIA_NODISCARD static bool
 				is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
@@ -3573,10 +3573,10 @@ namespace gaia {
 				}
 
 				//! Visits the deduplicated OR union for direct-seeded queries without materializing an entity seed array first.
-				//! \tparam TIter Iterator type
 				//! \tparam Func Callback type
 				//! \param world World
 				//! \param queryInfo Query info
+				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \param func Callback executed for each surviving entity.
 				template <typename Func>
 				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
@@ -4726,7 +4726,7 @@ namespace gaia {
 
 				//! Sorts the query by the specified entity and function.
 				//! \param entity The entity to sort by. Use ecs::EntityBad to sort by chunk entities,
-				//                or anything else to sort by components.
+				//!               or anything else to sort by components.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
 				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
@@ -4924,6 +4924,7 @@ namespace gaia {
 
 				//! Iterates matching archetypes instead of individual entities.
 				//! \param func Callable invoked for each matching archetype iterator.
+				//! \param constraints Iteration constraints applied before invoking @a func.
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();

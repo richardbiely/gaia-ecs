@@ -295,9 +295,9 @@ namespace gaia {
 			//! \param name Component name.
 			//! \param len Name length. If zero, the length is calculated.
 			//! \param size Component size in bytes.
+			//! \param storageType Data storage type. DataStorageType::Table keeps the payload inline in archetype chunks.
 			//! \param alig Component alignment in bytes.
 			//! \param soa Number of SoA items (0 for AoS).
-			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
 			//! \param scopePath Optional world-provided scoped path prefix used when assigning the default path/alias.

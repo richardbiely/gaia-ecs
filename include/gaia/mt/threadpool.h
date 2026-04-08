@@ -1036,10 +1036,8 @@ namespace gaia {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
 
-			//! Loop run by main thread. Pops jobs from the given queue
-			//! and executes it.
-			//! \param prio Target worker queue defined by job priority
-			//! \return True if a job was resubmitted or executed. False otherwise.
+			//! Runs one main-thread work-drain pass.
+			//! Pops ready jobs from the queues and executes them until no more work is immediately available.
 			void main_thread_tick() {
 				auto& ctx = *detail::tl_workerCtx;
 
@@ -1090,9 +1088,9 @@ namespace gaia {
 				return false;
 			}
 
-			//! Loop run by worker threads. Pops jobs from the given queue
-			//! and executes it.
-			//! \param prio Target worker queue defined by job priority
+			//! Main worker-thread loop.
+			//! Pops ready jobs from the queues and executes them until the pool shuts down.
+			//! \param ctx Thread-local worker context.
 			void worker_loop(ThreadCtx& ctx) {
 				while (true) {
 					// Wait for work

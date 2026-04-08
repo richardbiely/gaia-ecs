@@ -380,7 +380,13 @@ namespace gaia {
 				}
 			}
 
-			//! Estimates how many entities can fit into the chunk described by \param comps components.
+			//! Estimates whether another entity still fits in the chunk described by @a comps.
+			//! \param cc Component metadata cache.
+			//! \param offs Current byte offset inside the chunk payload.
+			//! \param comps Components laid out in the chunk.
+			//! \param cap Candidate entity count used for the estimate.
+			//! \param maxDataOffset Maximum byte offset available for component payloads.
+			//! \return True if the chunk can still fit the candidate entity count. False otherwise.
 			static bool est_max_entities_per_chunk(
 					const ComponentCache& cc, uint32_t offs, ComponentSpan comps, uint32_t cap, uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
@@ -912,7 +918,7 @@ namespace gaia {
 			//! flat index of 12 means component data for the second entity inside the second chunk.
 			//! \param compIdx Component index we are searching for
 			//! \param flatIdx Flat index of entity inside the archetype
-			//! \param outEntity[out] Entity belonging to the flatIdx
+			//! \param[out] outEntity Entity belonging to the flatIdx
 			//! \return Pointer to component data at given flat index
 			template <bool Enabled>
 			const void* get_flat_comp_ptr(uint32_t compIdx, size_t flatIdx, Entity& outEntity) const {

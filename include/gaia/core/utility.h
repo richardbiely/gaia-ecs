@@ -1471,7 +1471,6 @@ namespace gaia {
 		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparison function
-		//! \tparam TSwapFunc Swap function
 		//! \param arr Container to sort
 		//! \param low Low index of the array to sort
 		//! \param high High index of the array to sort

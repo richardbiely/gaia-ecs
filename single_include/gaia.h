@@ -2580,7 +2580,6 @@ namespace gaia {
 		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
 		//! \tparam Container Container to sort
 		//! \tparam TCmpFunc Comparison function
-		//! \tparam TSwapFunc Swap function
 		//! \param arr Container to sort
 		//! \param low Low index of the array to sort
 		//! \param high High index of the array to sort
@@ -12075,6 +12074,7 @@ namespace gaia {
 	#if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
+		//! \param writer Writer used to serialize @a data.
 		//!
 		//! \warning Writer has to implement a save function as follows:
 		//! 					template <typename T> void save(const T& arg);
@@ -15679,9 +15679,7 @@ namespace gaia {
 			}
 		};
 
-		//! Array with variable size of elements of type \tparam T allocated on heap.
-		//! Allocates enough memory to support \tparam PageCapacity elements.
-		//! Uses \tparam Allocator to allocate memory.
+		//! Heap-allocated paged storage for elements of type @a T.
 		template <typename T>
 		class page_storage {
 		public:
@@ -24466,10 +24464,8 @@ namespace gaia {
 				return std::this_thread::get_id() == m_mainThreadId;
 			}
 
-			//! Loop run by main thread. Pops jobs from the given queue
-			//! and executes it.
-			//! \param prio Target worker queue defined by job priority
-			//! \return True if a job was resubmitted or executed. False otherwise.
+			//! Runs one main-thread work-drain pass.
+			//! Pops ready jobs from the queues and executes them until no more work is immediately available.
 			void main_thread_tick() {
 				auto& ctx = *detail::tl_workerCtx;
 
@@ -24520,9 +24516,9 @@ namespace gaia {
 				return false;
 			}
 
-			//! Loop run by worker threads. Pops jobs from the given queue
-			//! and executes it.
-			//! \param prio Target worker queue defined by job priority
+			//! Main worker-thread loop.
+			//! Pops ready jobs from the queues and executes them until the pool shuts down.
+			//! \param ctx Thread-local worker context.
 			void worker_loop(ThreadCtx& ctx) {
 				while (true) {
 					// Wait for work
@@ -27834,9 +27830,9 @@ namespace gaia {
 			//! \param name Component name.
 			//! \param len Name length. If zero, the length is calculated.
 			//! \param size Component size in bytes.
+			//! \param storageType Data storage type. DataStorageType::Table keeps the payload inline in archetype chunks.
 			//! \param alig Component alignment in bytes.
 			//! \param soa Number of SoA items (0 for AoS).
-			//! \param dataStorage Data storage type. DataStorageType::Table by default.
 			//! \param pSoaSizes SoA item sizes, must contain at least @a soa values when @a soa > 0.
 			//! \param hashLookup Optional lookup hash. If zero, hash(name) is used.
 			//! \param scopePath Optional world-provided scoped path prefix used when assigning the default path/alias.
@@ -30962,7 +30958,13 @@ namespace gaia {
 				}
 			}
 
-			//! Estimates how many entities can fit into the chunk described by \param comps components.
+			//! Estimates whether another entity still fits in the chunk described by @a comps.
+			//! \param cc Component metadata cache.
+			//! \param offs Current byte offset inside the chunk payload.
+			//! \param comps Components laid out in the chunk.
+			//! \param cap Candidate entity count used for the estimate.
+			//! \param maxDataOffset Maximum byte offset available for component payloads.
+			//! \return True if the chunk can still fit the candidate entity count. False otherwise.
 			static bool est_max_entities_per_chunk(
 					const ComponentCache& cc, uint32_t offs, ComponentSpan comps, uint32_t cap, uint32_t maxDataOffset) {
 				for (const auto comp: comps) {
@@ -31494,7 +31496,7 @@ namespace gaia {
 			//! flat index of 12 means component data for the second entity inside the second chunk.
 			//! \param compIdx Component index we are searching for
 			//! \param flatIdx Flat index of entity inside the archetype
-			//! \param outEntity[out] Entity belonging to the flatIdx
+			//! \param[out] outEntity Entity belonging to the flatIdx
 			//! \return Pointer to component data at given flat index
 			template <bool Enabled>
 			const void* get_flat_comp_ptr(uint32_t compIdx, size_t flatIdx, Entity& outEntity) const {
@@ -40350,17 +40352,15 @@ namespace gaia {
 
 			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
-			//! \param entityToArchetypeMap Lookup of archetypes by queried id
+			//! \param entityToArchetypeMap Lookup of archetypes by entity
 			//! \param allArchetypes List of all archetypes
 			//! \param archetypeLastId Last recorded archetype id
+			//! \param runtimeVarBindings Runtime variable bindings for dynamic queries
+			//! \param runtimeVarBindingMask Mask indicating which runtime variables are bound
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			template <typename ArchetypeLookup>
 			void match(
-					// entity -> archetypes mapping
-					const ArchetypeLookup& entityToArchetypeMap,
-					// all archetypes in the world
-					std::span<const Archetype*> allArchetypes,
-					// last matched archetype id
+					const ArchetypeLookup& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 					ArchetypeId archetypeLastId, const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings,
 					uint8_t runtimeVarBindingMask) {
 				auto& ctxData = m_plan.ctx.data;
@@ -40452,6 +40452,8 @@ namespace gaia {
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
+			//! \param runtimeVarBindings Runtime bindings for query variables.
+			//! \param runtimeVarBindingMask Bitmask of variables already bound in @a runtimeVarBindings.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
@@ -41801,6 +41803,7 @@ namespace gaia {
 			//! 2) (*, X)
 			//! 3) (X, *)
 			//! \param entityKey Entity lookup key
+			//! \param changeKind Type of change that invalidated the cached queries.
 			void invalidate_queries_for_entity(EntityLookupKey entityKey, ChangeKind changeKind) {
 				auto it = m_entityToQuery.find(entityKey);
 				if (it == m_entityToQuery.end())
@@ -42041,6 +42044,7 @@ namespace gaia {
 
 			//! Adds an entity to the <entity, query> map
 			//! \param entities Entities getting added
+			//! \param handle Query receiving the entity mapping.
 			void add_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
 				for (auto entity: entities) {
 					add_entity_query_pair(entity, handle);
@@ -42049,6 +42053,7 @@ namespace gaia {
 
 			//! Deletes an entity from the <entity, query> map
 			//! \param entities Entities getting deleted
+			//! \param handle Query losing the entity mapping.
 			void del_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {
 				for (auto entity: entities) {
 					del_entity_query_pair(entity, handle);
@@ -45712,9 +45717,9 @@ namespace gaia {
 				}
 
 				//! Returns whether the direct OR union becomes empty after applying NOT terms and iterator constraints.
-				//! \tparam TIter Iterator type
 				//! \param world World
 				//! \param queryInfo Query info
+				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \return True if no surviving entity exists. False otherwise.
 				GAIA_NODISCARD static bool
 				is_empty_direct_or_union(const World& world, const QueryInfo& queryInfo, Constraints constraints) {
@@ -45827,10 +45832,10 @@ namespace gaia {
 				}
 
 				//! Visits the deduplicated OR union for direct-seeded queries without materializing an entity seed array first.
-				//! \tparam TIter Iterator type
 				//! \tparam Func Callback type
 				//! \param world World
 				//! \param queryInfo Query info
+				//! \param constraints Iterator constraints applied to the candidate entities.
 				//! \param func Callback executed for each surviving entity.
 				template <typename Func>
 				void for_each_direct_or_union(World& world, const QueryInfo& queryInfo, Constraints constraints, Func&& func) {
@@ -46980,7 +46985,7 @@ namespace gaia {
 
 				//! Sorts the query by the specified entity and function.
 				//! \param entity The entity to sort by. Use ecs::EntityBad to sort by chunk entities,
-				//                or anything else to sort by components.
+				//!               or anything else to sort by components.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
 				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
@@ -47178,6 +47183,7 @@ namespace gaia {
 
 				//! Iterates matching archetypes instead of individual entities.
 				//! \param func Callable invoked for each matching archetype iterator.
+				//! \param constraints Iteration constraints applied before invoking @a func.
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
@@ -51092,6 +51098,7 @@ namespace gaia {
 				//! \param world World the observer is triggered for
 				//! \param term Term to add to @a observer
 				//! \param observer Observer entity
+				//! \param matchKind Observer match policy used for the registered term.
 				void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic) {
 					GAIA_ASSERT(!observer.pair());
 					GAIA_ASSERT(world.valid(observer));
@@ -51125,8 +51132,8 @@ namespace gaia {
 				}
 
 				//! Removes a term from the observer registry.
-				//! \param world World the observer is triggered for
-				//! \param tern Term to remove from @a observer
+				//! \param w World the observer is triggered for
+				//! \param term Term to remove from @a observer
 				void del(World& w, Entity term) {
 					GAIA_ASSERT(w.valid(term));
 
@@ -51199,7 +51206,7 @@ namespace gaia {
 				//! Called when components are removed from an entity
 				//! \param world World the observer is triggered for
 				//! \param archetype Archetype we try to match with the observer
-				//! \param ents_added Span of entities added to the @a archetype
+				//! \param ents_removed Span of entities removed from the @a archetype
 				//! \param targets Span on entities for which the observers triggers
 				void on_del(World& world, const Archetype& archetype, EntitySpan ents_removed, EntitySpan targets) {
 					DirectDispatcher::on_del(*this, world, archetype, ents_removed, targets);
@@ -52342,7 +52349,8 @@ namespace gaia {
 					return add(Pair(ChildOf, parent));
 				}
 
-				//! Takes care of registering the component \tparam T
+				//! Takes care of registering the component type used by @a T.
+				//! \tparam T Component or pair type to register.
 				template <typename T>
 				Entity register_component() {
 					if constexpr (is_pair<T>::value) {
@@ -55304,8 +55312,10 @@ namespace gaia {
 				add(entity, Pair(ChildOf, parent));
 			}
 
-			//! Checks if \param entity is a child of \param parent
-			//! True if entity is a child of parent. False otherwise.
+			//! Checks whether @a entity has a `ChildOf` relationship to @a parent.
+			//! \param entity Entity to inspect.
+			//! \param parent Candidate parent entity.
+			//! \return True if @a entity is a child of @a parent. False otherwise.
 			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
 				return has(entity, Pair(ChildOf, parent));
 			}
@@ -55315,7 +55325,10 @@ namespace gaia {
 				add(entity, Pair(Parent, parentEntity));
 			}
 
-			//! Checks if \param entity has non-fragmenting Parent relationship to \param parentEntity.
+			//! Checks whether @a entity has a non-fragmenting `Parent` relationship to @a parentEntity.
+			//! \param entity Entity to inspect.
+			//! \param parentEntity Candidate parent entity.
+			//! \return True if @a entity references @a parentEntity through `Parent`. False otherwise.
 			GAIA_NODISCARD bool parent(Entity entity, Entity parentEntity) const {
 				return has(entity, Pair(Parent, parentEntity));
 			}
@@ -55811,7 +55824,7 @@ namespace gaia {
 			//! Executes @a func with a temporary component scope and restores the previous scope afterwards.
 			//! Relative component lookup walks up the ChildOf hierarchy of the active scope.
 			//! The scope entity and its ChildOf ancestors are expected to have names so we can build a path from them.
-			//! \param scope Scope entity. Pass EntityBad to temporarily disable component scope.
+			//! \param scopeEntity Scope entity. Pass EntityBad to temporarily disable component scope.
 			//! \param func Callable executed while the scope is active.
 			template <typename Func>
 			void scope(Entity scopeEntity, Func&& func) {
@@ -57915,8 +57928,9 @@ namespace gaia {
 				return entityExpected == entityPresent;
 			}
 
-			//! Checks if the pair \param entity is valid.
-			//! \return True if the entity is valid. False otherwise.
+			//! Checks whether the pair entity is valid.
+			//! \param entity Pair entity to inspect.
+			//! \return True if @a entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid_pair(Entity entity) const {
 				if (entity == EntityBad)
 					return false;
@@ -57937,8 +57951,9 @@ namespace gaia {
 				return valid(ec, entity);
 			}
 
-			//! Checks if the entity \param entity is valid.
-			//! \return True if the entity is valid. False otherwise.
+			//! Checks whether the entity is valid.
+			//! \param entity Entity to inspect.
+			//! \return True if @a entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid_entity(Entity entity) const {
 				if (entity == EntityBad)
 					return false;
@@ -57958,9 +57973,10 @@ namespace gaia {
 				return valid(*pEc, entity);
 			}
 
-			//! Checks if the entity with id \param entityId is valid.
+			//! Checks whether the entity identified by @a entityId is valid.
 			//! Pairs are considered invalid.
-			//! \return True if entityId is valid. False otherwise.
+			//! \param entityId Entity id to inspect.
+			//! \return True if @a entityId is valid. False otherwise.
 			GAIA_NODISCARD bool valid_entity_id(EntityId entityId) const {
 				if (entityId == EntityBad.id())
 					return false;
@@ -58747,10 +58763,9 @@ namespace gaia {
 				}
 			}
 
-			//! Defragments the chunk.
+			//! Defragments the archetype by moving entities out of sparse chunks.
+			//! \param archetype Archetype to defragment.
 			//! \param maxEntities Maximum number of entities moved per call
-			//! \param chunksToDelete Container of chunks ready for removal
-			//! \param entities Container with entities
 			void defrag_archetype(Archetype& archetype, uint32_t& maxEntities) {
 				// Assuming the following chunk layout:
 				//   Chunk_1: 10/10
@@ -59078,6 +59093,7 @@ namespace gaia {
 
 			//! Deletes an archetype from the <entity, archetype> map
 			//! \param entity Entity getting deleted
+			//! \param pArchetype Archetype currently associated with @a entity, or nullptr when unavailable.
 			void del_entity_archetype_pairs(Entity entity, Archetype* pArchetype) {
 				GAIA_ASSERT(entity != Pair(All, All));
 
@@ -59268,7 +59284,7 @@ namespace gaia {
 			}
 #endif
 
-			//! Searches for an archetype which is formed by adding entity \param entity of \param pArchetypeLeft.
+			//! Searches for an archetype formed by adding @a entity to @a pArchetypeLeft.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
 			//! \param entity Entity we want to add.
@@ -59344,7 +59360,7 @@ namespace gaia {
 				return pArchetypeRight;
 			}
 
-			//! Searches for an archetype which is formed by removing entity \param entity from \param pArchetypeRight.
+			//! Searches for an archetype formed by removing @a entity from @a pArchetypeRight.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeRight Archetype we originate from.
 			//! \param entity Component we want to remove.
@@ -59439,6 +59455,7 @@ namespace gaia {
 			}
 
 			//! Removes any name associated with the entity
+			//! \param ec Entity container associated with @a entity.
 			//! \param entity Entity the name of which we want to delete
 			void del_name(EntityContainer& ec, Entity entity) {
 				EntityBuilder(*this, entity, ec).del_name();
@@ -59506,10 +59523,11 @@ namespace gaia {
 					invalidate_entity(entity);
 			}
 
-			//! Deletes all entities (and in turn chunks) from \param archetype.
+			//! Deletes all entities, and in turn their chunks, from @a archetype.
 			//! If an archetype forming entity is present, the chunk is treated as if it were empty
 			//! and normal dying procedure is applied to it. At the last dying tick the entity is
 			//! deleted so the chunk can be removed.
+			//! \param archetype Archetype whose entities should be deleted.
 			void del_entities(Archetype& archetype) {
 				for (auto* pChunk: archetype.chunks()) {
 					auto ids = pChunk->entity_view();
@@ -59717,8 +59735,10 @@ namespace gaia {
 					update_version(m_worldVersion);
 			}
 
-			//! Find the destination archetype \param pArchetype as if removing \param entity.
-			//! \return Destination archetype of nullptr if no match is found
+			//! Finds the destination archetype produced by removing @a entity from @a pArchetype.
+			//! \param pArchetype Source archetype.
+			//! \param entity Entity or component to remove.
+			//! \return Destination archetype or nullptr if no match is found.
 			GAIA_NODISCARD Archetype* calc_dst_archetype_ent(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(!is_wildcard(entity));
 
@@ -59733,9 +59753,10 @@ namespace gaia {
 				return nullptr;
 			}
 
-			//! Find the destination archetype \param pArchetype as if removing all entities
-			//! matching (All, entity) from the archetype.
-			//! \return Destination archetype of nullptr if no match is found
+			//! Finds the destination archetype for removing every pair matching `(All, entity)` from @a pArchetype.
+			//! \param pArchetype Source archetype.
+			//! \param entity Wildcard target to remove.
+			//! \return Destination archetype or nullptr if no match is found.
 			GAIA_NODISCARD Archetype* calc_dst_archetype_all_ent(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
@@ -59752,9 +59773,10 @@ namespace gaia {
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
-			//! Find the destination archetype \param pArchetype as if removing all entities
-			//! matching (entity, All) from the archetype.
-			//! \return Destination archetype of nullptr if no match is found
+			//! Finds the destination archetype for removing every pair matching `(entity, All)` from @a pArchetype.
+			//! \param pArchetype Source archetype.
+			//! \param entity Wildcard relation to remove.
+			//! \return Destination archetype or nullptr if no match is found.
 			GAIA_NODISCARD Archetype* calc_dst_archetype_ent_all(Archetype* pArchetype, Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
@@ -59771,9 +59793,10 @@ namespace gaia {
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
-			//! Find the destination archetype \param pArchetype as if removing all entities
-			//! matching (All, All) from the archetype.
-			//! \return Destination archetype of nullptr if no match is found
+			//! Finds the destination archetype for removing every wildcard pair from @a pArchetype.
+			//! \param pArchetype Source archetype.
+			//! \param entity Wildcard pair selector.
+			//! \return Destination archetype or nullptr if no match is found.
 			GAIA_NODISCARD Archetype* calc_dst_archetype_all_all(Archetype* pArchetype, [[maybe_unused]] Entity entity) {
 				GAIA_ASSERT(is_wildcard(entity));
 
@@ -59792,9 +59815,11 @@ namespace gaia {
 				return found ? pDstArchetype : nullptr;
 			}
 
-			//! Find the destination archetype \param pArchetype as if removing \param entity.
+			//! Finds the destination archetype produced by removing @a entity from @a pArchetype.
 			//! Wildcard pair entities are supported as well.
-			//! \return Destination archetype of nullptr if no match is found
+			//! \param pArchetype Source archetype.
+			//! \param entity Entity, pair, or wildcard pair selector to remove.
+			//! \return Destination archetype or nullptr if no match is found.
 			GAIA_NODISCARD Archetype* calc_dst_archetype(Archetype* pArchetype, Entity entity) {
 				if (entity.pair()) {
 					auto rel = entity.id();
@@ -59999,7 +60024,8 @@ namespace gaia {
 				}
 			}
 
-			//! Requests deleting anything that references the \param entity. No questions asked.
+			//! Requests deleting anything that references @a entity.
+			//! \param entity Entity whose referrers should be deleted.
 			void req_del_entities_with(Entity entity) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
 
@@ -60048,8 +60074,10 @@ namespace gaia {
 					req_del(*record.pArchetype);
 			}
 
-			//! Requests deleting anything that references the \param entity. No questions asked.
-			//! Takes \param cond into account.
+			//! Requests deleting anything that references @a entity.
+			//! Takes @a cond into account.
+			//! \param entity Entity whose referrers should be deleted.
+			//! \param cond Additional pair condition applied to matching referrers.
 			void req_del_entities_with(Entity entity, Pair cond) {
 				cnt::set<EntityLookupKey> visited;
 				req_del_entities_with(entity, cond, visited);
@@ -60124,7 +60152,8 @@ namespace gaia {
 				}
 			}
 
-			//! Removes the entity \param entity from anything referencing it.
+			//! Removes @a entity from anything referencing it.
+			//! \param entity Entity to remove from referring records.
 			void rem_from_entities(Entity entity) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
@@ -60275,8 +60304,10 @@ namespace gaia {
 #endif
 			}
 
-			//! Removes the entity \param entity from anything referencing it.
-			//! Takes \param cond into account.
+			//! Removes @a entity from anything referencing it.
+			//! Takes @a cond into account.
+			//! \param entity Entity to remove from referring records.
+			//! \param cond Additional pair condition applied to matching referrers.
 			void rem_from_entities(Entity entity, Pair cond) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
 
@@ -60404,7 +60435,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Handles specific conditions that might arise from deleting \param entity.
+			//! Handles specific conditions that might arise from deleting @a entity.
 			//! Conditions are:
 			//!   OnDelete - deleting an entity/pair
 			//!   OnDeleteTarget - deleting a pair's target
@@ -60414,6 +60445,8 @@ namespace gaia {
 			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
+			//! \param ec Entity container associated with @a entity.
+			//! \param entity Entity being deleted.
 			void handle_del_entity(EntityContainer& ec, Entity entity) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
@@ -60742,9 +60775,10 @@ namespace gaia {
 			}
 
 			//! Associates an entity with a chunk.
+			//! \param ec Entity container updated to point at the new storage.
 			//! \param entity Entity to associate with a chunk
 			//! \param pArchetype Target archetype
-			//! \param pChunk Target chunk (with the archetype \param pArchetype)
+			//! \param pChunk Target chunk belonging to @a pArchetype
 			void store_entity(EntityContainer& ec, Entity entity, Archetype* pArchetype, Chunk* pChunk) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pChunk != nullptr);
@@ -60819,8 +60853,10 @@ namespace gaia {
 				validate_entities();
 			}
 
-			//! Moves an entity along with all its generic components from its current chunk to another one in a new
-			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
+			//! Moves an entity along with all its generic components from its current chunk to another archetype.
+			//! \param entity Entity to move
+			//! \param ec Entity container describing the current entity storage.
+			//! \param dstArchetype Target archetype
 			void move_entity_raw(Entity entity, EntityContainer& ec, Archetype& dstArchetype) {
 				// Update the old chunk's world version first
 				ec.pChunk->update_world_version();
@@ -60835,8 +60871,9 @@ namespace gaia {
 				update_version(m_worldVersion);
 			}
 
-			//! Moves an entity along with all its generic components from its current chunk to another one in a new
-			//! archetype. \param entity Entity to move \param dstArchetype Target archetype
+			//! Moves an entity along with all its generic components from its current chunk to another archetype.
+			//! \param entity Entity to move.
+			//! \param dstArchetype Target archetype.
 			Chunk* move_entity(Entity entity, Archetype& dstArchetype) {
 				// Archetypes need to be different
 				auto& ec = fetch(entity);
@@ -60946,9 +60983,12 @@ namespace gaia {
 #endif
 			}
 
-			//! If \tparam CheckIn is true, checks if \param entity is located in \param entityBase.
-			//! If \tparam CheckIn is false, checks if \param entity inherits from \param entityBase.
-			//! True if \param entity inherits from/is located in \param entityBase. False otherwise.
+			//! Checks relationship membership against @a entityBase.
+			//! \tparam CheckIn If true, checks whether @a entity is located in @a entityBase.
+			//!                 If false, checks whether @a entity inherits from @a entityBase.
+			//! \param entity Entity to inspect.
+			//! \param entityBase Base entity used for the membership test.
+			//! \return True if @a entity inherits from or is located in @a entityBase. False otherwise.
 			template <bool CheckIn>
 			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {
 				GAIA_ASSERT(valid_entity(entity));
