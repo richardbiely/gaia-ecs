@@ -86,6 +86,8 @@ else()
 endif()
 
 # libc++
+set(GAIA_HAS_LIBCPP OFF)
+
 if(NOT WIN32 AND GAIA_USE_LIBCPP)
     # Check for libc++ library presence
     find_library(LIBCXX_LIBRARY c++)
@@ -100,12 +102,13 @@ if(NOT WIN32 AND GAIA_USE_LIBCPP)
         check_cxx_source_compiles("
     #include <type_traits>
     int main() { return std::is_same_v<int, char>; }
-" GAIA_USE_LIBCPP)
+" GAIA_HAS_LIBCPP)
 
         cmake_pop_check_state()
     endif()
 
-    if(NOT GAIA_USE_LIBCPP)
+    if(NOT GAIA_HAS_LIBCPP)
+        set(GAIA_USE_LIBCPP OFF)
         message(WARNING "GAIA_USE_LIBCPP is ON but libc++ is not available. The flag will be ignored.")
     endif()
 endif()
@@ -128,8 +131,9 @@ target_include_directories(
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-if(GAIA_HAS_LIBCPP)
+if(GAIA_USE_LIBCPP)
     target_compile_options(${PROJECT_NAME} BEFORE INTERFACE -stdlib=libc++)
+    target_link_options(${PROJECT_NAME} BEFORE INTERFACE -stdlib=libc++)
 endif()
 
 target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_17)
