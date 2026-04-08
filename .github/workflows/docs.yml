@@ -10,7 +10,7 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'Doxyfile'
-      - 'docs.yml'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches: [ main ]
     paths:
@@ -20,31 +20,21 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'Doxyfile'
-      - 'docs.yml'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-# Allow one concurrent deployment
 concurrency:
-  group: "pages"
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build-docs:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
 
       - name: Install Doxygen
         run: sudo apt-get update && sudo apt-get install -y doxygen
@@ -58,10 +48,28 @@ jobs:
       - name: Generate documentation
         run: cmake --build build --target docs
 
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-html
+          path: build/docs/html
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    needs: build-docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download documentation artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-html
+          path: docs-html
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: build/docs/html
+          publish_dir: docs-html
           force_orphan: true
-          

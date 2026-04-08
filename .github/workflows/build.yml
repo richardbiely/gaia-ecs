@@ -8,7 +8,7 @@ on:
       - '**.hpp'
       - '**/CMakeLists.txt'
       - '**.cmake'
-      - 'build.yml'
+      - '.github/workflows/build.yml'
   pull_request:
     paths:
       - '**.cpp'
@@ -16,12 +16,15 @@ on:
       - '**.hpp'
       - '**/CMakeLists.txt'
       - '**.cmake'
-      - 'build.yml'
+      - '.github/workflows/build.yml'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-linux:
@@ -73,7 +76,6 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/test/gaia_test
 
@@ -122,7 +124,6 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/test/gaia_test
 
@@ -153,7 +154,6 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/test/${{matrix.build_type}}/gaia_test.exe
 
@@ -188,7 +188,6 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/test/${{matrix.build_type}}/gaia_test.exe
 
@@ -273,7 +272,5 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/test/gaia_test
-        

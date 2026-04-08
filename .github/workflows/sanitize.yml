@@ -8,7 +8,7 @@ on:
       - '**.hpp'
       - '**/CMakeLists.txt'
       - '**.cmake'
-      - 'build.yml'
+      - '.github/workflows/sanitize.yml'
   pull_request:
     paths:
       - '**.cpp'
@@ -16,12 +16,15 @@ on:
       - '**.hpp'
       - '**/CMakeLists.txt'
       - '**.cmake'
-      - 'build.yml'
+      - '.github/workflows/sanitize.yml'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build-linux:
@@ -67,7 +70,5 @@ jobs:
         cmake --build ${{github.workspace}}/build --config ${{matrix.build_type}}
 
     - name: Test
-      working-directory: 
       run: |
         ${{github.workspace}}/build/src/perf/${{matrix.target.path}} -s
-        
