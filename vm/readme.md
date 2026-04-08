@@ -10,6 +10,8 @@ Prepare a podman container (inside the "vm" folder):
 * MacOS: bash ./setup_podman.sh
 * Windows: bash ./setup_podman.bat
 
+The container image configures Git `safe.directory='*'` so CMake `FetchContent` can clone and checkout dependencies inside the bind-mounted Gaia-ECS workspace on Docker and Podman.
+
 Once inside the virtual machine you can build the project:
 
 * Both Clang & GCC: ./build.sh
