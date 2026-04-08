@@ -7,9 +7,10 @@ on:
       - '**.cpp'
       - '**.h'
       - '**.hpp'
+      - 'CMakeLists.txt'
       - 'docs/**'
+      - 'pkg/cmake/**'
       - 'README.md'
-      - 'Doxyfile'
       - '.github/workflows/docs.yml'
   pull_request:
     branches: [ main ]
@@ -17,9 +18,10 @@ on:
       - '**.cpp'
       - '**.h'
       - '**.hpp'
+      - 'CMakeLists.txt'
       - 'docs/**'
+      - 'pkg/cmake/**'
       - 'README.md'
-      - 'Doxyfile'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
