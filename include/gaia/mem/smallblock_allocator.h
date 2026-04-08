@@ -137,14 +137,16 @@ namespace gaia {
 					return BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.get(bitPosition);
 				}
 
+				#if GAIA_DEBUG
 				//! Allocates one block from this page.
 				//! \param bytesWanted Requested usable bytes.
 				//! \return Pointer to the usable storage.
-				GAIA_NODISCARD void* alloc_block(
-#if GAIA_DEBUG
-						uint32_t bytesWanted
-#endif
-				) {
+				GAIA_NODISCARD void* alloc_block(uint32_t bytesWanted) {
+					#else
+					//! Allocates one block from this page.
+				//! \return Pointer to the usable storage.
+				GAIA_NODISCARD void* alloc_block() {
+					#endif
 					auto store_block_address = [&](uint32_t index) {
 						auto* pMemoryBlock = (uint8_t*)m_data + (index * block_stride());
 						GAIA_ASSERT((uintptr_t)pMemoryBlock % SmallBlockAlignment == 0);
