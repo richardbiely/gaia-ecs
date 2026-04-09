@@ -36,6 +36,7 @@ jobs:
       CONAN_HOME: ${{ github.workspace }}/.conan2
       CONAN_LOGIN_USERNAME: ${{ secrets.CONAN_REMOTE_USERNAME }}
       CONAN_PASSWORD: ${{ secrets.CONAN_REMOTE_PASSWORD }}
+      CONAN_REMOTE_URL: ${{ secrets.CONAN_REMOTE_URL }}
 
     steps:
       - uses: actions/checkout@v5
@@ -74,13 +75,31 @@ jobs:
         run: |
           conan profile detect --force
 
+      - name: Validate Conan publish secrets
+        shell: bash
+        run: |
+          if [ -z "${CONAN_REMOTE_URL}" ]; then
+            echo "Missing required secret: CONAN_REMOTE_URL"
+            exit 1
+          fi
+
+          if [ -z "${CONAN_LOGIN_USERNAME}" ]; then
+            echo "Missing required secret: CONAN_REMOTE_USERNAME"
+            exit 1
+          fi
+
+          if [ -z "${CONAN_PASSWORD}" ]; then
+            echo "Missing required secret: CONAN_REMOTE_PASSWORD"
+            exit 1
+          fi
+
       - name: Create package
         run: |
           conan create pkg/conan --build=missing -s build_type=${{ inputs.build_type }} -s compiler.cppstd=17
 
       - name: Add Conan remote
         run: |
-          conan remote add "${{ inputs.remote_name }}" "${{ secrets.CONAN_REMOTE_URL }}" --force
+          conan remote add "${{ inputs.remote_name }}" "${CONAN_REMOTE_URL}" --force
 
       - name: Log in to Conan remote
         run: |
