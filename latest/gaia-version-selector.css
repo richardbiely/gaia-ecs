@@ -1,0 +1,42 @@
+#projectnumber.gaia-version-selector-host {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.6rem;
+  margin-left: 0.65rem;
+}
+
+.gaia-version-selector {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.15rem;
+}
+
+.gaia-version-selector select {
+  min-width: 12.5rem;
+  max-width: min(18rem, 42vw);
+  padding: 0.1rem 1.8rem 0.1rem 0.55rem;
+  border: 1px solid var(--separator-color, #c7ccd1);
+  border-radius: 0.35rem;
+  background-color: var(--page-background-color, #fff);
+  color: var(--primary-foreground-color, #2f4153);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.gaia-version-selector select:hover {
+  border-color: var(--link-color, #3d8bdb);
+}
+
+.gaia-version-selector select:focus {
+  outline: 2px solid color-mix(in srgb, var(--link-color, #3d8bdb) 35%, transparent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 768px) {
+  .gaia-version-selector select {
+    min-width: 10.5rem;
+    max-width: 58vw;
+  }
+}
