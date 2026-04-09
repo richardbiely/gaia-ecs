@@ -1,6 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve, relative, dirname } from "node:path";
-import { glob } from "node:fs/promises";
 
 const CSS_FILE = "gaia-version-selector.css";
 const JS_FILE = "gaia-version-selector.js";
@@ -31,6 +30,23 @@ async function injectAssets(htmlPath, siteRoot) {
   await writeFile(htmlPath, text.replace(marker, assets + marker), "utf8");
 }
 
+async function* htmlFiles(rootDir) {
+  const entries = await readdir(rootDir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = resolve(rootDir, entry.name);
+
+    if (entry.isDirectory()) {
+      yield* htmlFiles(fullPath);
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith(".html")) {
+      yield fullPath;
+    }
+  }
+}
+
 async function main() {
   if (process.argv.length !== 3) {
     console.error("usage: inject_version_selector.mjs <site-root>");
@@ -39,8 +55,8 @@ async function main() {
 
   const siteRoot = resolve(process.argv[2]);
 
-  for await (const path of glob("**/*.html", { cwd: siteRoot })) {
-    await injectAssets(resolve(siteRoot, path), siteRoot);
+  for await (const htmlPath of htmlFiles(siteRoot)) {
+    await injectAssets(htmlPath, siteRoot);
   }
 }
 
