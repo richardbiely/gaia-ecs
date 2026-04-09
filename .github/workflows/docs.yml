@@ -3,6 +3,7 @@ name: docs
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
     paths:
       - '**.cpp'
       - '**.h'
@@ -57,21 +58,158 @@ jobs:
           path: build/docs/html
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:
       contents: write
     needs: build-docs
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
       - name: Download documentation artifact
         uses: actions/download-artifact@v4
         with:
           name: docs-html
           path: docs-html
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs-html
-          force_orphan: true
+          node-version: '20'
+
+      - name: Publish docs site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          DOCS_VERSION="$(awk '/GAIA_VERSION_MAJOR/{major=$3} /GAIA_VERSION_MINOR/{minor=$3} /GAIA_VERSION_PATCH/{patch=$3} END { printf "v%s.%s.%s", major, minor, patch }' include/gaia/config/version.h)"
+          PUBLISH_TAGGED_VERSION=0
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            PUBLISH_TAGGED_VERSION=1
+            if [[ "${GITHUB_REF_NAME}" != "${DOCS_VERSION}" ]]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match source version ${DOCS_VERSION}." >&2
+              exit 1
+            fi
+          fi
+
+          rm -rf gh-pages
+          mkdir gh-pages
+          cd gh-pages
+
+          git init
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch --depth=1 origin gh-pages
+            git checkout -B gh-pages FETCH_HEAD
+          else
+            git checkout --orphan gh-pages
+            find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          fi
+
+          mkdir -p latest
+          rsync -a --delete "${GITHUB_WORKSPACE}/docs-html/" latest/
+
+          if [[ "${PUBLISH_TAGGED_VERSION}" == "1" ]]; then
+            mkdir -p "${DOCS_VERSION}"
+            rsync -a --delete "${GITHUB_WORKSPACE}/docs-html/" "${DOCS_VERSION}/"
+          fi
+
+          cp "${GITHUB_WORKSPACE}/docs/site/gaia-version-selector.css" gaia-version-selector.css
+          cp "${GITHUB_WORKSPACE}/docs/site/gaia-version-selector.js" gaia-version-selector.js
+
+          generate_redirect_page() {
+            local target_file="$1"
+            cat > "${target_file}" <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=latest/index.html">
+  <title>Gaia-ECS Docs</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      background: #f6f2ea;
+      color: #1d2a36;
+    }
+
+    main {
+      max-width: 40rem;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    a {
+      color: #0f766e;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p>Redirecting to the latest Gaia-ECS documentation.</p>
+    <p><a href="latest/index.html">Open latest docs</a></p>
+  </main>
+</body>
+</html>
+EOF
+          }
+
+          generate_redirect_page index.html
+          generate_redirect_page 404.html
+          touch .nojekyll
+
+          mapfile -t versions < <(find . -mindepth 1 -maxdepth 1 -type d -name 'v*' ! -name "${DOCS_VERSION}" -printf '%f\n' | sort -Vr)
+
+          {
+            printf '{\n'
+            printf '  "latest": { "label": "%s (latest version)", "path": "latest/", "version_path": "%s/" },\n' "${DOCS_VERSION#v}" "${DOCS_VERSION}"
+            printf '  "versions": [\n'
+
+            if [[ ${#versions[@]} -gt 0 ]]; then
+              for i in "${!versions[@]}"; do
+                comma=','
+                if [[ "$i" -eq $((${#versions[@]} - 1)) ]]; then
+                  comma=''
+                fi
+                printf '    { "label": "%s", "path": "%s/" }%s\n' "${versions[$i]#v}" "${versions[$i]}" "${comma}"
+              done
+            fi
+
+            printf '  ]\n'
+            printf '}\n'
+          } > versions.json
+
+          node "${GITHUB_WORKSPACE}/docs/site/inject_version_selector.mjs" latest
+          for version_dir in $(find . -mindepth 1 -maxdepth 1 -type d -name 'v*' -printf '%f\n'); do
+            node "${GITHUB_WORKSPACE}/docs/site/inject_version_selector.mjs" "${version_dir}"
+          done
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No documentation changes to publish."
+            exit 0
+          fi
+
+          if [[ "${PUBLISH_TAGGED_VERSION}" == "1" ]]; then
+            commit_message="docs: publish ${DOCS_VERSION}"
+          else
+            commit_message="docs: update latest"
+          fi
+
+          git commit -m "${commit_message}"
+          git push origin HEAD:gh-pages
+
+
+
