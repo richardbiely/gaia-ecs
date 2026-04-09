@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     env:
-      CONAN_HOME: ${{ runner.temp }}/.conan2
+      CONAN_HOME: ${{ github.workspace }}/.conan2
       CONAN_LOGIN_USERNAME: ${{ secrets.CONAN_REMOTE_USERNAME }}
       CONAN_PASSWORD: ${{ secrets.CONAN_REMOTE_PASSWORD }}
 
