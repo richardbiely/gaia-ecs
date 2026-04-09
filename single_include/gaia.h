@@ -20783,7 +20783,7 @@ namespace gaia {
 
 		//! Returns true when @a c is an ASCII whitespace character.
 		//! \param c Character to test.
-		//! \return True for ' ' and characters in range ['\t', '\r'].
+		//! \return True for ' ' (space) and characters in range ['\\t', '\\r'].
 		GAIA_NODISCARD constexpr bool is_whitespace(char c) {
 			return c == ' ' || (c >= '\t' && c <= '\r');
 		}
