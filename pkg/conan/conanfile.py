@@ -2,7 +2,7 @@ from conan import ConanFile
 from conan.errors import ConanInvalidConfiguration
 from conan.tools.scm import Version
 from conan.tools.build import check_min_cppstd
-from conan.tools.files import copy, get
+from conan.tools.files import copy, download, rm, unzip
 from conan.tools.layout import basic_layout
 import os
 
@@ -42,17 +42,32 @@ class GaiaConan(ConanFile):
         self.info.clear()
 
     def validate(self):
-        if self.settings.compiler.get_safe("cppstd"):
+        if self.settings.get_safe("compiler.cppstd"):
             check_min_cppstd(self, self._min_cppstd)
 
-        minimum_version = self._compilers_minimum_version.get(str(self.settings.compiler), False)
-        if minimum_version and Version(self.settings.compiler.version) < minimum_version:
+        compiler = self.settings.get_safe("compiler")
+        compiler_version = self.settings.get_safe("compiler.version")
+        minimum_version = self._compilers_minimum_version.get(str(compiler), False)
+        if minimum_version and compiler_version and Version(compiler_version) < minimum_version:
             raise ConanInvalidConfiguration(
                 f"{self.ref} requires C++{self._min_cppstd}, which your compiler does not support."
             )
     
     def source(self):
-        get(self, **self.conan_data["sources"][self.version], strip_root=True)
+        source = self.conan_data["sources"][self.version]
+        filename = os.path.basename(source["url"])
+        download(self, url=source["url"], filename=filename, sha256=source["sha256"])
+
+        # Conan recommends explicit tar extract filters for Python 3.14+.
+        # We only need packageable sources here, so skip GitHub metadata folders.
+        unzip(
+            self,
+            filename,
+            strip_root=True,
+            extract_filter="data",
+            excludes=(".github/*", ".vscode/*")
+        )
+        rm(self, filename, self.source_folder)
 
     def build(self):
         pass

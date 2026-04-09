@@ -1,0 +1,91 @@
+name: conan-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Gaia-ECS package version to publish, for example 0.9.3'
+        required: true
+        type: string
+      remote_name:
+        description: 'Conan remote name'
+        required: true
+        default: artifactory
+        type: string
+      build_type:
+        description: 'Build type used for test_package validation before upload'
+        required: true
+        default: Release
+        type: choice
+        options:
+          - Release
+          - Debug
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    env:
+      CONAN_HOME: ${{ runner.temp }}/.conan2
+      CONAN_LOGIN_USERNAME: ${{ secrets.CONAN_REMOTE_USERNAME }}
+      CONAN_PASSWORD: ${{ secrets.CONAN_REMOTE_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Conan
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "conan>=2,<3"
+
+      - name: Verify requested version matches recipe
+        shell: bash
+        run: |
+          requested_version="${{ inputs.version }}"
+          recipe_version="$(sed -n 's/^    version = "\(.*\)"/\1/p' pkg/conan/conanfile.py)"
+          if [ -z "${recipe_version}" ]; then
+            echo "Failed to read version from pkg/conan/conanfile.py"
+            exit 1
+          fi
+
+          if [ "${recipe_version}" != "${requested_version}" ]; then
+            echo "Workflow input version (${requested_version}) does not match recipe version (${recipe_version})."
+            exit 1
+          fi
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v${recipe_version}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match recipe version v${recipe_version}."
+            exit 1
+          fi
+
+      - name: Detect Conan profile
+        run: |
+          conan profile detect --force
+
+      - name: Create package
+        run: |
+          conan create pkg/conan --build=missing -s build_type=${{ inputs.build_type }}
+
+      - name: Add Conan remote
+        run: |
+          conan remote add "${{ inputs.remote_name }}" "${{ secrets.CONAN_REMOTE_URL }}" --force
+
+      - name: Log in to Conan remote
+        run: |
+          conan remote login "${{ inputs.remote_name }}" "${CONAN_LOGIN_USERNAME}" -p "${CONAN_PASSWORD}"
+
+      - name: Upload package
+        run: |
+          conan upload "gaia-ecs/${{ inputs.version }}" --remote "${{ inputs.remote_name }}" --confirm

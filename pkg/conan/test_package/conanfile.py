@@ -12,8 +12,7 @@ class TestPackageConan(ConanFile):
         self.conf.define("tools.cmake.cmaketoolchain:user_presets", "")
 
     def layout(self):
-        # Force build in temp
-        cmake_layout(self, build_folder="$TMP")
+        cmake_layout(self)
 
     def requirements(self):
         self.requires(self.tested_reference_str)

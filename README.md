@@ -117,6 +117,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Project settings](#project-settings)
     * [Sanitizers](#sanitizers)
     * [Single-header](#single-header)
+  * [Conan](#conan)
 * [Repository structure](#repository-structure)
   * [Examples](#examples)
   * [Benchmarks](#benchmarks)
@@ -3692,6 +3693,19 @@ On Windows you can call:
 
 Creation of the single header can be automated via `-DGAIA_GENERATE_SINGLE_HEADER=ON` (ON by default).
 If `clang-format` is not available the header is still generated, it just skips the formatting pass.
+
+## Conan
+Gaia-ECS also ships with a Conan 2 recipe in [`pkg/conan`](pkg/conan).
+
+To validate the package locally:
+```bash
+conan create pkg/conan --build=missing -s build_type=Release
+```
+
+Public publishing is documented in [`pkg/conan/README.md`](pkg/conan/README.md), including:
+- the manual Artifactory upload workflow in [`.github/workflows/conan-publish.yml`](.github/workflows/conan-publish.yml)
+- the release-time update steps for [`pkg/conan/conandata.yml`](pkg/conan/conandata.yml)
+- the ConanCenter submission checklist
 
 # Repository structure
 
