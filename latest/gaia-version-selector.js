@@ -1,11 +1,15 @@
 (function() {
-  function scriptRootUrl() {
+  var scriptRoot = (function() {
     var script = document.currentScript;
     if (!script || !script.src) {
       return null;
     }
 
     return new URL("./", script.src);
+  })();
+
+  function scriptRootUrl() {
+    return scriptRoot;
   }
 
   function currentVersionContext(siteRoot, payload) {
@@ -41,6 +45,19 @@
   }
 
   function targetHost() {
+    var toolbar = document.getElementById("gaia-doc-toolbar");
+    if (toolbar) {
+      var toolbarHost = document.getElementById("gaia-version-selector-toolbar-host");
+      if (!toolbarHost) {
+        toolbarHost = document.createElement("div");
+        toolbarHost.id = "gaia-version-selector-toolbar-host";
+        toolbarHost.className = "gaia-version-selector-host";
+        toolbar.appendChild(toolbarHost);
+      }
+
+      return toolbarHost;
+    }
+
     var projectNumber = document.getElementById("projectnumber");
     if (projectNumber) {
       projectNumber.classList.add("gaia-version-selector-host");

@@ -1,5 +1,6 @@
 var NAVTREEINDEX4 =
 {
+"index.html#entity-merging":[2,5,0,0],
 "index.html#examples":[5,0],
 "index.html#exclusivity":[2,3,5],
 "index.html#future":[6],
@@ -248,6 +249,5 @@ var NAVTREEINDEX4 =
 "structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base_3_01T_00_01false_01_4.html":[10,0,0,1,0,17],
 "structgaia_1_1core_1_1detail_1_1member__func__checker.html":[10,0,0,1,0,18],
 "structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html":[10,0,0,1,0,19],
-"structgaia_1_1core_1_1detail_1_1member__func__none.html":[10,0,0,1,0,20],
-"structgaia_1_1core_1_1detail_1_1rem__rp.html":[10,0,0,1,0,21]
+"structgaia_1_1core_1_1detail_1_1member__func__none.html":[10,0,0,1,0,20]
 };

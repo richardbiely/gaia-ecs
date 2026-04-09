@@ -1,4 +1,5 @@
 {
-;  "latest": { "label": "0.9.3 (local build)", "path": "./", "version_path": "./" },
-;  "versions": []
-;}
+  "latest": { "label": "0.9.3 (latest version)", "path": "latest/", "version_path": "v0.9.3/" },
+  "versions": [
+  ]
+}

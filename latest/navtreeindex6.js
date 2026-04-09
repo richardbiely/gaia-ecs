@@ -1,5 +1,6 @@
 var NAVTREEINDEX6 =
 {
+"structgaia_1_1ecs_1_1Requires__.html":[10,0,0,3,80],
 "structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html":[10,0,0,3,81],
 "structgaia_1_1ecs_1_1SparseComponentRecord.html":[10,0,0,3,83],
 "structgaia_1_1ecs_1_1Sparse__.html":[10,0,0,3,82],
@@ -248,6 +249,5 @@ var NAVTREEINDEX6 =
 "structgaia_1_1mem_1_1data__view__policy__soa__get.html#a3d4f66c11c0e2e03442ff585ad8fec93":[10,0,0,4,28,1],
 "structgaia_1_1mem_1_1data__view__policy__soa__get_1_1data__view__policy__idx__info.html":[10,0,0,4,28,0],
 "structgaia_1_1mem_1_1data__view__policy__soa__set.html":[10,0,0,4,29],
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558":[10,0,0,4,29,2],
-"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1accessor.html":[10,0,0,4,29,0]
+"structgaia_1_1mem_1_1data__view__policy__soa__set.html#aa11f6b86826572ffdb29722d8f657558":[10,0,0,4,29,2]
 };

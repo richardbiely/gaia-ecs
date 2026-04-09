@@ -1,3 +1,4 @@
+<!-- HTML header for doxygen -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
 <head>
@@ -6,9 +7,15 @@
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Gaia-ECS: Gaia-ECS</title>
+<!--BEGIN PROJECT_ICON-->
+<link rel="icon" href="$projecticon" type="image/x-icon" />
+<!--END PROJECT_ICON-->
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<!--BEGIN COPY_CLIPBOARD-->
+<script type="text/javascript" src="clipboard.js"></script>
+<!--END COPY_CLIPBOARD-->
 <link href="navtree.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
@@ -16,10 +23,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen-awesome.css" rel="stylesheet" type="text/css" />
-  <link rel="stylesheet" href="./gaia-version-selector.css">
-  <script>window.GAIA_VERSION_SELECTOR_DATA = { latest: { label: "0.9.3 (local build)", path: "./", version_path: "./" }, versions: [] };</script>
-  <script defer src="./gaia-version-selector.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
+<link href="gaia-version-selector.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript">
+window.GAIA_VERSION_SELECTOR_DATA = {
+  latest: { label: "0.9.3 (local build)", path: "./", version_path: "./" },
+  versions: []
+};
+</script>
+<script type="text/javascript" src="doxygen-awesome-darkmode-toggle.js"></script>
+<script type="text/javascript">
+window.addEventListener("load", function() {
+  DoxygenAwesomeDarkModeToggle.init();
+}, { once: true });
+</script>
+<script type="text/javascript" src="gaia-version-selector.js"></script>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -27,7 +46,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr id="projectrow">
-  <td id="projectlogo"><img alt="Logo" src="logo_small.png"/></td>
+  <td id="projectlogo"><img alt="Logo" src="logo_small.png"$logosize/></td>
   <td id="projectalign">
    <div id="projectname">Gaia-ECS<span id="projectnumber">&#160;v0.9.3</span>
    </div>
@@ -220,6 +239,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#single-header">Single-header</a></li>
 </ul>
 </li>
+<li><a class="el" href="index.html#conan">Conan</a></li>
 </ul>
 </li>
 <li><a class="el" href="index.html#repository-structure">Repository structure</a><ul>
@@ -3092,14 +3112,16 @@ Project settings</h3>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_CC</b>   </td><td class="markdownTableBodyNone">Generates <code>compile_commands.json</code>    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_GENERATE_DOCS</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#documentation">documentation</a>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_SINGLE_HEADER</b>   </td><td class="markdownTableBodyNone">Generates a <a class="el" href="index.html#single-header">single-header</a> version of the framework    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_CPU</b>   </td><td class="markdownTableBodyNone">Enables CPU <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>GAIA_PROFILER_MEM</b>   </td><td class="markdownTableBodyNone">Enabled memory <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_PROFILER_MEM</b>   </td><td class="markdownTableBodyNone">Enabled memory <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
@@ -3112,6 +3134,15 @@ Single-header</h3>
 <p>To generate the amalgamated header use the following command inside your root directory on Unix: </p><div class="fragment"><div class="line">./make_single_header.sh [clang-format-executable]</div>
 </div><!-- fragment --><p>On Windows you can call: </p><div class="fragment"><div class="line">./make_single_header.bat [clang-format-executable] </div>
 </div><!-- fragment --><p>Creation of the single header can be automated via <code>-DGAIA_GENERATE_SINGLE_HEADER=ON</code> (ON by default). If <code>clang-format</code> is not available the header is still generated, it just skips the formatting pass.</p>
+<h2><a class="anchor" id="conan"></a>
+Conan</h2>
+<p>Gaia-ECS also ships with a Conan 2 recipe in <a href="pkg/conan"><code>pkg/conan</code></a>.</p>
+<p>To validate the package locally: </p><div class="fragment"><div class="line">conan create pkg/conan --build=missing -s build_type=Release</div>
+</div><!-- fragment --><p>Public publishing is documented in `pkg/conan/README.md`, including:</p><ul>
+<li>the manual Artifactory upload workflow in <a href=".github/workflows/conan-publish.yml"><code>.github/workflows/conan-publish.yml</code></a></li>
+<li>the release-time update steps for <a href="pkg/conan/conandata.yml"><code>pkg/conan/conandata.yml</code></a></li>
+<li>the ConanCenter submission checklist</li>
+</ul>
 <h1><a class="anchor" id="repository-structure"></a>
 Repository structure</h1>
 <h2><a class="anchor" id="examples"></a>

@@ -1,3 +1,4 @@
+<!-- HTML header for doxygen -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en-US">
 <head>
@@ -6,9 +7,15 @@
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Gaia-ECS: /home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/bitset_iterator.h Source File</title>
+<!--BEGIN PROJECT_ICON-->
+<link rel="icon" href="$projecticon" type="image/x-icon" />
+<!--END PROJECT_ICON-->
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
+<!--BEGIN COPY_CLIPBOARD-->
+<script type="text/javascript" src="clipboard.js"></script>
+<!--END COPY_CLIPBOARD-->
 <link href="navtree.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="resize.js"></script>
 <script type="text/javascript" src="navtreedata.js"></script>
@@ -16,10 +23,22 @@
 <link href="search/search.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="search/searchdata.js"></script>
 <script type="text/javascript" src="search/search.js"></script>
-<link href="doxygen-awesome.css" rel="stylesheet" type="text/css" />
-  <link rel="stylesheet" href="./gaia-version-selector.css">
-  <script>window.GAIA_VERSION_SELECTOR_DATA = { latest: { label: "0.9.3 (local build)", path: "./", version_path: "./" }, versions: [] };</script>
-  <script defer src="./gaia-version-selector.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+<link href="doxygen-awesome.css" rel="stylesheet" type="text/css"/>
+<link href="gaia-version-selector.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript">
+window.GAIA_VERSION_SELECTOR_DATA = {
+  latest: { label: "0.9.3 (local build)", path: "./", version_path: "./" },
+  versions: []
+};
+</script>
+<script type="text/javascript" src="doxygen-awesome-darkmode-toggle.js"></script>
+<script type="text/javascript">
+window.addEventListener("load", function() {
+  DoxygenAwesomeDarkModeToggle.init();
+}, { once: true });
+</script>
+<script type="text/javascript" src="gaia-version-selector.js"></script>
 </head>
 <body>
 <div id="top"><!-- do not remove this div, it is closed by doxygen! -->
@@ -27,7 +46,7 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr id="projectrow">
-  <td id="projectlogo"><img alt="Logo" src="logo_small.png"/></td>
+  <td id="projectlogo"><img alt="Logo" src="logo_small.png"$logosize/></td>
   <td id="projectalign">
    <div id="projectname">Gaia-ECS<span id="projectnumber">&#160;v0.9.3</span>
    </div>
@@ -114,12 +133,12 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="foldopen" id="foldopen00014" data-start="{" data-end="};">
 <div class="line"><a id="l00014" name="l00014"></a><span class="lineno"><a class="line" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">   14</a></span>    <span class="keyword">class </span><a class="code hl_class" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">bitset_const_iterator</a> {</div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>      <span class="keyword">using </span>value_type = uint32_t;</div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>      <span class="keyword">using </span><a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> = <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a>;</div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>      <span class="keyword">using </span>size_type = <span class="keyword">typename</span> TBitset::size_type;</div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span> </div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    <span class="keyword">private</span>:</div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>      <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">TBitset</a>* m_bitset = <span class="keyword">nullptr</span>;</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>      value_type m_pos = 0;</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> m_pos = 0;</div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span> </div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>      GAIA_NODISCARD size_type item(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIdx</a>) <span class="keyword">const</span> <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">IsInverse</a>)</div>
@@ -136,7 +155,7 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>      }</div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
 <div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>      GAIA_NODISCARD <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> find_next_set_bit(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> pos) <span class="keyword">const</span> <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>        value_type <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex</a> = pos / TBitset::BitsPerItem;</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex</a> = pos / TBitset::BitsPerItem;</div>
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>        <span class="keyword">const</span> <span class="keyword">auto</span> item_count = m_bitset-&gt;items();</div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>        GAIA_ASSERT(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex</a> &lt; item_count);</div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>        size_type <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">word</a> = 0;</div>
@@ -167,7 +186,7 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>      }</div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>      GAIA_NODISCARD <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> find_prev_set_bit(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> pos) <span class="keyword">const</span> <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>        value_type <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex</a> = pos / TBitset::BitsPerItem;</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex</a> = pos / TBitset::BitsPerItem;</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>        GAIA_ASSERT(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">wordIndex &lt; m_bitset-&gt;</a>items());</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>        <span class="keyword">const</span> size_type <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">posInWord</a> = pos % TBitset::BitsPerItem;</div>
@@ -195,7 +214,7 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
 <div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <span class="keyword">public</span>:</div>
 <div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">bitset_const_iterator</a>() = <span class="keywordflow">default</span>;</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">bitset_const_iterator</a>(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">TBitset</a>&amp; <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset.html">bitset</a>, value_type pos, <span class="keywordtype">bool</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">fwd</a>): m_bitset(&amp;<a class="code hl_class" href="classgaia_1_1cnt_1_1bitset.html">bitset</a>), m_pos(pos) {</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">bitset_const_iterator</a>(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">TBitset</a>&amp; <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset.html">bitset</a>, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> pos, <span class="keywordtype">bool</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">fwd</a>): m_bitset(&amp;<a class="code hl_class" href="classgaia_1_1cnt_1_1bitset.html">bitset</a>), m_pos(pos) {</div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        <span class="keywordflow">if</span> (<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">fwd</a>) {</div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>          <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (!<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">IsFwd</a>) {</div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>            <span class="comment">// Find the first set bit</span></div>
@@ -203,7 +222,7 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>              pos = find_next_set_bit(m_pos);</div>
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>              <span class="comment">// Point before the last item if no set bit was found</span></div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>              <span class="keywordflow">if</span> (pos == m_pos)</div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>                pos = (value_type)-1;</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>                pos = (<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a>)-1;</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>              <span class="keywordflow">else</span></div>
 <div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>                --pos;</div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>            } <span class="keywordflow">else</span></div>
@@ -249,21 +268,21 @@ $(document).ready(function(){initNavTree('bitset__iterator_8h_source.html',''); 
 <div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span>        }</div>
 <div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>      }</div>
 <div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span> </div>
-<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>      GAIA_NODISCARD value_type operator*()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>      GAIA_NODISCARD <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> operator*()<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>        <span class="keywordflow">return</span> m_pos;</div>
 <div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span>      }</div>
 <div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span> </div>
-<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>      GAIA_NODISCARD value_type operator-&gt;()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>      GAIA_NODISCARD <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> operator-&gt;()<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>        <span class="keywordflow">return</span> m_pos;</div>
 <div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span>      }</div>
 <div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span> </div>
-<div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span>      GAIA_NODISCARD value_type index()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span>      GAIA_NODISCARD <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a> index()<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>        <span class="keywordflow">return</span> m_pos;</div>
 <div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span>      }</div>
 <div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span> </div>
 <div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1bitset__const__iterator.html">bitset_const_iterator</a>&amp; operator++() {</div>
 <div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>        <span class="keywordflow">if</span> <span class="keyword">constexpr</span> (!<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">IsFwd</a>) {</div>
-<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>          <span class="keywordflow">if</span> (m_pos == (value_type)-1)</div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>          <span class="keywordflow">if</span> (m_pos == (<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">value_type</a>)-1)</div>
 <div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>            <span class="keywordflow">return</span> *<span class="keyword">this</span>;</div>
 <div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span> </div>
 <div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>          <span class="keyword">auto</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">newPos</a> = find_prev_set_bit(m_pos);</div>

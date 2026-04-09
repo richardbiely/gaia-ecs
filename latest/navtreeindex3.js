@@ -139,8 +139,8 @@ var NAVTREEINDEX3 =
 "functions_e.html":[10,3,0,4],
 "functions_enum.html":[10,3,4],
 "functions_f.html":[10,3,0,5],
-"functions_func.html":[10,3,1,0],
 "functions_func.html":[10,3,1],
+"functions_func.html":[10,3,1,0],
 "functions_func_b.html":[10,3,1,1],
 "functions_func_c.html":[10,3,1,2],
 "functions_func_d.html":[10,3,1,3],
@@ -234,6 +234,7 @@ var NAVTREEINDEX3 =
 "index.html#component-merging":[2,5,0,1],
 "index.html#component-presence":[2,1,5],
 "index.html#component-scope":[2,1,3],
+"index.html#conan":[4,1],
 "index.html#constraints":[2,2,11],
 "index.html#contributions":[7],
 "index.html#copy-entity":[2,1,11],
@@ -248,6 +249,5 @@ var NAVTREEINDEX3 =
 "index.html#entity-cleanup":[2,1,12],
 "index.html#entity-dependencies":[2,3,3],
 "index.html#entity-inheritance":[2,3,6],
-"index.html#entity-lifespan":[2,1,14],
-"index.html#entity-merging":[2,5,0,0]
+"index.html#entity-lifespan":[2,1,14]
 };
