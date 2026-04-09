@@ -3665,6 +3665,7 @@ Parameter | Description
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
 **GAIA_GENERATE_CC** | Generates `compile_commands.json`
+**GAIA_GENERATE_DOCS** | Builds the [documentation](#documentation)
 **GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework
 **GAIA_PROFILER_CPU** | Enables CPU [profiling](#profiling) features
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features

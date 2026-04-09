@@ -26,7 +26,6 @@ $mathjax
 $darkmode
 <link href="$relpath^$stylesheet" rel="stylesheet" type="text/css" />
 $extrastylesheet
-<link rel="stylesheet" href="$relpath^gaia-version-selector.css" type="text/css" />
 <script type="text/javascript">
 window.GAIA_VERSION_SELECTOR_DATA = {
   latest: { label: "@PROJECT_VERSION@ (local build)", path: "./", version_path: "./" },
@@ -35,7 +34,9 @@ window.GAIA_VERSION_SELECTOR_DATA = {
 </script>
 <script type="text/javascript" src="$relpath^doxygen-awesome-darkmode-toggle.js"></script>
 <script type="text/javascript">
-DoxygenAwesomeDarkModeToggle.init();
+window.addEventListener("load", function() {
+  DoxygenAwesomeDarkModeToggle.init();
+}, { once: true });
 </script>
 <script type="text/javascript" src="$relpath^gaia-version-selector.js"></script>
 </head>

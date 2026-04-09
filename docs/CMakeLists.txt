@@ -19,12 +19,12 @@ FetchContent_GetProperties(doxygen-awesome-css SOURCE_DIR DOXY_CSS_DIRECTORY)
 set(DOXY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set(DOXY_HTML_DIRECTORY ${DOXY_OUTPUT_DIRECTORY}/html)
 set(DOXY_HEADER ${DOXY_OUTPUT_DIRECTORY}/header.html)
-set(DOXY_SELECTOR_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/inject_version_selector.cmake)
+set(DOXY_VERSIONS_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/write_versions_json.cmake)
 
 configure_file(Doxyfile ${DOXY_OUTPUT_DIRECTORY}/Doxyfile @ONLY)
 configure_file(header.html.in ${DOXY_HEADER} @ONLY)
 
-file(WRITE ${DOXY_SELECTOR_SCRIPT} [=[
+file(WRITE ${DOXY_VERSIONS_SCRIPT} [=[
 if(NOT DEFINED HTML_ROOT)
   message(FATAL_ERROR "HTML_ROOT must be provided")
 endif()
@@ -46,13 +46,11 @@ set(_versions_json
 file(WRITE "${HTML_ROOT}/versions.json" "${_versions_json}")
 ]=])
 
-add_custom_target(docs ALL
+add_custom_target(docs
   COMMENT "Generating Doxygen documentation in ${DOXY_OUTPUT_DIRECTORY}/docs using ${DOXYGEN_EXECUTABLE}"
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND ${DOXYGEN_EXECUTABLE} ${DOXY_OUTPUT_DIRECTORY}/Doxyfile
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/site/gaia-version-selector.css ${DOXY_HTML_DIRECTORY}/gaia-version-selector.css
-  COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/site/gaia-version-selector.js ${DOXY_HTML_DIRECTORY}/gaia-version-selector.js
-  COMMAND ${CMAKE_COMMAND} -DHTML_ROOT=${DOXY_HTML_DIRECTORY} -DPROJECT_VERSION=${PROJECT_VERSION} -P ${DOXY_SELECTOR_SCRIPT}
+  COMMAND ${CMAKE_COMMAND} -DHTML_ROOT=${DOXY_HTML_DIRECTORY} -DPROJECT_VERSION=${PROJECT_VERSION} -P ${DOXY_VERSIONS_SCRIPT}
   VERBATIM
 )
 
