@@ -123,7 +123,7 @@ Public Types</h2></td></tr>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>Page</b> = <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">MemoryPage</a>&lt; T, RequestedBlockSize &gt;</td></tr>
 <tr class="separator:ab0087f79177239889fde918fc1c184f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6ec616ab9cbeb38f91946bc7f3890c9b" id="r_a6ec616ab9cbeb38f91946bc7f3890c9b"><td class="memItemLeft" align="right" valign="top"><a id="a6ec616ab9cbeb38f91946bc7f3890c9b" name="a6ec616ab9cbeb38f91946bc7f3890c9b"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArray</b> = <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint8_t, BlockArrayBytes &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint8_t, BlockArrayBytes &gt;</td></tr>
 <tr class="separator:a6ec616ab9cbeb38f91946bc7f3890c9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a517a45ce9384aac7d4935eaf573d9d19" id="r_a517a45ce9384aac7d4935eaf573d9d19"><td class="memItemLeft" align="right" valign="top"><a id="a517a45ce9384aac7d4935eaf573d9d19" name="a517a45ce9384aac7d4935eaf573d9d19"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>BitView</b> = <a class="el" href="structgaia_1_1core_1_1bit__view.html">core::bit_view</a>&lt; NBlocks_Bits &gt;</td></tr>
@@ -167,10 +167,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>verify</b> () const</
 <tr class="separator:ace8ad21d1dd9d3f4260d3339b4d31fed inherit pub_methods_structgaia_1_1mem_1_1MemoryPageHeader"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_structgaia_1_1cnt_1_1fwd__llist__base')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;</a></td></tr>
 <tr class="memitem:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a2f48a015f7f70c479a2252ead05c48e2"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> ()</td></tr>
+<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> ()</td></tr>
 <tr class="separator:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memItemLeft" align="right" valign="top">
-const <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> () const</td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
 <tr class="separator:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
@@ -185,7 +185,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a290c5a24705a12331e80ca6eec2288b9" id="r_a290c5a24705a12331e80ca6eec2288b9"><td class="memItemLeft" align="right" valign="top"><a id="a290c5a24705a12331e80ca6eec2288b9" name="a290c5a24705a12331e80ca6eec2288b9"></a>
-<a class="el" href="classgaia_1_1cnt_1_1sarr.html">BlockArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_blocks</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">BlockArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_blocks</b></td></tr>
 <tr class="memdesc:a290c5a24705a12331e80ca6eec2288b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implicit list of blocks. <br /></td></tr>
 <tr class="separator:a290c5a24705a12331e80ca6eec2288b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaf90f33d4972056cdf980556a6bd1540" id="r_aaf90f33d4972056cdf980556a6bd1540"><td class="memItemLeft" align="right" valign="top"><a id="aaf90f33d4972056cdf980556a6bd1540" name="aaf90f33d4972056cdf980556a6bd1540"></a>
@@ -211,7 +211,7 @@ void *&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr
 <tr class="separator:a1259ad533078cdbbc231cf98f5afec01 inherit pub_attribs_structgaia_1_1mem_1_1MemoryPageHeader"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;</a></td></tr>
 <tr class="memitem:a6e874954837719f9eaa7404f9f60f67e inherit pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a6e874954837719f9eaa7404f9f60f67e"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fwd_link_GAIA</b></td></tr>
+<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fwd_link_GAIA</b></td></tr>
 <tr class="separator:a6e874954837719f9eaa7404f9f60f67e inherit pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>

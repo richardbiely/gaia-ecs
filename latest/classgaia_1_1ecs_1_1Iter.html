@@ -170,7 +170,7 @@ GAIA_NODISCARD const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</
 void&#160;</td><td class="memItemRight" valign="bottom"><b>set_comp_indices</b> (const uint8_t *pCompIndices)</td></tr>
 <tr class="separator:a48829e38dc84d68b0e31757255a4ef6e inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a026ba2e333cf862022e65b996aee7ed7 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a026ba2e333cf862022e65b996aee7ed7"><td class="memItemLeft" align="right" valign="top">
-void&#160;</td><td class="memItemRight" valign="bottom"><b>set_inherited_data</b> (InheritedTermDataView inheritedData)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>set_inherited_data</b> (<a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> inheritedData)</td></tr>
 <tr class="separator:a026ba2e333cf862022e65b996aee7ed7 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afec73d51ddfa2f16ce324bcaf42ba6de inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_afec73d51ddfa2f16ce324bcaf42ba6de"><td class="memItemLeft" align="right" valign="top">
 void&#160;</td><td class="memItemRight" valign="bottom"><b>set_term_ids</b> (const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *pTermIds)</td></tr>
@@ -179,7 +179,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_term_ids</b> (con
 GAIA_NODISCARD const uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>comp_indices</b> () const</td></tr>
 <tr class="separator:a42991876082379af6b03d1d47e98c5b0 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4b81e2017739fb8ddf7b1402d018d3b5 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a4b81e2017739fb8ddf7b1402d018d3b5"><td class="memItemLeft" align="right" valign="top">
-GAIA_NODISCARD InheritedTermDataView&#160;</td><td class="memItemRight" valign="bottom"><b>inherited_data</b> () const</td></tr>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><b>inherited_data</b> () const</td></tr>
 <tr class="separator:a4b81e2017739fb8ddf7b1402d018d3b5 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a74c9fa472827a46d02cfe9a1ec074d94 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a74c9fa472827a46d02cfe9a1ec074d94"><td class="memItemLeft" align="right" valign="top">
 GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>term_ids</b> () const</td></tr>
@@ -403,7 +403,7 @@ const uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>m_pCompInd
 <tr class="memdesc:ab7f256c106210910e46fcbeec16b5eab inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb" title="Maximum number of components on archetype.">ChunkHeader::MAX_COMPONENTS</a> values for component indices mapping for the parent archetype. <br /></td></tr>
 <tr class="separator:ab7f256c106210910e46fcbeec16b5eab inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac29947d9936e10cf7f3d4d9daf4c4e0e inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_ac29947d9936e10cf7f3d4d9daf4c4e0e"><td class="memItemLeft" align="right" valign="top">
-InheritedTermDataView&#160;</td><td class="memItemRight" valign="bottom"><b>m_inheritedData</b></td></tr>
+<a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_inheritedData</b></td></tr>
 <tr class="memdesc:ac29947d9936e10cf7f3d4d9daf4c4e0e inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional inherited term data view for exact semantic self-source terms. <br /></td></tr>
 <tr class="separator:ac29947d9936e10cf7f3d4d9daf4c4e0e inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a635f3b8ff3c95e9811604b4eb4739a5b inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a635f3b8ff3c95e9811604b4eb4739a5b"><td class="memItemLeft" align="right" valign="top">
