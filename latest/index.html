@@ -3137,7 +3137,7 @@ Single-header</h3>
 <h2><a class="anchor" id="conan"></a>
 Conan</h2>
 <p>Gaia-ECS also ships with a Conan 2 recipe in <a href="pkg/conan"><code>pkg/conan</code></a>.</p>
-<p>To validate the package locally: </p><div class="fragment"><div class="line">conan create pkg/conan --build=missing -s build_type=Release</div>
+<p>To validate the package locally: </p><div class="fragment"><div class="line">conan create pkg/conan --build=missing -s build_type=Release -s compiler.cppstd=17</div>
 </div><!-- fragment --><p>Public publishing is documented in `pkg/conan/README.md`, including:</p><ul>
 <li>the manual Artifactory upload workflow in <a href=".github/workflows/conan-publish.yml"><code>.github/workflows/conan-publish.yml</code></a></li>
 <li>the release-time update steps for <a href="pkg/conan/conandata.yml"><code>pkg/conan/conandata.yml</code></a></li>

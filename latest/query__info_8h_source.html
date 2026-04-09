@@ -207,7 +207,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="foldopen" id="foldopen00083" data-start="{" data-end="};">
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1QueryInfoCreationCtx.html">   83</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryInfoCreationCtx.html">QueryInfoCreationCtx</a> {</div>
 <div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a>* pQueryCtx;</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>      <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>* pEntityToArchetypeMap;</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>      <span class="keyword">const</span> <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a>* pEntityToArchetypeMap;</div>
 <div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>      <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes;</div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    };</div>
 </div>
@@ -357,11 +357,11 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l00254" name="l00254"></a><span class="lineno">  254</span>        NonTrivialPayload nonTrivial;</div>
 <div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span> </div>
 <div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>        ArchetypeId lastArchetypeId{};</div>
-<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;uint32_t, MAX_ITEMS_IN_QUERY&gt;</a> relationVersions;</div>
-<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;uint32_t, MAX_ITEMS_IN_QUERY&gt;</a> directSrcEntityVersions;</div>
+<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;uint32_t, MAX_ITEMS_IN_QUERY&gt;</a> relationVersions;</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;uint32_t, MAX_ITEMS_IN_QUERY&gt;</a> directSrcEntityVersions;</div>
 <div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;SrcTravSnapshotItem&gt;</a> srcTravSnapshot;</div>
 <div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>        <span class="keywordtype">bool</span> srcTravSnapshotOverflowed = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a> varBindings;</div>
+<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a> varBindings;</div>
 <div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span>        uint8_t varBindingMask = 0;</div>
 <div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>        uint32_t resultCacheRevision = 1;</div>
 <div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>        uint8_t dirtyFlags = DirtyFlags::All;</div>
@@ -770,7 +770,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 </div>
 <div class="line"><a id="l00693" name="l00693"></a><span class="lineno">  693</span> </div>
 <div class="line"><a id="l00694" name="l00694"></a><span class="lineno">  694</span>      GAIA_NODISCARD <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> create(</div>
-<div class="line"><a id="l00695" name="l00695"></a><span class="lineno">  695</span>          QueryId <span class="keywordtype">id</span>, <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a>&amp;&amp; ctx, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap,</div>
+<div class="line"><a id="l00695" name="l00695"></a><span class="lineno">  695</span>          QueryId <span class="keywordtype">id</span>, <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a>&amp;&amp; ctx, <span class="keyword">const</span> <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap,</div>
 <div class="line"><a id="l00696" name="l00696"></a><span class="lineno">  696</span>          <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes) {</div>
 <div class="line"><a id="l00697" name="l00697"></a><span class="lineno">  697</span>        <span class="comment">// Make sure query items are sorted</span></div>
 <div class="line"><a id="l00698" name="l00698"></a><span class="lineno">  698</span>        sort(ctx);</div>
@@ -814,7 +814,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l00736" name="l00736"></a><span class="lineno">  736</span>      }</div>
 <div class="line"><a id="l00737" name="l00737"></a><span class="lineno">  737</span> </div>
 <div class="foldopen" id="foldopen00739" data-start="{" data-end="}">
-<div class="line"><a id="l00739" name="l00739"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">  739</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">compile</a>(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes) {</div>
+<div class="line"><a id="l00739" name="l00739"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">  739</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11">compile</a>(<span class="keyword">const</span> <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes) {</div>
 <div class="line"><a id="l00740" name="l00740"></a><span class="lineno">  740</span>        GAIA_PROF_SCOPE(queryinfo::compile);</div>
 <div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span> </div>
 <div class="line"><a id="l00742" name="l00742"></a><span class="lineno">  742</span>        <span class="comment">// Compile the opcodes</span></div>
@@ -897,7 +897,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l00820" name="l00820"></a><span class="lineno">  820</span>          <span class="keyword">const</span> ArchetypeLookup&amp; entityToArchetypeMap,</div>
 <div class="line"><a id="l00821" name="l00821"></a><span class="lineno">  821</span>          <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes,</div>
 <div class="line"><a id="l00822" name="l00822"></a><span class="lineno">  822</span>          ArchetypeId archetypeLastId,</div>
-<div class="line"><a id="l00823" name="l00823"></a><span class="lineno">  823</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings,</div>
+<div class="line"><a id="l00823" name="l00823"></a><span class="lineno">  823</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings,</div>
 <div class="line"><a id="l00824" name="l00824"></a><span class="lineno">  824</span>          uint8_t runtimeVarBindingMask) {</div>
 <div class="line"><a id="l00825" name="l00825"></a><span class="lineno">  825</span>        <span class="keyword">auto</span>&amp; ctxData = m_plan.ctx.data;</div>
 <div class="line"><a id="l00826" name="l00826"></a><span class="lineno">  826</span> </div>
@@ -988,7 +988,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="foldopen" id="foldopen00917" data-start="{" data-end="}">
 <div class="line"><a id="l00917" name="l00917"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">  917</a></span>      <span class="keywordtype">bool</span> <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">match_one</a>(</div>
 <div class="line"><a id="l00918" name="l00918"></a><span class="lineno">  918</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>&amp; archetype, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities,</div>
-<div class="line"><a id="l00919" name="l00919"></a><span class="lineno">  919</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings, uint8_t runtimeVarBindingMask) {</div>
+<div class="line"><a id="l00919" name="l00919"></a><span class="lineno">  919</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings, uint8_t runtimeVarBindingMask) {</div>
 <div class="line"><a id="l00920" name="l00920"></a><span class="lineno">  920</span>        <span class="keyword">auto</span>&amp; ctxData = m_plan.ctx.data;</div>
 <div class="line"><a id="l00921" name="l00921"></a><span class="lineno">  921</span> </div>
 <div class="line"><a id="l00922" name="l00922"></a><span class="lineno">  922</span>        <span class="comment">// Recompile if necessary</span></div>
@@ -1057,15 +1057,15 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 </div>
 <div class="line"><a id="l00985" name="l00985"></a><span class="lineno">  985</span> </div>
 <div class="line"><a id="l00986" name="l00986"></a><span class="lineno">  986</span>      <span class="keywordtype">void</span> ensure_matches(</div>
-<div class="line"><a id="l00987" name="l00987"></a><span class="lineno">  987</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes,</div>
-<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>          ArchetypeId archetypeLastId, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings,</div>
+<div class="line"><a id="l00987" name="l00987"></a><span class="lineno">  987</span>          <span class="keyword">const</span> <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes,</div>
+<div class="line"><a id="l00988" name="l00988"></a><span class="lineno">  988</span>          ArchetypeId archetypeLastId, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings,</div>
 <div class="line"><a id="l00989" name="l00989"></a><span class="lineno">  989</span>          uint8_t runtimeVarBindingMask) {</div>
 <div class="line"><a id="l00990" name="l00990"></a><span class="lineno">  990</span>        <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a3b102d061c547f9e2e98f8cc597cc752">match</a>(entityToArchetypeMap, allArchetypes, archetypeLastId, runtimeVarBindings, runtimeVarBindingMask);</div>
 <div class="line"><a id="l00991" name="l00991"></a><span class="lineno">  991</span>      }</div>
 <div class="line"><a id="l00992" name="l00992"></a><span class="lineno">  992</span> </div>
 <div class="line"><a id="l00993" name="l00993"></a><span class="lineno">  993</span>      <span class="keywordtype">void</span> ensure_matches_transient(</div>
 <div class="line"><a id="l00994" name="l00994"></a><span class="lineno">  994</span>          <span class="keyword">const</span> EntityToArchetypeMap&amp; entityToArchetypeMap, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes,</div>
-<div class="line"><a id="l00995" name="l00995"></a><span class="lineno">  995</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings, uint8_t runtimeVarBindingMask) {</div>
+<div class="line"><a id="l00995" name="l00995"></a><span class="lineno">  995</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray&lt;Entity, MaxVarCnt&gt;</a>&amp; runtimeVarBindings, uint8_t runtimeVarBindingMask) {</div>
 <div class="line"><a id="l00996" name="l00996"></a><span class="lineno">  996</span>        <span class="keyword">auto</span>&amp; ctxData = m_plan.ctx.data;</div>
 <div class="line"><a id="l00997" name="l00997"></a><span class="lineno">  997</span> </div>
 <div class="line"><a id="l00998" name="l00998"></a><span class="lineno">  998</span>        <span class="keywordflow">if</span> ((ctxData.flags &amp; QueryCtx::QueryFlags::Recompile) != 0)</div>
@@ -1308,7 +1308,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01236" name="l01236"></a><span class="lineno"> 1236</span>        <span class="keyword">auto</span>&amp; archetypes = m_state.archetypeCache;</div>
 <div class="line"><a id="l01237" name="l01237"></a><span class="lineno"> 1237</span> </div>
 <div class="line"><a id="l01238" name="l01238"></a><span class="lineno"> 1238</span>        <span class="comment">// Initialize cursors. We will need as many as there are archetypes.</span></div>
-<div class="line"><a id="l01239" name="l01239"></a><span class="lineno"> 1239</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext&lt;Cursor, 128&gt;</a> cursors(archetypes.size());</div>
+<div class="line"><a id="l01239" name="l01239"></a><span class="lineno"> 1239</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext&lt;Cursor, 128&gt;</a> cursors(archetypes.size());</div>
 <div class="line"><a id="l01240" name="l01240"></a><span class="lineno"> 1240</span> </div>
 <div class="line"><a id="l01241" name="l01241"></a><span class="lineno"> 1241</span>        uint32_t currArchetypeIdx = (uint32_t)-1;</div>
 <div class="line"><a id="l01242" name="l01242"></a><span class="lineno"> 1242</span>        <a class="code hl_class" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a>* pCurrentChunk = <span class="keyword">nullptr</span>;</div>
@@ -1938,7 +1938,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01859" name="l01859"></a><span class="lineno"> 1859</span> </div>
 <div class="line"><a id="l01860" name="l01860"></a><span class="lineno"> 1860</span>        <span class="comment">// An archetype was removed from the world so the last matching archetype index needs to be</span></div>
 <div class="line"><a id="l01861" name="l01861"></a><span class="lineno"> 1861</span>        <span class="comment">// lowered by one for every component context.</span></div>
-<div class="line"><a id="l01862" name="l01862"></a><span class="lineno"> 1862</span>        <span class="keyword">auto</span> clearMatches = [](<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&amp; matches) {</div>
+<div class="line"><a id="l01862" name="l01862"></a><span class="lineno"> 1862</span>        <span class="keyword">auto</span> clearMatches = [](<a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">QueryArchetypeCacheIndexMap</a>&amp; matches) {</div>
 <div class="line"><a id="l01863" name="l01863"></a><span class="lineno"> 1863</span>          <span class="keywordflow">for</span> (<span class="keyword">auto</span>&amp; <a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>: matches) {</div>
 <div class="line"><a id="l01864" name="l01864"></a><span class="lineno"> 1864</span>            <span class="keyword">auto</span>&amp; lastMatchedArchetypeIdx = <a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>.second;</div>
 <div class="line"><a id="l01865" name="l01865"></a><span class="lineno"> 1865</span>            <span class="keywordflow">if</span> (lastMatchedArchetypeIdx &gt; 0)</div>
@@ -1959,7 +1959,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01879" name="l01879"></a><span class="lineno"> 1879</span>      }</div>
 </div>
 <div class="line"><a id="l01880" name="l01880"></a><span class="lineno"> 1880</span> </div>
-<div class="line"><a id="l01881" name="l01881"></a><span class="lineno"> 1881</span>      <a class="code hl_class" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> inherited_data_view(uint32_t archetypeIdx)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l01881" name="l01881"></a><span class="lineno"> 1881</span>      InheritedTermDataView inherited_data_view(uint32_t archetypeIdx)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l01882" name="l01882"></a><span class="lineno"> 1882</span>        <span class="keyword">const_cast&lt;</span><a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>*<span class="keyword">&gt;</span>(<span class="keyword">this</span>)-&gt;ensure_inherited_data();</div>
 <div class="line"><a id="l01883" name="l01883"></a><span class="lineno"> 1883</span>        <span class="keywordflow">if</span> (archetypeIdx &gt;= m_state.exec.archetypeInheritedData.size())</div>
 <div class="line"><a id="l01884" name="l01884"></a><span class="lineno"> 1884</span>          <span class="keywordflow">return</span> {};</div>
@@ -1991,7 +1991,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01910" name="l01910"></a><span class="lineno"> 1910</span>      }</div>
 </div>
 <div class="line"><a id="l01911" name="l01911"></a><span class="lineno"> 1911</span> </div>
-<div class="line"><a id="l01912" name="l01912"></a><span class="lineno"> 1912</span>      <a class="code hl_class" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> try_inherited_data_view(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>* pArchetype)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l01912" name="l01912"></a><span class="lineno"> 1912</span>      InheritedTermDataView try_inherited_data_view(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>* pArchetype)<span class="keyword"> const </span>{</div>
 <div class="line"><a id="l01913" name="l01913"></a><span class="lineno"> 1913</span>        <span class="keywordflow">if</span> (!has_inherited_data_payload() || m_state.exec.inheritedDataPending)</div>
 <div class="line"><a id="l01914" name="l01914"></a><span class="lineno"> 1914</span>          <span class="keywordflow">return</span> {};</div>
 <div class="line"><a id="l01915" name="l01915"></a><span class="lineno"> 1915</span>        <span class="keyword">const</span> <span class="keyword">auto</span> archetypeIdx = core::get_index(m_state.archetypeCache, pArchetype);</div>
@@ -2055,6 +2055,8 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01972" name="l01972"></a><span class="lineno"> 1972</span>  } <span class="comment">// namespace ecs</span></div>
 <div class="line"><a id="l01973" name="l01973"></a><span class="lineno"> 1973</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1sarr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1sarr__ext.html">gaia::cnt::sarr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> sarray_ext_impl.h:27</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1sarr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1sarr.html">gaia::cnt::sarr</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> sarray_impl.h:26</div></div>
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdef"><b>Definition</b> archetype.h:83</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html">gaia::ecs::Chunk</a></div><div class="ttdef"><b>Definition</b> chunk.h:35</div></div>
@@ -2088,6 +2090,7 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdef"><b>Definition</b> world.h:88</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:218</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html">gaia::ecs::vm::VirtualMachine</a></div><div class="ttdef"><b>Definition</b> vm.h:2284</div></div>
+<div class="ttc" id="aclassrobin__hood_1_1detail_1_1Table_html"><div class="ttname"><a href="classrobin__hood_1_1detail_1_1Table.html">robin_hood::detail::Table</a></div><div class="ttdef"><b>Definition</b> robin_hood.h:720</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeCompIndices_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeCompIndices.html">gaia::ecs::ArchetypeCompIndices</a></div><div class="ttdef"><b>Definition</b> query_info.h:31</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeInheritedData_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeInheritedData.html">gaia::ecs::ArchetypeInheritedData</a></div><div class="ttdef"><b>Definition</b> query_info.h:35</div></div>

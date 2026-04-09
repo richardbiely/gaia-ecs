@@ -815,7 +815,7 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 <div class="line"><a id="l00699" name="l00699"></a><span class="lineno">  699</span>    <span class="keyword">template</span> &lt;&gt;</div>
 <div class="foldopen" id="foldopen00700" data-start="{" data-end="};">
 <div class="line"><a id="l00700" name="l00700"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html">  700</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__sparse__id.html">to_sparse_id</a>&lt;ecs::Entity&gt; {</div>
-<div class="line"><a id="l00701" name="l00701"></a><span class="lineno">  701</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">sparse_id</a> get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; item) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00701" name="l00701"></a><span class="lineno">  701</span>      <span class="keyword">static</span> sparse_id get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; item) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00702" name="l00702"></a><span class="lineno">  702</span>        <span class="comment">// Cut off the flags</span></div>
 <div class="line"><a id="l00703" name="l00703"></a><span class="lineno">  703</span>        <span class="keywordflow">return</span> item.id();</div>
 <div class="line"><a id="l00704" name="l00704"></a><span class="lineno">  704</span>      }</div>
@@ -823,7 +823,6 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 </div>
 <div class="line"><a id="l00706" name="l00706"></a><span class="lineno">  706</span>  } <span class="comment">// namespace cnt</span></div>
 <div class="line"><a id="l00707" name="l00707"></a><span class="lineno">  707</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:500</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:218</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
