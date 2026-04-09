@@ -3700,7 +3700,7 @@ Gaia-ECS also ships with a Conan 2 recipe in [`pkg/conan`](pkg/conan).
 
 To validate the package locally:
 ```bash
-conan create pkg/conan --build=missing -s build_type=Release
+conan create pkg/conan --build=missing -s build_type=Release -s compiler.cppstd=17
 ```
 
 Public publishing is documented in [`pkg/conan/README.md`](pkg/conan/README.md), including:

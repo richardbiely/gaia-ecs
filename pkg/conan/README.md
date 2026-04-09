@@ -7,8 +7,8 @@ This directory contains the Gaia-ECS Conan 2 recipe and its `test_package`.
 Validate the recipe before a release:
 
 ```bash
-conan create pkg/conan --build=missing -s build_type=Release
-conan create pkg/conan --build=missing -s build_type=Debug
+conan create pkg/conan --build=missing -s build_type=Release -s compiler.cppstd=17
+conan create pkg/conan --build=missing -s build_type=Debug -s compiler.cppstd=17
 ```
 
 The repository CI runs the same flow in [`.github/workflows/conan.yml`](../../.github/workflows/conan.yml).
@@ -49,7 +49,7 @@ Use this checklist when preparing a ConanCenter submission:
 
 1. Cut and verify the Gaia-ECS release tag first.
 2. Confirm the release tarball URL and SHA-256 in [`pkg/conan/conandata.yml`](./conandata.yml).
-3. Run `conan create pkg/conan --build=missing -s build_type=Release` locally or in CI.
+3. Run `conan create pkg/conan --build=missing -s build_type=Release -s compiler.cppstd=17` locally or in CI.
 4. Copy the recipe into the ConanCenter recipe layout and adapt it to ConanCenter policy if needed.
 5. Open a pull request against `conan-io/conan-center-index`.
 6. Wait for ConanCenter review and CI before treating the package as publicly available there.

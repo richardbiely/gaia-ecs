@@ -76,7 +76,7 @@ jobs:
 
       - name: Create package
         run: |
-          conan create pkg/conan --build=missing -s build_type=${{ inputs.build_type }}
+          conan create pkg/conan --build=missing -s build_type=${{ inputs.build_type }} -s compiler.cppstd=17
 
       - name: Add Conan remote
         run: |
