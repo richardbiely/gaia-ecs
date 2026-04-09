@@ -48,7 +48,7 @@ jobs:
     runs-on: ${{matrix.target.os}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install compiler
       run: |
@@ -96,7 +96,7 @@ jobs:
     runs-on: ${{matrix.target.os}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Install compiler
       run: |
@@ -143,7 +143,7 @@ jobs:
     runs-on: windows-11-arm
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Configure CMake
       run: |
@@ -172,7 +172,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: sccache
       uses: mozilla-actions/sccache-action@v0.0.9
@@ -204,7 +204,7 @@ jobs:
     runs-on: windows-11-arm
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Configure CMake
       env:
@@ -229,7 +229,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: sccache
       uses: mozilla-actions/sccache-action@v0.0.9
@@ -255,7 +255,7 @@ jobs:
     runs-on: macOS-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1.2
