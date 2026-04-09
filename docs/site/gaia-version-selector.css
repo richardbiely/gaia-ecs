@@ -1,8 +1,24 @@
-#projectnumber.gaia-version-selector-host {
+.gaia-version-selector-host {
   display: inline-flex;
   align-items: center;
   min-height: 1.6rem;
   margin-left: 0.65rem;
+}
+
+#gaia-doc-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+#gaia-doc-toolbar #MSearchBox {
+  display: none;
+}
+
+#gaia-doc-toolbar .gaia-version-selector-host {
+  margin-left: 0;
 }
 
 .gaia-version-selector {
@@ -35,6 +51,10 @@
 }
 
 @media (max-width: 768px) {
+  #gaia-doc-toolbar {
+    gap: 0.35rem;
+  }
+
   .gaia-version-selector select {
     min-width: 10.5rem;
     max-width: 58vw;

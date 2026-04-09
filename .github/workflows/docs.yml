@@ -73,11 +73,6 @@ jobs:
           name: docs-html
           path: docs-html
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-
       - name: Publish docs site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -119,9 +114,6 @@ jobs:
             mkdir -p "${DOCS_VERSION}"
             rsync -a --delete "${GITHUB_WORKSPACE}/docs-html/" "${DOCS_VERSION}/"
           fi
-
-          cp "${GITHUB_WORKSPACE}/docs/site/gaia-version-selector.css" gaia-version-selector.css
-          cp "${GITHUB_WORKSPACE}/docs/site/gaia-version-selector.js" gaia-version-selector.js
 
           generate_redirect_page() {
             local target_file="$1"
@@ -190,9 +182,9 @@ jobs:
             printf '}\n'
           } > versions.json
 
-          node "${GITHUB_WORKSPACE}/docs/site/inject_version_selector.mjs" latest
+          cp versions.json latest/versions.json
           for version_dir in $(find . -mindepth 1 -maxdepth 1 -type d -name 'v*' -printf '%f\n'); do
-            node "${GITHUB_WORKSPACE}/docs/site/inject_version_selector.mjs" "${version_dir}"
+            cp versions.json "${version_dir}/versions.json"
           done
 
           git add .
@@ -210,6 +202,5 @@ jobs:
 
           git commit -m "${commit_message}"
           git push origin HEAD:gh-pages
-
 
 

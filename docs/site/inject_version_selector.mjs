@@ -1,33 +1,21 @@
 import { readFile, readdir, writeFile } from "node:fs/promises";
-import { resolve, relative, dirname } from "node:path";
+import { resolve } from "node:path";
 
-const CSS_FILE = "gaia-version-selector.css";
-const JS_FILE = "gaia-version-selector.js";
+async function injectAssets(htmlPath, payload) {
+  let text = await readFile(htmlPath, "utf8");
+  if (!text.includes("window.GAIA_VERSION_SELECTOR_DATA")) {
+    const marker = "</head>";
+    if (!text.includes(marker)) {
+      throw new Error(`${htmlPath} does not contain ${marker}`);
+    }
 
-function relPrefix(htmlPath, siteRoot) {
-  const rel = relative(siteRoot, htmlPath);
-  const depth = dirname(rel).split(/[\\/]/).filter((part) => part && part !== ".").length;
-  return depth === 0 ? "./" : "../".repeat(depth);
-}
+    const inlinePayload =
+      `  <script>window.GAIA_VERSION_SELECTOR_DATA = ${JSON.stringify(payload)};</script>\n`;
 
-async function injectAssets(htmlPath, siteRoot) {
-  const text = await readFile(htmlPath, "utf8");
-
-  if (text.includes(JS_FILE) || text.includes(CSS_FILE)) {
-    return;
+    text = text.replace(marker, inlinePayload + marker);
   }
 
-  const prefix = relPrefix(htmlPath, siteRoot);
-  const assets =
-    `  <link rel="stylesheet" href="${prefix}${CSS_FILE}">\n` +
-    `  <script defer src="${prefix}${JS_FILE}"></script>\n`;
-
-  const marker = "</head>";
-  if (!text.includes(marker)) {
-    throw new Error(`${htmlPath} does not contain ${marker}`);
-  }
-
-  await writeFile(htmlPath, text.replace(marker, assets + marker), "utf8");
+  await writeFile(htmlPath, text, "utf8");
 }
 
 async function* htmlFiles(rootDir) {
@@ -54,9 +42,10 @@ async function main() {
   }
 
   const siteRoot = resolve(process.argv[2]);
+  const payload = JSON.parse(await readFile(resolve(siteRoot, "versions.json"), "utf8"));
 
   for await (const htmlPath of htmlFiles(siteRoot)) {
-    await injectAssets(htmlPath, siteRoot);
+    await injectAssets(htmlPath, payload);
   }
 }
 
