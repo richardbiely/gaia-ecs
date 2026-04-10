@@ -129,12 +129,18 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ade86a2a634d3d6841543ac8c73b42a9a" id="r_ade86a2a634d3d6841543ac8c73b42a9a"><td class="memItemLeft" align="right" valign="top"><a id="ade86a2a634d3d6841543ac8c73b42a9a" name="ade86a2a634d3d6841543ac8c73b42a9a"></a>
 const <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle) const</td></tr>
 <tr class="separator:ade86a2a634d3d6841543ac8c73b42a9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae459d30eba6e13c5ecfc1776fe519fb1" id="r_ae459d30eba6e13c5ecfc1776fe519fb1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1JobManager.html#ae459d30eba6e13c5ecfc1776fe519fb1">alloc_job</a> (const <a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;job)</td></tr>
-<tr class="memdesc:ae459d30eba6e13c5ecfc1776fe519fb1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates a new job container identified by a unique <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>.  <br /></td></tr>
-<tr class="separator:ae459d30eba6e13c5ecfc1776fe519fb1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aea091957ac81beeb0c61d95b02129427" id="r_aea091957ac81beeb0c61d95b02129427"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1JobManager.html#aea091957ac81beeb0c61d95b02129427">alloc_job</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job)</td></tr>
+<tr class="memdesc:aea091957ac81beeb0c61d95b02129427"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates a new job container identified by a unique <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>.  <br /></td></tr>
+<tr class="separator:aea091957ac81beeb0c61d95b02129427"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a81bc6926adb0749b17419b09e096ff97" id="r_a81bc6926adb0749b17419b09e096ff97"><td class="memItemLeft" align="right" valign="top"><a id="a81bc6926adb0749b17419b09e096ff97" name="a81bc6926adb0749b17419b09e096ff97"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1ParallelCallbackHandle.html">ParallelCallbackHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><b>alloc_parallel_callback</b> (<a class="el" href="classgaia_1_1mt_1_1JobArgsFunc.html">JobArgsFunc</a> callback, uint32_t refs)</td></tr>
+<tr class="separator:a81bc6926adb0749b17419b09e096ff97"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a984b424422accfec8394fba1fe0e71b8" id="r_a984b424422accfec8394fba1fe0e71b8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1JobManager.html#a984b424422accfec8394fba1fe0e71b8">free_job</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
 <tr class="memdesc:a984b424422accfec8394fba1fe0e71b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates <em>jobHandle</em> by resetting its index in the job pool. Every time a job is deallocated its generation is increased by one.  <br /></td></tr>
 <tr class="separator:a984b424422accfec8394fba1fe0e71b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8df74519f31bc2465f84f0fa81b6e3cb" id="r_a8df74519f31bc2465f84f0fa81b6e3cb"><td class="memItemLeft" align="right" valign="top"><a id="a8df74519f31bc2465f84f0fa81b6e3cb" name="a8df74519f31bc2465f84f0fa81b6e3cb"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>free_parallel_callback</b> (<a class="el" href="structgaia_1_1mt_1_1ParallelCallbackHandle.html">ParallelCallbackHandle</a> handle)</td></tr>
+<tr class="separator:a8df74519f31bc2465f84f0fa81b6e3cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0f2c5a2b5c9af029bde5e2b9d777e3ac" id="r_a0f2c5a2b5c9af029bde5e2b9d777e3ac"><td class="memItemLeft" align="right" valign="top"><a id="a0f2c5a2b5c9af029bde5e2b9d777e3ac" name="a0f2c5a2b5c9af029bde5e2b9d777e3ac"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr>
 <tr class="memdesc:a0f2c5a2b5c9af029bde5e2b9d777e3ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets the job pool. <br /></td></tr>
@@ -151,6 +157,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr
 <tr class="memitem:a5499b886520db313995eaac1e767e7d0" id="r_a5499b886520db313995eaac1e767e7d0"><td class="memItemLeft" align="right" valign="top"><a id="a5499b886520db313995eaac1e767e7d0" name="a5499b886520db313995eaac1e767e7d0"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_clear</b> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle) const</td></tr>
 <tr class="separator:a5499b886520db313995eaac1e767e7d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abe79452fc0a6cf5ae9cc64e10b38b4e4" id="r_abe79452fc0a6cf5ae9cc64e10b38b4e4"><td class="memItemLeft" align="right" valign="top"><a id="abe79452fc0a6cf5ae9cc64e10b38b4e4" name="abe79452fc0a6cf5ae9cc64e10b38b4e4"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>invoke_parallel_callback</b> (<a class="el" href="structgaia_1_1mt_1_1ParallelCallbackHandle.html">ParallelCallbackHandle</a> handle, const <a class="el" href="structgaia_1_1mt_1_1JobArgs.html">JobArgs</a> &amp;args)</td></tr>
+<tr class="separator:abe79452fc0a6cf5ae9cc64e10b38b4e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae23a0f107d3cd78ed9c375918e059d97" id="r_ae23a0f107d3cd78ed9c375918e059d97"><td class="memItemLeft" align="right" valign="top"><a id="ae23a0f107d3cd78ed9c375918e059d97" name="ae23a0f107d3cd78ed9c375918e059d97"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>release_parallel_callback_ref</b> (<a class="el" href="structgaia_1_1mt_1_1ParallelCallbackHandle.html">ParallelCallbackHandle</a> handle)</td></tr>
+<tr class="separator:ae23a0f107d3cd78ed9c375918e059d97"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -195,8 +207,8 @@ static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b
 <tr class="separator:a32708b4bfc22ac97a323447dad2f4d2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="ae459d30eba6e13c5ecfc1776fe519fb1" name="ae459d30eba6e13c5ecfc1776fe519fb1"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae459d30eba6e13c5ecfc1776fe519fb1">&#9670;&#160;</a></span>alloc_job()</h2>
+<a id="aea091957ac81beeb0c61d95b02129427" name="aea091957ac81beeb0c61d95b02129427"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aea091957ac81beeb0c61d95b02129427">&#9670;&#160;</a></span>alloc_job()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -207,7 +219,7 @@ static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b
         <tr>
           <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::JobManager::alloc_job </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a>&#160;</td>
           <td class="paramname"><em>job</em></td><td>)</td>
           <td></td>
         </tr>

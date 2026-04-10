@@ -183,7 +183,7 @@ $(document).ready(function(){initNavTree('system_8inl_source.html',''); initResi
 <div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>            exec();</div>
 <div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>          };</div>
 <div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>          syncJob.flags = mt::JobCreationFlags::ManualDelete;</div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>          jobHandle = tp.add(syncJob);</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>          jobHandle = tp.add(GAIA_MOV(syncJob));</div>
 <div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>        }</div>
 <div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>        <span class="keywordflow">return</span> jobHandle;</div>
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>      }</div>

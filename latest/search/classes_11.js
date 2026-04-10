@@ -23,5 +23,6 @@ var searchData=
   ['remove_5f_20',['Remove_',['../structgaia_1_1ecs_1_1Remove__.html',1,'gaia::ecs']]],
   ['requires_5f_21',['Requires_',['../structgaia_1_1ecs_1_1Requires__.html',1,'gaia::ecs']]],
   ['resolvedpairtoken_22',['ResolvedPairToken',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1ResolvedPairToken.html',1,'gaia::ecs::vm::detail']]],
-  ['reverse_5fiterator_5ftag_23',['reverse_iterator_tag',['../structgaia_1_1core_1_1reverse__iterator__tag.html',1,'gaia::core']]]
+  ['reverse_5fiterator_5ftag_23',['reverse_iterator_tag',['../structgaia_1_1core_1_1reverse__iterator__tag.html',1,'gaia::core']]],
+  ['runtimeitercallback_24',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]]
 ];

@@ -144,6 +144,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html">OrderByWalkView</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html">RuntimeIterCallback</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
@@ -533,6 +535,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>each_iter_erased</b> 
 <tr class="memitem:abb331e63037dcb0e875d9de04613856e" id="r_abb331e63037dcb0e875d9de04613856e"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e">count</a> (Constraints constraints=Constraints::EnabledOnly)</td></tr>
 <tr class="memdesc:abb331e63037dcb0e875d9de04613856e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the number of entities matching the query.  <br /></td></tr>
 <tr class="separator:abb331e63037dcb0e875d9de04613856e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac6f8e44b7b89e24a5be83859dd825b3d" id="r_ac6f8e44b7b89e24a5be83859dd825b3d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac6f8e44b7b89e24a5be83859dd825b3d">each_entity_enabled</a> (void *pCtx, void(*func)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>))</td></tr>
+<tr class="memdesc:ac6f8e44b7b89e24a5be83859dd825b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates matching enabled entities through a non-template erased callback.  <br /></td></tr>
+<tr class="separator:ac6f8e44b7b89e24a5be83859dd825b3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a461b7433d48a56c0678ef65a58aed5cf" id="r_a461b7433d48a56c0678ef65a58aed5cf"><td class="memItemLeft" align="right" valign="top"><a id="a461b7433d48a56c0678ef65a58aed5cf" name="a461b7433d48a56c0678ef65a58aed5cf"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>collect_entities_enabled</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; &amp;out)</td></tr>
 <tr class="separator:a461b7433d48a56c0678ef65a58aed5cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1625,6 +1630,51 @@ template&lt;typename Func &gt; </div>
   <table class="params">
     <tr><td class="paramname">func</td><td>Callable invoked for each matching archetype iterator. </td></tr>
     <tr><td class="paramname">constraints</td><td>Iteration constraints applied before invoking <em>func</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ac6f8e44b7b89e24a5be83859dd825b3d" name="ac6f8e44b7b89e24a5be83859dd825b3d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac6f8e44b7b89e24a5be83859dd825b3d">&#9670;&#160;</a></span>each_entity_enabled()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::QueryImpl::each_entity_enabled </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pCtx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void(*)(void *, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Iterates matching enabled entities through a non-template erased callback. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pCtx</td><td>User callback context. </td></tr>
+    <tr><td class="paramname">func</td><td>Callback invoked for each matching entity. </td></tr>
   </table>
   </dd>
 </dl>

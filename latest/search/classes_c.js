@@ -12,5 +12,7 @@ var searchData=
   ['memorypage_9',['MemoryPage',['../structgaia_1_1mem_1_1MemoryPage.html',1,'gaia::mem']]],
   ['memorypagecontainer_10',['MemoryPageContainer',['../structgaia_1_1mem_1_1MemoryPageContainer.html',1,'gaia::mem']]],
   ['memorypageheader_11',['MemoryPageHeader',['../structgaia_1_1mem_1_1MemoryPageHeader.html',1,'gaia::mem']]],
-  ['memorypagestats_12',['MemoryPageStats',['../structgaia_1_1mem_1_1MemoryPageStats.html',1,'gaia::mem']]]
+  ['memorypagestats_12',['MemoryPageStats',['../structgaia_1_1mem_1_1MemoryPageStats.html',1,'gaia::mem']]],
+  ['movefunc_13',['MoveFunc',['../classgaia_1_1util_1_1MoveFunc.html',1,'gaia::util']]],
+  ['movefunc_3c_20r_28args_2e_2e_2e_29_3e_14',['MoveFunc&lt; R(Args...)&gt;',['../classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html',1,'gaia::util']]]
 ];

@@ -92,6 +92,7 @@ var hierarchy =
     [ "gaia::ecs::Core_", "structgaia_1_1ecs_1_1Core__.html", null ],
     [ "gaia::cnt::darr< T, Allocator >", "classgaia_1_1cnt_1_1darr.html", [
       [ "gaia::cnt::darray_ilist_storage< gaia::mt::JobContainer >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ],
+      [ "gaia::cnt::darray_ilist_storage< gaia::mt::ParallelCallbackRecord >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ],
       [ "gaia::cnt::darray_ilist_storage< TListItem >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ]
     ] ],
     [ "gaia::cnt::darr< Archetype * >", "classgaia_1_1cnt_1_1darr.html", null ],
@@ -327,10 +328,12 @@ var hierarchy =
     [ "gaia::ecs::vm::detail::IdCmpResult", "structgaia_1_1ecs_1_1vm_1_1detail_1_1IdCmpResult.html", null ],
     [ "gaia::cnt::ilist< TListItem, TItemHandle, TInternalStorage >", "structgaia_1_1cnt_1_1ilist.html", null ],
     [ "gaia::cnt::ilist< gaia::mt::JobContainer, gaia::mt::JobHandle >", "structgaia_1_1cnt_1_1ilist.html", null ],
+    [ "gaia::cnt::ilist< gaia::mt::ParallelCallbackRecord, gaia::mt::ParallelCallbackHandle >", "structgaia_1_1cnt_1_1ilist.html", null ],
     [ "gaia::cnt::ilist_handle_traits< TItemHandle, typename >", "structgaia_1_1cnt_1_1ilist__handle__traits.html", null ],
     [ "gaia::cnt::ilist_handle_traits< ecs::Entity >", "structgaia_1_1cnt_1_1ilist__handle__traits_3_01ecs_1_1Entity_01_4.html", null ],
     [ "gaia::cnt::ilist_item", "structgaia_1_1cnt_1_1ilist__item.html", [
-      [ "gaia::mt::JobContainer", "structgaia_1_1mt_1_1JobContainer.html", null ]
+      [ "gaia::mt::JobContainer", "structgaia_1_1mt_1_1JobContainer.html", null ],
+      [ "gaia::mt::ParallelCallbackRecord", "structgaia_1_1mt_1_1ParallelCallbackRecord.html", null ]
     ] ],
     [ "gaia::cnt::ilist_item_traits< TListItem >", "structgaia_1_1cnt_1_1ilist__item__traits.html", null ],
     [ "gaia::ecs::Inherit_", "structgaia_1_1ecs_1_1Inherit__.html", null ],
@@ -378,11 +381,13 @@ var hierarchy =
     [ "gaia::mt::Job", "structgaia_1_1mt_1_1Job.html", null ],
     [ "gaia::mt::JobAllocCtx", "structgaia_1_1mt_1_1JobAllocCtx.html", null ],
     [ "gaia::mt::JobArgs", "structgaia_1_1mt_1_1JobArgs.html", null ],
+    [ "gaia::mt::JobArgsFunc", "classgaia_1_1mt_1_1JobArgsFunc.html", null ],
     [ "gaia::mt::JobEdges", "structgaia_1_1mt_1_1JobEdges.html", null ],
     [ "gaia::mt::JobHandle", "structgaia_1_1mt_1_1JobHandle.html", null ],
     [ "gaia::mt::JobManager", "classgaia_1_1mt_1_1JobManager.html", null ],
     [ "gaia::mt::JobNull_t", "structgaia_1_1mt_1_1JobNull__t.html", null ],
     [ "gaia::mt::JobParallel", "structgaia_1_1mt_1_1JobParallel.html", null ],
+    [ "gaia::mt::JobParallelRef", "structgaia_1_1mt_1_1JobParallelRef.html", null ],
     [ "gaia::ser::JsonDiagnostic", "structgaia_1_1ser_1_1JsonDiagnostic.html", null ],
     [ "gaia::ser::JsonDiagnostics", "structgaia_1_1ser_1_1JsonDiagnostics.html", null ],
     [ "KeyEqual", null, [
@@ -432,6 +437,8 @@ var hierarchy =
       [ "gaia::mem::MemoryPage< T, RequestedBlockSize >", "structgaia_1_1mem_1_1MemoryPage.html", null ]
     ] ],
     [ "gaia::mem::MemoryPageStats", "structgaia_1_1mem_1_1MemoryPageStats.html", null ],
+    [ "gaia::util::MoveFunc< Signature >", "classgaia_1_1util_1_1MoveFunc.html", null ],
+    [ "gaia::util::MoveFunc< R(Args...)>", "classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html", null ],
     [ "robin_hood::detail::NodeAllocator< T, MinSize, MaxSize, IsFlat >", "structrobin__hood_1_1detail_1_1NodeAllocator.html", [
       [ "robin_hood::detail::Table< EntityLookupKey, ArchetypeGraphEdge >", "classrobin__hood_1_1detail_1_1Table.html", null ],
       [ "robin_hood::detail::Table< detail::ComponentDescId, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
@@ -488,6 +495,8 @@ var hierarchy =
       [ "gaia::ecs::pair< Entity, Entity >", "classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html", null ]
     ] ],
     [ "gaia::ecs::Archetype::PairIndexData::PairCountBucket", "structgaia_1_1ecs_1_1Archetype_1_1PairIndexData_1_1PairCountBucket.html", null ],
+    [ "gaia::mt::ParallelCallbackAllocCtx", "structgaia_1_1mt_1_1ParallelCallbackAllocCtx.html", null ],
+    [ "gaia::mt::ParallelCallbackHandle", "structgaia_1_1mt_1_1ParallelCallbackHandle.html", null ],
     [ "gaia::ecs::Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
     [ "gaia::ecs::Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
     [ "gaia::ecs::Archetype::Properties", "structgaia_1_1ecs_1_1Archetype_1_1Properties.html", null ],
@@ -536,6 +545,7 @@ var hierarchy =
     [ "gaia::ecs::Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],
     [ "gaia::ecs::Requires_", "structgaia_1_1ecs_1_1Requires__.html", null ],
     [ "gaia::ecs::vm::detail::ResolvedPairToken", "structgaia_1_1ecs_1_1vm_1_1detail_1_1ResolvedPairToken.html", null ],
+    [ "gaia::ecs::detail::QueryImpl::RuntimeIterCallback", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html", null ],
     [ "gaia::cnt::sarr< T, N >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr< Entity, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr< gaia::ecs::Entity, MaxVarCnt >", "classgaia_1_1cnt_1_1sarr.html", null ],

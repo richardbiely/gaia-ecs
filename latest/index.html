@@ -3122,7 +3122,9 @@ Project settings</h3>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>   </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Preprocessor switch enabling SmallBlockAllocator spill storage for <code>SmallFunc</code> and <code>MoveFunc</code>; enabled by default. Set to <code>0</code> to force out-of-line callables through the platform heap.   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
 Sanitizers</h3>

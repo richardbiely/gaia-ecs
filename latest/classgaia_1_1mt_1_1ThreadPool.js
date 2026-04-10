@@ -1,6 +1,6 @@
 var classgaia_1_1mt_1_1ThreadPool =
 [
-    [ "add", "classgaia_1_1mt_1_1ThreadPool.html#ac071acb7130b43594f070629c0db9a5b", null ],
+    [ "add", "classgaia_1_1mt_1_1ThreadPool.html#a0a807d32b413152b466f4ea38b5673f2", null ],
     [ "del", "classgaia_1_1mt_1_1ThreadPool.html#ac9a9c7911546ff9424636d4ea04762a3", null ],
     [ "dep", "classgaia_1_1mt_1_1ThreadPool.html#a684585cca8c1be78e730e8681db6b34e", null ],
     [ "dep", "classgaia_1_1mt_1_1ThreadPool.html#ad6b39ffc5339d878f52938789fc5df7b", null ],
@@ -11,9 +11,10 @@ var classgaia_1_1mt_1_1ThreadPool =
     [ "make_main_thread", "classgaia_1_1mt_1_1ThreadPool.html#ab8f242ce7bce79ca45c5bb9d5af8ee3d", null ],
     [ "reset", "classgaia_1_1mt_1_1ThreadPool.html#aca7cd3e7684cfc8ff483a8b0efe93901", null ],
     [ "reset", "classgaia_1_1mt_1_1ThreadPool.html#a3b0a7d7790d17f4e46595805c623104d", null ],
-    [ "sched", "classgaia_1_1mt_1_1ThreadPool.html#a53d0fa10190a0bab62e90c57d7e76ddd", null ],
-    [ "sched", "classgaia_1_1mt_1_1ThreadPool.html#a6cab51f6b024770345cdf230054e80e5", null ],
-    [ "sched_par", "classgaia_1_1mt_1_1ThreadPool.html#a2766a133e553f291e229117ef4ff4e43", null ],
+    [ "sched", "classgaia_1_1mt_1_1ThreadPool.html#a8c7dec10f814ff615028c232277d6fd6", null ],
+    [ "sched", "classgaia_1_1mt_1_1ThreadPool.html#aa3d2253eba9d35238f70435f548b1c4f", null ],
+    [ "sched_par", "classgaia_1_1mt_1_1ThreadPool.html#a53ffd7b70b14397a14bd1f465bb1521d", null ],
+    [ "sched_par", "classgaia_1_1mt_1_1ThreadPool.html#a104b8eb7b657174c0e4a721b63a34f42", null ],
     [ "set_max_workers", "classgaia_1_1mt_1_1ThreadPool.html#a6973cb5704fb43eee582498925ed3b4f", null ],
     [ "set_workers_high_prio", "classgaia_1_1mt_1_1ThreadPool.html#acf92b6607ea332bf40e6a2700a3223f4", null ],
     [ "set_workers_high_prio_inter", "classgaia_1_1mt_1_1ThreadPool.html#a0223557ad9bf5f8fe05a5fd3794f2268", null ],

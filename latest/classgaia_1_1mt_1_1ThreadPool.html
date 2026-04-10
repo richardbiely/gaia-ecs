@@ -159,10 +159,10 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>wo
 <tr class="memitem:a7ca40ef0d480aa0b72c97949d2d4aa50" id="r_a7ca40ef0d480aa0b72c97949d2d4aa50"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a7ca40ef0d480aa0b72c97949d2d4aa50">dep_refresh</a> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> &gt; jobsFirst, <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobSecond)</td></tr>
 <tr class="memdesc:a7ca40ef0d480aa0b72c97949d2d4aa50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Makes <em>jobSecond</em> depend on the jobs listed in <em>jobsFirst</em>. This means <em>jobSecond</em> will not run until all jobs from <em>jobsFirst</em> finish.  <br /></td></tr>
 <tr class="separator:a7ca40ef0d480aa0b72c97949d2d4aa50"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac071acb7130b43594f070629c0db9a5b" id="r_ac071acb7130b43594f070629c0db9a5b"><td class="memTemplParams" colspan="2">template&lt;typename TJob &gt; </td></tr>
-<tr class="memitem:ac071acb7130b43594f070629c0db9a5b"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ac071acb7130b43594f070629c0db9a5b">add</a> (TJob &amp;&amp;job)</td></tr>
-<tr class="memdesc:ac071acb7130b43594f070629c0db9a5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a threadpool job from <em>job</em>.  <br /></td></tr>
-<tr class="separator:ac071acb7130b43594f070629c0db9a5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a807d32b413152b466f4ea38b5673f2" id="r_a0a807d32b413152b466f4ea38b5673f2"><td class="memTemplParams" colspan="2">template&lt;typename TJob &gt; </td></tr>
+<tr class="memitem:a0a807d32b413152b466f4ea38b5673f2"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a0a807d32b413152b466f4ea38b5673f2">add</a> (TJob job)</td></tr>
+<tr class="memdesc:a0a807d32b413152b466f4ea38b5673f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a threadpool job from <em>job</em>.  <br /></td></tr>
+<tr class="separator:a0a807d32b413152b466f4ea38b5673f2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac9a9c7911546ff9424636d4ea04762a3" id="r_ac9a9c7911546ff9424636d4ea04762a3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ac9a9c7911546ff9424636d4ea04762a3">del</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
 <tr class="memdesc:ac9a9c7911546ff9424636d4ea04762a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes a job handle <em>jobHandle</em> from the threadpool.  <br /></td></tr>
 <tr class="separator:ac9a9c7911546ff9424636d4ea04762a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -185,15 +185,18 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_state</b> (<a c
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
 <tr class="memdesc:aca7cd3e7684cfc8ff483a8b0efe93901"><td class="mdescLeft">&#160;</td><td class="mdescRight">Waits for <em>jobHandle</em> to finish and resets it to a reusable state. <br /></td></tr>
 <tr class="separator:aca7cd3e7684cfc8ff483a8b0efe93901"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a53d0fa10190a0bab62e90c57d7e76ddd" id="r_a53d0fa10190a0bab62e90c57d7e76ddd"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a53d0fa10190a0bab62e90c57d7e76ddd">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;job)</td></tr>
-<tr class="memdesc:a53d0fa10190a0bab62e90c57d7e76ddd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
-<tr class="separator:a53d0fa10190a0bab62e90c57d7e76ddd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cab51f6b024770345cdf230054e80e5" id="r_a6cab51f6b024770345cdf230054e80e5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a6cab51f6b024770345cdf230054e80e5">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;job, <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> dependsOn)</td></tr>
-<tr class="memdesc:a6cab51f6b024770345cdf230054e80e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
-<tr class="separator:a6cab51f6b024770345cdf230054e80e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2766a133e553f291e229117ef4ff4e43" id="r_a2766a133e553f291e229117ef4ff4e43"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a2766a133e553f291e229117ef4ff4e43">sched_par</a> (<a class="el" href="structgaia_1_1mt_1_1JobParallel.html">JobParallel</a> &amp;job, uint32_t itemsToProcess, uint32_t groupSize)</td></tr>
-<tr class="memdesc:a2766a133e553f291e229117ef4ff4e43"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on worker threads in parallel.  <br /></td></tr>
-<tr class="separator:a2766a133e553f291e229117ef4ff4e43"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8c7dec10f814ff615028c232277d6fd6" id="r_a8c7dec10f814ff615028c232277d6fd6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a8c7dec10f814ff615028c232277d6fd6">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job)</td></tr>
+<tr class="memdesc:a8c7dec10f814ff615028c232277d6fd6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
+<tr class="separator:a8c7dec10f814ff615028c232277d6fd6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa3d2253eba9d35238f70435f548b1c4f" id="r_aa3d2253eba9d35238f70435f548b1c4f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#aa3d2253eba9d35238f70435f548b1c4f">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job, <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> dependsOn)</td></tr>
+<tr class="memdesc:aa3d2253eba9d35238f70435f548b1c4f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
+<tr class="separator:aa3d2253eba9d35238f70435f548b1c4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a53ffd7b70b14397a14bd1f465bb1521d" id="r_a53ffd7b70b14397a14bd1f465bb1521d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a53ffd7b70b14397a14bd1f465bb1521d">sched_par</a> (<a class="el" href="structgaia_1_1mt_1_1JobParallel.html">JobParallel</a> job, uint32_t itemsToProcess, uint32_t groupSize)</td></tr>
+<tr class="memdesc:a53ffd7b70b14397a14bd1f465bb1521d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on worker threads in parallel.  <br /></td></tr>
+<tr class="separator:a53ffd7b70b14397a14bd1f465bb1521d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a104b8eb7b657174c0e4a721b63a34f42" id="r_a104b8eb7b657174c0e4a721b63a34f42"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a104b8eb7b657174c0e4a721b63a34f42">sched_par</a> (<a class="el" href="structgaia_1_1mt_1_1JobParallelRef.html">JobParallelRef</a> job, uint32_t itemsToProcess, uint32_t groupSize)</td></tr>
+<tr class="memdesc:a104b8eb7b657174c0e4a721b63a34f42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a non-owning parallel job descriptor on worker threads.  <br /></td></tr>
+<tr class="separator:a104b8eb7b657174c0e4a721b63a34f42"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abae2dc1ab79367b708af43dfa2cae810" id="r_abae2dc1ab79367b708af43dfa2cae810"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810">wait</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
 <tr class="memdesc:abae2dc1ab79367b708af43dfa2cae810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em> The calling thread participate in job processing until <em>jobHandle</em> is done.  <br /></td></tr>
 <tr class="separator:abae2dc1ab79367b708af43dfa2cae810"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -221,8 +224,8 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>JobManager</b></td><
 <tr class="separator:a22d5e96819bc7c0bff8d135a21e67b42"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="ac071acb7130b43594f070629c0db9a5b" name="ac071acb7130b43594f070629c0db9a5b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac071acb7130b43594f070629c0db9a5b">&#9670;&#160;</a></span>add()</h2>
+<a id="a0a807d32b413152b466f4ea38b5673f2" name="a0a807d32b413152b466f4ea38b5673f2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0a807d32b413152b466f4ea38b5673f2">&#9670;&#160;</a></span>add()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -235,7 +238,7 @@ template&lt;typename TJob &gt; </div>
         <tr>
           <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::add </td>
           <td>(</td>
-          <td class="paramtype">TJob &amp;&amp;&#160;</td>
+          <td class="paramtype">TJob&#160;</td>
           <td class="paramname"><em>job</em></td><td>)</td>
           <td></td>
         </tr>
@@ -559,8 +562,8 @@ This must be called from the main thread. </dd></dl>
 
 </div>
 </div>
-<a id="a53d0fa10190a0bab62e90c57d7e76ddd" name="a53d0fa10190a0bab62e90c57d7e76ddd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53d0fa10190a0bab62e90c57d7e76ddd">&#9670;&#160;</a></span>sched() <span class="overload">[1/2]</span></h2>
+<a id="a8c7dec10f814ff615028c232277d6fd6" name="a8c7dec10f814ff615028c232277d6fd6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8c7dec10f814ff615028c232277d6fd6">&#9670;&#160;</a></span>sched() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -571,7 +574,7 @@ This must be called from the main thread. </dd></dl>
         <tr>
           <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::sched </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a>&#160;</td>
           <td class="paramname"><em>job</em></td><td>)</td>
           <td></td>
         </tr>
@@ -597,8 +600,8 @@ Dependencies can't be modified for this job. </dd></dl>
 
 </div>
 </div>
-<a id="a6cab51f6b024770345cdf230054e80e5" name="a6cab51f6b024770345cdf230054e80e5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6cab51f6b024770345cdf230054e80e5">&#9670;&#160;</a></span>sched() <span class="overload">[2/2]</span></h2>
+<a id="aa3d2253eba9d35238f70435f548b1c4f" name="aa3d2253eba9d35238f70435f548b1c4f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3d2253eba9d35238f70435f548b1c4f">&#9670;&#160;</a></span>sched() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -609,7 +612,7 @@ Dependencies can't be modified for this job. </dd></dl>
         <tr>
           <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::sched </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a>&#160;</td>
           <td class="paramname"><em>job</em>, </td>
         </tr>
         <tr>
@@ -646,8 +649,8 @@ Dependencies can't be modified for this job. </dd></dl>
 
 </div>
 </div>
-<a id="a2766a133e553f291e229117ef4ff4e43" name="a2766a133e553f291e229117ef4ff4e43"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2766a133e553f291e229117ef4ff4e43">&#9670;&#160;</a></span>sched_par()</h2>
+<a id="a53ffd7b70b14397a14bd1f465bb1521d" name="a53ffd7b70b14397a14bd1f465bb1521d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a53ffd7b70b14397a14bd1f465bb1521d">&#9670;&#160;</a></span>sched_par() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -658,7 +661,7 @@ Dependencies can't be modified for this job. </dd></dl>
         <tr>
           <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::sched_par </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1JobParallel.html">JobParallel</a> &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1JobParallel.html">JobParallel</a>&#160;</td>
           <td class="paramname"><em>job</em>, </td>
         </tr>
         <tr>
@@ -698,6 +701,62 @@ Dependencies can't be modified for this job. </dd></dl>
 <dl class="section warning"><dt>Warning</dt><dd>Must be used from the main thread. </dd>
 <dd>
 Dependencies can't be modified for this job. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> handle of the scheduled batch of jobs. </dd></dl>
+
+</div>
+</div>
+<a id="a104b8eb7b657174c0e4a721b63a34f42" name="a104b8eb7b657174c0e4a721b63a34f42"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a104b8eb7b657174c0e4a721b63a34f42">&#9670;&#160;</a></span>sched_par() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::sched_par </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1JobParallelRef.html">JobParallelRef</a>&#160;</td>
+          <td class="paramname"><em>job</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>itemsToProcess</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>groupSize</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Schedules a non-owning parallel job descriptor on worker threads. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">job</td><td>Non-owning job descriptor. </td></tr>
+    <tr><td class="paramname">itemsToProcess</td><td>Total number of work items. </td></tr>
+    <tr><td class="paramname">groupSize</td><td>Group size per created job. If zero the threadpool decides the group size. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>Must be used from the main thread. </dd>
+<dd>
+The pointed-to context must remain alive until the returned handle completes. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> handle of the scheduled batch of jobs. </dd></dl>
 
 </div>
