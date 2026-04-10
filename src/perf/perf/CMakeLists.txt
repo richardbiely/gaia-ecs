@@ -14,6 +14,7 @@ add_executable(${PROJ_NAME}
 	src/legacy_iter.cpp
 	src/containers.cpp
 	src/allocators.cpp
+	src/funcs.cpp
 )
 
 target_include_directories(${PROJ_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

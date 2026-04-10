@@ -1985,19 +1985,27 @@ namespace gaia {
 
 					lock(*m_storage.world());
 
-					mt::JobParallel j;
+					struct ParallelQueryBatchCtx {
+						QueryImpl* pSelf;
+						Func* pFunc;
+					};
+					ParallelQueryBatchCtx ctx{this, &func};
+					mt::JobParallelRef j;
 
 					// Use efficiency cores for low-level priority jobs
 					if constexpr (ExecType == QueryExecType::ParallelEff)
 						j.priority = mt::JobPriority::Low;
 
-					j.func = [&](const mt::JobArgs& args) {
+					j.pCtx = &ctx;
+					j.invoke = [](void* pCtx, const mt::JobArgs& args) {
+						auto& ctx = *reinterpret_cast<ParallelQueryBatchCtx*>(pCtx);
 						run_query_func<Func, TMode>(
-								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+								ctx.pSelf->m_storage.world(), *ctx.pFunc,
+								std::span(&ctx.pSelf->m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					auto jobHandle = tp.sched_par(GAIA_MOV(j), m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 
@@ -2148,19 +2156,27 @@ namespace gaia {
 
 					lock(*m_storage.world());
 
-					mt::JobParallel j;
+					struct ParallelQueryBatchCtx {
+						QueryImpl* pSelf;
+						Func* pFunc;
+					};
+					ParallelQueryBatchCtx ctx{this, &func};
+					mt::JobParallelRef j;
 
 					// Use efficiency cores for low-level priority jobs
 					if constexpr (ExecType == QueryExecType::ParallelEff)
 						j.priority = mt::JobPriority::Low;
 
-					j.func = [&](const mt::JobArgs& args) {
+					j.pCtx = &ctx;
+					j.invoke = [](void* pCtx, const mt::JobArgs& args) {
+						auto& ctx = *reinterpret_cast<ParallelQueryBatchCtx*>(pCtx);
 						run_query_func<Func, TMode>(
-								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart));
+								ctx.pSelf->m_storage.world(), *ctx.pFunc,
+								std::span(&ctx.pSelf->m_batches[args.idxStart], args.idxEnd - args.idxStart));
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					auto jobHandle = tp.sched_par(GAIA_MOV(j), m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 
@@ -2521,18 +2537,26 @@ namespace gaia {
 
 					lock(*m_storage.world());
 
-					mt::JobParallel j;
+					struct ParallelQueryBatchCtx {
+						QueryImpl* pSelf;
+						Func* pFunc;
+						Constraints constraints;
+					};
+					ParallelQueryBatchCtx ctx{this, &func, constraints};
+					mt::JobParallelRef j;
 					if constexpr (ExecType == QueryExecType::ParallelEff)
 						j.priority = mt::JobPriority::Low;
 
-					j.func = [&](const mt::JobArgs& args) {
+					j.pCtx = &ctx;
+					j.invoke = [](void* pCtx, const mt::JobArgs& args) {
+						auto& ctx = *reinterpret_cast<ParallelQueryBatchCtx*>(pCtx);
 						run_query_func_runtime(
-								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart),
-								constraints);
+								ctx.pSelf->m_storage.world(), *ctx.pFunc,
+								std::span(&ctx.pSelf->m_batches[args.idxStart], args.idxEnd - args.idxStart), ctx.constraints);
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					auto jobHandle = tp.sched_par(GAIA_MOV(j), m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 
@@ -2653,18 +2677,26 @@ namespace gaia {
 
 					lock(*m_storage.world());
 
-					mt::JobParallel j;
+					struct ParallelQueryBatchCtx {
+						QueryImpl* pSelf;
+						Func* pFunc;
+						Constraints constraints;
+					};
+					ParallelQueryBatchCtx ctx{this, &func, constraints};
+					mt::JobParallelRef j;
 					if constexpr (ExecType == QueryExecType::ParallelEff)
 						j.priority = mt::JobPriority::Low;
 
-					j.func = [&](const mt::JobArgs& args) {
+					j.pCtx = &ctx;
+					j.invoke = [](void* pCtx, const mt::JobArgs& args) {
+						auto& ctx = *reinterpret_cast<ParallelQueryBatchCtx*>(pCtx);
 						run_query_func_runtime(
-								m_storage.world(), func, std::span(&m_batches[args.idxStart], args.idxEnd - args.idxStart),
-								constraints);
+								ctx.pSelf->m_storage.world(), *ctx.pFunc,
+								std::span(&ctx.pSelf->m_batches[args.idxStart], args.idxEnd - args.idxStart), ctx.constraints);
 					};
 
 					auto& tp = mt::ThreadPool::get();
-					auto jobHandle = tp.sched_par(j, m_batches.size(), 0);
+					auto jobHandle = tp.sched_par(GAIA_MOV(j), m_batches.size(), 0);
 					tp.wait(jobHandle);
 					m_batches.clear();
 
@@ -2761,16 +2793,24 @@ namespace gaia {
 					func(it);
 				}
 
+				struct RuntimeIterCallback {
+					void* pFunc;
+					void (*invoke)(void*, Iter&);
+
+					void operator()(Iter& it) const {
+						GAIA_PROF_SCOPE(query_func);
+						invoke(pFunc, it);
+					}
+				};
+
 				void each_runtime_erased(
 						QueryExecType execType, void* pFunc, void (*invoke)(void*, Iter&), Constraints constraints) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
+					RuntimeIterCallback cb{pFunc, invoke};
 
 					if (!queryInfo.has_filters() && can_use_direct_entity_seed_eval(queryInfo)) {
-						GAIA_PROF_SCOPE(query_func);
-						each_direct_iter_inter(queryInfo, constraints, [&](Iter& it) {
-							invoke(pFunc, it);
-						});
+						each_direct_iter_inter(queryInfo, constraints, cb);
 						return;
 					}
 
@@ -2778,84 +2818,48 @@ namespace gaia {
 						case Constraints::DisabledOnly:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Parallel, IterModeDisabledOnly>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeDisabledOnly>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeDisabledOnly>(queryInfo, cb);
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, IterModeDisabledOnly>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Default, IterModeDisabledOnly>(queryInfo, cb);
 									break;
 							}
 							break;
 						case Constraints::AcceptAll:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Parallel, IterModeAcceptAll>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeAcceptAll>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeAcceptAll>(queryInfo, cb);
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, IterModeAcceptAll>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Default, IterModeAcceptAll>(queryInfo, cb);
 									break;
 							}
 							break;
 						default:
 							switch (execType) {
 								case QueryExecType::Parallel:
-									run_query_on_chunks<QueryExecType::Parallel, IterModeEnabled>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Parallel, IterModeEnabled>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelPerf:
-									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeEnabled>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelPerf, IterModeEnabled>(queryInfo, cb);
 									break;
 								case QueryExecType::ParallelEff:
-									run_query_on_chunks<QueryExecType::ParallelEff, IterModeEnabled>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::ParallelEff, IterModeEnabled>(queryInfo, cb);
 									break;
 								default:
-									run_query_on_chunks<QueryExecType::Default, IterModeEnabled>(queryInfo, [&](Iter& it) {
-										GAIA_PROF_SCOPE(query_func);
-										invoke(pFunc, it);
-									});
+									run_query_on_chunks<QueryExecType::Default, IterModeEnabled>(queryInfo, cb);
 									break;
 							}
 							break;
@@ -4981,6 +4985,101 @@ namespace gaia {
 
 					const bool hasFilters = queryInfo.has_filters();
 					return hasFilters ? count_inter<true>(queryInfo, constraints) : count_inter<false>(queryInfo, constraints);
+				}
+
+				//! Iterates matching enabled entities through a non-template erased callback.
+				//! \param pCtx User callback context.
+				//! \param func Callback invoked for each matching entity.
+				void each_entity_enabled(void* pCtx, void (*func)(void*, Entity)) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					::gaia::ecs::update_version(*m_worldVersion);
+
+					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
+						auto& world = *queryInfo.world();
+						if (has_only_direct_or_terms(queryInfo)) {
+							for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
+								func(pCtx, entity);
+								return true;
+							});
+						} else {
+							const auto plan = direct_entity_seed_plan(world, queryInfo);
+							(void)for_each_direct_all_seed(world, queryInfo, plan, Constraints::EnabledOnly, [&](Entity entity) {
+								func(pCtx, entity);
+								return true;
+							});
+						}
+
+						m_changedWorldVersion = *m_worldVersion;
+						return;
+					}
+
+					const bool hasFilters = queryInfo.has_filters();
+					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
+					const auto cacheView = queryInfo.cache_archetype_view();
+					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
+
+					uint32_t idxFrom = 0;
+					uint32_t idxTo = (uint32_t)cacheView.size();
+					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
+						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+						if (pGroupData == nullptr) {
+							m_changedWorldVersion = *m_worldVersion;
+							return;
+						}
+
+						idxFrom = pGroupData->idxFirst;
+						idxTo = pGroupData->idxLast + 1;
+					}
+
+					Iter it;
+					it.set_world(queryInfo.world());
+					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
+						const auto* pArchetype = cacheView[qi];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(qi);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *pArchetype, Constraints::EnabledOnly, barrierPasses))
+							continue;
+
+						const auto& chunks = pArchetype->chunks();
+						if (!hasEntityFilters) {
+							for (auto* pChunk: chunks) {
+								const auto from = Iter::start_index(pChunk);
+								const auto to = Iter::end_index(pChunk);
+								if (from == to)
+									continue;
+								if (hasFilters && !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+
+								const auto entityCnt = (uint32_t)(to - from);
+								const auto entities = pChunk->entity_view();
+								GAIA_FOR(entityCnt) {
+									func(pCtx, entities[from + i]);
+								}
+							}
+							continue;
+						}
+
+						it.set_archetype(pArchetype);
+						for (auto* pChunk: chunks) {
+							it.set_chunk(pChunk);
+							const auto entityCnt = it.size();
+							if (entityCnt == 0)
+								continue;
+							if (hasFilters && !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+								continue;
+
+							const auto entities = it.view<Entity>();
+							GAIA_FOR(entityCnt) {
+								if (match_entity_filters(*queryInfo.world(), entities[i], queryInfo))
+									func(pCtx, entities[i]);
+							}
+						}
+					}
+
+					m_changedWorldVersion = *m_worldVersion;
 				}
 
 				void collect_entities_enabled(cnt::darray<Entity>& out) {

@@ -5,8 +5,6 @@
 
 #include <atomic>
 #include <cinttypes>
-// TODO: Currently necessary due to std::function. Replace them!
-#include <functional>
 
 #include "gaia/cnt/ilist.h"
 #include "gaia/core/span.h"
@@ -56,11 +54,10 @@ namespace gaia {
 				JobHandle* pDeps;
 			};
 			//! Number of dependencies
-			uint32_t depCnt;
+			uint32_t depCnt = 0;
 
 			JobEdges() {
 				dep = {};
-				depCnt = 0;
 			}
 		};
 
@@ -83,28 +80,13 @@ namespace gaia {
 			//! Dependency graph
 			JobEdges edges;
 			//! Function to execute when running the job
-			std::function<void()> func;
+			util::SmallFunc func;
 
 			JobContainer() = default;
 			~JobContainer() = default;
 
-			JobContainer(const JobContainer& other): cnt::ilist_item(other) {
-				state = other.state.load();
-				prio = other.prio;
-				flags = other.flags;
-				edges = other.edges;
-				func = other.func;
-			}
-			JobContainer& operator=(const JobContainer& other) {
-				GAIA_ASSERT(core::addressof(other) != this);
-				cnt::ilist_item::operator=(other);
-				state = other.state.load();
-				prio = other.prio;
-				flags = other.flags;
-				edges = other.edges;
-				func = other.func;
-				return *this;
-			}
+			JobContainer(const JobContainer& other) = delete;
+			JobContainer& operator=(const JobContainer& other) = delete;
 
 			JobContainer(JobContainer&& other): cnt::ilist_item(GAIA_MOV(other)) {
 				state = other.state.load();
@@ -149,9 +131,77 @@ namespace gaia {
 			}
 		};
 
+		struct ParallelCallbackHandle {
+			static constexpr uint32_t IdMask = uint32_t(-1);
+
+			uint32_t m_id = IdMask;
+			uint32_t m_gen = 0;
+
+			ParallelCallbackHandle() = default;
+			ParallelCallbackHandle(uint32_t id, uint32_t gen): m_id(id), m_gen(gen) {}
+
+			GAIA_NODISCARD uint32_t id() const {
+				return m_id;
+			}
+			
+			GAIA_NODISCARD uint32_t gen() const {
+				return m_gen;
+			}
+
+			GAIA_NODISCARD bool operator==(const ParallelCallbackHandle& other) const {
+				return m_id == other.m_id && m_gen == other.m_gen;
+			}
+		};
+
+		struct ParallelCallbackAllocCtx {
+			JobArgsFunc callback;
+			uint32_t refs = 0;
+		};
+
+		struct ParallelCallbackRecord: cnt::ilist_item {
+			JobArgsFunc callback;
+			std::atomic_uint32_t refs = 0;
+
+			ParallelCallbackRecord() = default;
+			~ParallelCallbackRecord() = default;
+
+			ParallelCallbackRecord(const ParallelCallbackRecord&) = delete;
+			ParallelCallbackRecord& operator=(const ParallelCallbackRecord&) = delete;
+
+			ParallelCallbackRecord(ParallelCallbackRecord&& other) noexcept:
+					cnt::ilist_item(GAIA_MOV(other)), callback(GAIA_MOV(other.callback)) {
+				refs.store(other.refs.load(std::memory_order_relaxed), std::memory_order_relaxed);
+			}
+
+			ParallelCallbackRecord& operator=(ParallelCallbackRecord&& other) noexcept {
+				GAIA_ASSERT(core::addressof(other) != this);
+				cnt::ilist_item::operator=(GAIA_MOV(other));
+				callback = GAIA_MOV(other.callback);
+				refs.store(other.refs.load(std::memory_order_relaxed), std::memory_order_relaxed);
+				return *this;
+			}
+
+			GAIA_NODISCARD static ParallelCallbackRecord create(uint32_t index, uint32_t generation, void* pCtx) {
+				auto* ctx = (ParallelCallbackAllocCtx*)pCtx;
+
+				ParallelCallbackRecord record{};
+				record.idx = index;
+				record.data.gen = generation;
+				record.callback = GAIA_MOV(ctx->callback);
+				record.refs.store(ctx->refs, std::memory_order_relaxed);
+				return record;
+			}
+
+			GAIA_NODISCARD static ParallelCallbackHandle handle(const ParallelCallbackRecord& record) {
+				return ParallelCallbackHandle(record.idx, record.data.gen);
+			}
+		};
+
 		class JobManager {
 			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
 			cnt::ilist<JobContainer, JobHandle> m_jobData;
+			//! Shared callback records for parallel jobs.
+			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
 
 		public:
 			JobContainer& data(JobHandle jobHandle) {
@@ -164,7 +214,7 @@ namespace gaia {
 			//! Allocates a new job container identified by a unique JobHandle.
 			//! \return JobHandle
 			//! \warning Must be used from the main thread.
-			GAIA_NODISCARD JobHandle alloc_job(const Job& job) {
+			GAIA_NODISCARD JobHandle alloc_job(Job job) {
 				JobAllocCtx ctx{job.priority};
 
 				auto handle = m_jobData.alloc(&ctx);
@@ -176,9 +226,16 @@ namespace gaia {
 				j.edges = {};
 				j.prio = ctx.priority;
 				j.state.store(0);
-				j.func = job.func;
+				j.func = GAIA_MOV(job.func);
 				j.flags = job.flags;
 				return handle;
+			}
+
+			GAIA_NODISCARD ParallelCallbackHandle alloc_parallel_callback(JobArgsFunc callback, uint32_t refs) {
+				ParallelCallbackAllocCtx ctx{};
+				ctx.callback = GAIA_MOV(callback);
+				ctx.refs = refs;
+				return m_parallelCallbacks.alloc(&ctx);
 			}
 
 			//! Invalidates @a jobHandle by resetting its index in the job pool.
@@ -191,9 +248,17 @@ namespace gaia {
 				jobData.state.store(JobState::Released);
 			}
 
+			void free_parallel_callback(ParallelCallbackHandle handle) {
+				auto& record = m_parallelCallbacks[handle.id()];
+				record.callback.reset();
+				record.refs.store(0, std::memory_order_relaxed);
+				m_parallelCallbacks.free(handle);
+			}
+
 			//! Resets the job pool.
 			void reset() {
 				m_jobData.clear();
+				m_parallelCallbacks.clear();
 			}
 
 			//! Execute the functor associated with the job container
@@ -371,6 +436,18 @@ namespace gaia {
 			GAIA_NODISCARD static bool done(const JobContainer& jobData) {
 				const auto state = jobData.state.load() & JobState::STATE_BITS_MASK;
 				return state == JobState::Done;
+			}
+
+			void invoke_parallel_callback(ParallelCallbackHandle handle, const JobArgs& args) {
+				auto& record = m_parallelCallbacks[handle.id()];
+				GAIA_ASSERT(record.data.gen == handle.gen());
+				record.callback(args);
+			}
+
+			GAIA_NODISCARD bool release_parallel_callback_ref(ParallelCallbackHandle handle) {
+				auto& record = m_parallelCallbacks[handle.id()];
+				GAIA_ASSERT(record.data.gen == handle.gen());
+				return record.refs.fetch_sub(1, std::memory_order_acq_rel) == 1;
 			}
 
 		private:

@@ -2830,17 +2830,17 @@ void Run_Schedule_Simple(
 			pRes[i] += func({pArr + idxStart, idxEnd - idxStart});
 			cnt.fetch_add(1, std::memory_order_relaxed);
 		};
-		pHandles[i] = tp.add(job);
+		pHandles[i] = tp.add(GAIA_MOV(job));
 	}
 
-	mt::Job dependencyJob;
-	dependencyJob.func = [&]() {
-		const bool isLast = cnt.load(std::memory_order_acquire) == jobCnt;
-		CHECK(isLast);
-	};
 	auto* pDepHandles = (mt::JobHandle*)alloca(sizeof(mt::JobHandle) * depCnt);
 	GAIA_FOR(depCnt) {
-		pDepHandles[i] = tp.add(dependencyJob);
+		mt::Job dependencyJob;
+		dependencyJob.func = [&]() {
+			const bool isLast = cnt.load(std::memory_order_acquire) == jobCnt;
+			CHECK(isLast);
+		};
+		pDepHandles[i] = tp.add(GAIA_MOV(dependencyJob));
 		tp.dep(std::span(pHandles, jobCnt), pDepHandles[i]);
 		tp.submit(pDepHandles[i]);
 	}
@@ -2934,13 +2934,14 @@ TEST_CASE("Multithreading - ScheduleParallel") {
 	GAIA_EACH(arr) arr[i] = 1;
 
 	std::atomic_uint32_t sum1 = 0;
-	mt::JobParallel j1;
-	j1.func = [&arr, &sum1](const mt::JobArgs& args) {
-		sum1 += JobSystemFunc({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
-	};
 
 	auto work = [&]() {
-		auto jobHandle = tp.sched_par(j1, N, ItemsPerJob);
+		mt::JobParallel j;
+		j.func = [&arr, &sum1](const mt::JobArgs& args) {
+			sum1 += JobSystemFunc({arr.data() + args.idxStart, args.idxEnd - args.idxStart});
+		};
+
+		auto jobHandle = tp.sched_par(GAIA_MOV(j), N, ItemsPerJob);
 		tp.wait(jobHandle);
 		CHECK(sum1 == N);
 	};
@@ -2981,7 +2982,7 @@ TEST_CASE("Multithreading - complete") {
 				res[i] = i;
 				++cnt;
 			};
-			handles[i] = tp.add(job);
+			handles[i] = tp.add(GAIA_MOV(job));
 		}
 
 		tp.submit(std::span(handles.data(), handles.size()));
@@ -3028,7 +3029,7 @@ TEST_CASE("Multithreading - CompleteMany") {
 				res /= (i + 1); // we add +1 everywhere to avoid division by zero at i==0
 			}};
 
-			const mt::JobHandle jobHandle[] = {tp.add(job0), tp.add(job1), tp.add(job2)};
+			const mt::JobHandle jobHandle[] = {tp.add(GAIA_MOV(job0)), tp.add(GAIA_MOV(job1)), tp.add(GAIA_MOV(job2))};
 
 			tp.dep(jobHandle[0], jobHandle[1]);
 			tp.dep(jobHandle[1], jobHandle[2]);
@@ -3086,8 +3087,8 @@ TEST_CASE("Multithreading - Reset reusable handles") {
 		secondCnt.fetch_add(1, std::memory_order_relaxed);
 	};
 
-	auto handle1 = tp.add(job1);
-	auto handle2 = tp.add(job2);
+	auto handle1 = tp.add(GAIA_MOV(job1));
+	auto handle2 = tp.add(GAIA_MOV(job2));
 	mt::JobHandle handles[] = {handle1, handle2};
 
 	tp.dep(handle1, handle2);
@@ -3220,7 +3221,7 @@ TEST_CASE("Multithreading - Update auto-delete job") {
 			executed.fetch_add(1, std::memory_order_relaxed);
 		};
 
-		const auto handle = tp.add(job);
+		const auto handle = tp.add(GAIA_MOV(job));
 		tp.submit(handle);
 		tp.update();
 	}
@@ -3244,12 +3245,12 @@ TEST_CASE("Multithreading - Update auto-delete with workers") {
 		job.func = [&]() {
 			executed.fetch_add(1, std::memory_order_relaxed);
 		};
-		handles[i] = tp.add(job);
+		handles[i] = tp.add(GAIA_MOV(job));
 	}
 
 	mt::Job sync;
 	sync.flags = mt::JobCreationFlags::ManualDelete;
-	const auto syncHandle = tp.add(sync);
+	const auto syncHandle = tp.add(GAIA_MOV(sync));
 	tp.dep(std::span(handles.data(), handles.size()), syncHandle);
 
 	tp.submit(syncHandle);
@@ -3287,8 +3288,8 @@ TEST_CASE("Multithreading - Handle reuse mixed delete modes") {
 			manualCnt.fetch_add(1, std::memory_order_relaxed);
 		};
 
-		const auto autoHandle = tp.add(autoJob);
-		const auto manualHandle = tp.add(manualJob);
+		const auto autoHandle = tp.add(GAIA_MOV(autoJob));
+		const auto manualHandle = tp.add(GAIA_MOV(manualJob));
 
 		tp.submit(autoHandle);
 		tp.submit(manualHandle);

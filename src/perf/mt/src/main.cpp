@@ -41,13 +41,13 @@ void Run_Schedule_Empty(uint32_t Jobs) {
 
 	mt::Job sync;
 	sync.flags = mt::JobCreationFlags::ManualDelete;
-	auto syncHandle = tp.add(sync);
+	auto syncHandle = tp.add(GAIA_MOV(sync));
 
 	auto* pHandles = static_cast<mt::JobHandle*>(alloca(sizeof(mt::JobHandle) * (Jobs + 1)));
 	GAIA_FOR(Jobs) {
 		mt::Job job;
 		job.func = []() {};
-		tp.dep(pHandles[i] = tp.add(job), syncHandle);
+		tp.dep(pHandles[i] = tp.add(GAIA_MOV(job)), syncHandle);
 	}
 	pHandles[Jobs] = syncHandle;
 	tp.submit(std::span(pHandles, Jobs + 1));
@@ -72,7 +72,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 
 	mt::Job sync;
 	sync.flags = mt::JobCreationFlags::ManualDelete;
-	auto syncHandle = tp.add(sync);
+	auto syncHandle = tp.add(GAIA_MOV(sync));
 
 	std::atomic_uint32_t sum = 0;
 
@@ -84,7 +84,7 @@ void Run_Schedule_Simple(const Data* pArr, uint32_t Jobs, uint32_t ItemsPerJob, 
 			const auto idxEnd = (i + 1) * ItemsPerJob;
 			sum += func({pArr + idxStart, idxEnd - idxStart});
 		};
-		pHandles[i] = tp.add(job);
+		pHandles[i] = tp.add(GAIA_MOV(job));
 	}
 	pHandles[Jobs] = syncHandle;
 	tp.dep(std::span(pHandles, Jobs), pHandles[Jobs]);
@@ -208,7 +208,7 @@ void Run_ScheduleParallel(const Data* pArr, uint32_t Items, Func func) {
 		sum += func({pArr + args.idxStart, args.idxEnd - args.idxStart});
 	};
 
-	auto syncHandle = tp.sched_par(job, Items, 0);
+	auto syncHandle = tp.sched_par(GAIA_MOV(job), Items, 0);
 	tp.wait(syncHandle);
 
 	gaia::dont_optimize(sum);

@@ -3671,6 +3671,7 @@ Parameter | Description
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
 **GAIA_USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
+**GAIA_FUNC_WRAPPER_SMALLBLOCK** | Preprocessor switch enabling SmallBlockAllocator spill storage for `SmallFunc` and `MoveFunc`; enabled by default. Set to `0` to force out-of-line callables through the platform heap.
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>

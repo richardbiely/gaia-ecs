@@ -66,7 +66,7 @@ namespace gaia {
 						exec();
 					};
 					syncJob.flags = mt::JobCreationFlags::ManualDelete;
-					jobHandle = tp.add(syncJob);
+					jobHandle = tp.add(GAIA_MOV(syncJob));
 				}
 				return jobHandle;
 			}

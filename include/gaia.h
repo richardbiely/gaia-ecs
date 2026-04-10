@@ -38,8 +38,9 @@
 #include "gaia/cnt/sringbuffer.h"
 
 #include "gaia/util/logging.h"
-#include "gaia/util/small_func.h"
+#include "gaia/util/move_func.h"
 #include "gaia/util/signal.h"
+#include "gaia/util/small_func.h"
 #include "gaia/util/str.h"
 
 #include "gaia/ser/ser_binary.h"

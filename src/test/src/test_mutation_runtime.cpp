@@ -92,6 +92,92 @@ namespace {
 		}
 	};
 
+	struct MoveFuncTrackedSmallCallable {
+		int32_t* pCalls = nullptr;
+		int32_t* pDtors = nullptr;
+		int32_t bias = 0;
+
+		MoveFuncTrackedSmallCallable(int32_t& calls, int32_t& dtors, int32_t value):
+				pCalls(&calls), pDtors(&dtors), bias(value) {}
+		MoveFuncTrackedSmallCallable(MoveFuncTrackedSmallCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors), bias(other.bias) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		MoveFuncTrackedSmallCallable(const MoveFuncTrackedSmallCallable&) = delete;
+		MoveFuncTrackedSmallCallable& operator=(MoveFuncTrackedSmallCallable&&) = delete;
+		MoveFuncTrackedSmallCallable& operator=(const MoveFuncTrackedSmallCallable&) = delete;
+
+		~MoveFuncTrackedSmallCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		int32_t operator()(int32_t lhs, int32_t rhs) {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+			return lhs + rhs + bias;
+		}
+	};
+
+	struct MoveFuncTrackedLargeCallable {
+		int32_t* pCalls = nullptr;
+		int32_t* pDtors = nullptr;
+		int32_t bias = 0;
+		uint8_t payload[128]{};
+
+		MoveFuncTrackedLargeCallable(int32_t& calls, int32_t& dtors, int32_t value):
+				pCalls(&calls), pDtors(&dtors), bias(value) {}
+		MoveFuncTrackedLargeCallable(MoveFuncTrackedLargeCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors), bias(other.bias) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		MoveFuncTrackedLargeCallable(const MoveFuncTrackedLargeCallable&) = delete;
+		MoveFuncTrackedLargeCallable& operator=(MoveFuncTrackedLargeCallable&&) = delete;
+		MoveFuncTrackedLargeCallable& operator=(const MoveFuncTrackedLargeCallable&) = delete;
+
+		~MoveFuncTrackedLargeCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		int32_t operator()(int32_t lhs, int32_t rhs) {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+			return lhs + rhs + bias;
+		}
+	};
+
+	struct MoveFuncTrackedHeapCallable {
+		int32_t* pCalls = nullptr;
+		int32_t* pDtors = nullptr;
+		int32_t bias = 0;
+		uint8_t payload[640]{};
+
+		MoveFuncTrackedHeapCallable(int32_t& calls, int32_t& dtors, int32_t value):
+				pCalls(&calls), pDtors(&dtors), bias(value) {}
+		MoveFuncTrackedHeapCallable(MoveFuncTrackedHeapCallable&& other) noexcept:
+				pCalls(other.pCalls), pDtors(other.pDtors), bias(other.bias) {
+			other.pCalls = nullptr;
+			other.pDtors = nullptr;
+		}
+		MoveFuncTrackedHeapCallable(const MoveFuncTrackedHeapCallable&) = delete;
+		MoveFuncTrackedHeapCallable& operator=(MoveFuncTrackedHeapCallable&&) = delete;
+		MoveFuncTrackedHeapCallable& operator=(const MoveFuncTrackedHeapCallable&) = delete;
+
+		~MoveFuncTrackedHeapCallable() {
+			if (pDtors != nullptr)
+				++(*pDtors);
+		}
+
+		int32_t operator()(int32_t lhs, int32_t rhs) {
+			GAIA_ASSERT(pCalls != nullptr);
+			++(*pCalls);
+			return lhs + rhs + bias;
+		}
+	};
+
 	struct SmallBlockMacroSmallObject {
 		uint32_t value = 0;
 		uint32_t* pDtors = nullptr;
@@ -1321,6 +1407,13 @@ TEST_CASE("SmallFunc") {
 
 		uint32_t value = 0;
 		util::SmallFunc func(SmallFuncLargeCallable{&value, {}});
+#if GAIA_FUNC_WRAPPER_SMALLBLOCK
+		{
+			const auto stats = alloc.stats();
+			const auto sizeType = mem::small_block_size_type(sizeof(SmallFuncLargeCallable));
+			CHECK(stats.stats[sizeType].num_pages == 1);
+		}
+#endif
 
 		func();
 		CHECK(value == 1);
@@ -1344,6 +1437,12 @@ TEST_CASE("SmallFunc") {
 		uint32_t dtors = 0;
 		{
 			util::SmallFunc func(SmallFuncTrackedLargeCallable(calls, dtors));
+#if GAIA_FUNC_WRAPPER_SMALLBLOCK
+			const auto stats = alloc.stats();
+			const auto sizeType = mem::small_block_size_type(sizeof(SmallFuncTrackedLargeCallable));
+			CHECK(stats.stats[sizeType].num_pages == 1);
+#endif
+
 			func();
 			CHECK(calls == 1);
 			CHECK(dtors == 0);
@@ -1411,6 +1510,202 @@ TEST_CASE("SmallFunc") {
 		CHECK((bool)func);
 		func();
 		CHECK(value == 11);
+	}
+}
+
+TEST_CASE("MoveFunc") {
+	SUBCASE("stores argument-bearing callables inline") {
+		util::MoveFunc<int32_t(int32_t, int32_t)> func([](int32_t lhs, int32_t rhs) {
+			return lhs + rhs + 4;
+		});
+
+		CHECK((bool)func);
+		CHECK(func(3, 5) == 12);
+	}
+
+	SUBCASE("reset destroys an inline callable exactly once") {
+		int32_t calls = 0;
+		int32_t dtors = 0;
+
+		util::MoveFunc<int32_t(int32_t, int32_t)> func(MoveFuncTrackedSmallCallable(calls, dtors, 3));
+		CHECK(dtors == 0);
+		CHECK(func(4, 5) == 12);
+		CHECK(calls == 1);
+
+		func.reset();
+		CHECK(dtors == 1);
+		CHECK(!(bool)func);
+	}
+
+	SUBCASE("supports move-only argument-bearing callables") {
+		int32_t value = 0;
+		util::MoveFunc<int32_t(int32_t)> func([ptr = std::make_unique<int32_t>(7), &value](int32_t arg) mutable {
+			value = *ptr + arg;
+			ptr.reset();
+			return value;
+		});
+
+		util::MoveFunc<int32_t(int32_t)> moved = GAIA_MOV(func);
+		CHECK(!(bool)func);
+		CHECK((bool)moved);
+		CHECK(moved(5) == 12);
+		CHECK(value == 12);
+	}
+
+	SUBCASE("move assignment transfers inline callable ownership") {
+		int32_t calls = 0;
+		int32_t dtors = 0;
+
+		util::MoveFunc<int32_t(int32_t, int32_t)> src(MoveFuncTrackedSmallCallable(calls, dtors, 1));
+		util::MoveFunc<int32_t(int32_t, int32_t)> dst;
+		dst = GAIA_MOV(src);
+
+		CHECK(!(bool)src);
+		CHECK((bool)dst);
+		CHECK(dst(6, 2) == 9);
+		CHECK(calls == 1);
+
+		dst.reset();
+		CHECK(dtors == 1);
+	}
+
+	SUBCASE("spills larger argument-bearing callables to the small block allocator") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		int32_t calls = 0;
+		int32_t dtors = 0;
+		{
+			util::MoveFunc<int32_t(int32_t, int32_t)> func(MoveFuncTrackedLargeCallable(calls, dtors, 2));
+#if GAIA_FUNC_WRAPPER_SMALLBLOCK
+			const auto stats = alloc.stats();
+			const auto sizeType = mem::small_block_size_type(sizeof(MoveFuncTrackedLargeCallable));
+			CHECK(stats.stats[sizeType].num_pages == 1);
+#endif
+
+			CHECK(func(8, 1) == 11);
+			CHECK(calls == 1);
+			CHECK(dtors == 0);
+		}
+		CHECK(dtors == 1);
+
+		void* p = alloc.alloc(sizeof(MoveFuncTrackedLargeCallable));
+		CHECK(p != nullptr);
+		alloc.free(p);
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("oversized argument-bearing callables fall back to the default heap") {
+		auto& alloc = mem::SmallBlockAllocator::get();
+		alloc.flush(true);
+		alloc.verify();
+
+		int32_t calls = 0;
+		int32_t dtors = 0;
+		{
+			util::MoveFunc<int32_t(int32_t, int32_t)> func(MoveFuncTrackedHeapCallable(calls, dtors, 5));
+			CHECK(func(1, 2) == 8);
+			CHECK(calls == 1);
+			CHECK(dtors == 0);
+
+			util::MoveFunc<int32_t(int32_t, int32_t)> moved = GAIA_MOV(func);
+			CHECK(!(bool)func);
+			CHECK((bool)moved);
+			CHECK(moved(2, 3) == 10);
+			CHECK(calls == 2);
+		}
+		CHECK(dtors == 1);
+
+		alloc.flush(true);
+		alloc.verify();
+	}
+
+	SUBCASE("reassignment destroys the previous callable across inline and spilled storage") {
+		int32_t smallCalls = 0;
+		int32_t smallDtors = 0;
+		int32_t largeCalls = 0;
+		int32_t largeDtors = 0;
+
+		util::MoveFunc<int32_t(int32_t, int32_t)> func(MoveFuncTrackedSmallCallable(smallCalls, smallDtors, 1));
+		func = MoveFuncTrackedLargeCallable(largeCalls, largeDtors, 2);
+		CHECK(smallDtors == 1);
+		CHECK(largeDtors == 0);
+
+		CHECK(func(2, 6) == 10);
+		CHECK(largeCalls == 1);
+
+		func = [](int32_t lhs, int32_t rhs) {
+			return lhs - rhs;
+		};
+		CHECK(largeDtors == 1);
+		CHECK(func(9, 4) == 5);
+	}
+}
+
+TEST_CASE("JobArgsFunc") {
+	SUBCASE("stores range callbacks inline") {
+		mt::JobArgsFunc func([](const mt::JobArgs& args) {
+			CHECK(args.idxStart == 2);
+			CHECK(args.idxEnd == 7);
+		});
+
+		CHECK((bool)func);
+		func({2, 7});
+	}
+
+	SUBCASE("supports move-only range callbacks") {
+		uint32_t value = 0;
+		mt::JobArgsFunc func([ptr = std::make_unique<uint32_t>(9), &value](const mt::JobArgs& args) mutable {
+			value = *ptr + args.idxStart + args.idxEnd;
+			ptr.reset();
+		});
+
+		mt::JobArgsFunc moved = GAIA_MOV(func);
+		CHECK(!(bool)func);
+		CHECK((bool)moved);
+
+		moved({2, 3});
+		CHECK(value == 14);
+	}
+
+	SUBCASE("destroys spilled range callbacks exactly once") {
+		struct TrackedLargeJobArgsCallable {
+			uint32_t* pCalls = nullptr;
+			uint32_t* pDtors = nullptr;
+			uint8_t payload[128]{};
+
+			TrackedLargeJobArgsCallable(uint32_t& calls, uint32_t& dtors): pCalls(&calls), pDtors(&dtors) {}
+			TrackedLargeJobArgsCallable(TrackedLargeJobArgsCallable&& other) noexcept:
+					pCalls(other.pCalls), pDtors(other.pDtors) {
+				other.pCalls = nullptr;
+				other.pDtors = nullptr;
+			}
+			TrackedLargeJobArgsCallable(const TrackedLargeJobArgsCallable&) = delete;
+			TrackedLargeJobArgsCallable& operator=(TrackedLargeJobArgsCallable&&) = delete;
+			TrackedLargeJobArgsCallable& operator=(const TrackedLargeJobArgsCallable&) = delete;
+			~TrackedLargeJobArgsCallable() {
+				if (pDtors != nullptr)
+					++*pDtors;
+			}
+
+			void operator()(const mt::JobArgs& args) const {
+				++*pCalls;
+				CHECK(args.idxStart == 4);
+				CHECK(args.idxEnd == 8);
+			}
+		};
+
+		uint32_t calls = 0;
+		uint32_t dtors = 0;
+		{
+			mt::JobArgsFunc func(TrackedLargeJobArgsCallable(calls, dtors));
+			func({4, 8});
+			CHECK(calls == 1);
+			CHECK(dtors == 0);
+		}
+		CHECK(dtors == 1);
 	}
 }
 

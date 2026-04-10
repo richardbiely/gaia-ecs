@@ -12626,28 +12626,24 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			struct RunSystemEntity {
-				World* pWorld = nullptr;
+			//! Runs a system entity from the erased system-query callback path.
+			inline void run_system_entity_erased(void* pCtx, Entity systemEntity) {
+				auto& world = *static_cast<World*>(pCtx);
+				if (!world.valid(systemEntity) || !world.has(systemEntity, System))
+					return;
+				if (!world.enabled_hierarchy(systemEntity, ChildOf))
+					return;
 
-				void operator()(Entity systemEntity) const {
-					if (!pWorld->valid(systemEntity) || !pWorld->has(systemEntity, System))
-						return;
-					if (!pWorld->enabled_hierarchy(systemEntity, ChildOf))
-						return;
+				auto ss = world.acc_mut(systemEntity);
+				auto& sys = ss.smut<ecs::System_>();
+				sys.exec();
+			}
 
-					auto ss = pWorld->acc_mut(systemEntity);
-					auto& sys = ss.smut<ecs::System_>();
-					sys.exec();
-				}
-			};
-
-			struct CollectSystemEntity {
-				cnt::darray<Entity>* pOut = nullptr;
-
-				void operator()(Entity systemEntity) const {
-					pOut->push_back(systemEntity);
-				}
-			};
+			//! Collects a system entity from the erased system-query callback path.
+			inline void collect_system_entity_erased(void* pCtx, Entity systemEntity) {
+				auto& out = *static_cast<cnt::darray<Entity>*>(pCtx);
+				out.push_back(systemEntity);
+			}
 		} // namespace detail
 
 		inline void World::systems_init() {
@@ -12658,12 +12654,12 @@ namespace gaia {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
 
-			m_systemsQuery.each(detail::RunSystemEntity{this});
+			m_systemsQuery.each_entity_enabled(this, detail::run_system_entity_erased);
 		}
 
 		inline void World::systems_done() {
 			cnt::darray<Entity> tmpEntities;
-			m_systemsQuery.each(detail::CollectSystemEntity{&tmpEntities});
+			m_systemsQuery.each_entity_enabled(&tmpEntities, detail::collect_system_entity_erased);
 
 			// Wait for every outstanding system job before mutating any system runtime state.
 			// This keeps dependency chains intact while jobs are still live.

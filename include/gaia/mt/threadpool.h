@@ -312,7 +312,7 @@ namespace gaia {
 			//! \warning Can't be called while there are any jobs being executed.
 			//! \return Job handle of the scheduled job.
 			template <typename TJob>
-			JobHandle add(TJob&& job) {
+			JobHandle add(TJob job) {
 				GAIA_ASSERT(main_thread());
 
 				job.priority = final_prio(job);
@@ -321,7 +321,7 @@ namespace gaia {
 				core::lock_scope lock(mtx);
 				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
 
-				return m_jobManager.alloc_job(GAIA_FWD(job));
+				return m_jobManager.alloc_job(GAIA_MOV(job));
 			}
 
 		private:
@@ -335,6 +335,25 @@ namespace gaia {
 
 				for (auto& jobHandle: jobHandles)
 					jobHandle = m_jobManager.alloc_job({{}, prio, JobCreationFlags::Default});
+			}
+
+			GAIA_NODISCARD ParallelCallbackHandle add_parallel_callback(JobArgsFunc callback, uint32_t refs) {
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
+				return m_jobManager.alloc_parallel_callback(GAIA_MOV(callback), refs);
+			}
+
+			void release_parallel_callback(ParallelCallbackHandle handle) {
+				if (!m_jobManager.release_parallel_callback_ref(handle))
+					return;
+
+				auto& mtx = GAIA_PROF_EXTRACT_MUTEX(m_jobAllocMtx);
+				core::lock_scope lock(mtx);
+				GAIA_PROF_LOCK_MARK(m_jobAllocMtx);
+
+				m_jobManager.free_parallel_callback(handle);
 			}
 
 		public:
@@ -454,8 +473,8 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
-			JobHandle sched(Job& job) {
-				JobHandle jobHandle = add(job);
+			JobHandle sched(Job job) {
+				JobHandle jobHandle = add(GAIA_MOV(job));
 				submit(jobHandle);
 				return jobHandle;
 			}
@@ -466,8 +485,8 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
-			JobHandle sched(Job& job, JobHandle dependsOn) {
-				JobHandle jobHandle = add(job);
+			JobHandle sched(Job job, JobHandle dependsOn) {
+				JobHandle jobHandle = add(GAIA_MOV(job));
 				dep(jobHandle, dependsOn);
 				submit(jobHandle);
 				return jobHandle;
@@ -480,7 +499,7 @@ namespace gaia {
 			//! \warning Must be used from the main thread.
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled batch of jobs.
-			JobHandle sched_par(JobParallel& job, uint32_t itemsToProcess, uint32_t groupSize) {
+			JobHandle sched_par(JobParallel job, uint32_t itemsToProcess, uint32_t groupSize) {
 				GAIA_ASSERT(main_thread());
 
 				// Empty data set are considered wrong inputs
@@ -520,20 +539,23 @@ namespace gaia {
 				// the reason for that is so let's stay silent.
 				if (jobs == 1) {
 					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
-					auto groupJobFunc = [job, groupJobIdxEnd]() {
+					auto groupFunc = GAIA_MOV(job.func);
+					auto groupJobFunc = [func = GAIA_MOV(groupFunc), groupJobIdxEnd]() mutable {
 						JobArgs args;
 						args.idxStart = 0;
 						args.idxEnd = groupJobIdxEnd;
-						job.func(args);
+						func(args);
 					};
 
-					auto handle = add(Job{groupJobFunc, prio, JobCreationFlags::Default});
+					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
 					submit(handle);
 					return handle;
 				}
 
 				// Multiple jobs need to be parallelized.
 				// Create a sync job and assign it as their dependency.
+				auto callbackHandle = add_parallel_callback(GAIA_MOV(job.func), jobs);
+
 				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
 				std::span<JobHandle> handles(pHandles, jobs + 1);
 
@@ -551,15 +573,16 @@ namespace gaia {
 					const uint32_t groupJobIdxEnd =
 							groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
 
-					auto groupJobFunc = [job, groupJobIdxStart, groupJobIdxEnd]() {
+					auto groupJobFunc = [this, callbackHandle, groupJobIdxStart, groupJobIdxEnd]() {
 						JobArgs args;
 						args.idxStart = groupJobIdxStart;
 						args.idxEnd = groupJobIdxEnd;
-						job.func(args);
+						m_jobManager.invoke_parallel_callback(callbackHandle, args);
+						release_parallel_callback(callbackHandle);
 					};
 
 					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
-					jobData.func = groupJobFunc;
+					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
 					jobData.prio = prio;
 				}
 				// Sync job
@@ -573,6 +596,94 @@ namespace gaia {
 
 				// Sumbit the jobs to the threadpool.
 				// This is a point of no return. After this point no more changes to jobs are possible.
+				submit(handles);
+				return pHandles[jobs];
+			}
+
+			//! Schedules a non-owning parallel job descriptor on worker threads.
+			//! \param job Non-owning job descriptor.
+			//! \param itemsToProcess Total number of work items.
+			//! \param groupSize Group size per created job. If zero the threadpool decides the group size.
+			//! \warning Must be used from the main thread.
+			//! \warning The pointed-to context must remain alive until the returned handle completes.
+			//! \return Job handle of the scheduled batch of jobs.
+			JobHandle sched_par(JobParallelRef job, uint32_t itemsToProcess, uint32_t groupSize) {
+				GAIA_ASSERT(main_thread());
+				GAIA_ASSERT(job.pCtx != nullptr);
+				GAIA_ASSERT(job.invoke != nullptr);
+
+				GAIA_ASSERT(itemsToProcess != 0);
+				if (itemsToProcess == 0)
+					return JobNull;
+
+				if GAIA_UNLIKELY (m_stop)
+					return JobNull;
+
+				const auto prio = job.priority = final_prio(job);
+
+				if (groupSize == 0) {
+					const auto cntWorkers = m_workersCnt[(uint32_t)prio];
+					groupSize = (itemsToProcess + cntWorkers - 1) / cntWorkers;
+
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize <= 0)
+						groupSize = 1;
+				}
+
+				const auto jobs = (itemsToProcess + groupSize - 1) / groupSize;
+
+				if (jobs == 1) {
+					const uint32_t groupJobIdxEnd = groupSize < itemsToProcess ? groupSize : itemsToProcess;
+					auto* pCtx = job.pCtx;
+					auto invoke = job.invoke;
+					auto groupJobFunc = [pCtx, invoke, groupJobIdxEnd]() {
+						JobArgs args;
+						args.idxStart = 0;
+						args.idxEnd = groupJobIdxEnd;
+						invoke(pCtx, args);
+					};
+
+					auto handle = add(Job{GAIA_MOV(groupJobFunc), prio, JobCreationFlags::Default});
+					submit(handle);
+					return handle;
+				}
+
+				auto* pHandles = (JobHandle*)alloca(sizeof(JobHandle) * (jobs + 1));
+				std::span<JobHandle> handles(pHandles, jobs + 1);
+
+				add_n(prio, handles);
+
+#if GAIA_ASSERT_ENABLED
+				for (auto jobHandle: handles)
+					GAIA_ASSERT(m_jobManager.is_clear(jobHandle));
+#endif
+
+				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					const uint32_t groupJobIdxStart = jobIndex * groupSize;
+					const uint32_t groupJobIdxStartPlusGroupSize = groupJobIdxStart + groupSize;
+					const uint32_t groupJobIdxEnd =
+							groupJobIdxStartPlusGroupSize < itemsToProcess ? groupJobIdxStartPlusGroupSize : itemsToProcess;
+
+					auto* pCtx = job.pCtx;
+					auto invoke = job.invoke;
+					auto groupJobFunc = [pCtx, invoke, groupJobIdxStart, groupJobIdxEnd]() {
+						JobArgs args;
+						args.idxStart = groupJobIdxStart;
+						args.idxEnd = groupJobIdxEnd;
+						invoke(pCtx, args);
+					};
+
+					auto& jobData = m_jobManager.data(pHandles[jobIndex]);
+					jobData.func = util::SmallFunc::create(GAIA_MOV(groupJobFunc));
+					jobData.prio = prio;
+				}
+				{
+					auto& jobData = m_jobManager.data(pHandles[jobs]);
+					jobData.prio = prio;
+				}
+
+				dep(handles.subspan(0, jobs), pHandles[jobs]);
 				submit(handles);
 				return pHandles[jobs];
 			}

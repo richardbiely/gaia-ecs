@@ -14,7 +14,7 @@ This repository is Gaia-ECS. All changes, examples, benchmarks, tests, documenta
 
 ## Container policy
 
-- Do not use C++ standard library containers (e.g. `std::vector`, `std::unordered_map`, `std::array`).
+- Do not use C++ standard library containers (e.g. `std::vector`, `std::unordered_map`, `std::array`) or `std::function`.
 - Use Gaia-ECS-specific containers or custom data structures aligned with existing patterns and performance constraints.
 
 ## Determinism
