@@ -3,11 +3,10 @@
 #include "gaia/config/config.h"
 
 #include <cinttypes>
-// TODO: Currently necessary due to std::function. Replace them!
-#include <functional>
 
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query.h"
+#include "gaia/util/move_func.h"
 
 #if GAIA_OBSERVERS_ENABLED
 namespace gaia {
@@ -51,7 +50,7 @@ namespace gaia {
 		struct ObserverPlan {
 			enum class ExecKind : uint8_t { DirectQuery, DirectFast, DiffLocal, DiffPropagated, DiffFallback };
 			enum class FastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
-			using TObserverIterFunc = std::function<void(Iter&)>;
+			using TObserverIterFunc = util::MoveFunc<void(Iter&)>;
 
 			struct DiffPlan {
 				enum class DispatchKind : uint8_t { LocalTargets, PropagatedTraversal, GlobalFallback };
@@ -187,7 +186,7 @@ namespace gaia {
 
 		//! Runtime payload for observers kept out-of-line from ECS component storage.
 		struct ObserverRuntimeData {
-			using TObserverIterFunc = std::function<void(Iter&)>;
+			using TObserverIterFunc = util::MoveFunc<void(Iter&)>;
 
 			ObserverRuntimeData() {
 				GAIA_FOR(MAX_ITEMS_IN_QUERY) {
