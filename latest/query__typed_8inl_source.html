@@ -123,7 +123,7 @@ $(document).ready(function(){initNavTree('query__typed_8inl_source.html',''); in
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span>  <span class="keyword">namespace </span>ecs {</div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span>    <span class="keyword">namespace </span>detail {</div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span>      <span class="keyword">inline</span> TypedQueryExecState build_typed_query_exec_state(</div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>          QueryImpl&amp; query, World&amp; world, <span class="keyword">const</span> QueryInfo&amp; queryInfo, <span class="keyword">const</span> TypedQueryArgMeta* pMetas,</div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span>          [[maybe_unused]] QueryImpl&amp; query, World&amp; world, <span class="keyword">const</span> QueryInfo&amp; queryInfo, <span class="keyword">const</span> TypedQueryArgMeta* pMetas,</div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span>          uint32_t argCount) {</div>
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>        TypedQueryExecState state{};</div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>        QueryImpl::DirectChunkArgEvalDesc directChunkDescs[MAX_ITEMS_IN_QUERY]{};</div>
@@ -133,7 +133,7 @@ $(document).ready(function(){initNavTree('query__typed_8inl_source.html',''); in
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>          state.writeFlags[i] = pMetas[i].isWrite;</div>
 <div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>          state.hasWriteArgs = state.hasWriteArgs || pMetas[i].isWrite;</div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>          state.needsInheritedArgIds = state.needsInheritedArgIds || !pMetas[i].isEntity;</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>          directChunkDescs[i] = {.id = pMetas[i].termId, .isEntity = pMetas[i].isEntity, .isPair = pMetas[i].isPair};</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>          directChunkDescs[i] = {pMetas[i].termId, pMetas[i].isEntity, pMetas[i].isPair};</div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>        }</div>
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span> </div>
 <div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>        state.canUseDirectChunkEval =</div>
@@ -1045,7 +1045,7 @@ $(document).ready(function(){initNavTree('query__typed_8inl_source.html',''); in
 <div class="line"><a id="l00924" name="l00924"></a><span class="lineno">  924</span> </div>
 <div class="line"><a id="l00925" name="l00925"></a><span class="lineno">  925</span>        <span class="keyword">auto</span>&amp; world = *queryInfo.world();</div>
 <div class="line"><a id="l00926" name="l00926"></a><span class="lineno">  926</span>        <span class="keyword">const</span> <span class="keyword">auto</span> meta = typed_query_arg_meta&lt;ContainerItemType&gt;(world);</div>
-<div class="line"><a id="l00927" name="l00927"></a><span class="lineno">  927</span>        <span class="keyword">const</span> DirectChunkArgEvalDesc desc = {.id = meta.termId, .isEntity = meta.isEntity, .isPair = meta.isPair};</div>
+<div class="line"><a id="l00927" name="l00927"></a><span class="lineno">  927</span>        <span class="keyword">const</span> DirectChunkArgEvalDesc desc{meta.termId, meta.isEntity, meta.isPair};</div>
 <div class="line"><a id="l00928" name="l00928"></a><span class="lineno">  928</span>        Iter it;</div>
 <div class="line"><a id="l00929" name="l00929"></a><span class="lineno">  929</span>        it.set_world(queryInfo.world());</div>
 <div class="line"><a id="l00930" name="l00930"></a><span class="lineno">  930</span>        it.set_constraints(constraints);</div>
