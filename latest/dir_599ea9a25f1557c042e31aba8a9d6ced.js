@@ -25,6 +25,7 @@ var dir_599ea9a25f1557c042e31aba8a9d6ced =
     [ "id_fwd.h", "id__fwd_8h_source.html", null ],
     [ "observer.h", "observer_8h_source.html", null ],
     [ "observer.inl", "observer_8inl_source.html", null ],
+    [ "observer_registry.h", "observer__registry_8h_source.html", null ],
     [ "query.h", "query_8h_source.html", null ],
     [ "query_adapter_typed.inl", "query__adapter__typed_8inl_source.html", null ],
     [ "query_builder_typed.inl", "query__builder__typed_8inl_source.html", null ],
@@ -35,6 +36,7 @@ var dir_599ea9a25f1557c042e31aba8a9d6ced =
     [ "query_mask.h", "query__mask_8h_source.html", null ],
     [ "query_match_stamps.h", "query__match__stamps_8h_source.html", null ],
     [ "query_typed.inl", "query__typed_8inl_source.html", null ],
+    [ "system.h", "system_8h_source.html", null ],
     [ "system.inl", "system_8inl_source.html", null ],
     [ "vm.h", "vm_8h_source.html", null ],
     [ "world.h", "world_8h_source.html", null ]

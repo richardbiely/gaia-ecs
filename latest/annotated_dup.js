@@ -296,7 +296,6 @@ var annotated_dup =
         [ "QueryMatchScratch", "structgaia_1_1ecs_1_1QueryMatchScratch.html", "structgaia_1_1ecs_1_1QueryMatchScratch" ],
         [ "QueryTerm", "structgaia_1_1ecs_1_1QueryTerm.html", "structgaia_1_1ecs_1_1QueryTerm" ],
         [ "QueryTermOptions", "structgaia_1_1ecs_1_1QueryTermOptions.html", "structgaia_1_1ecs_1_1QueryTermOptions" ],
-        [ "QueryUncached", "structgaia_1_1ecs_1_1QueryUncached.html", null ],
         [ "Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],
         [ "Requires_", "structgaia_1_1ecs_1_1Requires__.html", null ],
         [ "SingleArchetypeLookupItem", "structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html", null ],

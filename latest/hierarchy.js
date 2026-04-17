@@ -522,7 +522,6 @@ var hierarchy =
     [ "gaia::ecs::QueryMatchScratch", "structgaia_1_1ecs_1_1QueryMatchScratch.html", null ],
     [ "gaia::ecs::QueryTerm", "structgaia_1_1ecs_1_1QueryTerm.html", null ],
     [ "gaia::ecs::QueryTermOptions", "structgaia_1_1ecs_1_1QueryTermOptions.html", null ],
-    [ "gaia::ecs::QueryUncached", "structgaia_1_1ecs_1_1QueryUncached.html", null ],
     [ "gaia::mem::detail::raw_data_holder< Size, Alignment >", "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html", null ],
     [ "gaia::mem::detail::raw_data_holder< 1024, 16 >", "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html", null ],
     [ "gaia::mem::detail::raw_data_holder< Entity, allocated_bytes >", "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html", null ],

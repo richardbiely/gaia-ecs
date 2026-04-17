@@ -36,6 +36,5 @@ var searchData=
   ['querymatchscratch_33',['QueryMatchScratch',['../structgaia_1_1ecs_1_1QueryMatchScratch.html',1,'gaia::ecs']]],
   ['queryterm_34',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
   ['querytermoptions_35',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]],
-  ['queryuncached_36',['QueryUncached',['../structgaia_1_1ecs_1_1QueryUncached.html',1,'gaia::ecs']]],
-  ['queued_5ffor_5fdeletion_37',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
+  ['queued_5ffor_5fdeletion_36',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
 ];

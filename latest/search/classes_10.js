@@ -21,6 +21,5 @@ var searchData=
   ['querylookupkey_18',['QueryLookupKey',['../classgaia_1_1ecs_1_1QueryLookupKey.html',1,'gaia::ecs']]],
   ['querymatchscratch_19',['QueryMatchScratch',['../structgaia_1_1ecs_1_1QueryMatchScratch.html',1,'gaia::ecs']]],
   ['queryterm_20',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
-  ['querytermoptions_21',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]],
-  ['queryuncached_22',['QueryUncached',['../structgaia_1_1ecs_1_1QueryUncached.html',1,'gaia::ecs']]]
+  ['querytermoptions_21',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]]
 ];
