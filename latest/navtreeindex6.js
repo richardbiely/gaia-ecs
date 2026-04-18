@@ -119,6 +119,9 @@ var NAVTREEINDEX6 =
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html":[10,0,0,3,0,32,5],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html":[10,0,0,3,0,32,6],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html":[10,0,0,3,0,32,8],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html":[10,0,0,3,0,32,9],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html":[10,0,0,3,0,32,10],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html":[10,0,0,3,0,32,11],
 "structgaia_1_1ecs_1_1detail_1_1SoATermFieldReadProxy.html":[10,0,0,3,0,34],
 "structgaia_1_1ecs_1_1detail_1_1SoATermFieldReadProxyEntity.html":[10,0,0,3,0,35],
 "structgaia_1_1ecs_1_1detail_1_1SoATermFieldReadProxyPointer.html":[10,0,0,3,0,36],
@@ -246,8 +249,5 @@ var NAVTREEINDEX6 =
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA16_00_01ValueType_01_4.html":[10,0,0,4,10],
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[10,0,0,4,11],
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA_00_01ValueType_01_4.html":[10,0,0,4,9],
-"structgaia_1_1mem_1_1data__view__policy__aos.html":[10,0,0,4,12],
-"structgaia_1_1mem_1_1data__view__policy__aos__get.html":[10,0,0,4,13],
-"structgaia_1_1mem_1_1data__view__policy__aos__get.html#a062206408fa0f9c7cd69f4b6f5b656a3":[10,0,0,4,13,0],
-"structgaia_1_1mem_1_1data__view__policy__aos__set.html":[10,0,0,4,14]
+"structgaia_1_1mem_1_1data__view__policy__aos.html":[10,0,0,4,12]
 };

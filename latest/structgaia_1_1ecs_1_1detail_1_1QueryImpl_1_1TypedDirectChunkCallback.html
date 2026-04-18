@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::cnt::ilist_item::ItemData Struct Reference</title>
+<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::TypedDirectChunkCallback Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('structgaia_1_1cnt_1_1ilist__item_1_1ItemData.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -108,28 +108,43 @@ $(document).ready(function(){initNavTree('structgaia_1_1cnt_1_1ilist__item_1_1It
 
 <div class="header">
   <div class="summary">
+<a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="structgaia_1_1cnt_1_1ilist__item_1_1ItemData-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::cnt::ilist_item::ItemData Struct Reference</div></div>
+<a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::TypedDirectChunkCallback Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
+Public Member Functions</h2></td></tr>
+<tr class="memitem:a027425f2b0f8438433cfe406e9bd0902" id="r_a027425f2b0f8438433cfe406e9bd0902"><td class="memItemLeft" align="right" valign="top"><a id="a027425f2b0f8438433cfe406e9bd0902" name="a027425f2b0f8438433cfe406e9bd0902"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>operator()</b> (<a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;it) const</td></tr>
+<tr class="separator:a027425f2b0f8438433cfe406e9bd0902"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:a9f822bfcade88a27ee303a9007231afd" id="r_a9f822bfcade88a27ee303a9007231afd"><td class="memItemLeft" align="right" valign="top"><a id="a9f822bfcade88a27ee303a9007231afd" name="a9f822bfcade88a27ee303a9007231afd"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b></td></tr>
-<tr class="memdesc:a9f822bfcade88a27ee303a9007231afd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generation ID. <br /></td></tr>
-<tr class="separator:a9f822bfcade88a27ee303a9007231afd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a801b27db5c903e3c541263f70a02dff5" id="r_a801b27db5c903e3c541263f70a02dff5"><td class="memItemLeft" align="right" valign="top"><a id="a801b27db5c903e3c541263f70a02dff5" name="a801b27db5c903e3c541263f70a02dff5"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pSelf</b></td></tr>
+<tr class="separator:a801b27db5c903e3c541263f70a02dff5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afdd5388e72c65bfe3cec17402e53be91" id="r_afdd5388e72c65bfe3cec17402e53be91"><td class="memItemLeft" align="right" valign="top"><a id="afdd5388e72c65bfe3cec17402e53be91" name="afdd5388e72c65bfe3cec17402e53be91"></a>
+void *&#160;</td><td class="memItemRight" valign="bottom"><b>pFunc</b></td></tr>
+<tr class="separator:afdd5388e72c65bfe3cec17402e53be91"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6bef9df836587428e96dce9b9e15f9bd" id="r_a6bef9df836587428e96dce9b9e15f9bd"><td class="memItemLeft" align="right" valign="top"><a id="a6bef9df836587428e96dce9b9e15f9bd" name="a6bef9df836587428e96dce9b9e15f9bd"></a>
+const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pState</b></td></tr>
+<tr class="separator:a6bef9df836587428e96dce9b9e15f9bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a03840d56609d24bc1d32ffc0de67fa0c" id="r_a03840d56609d24bc1d32ffc0de67fa0c"><td class="memItemLeft" align="right" valign="top"><a id="a03840d56609d24bc1d32ffc0de67fa0c" name="a03840d56609d24bc1d32ffc0de67fa0c"></a>
+void(*&#160;</td><td class="memItemRight" valign="bottom"><b>runChunk</b> )(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;)</td></tr>
+<tr class="separator:a03840d56609d24bc1d32ffc0de67fa0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <hr/>The documentation for this struct was generated from the following file:<ul>
-<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/<a class="el" href="ilist_8h_source.html">ilist.h</a></li>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query_8h_source.html">query.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1ilist__item_1_1ItemData.html">ItemData</a></li>
+    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html">TypedDirectChunkCallback</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

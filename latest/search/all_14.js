@@ -28,7 +28,7 @@ var searchData=
   ['table_3c_20queryid_2c_20queryserbuffer_20_3e_25',['Table&lt; QueryId, QuerySerBuffer &gt;',['../classrobin__hood_1_1detail_1_1Table.html',1,'robin_hood::detail']]],
   ['target_26',['target',['../classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227',1,'gaia::ecs::World']]],
   ['targetentities_27',['targetEntities',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a75697565bf1cc212c5c170b1e337a4a1',1,'gaia::ecs::vm::MatchingCtx']]],
-  ['targets_28',['targets',['../index.html#targets',1,'Targets'],['../classgaia_1_1ecs_1_1World.html#ad7f5881275613839c00b96b67b55a978',1,'gaia::ecs::World::targets(Entity entity, Entity relation, Func func) const'],['../classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70',1,'gaia::ecs::World::targets(Entity relation) const']]],
+  ['targets_28',['targets',['../index.html#targets',1,'Targets'],['../classgaia_1_1ecs_1_1World.html#a15447ad9aaa47367e4044187ca146d70',1,'gaia::ecs::World::targets(Entity relation) const'],['../classgaia_1_1ecs_1_1World.html#ad7f5881275613839c00b96b67b55a978',1,'gaia::ecs::World::targets(Entity entity, Entity relation, Func func) const']]],
   ['targets_5fall_5fcache_29',['targets_all_cache',['../classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752',1,'gaia::ecs::World']]],
   ['targets_5fif_30',['targets_if',['../classgaia_1_1ecs_1_1World.html#a7df1abfef2df0f3f2ccc731d3fe865dd',1,'gaia::ecs::World']]],
   ['targets_5ftrav_31',['targets_trav',['../classgaia_1_1ecs_1_1World.html#a855d1223ac980d386098de9d64f2cae5',1,'gaia::ecs::World']]],
@@ -36,7 +36,7 @@ var searchData=
   ['targets_5ftrav_5fif_33',['targets_trav_if',['../classgaia_1_1ecs_1_1World.html#a13c3f3f32f6f996256ffc3763c775283',1,'gaia::ecs::World']]],
   ['teardown_34',['teardown',['../classgaia_1_1ecs_1_1World.html#ac61cf63eefdacc175f9a98cfe83076a4',1,'gaia::ecs::World']]],
   ['tearing_5fdown_35',['tearing_down',['../classgaia_1_1ecs_1_1World.html#afaa0ae8aff3ea28fb83daed15a76ff04',1,'gaia::ecs::World']]],
-  ['tell_36',['tell',['../classgaia_1_1ser_1_1bin__stream.html#a6fc6e01b624ea4ffb531b47ffa347c67',1,'gaia::ser::bin_stream::tell()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a2e57dd8769b696fdb58586a36a70646f',1,'gaia::ser::detail::ser_buffer_binary_impl::tell()']]],
+  ['tell_36',['tell',['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a2e57dd8769b696fdb58586a36a70646f',1,'gaia::ser::detail::ser_buffer_binary_impl::tell()'],['../classgaia_1_1ser_1_1bin__stream.html#a6fc6e01b624ea4ffb531b47ffa347c67',1,'gaia::ser::bin_stream::tell()']]],
   ['terms_37',['terms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae445b34c3c1b01df8397383cf234ff8b',1,'gaia::ecs::QueryCtx::Data']]],
   ['terms_5fall_5fsrc_38',['terms_all_src',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#a9eba2b01f0bd44aa2b65858fae552a7e',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
   ['terms_5fall_5fvar_39',['terms_all_var',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#ad8ed92d1840ed54797fcf80b6bcb03e6',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
@@ -91,8 +91,11 @@ var searchData=
   ['type_5flist_88',['type_list',['../structgaia_1_1core_1_1type__list.html',1,'gaia::core']]],
   ['type_5flist_5fconcat_89',['type_list_concat',['../structgaia_1_1core_1_1type__list__concat.html',1,'gaia::core']]],
   ['type_5flist_5fconcat_3c_20type_5flist_3c_20typesa_2e_2e_2e_20_3e_2c_20type_5flist_3c_20typesb_2e_2e_2e_20_3e_20_3e_90',['type_list_concat&lt; type_list&lt; TypesA... &gt;, type_list&lt; TypesB... &gt; &gt;',['../structgaia_1_1core_1_1type__list__concat_3_01type__list_3_01TypesA_8_8_8_01_4_00_01type__list_3_01TypesB_8_8_8_01_4_01_4.html',1,'gaia::core']]],
-  ['typedqueryargmeta_91',['TypedQueryArgMeta',['../structgaia_1_1ecs_1_1TypedQueryArgMeta.html',1,'gaia::ecs']]],
-  ['typedqueryexecstate_92',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]],
-  ['typefull_93',['typefull',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a308d015543c2767588b1403d8b2263f0',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeFull'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#a4090e207be5afaad41ff98a73c7c291f',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeFull']]],
-  ['typeoriginal_94',['typeoriginal',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a40bd7f467eb2b2d5a6a421b9eaf0492a',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeOriginal'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#afdc86eba4413c81bd786f258751897e3',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeOriginal']]]
+  ['typeddirectchunkcallback_91',['TypedDirectChunkCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typeditererasedcallback_92',['TypedIterErasedCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typedmappedchunkcallback_93',['TypedMappedChunkCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typedqueryargmeta_94',['TypedQueryArgMeta',['../structgaia_1_1ecs_1_1TypedQueryArgMeta.html',1,'gaia::ecs']]],
+  ['typedqueryexecstate_95',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]],
+  ['typefull_96',['typefull',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#a4090e207be5afaad41ff98a73c7c291f',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeFull'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a308d015543c2767588b1403d8b2263f0',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeFull']]],
+  ['typeoriginal_97',['typeoriginal',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#afdc86eba4413c81bd786f258751897e3',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeOriginal'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a40bd7f467eb2b2d5a6a421b9eaf0492a',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeOriginal']]]
 ];

@@ -50,6 +50,9 @@ var searchData=
   ['type_5flist_47',['type_list',['../structgaia_1_1core_1_1type__list.html',1,'gaia::core']]],
   ['type_5flist_5fconcat_48',['type_list_concat',['../structgaia_1_1core_1_1type__list__concat.html',1,'gaia::core']]],
   ['type_5flist_5fconcat_3c_20type_5flist_3c_20typesa_2e_2e_2e_20_3e_2c_20type_5flist_3c_20typesb_2e_2e_2e_20_3e_20_3e_49',['type_list_concat&lt; type_list&lt; TypesA... &gt;, type_list&lt; TypesB... &gt; &gt;',['../structgaia_1_1core_1_1type__list__concat_3_01type__list_3_01TypesA_8_8_8_01_4_00_01type__list_3_01TypesB_8_8_8_01_4_01_4.html',1,'gaia::core']]],
-  ['typedqueryargmeta_50',['TypedQueryArgMeta',['../structgaia_1_1ecs_1_1TypedQueryArgMeta.html',1,'gaia::ecs']]],
-  ['typedqueryexecstate_51',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]]
+  ['typeddirectchunkcallback_50',['TypedDirectChunkCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typeditererasedcallback_51',['TypedIterErasedCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typedmappedchunkcallback_52',['TypedMappedChunkCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['typedqueryargmeta_53',['TypedQueryArgMeta',['../structgaia_1_1ecs_1_1TypedQueryArgMeta.html',1,'gaia::ecs']]],
+  ['typedqueryexecstate_54',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]]
 ];

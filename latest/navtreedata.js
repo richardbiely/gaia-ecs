@@ -174,7 +174,7 @@ var NAVTREEINDEX =
 "index.html#component-scope",
 "structgaia_1_1core_1_1detail_1_1is__container.html",
 "structgaia_1_1ecs_1_1QueryTerm.html",
-"structgaia_1_1mem_1_1data__view__policy__aos__set.html#a7411fe8ec6c6745d39a6d4c5cc395581"
+"structgaia_1_1mem_1_1data__view__policy__aos__get.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
