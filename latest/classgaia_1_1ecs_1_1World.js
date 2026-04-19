@@ -68,6 +68,8 @@ var classgaia_1_1ecs_1_1World =
     [ "expr_to_entity", "classgaia_1_1ecs_1_1World.html#a2f477bdb1be18b22c0f0593a8ed57864", null ],
     [ "fetch", "classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54", null ],
     [ "fetch", "classgaia_1_1ecs_1_1World.html#a05dc2ba218a8155a3090e809641b18e8", null ],
+    [ "finalize_component_registration", "classgaia_1_1ecs_1_1World.html#a40a8cd2a1d17aca1d603eeca337c8e74", null ],
+    [ "finish_out_of_line_add_inter", "classgaia_1_1ecs_1_1World.html#affc1635c511a9824f1f182194689d08a", null ],
     [ "for_each_direct_term_entity", "classgaia_1_1ecs_1_1World.html#aa285ddf0f0fbaeab6e23ecc1ba9e7739", null ],
     [ "for_each_direct_term_entity_direct", "classgaia_1_1ecs_1_1World.html#a51bc8e9e0d329a33183f7e5c24737ba5", null ],
     [ "get", "classgaia_1_1ecs_1_1World.html#a4720524a65fdfa327a327e563ec627b9", null ],

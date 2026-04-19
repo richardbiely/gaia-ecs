@@ -207,7 +207,7 @@ $(document).ready(function(){initNavTree('observer__registry_8h_source.html','')
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> collect_query_matches(World&amp; world, ObserverRuntimeData&amp; obs, cnt::darray&lt;Entity&gt;&amp; out);</div>
 <div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> collect_query_target_matches(</div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>            World&amp; world, ObserverRuntimeData&amp; obs, EntitySpan targets, cnt::darray&lt;Entity&gt;&amp; out);</div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> append_valid_targets(World&amp; world, cnt::darray&lt;Entity&gt;&amp; out, EntitySpan targets);</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> add_valid_targets(World&amp; world, cnt::darray&lt;Entity&gt;&amp; out, EntitySpan targets);</div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> copy_target_narrow_plan(<span class="keyword">const</span> ObserverRuntimeData&amp; obs, TargetNarrowCacheEntry&amp; entry);</div>
 <div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        GAIA_NODISCARD <span class="keyword">static</span> <span class="keywordtype">bool</span></div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>        same_target_narrow_plan(<span class="keyword">const</span> ObserverRuntimeData&amp; obs, <span class="keyword">const</span> TargetNarrowCacheEntry&amp; entry);</div>
@@ -220,7 +220,7 @@ $(document).ready(function(){initNavTree('observer__registry_8h_source.html','')
 <div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>            ObserverRegistry&amp; registry, World&amp; world, ObserverEvent event, EntitySpan terms,</div>
 <div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>            EntitySpan targetEntities = {});</div>
 <div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>        GAIA_NODISCARD <span class="keyword">static</span> Context prepare_add_new(ObserverRegistry&amp; registry, World&amp; world, EntitySpan terms);</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> append_targets(World&amp; world, Context&amp; ctx, EntitySpan targets);</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> add_targets(World&amp; world, Context&amp; ctx, EntitySpan targets);</div>
 <div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> finish(World&amp; world, Context&amp;&amp; ctx);</div>
 <div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>      };</div>
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span> </div>
@@ -361,7 +361,7 @@ $(document).ready(function(){initNavTree('observer__registry_8h_source.html','')
 <div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span>      <span class="keyword">static</span> <span class="keywordtype">void</span> collect_propagated_targets_cached(</div>
 <div class="line"><a id="l00264" name="l00264"></a><span class="lineno">  264</span>          ObserverRegistry&amp; registry, World&amp; world, <span class="keyword">const</span> ObserverRuntimeData&amp; obs, Entity changedSource,</div>
 <div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>          uint64_t visitStamp, cnt::set&lt;EntityLookupKey&gt;&amp; visitedPairs, cnt::darray&lt;Entity&gt;&amp; outTargets);</div>
-<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>      <span class="keyword">static</span> <span class="keywordtype">void</span> append_propagated_targets_cached(</div>
+<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>      <span class="keyword">static</span> <span class="keywordtype">void</span> add_propagated_targets_cached(</div>
 <div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>          ObserverRegistry&amp; registry, World&amp; world, <span class="keyword">const</span> ObserverRuntimeData&amp; obs, Entity changedSource,</div>
 <div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span>          cnt::darray&lt;Entity&gt;&amp; outTargets);</div>
 <div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span>      GAIA_NODISCARD <span class="keyword">static</span> <span class="keywordtype">bool</span> collect_source_traversal_diff_targets(</div>
@@ -402,7 +402,7 @@ $(document).ready(function(){initNavTree('observer__registry_8h_source.html','')
 <div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>      GAIA_NODISCARD DiffDispatchCtx</div>
 <div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>      prepare_diff(World&amp; world, ObserverEvent event, EntitySpan terms, EntitySpan targetEntities = {});</div>
 <div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>      GAIA_NODISCARD DiffDispatchCtx prepare_diff_add_new(World&amp; world, EntitySpan terms);</div>
-<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>      <span class="keywordtype">void</span> append_diff_targets(World&amp; world, DiffDispatchCtx&amp; ctx, EntitySpan targets);</div>
+<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>      <span class="keywordtype">void</span> add_diff_targets(World&amp; world, DiffDispatchCtx&amp; ctx, EntitySpan targets);</div>
 <div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span>      <span class="keywordtype">void</span> finish_diff(World&amp; world, DiffDispatchCtx&amp;&amp; ctx);</div>
 <div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span> </div>
 <div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span>      <span class="keywordtype">void</span> teardown() {</div>

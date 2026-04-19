@@ -184,9 +184,24 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>depth_
 <tr class="memitem:a08cbea5dd87c01d32757dcabd2a75e3a" id="r_a08cbea5dd87c01d32757dcabd2a75e3a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a08cbea5dd87c01d32757dcabd2a75e3a">is_non_fragmenting_out_of_line_component</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:a08cbea5dd87c01d32757dcabd2a75e3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is both out-of-line and non-fragmenting. Non-fragmenting out-of-line components do not participate in archetype identity.  <br /></td></tr>
 <tr class="separator:a08cbea5dd87c01d32757dcabd2a75e3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f1a1fcaa847e157204e14b7d7428da1" id="r_a5f1a1fcaa847e157204e14b7d7428da1"><td class="memItemLeft" align="right" valign="top"><a id="a5f1a1fcaa847e157204e14b7d7428da1" name="a5f1a1fcaa847e157204e14b7d7428da1"></a>
+GAIA_NODISCARD OutOfLineMode&#160;</td><td class="memItemRight" valign="bottom"><b>out_of_line_mode</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="separator:a5f1a1fcaa847e157204e14b7d7428da1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa9f5998c3051c2452adc6752a64ed136" id="r_aa9f5998c3051c2452adc6752a64ed136"><td class="memItemLeft" align="right" valign="top"><a id="aa9f5998c3051c2452adc6752a64ed136" name="aa9f5998c3051c2452adc6752a64ed136"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const SparseComponentStoreErased &amp;store) const</td></tr>
+<tr class="separator:aa9f5998c3051c2452adc6752a64ed136"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3640e1759e6f0764c3d9c3983402b8aa" id="r_a3640e1759e6f0764c3d9c3983402b8aa"><td class="memItemLeft" align="right" valign="top"><a id="a3640e1759e6f0764c3d9c3983402b8aa" name="a3640e1759e6f0764c3d9c3983402b8aa"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_non_frag_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const SparseComponentStoreErased &amp;store) const</td></tr>
+<tr class="separator:a3640e1759e6f0764c3d9c3983402b8aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a79a6215b3bd5e02bec6f980830e83d29" id="r_a79a6215b3bd5e02bec6f980830e83d29"><td class="memItemLeft" align="right" valign="top"><a id="a79a6215b3bd5e02bec6f980830e83d29" name="a79a6215b3bd5e02bec6f980830e83d29"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse_copy_adds_id_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp) const</td></tr>
+<tr class="separator:a79a6215b3bd5e02bec6f980830e83d29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0d2437c803eca9c87c8e17c9329bb606" id="r_a0d2437c803eca9c87c8e17c9329bb606"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0d2437c803eca9c87c8e17c9329bb606">sync_component_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> comp)</td></tr>
 <tr class="memdesc:a0d2437c803eca9c87c8e17c9329bb606"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> storage.  <br /></td></tr>
 <tr class="separator:a0d2437c803eca9c87c8e17c9329bb606"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a40a8cd2a1d17aca1d603eeca337c8e74" id="r_a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40a8cd2a1d17aca1d603eeca337c8e74">finalize_component_registration</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;item, bool addSparseTrait)</td></tr>
+<tr class="memdesc:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait.  <br /></td></tr>
+<tr class="separator:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa1b43fe3cceb52592d06d0cd22f45aed" id="r_aa1b43fe3cceb52592d06d0cd22f45aed"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa1b43fe3cceb52592d06d0cd22f45aed">set_component_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1EntityContainer.html">EntityContainer</a> &amp;ec)</td></tr>
 <tr class="memdesc:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches DontFragment on a component entity record. This first moves the payload out of chunks, then removes the id from archetype identity.  <br /></td></tr>
 <tr class="separator:aa1b43fe3cceb52592d06d0cd22f45aed"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -209,6 +224,9 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>depth_
 <tr class="memitem:acc6a248f4752be72856a38ace5289368"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD SparseComponentStore&lt; T &gt; &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acc6a248f4752be72856a38ace5289368">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
 <tr class="memdesc:acc6a248f4752be72856a38ace5289368"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse out-of-line component store for <em>component</em>, creating it if needed.  <br /></td></tr>
 <tr class="separator:acc6a248f4752be72856a38ace5289368"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:affc1635c511a9824f1f182194689d08a" id="r_affc1635c511a9824f1f182194689d08a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#affc1635c511a9824f1f182194689d08a">finish_out_of_line_add_inter</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, OutOfLineMode mode)</td></tr>
+<tr class="memdesc:affc1635c511a9824f1f182194689d08a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finishes adding an out-of-line component after its sparse payload has been created. Fragmenting components also add the id directly to the entity archetype.  <br /></td></tr>
+<tr class="separator:affc1635c511a9824f1f182194689d08a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab28208e2301d5fe9317a7ca634e378cd" id="r_ab28208e2301d5fe9317a7ca634e378cd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab28208e2301d5fe9317a7ca634e378cd">del_sparse_components</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:ab28208e2301d5fe9317a7ca634e378cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes all sparse out-of-line component instances owned by <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ab28208e2301d5fe9317a7ca634e378cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -3275,6 +3293,103 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Const entity container record. </dd></dl>
+
+</div>
+</div>
+<a id="a40a8cd2a1d17aca1d603eeca337c8e74" name="a40a8cd2a1d17aca1d603eeca337c8e74"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a40a8cd2a1d17aca1d603eeca337c8e74">&#9670;&#160;</a></span>finalize_component_registration()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::finalize_component_registration </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td>
+          <td class="paramname"><em>item</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>addSparseTrait</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">item</td><td>Registered component cache item. </td></tr>
+    <tr><td class="paramname">addSparseTrait</td><td>Whether runtime sparse registration should attach the <code>Sparse</code> trait. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="affc1635c511a9824f1f182194689d08a" name="affc1635c511a9824f1f182194689d08a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#affc1635c511a9824f1f182194689d08a">&#9670;&#160;</a></span>finish_out_of_line_add_inter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::finish_out_of_line_add_inter </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">OutOfLineMode&#160;</td>
+          <td class="paramname"><em>mode</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Finishes adding an out-of-line component after its sparse payload has been created. Fragmenting components also add the id directly to the entity archetype. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
+    <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being added. </td></tr>
+    <tr><td class="paramname">mode</td><td>Out-of-line storage mode for the component. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

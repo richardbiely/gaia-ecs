@@ -1,5 +1,11 @@
 var NAVTREEINDEX7 =
 {
+"structgaia_1_1mem_1_1data__layout__properties.html":[10,0,0,4,2],
+"structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1AoS_00_01TItem_01_4.html":[10,0,0,4,3],
+"structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA16_00_01TItem_01_4.html":[10,0,0,4,5],
+"structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA8_00_01TItem_01_4.html":[10,0,0,4,6],
+"structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA_00_01TItem_01_4.html":[10,0,0,4,4],
+"structgaia_1_1mem_1_1data__view__policy.html":[10,0,0,4,7],
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1AoS_00_01ValueType_01_4.html":[10,0,0,4,8],
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA16_00_01ValueType_01_4.html":[10,0,0,4,10],
 "structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[10,0,0,4,11],

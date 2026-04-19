@@ -14,7 +14,8 @@ var searchData=
   ['non_20fragmenting_20and_20sparse_20components_11',['Non-fragmenting and sparse components',['../index.html#non-fragmenting-and-sparse-components',1,'']]],
   ['none_12',['none',['../classgaia_1_1cnt_1_1bitset.html#a4d657b25ed733c866e2a6e8e7190f10b',1,'gaia::cnt::bitset::none()'],['../classgaia_1_1cnt_1_1dbitset.html#a051afaca1bfc0d9326b30eb6f8c56e56',1,'gaia::cnt::dbitset::none()']]],
   ['nontrivialpayload_13',['NonTrivialPayload',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1NonTrivialPayload.html',1,'gaia::ecs::QueryInfo::QueryState']]],
-  ['nothrow_14',['nothrow',['../structrobin__hood_1_1detail_1_1swappable_1_1nothrow.html',1,'robin_hood::detail::swappable']]],
-  ['num_5fpages_15',['num_pages',['../structgaia_1_1mem_1_1MemoryPageStats.html#ac933e959ab7372506d9c53210a0d0c85',1,'gaia::mem::MemoryPageStats::num_pages'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#ab1d27fdb4fc5f2183791dd60014d1c50',1,'gaia::mem::SmallBlockAllocatorPageStats::num_pages']]],
-  ['num_5fpages_5ffree_16',['num_pages_free',['../structgaia_1_1mem_1_1MemoryPageStats.html#a3b2f57e91fe5f29dfcb9c32ad3b33e19',1,'gaia::mem::MemoryPageStats::num_pages_free'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a4aa9c1b21217238dbfa589e7478a8564',1,'gaia::mem::SmallBlockAllocatorPageStats::num_pages_free']]]
+  ['normal_14',['Normal',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3a960b44c579bc2f6818d2daaf9e4c16f0',1,'gaia::ecs::World::EntityBuilder']]],
+  ['nothrow_15',['nothrow',['../structrobin__hood_1_1detail_1_1swappable_1_1nothrow.html',1,'robin_hood::detail::swappable']]],
+  ['num_5fpages_16',['num_pages',['../structgaia_1_1mem_1_1MemoryPageStats.html#ac933e959ab7372506d9c53210a0d0c85',1,'gaia::mem::MemoryPageStats::num_pages'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#ab1d27fdb4fc5f2183791dd60014d1c50',1,'gaia::mem::SmallBlockAllocatorPageStats::num_pages']]],
+  ['num_5fpages_5ffree_17',['num_pages_free',['../structgaia_1_1mem_1_1MemoryPageStats.html#a3b2f57e91fe5f29dfcb9c32ad3b33e19',1,'gaia::mem::MemoryPageStats::num_pages_free'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a4aa9c1b21217238dbfa589e7478a8564',1,'gaia::mem::SmallBlockAllocatorPageStats::num_pages_free']]]
 ];

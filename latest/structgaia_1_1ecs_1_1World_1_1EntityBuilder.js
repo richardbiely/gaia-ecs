@@ -1,5 +1,10 @@
 var structgaia_1_1ecs_1_1World_1_1EntityBuilder =
 [
+    [ "IdMode", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3", [
+      [ "Normal", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3a960b44c579bc2f6818d2daaf9e4c16f0", null ],
+      [ "Adjunct", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3a046513a081532a7b821da39488a56d95", null ],
+      [ "Sticky", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3ad8f6d391ba573fe747a3360afb99904d", null ]
+    ] ],
     [ "add", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a5e758f62ad12d8d972113f2969b529ec", null ],
     [ "add", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a4bb2101968360833e1d5c5f61cbb1071", null ],
     [ "alias", "structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#aa4b125a230d9a9f0b037bd3192c42a15", null ],

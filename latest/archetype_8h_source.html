@@ -293,10 +293,10 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="line"><a id="l00196" name="l00196"></a><span class="lineno">  196</span> </div>
 <div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>            pPairIndex-&gt;pairIndexBuffer[pPairIndex-&gt;pairCnt] = (uint8_t)i;</div>
 <div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>            ++pPairIndex-&gt;pairCnt;</div>
-<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>            append_pair_index_bucket(</div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>            add_pair_index_bucket(</div>
 <div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>                pPairIndex-&gt;pairRelCountBuffer, pPairIndex-&gt;pairRelCountCnt, pPairIndex-&gt;pairRelIndexBuffer,</div>
 <div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>                pairRelIndexCnt, (EntityId)ids[i].id(), (uint8_t)i);</div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>            append_pair_index_bucket(</div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>            add_pair_index_bucket(</div>
 <div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>                pPairIndex-&gt;pairTgtCountBuffer, pPairIndex-&gt;pairTgtCountCnt, pPairIndex-&gt;pairTgtIndexBuffer,</div>
 <div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>                pairTgtIndexCnt, (EntityId)ids[i].gen(), (uint8_t)i);</div>
 <div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span> </div>
@@ -335,7 +335,7 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>          <span class="keywordflow">return</span> bucket;</div>
 <div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>        }</div>
 <div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span> </div>
-<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> append_pair_index_bucket(</div>
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno">  241</span>        <span class="keyword">static</span> <span class="keywordtype">void</span> add_pair_index_bucket(</div>
 <div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>            PairCountBucket* pBuckets, uint8_t&amp; bucketCnt, uint8_t* pIndexBuffer, uint8_t&amp; indexCnt, EntityId <span class="keywordtype">id</span>,</div>
 <div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>            uint8_t idsIdx) {</div>
 <div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>          <span class="keyword">auto</span>&amp; bucket = ensure_pair_index_bucket(pBuckets, bucketCnt, <span class="keywordtype">id</span>, indexCnt);</div>
