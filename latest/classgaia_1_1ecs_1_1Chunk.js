@@ -13,7 +13,7 @@ var classgaia_1_1ecs_1_1Chunk =
     [ "copy_entity_data_n_same_chunk", "classgaia_1_1ecs_1_1Chunk.html#a1d17061fd2540189dda44fa5a0320a40", null ],
     [ "copy_foreign_entity_data", "classgaia_1_1ecs_1_1Chunk.html#ace155ba9f593c326b012cc4e8e0aa51f", null ],
     [ "copy_foreign_entity_data_n", "classgaia_1_1ecs_1_1Chunk.html#afdf9f0bb40e62aa6ddbd1d938e59ccef", null ],
-    [ "create", "classgaia_1_1ecs_1_1Chunk.html#ad40b4b7b6548e8836d4988a5e61b6b7e", null ],
+    [ "create", "classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195", null ],
     [ "data", "classgaia_1_1ecs_1_1Chunk.html#a3f4235342570ba3dfbed8b0d25f16710", null ],
     [ "data", "classgaia_1_1ecs_1_1Chunk.html#a0d24d1d9e43f1a9f4f183db09d028376", null ],
     [ "dead", "classgaia_1_1ecs_1_1Chunk.html#ab8cb4a6495801e531565f08872973d18", null ],

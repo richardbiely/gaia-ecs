@@ -1,7 +1,7 @@
 var searchData=
 [
   ['access_0',['access',['../structgaia_1_1ecs_1_1QueryTermOptions.html#a535a5f11621a334f298cd7a147061ab3',1,'gaia::ecs::QueryTermOptions::access'],['../structgaia_1_1ecs_1_1QueryInput.html#a4b645a8ed7abbd2c1ee569f901f96523',1,'gaia::ecs::QueryInput::access']]],
-  ['alig_1',['alig',['../structgaia_1_1ecs_1_1Component_1_1InternalData.html#a8a8cafa04aff8353c0b51e40a4263312',1,'gaia::ecs::Component::InternalData']]],
+  ['alig_1',['alig',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#a3694cc6cd7c712f3c00f1da6222d41ec',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx::alig'],['../structgaia_1_1ecs_1_1Component_1_1InternalData.html#a8a8cafa04aff8353c0b51e40a4263312',1,'gaia::ecs::Component::InternalData::alig']]],
   ['allarchetypes_2',['allArchetypes',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a3a02df3fa1440eccb5f06673247934c9',1,'gaia::ecs::vm::MatchingCtx']]],
   ['alwaysmatch_3',['alwaysMatch',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#a309f9560a991a9a0bfeb2f76dcaa7c24',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
   ['archetype_5flifespan_5fbits_4',['ARCHETYPE_LIFESPAN_BITS',['../classgaia_1_1ecs_1_1Archetype.html#a56649db337ca74567053fcf0be51ef3e',1,'gaia::ecs::Archetype']]],

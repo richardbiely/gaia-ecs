@@ -27,6 +27,7 @@ var searchData=
   ['prevs_5fnext_24',['prevs_next',['../structgaia_1_1cnt_1_1fwd__llist__link.html#a2ccd414276b2ca3ba646e64f2d6b446a',1,'gaia::cnt::fwd_llist_link']]],
   ['prio_25',['prio',['../structgaia_1_1mt_1_1ThreadCtx.html#a7665247b0214cf877fadda4d3ebe7d99',1,'gaia::mt::ThreadCtx::prio'],['../structgaia_1_1mt_1_1JobContainer.html#a8129e385e375a2fc78557b054cd26ba3',1,'gaia::mt::JobContainer::prio']]],
   ['psingleallterm_26',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
-  ['pversions_27',['pVersions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords']]],
-  ['pworld_28',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
+  ['psoasizes_27',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#aed71c23987645ad1b7c3168d87933749',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]],
+  ['pversions_28',['pVersions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords']]],
+  ['pworld_29',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
 ];

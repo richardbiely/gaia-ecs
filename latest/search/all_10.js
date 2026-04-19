@@ -19,7 +19,7 @@ var searchData=
   ['pair_5fmatches_16',['pair_matches',['../classgaia_1_1ecs_1_1Archetype.html#ae5b30abab967bafce80b537005118c2a',1,'gaia::ecs::Archetype']]],
   ['pair_5ftarget_5fif_5falive_17',['pair_target_if_alive',['../classgaia_1_1ecs_1_1World.html#a0b2e33f290eb54fa01a7042a9fed5b5d',1,'gaia::ecs::World']]],
   ['paircountbucket_18',['PairCountBucket',['../structgaia_1_1ecs_1_1Archetype_1_1PairIndexData_1_1PairCountBucket.html',1,'gaia::ecs::Archetype::PairIndexData']]],
-  ['pairs_19',['pairs',['../classgaia_1_1ecs_1_1Archetype.html#a3e65f7dc4e768372147ed0a5b27f4272',1,'gaia::ecs::Archetype::pairs()'],['../structgaia_1_1ecs_1_1EntityContainers.html#a826dd5498284535b2d3cc2934663b5f3',1,'gaia::ecs::EntityContainers::pairs']]],
+  ['pairs_19',['pairs',['../structgaia_1_1ecs_1_1EntityContainers.html#a826dd5498284535b2d3cc2934663b5f3',1,'gaia::ecs::EntityContainers::pairs'],['../classgaia_1_1ecs_1_1Archetype.html#a3e65f7dc4e768372147ed0a5b27f4272',1,'gaia::ecs::Archetype::pairs() const']]],
   ['pairs_5fis_20',['pairs_is',['../classgaia_1_1ecs_1_1Archetype.html#a43171d5d0708c7a64bc3743c6f13a340',1,'gaia::ecs::Archetype']]],
   ['parallel_20execution_21',['Parallel execution',['../index.html#parallel-execution',1,'']]],
   ['parallelcallbackallocctx_22',['ParallelCallbackAllocCtx',['../structgaia_1_1mt_1_1ParallelCallbackAllocCtx.html',1,'gaia::mt']]],
@@ -45,7 +45,7 @@ var searchData=
   ['pmatchesarr_42',['pMatchesArr',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a7ca242ced359c74e0101b38fd27e18ce',1,'gaia::ecs::vm::MatchingCtx']]],
   ['pmatchesstampbyarchetypeid_43',['pMatchesStampByArchetypeId',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a3668bacf9a32c95c46501c93af2f2ee8',1,'gaia::ecs::vm::MatchingCtx']]],
   ['precords_44',['pRecords',['../structgaia_1_1ecs_1_1ChunkRecords.html#a1f6b5815d0bdd3e529041b00efd97564',1,'gaia::ecs::ChunkRecords']]],
-  ['prefab_45',['prefab',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#ab455541e45a833cb2149cfe18c244f97',1,'gaia::ecs::World::EntityBuilder::prefab()'],['../classgaia_1_1ecs_1_1World.html#a201dae9cd84f9e571db0e076c4177613',1,'gaia::ecs::World::prefab()']]],
+  ['prefab_45',['prefab',['../classgaia_1_1ecs_1_1World.html#a201dae9cd84f9e571db0e076c4177613',1,'gaia::ecs::World::prefab()'],['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#ab455541e45a833cb2149cfe18c244f97',1,'gaia::ecs::World::EntityBuilder::prefab()']]],
   ['prefab_5f_46',['Prefab_',['../structgaia_1_1ecs_1_1Prefab__.html',1,'gaia::ecs']]],
   ['prefabs_47',['Prefabs',['../index.html#prefabs',1,'']]],
   ['prefetch_48',['prefetch',['../namespacegaia.html#aedb4252c1b6098155e10211900ee3559',1,'gaia']]],
@@ -66,6 +66,7 @@ var searchData=
   ['project_20structure_63',['Project structure',['../index.html#project-structure',1,'']]],
   ['properties_64',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]],
   ['psingleallterm_65',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
-  ['pversions_66',['pVersions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords']]],
-  ['pworld_67',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
+  ['psoasizes_66',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#aed71c23987645ad1b7c3168d87933749',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]],
+  ['pversions_67',['pVersions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords']]],
+  ['pworld_68',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
 ];

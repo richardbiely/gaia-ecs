@@ -614,7 +614,15 @@ Add or remove component</h3>
 <li>Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.</li>
 <li>Implicit registration only creates the default component form. If a component needs non-default traits such as <code>ecs::Sparse</code> or <code>ecs::DontFragment</code>, register it explicitly first and then apply the trait to the component entity. Implicit registration can also be disabled entirely with <code>GAIA_ECS_AUTO_COMPONENT_REGISTRATION</code>.</li>
 </ul>
-<h3><a class="anchor" id="component-hooks"></a>
+<p>Runtime component registration uses explicit component metadata:</p>
+<div class="fragment"><div class="line">ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};</div>
+<div class="line">ctx.name = <span class="stringliteral">&quot;Cooldown&quot;</span>;</div>
+<div class="line">ctx.size = 4;</div>
+<div class="line">ctx.alig = 4;</div>
+<div class="line">ctx.storageType = ecs::DataStorageType::Table;</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::ComponentCacheItem&amp; cooldownCI = w.add(ctx);</div>
+</div><!-- fragment --><h3><a class="anchor" id="component-hooks"></a>
 Component hooks</h3>
 <p>It is possible to register add/del/set hooks for components. When a given component is added to an entity, deleted from it, or the value is set the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component. Component hooks are unique. Each component can have at most one add hook, and one delete hook.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
@@ -2800,8 +2808,8 @@ World serialization</h3>
 <div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> parsed = worldOut.load_json(json, diagnostics);</div>
 </div><!-- fragment --><p><code>parsed</code> reports JSON shape/parse success. Semantic warnings/errors are carried in <code>diagnostics</code>.</p>
 <p><code>load_json</code> first consumes the embedded <code>"binary"</code> snapshot payload when present. If <code>"binary"</code> is omitted, it falls back to semantic JSON loading from <code>"archetypes"</code> / <code>"entities"</code> / <code>"components"</code> data.</p>
-<p>Semantic loading is best-effort: components must already be registered, unknown/unsupported fields are skipped, and the function returns <code>false</code> when unsupported content is encountered (for example tag-only components or SoA raw payloads).</p>
-<p>Note that for this feature to work correctly, components must be registered in a fixed order. If you called <code>World::save</code> and registered Position, Rotation, and Foo in that order, the same order must be used when calling <code>World::load</code>. This usually isn’t an issue when loading data within the same program on the same world, but it matters when loading data saved by a different world or program.</p>
+<p>Semantic JSON loading is best-effort: components should already be registered, and unknown or unsupported content is skipped and reported through <code>JsonDiagnostics</code>.</p>
+<p>Binary snapshot loading stores <code>Component</code> ids using the component entity id path. This applies to <code>World::save</code> / <code>World::load</code> and to <code>load_json</code> when it consumes the embedded <code>"binary"</code> payload. For those binary snapshot paths, <code>World::load</code> remaps loaded ids when the target world has a different core-component layout, including component ids stored in <code>Component</code> values, and component registration order does not need to match exactly between the saving and loading worlds.</p>
 <div class="fragment"><div class="line">ecs::World world0;</div>
 <div class="line"><span class="comment">// Register components</span></div>
 <div class="line">(void)world0.add&lt;Position&gt;();</div>

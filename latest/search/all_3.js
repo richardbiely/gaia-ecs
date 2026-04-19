@@ -117,7 +117,7 @@ var searchData=
   ['count_5fdirect_5fterm_5fentities_5fdirect_114',['count_direct_term_entities_direct',['../classgaia_1_1ecs_1_1World.html#a09d03b18d2cbded660c563043164330e',1,'gaia::ecs::World']]],
   ['count_5finter_115',['count_inter',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6363490bb44ac33836da6f1650e6a6d3',1,'gaia::ecs::detail::QueryImpl']]],
   ['countenabled_116',['countEnabled',['../structgaia_1_1ecs_1_1ChunkHeader.html#abe6c2771d8f615a473e45f4ebc4df4b3',1,'gaia::ecs::ChunkHeader']]],
-  ['create_117',['create',['../classgaia_1_1ecs_1_1Chunk.html#ad40b4b7b6548e8836d4988a5e61b6b7e',1,'gaia::ecs::Chunk::create()'],['../classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html#a39f509cd5ee3d5360a361a301010da8f',1,'gaia::util::MoveFunc&lt; R(Args...)&gt;::create()'],['../classgaia_1_1util_1_1SmallFunc.html#a22014a08fc4c378e7b82e836e5c9c894',1,'gaia::util::SmallFunc::create()']]],
+  ['create_117',['create',['../classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195',1,'gaia::ecs::Chunk::create()'],['../classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html#a39f509cd5ee3d5360a361a301010da8f',1,'gaia::util::MoveFunc&lt; R(Args...)&gt;::create()'],['../classgaia_1_1util_1_1SmallFunc.html#a22014a08fc4c378e7b82e836e5c9c894',1,'gaia::util::SmallFunc::create()']]],
   ['create_20or_20delete_20entity_118',['Create or delete entity',['../index.html#create-or-delete-entity',1,'']]],
   ['createarchetypematchkind_119',['createArchetypeMatchKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7b0e1497f6112f134efaca963c2592f1',1,'gaia::ecs::QueryCtx::Data']]],
   ['creation_120',['Batched creation',['../index.html#batched-creation',1,'']]],

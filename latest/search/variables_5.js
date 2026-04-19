@@ -18,5 +18,6 @@ var searchData=
   ['func_5fmove_15',['func_move',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a348d0cc596dedeebcaa44540b3b2a26b',1,'gaia::ecs::ComponentCacheItem']]],
   ['func_5fmove_5fctor_16',['func_move_ctor',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a20c7663f2427508755f18e3386dfb6ae',1,'gaia::ecs::ComponentCacheItem']]],
   ['func_5fsave_17',['func_save',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#ad03cb09ad09432651582e021195882f0',1,'gaia::ecs::ComponentCacheItem']]],
-  ['func_5fswap_18',['func_swap',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#acc3ebfb5b08a53099148c08467f06b29',1,'gaia::ecs::ComponentCacheItem']]]
+  ['func_5fswap_18',['func_swap',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#acc3ebfb5b08a53099148c08467f06b29',1,'gaia::ecs::ComponentCacheItem']]],
+  ['funcctor_19',['funcCtor',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#a6889641c6ffe7de945d8999f8f69cf9f',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]]
 ];

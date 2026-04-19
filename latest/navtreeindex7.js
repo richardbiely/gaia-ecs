@@ -1,5 +1,10 @@
 var NAVTREEINDEX7 =
 {
+"structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1AoS_00_01ValueType_01_4.html":[10,0,0,4,8],
+"structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA16_00_01ValueType_01_4.html":[10,0,0,4,10],
+"structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA8_00_01ValueType_01_4.html":[10,0,0,4,11],
+"structgaia_1_1mem_1_1data__view__policy_3_01DataLayout_1_1SoA_00_01ValueType_01_4.html":[10,0,0,4,9],
+"structgaia_1_1mem_1_1data__view__policy__aos.html":[10,0,0,4,12],
 "structgaia_1_1mem_1_1data__view__policy__aos__get.html":[10,0,0,4,13],
 "structgaia_1_1mem_1_1data__view__policy__aos__get.html#a062206408fa0f9c7cd69f4b6f5b656a3":[10,0,0,4,13,0],
 "structgaia_1_1mem_1_1data__view__policy__aos__set.html":[10,0,0,4,14],
@@ -46,7 +51,7 @@ var NAVTREEINDEX7 =
 "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html":[10,0,0,4,0,6],
 "structgaia_1_1mem_1_1detail_1_1raw__data__holder_3_01Size_00_010_01_4.html":[10,0,0,4,0,7],
 "structgaia_1_1meta_1_1detail_1_1any__type.html":[10,0,0,5,0,0],
-"structgaia_1_1meta_1_1type__info.html":[10,0,0,5,2],
+"structgaia_1_1meta_1_1type__info.html":[10,0,0,5,1],
 "structgaia_1_1mt_1_1Futex.html":[10,0,0,6,2],
 "structgaia_1_1mt_1_1Futex.html#a78f4fc3a334eb188546376e35d0f6dbe":[10,0,0,6,2,1],
 "structgaia_1_1mt_1_1Futex.html#a84edabe1e9ed58c2507e0409f518b185":[10,0,0,6,2,2],

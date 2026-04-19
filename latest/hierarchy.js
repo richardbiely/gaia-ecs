@@ -101,7 +101,6 @@ var hierarchy =
     [ "gaia::cnt::darr< const Archetype * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< const gaia::ecs::Archetype * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< const gaia::ecs::Chunk * >", "classgaia_1_1cnt_1_1darr.html", null ],
-    [ "gaia::cnt::darr< const gaia::ecs::ComponentCacheItem * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< CreateQueryCandidate >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< Ctx >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::cnt::darr< gaia::ecs::Entity > >", "classgaia_1_1cnt_1_1darr.html", null ],
@@ -295,9 +294,9 @@ var hierarchy =
     [ "Hash", null, [
       [ "robin_hood::detail::WrapHash< Hash >", "structrobin__hood_1_1detail_1_1WrapHash.html", [
         [ "robin_hood::detail::Table< EntityLookupKey, ArchetypeGraphEdge >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-        [ "robin_hood::detail::Table< detail::ComponentDescId, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+        [ "robin_hood::detail::Table< uint32_t, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+        [ "robin_hood::detail::Table< direct_hash_key< uint64_t >, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::core::StringLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-        [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::ecs::EntityContainer >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::QueryLookupKey, gaia::ecs::QueryInfo * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::cnt::darr< gaia::ecs::QueryHandle > >", "classrobin__hood_1_1detail_1_1Table.html", null ],
@@ -393,9 +392,9 @@ var hierarchy =
     [ "KeyEqual", null, [
       [ "robin_hood::detail::WrapKeyEqual< KeyEqual >", "structrobin__hood_1_1detail_1_1WrapKeyEqual.html", [
         [ "robin_hood::detail::Table< EntityLookupKey, ArchetypeGraphEdge >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-        [ "robin_hood::detail::Table< detail::ComponentDescId, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+        [ "robin_hood::detail::Table< uint32_t, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+        [ "robin_hood::detail::Table< direct_hash_key< uint64_t >, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::core::StringLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-        [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::ecs::EntityContainer >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::QueryLookupKey, gaia::ecs::QueryInfo * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
         [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::cnt::darr< gaia::ecs::QueryHandle > >", "classrobin__hood_1_1detail_1_1Table.html", null ],
@@ -441,9 +440,9 @@ var hierarchy =
     [ "gaia::util::MoveFunc< R(Args...)>", "classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html", null ],
     [ "robin_hood::detail::NodeAllocator< T, MinSize, MaxSize, IsFlat >", "structrobin__hood_1_1detail_1_1NodeAllocator.html", [
       [ "robin_hood::detail::Table< EntityLookupKey, ArchetypeGraphEdge >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-      [ "robin_hood::detail::Table< detail::ComponentDescId, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+      [ "robin_hood::detail::Table< uint32_t, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
+      [ "robin_hood::detail::Table< direct_hash_key< uint64_t >, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
       [ "robin_hood::detail::Table< gaia::core::StringLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
-      [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, const gaia::ecs::ComponentCacheItem * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
       [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::ecs::EntityContainer >", "classrobin__hood_1_1detail_1_1Table.html", null ],
       [ "robin_hood::detail::Table< gaia::ecs::QueryLookupKey, gaia::ecs::QueryInfo * >", "classrobin__hood_1_1detail_1_1Table.html", null ],
       [ "robin_hood::detail::Table< gaia::ecs::EntityLookupKey, gaia::cnt::darr< gaia::ecs::QueryHandle > >", "classrobin__hood_1_1detail_1_1Table.html", null ],
@@ -691,7 +690,6 @@ var hierarchy =
     [ "std::tuple_element< I, gaia::cnt::sarr_ext_soa< T, N > >", "structstd_1_1tuple__element_3_01I_00_01gaia_1_1cnt_1_1sarr__ext__soa_3_01T_00_01N_01_4_01_4.html", null ],
     [ "std::tuple_element< I, gaia::cnt::sarr_soa< T, N > >", "structstd_1_1tuple__element_3_01I_00_01gaia_1_1cnt_1_1sarr__soa_3_01T_00_01N_01_4_01_4.html", null ],
     [ "std::tuple_element< I, gaia::core::span< T, Extent > >", "structstd_1_1tuple__element_3_01I_00_01gaia_1_1core_1_1span_3_01T_00_01Extent_01_4_01_4.html", null ],
-    [ "gaia::meta::type_group<... >", "classgaia_1_1meta_1_1type__group.html", null ],
     [ "gaia::core::detail::type_identity< T >", "structgaia_1_1core_1_1detail_1_1type__identity.html", [
       [ "gaia::core::unique< T, Ts >", "structgaia_1_1core_1_1unique.html", null ]
     ] ],

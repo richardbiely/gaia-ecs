@@ -1,8 +1,5 @@
 var NAVTREEINDEX4 =
 {
-"index.html#component-scope":[2,1,3],
-"index.html#conan":[4,1],
-"index.html#constraints":[2,2,11],
 "index.html#contributions":[7],
 "index.html#copy-entity":[2,1,11],
 "index.html#create-or-delete-entity":[2,1,0],
@@ -249,5 +246,8 @@ var NAVTREEINDEX4 =
 "structgaia_1_1core_1_1bit__view.html":[10,0,0,1,2],
 "structgaia_1_1core_1_1contiguous__iterator__tag.html":[10,0,0,1,3],
 "structgaia_1_1core_1_1detail_1_1is__complete.html":[10,0,0,1,0,0],
-"structgaia_1_1core_1_1detail_1_1is__complete_3_01T_00_01decltype_07sizeof_07T_08_08_4.html":[10,0,0,1,0,1]
+"structgaia_1_1core_1_1detail_1_1is__complete_3_01T_00_01decltype_07sizeof_07T_08_08_4.html":[10,0,0,1,0,1],
+"structgaia_1_1core_1_1detail_1_1is__container.html":[10,0,0,1,0,2],
+"structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html":[10,0,0,1,0,3],
+"structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible_3_01T_00_01E_00_01typen25493d4f5b646d1ff43bb65fcbf4e827.html":[10,0,0,1,0,4]
 };

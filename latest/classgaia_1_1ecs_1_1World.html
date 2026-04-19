@@ -335,9 +335,9 @@ GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3ecd256e20fc18e2a07bd190c706f3a7">add</a> ()</td></tr>
 <tr class="memdesc:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new component if not found already.  <br /></td></tr>
 <tr class="separator:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9d8dc5dce71e71bc7ffeb275ea9e084b" id="r_a9d8dc5dce71e71bc7ffeb275ea9e084b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9d8dc5dce71e71bc7ffeb275ea9e084b">add</a> (const char *<a class="el" href="classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e">name</a>, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>, DataStorageType storageType, uint32_t alig=1, uint32_t soa=0, const uint8_t *pSoaSizes=nullptr, <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a> hashLookup={}, EntityKind kind=EntityKind::EK_Gen)</td></tr>
-<tr class="memdesc:a9d8dc5dce71e71bc7ffeb275ea9e084b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component if not found already.  <br /></td></tr>
-<tr class="separator:a9d8dc5dce71e71bc7ffeb275ea9e084b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a55c781c24269ed3f2801f88c8f89f7e5" id="r_a55c781c24269ed3f2801f88c8f89f7e5"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a55c781c24269ed3f2801f88c8f89f7e5">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;item, EntityKind kind=EntityKind::EK_Gen)</td></tr>
+<tr class="memdesc:a55c781c24269ed3f2801f88c8f89f7e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component if not found already.  <br /></td></tr>
+<tr class="separator:a55c781c24269ed3f2801f88c8f89f7e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40506c3fce6bd1ae3d902d556f679e75" id="r_a40506c3fce6bd1ae3d902d556f679e75"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40506c3fce6bd1ae3d902d556f679e75">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a40506c3fce6bd1ae3d902d556f679e75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches entity <em>object</em> to entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a40506c3fce6bd1ae3d902d556f679e75"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1051,8 +1051,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a9d8dc5dce71e71bc7ffeb275ea9e084b" name="a9d8dc5dce71e71bc7ffeb275ea9e084b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9d8dc5dce71e71bc7ffeb275ea9e084b">&#9670;&#160;</a></span>add() <span class="overload">[2/8]</span></h2>
+<a id="a55c781c24269ed3f2801f88c8f89f7e5" name="a55c781c24269ed3f2801f88c8f89f7e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a55c781c24269ed3f2801f88c8f89f7e5">&#9670;&#160;</a></span>add() <span class="overload">[2/8]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1063,44 +1063,8 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp; gaia::ecs::World::add </td>
           <td>(</td>
-          <td class="paramtype">const char *&#160;</td>
-          <td class="paramname"><em>name</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>size</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">DataStorageType&#160;</td>
-          <td class="paramname"><em>storageType</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>alig</em> = <code>1</code>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>soa</em> = <code>0</code>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const uint8_t *&#160;</td>
-          <td class="paramname"><em>pSoaSizes</em> = <code>nullptr</code>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a>&#160;</td>
-          <td class="paramname"><em>hashLookup</em> = <code>{}</code>, </td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;&#160;</td>
+          <td class="paramname"><em>item</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -1124,14 +1088,8 @@ template&lt;typename T &gt; </div>
 <p>Creates a new runtime component if not found already. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">name</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> name. </td></tr>
-    <tr><td class="paramname">size</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> size in bytes. </td></tr>
-    <tr><td class="paramname">storageType</td><td>Data storage type. </td></tr>
-    <tr><td class="paramname">alig</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> alignment in bytes. </td></tr>
-    <tr><td class="paramname">soa</td><td>Number of SoA items (0 for AoS). </td></tr>
-    <tr><td class="paramname">pSoaSizes</td><td>SoA item sizes, must contain at least <em>soa</em> values when <em>soa</em> &gt; 0. </td></tr>
-    <tr><td class="paramname">hashLookup</td><td>Optional lookup hash. If zero, hash(name) is used. </td></tr>
-    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind (Gen by default, Uni supported). </td></tr>
+    <tr><td class="paramname">item</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> item registration context. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind assigned to the new component entity. </td></tr>
   </table>
   </dd>
 </dl>

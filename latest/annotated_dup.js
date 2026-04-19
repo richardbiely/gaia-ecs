@@ -366,7 +366,6 @@ var annotated_dup =
         [ "detail", null, [
           [ "any_type", "structgaia_1_1meta_1_1detail_1_1any__type.html", null ]
         ] ],
-        [ "type_group", "classgaia_1_1meta_1_1type__group.html", null ],
         [ "type_info", "structgaia_1_1meta_1_1type__info.html", null ]
       ] ],
       [ "mt", null, [

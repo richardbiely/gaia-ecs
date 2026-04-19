@@ -826,14 +826,14 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00738" name="l00738"></a><span class="lineno">  738</span>              <span class="keywordflow">if</span> (idInArchetype == idInQuery)</div>
 <div class="line"><a id="l00739" name="l00739"></a><span class="lineno">  739</span>                <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
 <div class="line"><a id="l00740" name="l00740"></a><span class="lineno">  740</span> </div>
-<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span>              <span class="keyword">const</span> <span class="keyword">auto</span> eQ = entity_from_id(w, idInQuery.gen());</div>
+<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span>              <span class="keyword">const</span> <span class="keyword">auto</span> eQ = pair_tgt(w, idInQuery);</div>
 <div class="line"><a id="l00742" name="l00742"></a><span class="lineno">  742</span>              <span class="keywordflow">if</span> (eQ == idInArchetype)</div>
 <div class="line"><a id="l00743" name="l00743"></a><span class="lineno">  743</span>                <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
 <div class="line"><a id="l00744" name="l00744"></a><span class="lineno">  744</span> </div>
 <div class="line"><a id="l00745" name="l00745"></a><span class="lineno">  745</span>              <span class="comment">// If the archetype entity is an (Is, X) pair treat Is as X and try matching it with</span></div>
 <div class="line"><a id="l00746" name="l00746"></a><span class="lineno">  746</span>              <span class="comment">// entities inheriting from e.</span></div>
 <div class="line"><a id="l00747" name="l00747"></a><span class="lineno">  747</span>              <span class="keywordflow">if</span> (idInArchetype.id() == Is.id()) {</div>
-<div class="line"><a id="l00748" name="l00748"></a><span class="lineno">  748</span>                <span class="keyword">const</span> <span class="keyword">auto</span> eA = entity_from_id(w, idInArchetype.gen());</div>
+<div class="line"><a id="l00748" name="l00748"></a><span class="lineno">  748</span>                <span class="keyword">const</span> <span class="keyword">auto</span> eA = pair_tgt(w, idInArchetype);</div>
 <div class="line"><a id="l00749" name="l00749"></a><span class="lineno">  749</span>                <span class="keywordflow">if</span> (eA == eQ)</div>
 <div class="line"><a id="l00750" name="l00750"></a><span class="lineno">  750</span>                  <span class="keywordflow">return</span> {<span class="keyword">true</span>};</div>
 <div class="line"><a id="l00751" name="l00751"></a><span class="lineno">  751</span> </div>
@@ -866,7 +866,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l00778" name="l00778"></a><span class="lineno">  778</span>              <span class="keywordflow">if</span> (archetype.pairs_is() &gt; 0) {</div>
 <div class="line"><a id="l00779" name="l00779"></a><span class="lineno">  779</span>                <span class="keyword">auto</span> archetypeIds = archetype.ids_view();</div>
 <div class="line"><a id="l00780" name="l00780"></a><span class="lineno">  780</span> </div>
-<div class="line"><a id="l00781" name="l00781"></a><span class="lineno">  781</span>                <span class="keyword">const</span> <span class="keyword">auto</span> e = entity_from_id(w, idInQuery.gen());</div>
+<div class="line"><a id="l00781" name="l00781"></a><span class="lineno">  781</span>                <span class="keyword">const</span> <span class="keyword">auto</span> e = pair_tgt(w, idInQuery);</div>
 <div class="line"><a id="l00782" name="l00782"></a><span class="lineno">  782</span>                <span class="keywordflow">return</span> {as_relations_trav_if(w, e, [&amp;](Entity relation) {</div>
 <div class="line"><a id="l00783" name="l00783"></a><span class="lineno">  783</span>                  <span class="comment">// Relation does not necessary match the sorted order of components in the archetype</span></div>
 <div class="line"><a id="l00784" name="l00784"></a><span class="lineno">  784</span>                  <span class="comment">// so we need to search through all of its ids.</span></div>
@@ -1344,8 +1344,8 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01260" name="l01260"></a><span class="lineno"> 1260</span>          GAIA_ASSERT(limit &gt; 0);</div>
 <div class="line"><a id="l01261" name="l01261"></a><span class="lineno"> 1261</span>          GAIA_ASSERT(queryId.pair());</div>
 <div class="line"><a id="l01262" name="l01262"></a><span class="lineno"> 1262</span> </div>
-<div class="line"><a id="l01263" name="l01263"></a><span class="lineno"> 1263</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = entity_from_id(w, queryId.id());</div>
-<div class="line"><a id="l01264" name="l01264"></a><span class="lineno"> 1264</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = entity_from_id(w, queryId.gen());</div>
+<div class="line"><a id="l01263" name="l01263"></a><span class="lineno"> 1263</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = pair_rel(w, queryId);</div>
+<div class="line"><a id="l01264" name="l01264"></a><span class="lineno"> 1264</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = pair_tgt(w, queryId);</div>
 <div class="line"><a id="l01265" name="l01265"></a><span class="lineno"> 1265</span>          <span class="keywordflow">if</span> (queryRel == EntityBad || queryTgt == EntityBad)</div>
 <div class="line"><a id="l01266" name="l01266"></a><span class="lineno"> 1266</span>            <span class="keywordflow">return</span> 0;</div>
 <div class="line"><a id="l01267" name="l01267"></a><span class="lineno"> 1267</span> </div>
@@ -1402,7 +1402,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01318" name="l01318"></a><span class="lineno"> 1318</span>              <span class="keywordflow">if</span> (idInArchetype.pair())</div>
 <div class="line"><a id="l01319" name="l01319"></a><span class="lineno"> 1319</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01320" name="l01320"></a><span class="lineno"> 1320</span> </div>
-<div class="line"><a id="l01321" name="l01321"></a><span class="lineno"> 1321</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01321" name="l01321"></a><span class="lineno"> 1321</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = id_entity(w, idInArchetype);</div>
 <div class="line"><a id="l01322" name="l01322"></a><span class="lineno"> 1322</span>              <span class="keywordflow">if</span> (value == EntityBad)</div>
 <div class="line"><a id="l01323" name="l01323"></a><span class="lineno"> 1323</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01324" name="l01324"></a><span class="lineno"> 1324</span> </div>
@@ -1418,8 +1418,8 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01334" name="l01334"></a><span class="lineno"> 1334</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01335" name="l01335"></a><span class="lineno"> 1335</span>          }</div>
 <div class="line"><a id="l01336" name="l01336"></a><span class="lineno"> 1336</span> </div>
-<div class="line"><a id="l01337" name="l01337"></a><span class="lineno"> 1337</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = entity_from_id(w, queryId.id());</div>
-<div class="line"><a id="l01338" name="l01338"></a><span class="lineno"> 1338</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = entity_from_id(w, queryId.gen());</div>
+<div class="line"><a id="l01337" name="l01337"></a><span class="lineno"> 1337</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = pair_rel(w, queryId);</div>
+<div class="line"><a id="l01338" name="l01338"></a><span class="lineno"> 1338</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = pair_tgt(w, queryId);</div>
 <div class="line"><a id="l01339" name="l01339"></a><span class="lineno"> 1339</span>          <span class="keywordflow">if</span> (queryRel == EntityBad || queryTgt == EntityBad)</div>
 <div class="line"><a id="l01340" name="l01340"></a><span class="lineno"> 1340</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01341" name="l01341"></a><span class="lineno"> 1341</span>          <span class="keyword">const</span> <span class="keyword">auto</span> rel = resolve_pair_query_token(queryRel, varsIn);</div>
@@ -1437,14 +1437,14 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01353" name="l01353"></a><span class="lineno"> 1353</span> </div>
 <div class="line"><a id="l01354" name="l01354"></a><span class="lineno"> 1354</span>            <span class="keyword">auto</span> vars = varsIn;</div>
 <div class="line"><a id="l01355" name="l01355"></a><span class="lineno"> 1355</span>            <span class="keywordflow">if</span> (rel.needsBind) {</div>
-<div class="line"><a id="l01356" name="l01356"></a><span class="lineno"> 1356</span>              <span class="keyword">const</span> <span class="keyword">auto</span> relValue = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01356" name="l01356"></a><span class="lineno"> 1356</span>              <span class="keyword">const</span> <span class="keyword">auto</span> relValue = pair_rel(w, idInArchetype);</div>
 <div class="line"><a id="l01357" name="l01357"></a><span class="lineno"> 1357</span>              <span class="keywordflow">if</span> (relValue == EntityBad)</div>
 <div class="line"><a id="l01358" name="l01358"></a><span class="lineno"> 1358</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01359" name="l01359"></a><span class="lineno"> 1359</span>              <span class="keywordflow">if</span> (!match_token(vars, rel.token, relValue, <span class="keyword">true</span>))</div>
 <div class="line"><a id="l01360" name="l01360"></a><span class="lineno"> 1360</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01361" name="l01361"></a><span class="lineno"> 1361</span>            }</div>
 <div class="line"><a id="l01362" name="l01362"></a><span class="lineno"> 1362</span>            <span class="keywordflow">if</span> (tgt.needsBind) {</div>
-<div class="line"><a id="l01363" name="l01363"></a><span class="lineno"> 1363</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgtValue = entity_from_id(w, idInArchetype.gen());</div>
+<div class="line"><a id="l01363" name="l01363"></a><span class="lineno"> 1363</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgtValue = pair_tgt(w, idInArchetype);</div>
 <div class="line"><a id="l01364" name="l01364"></a><span class="lineno"> 1364</span>              <span class="keywordflow">if</span> (tgtValue == EntityBad)</div>
 <div class="line"><a id="l01365" name="l01365"></a><span class="lineno"> 1365</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01366" name="l01366"></a><span class="lineno"> 1366</span>              <span class="keywordflow">if</span> (!match_token(vars, tgt.token, tgtValue, <span class="keyword">true</span>))</div>
@@ -1552,7 +1552,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01468" name="l01468"></a><span class="lineno"> 1468</span>              <span class="keywordflow">if</span> (idInArchetype.pair())</div>
 <div class="line"><a id="l01469" name="l01469"></a><span class="lineno"> 1469</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01470" name="l01470"></a><span class="lineno"> 1470</span> </div>
-<div class="line"><a id="l01471" name="l01471"></a><span class="lineno"> 1471</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01471" name="l01471"></a><span class="lineno"> 1471</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = id_entity(w, idInArchetype);</div>
 <div class="line"><a id="l01472" name="l01472"></a><span class="lineno"> 1472</span>              <span class="keywordflow">if</span> (value == EntityBad)</div>
 <div class="line"><a id="l01473" name="l01473"></a><span class="lineno"> 1473</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01474" name="l01474"></a><span class="lineno"> 1474</span>              <span class="keywordflow">if</span> (queryToken.id() != value.id())</div>
@@ -1564,8 +1564,8 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01480" name="l01480"></a><span class="lineno"> 1480</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01481" name="l01481"></a><span class="lineno"> 1481</span>          }</div>
 <div class="line"><a id="l01482" name="l01482"></a><span class="lineno"> 1482</span> </div>
-<div class="line"><a id="l01483" name="l01483"></a><span class="lineno"> 1483</span>          <span class="keyword">auto</span> queryRel = entity_from_id(w, queryId.id());</div>
-<div class="line"><a id="l01484" name="l01484"></a><span class="lineno"> 1484</span>          <span class="keyword">auto</span> queryTgt = entity_from_id(w, queryId.gen());</div>
+<div class="line"><a id="l01483" name="l01483"></a><span class="lineno"> 1483</span>          <span class="keyword">auto</span> queryRel = pair_rel(w, queryId);</div>
+<div class="line"><a id="l01484" name="l01484"></a><span class="lineno"> 1484</span>          <span class="keyword">auto</span> queryTgt = pair_tgt(w, queryId);</div>
 <div class="line"><a id="l01485" name="l01485"></a><span class="lineno"> 1485</span>          <span class="keywordflow">if</span> (queryRel == EntityBad || queryTgt == EntityBad)</div>
 <div class="line"><a id="l01486" name="l01486"></a><span class="lineno"> 1486</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01487" name="l01487"></a><span class="lineno"> 1487</span> </div>
@@ -1605,12 +1605,12 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01521" name="l01521"></a><span class="lineno"> 1521</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01522" name="l01522"></a><span class="lineno"> 1522</span> </div>
 <div class="line"><a id="l01523" name="l01523"></a><span class="lineno"> 1523</span>            <span class="keywordflow">if</span> (!relIsConcrete) {</div>
-<div class="line"><a id="l01524" name="l01524"></a><span class="lineno"> 1524</span>              <span class="keyword">const</span> <span class="keyword">auto</span> rel = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01524" name="l01524"></a><span class="lineno"> 1524</span>              <span class="keyword">const</span> <span class="keyword">auto</span> rel = pair_rel(w, idInArchetype);</div>
 <div class="line"><a id="l01525" name="l01525"></a><span class="lineno"> 1525</span>              <span class="keywordflow">if</span> (rel == EntityBad)</div>
 <div class="line"><a id="l01526" name="l01526"></a><span class="lineno"> 1526</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01527" name="l01527"></a><span class="lineno"> 1527</span>            }</div>
 <div class="line"><a id="l01528" name="l01528"></a><span class="lineno"> 1528</span>            <span class="keywordflow">if</span> (!tgtIsConcrete) {</div>
-<div class="line"><a id="l01529" name="l01529"></a><span class="lineno"> 1529</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgt = entity_from_id(w, idInArchetype.gen());</div>
+<div class="line"><a id="l01529" name="l01529"></a><span class="lineno"> 1529</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgt = pair_tgt(w, idInArchetype);</div>
 <div class="line"><a id="l01530" name="l01530"></a><span class="lineno"> 1530</span>              <span class="keywordflow">if</span> (tgt == EntityBad)</div>
 <div class="line"><a id="l01531" name="l01531"></a><span class="lineno"> 1531</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01532" name="l01532"></a><span class="lineno"> 1532</span>            }</div>
@@ -1908,7 +1908,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01824" name="l01824"></a><span class="lineno"> 1824</span>              <span class="keywordflow">if</span> (idInArchetype.pair())</div>
 <div class="line"><a id="l01825" name="l01825"></a><span class="lineno"> 1825</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01826" name="l01826"></a><span class="lineno"> 1826</span> </div>
-<div class="line"><a id="l01827" name="l01827"></a><span class="lineno"> 1827</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01827" name="l01827"></a><span class="lineno"> 1827</span>              <span class="keyword">const</span> <span class="keyword">auto</span> value = id_entity(w, idInArchetype);</div>
 <div class="line"><a id="l01828" name="l01828"></a><span class="lineno"> 1828</span>              <span class="keywordflow">if</span> (value == EntityBad)</div>
 <div class="line"><a id="l01829" name="l01829"></a><span class="lineno"> 1829</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01830" name="l01830"></a><span class="lineno"> 1830</span> </div>
@@ -1922,8 +1922,8 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01838" name="l01838"></a><span class="lineno"> 1838</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01839" name="l01839"></a><span class="lineno"> 1839</span>          }</div>
 <div class="line"><a id="l01840" name="l01840"></a><span class="lineno"> 1840</span> </div>
-<div class="line"><a id="l01841" name="l01841"></a><span class="lineno"> 1841</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = entity_from_id(w, queryId.id());</div>
-<div class="line"><a id="l01842" name="l01842"></a><span class="lineno"> 1842</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = entity_from_id(w, queryId.gen());</div>
+<div class="line"><a id="l01841" name="l01841"></a><span class="lineno"> 1841</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryRel = pair_rel(w, queryId);</div>
+<div class="line"><a id="l01842" name="l01842"></a><span class="lineno"> 1842</span>          <span class="keyword">const</span> <span class="keyword">auto</span> queryTgt = pair_tgt(w, queryId);</div>
 <div class="line"><a id="l01843" name="l01843"></a><span class="lineno"> 1843</span>          <span class="keywordflow">if</span> (queryRel == EntityBad || queryTgt == EntityBad)</div>
 <div class="line"><a id="l01844" name="l01844"></a><span class="lineno"> 1844</span>            <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l01845" name="l01845"></a><span class="lineno"> 1845</span>          <span class="keyword">const</span> <span class="keyword">auto</span> rel = resolve_pair_query_token(queryRel, varsIn);</div>
@@ -1947,14 +1947,14 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l01863" name="l01863"></a><span class="lineno"> 1863</span> </div>
 <div class="line"><a id="l01864" name="l01864"></a><span class="lineno"> 1864</span>            <span class="keyword">auto</span> vars = varsIn;</div>
 <div class="line"><a id="l01865" name="l01865"></a><span class="lineno"> 1865</span>            <span class="keywordflow">if</span> (rel.needsBind) {</div>
-<div class="line"><a id="l01866" name="l01866"></a><span class="lineno"> 1866</span>              <span class="keyword">const</span> <span class="keyword">auto</span> relValue = entity_from_id(w, idInArchetype.id());</div>
+<div class="line"><a id="l01866" name="l01866"></a><span class="lineno"> 1866</span>              <span class="keyword">const</span> <span class="keyword">auto</span> relValue = pair_rel(w, idInArchetype);</div>
 <div class="line"><a id="l01867" name="l01867"></a><span class="lineno"> 1867</span>              <span class="keywordflow">if</span> (relValue == EntityBad)</div>
 <div class="line"><a id="l01868" name="l01868"></a><span class="lineno"> 1868</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01869" name="l01869"></a><span class="lineno"> 1869</span>              <span class="keywordflow">if</span> (!match_token(vars, rel.token, relValue, <span class="keyword">true</span>))</div>
 <div class="line"><a id="l01870" name="l01870"></a><span class="lineno"> 1870</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01871" name="l01871"></a><span class="lineno"> 1871</span>            }</div>
 <div class="line"><a id="l01872" name="l01872"></a><span class="lineno"> 1872</span>            <span class="keywordflow">if</span> (tgt.needsBind) {</div>
-<div class="line"><a id="l01873" name="l01873"></a><span class="lineno"> 1873</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgtValue = entity_from_id(w, idInArchetype.gen());</div>
+<div class="line"><a id="l01873" name="l01873"></a><span class="lineno"> 1873</span>              <span class="keyword">const</span> <span class="keyword">auto</span> tgtValue = pair_tgt(w, idInArchetype);</div>
 <div class="line"><a id="l01874" name="l01874"></a><span class="lineno"> 1874</span>              <span class="keywordflow">if</span> (tgtValue == EntityBad)</div>
 <div class="line"><a id="l01875" name="l01875"></a><span class="lineno"> 1875</span>                <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01876" name="l01876"></a><span class="lineno"> 1876</span>              <span class="keywordflow">if</span> (!match_token(vars, tgt.token, tgtValue, <span class="keyword">true</span>))</div>
@@ -2689,17 +2689,17 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02604" name="l02604"></a><span class="lineno"> 2604</span>            mask |= (uint8_t(1) &lt;&lt; detail::var_index(term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#ad4d95431ac470c8746a084d66325aba8">src</a>));</div>
 <div class="line"><a id="l02605" name="l02605"></a><span class="lineno"> 2605</span> </div>
 <div class="line"><a id="l02606" name="l02606"></a><span class="lineno"> 2606</span>          <span class="keywordflow">if</span> (!term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.pair()) {</div>
-<div class="line"><a id="l02607" name="l02607"></a><span class="lineno"> 2607</span>            <span class="keyword">const</span> <span class="keyword">auto</span> idEnt = entity_from_id(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.id());</div>
+<div class="line"><a id="l02607" name="l02607"></a><span class="lineno"> 2607</span>            <span class="keyword">const</span> <span class="keyword">auto</span> idEnt = id_entity(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>);</div>
 <div class="line"><a id="l02608" name="l02608"></a><span class="lineno"> 2608</span>            <span class="keywordflow">if</span> (detail::is_var_entity(idEnt) &amp;&amp; !detail::var_is_bound(vars, idEnt))</div>
 <div class="line"><a id="l02609" name="l02609"></a><span class="lineno"> 2609</span>              mask |= (uint8_t(1) &lt;&lt; detail::var_index(idEnt));</div>
 <div class="line"><a id="l02610" name="l02610"></a><span class="lineno"> 2610</span>            <span class="keywordflow">return</span> mask;</div>
 <div class="line"><a id="l02611" name="l02611"></a><span class="lineno"> 2611</span>          }</div>
 <div class="line"><a id="l02612" name="l02612"></a><span class="lineno"> 2612</span> </div>
-<div class="line"><a id="l02613" name="l02613"></a><span class="lineno"> 2613</span>          <span class="keyword">const</span> <span class="keyword">auto</span> relEnt = entity_from_id(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.id());</div>
+<div class="line"><a id="l02613" name="l02613"></a><span class="lineno"> 2613</span>          <span class="keyword">const</span> <span class="keyword">auto</span> relEnt = pair_rel(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>);</div>
 <div class="line"><a id="l02614" name="l02614"></a><span class="lineno"> 2614</span>          <span class="keywordflow">if</span> (detail::is_var_entity(relEnt) &amp;&amp; !detail::var_is_bound(vars, relEnt))</div>
 <div class="line"><a id="l02615" name="l02615"></a><span class="lineno"> 2615</span>            mask |= (uint8_t(1) &lt;&lt; detail::var_index(relEnt));</div>
 <div class="line"><a id="l02616" name="l02616"></a><span class="lineno"> 2616</span> </div>
-<div class="line"><a id="l02617" name="l02617"></a><span class="lineno"> 2617</span>          <span class="keyword">const</span> <span class="keyword">auto</span> tgtEnt = entity_from_id(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>.gen());</div>
+<div class="line"><a id="l02617" name="l02617"></a><span class="lineno"> 2617</span>          <span class="keyword">const</span> <span class="keyword">auto</span> tgtEnt = pair_tgt(world, term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>);</div>
 <div class="line"><a id="l02618" name="l02618"></a><span class="lineno"> 2618</span>          <span class="keywordflow">if</span> (detail::is_var_entity(tgtEnt) &amp;&amp; !detail::var_is_bound(vars, tgtEnt))</div>
 <div class="line"><a id="l02619" name="l02619"></a><span class="lineno"> 2619</span>            mask |= (uint8_t(1) &lt;&lt; detail::var_index(tgtEnt));</div>
 <div class="line"><a id="l02620" name="l02620"></a><span class="lineno"> 2620</span> </div>
@@ -3724,7 +3724,7 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l03639" name="l03639"></a><span class="lineno"> 3639</span>              <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l03640" name="l03640"></a><span class="lineno"> 3640</span> </div>
 <div class="line"><a id="l03641" name="l03641"></a><span class="lineno"> 3641</span>            <span class="keyword">const</span> <span class="keyword">auto</span> <span class="keywordtype">id</span> = term.<a class="code hl_variable" href="structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888">id</a>;</div>
-<div class="line"><a id="l03642" name="l03642"></a><span class="lineno"> 3642</span>            <span class="keywordflow">return</span> (<span class="keywordtype">id</span>.<a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>() &amp;&amp; world_is_exclusive_dont_fragment_relation(world, entity_from_id(world, <span class="keywordtype">id</span>.<span class="keywordtype">id</span>()))) ||</div>
+<div class="line"><a id="l03642" name="l03642"></a><span class="lineno"> 3642</span>            <span class="keywordflow">return</span> (<span class="keywordtype">id</span>.<a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>() &amp;&amp; world_is_exclusive_dont_fragment_relation(world, pair_rel(world, <span class="keywordtype">id</span>))) ||</div>
 <div class="line"><a id="l03643" name="l03643"></a><span class="lineno"> 3643</span>                   (!<span class="keywordtype">id</span>.<a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>() &amp;&amp; world_is_non_fragmenting_out_of_line_component(world, <span class="keywordtype">id</span>));</div>
 <div class="line"><a id="l03644" name="l03644"></a><span class="lineno"> 3644</span>          };</div>
 <div class="line"><a id="l03645" name="l03645"></a><span class="lineno"> 3645</span> </div>
@@ -4200,16 +4200,16 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdef"><b>Definition</b> archetype.h:83</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdef"><b>Definition</b> world.h:91</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:500</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:218</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:528</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:223</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html">gaia::ecs::vm::VirtualMachine</a></div><div class="ttdef"><b>Definition</b> vm.h:2284</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_a4dedd43671f1bb6747a34c49d456c989"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a4dedd43671f1bb6747a34c49d456c989">gaia::ecs::vm::VirtualMachine::exec</a></div><div class="ttdeci">void exec(MatchingCtx &amp;ctx)</div><div class="ttdoc">Executes compiled opcodes.</div><div class="ttdef"><b>Definition</b> vm.h:4086</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1vm_1_1VirtualMachine_html_ad4319abd299ddfabfcadc1d8fad4ceab"><div class="ttname"><a href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#ad4319abd299ddfabfcadc1d8fad4ceab">gaia::ecs::vm::VirtualMachine::compile</a></div><div class="ttdeci">void compile(const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const Archetype * &gt; allArchetypes, QueryCtx &amp;queryCtx)</div><div class="ttdoc">Transforms inputs into virtual machine opcodes.</div><div class="ttdef"><b>Definition</b> vm.h:3608</div></div>
 <div class="ttc" id="aclassrobin__hood_1_1detail_1_1Table_html"><div class="ttname"><a href="classrobin__hood_1_1detail_1_1Table.html">robin_hood::detail::Table</a></div><div class="ttdef"><b>Definition</b> robin_hood.h:720</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeMatchStamps_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeMatchStamps.html">gaia::ecs::ArchetypeMatchStamps</a></div><div class="ttdef"><b>Definition</b> query_match_stamps.h:13</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html">gaia::ecs::EntityLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> id.h:439</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html">gaia::ecs::Entity</a></div><div class="ttdef"><b>Definition</b> id.h:241</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityLookupKey.html">gaia::ecs::EntityLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> id.h:467</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html">gaia::ecs::Entity</a></div><div class="ttdef"><b>Definition</b> id.h:246</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_html_a1c1a2a9791df0cd9cc0cf7c69d4ee161"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1c1a2a9791df0cd9cc0cf7c69d4ee161">gaia::ecs::QueryCtx::Data::as_mask_0</a></div><div class="ttdeci">uint32_t as_mask_0</div><div class="ttdoc">Mask for items with Is relationship pair. If the id is a pair, the first part (id) is written here.</div><div class="ttdef"><b>Definition</b> query_common.h:658</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_html_a4c123a9fdea7d3cf1685c1929aa92ec3"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4c123a9fdea7d3cf1685c1929aa92ec3">gaia::ecs::QueryCtx::Data::as_mask_1</a></div><div class="ttdeci">uint32_t as_mask_1</div><div class="ttdoc">Mask for items with Is relationship pair. If the id is a pair, the second part (gen) is written here.</div><div class="ttdef"><b>Definition</b> query_common.h:661</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryCtx_1_1Data_html_a99d85161c146acc532a98ea91abe4b2a"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a99d85161c146acc532a98ea91abe4b2a">gaia::ecs::QueryCtx::Data::deps</a></div><div class="ttdeci">Dependencies deps</div><div class="ttdoc">Explicit dependency metadata derived from query shape.</div><div class="ttdef"><b>Definition</b> query_common.h:688</div></div>
