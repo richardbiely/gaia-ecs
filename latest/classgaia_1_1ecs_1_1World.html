@@ -143,6 +143,16 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a2480d7b1ee9a23319a60f31574e491cb" id="r_a2480d7b1ee9a23319a60f31574e491cb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">Query</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2480d7b1ee9a23319a60f31574e491cb">uquery</a> ()</td></tr>
 <tr class="memdesc:a2480d7b1ee9a23319a60f31574e491cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Provides an uncached query set up to work with the parent world. Uncached queries keep only a local immutable plan and rebuild transient matches on demand.  <br /></td></tr>
 <tr class="separator:a2480d7b1ee9a23319a60f31574e491cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a338adab062dacfd5804556516231b9c8" id="r_a338adab062dacfd5804556516231b9c8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a338adab062dacfd5804556516231b9c8">set_sched</a> (const <a class="el" href="structgaia_1_1ecs_1_1Sched.html">Sched</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1World.html#a6df17ebf7874a9623f695475b3255875">sched</a>)</td></tr>
+<tr class="memdesc:a338adab062dacfd5804556516231b9c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Installs a custom scheduler used by ECS parallel execution paths.  <br /></td></tr>
+<tr class="separator:a338adab062dacfd5804556516231b9c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa3cdb05533fc99e6400f4e4a87cb3cd" id="r_aaa3cdb05533fc99e6400f4e4a87cb3cd"><td class="memItemLeft" align="right" valign="top"><a id="aaa3cdb05533fc99e6400f4e4a87cb3cd" name="aaa3cdb05533fc99e6400f4e4a87cb3cd"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</td></tr>
+<tr class="memdesc:aaa3cdb05533fc99e6400f4e4a87cb3cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets the world back to the default Gaia scheduler. <br /></td></tr>
+<tr class="separator:aaa3cdb05533fc99e6400f4e4a87cb3cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6df17ebf7874a9623f695475b3255875" id="r_a6df17ebf7874a9623f695475b3255875"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1Sched.html">Sched</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6df17ebf7874a9623f695475b3255875">sched</a> () const</td></tr>
+<tr class="memdesc:a6df17ebf7874a9623f695475b3255875"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the resolved scheduler used by this world.  <br /></td></tr>
+<tr class="separator:a6df17ebf7874a9623f695475b3255875"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5425de9078c310dc6cd992aa4303be54" id="r_a5425de9078c310dc6cd992aa4303be54"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1EntityContainer.html">EntityContainer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5425de9078c310dc6cd992aa4303be54">fetch</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a5425de9078c310dc6cd992aa4303be54"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the internal record for <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a5425de9078c310dc6cd992aa4303be54"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -5988,6 +5998,34 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="a6df17ebf7874a9623f695475b3255875" name="a6df17ebf7874a9623f695475b3255875"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6df17ebf7874a9623f695475b3255875">&#9670;&#160;</a></span>sched()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1Sched.html">Sched</a> &amp; gaia::ecs::World::sched </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the resolved scheduler used by this world. </p>
+<dl class="section return"><dt>Returns</dt><dd>Bound scheduler or the default scheduler when none was installed. </dd></dl>
+
+</div>
+</div>
 <a id="ac9a050eeb9b544a35140846c76b8ed5e" name="ac9a050eeb9b544a35140846c76b8ed5e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ac9a050eeb9b544a35140846c76b8ed5e">&#9670;&#160;</a></span>scope() <span class="overload">[1/3]</span></h2>
 
@@ -6323,6 +6361,40 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
     <tr><td class="paramname">lifespan</td><td>How many world updates an empty archetype is kept. If zero, the archetype it kept indefinitely. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a338adab062dacfd5804556516231b9c8" name="a338adab062dacfd5804556516231b9c8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a338adab062dacfd5804556516231b9c8">&#9670;&#160;</a></span>set_sched()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::set_sched </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1Sched.html">Sched</a> &amp;&#160;</td>
+          <td class="paramname"><em>sched</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Installs a custom scheduler used by ECS parallel execution paths. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">sched</td><td>Scheduler descriptor to bind to this world. </td></tr>
   </table>
   </dd>
 </dl>

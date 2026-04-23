@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['wait_0',['wait',['../structgaia_1_1mt_1_1Futex.html#a78f4fc3a334eb188546376e35d0f6dbe',1,'gaia::mt::Futex::wait()'],['../classgaia_1_1mt_1_1Semaphore.html#ac289e1f68ccc1ac6b9980014ffcdb211',1,'gaia::mt::Semaphore::wait()'],['../classgaia_1_1mt_1_1SemaphoreFast.html#abb94ab1aee89f66576babcd62f698d7e',1,'gaia::mt::SemaphoreFast::wait()'],['../classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810',1,'gaia::mt::ThreadPool::wait()']]],
+  ['wait_0',['wait',['../structgaia_1_1ecs_1_1Sched.html#a6aafd89845024172d8a08401aa863899',1,'gaia::ecs::Sched::wait'],['../classgaia_1_1mt_1_1Event.html#a52a25a5bb7c182222a60c560dfd939a4',1,'gaia::mt::Event::wait()'],['../structgaia_1_1mt_1_1Futex.html#a78f4fc3a334eb188546376e35d0f6dbe',1,'gaia::mt::Futex::wait()'],['../classgaia_1_1mt_1_1Semaphore.html#ac289e1f68ccc1ac6b9980014ffcdb211',1,'gaia::mt::Semaphore::wait()'],['../classgaia_1_1mt_1_1SemaphoreFast.html#abb94ab1aee89f66576babcd62f698d7e',1,'gaia::mt::SemaphoreFast::wait()'],['../classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810',1,'gaia::mt::ThreadPool::wait()']]],
   ['wake_1',['wake',['../structgaia_1_1mt_1_1Futex.html#a84edabe1e9ed58c2507e0409f518b185',1,'gaia::mt::Futex']]],
   ['wakeup_2',['WakeUp',['../structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66baba04f833425d12e668b7acf747192ffe',1,'gaia::mt::Futex']]],
   ['walk_3',['walk',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a5a20ef16c16bdec5da4f4eafb9febe32',1,'gaia::ecs::detail::QueryImpl']]],

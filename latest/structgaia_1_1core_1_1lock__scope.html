@@ -114,12 +114,21 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1lock__scope.html
   <div class="headertitle"><div class="title">gaia::core::lock_scope&lt; T &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>RAII helper that calls <code>lock()</code> on construction and <code>unlock()</code> on destruction.  
+ <a href="structgaia_1_1core_1_1lock__scope.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="utility_8h_source.html">utility.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a9402a9e98ed7e2b3a3a32b446d5f865b" id="r_a9402a9e98ed7e2b3a3a32b446d5f865b"><td class="memItemLeft" align="right" valign="top"><a id="a9402a9e98ed7e2b3a3a32b446d5f865b" name="a9402a9e98ed7e2b3a3a32b446d5f865b"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>lock_scope</b> (T &amp;ctx)</td></tr>
+<tr class="memitem:a9402a9e98ed7e2b3a3a32b446d5f865b" id="r_a9402a9e98ed7e2b3a3a32b446d5f865b"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1lock__scope.html#a9402a9e98ed7e2b3a3a32b446d5f865b">lock_scope</a> (T &amp;ctx)</td></tr>
+<tr class="memdesc:a9402a9e98ed7e2b3a3a32b446d5f865b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Acquires the lock represented by <em>ctx</em>.  <br /></td></tr>
 <tr class="separator:a9402a9e98ed7e2b3a3a32b446d5f865b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab1b6d8abddb924e1d1bb9821a8f3e81d" id="r_ab1b6d8abddb924e1d1bb9821a8f3e81d"><td class="memItemLeft" align="right" valign="top"><a id="ab1b6d8abddb924e1d1bb9821a8f3e81d" name="ab1b6d8abddb924e1d1bb9821a8f3e81d"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>~lock_scope</b> ()</td></tr>
+<tr class="memdesc:ab1b6d8abddb924e1d1bb9821a8f3e81d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases the guarded lock. <br /></td></tr>
+<tr class="separator:ab1b6d8abddb924e1d1bb9821a8f3e81d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa3d069dff1df10eb85a6be6382e436f9" id="r_aa3d069dff1df10eb85a6be6382e436f9"><td class="memItemLeft" align="right" valign="top"><a id="aa3d069dff1df10eb85a6be6382e436f9" name="aa3d069dff1df10eb85a6be6382e436f9"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>lock_scope</b> (const <a class="el" href="structgaia_1_1core_1_1lock__scope.html">lock_scope</a> &amp;)=delete</td></tr>
 <tr class="separator:aa3d069dff1df10eb85a6be6382e436f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -139,6 +148,52 @@ Public Attributes</h2></td></tr>
 T &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>m_ctx</b></td></tr>
 <tr class="separator:a44ffd77951f5d8e0b13029cde541c79e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T&gt;<br />
+struct gaia::core::lock_scope&lt; T &gt;</div><p>RAII helper that calls <code>lock()</code> on construction and <code>unlock()</code> on destruction. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Lockable type exposing <code>lock()</code> and <code>unlock()</code>. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a9402a9e98ed7e2b3a3a32b446d5f865b" name="a9402a9e98ed7e2b3a3a32b446d5f865b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9402a9e98ed7e2b3a3a32b446d5f865b">&#9670;&#160;</a></span>lock_scope()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1core_1_1lock__scope.html">gaia::core::lock_scope</a>&lt; T &gt;::lock_scope </td>
+          <td>(</td>
+          <td class="paramtype">T &amp;&#160;</td>
+          <td class="paramname"><em>ctx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Acquires the lock represented by <em>ctx</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>Lockable object to guard for the lifetime of this scope. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/core/<a class="el" href="utility_8h_source.html">utility.h</a></li>
 </ul>

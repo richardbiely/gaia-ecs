@@ -6,5 +6,6 @@ var namespacegaia =
       [ "PREFETCH_HINT_T2", "namespacegaia.html#a189541a62e01b1889df54dd898a8600aa00f8a0fd05868efe1eb76298ff2d8467", null ],
       [ "PREFETCH_HINT_NTA", "namespacegaia.html#a189541a62e01b1889df54dd898a8600aa573dcb04efff211576cbbbe94d55dfbe", null ]
     ] ],
-    [ "prefetch", "namespacegaia.html#aedb4252c1b6098155e10211900ee3559", null ]
+    [ "prefetch", "namespacegaia.html#aedb4252c1b6098155e10211900ee3559", null ],
+    [ "BadIndex", "namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18", null ]
 ];

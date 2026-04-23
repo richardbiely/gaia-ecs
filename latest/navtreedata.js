@@ -109,7 +109,8 @@ var NAVTREE =
         [ "Job dependencies", "index.html#job-dependencies", null ],
         [ "Priorities", "index.html#priorities", null ],
         [ "Job behavior", "index.html#job-behavior", null ],
-        [ "Threads", "index.html#threads", null ]
+        [ "Threads", "index.html#threads", null ],
+        [ "Scheduler adapters", "index.html#scheduler-adapters", null ]
       ] ],
       [ "Customization", "index.html#customization", [
         [ "Logging", "index.html#logging", null ]
@@ -142,6 +143,7 @@ var NAVTREE =
       [ "Namespace Members", "namespacemembers.html", [
         [ "All", "namespacemembers.html", null ],
         [ "Functions", "namespacemembers_func.html", null ],
+        [ "Variables", "namespacemembers_vars.html", null ],
         [ "Enumerations", "namespacemembers_enum.html", null ],
         [ "Enumerator", "namespacemembers_eval.html", null ]
       ] ]
@@ -169,12 +171,13 @@ var NAVTREEINDEX =
 [
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8",
-"classgaia_1_1ecs_1_1World.html#ad7f5881275613839c00b96b67b55a978",
-"classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810",
-"index.html#conan",
-"structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html",
-"structgaia_1_1ecs_1_1QueryInput.html#ad459320eb962a347271e52f4b696103f",
-"structgaia_1_1mem_1_1data__layout__properties.html"
+"classgaia_1_1ecs_1_1World.html#ad4e00f5a094baf185e27eb0657158537",
+"classgaia_1_1mt_1_1JobManager.html#ae46e66e7e94115de96fdd49468c720b4",
+"functions_~.html",
+"structgaia_1_1cnt_1_1ilist__item_1_1ItemData.html",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a56fd79bf91cc3fb98f10b6f049dd0759",
+"structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html",
+"structrobin__hood_1_1detail_1_1has__hash.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

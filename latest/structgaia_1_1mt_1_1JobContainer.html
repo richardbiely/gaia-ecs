@@ -115,6 +115,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1mt_1_1JobContainer.html'
   <div class="headertitle"><div class="title">gaia::mt::JobContainer Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Internal storage for a scheduled job and its dependency metadata.  
+ <a href="structgaia_1_1mt_1_1JobContainer.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="jobmanager_8h_source.html">jobmanager.h</a>&gt;</code></p>
 <div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Inheritance diagram for gaia::mt::JobContainer:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -143,13 +148,13 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a5db00bf84994813899d653fc63a31116"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_structgaia_1_1cnt_1_1ilist__item"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_structgaia_1_1cnt_1_1ilist__item')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">gaia::cnt::ilist_item</a></td></tr>
 <tr class="memitem:aa8f30ab728d0f55c9bf5e1118b8b1eb6 inherit pub_methods_structgaia_1_1cnt_1_1ilist__item" id="r_aa8f30ab728d0f55c9bf5e1118b8b1eb6"><td class="memItemLeft" align="right" valign="top">
-&#160;</td><td class="memItemRight" valign="bottom"><b>ilist_item</b> (uint32_t index, uint32_t generation)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ilist_item</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> index, <a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> generation)</td></tr>
 <tr class="separator:aa8f30ab728d0f55c9bf5e1118b8b1eb6 inherit pub_methods_structgaia_1_1cnt_1_1ilist__item"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0100e3a97d9edfbdca15a394679de73a inherit pub_methods_structgaia_1_1cnt_1_1ilist__item" id="r_a0100e3a97d9edfbdca15a394679de73a"><td class="memItemLeft" align="right" valign="top">
-&#160;</td><td class="memItemRight" valign="bottom"><b>ilist_item</b> (const <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;other)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>ilist_item</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;other)</td></tr>
 <tr class="separator:a0100e3a97d9edfbdca15a394679de73a inherit pub_methods_structgaia_1_1cnt_1_1ilist__item"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a374a7b06aca0e5c4346147db964504a9 inherit pub_methods_structgaia_1_1cnt_1_1ilist__item" id="r_a374a7b06aca0e5c4346147db964504a9"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;other)</td></tr>
+<a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;other)</td></tr>
 <tr class="separator:a374a7b06aca0e5c4346147db964504a9 inherit pub_methods_structgaia_1_1cnt_1_1ilist__item"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a891cdf53de23cb19f5d98232fd61c2f2 inherit pub_methods_structgaia_1_1cnt_1_1ilist__item" id="r_a891cdf53de23cb19f5d98232fd61c2f2"><td class="memItemLeft" align="right" valign="top">
 &#160;</td><td class="memItemRight" valign="bottom"><b>ilist_item</b> (<a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">ilist_item</a> &amp;&amp;other)</td></tr>
@@ -160,11 +165,11 @@ Public Member Functions</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a23d92c43de3ba069b405472549057750" id="r_a23d92c43de3ba069b405472549057750"><td class="memItemLeft" align="right" valign="top"><a id="a23d92c43de3ba069b405472549057750" name="a23d92c43de3ba069b405472549057750"></a>
-static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a>&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (uint32_t index, uint32_t generation, void *pCtx)</td></tr>
+<tr class="memitem:a23d92c43de3ba069b405472549057750" id="r_a23d92c43de3ba069b405472549057750"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mt_1_1JobContainer.html#a23d92c43de3ba069b405472549057750">create</a> (uint32_t index, uint32_t generation, void *pCtx)</td></tr>
+<tr class="memdesc:a23d92c43de3ba069b405472549057750"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new job container for the intrusive storage.  <br /></td></tr>
 <tr class="separator:a23d92c43de3ba069b405472549057750"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a59635fb7646222f6f6088b48afe92c22" id="r_a59635fb7646222f6f6088b48afe92c22"><td class="memItemLeft" align="right" valign="top"><a id="a59635fb7646222f6f6088b48afe92c22" name="a59635fb7646222f6f6088b48afe92c22"></a>
-static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><b>handle</b> (const <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a> &amp;jc)</td></tr>
+<tr class="memitem:a59635fb7646222f6f6088b48afe92c22" id="r_a59635fb7646222f6f6088b48afe92c22"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mt_1_1JobContainer.html#a59635fb7646222f6f6088b48afe92c22">handle</a> (const <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a> &amp;jc)</td></tr>
+<tr class="memdesc:a59635fb7646222f6f6088b48afe92c22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the public handle associated with <em>jc</em>.  <br /></td></tr>
 <tr class="separator:a59635fb7646222f6f6088b48afe92c22"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -191,7 +196,7 @@ JobCreationFlags&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b>
 <tr class="separator:a59da254ec119025ed3bdc9bf0ab7d67f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_structgaia_1_1cnt_1_1ilist__item"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_structgaia_1_1cnt_1_1ilist__item')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="structgaia_1_1cnt_1_1ilist__item.html">gaia::cnt::ilist_item</a></td></tr>
 <tr class="memitem:a116c2a9ce00e34620dfe044f33e4db7d inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item" id="r_a116c2a9ce00e34620dfe044f33e4db7d"><td class="memItemLeft" align="right" valign="top">
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>idx</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a>&#160;</td><td class="memItemRight" valign="bottom"><b>idx</b></td></tr>
 <tr class="memdesc:a116c2a9ce00e34620dfe044f33e4db7d inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocated items: Index in the list. Deleted items: Index of the next deleted item in the list. <br /></td></tr>
 <tr class="separator:a116c2a9ce00e34620dfe044f33e4db7d inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6f7d4e5847c48414fa3d483baf08b81e inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item" id="r_a6f7d4e5847c48414fa3d483baf08b81e"><td class="memItemLeft" align="right" valign="top">
@@ -199,6 +204,97 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>idx</b></td></tr>
 <tr class="memdesc:a6f7d4e5847c48414fa3d483baf08b81e inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item"><td class="mdescLeft">&#160;</td><td class="mdescRight">Item data. <br /></td></tr>
 <tr class="separator:a6f7d4e5847c48414fa3d483baf08b81e inherit pub_attribs_structgaia_1_1cnt_1_1ilist__item"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Internal storage for a scheduled job and its dependency metadata. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a23d92c43de3ba069b405472549057750" name="a23d92c43de3ba069b405472549057750"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a23d92c43de3ba069b405472549057750">&#9670;&#160;</a></span>create()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a> gaia::mt::JobContainer::create </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>index</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>generation</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pCtx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a new job container for the intrusive storage. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Stable slot index in the job pool. </td></tr>
+    <tr><td class="paramname">generation</td><td>Generation assigned to the slot. </td></tr>
+    <tr><td class="paramname">pCtx</td><td>Allocation context carrying the requested job priority. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Initialized job container. </dd></dl>
+
+</div>
+</div>
+<a id="a59635fb7646222f6f6088b48afe92c22" name="a59635fb7646222f6f6088b48afe92c22"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a59635fb7646222f6f6088b48afe92c22">&#9670;&#160;</a></span>handle()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::JobContainer::handle </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1mt_1_1JobContainer.html">JobContainer</a> &amp;&#160;</td>
+          <td class="paramname"><em>jc</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the public handle associated with <em>jc</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">jc</td><td><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> container to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Handle referencing <em>jc</em>. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mt/<a class="el" href="jobmanager_8h_source.html">jobmanager.h</a></li>
 </ul>

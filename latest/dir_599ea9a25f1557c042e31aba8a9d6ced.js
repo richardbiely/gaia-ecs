@@ -36,6 +36,7 @@ var dir_599ea9a25f1557c042e31aba8a9d6ced =
     [ "query_mask.h", "query__mask_8h_source.html", null ],
     [ "query_match_stamps.h", "query__match__stamps_8h_source.html", null ],
     [ "query_typed.inl", "query__typed_8inl_source.html", null ],
+    [ "sched.h", "sched_8h_source.html", null ],
     [ "system.h", "system_8h_source.html", null ],
     [ "system.inl", "system_8inl_source.html", null ],
     [ "vm.h", "vm_8h_source.html", null ],

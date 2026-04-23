@@ -213,6 +213,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#job-dependencies">Job dependencies</a></li>
 <li><a class="el" href="index.html#priorities">Priorities</a></li>
 <li><a class="el" href="index.html#threads">Threads</a></li>
+<li><a class="el" href="index.html#scheduler-adapters">Scheduler adapters</a></li>
 </ul>
 </li>
 <li><a class="el" href="index.html#customization">Customization</a><ul>
@@ -2920,6 +2921,7 @@ Priorities</h3>
 <p>The operating system should try to schedule the high-priority jobs to cores with highest level of performance (either performance cores, or cores with highest frequency etc.). Low-priority jobs are to target slowest cores (either efficiency cores, or cores with lowest frequency).</p>
 <p>Where possible, the given system's QoS is utilized (Windows, MacOS). In case of operating systems based on Linux/FreeBSD that do not support QoS out-of-the-box, thread priorities are utilized.</p>
 <p>Thread affinity is left untouched because this plays better with QoS and gives the operating system more control over scheduling.</p>
+<p>During scheduling, Gaia-ECS keeps worker-local queues and worker-to-worker stealing within the same priority class. If a worker releases a dependent job with a different priority, that job is routed to the matching global queue instead of being kept in the releasing worker's local queue. If that target queue is temporarily full, Gaia-ECS waits for the matching worker class to drain it instead of immediately running cross-priority work inline, unless there are no spawned workers for that priority and inline fallback is required for forward progress. The main thread may still help drain both priority classes while waiting or calling <code>update()</code>.</p>
 <div class="fragment"><div class="line"><span class="comment">// Create a job designated for performance cores</span></div>
 <div class="line">mt::Job job0;</div>
 <div class="line">job0.priority = JobPriority::High;</div>
@@ -2998,6 +3000,59 @@ Threads</h3>
 <div class="line">}</div>
 </div><!-- fragment --><p>If you need to designate a certain thread as the main thread, you can do it by calling <code>ThreadPool::make_main_thread</code> from that thread.</p>
 <p>Note, the operating system has the last word here. It might decide to schedule low-priority threads to high-performance cores or high-priority threads to efficiency cores depending on how the scheduler decides it should be.</p>
+<h3><a class="anchor" id="scheduler-adapters"></a>
+Scheduler adapters</h3>
+<p>If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>MyBackendCtx {</div>
+<div class="line">  MyEngine::Scheduler* scheduler;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">static</span> ecs::SchedToken MyRunParallel(<span class="keywordtype">void</span>* pCtx, <span class="keyword">const</span> ecs::SchedParDesc* pDesc) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line"> </div>
+<div class="line">  <span class="keyword">auto</span> token = ctx.scheduler-&gt;parallel_for(</div>
+<div class="line">    pDesc-&gt;itemCount,</div>
+<div class="line">    [pDesc](uint32_t idxStart, uint32_t idxEnd) {</div>
+<div class="line">      pDesc-&gt;invoke(pDesc-&gt;pCtx, idxStart, idxEnd);</div>
+<div class="line">    });</div>
+<div class="line"> </div>
+<div class="line">  ecs::SchedToken out{};</div>
+<div class="line">  out.value[0] = token.raw0;</div>
+<div class="line">  out.value[1] = token.raw1;</div>
+<div class="line">  <span class="keywordflow">return</span> out;</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">static</span> <span class="keywordtype">void</span> MyWait(<span class="keywordtype">void</span>* pCtx, ecs::SchedToken token) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line">  ctx.scheduler-&gt;wait(token.value[0], token.value[1]);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">static</span> <span class="keywordtype">void</span> MyFree(<span class="keywordtype">void</span>* pCtx, ecs::SchedToken token) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line">  ctx.scheduler-&gt;release(token.value[0], token.value[1]);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line">MyBackendCtx backendCtx{&amp;engineScheduler};</div>
+<div class="line"> </div>
+<div class="line">ecs::Sched sched{};</div>
+<div class="line">sched.pCtx = &amp;backendCtx;</div>
+<div class="line">sched.sched_par = &amp;MyRunParallel;</div>
+<div class="line">sched.wait = &amp;MyWait;</div>
+<div class="line">sched.free = &amp;MyFree;</div>
+<div class="line"> </div>
+<div class="line">ecs::World w;</div>
+<div class="line">w.set_sched(sched);</div>
+</div><!-- fragment --><p>After installing the scheduler, ECS paths that use <code>QueryExecType::Parallel</code>, <code>QueryExecType::ParallelPerf</code>, or <code>QueryExecType::ParallelEff</code> route their multithreaded workload through it:</p>
+<div class="fragment"><div class="line">ecs::Query q = w.query().all&lt;Position&gt;();</div>
+<div class="line">q.each([](<span class="keyword">const</span> Position&amp;) {</div>
+<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">}, ecs::QueryExecType::Parallel);</div>
+<div class="line"> </div>
+<div class="line">w.system().all&lt;Velocity&gt;().mode(ecs::QueryExecType::Parallel).on_each([](Velocity&amp;) {</div>
+<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">});</div>
+</div><!-- fragment --><p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code>.</p>
+<p>This adapter hook affects ECS parallel query/system execution. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
 <h2><a class="anchor" id="customization"></a>
 Customization</h2>
 <p>Certain aspects of the library can be customized.</p>
@@ -3118,14 +3173,16 @@ Project settings</h3>
 <tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_SINGLE_HEADER</b>   </td><td class="markdownTableBodyNone">Generates a <a class="el" href="index.html#single-header">single-header</a> version of the framework    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_FORMAT_SINGLE_HEADER</b>   </td><td class="markdownTableBodyNone">Formats the generated single header with <code>clang-format</code> when available (<code>ON</code> by default)    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_CPU</b>   </td><td class="markdownTableBodyNone">Enables CPU <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
-<tr class="markdownTableRowEven">
+<tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_PROFILER_MEM</b>   </td><td class="markdownTableBodyNone">Enabled memory <a class="el" href="index.html#profiling">profiling</a> features    </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_PROFILER_BUILD</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#profiling">profiler</a> (<a href="https://github.com/wolfpld/tracy">Tracy</a> by default)    </td></tr>
 <tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
+<tr class="markdownTableRowEven">
 <td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Preprocessor switch enabling SmallBlockAllocator spill storage for <code>SmallFunc</code> and <code>MoveFunc</code>; enabled by default. Set to <code>0</code> to force out-of-line callables through the platform heap.   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
@@ -3135,9 +3192,11 @@ Sanitizers</h3>
 </div><!-- fragment --><h3><a class="anchor" id="single-header"></a>
 Single-header</h3>
 <p><b>Gaia-ECS</b> is shipped also as a <a href="https://github.com/richardbiely/gaia-ecs/blob/main/single_include/gaia.h">single header file</a> which you can simply drop into your project and start using.</p>
-<p>To generate the amalgamated header use the following command inside your root directory on Unix: </p><div class="fragment"><div class="line">./make_single_header.sh [clang-format-executable]</div>
-</div><!-- fragment --><p>On Windows you can call: </p><div class="fragment"><div class="line">./make_single_header.bat [clang-format-executable] </div>
-</div><!-- fragment --><p>Creation of the single header can be automated via <code>-DGAIA_GENERATE_SINGLE_HEADER=ON</code> (ON by default). If <code>clang-format</code> is not available the header is still generated, it just skips the formatting pass.</p>
+<p>To generate the amalgamated header use the following command inside your root directory on Unix: </p><div class="fragment"><div class="line">./make_single_header.sh [--format|--no-format] [clang-format-executable]</div>
+</div><!-- fragment --><p>On Windows you can call: </p><div class="fragment"><div class="line">./make_single_header.bat [--format|--no-format] [clang-format-executable]</div>
+</div><!-- fragment --><p>Default behavior is to format the generated header when <code>clang-format</code> is available. Use <code>--no-format</code> to skip the formatting pass.</p>
+<p>Creation of the single header can be automated via <code>-DGAIA_GENERATE_SINGLE_HEADER=ON</code> (ON by default).</p>
+<p>Formatting is controlled by <code>-DGAIA_FORMAT_SINGLE_HEADER=ON/OFF</code> and defaults to <code>ON</code>. If formatting is enabled but <code>clang-format</code> is not available the header is still generated, it just skips the formatting pass.</p>
 <h2><a class="anchor" id="conan"></a>
 Conan</h2>
 <p>Gaia-ECS also ships with a Conan 2 recipe in <a href="pkg/conan"><code>pkg/conan</code></a>.</p>

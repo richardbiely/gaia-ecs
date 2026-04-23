@@ -113,22 +113,69 @@ $(document).ready(function(){initNavTree('classgaia_1_1mt_1_1Event.html',''); in
   <div class="headertitle"><div class="title">gaia::mt::Event Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Manual-reset style synchronization primitive for waking a waiting thread. The event stays signaled until reset explicitly.  
+ <a href="classgaia_1_1mt_1_1Event.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="event_8h_source.html">event.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
+<tr class="memitem:a982316aa3965f88ed372d2df4fdd4513" id="r_a982316aa3965f88ed372d2df4fdd4513"><td class="memItemLeft" align="right" valign="top"><a id="a982316aa3965f88ed372d2df4fdd4513" name="a982316aa3965f88ed372d2df4fdd4513"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>Event</b> ()</td></tr>
+<tr class="memdesc:a982316aa3965f88ed372d2df4fdd4513"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an unsignaled event and initializes the underlying pthread objects. <br /></td></tr>
+<tr class="separator:a982316aa3965f88ed372d2df4fdd4513"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee48d2383e17c0d13aa0cf8091166443" id="r_aee48d2383e17c0d13aa0cf8091166443"><td class="memItemLeft" align="right" valign="top"><a id="aee48d2383e17c0d13aa0cf8091166443" name="aee48d2383e17c0d13aa0cf8091166443"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>~Event</b> ()</td></tr>
+<tr class="memdesc:aee48d2383e17c0d13aa0cf8091166443"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys the underlying pthread synchronization objects. <br /></td></tr>
+<tr class="separator:aee48d2383e17c0d13aa0cf8091166443"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a67b1babbd02fabdffa27dc21c33e1012" id="r_a67b1babbd02fabdffa27dc21c33e1012"><td class="memItemLeft" align="right" valign="top"><a id="a67b1babbd02fabdffa27dc21c33e1012" name="a67b1babbd02fabdffa27dc21c33e1012"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>set</b> ()</td></tr>
+<tr class="memdesc:a67b1babbd02fabdffa27dc21c33e1012"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the event to the signaled state and wakes one waiting thread. <br /></td></tr>
 <tr class="separator:a67b1babbd02fabdffa27dc21c33e1012"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad5d3b85846c06863a3d483c55cd9c094" id="r_ad5d3b85846c06863a3d483c55cd9c094"><td class="memItemLeft" align="right" valign="top"><a id="ad5d3b85846c06863a3d483c55cd9c094" name="ad5d3b85846c06863a3d483c55cd9c094"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr>
+<tr class="memdesc:ad5d3b85846c06863a3d483c55cd9c094"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets the event to the unsignaled state. <br /></td></tr>
 <tr class="separator:ad5d3b85846c06863a3d483c55cd9c094"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aec01bfc2d370dd6fa35783c5c1fe477d" id="r_aec01bfc2d370dd6fa35783c5c1fe477d"><td class="memItemLeft" align="right" valign="top"><a id="aec01bfc2d370dd6fa35783c5c1fe477d" name="aec01bfc2d370dd6fa35783c5c1fe477d"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_set</b> ()</td></tr>
+<tr class="memitem:aec01bfc2d370dd6fa35783c5c1fe477d" id="r_aec01bfc2d370dd6fa35783c5c1fe477d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1Event.html#aec01bfc2d370dd6fa35783c5c1fe477d">is_set</a> ()</td></tr>
+<tr class="memdesc:aec01bfc2d370dd6fa35783c5c1fe477d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether the event currently is in the signaled state.  <br /></td></tr>
 <tr class="separator:aec01bfc2d370dd6fa35783c5c1fe477d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a52a25a5bb7c182222a60c560dfd939a4" id="r_a52a25a5bb7c182222a60c560dfd939a4"><td class="memItemLeft" align="right" valign="top"><a id="a52a25a5bb7c182222a60c560dfd939a4" name="a52a25a5bb7c182222a60c560dfd939a4"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>wait</b> ()</td></tr>
+<tr class="memdesc:a52a25a5bb7c182222a60c560dfd939a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Blocks the calling thread until the event becomes signaled. <br /></td></tr>
 <tr class="separator:a52a25a5bb7c182222a60c560dfd939a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Manual-reset style synchronization primitive for waking a waiting thread. The event stays signaled until reset explicitly. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="aec01bfc2d370dd6fa35783c5c1fe477d" name="aec01bfc2d370dd6fa35783c5c1fe477d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aec01bfc2d370dd6fa35783c5c1fe477d">&#9670;&#160;</a></span>is_set()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::mt::Event::is_set </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether the event currently is in the signaled state. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the event is signaled. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mt/<a class="el" href="event_8h_source.html">event.h</a></li>
 </ul>

@@ -146,7 +146,7 @@ $(document).ready(function(){initNavTree('observer_8inl_source.html',''); initRe
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>        <span class="keyword">const</span> <span class="keyword">auto</span> term = terms[i];</div>
 <div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        <span class="keywordflow">if</span> (!world_is_out_of_line_component(world, term)) {</div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>          <span class="keyword">const</span> <span class="keyword">auto</span> compIdx = core::get_index(it.chunk()-&gt;ids_view(), term);</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>          <span class="keywordflow">if</span> (compIdx != BadIndex) {</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>          <span class="keywordflow">if</span> (compIdx != <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>) {</div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>            pChunk-&gt;finish_write(compIdx, it.row_begin(), it.row_end());</div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>          }</div>
@@ -194,7 +194,7 @@ $(document).ready(function(){initNavTree('observer_8inl_source.html',''); initRe
 <div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>            GAIA_FOR(queryIdCnt) {</div>
 <div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>              <span class="keyword">const</span> <span class="keyword">auto</span> queryId = termIds[i];</div>
 <div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>              <span class="keyword">auto</span> compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>              <span class="keywordflow">if</span> (compIdx == BadIndex)</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>              <span class="keywordflow">if</span> (compIdx == <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>)</div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>                compIdx = core::get_index(ec.pArchetype-&gt;ids_view(), queryId);</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>              cachedIndices[i] = (uint8_t)compIdx;</div>
 <div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>            }</div>
@@ -616,6 +616,7 @@ $(document).ready(function(){initNavTree('observer_8inl_source.html',''); initRe
 <div class="line"><a id="l00509" name="l00509"></a><span class="lineno">  509</span> </div>
 <div class="line"><a id="l00510" name="l00510"></a><span class="lineno">  510</span><span class="preprocessor">#endif</span></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
+<div class="ttc" id="anamespacegaia_html_af64083bad9dffeca6c16b532da4a4d18"><div class="ttname"><a href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">gaia::BadIndex</a></div><div class="ttdeci">constexpr uint32_t BadIndex</div><div class="ttdoc">Sentinel index value returned by helpers when a lookup fails.</div><div class="ttdef"><b>Definition</b> utility.h:20</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ChunkHeader_html_a826bf50e2214fc86952a449ca43d5dbb"><div class="ttname"><a href="structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb">gaia::ecs::ChunkHeader::MAX_COMPONENTS</a></div><div class="ttdeci">static constexpr uint32_t MAX_COMPONENTS</div><div class="ttdoc">Maximum number of components on archetype.</div><div class="ttdef"><b>Definition</b> chunk_header.h:53</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

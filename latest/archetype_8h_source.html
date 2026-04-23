@@ -245,7 +245,7 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>      };</div>
 <div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
 <div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>      <span class="keyword">struct </span>RuntimeData {</div>
-<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span>        uint32_t listIdx = BadIndex;</div>
+<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span>        uint32_t listIdx = <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>;</div>
 <div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span>        uint8_t observedTermCnt = 0;</div>
 <div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span> </div>
 <div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>        uint32_t deleteReq : 1;</div>
@@ -1441,7 +1441,7 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="line"><a id="l01375" name="l01375"></a><span class="lineno"> 1375</span>    };</div>
 </div>
 <div class="line"><a id="l01376" name="l01376"></a><span class="lineno"> 1376</span> </div>
-<div class="line"><a id="l01377" name="l01377"></a><span class="lineno"> 1377</span>    <span class="keyword">using </span><a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">ArchetypeMapByHash</a> = <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">cnt::map&lt;ArchetypeLookupKey, Archetype*&gt;</a>;</div>
+<div class="line"><a id="l01377" name="l01377"></a><span class="lineno"> 1377</span>    <span class="keyword">using </span><a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">ArchetypeMapByHash</a> = <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;ArchetypeLookupKey, Archetype*&gt;</a>;</div>
 <div class="line"><a id="l01378" name="l01378"></a><span class="lineno"> 1378</span>  } <span class="comment">// namespace ecs</span></div>
 <div class="line"><a id="l01379" name="l01379"></a><span class="lineno"> 1379</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
@@ -1496,8 +1496,8 @@ $(document).ready(function(){initNavTree('archetype_8h_source.html',''); initRes
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdef"><b>Definition</b> world.h:91</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:528</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:223</div></div>
-<div class="ttc" id="aclassrobin__hood_1_1detail_1_1Table_html"><div class="ttname"><a href="classrobin__hood_1_1detail_1_1Table.html">robin_hood::detail::Table</a></div><div class="ttdef"><b>Definition</b> robin_hood.h:720</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
+<div class="ttc" id="anamespacegaia_html_af64083bad9dffeca6c16b532da4a4d18"><div class="ttname"><a href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">gaia::BadIndex</a></div><div class="ttdeci">constexpr uint32_t BadIndex</div><div class="ttdoc">Sentinel index value returned by helpers when a lookup fails.</div><div class="ttdef"><b>Definition</b> utility.h:20</div></div>
 <div class="ttc" id="astructgaia_1_1core_1_1direct__hash__key_html"><div class="ttname"><a href="structgaia_1_1core_1_1direct__hash__key.html">gaia::core::direct_hash_key&lt; uint64_t &gt;</a></div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeChunkPair_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeChunkPair.html">gaia::ecs::ArchetypeChunkPair</a></div><div class="ttdef"><b>Definition</b> archetype.h:49</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeIdHashPair_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">gaia::ecs::ArchetypeIdHashPair</a></div><div class="ttdef"><b>Definition</b> archetype_common.h:19</div></div>

@@ -6,6 +6,7 @@ var searchData=
   ['build_3',['build',['../classgaia_1_1ecs_1_1World.html#a1eb712f15faca919a88c382ec5aef445',1,'gaia::ecs::World']]],
   ['build_5fdirect_5fentity_5fseed_4',['build_direct_entity_seed',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9f99a969a22f0cd82b11bff61730d9aa',1,'gaia::ecs::detail::QueryImpl']]],
   ['build_5fgraph_5fedges_5',['build_graph_edges',['../classgaia_1_1ecs_1_1Archetype.html#a06016c5a8b64a8ba70232e2e356098c8',1,'gaia::ecs::Archetype']]],
-  ['bytecode_6',['bytecode',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1f4d07fb57cff2f96b4a1a6faab4ff67',1,'gaia::ecs::detail::QueryImpl']]],
-  ['bytes_7',['bytes',['../classgaia_1_1ser_1_1bin__stream.html#acc51650dd23112772d07c726bd908764',1,'gaia::ser::bin_stream::bytes()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a3cb8ce4071b7db95ed6a156a5c60faa4',1,'gaia::ser::detail::ser_buffer_binary_impl::bytes()']]]
+  ['busy_6',['busy',['../classgaia_1_1mt_1_1JobManager.html#a050c975c9e18f1b2e2a607264ddd5655',1,'gaia::mt::JobManager']]],
+  ['bytecode_7',['bytecode',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1f4d07fb57cff2f96b4a1a6faab4ff67',1,'gaia::ecs::detail::QueryImpl']]],
+  ['bytes_8',['bytes',['../classgaia_1_1ser_1_1bin__stream.html#acc51650dd23112772d07c726bd908764',1,'gaia::ser::bin_stream::bytes()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a3cb8ce4071b7db95ed6a156a5c60faa4',1,'gaia::ser::detail::ser_buffer_binary_impl::bytes()']]]
 ];

@@ -6,5 +6,6 @@ var searchData=
   ['groupbyfunc_3',['groupByFunc',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1665ab7d2f084404ba712714c8316f16',1,'gaia::ecs::QueryCtx::Data']]],
   ['groupdepcnt_4',['groupDepCnt',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acfab20b714b9e2649ae3e589df23fd3c',1,'gaia::ecs::QueryCtx::Data']]],
   ['groupdeps_5',['groupDeps',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a08cef351ec738ee2902014b56ee928a7',1,'gaia::ecs::QueryCtx::Data']]],
-  ['groupdepslookup_6',['groupDepsLookup',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8604f047fe9426a94e6a7523b5ec8510',1,'gaia::ecs::QueryCtx::Data']]]
+  ['groupdepslookup_6',['groupDepsLookup',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8604f047fe9426a94e6a7523b5ec8510',1,'gaia::ecs::QueryCtx::Data']]],
+  ['groupsize_7',['groupSize',['../structgaia_1_1ecs_1_1SchedParDesc.html#a7ce77a1e798d27672f6253ac658e2ed0',1,'gaia::ecs::SchedParDesc']]]
 ];
