@@ -98,6 +98,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "run_query_arch_func", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ae0db299dd5b4ab4a5c57f4c91bd6b337", null ],
     [ "run_query_func", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a029aee41f66a195cb5b007ed58aaf448", null ],
     [ "run_query_func", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2a6078892c93899d31c882f460f8402b", null ],
+    [ "run_query_on_chunks_direct_typed", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6dea7c75d52f9783f85a0026694ff870", null ],
     [ "scope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab5209d3d5fc0237e8e0ff73bd3bd729e", null ],
     [ "scope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a04d612775fede8686b71049014cb0998", null ],
     [ "set_var", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a34c08a8003d6e786061cb99b588d3604", null ],

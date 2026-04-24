@@ -318,8 +318,8 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span> </div>
 <div class="foldopen" id="foldopen00233" data-start="{" data-end="};">
 <div class="line"><a id="l00233" name="l00233"></a><span class="lineno"><a class="line" href="classgaia_1_1mt_1_1JobManager.html">  233</a></span>    <span class="keyword">class </span><a class="code hl_class" href="classgaia_1_1mt_1_1JobManager.html">JobManager</a> {</div>
-<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::ilist&lt;JobContainer, JobHandle&gt;</a> m_jobData;</div>
-<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::ilist&lt;ParallelCallbackRecord, ParallelCallbackHandle&gt;</a> m_parallelCallbacks;</div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>      <a class="code hl_struct" href="structgaia_1_1cnt_1_1ilist.html">cnt::ilist&lt;JobContainer, JobHandle&gt;</a> m_jobData;</div>
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span>      <a class="code hl_struct" href="structgaia_1_1cnt_1_1ilist.html">cnt::ilist&lt;ParallelCallbackRecord, ParallelCallbackHandle&gt;</a> m_parallelCallbacks;</div>
 <div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span> </div>
 <div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>    <span class="keyword">public</span>:</div>
 <div class="foldopen" id="foldopen00242" data-start="{" data-end="}">
@@ -337,7 +337,7 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="line"><a id="l00254" name="l00254"></a><span class="lineno"><a class="line" href="classgaia_1_1mt_1_1JobManager.html#aea091957ac81beeb0c61d95b02129427">  254</a></span>      GAIA_NODISCARD <a class="code hl_struct" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> <a class="code hl_function" href="classgaia_1_1mt_1_1JobManager.html#aea091957ac81beeb0c61d95b02129427">alloc_job</a>(<a class="code hl_struct" href="structgaia_1_1mt_1_1Job.html">Job</a> job) {</div>
 <div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span>        <a class="code hl_struct" href="structgaia_1_1mt_1_1JobAllocCtx.html">JobAllocCtx</a> ctx{job.priority};</div>
 <div class="line"><a id="l00256" name="l00256"></a><span class="lineno">  256</span> </div>
-<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>        <span class="keyword">auto</span> handle = m_jobData.alloc(&amp;ctx);</div>
+<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>        <span class="keyword">auto</span> handle = m_jobData.<a class="code hl_function" href="structgaia_1_1cnt_1_1ilist.html#afd424eaef6e93f6a3d50d59714b549e4">alloc</a>(&amp;ctx);</div>
 <div class="line"><a id="l00258" name="l00258"></a><span class="lineno">  258</span>        <span class="keyword">auto</span>&amp; j = m_jobData[handle.id()];</div>
 <div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span> </div>
 <div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>        <span class="comment">// Make sure there is not state yet</span></div>
@@ -357,13 +357,13 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span>        <a class="code hl_struct" href="structgaia_1_1mt_1_1ParallelCallbackAllocCtx.html">ParallelCallbackAllocCtx</a> ctx{};</div>
 <div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>        ctx.callback = GAIA_MOV(callback);</div>
 <div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>        ctx.refs = refs;</div>
-<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>        <span class="keywordflow">return</span> m_parallelCallbacks.alloc(&amp;ctx);</div>
+<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>        <span class="keywordflow">return</span> m_parallelCallbacks.<a class="code hl_function" href="structgaia_1_1cnt_1_1ilist.html#afd424eaef6e93f6a3d50d59714b549e4">alloc</a>(&amp;ctx);</div>
 <div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span>      }</div>
 </div>
 <div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span> </div>
 <div class="foldopen" id="foldopen00286" data-start="{" data-end="}">
 <div class="line"><a id="l00286" name="l00286"></a><span class="lineno"><a class="line" href="classgaia_1_1mt_1_1JobManager.html#a984b424422accfec8394fba1fe0e71b8">  286</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="classgaia_1_1mt_1_1JobManager.html#a984b424422accfec8394fba1fe0e71b8">free_job</a>(<a class="code hl_struct" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle) {</div>
-<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>        <span class="keyword">auto</span>&amp; jobData = m_jobData.free(jobHandle);</div>
+<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>        <span class="keyword">auto</span>&amp; jobData = m_jobData.<a class="code hl_function" href="structgaia_1_1cnt_1_1ilist.html#a348e9f32c9b27a6f43b00f48faa8b905">free</a>(jobHandle);</div>
 <div class="line"><a id="l00288" name="l00288"></a><span class="lineno">  288</span>        GAIA_ASSERT(<a class="code hl_function" href="classgaia_1_1mt_1_1JobManager.html#a32708b4bfc22ac97a323447dad2f4d2b">done</a>(jobData));</div>
 <div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span>        jobData.state.store(JobState::Released);</div>
 <div class="line"><a id="l00290" name="l00290"></a><span class="lineno">  290</span>      }</div>
@@ -374,7 +374,7 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>        <span class="keyword">auto</span>&amp; record = m_parallelCallbacks[handle.<a class="code hl_function" href="structgaia_1_1mt_1_1ParallelCallbackHandle.html#abd88b911a553033cfe4eea9353ee5fb4">id</a>()];</div>
 <div class="line"><a id="l00296" name="l00296"></a><span class="lineno">  296</span>        record.callback.reset();</div>
 <div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span>        record.refs.store(0, std::memory_order_relaxed);</div>
-<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        m_parallelCallbacks.free(handle);</div>
+<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        m_parallelCallbacks.<a class="code hl_function" href="structgaia_1_1cnt_1_1ilist.html#a348e9f32c9b27a6f43b00f48faa8b905">free</a>(handle);</div>
 <div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>      }</div>
 </div>
 <div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span> </div>
@@ -669,7 +669,6 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="line"><a id="l00608" name="l00608"></a><span class="lineno">  608</span>    } <span class="comment">// namespace detail</span></div>
 <div class="line"><a id="l00609" name="l00609"></a><span class="lineno">  609</span>  } <span class="comment">// namespace mt</span></div>
 <div class="line"><a id="l00610" name="l00610"></a><span class="lineno">  610</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1JobArgsFunc_html"><div class="ttname"><a href="classgaia_1_1mt_1_1JobArgsFunc.html">gaia::mt::JobArgsFunc</a></div><div class="ttdoc">Move-only callback wrapper specialized for parallel job ranges.</div><div class="ttdef"><b>Definition</b> jobcommon.h:49</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1JobManager_html"><div class="ttname"><a href="classgaia_1_1mt_1_1JobManager.html">gaia::mt::JobManager</a></div><div class="ttdoc">Storage and lifecycle manager for internal job and parallel callback records.</div><div class="ttdef"><b>Definition</b> jobmanager.h:233</div></div>
@@ -705,6 +704,9 @@ $(document).ready(function(){initNavTree('jobmanager_8h_source.html',''); initRe
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__item_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__item.html">gaia::cnt::ilist_item</a></div><div class="ttdef"><b>Definition</b> ilist.h:122</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__item_html_a116c2a9ce00e34620dfe044f33e4db7d"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__item.html#a116c2a9ce00e34620dfe044f33e4db7d">gaia::cnt::ilist_item::idx</a></div><div class="ttdeci">uint32_t idx</div><div class="ttdoc">Allocated items: Index in the list. Deleted items: Index of the next deleted item in the list.</div><div class="ttdef"><b>Definition</b> ilist.h:130</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__item_html_a6f7d4e5847c48414fa3d483baf08b81e"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__item.html#a6f7d4e5847c48414fa3d483baf08b81e">gaia::cnt::ilist_item::data</a></div><div class="ttdeci">ItemData data</div><div class="ttdoc">Item data.</div><div class="ttdef"><b>Definition</b> ilist.h:132</div></div>
+<div class="ttc" id="astructgaia_1_1cnt_1_1ilist_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist.html">gaia::cnt::ilist</a></div><div class="ttdoc">Implicit list. Rather than with pointers, items.</div><div class="ttdef"><b>Definition</b> ilist.h:184</div></div>
+<div class="ttc" id="astructgaia_1_1cnt_1_1ilist_html_a348e9f32c9b27a6f43b00f48faa8b905"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist.html#a348e9f32c9b27a6f43b00f48faa8b905">gaia::cnt::ilist::free</a></div><div class="ttdeci">TListItem &amp; free(TItemHandle handle)</div><div class="ttdoc">Invalidates handle. Every time an item is deallocated its generation is increased by one.</div><div class="ttdef"><b>Definition</b> ilist.h:357</div></div>
+<div class="ttc" id="astructgaia_1_1cnt_1_1ilist_html_afd424eaef6e93f6a3d50d59714b549e4"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist.html#afd424eaef6e93f6a3d50d59714b549e4">gaia::cnt::ilist::alloc</a></div><div class="ttdeci">GAIA_NODISCARD TItemHandle alloc(void *ctx)</div><div class="ttdoc">Allocates a new item in the list.</div><div class="ttdef"><b>Definition</b> ilist.h:297</div></div>
 <div class="ttc" id="astructgaia_1_1mt_1_1JobAllocCtx_html"><div class="ttname"><a href="structgaia_1_1mt_1_1JobAllocCtx.html">gaia::mt::JobAllocCtx</a></div><div class="ttdef"><b>Definition</b> jobcommon.h:33</div></div>
 <div class="ttc" id="astructgaia_1_1mt_1_1JobArgs_html"><div class="ttname"><a href="structgaia_1_1mt_1_1JobArgs.html">gaia::mt::JobArgs</a></div><div class="ttdef"><b>Definition</b> jobcommon.h:43</div></div>
 <div class="ttc" id="astructgaia_1_1mt_1_1JobContainer_html"><div class="ttname"><a href="structgaia_1_1mt_1_1JobContainer.html">gaia::mt::JobContainer</a></div><div class="ttdoc">Internal storage for a scheduled job and its dependency metadata.</div><div class="ttdef"><b>Definition</b> jobmanager.h:68</div></div>

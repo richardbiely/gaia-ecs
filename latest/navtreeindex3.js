@@ -1,5 +1,6 @@
 var NAVTREEINDEX3 =
 {
+"classgaia_1_1mt_1_1JobManager.html#ae23a0f107d3cd78ed9c375918e059d97":[10,0,0,6,10,19],
 "classgaia_1_1mt_1_1JobManager.html#ae46e66e7e94115de96fdd49468c720b4":[10,0,0,6,10,7],
 "classgaia_1_1mt_1_1JobManager.html#aea091957ac81beeb0c61d95b02129427":[10,0,0,6,10,0],
 "classgaia_1_1mt_1_1JobManager.html#af482b71536c1475bc4ee3759c4bd6d41":[10,0,0,6,10,24],
@@ -248,6 +249,5 @@ var NAVTREEINDEX3 =
 "functions_vars_t.html":[10,3,2,19],
 "functions_vars_u.html":[10,3,2,20],
 "functions_vars_v.html":[10,3,2,21],
-"functions_vars_w.html":[10,3,2,22],
-"functions_w.html":[10,3,0,22]
+"functions_vars_w.html":[10,3,2,22]
 };

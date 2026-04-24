@@ -1,5 +1,6 @@
 var NAVTREEINDEX4 =
 {
+"functions_w.html":[10,3,0,22],
 "functions_~.html":[10,3,0,23],
 "futex_8h_source.html":[11,0,0,0,7,1],
 "fwd__llist_8h_source.html":[11,0,0,0,0,8],
@@ -248,6 +249,5 @@ var NAVTREEINDEX4 =
 "structgaia_1_1cnt_1_1ilist__handle__traits.html":[10,0,0,0,24],
 "structgaia_1_1cnt_1_1ilist__handle__traits_3_01ecs_1_1Entity_01_4.html":[10,0,0,0,25],
 "structgaia_1_1cnt_1_1ilist__item.html":[10,0,0,0,26],
-"structgaia_1_1cnt_1_1ilist__item.html#a116c2a9ce00e34620dfe044f33e4db7d":[10,0,0,0,26,2],
-"structgaia_1_1cnt_1_1ilist__item.html#a6f7d4e5847c48414fa3d483baf08b81e":[10,0,0,0,26,1]
+"structgaia_1_1cnt_1_1ilist__item.html#a116c2a9ce00e34620dfe044f33e4db7d":[10,0,0,0,26,2]
 };
