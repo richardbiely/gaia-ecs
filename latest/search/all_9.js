@@ -42,7 +42,7 @@ var searchData=
   ['ilist_5ftraits_5fhas_5fset_5fidx_3c_20t_2c_20std_3a_3avoid_5ft_3c_20decltype_28ilist_5fitem_5ftraits_3c_20t_20_3e_3a_3aset_5fidx_28std_3a_3adeclval_3c_20t_20_26_20_3e_28_29_2c_20std_3a_3adeclval_3c_20uint32_5ft_20_3e_28_29_29_29_3e_20_3e_39',['ilist_traits_has_set_idx&lt; T, std::void_t&lt; decltype(ilist_item_traits&lt; T &gt;::set_idx(std::declval&lt; T &amp; &gt;(), std::declval&lt; uint32_t &gt;()))&gt; &gt;',['../structgaia_1_1cnt_1_1detail_1_1ilist__traits__has__set__idx_3_01T_00_01std_1_1void__t_3_01decltya538d13079d50899d8a453687e117ae9.html',1,'gaia::cnt::detail']]],
   ['implementation_40',['Implementation',['../index.html#implementation',1,'']]],
   ['in_41',['in',['../classgaia_1_1ecs_1_1World.html#aafcdf196229a3061d6c73a0c3f084d5b',1,'gaia::ecs::World::in()'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a59a4b01c0b837c7663b154b4d3ea9e47',1,'gaia::ecs::detail::QueryImpl::in()']]],
-  ['index_42',['index',['../structgaia_1_1ecs_1_1ChunkHeader.html#a0620e7025bb79c600321ca3f439b8778',1,'gaia::ecs::ChunkHeader']]],
+  ['index_42',['index',['../structgaia_1_1ecs_1_1ChunkHeader.html#a0620e7025bb79c600321ca3f439b8778',1,'gaia::ecs::ChunkHeader::index'],['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#a17fe026511e3d1f73b5198537e9c4db5',1,'gaia::ecs::QueryArchetypeCacheCursor::index']]],
   ['indices_5fmapping_5fview_43',['indices_mapping_view',['../classgaia_1_1ecs_1_1QueryInfo.html#ac0af18432dfc4cba22908421d94fe9e2',1,'gaia::ecs::QueryInfo']]],
   ['inherit_5f_44',['Inherit_',['../structgaia_1_1ecs_1_1Inherit__.html',1,'gaia::ecs']]],
   ['inheritance_45',['Entity inheritance',['../index.html#entity-inheritance',1,'']]],

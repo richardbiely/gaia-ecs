@@ -216,7 +216,7 @@ var annotated_dup =
             [ "VarProgramOpcodeMeta", "structgaia_1_1ecs_1_1vm_1_1detail_1_1VarProgramOpcodeMeta.html", null ],
             [ "VarTermMatchCursor", "structgaia_1_1ecs_1_1vm_1_1detail_1_1VarTermMatchCursor.html", null ]
           ] ],
-          [ "ArchetypeLookupView", "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html", null ],
+          [ "ArchetypeLookupView", "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html", "structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView" ],
           [ "MatchingCtx", "structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html", "structgaia_1_1ecs_1_1vm_1_1MatchingCtx" ],
           [ "VirtualMachine", "classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html", "classgaia_1_1ecs_1_1vm_1_1VirtualMachine" ]
         ] ],
@@ -284,6 +284,7 @@ var annotated_dup =
         [ "Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
         [ "Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
         [ "query_sort_cond", "structgaia_1_1ecs_1_1query__sort__cond.html", null ],
+        [ "QueryArchetypeCacheCursor", "structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html", "structgaia_1_1ecs_1_1QueryArchetypeCacheCursor" ],
         [ "QueryCache", "classgaia_1_1ecs_1_1QueryCache.html", "classgaia_1_1ecs_1_1QueryCache" ],
         [ "QueryCtx", "structgaia_1_1ecs_1_1QueryCtx.html", "structgaia_1_1ecs_1_1QueryCtx" ],
         [ "QueryHandle", "structgaia_1_1ecs_1_1QueryHandle.html", null ],

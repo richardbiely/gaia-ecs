@@ -29,6 +29,6 @@ var searchData=
   ['prio_26',['prio',['../structgaia_1_1mt_1_1ThreadCtx.html#a7665247b0214cf877fadda4d3ebe7d99',1,'gaia::mt::ThreadCtx::prio'],['../structgaia_1_1mt_1_1JobContainer.html#a8129e385e375a2fc78557b054cd26ba3',1,'gaia::mt::JobContainer::prio']]],
   ['psingleallterm_27',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
   ['psoasizes_28',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#aed71c23987645ad1b7c3168d87933749',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]],
-  ['pversions_29',['pVersions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords']]],
+  ['pversions_29',['pversions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords::pVersions'],['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#ae589ff7f137aadb1f593c2f8a6d5967c',1,'gaia::ecs::vm::ArchetypeLookupView::pVersions']]],
   ['pworld_30',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
 ];

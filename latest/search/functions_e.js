@@ -11,6 +11,7 @@ var searchData=
   ['peek_8',['peek',['../classgaia_1_1ser_1_1ser__json.html#ad67d06481931cbc3b0b9cbf7937c84d0',1,'gaia::ser::ser_json']]],
   ['prefab_9',['prefab',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#ab455541e45a833cb2149cfe18c244f97',1,'gaia::ecs::World::EntityBuilder::prefab()'],['../classgaia_1_1ecs_1_1World.html#a201dae9cd84f9e571db0e076c4177613',1,'gaia::ecs::World::prefab()']]],
   ['prefetch_10',['prefetch',['../namespacegaia.html#aedb4252c1b6098155e10211900ee3559',1,'gaia']]],
-  ['processing_11',['processing',['../classgaia_1_1mt_1_1JobManager.html#a4909939e35fe036264e09f180b52d4ac',1,'gaia::mt::JobManager::processing(JobContainer &amp;jobData)'],['../classgaia_1_1mt_1_1JobManager.html#ac5e58a6886918bcd047b32b8c185d6dd',1,'gaia::mt::JobManager::processing(const JobContainer &amp;jobData)']]],
-  ['progress_5fdeath_12',['progress_death',['../classgaia_1_1ecs_1_1Archetype.html#a7b43837562c9afac99a400be37f00756',1,'gaia::ecs::Archetype::progress_death()'],['../classgaia_1_1ecs_1_1Chunk.html#a24a0d4552f65ce59af691ed489b24013',1,'gaia::ecs::Chunk::progress_death()']]]
+  ['prepare_5ftyped_5fquery_5fplan_11',['prepare_typed_query_plan',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af4dc89e82ee2e9490a41de2720fab1d0',1,'gaia::ecs::detail::QueryImpl']]],
+  ['processing_12',['processing',['../classgaia_1_1mt_1_1JobManager.html#a4909939e35fe036264e09f180b52d4ac',1,'gaia::mt::JobManager::processing(JobContainer &amp;jobData)'],['../classgaia_1_1mt_1_1JobManager.html#ac5e58a6886918bcd047b32b8c185d6dd',1,'gaia::mt::JobManager::processing(const JobContainer &amp;jobData)']]],
+  ['progress_5fdeath_13',['progress_death',['../classgaia_1_1ecs_1_1Archetype.html#a7b43837562c9afac99a400be37f00756',1,'gaia::ecs::Archetype::progress_death()'],['../classgaia_1_1ecs_1_1Chunk.html#a24a0d4552f65ce59af691ed489b24013',1,'gaia::ecs::Chunk::progress_death()']]]
 ];
