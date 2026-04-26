@@ -1,5 +1,13 @@
 var NAVTREEINDEX6 =
 {
+"structgaia_1_1ecs_1_1Parent__.html":[10,0,0,3,63],
+"structgaia_1_1ecs_1_1Prefab__.html":[10,0,0,3,64],
+"structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html":[10,0,0,3,66],
+"structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#a17fe026511e3d1f73b5198537e9c4db5":[10,0,0,3,66,0],
+"structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc":[10,0,0,3,66,1],
+"structgaia_1_1ecs_1_1QueryCtx.html":[10,0,0,3,68],
+"structgaia_1_1ecs_1_1QueryCtx.html#a2795e81541eafa3d3f1fb1ec7a9a3e8d":[10,0,0,3,68,1],
+"structgaia_1_1ecs_1_1QueryCtx.html#a7da4eff93731033dd3a34d1f00e1b08b":[10,0,0,3,68,3],
 "structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f":[10,0,0,3,68,2],
 "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html":[10,0,0,3,68,0],
 "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a032a850ff27a2b99a38dcab933ea98b3":[10,0,0,3,68,0,27],
@@ -241,13 +249,5 @@ var NAVTREEINDEX6 =
 "structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a19de80698b03da3499e3ef386e99ca44":[10,0,0,3,1,2,6],
 "structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a1db130a415f6b3ea80d05aef16070631":[10,0,0,3,1,2,4],
 "structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a1f8559b9c87500828070e99f0fc4f3ac":[10,0,0,3,1,2,19],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a3668bacf9a32c95c46501c93af2f2ee8":[10,0,0,3,1,2,13],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a3a02df3fa1440eccb5f06673247934c9":[10,0,0,3,1,2,0],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a4476c3601ac8f90f0425cced54c2df07":[10,0,0,3,1,2,7],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a542785abe5af60af1959e683150df42b":[10,0,0,3,1,2,5],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a570b0339ec7d0ef6272e84a39bbb6acb":[10,0,0,3,1,2,9],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a6fea18e6bf47b61a8280871f44f80692":[10,0,0,3,1,2,16],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a746f09d0bbd064e09e318dfd8e6a415c":[10,0,0,3,1,2,8],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a75697565bf1cc212c5c170b1e337a4a1":[10,0,0,3,1,2,17],
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a766ea667331aa4d18dcb1300a3fbd08d":[10,0,0,3,1,2,15]
+"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a3668bacf9a32c95c46501c93af2f2ee8":[10,0,0,3,1,2,13]
 };

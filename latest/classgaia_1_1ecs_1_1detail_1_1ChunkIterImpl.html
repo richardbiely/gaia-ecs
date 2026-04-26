@@ -192,6 +192,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_write_im</b> (boo
 <tr class="memitem:a6fe78c3fe93db6ba0e71793440eea4d8" id="r_a6fe78c3fe93db6ba0e71793440eea4d8"><td class="memItemLeft" align="right" valign="top"><a id="a6fe78c3fe93db6ba0e71793440eea4d8" name="a6fe78c3fe93db6ba0e71793440eea4d8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>set_constraints</b> (Constraints constraints)</td></tr>
 <tr class="separator:a6fe78c3fe93db6ba0e71793440eea4d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a10f934174e7b685ac12a6c8f2a279c29" id="r_a10f934174e7b685ac12a6c8f2a279c29"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a10f934174e7b685ac12a6c8f2a279c29">init_query_state</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *pWorld, Constraints constraints, bool writeIm)</td></tr>
+<tr class="memdesc:a10f934174e7b685ac12a6c8f2a279c29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initializes stable query execution state stored by the iterator.  <br /></td></tr>
+<tr class="separator:a10f934174e7b685ac12a6c8f2a279c29"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7e29362d3bc6a41bcd1be1118b57f929" id="r_a7e29362d3bc6a41bcd1be1118b57f929"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a7e29362d3bc6a41bcd1be1118b57f929">set_query_chunk</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype, const uint8_t *pCompIndices, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a34355c3b9e15f85a9fa2e531c5ea5dd7">from</a>, uint16_t <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a0e72dfecb6331a8efb2ee059f5c8f943">to</a>)</td></tr>
+<tr class="memdesc:a7e29362d3bc6a41bcd1be1118b57f929"><td class="mdescLeft">&#160;</td><td class="mdescRight">Binds the iterator to the next query chunk and keeps archetype/mapping state on the iterator.  <br /></td></tr>
+<tr class="separator:a7e29362d3bc6a41bcd1be1118b57f929"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a23987bd9e6c31c93446721a3be7974de" id="r_a23987bd9e6c31c93446721a3be7974de"><td class="memItemLeft" align="right" valign="top"><a id="a23987bd9e6c31c93446721a3be7974de" name="a23987bd9e6c31c93446721a3be7974de"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>write_im</b> () const</td></tr>
 <tr class="separator:a23987bd9e6c31c93446721a3be7974de"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -583,6 +589,58 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a10f934174e7b685ac12a6c8f2a279c29" name="a10f934174e7b685ac12a6c8f2a279c29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a10f934174e7b685ac12a6c8f2a279c29">&#9670;&#160;</a></span>init_query_state()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::ChunkIterImpl::init_query_state </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
+          <td class="paramname"><em>pWorld</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Constraints&#160;</td>
+          <td class="paramname"><em>constraints</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>writeIm</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Initializes stable query execution state stored by the iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pWorld</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> associated with the query iteration. </td></tr>
+    <tr><td class="paramname">constraints</td><td>Entity-row subset exposed by the iterator. </td></tr>
+    <tr><td class="paramname">writeIm</td><td>True to finish mutable views immediately. False to defer write finalization. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a89054f3e18c04d1dbeed78d6c856ef71" name="a89054f3e18c04d1dbeed78d6c856ef71"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a89054f3e18c04d1dbeed78d6c856ef71">&#9670;&#160;</a></span>modify()</h2>
 
@@ -612,6 +670,72 @@ template&lt;typename T , bool TriggerHooks&gt; </div>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">TriggerHooks</td><td>is true, also triggers the component's set hooks. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a7e29362d3bc6a41bcd1be1118b57f929" name="a7e29362d3bc6a41bcd1be1118b57f929"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7e29362d3bc6a41bcd1be1118b57f929">&#9670;&#160;</a></span>set_query_chunk()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::ChunkIterImpl::set_query_chunk </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td>
+          <td class="paramname"><em>pArchetype</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint8_t *&#160;</td>
+          <td class="paramname"><em>pCompIndices</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td>
+          <td class="paramname"><em>pChunk</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>from</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>to</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Binds the iterator to the next query chunk and keeps archetype/mapping state on the iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pArchetype</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> owning the chunk. </td></tr>
+    <tr><td class="paramname">pCompIndices</td><td>Query-term to archetype-component index mapping for <em>pArchetype</em>. </td></tr>
+    <tr><td class="paramname">pChunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> exposed by this iterator step. </td></tr>
+    <tr><td class="paramname">from</td><td>First row exposed from <em>pChunk</em>. </td></tr>
+    <tr><td class="paramname">to</td><td>One-past-the-end row exposed from <em>pChunk</em>. </td></tr>
   </table>
   </dd>
 </dl>
