@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::TypedQueryPlan Struct Reference</title>
+<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::QueryPlan Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryPlan.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -109,27 +109,42 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1QueryIm
 <div class="header">
   <div class="summary">
 <a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryPlan-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::TypedQueryPlan Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+<a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::QueryPlan Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Prepared query execution metadata shared by typed callbacks and public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callbacks.  
+ <a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query_8h_source.html">query.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:ada91c509ed033354ed3fb355c15628b1" id="r_ada91c509ed033354ed3fb355c15628b1"><td class="memItemLeft" align="right" valign="top"><a id="ada91c509ed033354ed3fb355c15628b1" name="ada91c509ed033354ed3fb355c15628b1"></a>
-<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af26becfc7cce2f80aeae86cfa1cd7a5f">TypedQueryPlanKind</a>&#160;</td><td class="memItemRight" valign="bottom"><b>kind</b> = <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af26becfc7cce2f80aeae86cfa1cd7a5fa0db377921f4ce762c62526131097968f">TypedQueryPlanKind::General</a></td></tr>
-<tr class="separator:ada91c509ed033354ed3fb355c15628b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5ceb670842fb1be2ef525935dd88526f" id="r_a5ceb670842fb1be2ef525935dd88526f"><td class="memItemLeft" align="right" valign="top"><a id="a5ceb670842fb1be2ef525935dd88526f" name="a5ceb670842fb1be2ef525935dd88526f"></a>
+<tr class="memitem:a3f80b57a83c1923c9f6062f9d7a6a953" id="r_a3f80b57a83c1923c9f6062f9d7a6a953"><td class="memItemLeft" align="right" valign="top"><a id="a3f80b57a83c1923c9f6062f9d7a6a953" name="a3f80b57a83c1923c9f6062f9d7a6a953"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4">QueryPlanMode</a>&#160;</td><td class="memItemRight" valign="bottom"><b>mode</b> = <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a0db377921f4ce762c62526131097968f">QueryPlanMode::General</a></td></tr>
+<tr class="memdesc:a3f80b57a83c1923c9f6062f9d7a6a953"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runner family selected for the current matched query cache. <br /></td></tr>
+<tr class="separator:a3f80b57a83c1923c9f6062f9d7a6a953"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad3c7089725dd94ad3a43a19b0374bf50" id="r_ad3c7089725dd94ad3a43a19b0374bf50"><td class="memItemLeft" align="right" valign="top"><a id="ad3c7089725dd94ad3a43a19b0374bf50" name="ad3c7089725dd94ad3a43a19b0374bf50"></a>
+uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b> = <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a6812cd22335a080d4c9769982fe4053d">QueryPlanFlag_None</a></td></tr>
+<tr class="memdesc:ad3c7089725dd94ad3a43a19b0374bf50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Orthogonal plan properties such as filtering, entity filters, grouping, or payload requirements. <br /></td></tr>
+<tr class="separator:ad3c7089725dd94ad3a43a19b0374bf50"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6af22bf18cc45b785063a33dd59198fc" id="r_a6af22bf18cc45b785063a33dd59198fc"><td class="memItemLeft" align="right" valign="top"><a id="a6af22bf18cc45b785063a33dd59198fc" name="a6af22bf18cc45b785063a33dd59198fc"></a>
 ExecPayloadKind&#160;</td><td class="memItemRight" valign="bottom"><b>payloadKind</b> = ExecPayloadKind::Plain</td></tr>
-<tr class="separator:a5ceb670842fb1be2ef525935dd88526f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a179f28461b530b73cd1d10f5a55f23bb" id="r_a179f28461b530b73cd1d10f5a55f23bb"><td class="memItemLeft" align="right" valign="top"><a id="a179f28461b530b73cd1d10f5a55f23bb" name="a179f28461b530b73cd1d10f5a55f23bb"></a>
+<tr class="memdesc:a6af22bf18cc45b785063a33dd59198fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Payload layout required by generic chunk-batch runners. <br /></td></tr>
+<tr class="separator:a6af22bf18cc45b785063a33dd59198fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a47dcee55a6ee5ef558f55764b6cd6c85" id="r_a47dcee55a6ee5ef558f55764b6cd6c85"><td class="memItemLeft" align="right" valign="top"><a id="a47dcee55a6ee5ef558f55764b6cd6c85" name="a47dcee55a6ee5ef558f55764b6cd6c85"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>idxFrom</b> = 0</td></tr>
-<tr class="separator:a179f28461b530b73cd1d10f5a55f23bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a04165873e26141234ad79bf63ab1e83c" id="r_a04165873e26141234ad79bf63ab1e83c"><td class="memItemLeft" align="right" valign="top"><a id="a04165873e26141234ad79bf63ab1e83c" name="a04165873e26141234ad79bf63ab1e83c"></a>
+<tr class="memdesc:a47dcee55a6ee5ef558f55764b6cd6c85"><td class="mdescLeft">&#160;</td><td class="mdescRight">First cached archetype index to process. <br /></td></tr>
+<tr class="separator:a47dcee55a6ee5ef558f55764b6cd6c85"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2976ea6584b043eb47eda2016707f09d" id="r_a2976ea6584b043eb47eda2016707f09d"><td class="memItemLeft" align="right" valign="top"><a id="a2976ea6584b043eb47eda2016707f09d" name="a2976ea6584b043eb47eda2016707f09d"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>idxTo</b> = 0</td></tr>
-<tr class="separator:a04165873e26141234ad79bf63ab1e83c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memdesc:a2976ea6584b043eb47eda2016707f09d"><td class="mdescLeft">&#160;</td><td class="mdescRight">One-past-the-end cached archetype index to process. <br /></td></tr>
+<tr class="separator:a2976ea6584b043eb47eda2016707f09d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Prepared query execution metadata shared by typed callbacks and public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callbacks. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query_8h_source.html">query.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -137,7 +152,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>idxTo</b> = 0</td
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryPlan.html">TypedQueryPlan</a></li>
+    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

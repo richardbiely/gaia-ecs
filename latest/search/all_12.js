@@ -67,9 +67,10 @@ var searchData=
   ['run_64',['run',['../classgaia_1_1mt_1_1JobManager.html#a77374b2da60618d68b4b6e72d0597fc7',1,'gaia::mt::JobManager']]],
   ['run_5fquery_5farch_5ffunc_65',['run_query_arch_func',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ae0db299dd5b4ab4a5c57f4c91bd6b337',1,'gaia::ecs::detail::QueryImpl']]],
   ['run_5fquery_5ffunc_66',['run_query_func',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a029aee41f66a195cb5b007ed58aaf448',1,'gaia::ecs::detail::QueryImpl::run_query_func(World *pWorld, Func func, ChunkBatch &amp;batch)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2a6078892c93899d31c882f460f8402b',1,'gaia::ecs::detail::QueryImpl::run_query_func(World *pWorld, Func func, std::span&lt; ChunkBatch &gt; batches)']]],
-  ['run_5fquery_5fon_5fchunks_5fdirect_5ftyped_67',['run_query_on_chunks_direct_typed',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a608dc3e0b7a72c0d64a312ab2cb6d1d7',1,'gaia::ecs::detail::QueryImpl']]],
-  ['run_5fquery_5fon_5fchunks_5fruntime_5fdirect_5fplain_68',['run_query_on_chunks_runtime_direct_plain',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a5d72271f4161c8793a23980c473e1e06',1,'gaia::ecs::detail::QueryImpl']]],
-  ['runtime_20serialization_69',['Runtime serialization',['../index.html#runtime-serialization',1,'']]],
-  ['runtime_5fcounters_70',['runtime_counters',['../classgaia_1_1ecs_1_1World.html#a9d2c51bef2908b4d017443bd1f986d1a',1,'gaia::ecs::World']]],
-  ['runtimeitercallback_71',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]]
+  ['run_5fquery_5fon_5fchunks_5fdirect_5ftyped_67',['run_query_on_chunks_direct_typed',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9b2150b9bfd712679c78ca4ff3c8277a',1,'gaia::ecs::detail::QueryImpl']]],
+  ['run_5fquery_5fon_5fchunks_5fruntime_5fdirect_5fplain_5fimpl_68',['run_query_on_chunks_runtime_direct_plain_impl',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a72088c30b5e5e697b4c6b0798e734039',1,'gaia::ecs::detail::QueryImpl']]],
+  ['run_5fquery_5fon_5fchunks_5fruntime_5fplanned_69',['run_query_on_chunks_runtime_planned',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe6394db2d9336405f0b0dc18f8ce11d',1,'gaia::ecs::detail::QueryImpl']]],
+  ['runtime_20serialization_70',['Runtime serialization',['../index.html#runtime-serialization',1,'']]],
+  ['runtime_5fcounters_71',['runtime_counters',['../classgaia_1_1ecs_1_1World.html#a9d2c51bef2908b4d017443bd1f986d1a',1,'gaia::ecs::World']]],
+  ['runtimeitercallback_72',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]]
 ];

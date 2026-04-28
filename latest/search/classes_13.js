@@ -55,6 +55,5 @@ var searchData=
   ['typeditererasedcallback_52',['TypedIterErasedCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
   ['typedmappedchunkcallback_53',['TypedMappedChunkCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
   ['typedqueryargmeta_54',['TypedQueryArgMeta',['../structgaia_1_1ecs_1_1TypedQueryArgMeta.html',1,'gaia::ecs']]],
-  ['typedqueryexecstate_55',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]],
-  ['typedqueryplan_56',['TypedQueryPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryPlan.html',1,'gaia::ecs::detail::QueryImpl']]]
+  ['typedqueryexecstate_55',['TypedQueryExecState',['../structgaia_1_1ecs_1_1TypedQueryExecState.html',1,'gaia::ecs']]]
 ];

@@ -1742,7 +1742,8 @@ Change detection</h3>
 <div class="line">});</div>
 </div><!-- fragment --><p>&gt;<b>NOTE:</b><br  />
 If there are 100 Position components in the chunk and only one of them changes, the other 99 are considered changed as well. This chunk-wide behavior might seem counter-intuitive but it is in fact a performance optimization. The reason why this works is because it is easier to reason about a group of entities than checking each of them separately.</p>
-<p>Changes are triggered as a result of: 1) adding or removing an entity 2) using <b>World::set</b> (<b>World::sset</b> aka silent set doesn't notify of changes) 3) using Iter::view_mut (<b>Iter::sview_mut</b> aka silent mutation doesn't notify of changes) 3) automatically done for mutable components passed to query (see the example above)</p>
+<p>Changes are triggered as a result of: 1) adding, removing, or moving an entity in a matching chunk 2) using <b>World::set</b> on one of the components tracked by <code>changed&lt;T&gt;</code> (<b>World::sset</b> aka silent set doesn't notify of changes) 3) using Iter::view_mut on one of the components tracked by <code>changed&lt;T&gt;</code> (<b>Iter::sview_mut</b> aka silent mutation doesn't notify of changes) 3) automatically done for mutable tracked components passed to query (see the example above)</p>
+<p>Writes to unrelated components do not make <code>changed&lt;T&gt;</code> queries run for <code>T</code>; only the tracked component versions and row-order changes are considered.</p>
 <h3><a class="anchor" id="grouping"></a>
 Grouping</h3>
 <p>Grouping is a feature that allows you to assign an id to each archetype and group them together or filter them based on this id. Archetypes are sorted by their groupId in ascending order. If descending order is needed, you can change your groupIds (e.g. instead of 100 you use ecs::GroupIdMax - 100).</p>

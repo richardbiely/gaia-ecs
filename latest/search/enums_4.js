@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['typedqueryplankind_0',['TypedQueryPlanKind',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af26becfc7cce2f80aeae86cfa1cd7a5f',1,'gaia::ecs::detail::QueryImpl']]]
+  ['result_0',['Result',['../structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66b',1,'gaia::mt::Futex']]]
 ];

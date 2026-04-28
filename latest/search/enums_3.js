@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['result_0',['Result',['../structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66b',1,'gaia::mt::Futex']]]
+  ['queryplanflags_0',['QueryPlanFlags',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanmode_1',['QueryPlanMode',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4',1,'gaia::ecs::detail::QueryImpl']]]
 ];

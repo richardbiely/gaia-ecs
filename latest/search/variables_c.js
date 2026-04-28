@@ -24,7 +24,7 @@ var searchData=
   ['m_5fparchetype_21',['m_parchetype',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ad29636743dfb42cc59eec05ebac9a369',1,'gaia::ecs::detail::ChunkIterImpl::m_pArchetype'],['../classgaia_1_1ecs_1_1CopyIter.html#ac082368f6ff104038a7fff0cd4e31aa3',1,'gaia::ecs::CopyIter::m_pArchetype'],['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a3a0bcb6694ed6859706e8f3f68f2a0c8',1,'gaia::ecs::World::EntityBuilder::m_pArchetype']]],
   ['m_5fparchetypesrc_22',['m_pArchetypeSrc',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a43d000ac60676d110b30155bc4767197',1,'gaia::ecs::World::EntityBuilder']]],
   ['m_5fpcache_23',['m_pCache',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae041bed44bfaa7c074aa51394dc4fb18',1,'gaia::ecs::detail::QueryImplStorage']]],
-  ['m_5fpchunk_24',['m_pchunk',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aec167623915dbc716648400275f573a6',1,'gaia::ecs::detail::ChunkIterImpl::m_pChunk'],['../classgaia_1_1ecs_1_1CopyIter.html#a77c4eebb848339e89cfa50faa1bf3c42',1,'gaia::ecs::CopyIter::m_pChunk']]],
+  ['m_5fpchunk_24',['m_pchunk',['../classgaia_1_1ecs_1_1CopyIter.html#a77c4eebb848339e89cfa50faa1bf3c42',1,'gaia::ecs::CopyIter::m_pChunk'],['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aec167623915dbc716648400275f573a6',1,'gaia::ecs::detail::ChunkIterImpl::m_pChunk']]],
   ['m_5fpchunksrc_25',['m_pChunkSrc',['../structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a00dfe089ee29596fa19185a5c2cd7fb3',1,'gaia::ecs::World::EntityBuilder']]],
   ['m_5fpcompindices_26',['m_pCompIndices',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ab7f256c106210910e46fcbeec16b5eab',1,'gaia::ecs::detail::ChunkIterImpl']]],
   ['m_5fpinfo_27',['m_pInfo',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#aa857ea2ce39f400890097d81717816d4',1,'gaia::ecs::detail::QueryImplStorage']]],
@@ -50,5 +50,6 @@ var searchData=
   ['max_5fchunk_5flifespan_47',['MAX_CHUNK_LIFESPAN',['../structgaia_1_1ecs_1_1ChunkHeader.html#ab009fb18acd4d92ceb3523b10e04be7b',1,'gaia::ecs::ChunkHeader']]],
   ['max_5fcomponents_48',['MAX_COMPONENTS',['../structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb',1,'gaia::ecs::ChunkHeader']]],
   ['mem_5ftotal_49',['mem_total',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab54bde0bf98eb5469a419c4ac214559b',1,'gaia::mem::MemoryPageStats::mem_total'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#aca70f848831bd6d403cdf801a58fcb27',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_total']]],
-  ['mem_5fused_50',['mem_used',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab407e5acc549a4eca4c96b918f5a57f3',1,'gaia::mem::MemoryPageStats::mem_used'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a87289580d420537f2e6f5b60cf53ae43',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_used']]]
+  ['mem_5fused_50',['mem_used',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab407e5acc549a4eca4c96b918f5a57f3',1,'gaia::mem::MemoryPageStats::mem_used'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a87289580d420537f2e6f5b60cf53ae43',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_used']]],
+  ['mode_51',['mode',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a3f80b57a83c1923c9f6062f9d7a6a953',1,'gaia::ecs::detail::QueryImpl::QueryPlan']]]
 ];

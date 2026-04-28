@@ -116,7 +116,7 @@ var searchData=
   ['sort_5fentities_5finter_113',['sort_entities_inter',['../classgaia_1_1ecs_1_1Archetype.html#a12f6280c886c04f2541d97531ba92721',1,'gaia::ecs::Archetype::sort_entities_inter(const ComponentCacheItem *pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func)'],['../classgaia_1_1ecs_1_1Archetype.html#a46e83a6634d06049f841d31ac539f05e',1,'gaia::ecs::Archetype::sort_entities_inter(size_t low, size_t high, TSortByFunc func)']]],
   ['sortby_114',['sortBy',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a10032c2935f4d6fd750fdeadf9334d3c',1,'gaia::ecs::QueryCtx::Data']]],
   ['sortbyfunc_115',['sortByFunc',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aa58c69e664c3a3a1dab1a144dbcc7e7f',1,'gaia::ecs::QueryCtx::Data']]],
-  ['sorted_116',['Sorted',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af26becfc7cce2f80aeae86cfa1cd7a5fa4a1c2d294b4e16ce4e9b563011068033',1,'gaia::ecs::detail::QueryImpl']]],
+  ['sorted_116',['Sorted',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033',1,'gaia::ecs::detail::QueryImpl']]],
   ['sorting_117',['Sorting',['../index.html#sorting',1,'']]],
   ['sortversion_118',['sortVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1NonTrivialPayload.html#af77e111b92eeb0d56b753f29ed0853aa',1,'gaia::ecs::QueryInfo::QueryState::NonTrivialPayload']]],
   ['sourcelookupcursor_119',['SourceLookupCursor',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1SourceLookupCursor.html',1,'gaia::ecs::vm::detail']]],

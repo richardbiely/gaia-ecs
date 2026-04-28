@@ -2,7 +2,7 @@ var searchData=
 [
   ['q_0',['q',['../structgaia_1_1ecs_1_1QueryCtx.html#a7da4eff93731033dd3a34d1f00e1b08b',1,'gaia::ecs::QueryCtx']]],
   ['queries_1',['Multi-variable queries',['../index.html#multi-variable-queries',1,'']]],
-  ['query_2',['query',['../classgaia_1_1ecs_1_1World.html#ac0739a91d52450f8e6a4de7485b4c9ce',1,'gaia::ecs::World::query()'],['../index.html#query',1,'Query'],['../index.html#simple-query',1,'Simple query'],['../index.html#uncached-query',1,'Uncached query']]],
+  ['query_2',['query',['../index.html#query',1,'Query'],['../classgaia_1_1ecs_1_1World.html#ac0739a91d52450f8e6a4de7485b4c9ce',1,'gaia::ecs::World::query()'],['../index.html#simple-query',1,'Simple query'],['../index.html#uncached-query',1,'Uncached query']]],
   ['query_20cache_20behavior_3',['Query cache behavior',['../index.html#query-cache-behavior',1,'']]],
   ['query_20low_20level_20api_4',['Query low-level API',['../index.html#query-low-level-api',1,'']]],
   ['query_20remarks_5',['Query remarks',['../index.html#query-remarks',1,'']]],
@@ -35,7 +35,16 @@ var searchData=
   ['querylookupkey_32',['QueryLookupKey',['../classgaia_1_1ecs_1_1QueryLookupKey.html',1,'gaia::ecs']]],
   ['querymask_33',['querymask',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a766ea667331aa4d18dcb1300a3fbd08d',1,'gaia::ecs::vm::MatchingCtx::queryMask'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a60d8de722237d978875c7b4b11b14d90',1,'gaia::ecs::QueryCtx::Data::queryMask']]],
   ['querymatchscratch_34',['QueryMatchScratch',['../structgaia_1_1ecs_1_1QueryMatchScratch.html',1,'gaia::ecs']]],
-  ['queryterm_35',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
-  ['querytermoptions_36',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]],
-  ['queued_5ffor_5fdeletion_37',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
+  ['queryplan_35',['QueryPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5fentityfilter_36',['QueryPlanFlag_EntityFilter',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98ab433278d991be7ddb8e02151fd5d1767',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5ffiltered_37',['QueryPlanFlag_Filtered',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a54ddce2414f3c0c1a7f522d1ae86cbfa',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5fgrouped_38',['QueryPlanFlag_Grouped',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98aac81785808d7b67f189f1bddc9d08f29',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5finheritedpayload_39',['QueryPlanFlag_InheritedPayload',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a6231872b1ffdbd4c72bf20f8607a30c3',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5fnone_40',['QueryPlanFlag_None',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a6812cd22335a080d4c9769982fe4053d',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflag_5fsorted_41',['QueryPlanFlag_Sorted',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a072fea57cdf52c46d1bbdf0df994acb0',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanflags_42',['QueryPlanFlags',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryplanmode_43',['QueryPlanMode',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryterm_44',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
+  ['querytermoptions_45',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]],
+  ['queued_5ffor_5fdeletion_46',['queued_for_deletion',['../classgaia_1_1ecs_1_1Chunk.html#ac71efa84d84a23a95176895046455e8e',1,'gaia::ecs::Chunk']]]
 ];
