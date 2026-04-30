@@ -739,6 +739,10 @@ namespace gaia {
 					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
+					std::span<const uint8_t> indicesView;
+					if constexpr (HasFilters)
+						indicesView = queryInfo.indices_mapping_view(i);
+
 					const auto& chunks = pArchetype->chunks();
 					for (auto* pChunk: chunks) {
 						const auto from = Iter::start_index(pChunk);
@@ -747,7 +751,7 @@ namespace gaia {
 							continue;
 
 						if constexpr (HasFilters) {
-							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 								continue;
 						}
 
@@ -834,6 +838,10 @@ namespace gaia {
 					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
+					std::span<const uint8_t> indicesView;
+					if (hasFilters)
+						indicesView = queryInfo.indices_mapping_view(i);
+
 					const auto& chunks = pArchetype->chunks();
 					for (auto* pChunk: chunks) {
 						const auto from = Iter::start_index(pChunk);
@@ -842,7 +850,7 @@ namespace gaia {
 							continue;
 
 						if (hasFilters) {
-							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 								continue;
 						}
 

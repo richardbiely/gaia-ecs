@@ -33636,6 +33636,8 @@ namespace gaia {
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray changed;
+				//! Query term index for each changed-filter component after query canonicalization.
+				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> changedFields;
 				//! Canonicalized changed-filter ids reused by hash/equality for shared query dedup.
 				QueryEntityArray changedLookup;
 				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
@@ -33696,6 +33698,11 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> changed_view() const {
 					return {changed.data(), changedCnt};
+				}
+
+				//! Returns query-term indices matching changed-filter components.
+				GAIA_NODISCARD std::span<const uint8_t> changed_fields_view() const {
+					return {changedFields.data(), changedCnt};
 				}
 
 				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
@@ -34215,6 +34222,16 @@ namespace gaia {
 			// and keeps cache keys stable regardless of changed() call order.
 			if (changedCnt > 1) {
 				core::sort(ctxData.changed.data(), ctxData.changed.data() + changedCnt, SortComponentCond{});
+			}
+
+			GAIA_FOR(changedCnt) {
+				const auto comp = ctxData.changed[i];
+				uint32_t compIdx = 0;
+				while (compIdx < idsCnt && ctxData.ids[compIdx] != comp)
+					++compIdx;
+
+				GAIA_ASSERT(compIdx < idsCnt);
+				ctxData.changedFields[i] = compIdx < idsCnt ? (uint8_t)compIdx : (uint8_t)0xFF;
 			}
 		}
 
@@ -45154,6 +45171,54 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			public:
+				//! Returns whether a chunk passes the query's changed filters.
+				//! \param chunk Chunk being evaluated.
+				//! \param queryInfo Query metadata containing changed-filter terms.
+				//! \param changedWorldVersion World version captured by the previous query pass.
+				//! \param compIndices Per-archetype mapping from query term index to chunk component column.
+				GAIA_NODISCARD static bool match_filters(
+						const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion,
+						std::span<const uint8_t> compIndices) {
+					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
+
+					const auto queryVersion = changedWorldVersion;
+					const auto& data = queryInfo.ctx().data;
+					if ((data.flags & (QueryCtx::QueryFlags::HasVariableTerms | QueryCtx::QueryFlags::HasSourceTerms)) != 0)
+						return match_filters(chunk, queryInfo, changedWorldVersion);
+
+					const auto changedFields = data.changed_fields_view();
+
+					if (changedFields.empty())
+						return false;
+
+					const auto changedCnt = (uint32_t)changedFields.size();
+					if (changedCnt == 1) {
+						const auto fieldIdx = changedFields[0];
+						const auto compIdx = fieldIdx < compIndices.size() ? compIndices[fieldIdx] : (uint8_t)0xFF;
+						if (compIdx == (uint8_t)0xFF)
+							return match_filters(chunk, queryInfo, changedWorldVersion);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
+
+						return chunk.entity_order_changed(changedWorldVersion);
+					}
+
+					GAIA_FOR(changedCnt) {
+						const auto fieldIdx = changedFields[i];
+						const auto compIdx = fieldIdx < compIndices.size() ? compIndices[fieldIdx] : (uint8_t)0xFF;
+						if (compIdx == (uint8_t)0xFF)
+							return match_filters(chunk, queryInfo, changedWorldVersion);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
+					}
+
+					return chunk.entity_order_changed(changedWorldVersion);
+				}
+
+				//! Returns whether a chunk passes the query's changed filters.
+				//! \param chunk Chunk being evaluated.
+				//! \param queryInfo Query metadata containing changed-filter terms.
+				//! \param changedWorldVersion World version captured by the previous query pass.
 				GAIA_NODISCARD static bool
 				match_filters(const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
@@ -46595,7 +46660,7 @@ namespace gaia {
 							if GAIA_UNLIKELY (from == to)
 								continue;
 							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 									continue;
 							}
 
@@ -50434,6 +50499,10 @@ namespace gaia {
 					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
+					std::span<const uint8_t> indicesView;
+					if constexpr (HasFilters)
+						indicesView = queryInfo.indices_mapping_view(i);
+
 					const auto& chunks = pArchetype->chunks();
 					for (auto* pChunk: chunks) {
 						const auto from = Iter::start_index(pChunk);
@@ -50442,7 +50511,7 @@ namespace gaia {
 							continue;
 
 						if constexpr (HasFilters) {
-							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 								continue;
 						}
 
@@ -50529,6 +50598,10 @@ namespace gaia {
 					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
+					std::span<const uint8_t> indicesView;
+					if (hasFilters)
+						indicesView = queryInfo.indices_mapping_view(i);
+
 					const auto& chunks = pArchetype->chunks();
 					for (auto* pChunk: chunks) {
 						const auto from = Iter::start_index(pChunk);
@@ -50537,7 +50610,7 @@ namespace gaia {
 							continue;
 
 						if (hasFilters) {
-							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 								continue;
 						}
 

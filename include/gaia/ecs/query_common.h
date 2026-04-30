@@ -649,6 +649,8 @@ namespace gaia {
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray changed;
+				//! Query term index for each changed-filter component after query canonicalization.
+				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> changedFields;
 				//! Canonicalized changed-filter ids reused by hash/equality for shared query dedup.
 				QueryEntityArray changedLookup;
 				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
@@ -709,6 +711,11 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> changed_view() const {
 					return {changed.data(), changedCnt};
+				}
+
+				//! Returns query-term indices matching changed-filter components.
+				GAIA_NODISCARD std::span<const uint8_t> changed_fields_view() const {
+					return {changedFields.data(), changedCnt};
 				}
 
 				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
@@ -1228,6 +1235,16 @@ namespace gaia {
 			// and keeps cache keys stable regardless of changed() call order.
 			if (changedCnt > 1) {
 				core::sort(ctxData.changed.data(), ctxData.changed.data() + changedCnt, SortComponentCond{});
+			}
+
+			GAIA_FOR(changedCnt) {
+				const auto comp = ctxData.changed[i];
+				uint32_t compIdx = 0;
+				while (compIdx < idsCnt && ctxData.ids[compIdx] != comp)
+					++compIdx;
+
+				GAIA_ASSERT(compIdx < idsCnt);
+				ctxData.changedFields[i] = compIdx < idsCnt ? (uint8_t)compIdx : (uint8_t)0xFF;
 			}
 		}
 

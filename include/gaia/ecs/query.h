@@ -1499,6 +1499,54 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			public:
+				//! Returns whether a chunk passes the query's changed filters.
+				//! \param chunk Chunk being evaluated.
+				//! \param queryInfo Query metadata containing changed-filter terms.
+				//! \param changedWorldVersion World version captured by the previous query pass.
+				//! \param compIndices Per-archetype mapping from query term index to chunk component column.
+				GAIA_NODISCARD static bool match_filters(
+						const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion,
+						std::span<const uint8_t> compIndices) {
+					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
+
+					const auto queryVersion = changedWorldVersion;
+					const auto& data = queryInfo.ctx().data;
+					if ((data.flags & (QueryCtx::QueryFlags::HasVariableTerms | QueryCtx::QueryFlags::HasSourceTerms)) != 0)
+						return match_filters(chunk, queryInfo, changedWorldVersion);
+
+					const auto changedFields = data.changed_fields_view();
+
+					if (changedFields.empty())
+						return false;
+
+					const auto changedCnt = (uint32_t)changedFields.size();
+					if (changedCnt == 1) {
+						const auto fieldIdx = changedFields[0];
+						const auto compIdx = fieldIdx < compIndices.size() ? compIndices[fieldIdx] : (uint8_t)0xFF;
+						if (compIdx == (uint8_t)0xFF)
+							return match_filters(chunk, queryInfo, changedWorldVersion);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
+
+						return chunk.entity_order_changed(changedWorldVersion);
+					}
+
+					GAIA_FOR(changedCnt) {
+						const auto fieldIdx = changedFields[i];
+						const auto compIdx = fieldIdx < compIndices.size() ? compIndices[fieldIdx] : (uint8_t)0xFF;
+						if (compIdx == (uint8_t)0xFF)
+							return match_filters(chunk, queryInfo, changedWorldVersion);
+						if (chunk.changed(queryVersion, compIdx))
+							return true;
+					}
+
+					return chunk.entity_order_changed(changedWorldVersion);
+				}
+
+				//! Returns whether a chunk passes the query's changed filters.
+				//! \param chunk Chunk being evaluated.
+				//! \param queryInfo Query metadata containing changed-filter terms.
+				//! \param changedWorldVersion World version captured by the previous query pass.
 				GAIA_NODISCARD static bool
 				match_filters(const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
@@ -2940,7 +2988,7 @@ namespace gaia {
 							if GAIA_UNLIKELY (from == to)
 								continue;
 							if constexpr (HasFilters) {
-								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
 									continue;
 							}
 
