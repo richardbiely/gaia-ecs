@@ -803,6 +803,7 @@ namespace gaia {
 						}
 						it.set_chunk(pChunk, from, to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
 						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
@@ -861,6 +862,7 @@ namespace gaia {
 						}
 						it.set_chunk(pChunk, from, to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
 						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
@@ -1059,6 +1061,7 @@ namespace gaia {
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, *it.world(), InputArgs{});
 				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, metas, argCount);
+				it.ctx(m_ctx);
 				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
 			}
 
@@ -1067,6 +1070,7 @@ namespace gaia {
 					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&)) {
 				auto& queryInfo = fetch();
+				it.ctx(m_ctx);
 				if (state.canUseDirectChunkEval) {
 					runDirectFastChunk(*this, it, pFunc, state);
 					finish_typed_chunk_state(
@@ -1089,6 +1093,7 @@ namespace gaia {
 					Iter it;
 					it.set_constraints(constraints);
 					init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+					it.ctx(m_ctx);
 					runDirectChunk(*this, it, pFunc, state);
 				};
 
@@ -1122,6 +1127,7 @@ namespace gaia {
 									}
 									it.set_chunk(run.pChunk, run.from, run.to);
 									it.set_group_id(0);
+									it.ctx(m_ctx);
 									runDirectChunk(*this, it, pFunc, state);
 								}
 							} else {
@@ -1135,6 +1141,7 @@ namespace gaia {
 									init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 									it.set_chunk(run.pChunk, run.from, run.to);
 									it.set_group_id(0);
+									it.ctx(m_ctx);
 									runDirectChunk(*this, it, pFunc, state);
 								}
 							}

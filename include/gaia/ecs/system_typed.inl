@@ -102,14 +102,14 @@ namespace gaia {
 			const bool hasInheritedTerms = execState.hasInheritedTerms;
 			if (hasInheritedTerms) {
 				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
-														 invokeInherited](Query& query, QueryExecType execType) mutable {
+																invokeInherited](Query& query, QueryExecType execType) mutable {
 					query.each_typed_erased(
 							execType, &func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
 							execState.needsInheritedArgIds, invokeInherited);
 				};
 			} else {
 				runtime.on_each_func = [func, execState, runDirectFastChunk,
-														 runMappedChunk](Query& query, QueryExecType execType) mutable {
+																runMappedChunk](Query& query, QueryExecType execType) mutable {
 					query.each_iter_erased(execType, &func, execState, runDirectFastChunk, runMappedChunk);
 				};
 			}

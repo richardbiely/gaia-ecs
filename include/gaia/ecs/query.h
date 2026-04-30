@@ -614,6 +614,8 @@ namespace gaia {
 				QueryCacheScope m_cacheScope = QueryCacheScope::Local;
 				//! Traversed-source closure size allowed for explicit snapshot reuse.
 				uint16_t m_cacheSrcTrav = 0;
+				//! User-owned data pointer exposed to iterator callbacks.
+				void* m_ctx = nullptr;
 
 				//! Walk-specific cache and scratch storage, allocated on-demand.
 				struct EachWalkData {
@@ -886,6 +888,21 @@ namespace gaia {
 				//! \return Traversed-source snapshot cap.
 				GAIA_NODISCARD uint16_t cache_src_trav() const {
 					return m_cacheSrcTrav;
+				}
+
+				//! Sets the user-owned context pointer visible through Iter::ctx() during iterator callbacks.
+				//! Changing the pointer does not affect query identity, query matching, or cached query storage.
+				//! \param pCtx Context pointer. May be null. Gaia-ECS stores it without taking ownership.
+				//! \return Self reference.
+				QueryImpl& ctx(void* pCtx) {
+					m_ctx = pCtx;
+					return *this;
+				}
+
+				//! Returns the user-owned context pointer attached to this query.
+				//! \return Context pointer, or null when none is attached.
+				GAIA_NODISCARD void* ctx() const {
+					return m_ctx;
 				}
 
 				//! Sets the hard cache-kind requirement for the query.
@@ -2993,6 +3010,7 @@ namespace gaia {
 							}
 
 							it.set_query_chunk(pArchetype, pIndices, pChunk, from, to);
+							it.ctx(m_ctx);
 							{
 								GAIA_PROF_SCOPE(query_func);
 								func(it);
@@ -3048,10 +3066,12 @@ namespace gaia {
 
 				struct RuntimeIterCallback {
 					void* pFunc;
+					void* pCtx;
 					void (*invoke)(void*, Iter&);
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pCtx);
 						invoke(pFunc, it);
 					}
 				};
@@ -3064,6 +3084,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						runChunk(*pSelf, it, pFunc, *pState);
 					}
 				};
@@ -3077,6 +3098,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						runChunk(*pSelf, *pQueryInfo, it, pFunc, *pState);
 					}
 				};
@@ -3090,6 +3112,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						pSelf->each_iter_erased(it, pFunc, *pState, runDirect, runChunk);
 					}
 				};
@@ -3117,7 +3140,7 @@ namespace gaia {
 				void each_runtime_erased(
 						QueryInfo& queryInfo, const QueryPlan& plan, QueryExecType execType, void* pFunc,
 						void (*invoke)(void*, Iter&), Constraints constraints) {
-					RuntimeIterCallback cb{pFunc, invoke};
+					RuntimeIterCallback cb{pFunc, m_ctx, invoke};
 
 					if (plan.mode == QueryPlanMode::EntitySeed) {
 						each_direct_iter_inter(queryInfo, constraints, cb);
@@ -4265,6 +4288,7 @@ namespace gaia {
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 						it.set_chunk(run.pChunk, run.from, run.to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 						it.clear_touched_writes();
@@ -4336,6 +4360,7 @@ namespace gaia {
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 						it.clear_touched_writes();
@@ -4356,6 +4381,7 @@ namespace gaia {
 						it.set_constraints(constraints);
 						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						it.set_write_im(false);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 					};
@@ -5219,6 +5245,7 @@ namespace gaia {
 							queryInfo,
 							[&](Iter& it) {
 								GAIA_PROF_SCOPE(query_func_a);
+								it.ctx(m_ctx);
 								func(it);
 							},
 							constraints);

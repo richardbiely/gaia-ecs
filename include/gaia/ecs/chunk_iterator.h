@@ -886,6 +886,8 @@ namespace gaia {
 				uint16_t m_to;
 				//! GroupId. 0 if not set.
 				GroupId m_groupId = 0;
+				//! User-owned pointer supplied by the caller driving this iteration.
+				void* m_pCtx = nullptr;
 
 			public:
 				ChunkIterImpl() = default;
@@ -1080,6 +1082,18 @@ namespace gaia {
 
 				GAIA_NODISCARD GroupId group_id() const {
 					return m_groupId;
+				}
+
+				//! Sets the user-owned context pointer visible through ctx().
+				//! \param pCtx Context pointer. May be null.
+				void ctx(void* pCtx) {
+					m_pCtx = pCtx;
+				}
+
+				//! Returns the user-owned context pointer supplied by the caller driving this iteration.
+				//! \return Context pointer, or null when none was supplied.
+				GAIA_NODISCARD void* ctx() const {
+					return m_pCtx;
 				}
 
 				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {

@@ -103,6 +103,109 @@ TEST_CASE("System - invalid kind reports reason") {
 	CHECK(std::string(sys.query.kind_error_str()).find("immediate") != std::string::npos);
 }
 
+TEST_CASE("System - builder context is visible from iterator callbacks") {
+	struct SystemCtx {
+		uint32_t hits = 0;
+		uint32_t total = 0;
+	};
+
+	TestWorld twld;
+	SystemCtx ctx{};
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	wld.copy(e);
+
+	auto sys = wld.system().ctx(&ctx).all<Position>().on_each([](ecs::Iter& it) {
+		auto& data = *static_cast<SystemCtx*>(it.ctx());
+		++data.hits;
+		data.total += it.size();
+	});
+
+	CHECK(sys.ctx() == &ctx);
+
+	sys.exec();
+
+	SystemCtx replacement{};
+	sys.ctx(&replacement);
+	sys.exec();
+
+	CHECK(ctx.hits == 1);
+	CHECK(ctx.total == 2);
+	CHECK(replacement.hits == 1);
+	CHECK(replacement.total == 2);
+}
+
+TEST_CASE("Query - context is visible from iterator callbacks") {
+	struct QueryCtx {
+		uint32_t hits = 0;
+		uint32_t total = 0;
+	};
+
+	TestWorld twld;
+	QueryCtx ctx{};
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+	wld.copy(e);
+
+	auto q = wld.query().ctx(&ctx).all<Position>();
+
+	CHECK(q.ctx() == &ctx);
+
+	q.each([](ecs::Iter& it) {
+		auto* data = static_cast<QueryCtx*>(it.ctx());
+		CHECK(data != nullptr);
+		++data->hits;
+		data->total += it.size();
+	});
+
+	QueryCtx replacement{};
+	q.ctx(&replacement);
+	q.each([](ecs::Iter& it) {
+		auto* data = static_cast<QueryCtx*>(it.ctx());
+		CHECK(data != nullptr);
+		++data->hits;
+		data->total += it.size();
+	});
+
+	CHECK(ctx.hits == 1);
+	CHECK(ctx.total == 2);
+	CHECK(replacement.hits == 1);
+	CHECK(replacement.total == 2);
+}
+
+TEST_CASE("Query - shared cached queries keep separate contexts") {
+	struct QueryCtx {
+		uint32_t hits = 0;
+	};
+
+	TestWorld twld;
+	QueryCtx first{};
+	QueryCtx second{};
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 2, 3});
+
+	auto qFirst = wld.query().scope(ecs::QueryCacheScope::Shared).ctx(&first).all<Position>();
+	auto qSecond = wld.query().scope(ecs::QueryCacheScope::Shared).ctx(&second).all<Position>();
+
+	qFirst.each([](ecs::Iter& it) {
+		auto* data = static_cast<QueryCtx*>(it.ctx());
+		CHECK(data != nullptr);
+		++data->hits;
+	});
+	qSecond.each([](ecs::Iter& it) {
+		auto* data = static_cast<QueryCtx*>(it.ctx());
+		CHECK(data != nullptr);
+		++data->hits;
+	});
+
+	CHECK(qFirst.id() == qSecond.id());
+	CHECK(first.hits == 1);
+	CHECK(second.hits == 1);
+}
+
 TEST_CASE("System - dependency BFS order") {
 	cnt::darr<char> order;
 	TestWorld twld;

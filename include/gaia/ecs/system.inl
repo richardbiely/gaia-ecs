@@ -86,7 +86,7 @@ namespace gaia {
 			World& m_world;
 			Entity m_entity;
 
-			void validate() {
+			void validate() const {
 				GAIA_ASSERT(m_world.valid(m_entity));
 			}
 
@@ -314,6 +314,23 @@ namespace gaia {
 				auto& ctx = data();
 				ctx.execType = type;
 				return *this;
+			}
+
+			//! Sets user-owned data passed to system iterator callbacks.
+			//! The system does not own this pointer; callers must keep it alive while the system can run.
+			//! \param pCtx Context pointer. May be null.
+			//! \return Self reference.
+			SystemBuilder& ctx(void* pCtx) {
+				validate();
+				data().query.ctx(pCtx);
+				return *this;
+			}
+
+			//! Returns the user-owned context pointer attached to the system.
+			//! \return Context pointer, or null when none was attached.
+			GAIA_NODISCARD void* ctx() const {
+				validate();
+				return data().query.ctx();
 			}
 
 			template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>

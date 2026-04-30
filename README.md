@@ -1134,6 +1134,33 @@ For querying data you can use a Query. It can help you find all entities, compon
 
 By default, `ecs::Query` keeps cached query state locally in the query object. If you want identical query shapes to reuse one shared cache entry across the world, opt into `QueryCacheScope::Shared`.
 
+Queries can also carry a user-owned context pointer. Gaia-ECS does not allocate, copy, or destroy this data; it only stores the pointer on the query object and exposes it to iterator-style callbacks through `ecs::Iter::ctx()`. The pointer is not part of query identity, does not affect matching, and does not invalidate cached query state. Shared-cache queries with the same shape can still keep different context pointers.
+
+```cpp
+struct MoveSettings {
+  float dt;
+};
+
+MoveSettings settings{1.0f / 60.0f};
+
+ecs::Query q = w.query()
+  .ctx(&settings)
+  .all<Position&>()
+  .all<Velocity>();
+
+q.each([](ecs::Iter& it) {
+  auto* settings = static_cast<MoveSettings*>(it.ctx());
+  auto pos = it.view_mut<Position>();
+  auto vel = it.view<Velocity>();
+
+  GAIA_EACH(it) {
+    pos[i].x += vel[i].x * settings->dt;
+    pos[i].y += vel[i].y * settings->dt;
+    pos[i].z += vel[i].z * settings->dt;
+  }
+});
+```
+
 Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.
 
 ### Simple query
@@ -2831,6 +2858,21 @@ w.enable(mySystemEntity, false);
 w.enable(mySystemEntity, true);
 // System is an entity. Therefore, it is easy to change its name at any point.
 w.name("MoveSystem");
+```
+
+Systems can also carry a user-owned context pointer. Gaia-ECS stores it on the system's underlying query, so it follows the same ownership and iterator access rules as query context.
+
+```cpp
+MoveSettings settings{1.0f / 60.0f};
+
+SystemBuilder moveSystem = w.system()
+  .ctx(&settings)
+  .all<Position&>()
+  .all<Velocity>()
+  .on_each([](ecs::Iter& it) {
+    auto* settings = static_cast<MoveSettings*>(it.ctx());
+    // Iterate and use settings as needed.
+  });
 ```
 
 The system can be run manually or automatically.
