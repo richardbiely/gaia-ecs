@@ -244,6 +244,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_group_id</b> (Gro
 <tr class="memitem:a3dae66779437eebf8b23e29f71b5fff6 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a3dae66779437eebf8b23e29f71b5fff6"><td class="memItemLeft" align="right" valign="top">
 GAIA_NODISCARD GroupId&#160;</td><td class="memItemRight" valign="bottom"><b>group_id</b> () const</td></tr>
 <tr class="separator:a3dae66779437eebf8b23e29f71b5fff6 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a30300ac5cdc5ab179a275b9dd36d7b90 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a30300ac5cdc5ab179a275b9dd36d7b90"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90">ctx</a> (void *pCtx)</td></tr>
+<tr class="memdesc:a30300ac5cdc5ab179a275b9dd36d7b90 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">ctx()</a>.  <br /></td></tr>
+<tr class="separator:a30300ac5cdc5ab179a275b9dd36d7b90 inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a37ead354644dab779beb409ba286d8df inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a37ead354644dab779beb409ba286d8df"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df">ctx</a> () const</td></tr>
+<tr class="memdesc:a37ead354644dab779beb409ba286d8df inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the user-owned context pointer supplied by the caller driving this iteration.  <br /></td></tr>
+<tr class="separator:a37ead354644dab779beb409ba286d8df inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a354691726d36ddfbf12770144d861b7c inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_a354691726d36ddfbf12770144d861b7c"><td class="memItemLeft" align="right" valign="top">
 GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBufferST</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>cmd_buffer_st</b> () const</td></tr>
 <tr class="separator:a354691726d36ddfbf12770144d861b7c inherit pub_methods_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -470,6 +476,10 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_to</b></td></tr
 GroupId&#160;</td><td class="memItemRight" valign="bottom"><b>m_groupId</b> = 0</td></tr>
 <tr class="memdesc:a4bdc55e40b19d6713ded6ac36e89a6be inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight">GroupId. 0 if not set. <br /></td></tr>
 <tr class="separator:a4bdc55e40b19d6713ded6ac36e89a6be inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abfc5cfcee8c446b038cd0957e7039fa5 inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" id="r_abfc5cfcee8c446b038cd0957e7039fa5"><td class="memItemLeft" align="right" valign="top">
+void *&#160;</td><td class="memItemRight" valign="bottom"><b>m_pCtx</b> = nullptr</td></tr>
+<tr class="memdesc:abfc5cfcee8c446b038cd0957e7039fa5 inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="mdescLeft">&#160;</td><td class="mdescRight">User-owned pointer supplied by the caller driving this iteration. <br /></td></tr>
+<tr class="separator:abfc5cfcee8c446b038cd0957e7039fa5 inherit pro_attribs_classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabled ones in AcceptAll mode. </p>

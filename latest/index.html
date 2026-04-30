@@ -1044,7 +1044,30 @@ Data processing</h2>
 Query</h3>
 <p>For querying data you can use a Query. It can help you find all entities, components, or chunks matching a list of conditions and constraints and iterate them or return them as an array. You can also use them to quickly check if any entities satisfying your requirements exist or calculate how many of them there are.</p>
 <p>By default, <code>ecs::Query</code> keeps cached query state locally in the query object. If you want identical query shapes to reuse one shared cache entry across the world, opt into <code>QueryCacheScope::Shared</code>.</p>
-<p>Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.</p>
+<p>Queries can also carry a user-owned context pointer. Gaia-ECS does not allocate, copy, or destroy this data; it only stores the pointer on the query object and exposes it to iterator-style callbacks through <code>ecs::Iter::ctx()</code>. The pointer is not part of query identity, does not affect matching, and does not invalidate cached query state. Shared-cache queries with the same shape can still keep different context pointers.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>MoveSettings {</div>
+<div class="line">  <span class="keywordtype">float</span> dt;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">MoveSettings settings{1.0f / 60.0f};</div>
+<div class="line"> </div>
+<div class="line">ecs::Query q = w.query()</div>
+<div class="line">  .ctx(&amp;settings)</div>
+<div class="line">  .all&lt;Position&amp;&gt;()</div>
+<div class="line">  .all&lt;Velocity&gt;();</div>
+<div class="line"> </div>
+<div class="line">q.each([](ecs::Iter&amp; it) {</div>
+<div class="line">  <span class="keyword">auto</span>* settings = <span class="keyword">static_cast&lt;</span>MoveSettings*<span class="keyword">&gt;</span>(it.ctx());</div>
+<div class="line">  <span class="keyword">auto</span> pos = it.view_mut&lt;Position&gt;();</div>
+<div class="line">  <span class="keyword">auto</span> vel = it.view&lt;Velocity&gt;();</div>
+<div class="line"> </div>
+<div class="line">  GAIA_EACH(it) {</div>
+<div class="line">    pos[i].x += vel[i].x * settings-&gt;dt;</div>
+<div class="line">    pos[i].y += vel[i].y * settings-&gt;dt;</div>
+<div class="line">    pos[i].z += vel[i].z * settings-&gt;dt;</div>
+<div class="line">  }</div>
+<div class="line">});</div>
+</div><!-- fragment --><p>Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.</p>
 <h3><a class="anchor" id="simple-query"></a>
 Simple query</h3>
 <div class="fragment"><div class="line">ecs::Query q = w.query();</div>
@@ -2444,6 +2467,17 @@ System basics</h3>
 <div class="line">w.enable(mySystemEntity, <span class="keyword">true</span>);</div>
 <div class="line"><span class="comment">// System is an entity. Therefore, it is easy to change its name at any point.</span></div>
 <div class="line">w.name(<span class="stringliteral">&quot;MoveSystem&quot;</span>);</div>
+</div><!-- fragment --><p>Systems can also carry a user-owned context pointer. Gaia-ECS stores it on the system's underlying query, so it follows the same ownership and iterator access rules as query context.</p>
+<div class="fragment"><div class="line">MoveSettings settings{1.0f / 60.0f};</div>
+<div class="line"> </div>
+<div class="line">SystemBuilder moveSystem = w.system()</div>
+<div class="line">  .ctx(&amp;settings)</div>
+<div class="line">  .all&lt;Position&amp;&gt;()</div>
+<div class="line">  .all&lt;Velocity&gt;()</div>
+<div class="line">  .on_each([](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="keyword">auto</span>* settings = <span class="keyword">static_cast&lt;</span>MoveSettings*<span class="keyword">&gt;</span>(it.ctx());</div>
+<div class="line">    <span class="comment">// Iterate and use settings as needed.</span></div>
+<div class="line">  });</div>
 </div><!-- fragment --><p>The system can be run manually or automatically.</p>
 <div class="fragment"><div class="line"><span class="comment">// Run the system manually.</span></div>
 <div class="line">mySystem.exec();</div>

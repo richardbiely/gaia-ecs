@@ -1,6 +1,8 @@
 var classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl =
 [
     [ "acc_index", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a8640274108ee63a7cb3127c16b8fa54f", null ],
+    [ "ctx", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df", null ],
+    [ "ctx", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90", null ],
     [ "enabled", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#adffd6a494b906ca244f59888552d98ac", null ],
     [ "from", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a34355c3b9e15f85a9fa2e531c5ea5dd7", null ],
     [ "has", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a96747b00816091c458b346c522d9ba7e", null ],
@@ -37,6 +39,7 @@ var classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl =
     [ "m_pArchetype", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ad29636743dfb42cc59eec05ebac9a369", null ],
     [ "m_pChunk", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aec167623915dbc716648400275f573a6", null ],
     [ "m_pCompIndices", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ab7f256c106210910e46fcbeec16b5eab", null ],
+    [ "m_pCtx", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#abfc5cfcee8c446b038cd0957e7039fa5", null ],
     [ "m_pTermIdMapping", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a635f3b8ff3c95e9811604b4eb4739a5b", null ],
     [ "m_pWorld", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a73373f5c48218697400955f938bd46c1", null ],
     [ "m_to", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#ae163097c47ca297325e9570cc2d44102", null ],

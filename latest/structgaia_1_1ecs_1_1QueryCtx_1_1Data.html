@@ -129,6 +129,10 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 <tr class="memitem:ad865a34276fdbf1742236fe9dbab2543" id="r_ad865a34276fdbf1742236fe9dbab2543"><td class="memItemLeft" align="right" valign="top"><a id="ad865a34276fdbf1742236fe9dbab2543" name="ad865a34276fdbf1742236fe9dbab2543"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_view</b> () const</td></tr>
 <tr class="separator:ad865a34276fdbf1742236fe9dbab2543"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a848e549e84f6b39c88dc02da3855eb19" id="r_a848e549e84f6b39c88dc02da3855eb19"><td class="memItemLeft" align="right" valign="top"><a id="a848e549e84f6b39c88dc02da3855eb19" name="a848e549e84f6b39c88dc02da3855eb19"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_fields_view</b> () const</td></tr>
+<tr class="memdesc:a848e549e84f6b39c88dc02da3855eb19"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns query-term indices matching changed-filter components. <br /></td></tr>
+<tr class="separator:a848e549e84f6b39c88dc02da3855eb19"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a79a254b1a9dbd7142710246475adb90c" id="r_a79a254b1a9dbd7142710246475adb90c"><td class="memItemLeft" align="right" valign="top"><a id="a79a254b1a9dbd7142710246475adb90c" name="a79a254b1a9dbd7142710246475adb90c"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_view</b> () const</td></tr>
 <tr class="separator:a79a254b1a9dbd7142710246475adb90c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -181,6 +185,10 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>changedCnt</b> = 0
 <a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
 <tr class="memdesc:ad39f2592985873852a48cb84548e17ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of filtered components. <br /></td></tr>
 <tr class="separator:ad39f2592985873852a48cb84548e17ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3e1d65c5ad95b615523547fc23d0f221" id="r_a3e1d65c5ad95b615523547fc23d0f221"><td class="memItemLeft" align="right" valign="top"><a id="a3e1d65c5ad95b615523547fc23d0f221" name="a3e1d65c5ad95b615523547fc23d0f221"></a>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint8_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changedFields</b></td></tr>
+<tr class="memdesc:a3e1d65c5ad95b615523547fc23d0f221"><td class="mdescLeft">&#160;</td><td class="mdescRight">Query term index for each changed-filter component after query canonicalization. <br /></td></tr>
+<tr class="separator:a3e1d65c5ad95b615523547fc23d0f221"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5d2b7d7af177c7707e8ca6e0bbcf7fe0" id="r_a5d2b7d7af177c7707e8ca6e0bbcf7fe0"><td class="memItemLeft" align="right" valign="top"><a id="a5d2b7d7af177c7707e8ca6e0bbcf7fe0" name="a5d2b7d7af177c7707e8ca6e0bbcf7fe0"></a>
 <a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changedLookup</b></td></tr>
 <tr class="memdesc:a5d2b7d7af177c7707e8ca6e0bbcf7fe0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized changed-filter ids reused by hash/equality for shared query dedup. <br /></td></tr>

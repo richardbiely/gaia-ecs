@@ -559,6 +559,7 @@ var hierarchy =
     [ "gaia::cnt::sarr< gaia::util::str, MaxVarCnt >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr< uint32_t, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr< uint8_t, BlockArrayBytes >", "classgaia_1_1cnt_1_1sarr.html", null ],
+    [ "gaia::cnt::sarr< uint8_t, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr_ext< T, N >", "classgaia_1_1cnt_1_1sarr__ext.html", null ],
     [ "gaia::cnt::sarr_ext< gaia::ecs::Entity, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr__ext.html", null ],
     [ "gaia::cnt::sarr_ext< gaia::ecs::vm::detail::QueryCompileCtx::SourceTermOp, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr__ext.html", null ],

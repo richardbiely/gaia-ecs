@@ -207,6 +207,12 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a480ff9d758a828ff0978ecfec69c9cc4" id="r_a480ff9d758a828ff0978ecfec69c9cc4"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a480ff9d758a828ff0978ecfec69c9cc4">cache_src_trav</a> () const</td></tr>
 <tr class="memdesc:a480ff9d758a828ff0978ecfec69c9cc4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the traversed-source snapshot cap. 0 disables explicit traversed-source snapshot caching.  <br /></td></tr>
 <tr class="separator:a480ff9d758a828ff0978ecfec69c9cc4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8ab65c3360d95f5c378b06ff987d4818" id="r_a8ab65c3360d95f5c378b06ff987d4818"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8ab65c3360d95f5c378b06ff987d4818">ctx</a> (void *pCtx)</td></tr>
+<tr class="memdesc:a8ab65c3360d95f5c378b06ff987d4818"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">Iter::ctx()</a> during iterator callbacks. Changing the pointer does not affect query identity, query matching, or cached query storage.  <br /></td></tr>
+<tr class="separator:a8ab65c3360d95f5c378b06ff987d4818"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acd865ee771e6b592d44a008a4358c9a9" id="r_acd865ee771e6b592d44a008a4358c9a9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#acd865ee771e6b592d44a008a4358c9a9">ctx</a> () const</td></tr>
+<tr class="memdesc:acd865ee771e6b592d44a008a4358c9a9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the user-owned context pointer attached to this query.  <br /></td></tr>
+<tr class="separator:acd865ee771e6b592d44a008a4358c9a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a30b7765e1aaa674970b98ac4598944ed" id="r_a30b7765e1aaa674970b98ac4598944ed"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a30b7765e1aaa674970b98ac4598944ed">kind</a> (QueryCacheKind cacheKind)</td></tr>
 <tr class="memdesc:a30b7765e1aaa674970b98ac4598944ed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the hard cache-kind requirement for the query.  <br /></td></tr>
 <tr class="separator:a30b7765e1aaa674970b98ac4598944ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -622,8 +628,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>diag_bytecode</b> ()<
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a067fa7b941b1efa419c3efe95126537e" id="r_a067fa7b941b1efa419c3efe95126537e"><td class="memItemLeft" align="right" valign="top"><a id="a067fa7b941b1efa419c3efe95126537e" name="a067fa7b941b1efa419c3efe95126537e"></a>
-static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>match_filters</b> (const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, uint32_t changedWorldVersion)</td></tr>
+<tr class="memitem:abf0131b38ab594ea45eb0aa634659b4b" id="r_abf0131b38ab594ea45eb0aa634659b4b"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abf0131b38ab594ea45eb0aa634659b4b">match_filters</a> (const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, uint32_t changedWorldVersion, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt; compIndices)</td></tr>
+<tr class="memdesc:abf0131b38ab594ea45eb0aa634659b4b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a chunk passes the query's changed filters.  <br /></td></tr>
+<tr class="separator:abf0131b38ab594ea45eb0aa634659b4b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a067fa7b941b1efa419c3efe95126537e" id="r_a067fa7b941b1efa419c3efe95126537e"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a067fa7b941b1efa419c3efe95126537e">match_filters</a> (const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, uint32_t changedWorldVersion)</td></tr>
+<tr class="memdesc:a067fa7b941b1efa419c3efe95126537e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a chunk passes the query's changed filters.  <br /></td></tr>
 <tr class="separator:a067fa7b941b1efa419c3efe95126537e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a985c51d2fb9ae3ab648e913ddc14c676" id="r_a985c51d2fb9ae3ab648e913ddc14c676"><td class="memItemLeft" align="right" valign="top"><a id="a985c51d2fb9ae3ab648e913ddc14c676" name="a985c51d2fb9ae3ab648e913ddc14c676"></a>
 static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_depth_order_hierarchy_enabled_barrier</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo)</td></tr>
@@ -1559,6 +1568,69 @@ template&lt;typename T &gt; </div>
 <dl class="section warning"><dt>Warning</dt><dd>Only use if you only care about the number of entities matching the query. The result is not cached and repeated calls to the function might be slow.If you already called <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0850fa2a03c76080120e5bc655b377ec" title="Appends all components or entities matching the query to the output array.">arr()</a>, use the size provided by the array.Use <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac4dc5228c7c25c83a4ff180f50de489d" title="Returns true or false depending on whether there are any entities matching the query.">empty()</a> instead of calling <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a> == 0. </dd></dl>
 <dl class="section note"><dt>Note</dt><dd>For <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e" title="Marks a typed term for changed() filtering.">changed()</a> queries this is a non-consuming probe. It does not advance the query's changed-reporting state. Iteration APIs such as <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a>/arr() do consume it. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd>The number of matching entities </dd></dl>
+
+</div>
+</div>
+<a id="acd865ee771e6b592d44a008a4358c9a9" name="acd865ee771e6b592d44a008a4358c9a9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acd865ee771e6b592d44a008a4358c9a9">&#9670;&#160;</a></span>ctx() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD void * gaia::ecs::detail::QueryImpl::ctx </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the user-owned context pointer attached to this query. </p>
+<dl class="section return"><dt>Returns</dt><dd>Context pointer, or null when none is attached. </dd></dl>
+
+</div>
+</div>
+<a id="a8ab65c3360d95f5c378b06ff987d4818" name="a8ab65c3360d95f5c378b06ff987d4818"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8ab65c3360d95f5c378b06ff987d4818">&#9670;&#160;</a></span>ctx() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp; gaia::ecs::detail::QueryImpl::ctx </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pCtx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">Iter::ctx()</a> during iterator callbacks. Changing the pointer does not affect query identity, query matching, or cached query storage. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pCtx</td><td>Context pointer. May be null. Gaia-ECS stores it without taking ownership. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
 
 </div>
 </div>
@@ -3038,6 +3110,117 @@ template&lt;typename Func , typename TIter &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queryInfo</td><td>Query info </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a067fa7b941b1efa419c3efe95126537e" name="a067fa7b941b1efa419c3efe95126537e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a067fa7b941b1efa419c3efe95126537e">&#9670;&#160;</a></span>match_filters() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::match_filters </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;&#160;</td>
+          <td class="paramname"><em>chunk</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>changedWorldVersion</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether a chunk passes the query's changed filters. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> being evaluated. </td></tr>
+    <tr><td class="paramname">queryInfo</td><td>Query metadata containing changed-filter terms. </td></tr>
+    <tr><td class="paramname">changedWorldVersion</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version captured by the previous query pass. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="abf0131b38ab594ea45eb0aa634659b4b" name="abf0131b38ab594ea45eb0aa634659b4b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abf0131b38ab594ea45eb0aa634659b4b">&#9670;&#160;</a></span>match_filters() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::match_filters </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;&#160;</td>
+          <td class="paramname"><em>chunk</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>changedWorldVersion</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td>
+          <td class="paramname"><em>compIndices</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether a chunk passes the query's changed filters. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">chunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> being evaluated. </td></tr>
+    <tr><td class="paramname">queryInfo</td><td>Query metadata containing changed-filter terms. </td></tr>
+    <tr><td class="paramname">changedWorldVersion</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version captured by the previous query pass. </td></tr>
+    <tr><td class="paramname">compIndices</td><td>Per-archetype mapping from query term index to chunk component column. </td></tr>
   </table>
   </dd>
 </dl>
