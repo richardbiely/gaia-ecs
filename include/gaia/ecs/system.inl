@@ -16,6 +16,12 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
+		//! Component payload stored on each Gaia-ECS system entity.
+		//!
+		//! A system owns a Query plus the execution mode used when the scheduler or user runs it. The callable itself is
+		//! kept in SystemRegistry so function objects stay out of component storage and serialization.
+		//! \see SystemBuilder
+		//! \see SystemRegistry
 		struct System_ {
 			//! Entity identifying the system
 			Entity entity = EntityBad;
@@ -26,8 +32,13 @@ namespace gaia {
 			//! Query job dependency handle
 			mt::JobHandle jobHandle = mt::JobNull;
 
+			//! Creates an empty system component payload.
 			System_() = default;
 
+			//! Waits for and releases any outstanding manual-delete query job.
+			//!
+			//! Gaia-ECS query jobs store their handle here so the system can avoid destroying the query while a worker may
+			//! still access it. The destructor blocks only when a job handle was actually created.
 			~System_() {
 				// If the query contains a job handle we can only
 				// destroy the query once the task associated with the handle is finished.
@@ -39,6 +50,13 @@ namespace gaia {
 				}
 			}
 
+			//! Runs the system runtime callback against the stored query.
+			//!
+			//! The callback comes from SystemRegistry and receives this system's Query and QueryExecType. The query is
+			//! fetched before execution so cache state and profiler naming use the latest query metadata.
+			//! \param world World that owns the system runtime data.
+			//! \see SystemBuilder::on_each(Func)
+			//! \see QueryImpl::each_runtime_erased(QueryExecType, void*, detail::TQueryInvokeFunc, Constraints)
 			void exec(World& world) {
 				[[maybe_unused]] auto& queryInfo = query.fetch();
 
@@ -56,7 +74,13 @@ namespace gaia {
 				pRuntime->on_each_func(query, execType);
 			}
 
-			//! Returns the job handle associated with the system
+			//! Returns the job handle associated with the system.
+			//!
+			//! The handle is created lazily and wraps exec(World&). Gaia-ECS stores the job as ManualDelete because System_
+			//! owns the handle and releases it from the destructor once the job has completed.
+			//! \param world World that owns the system runtime data.
+			//! \return Job handle for the system execution job.
+			//! \see exec(World&)
 			GAIA_NODISCARD mt::JobHandle job_handle(World& world) {
 				if (jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
@@ -70,54 +94,83 @@ namespace gaia {
 				return jobHandle;
 			}
 
-			//! Disable automatic System_ serialization
+			//! Disables automatic System_ serialization.
+			//! \tparam Serializer Serializer adapter type selected by the caller.
+			//! \param s Serializer instance. Unused because runtime systems are rebuilt by code.
 			template <typename Serializer>
 			void save(Serializer& s) const {
 				(void)s;
 			}
-			//! Disable automatic System_ serialization
+			//! Disables automatic System_ deserialization.
+			//! \tparam Serializer Serializer adapter type selected by the caller.
+			//! \param s Serializer instance. Unused because runtime systems are rebuilt by code.
 			template <typename Serializer>
 			void load(Serializer& s) {
 				(void)s;
 			}
 		};
 
+		//! Fluent builder used to configure a system entity and its underlying query.
+		//!
+		//! Most query-shaping calls forward directly to the embedded Query held by System_. The system-specific part of the
+		//! builder is registration of the runtime callback in SystemRegistry and the execution mode used when the system is
+		//! run.
+		//! \see World::system()
+		//! \see Query
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
 
+			//! Verifies that the builder still points at a valid system entity.
+			//!
+			//! \warning Asserts when the entity has been deleted or otherwise invalidated.
 			void validate() const {
 				GAIA_ASSERT(m_world.valid(m_entity));
 			}
 
+			//! Returns the mutable System_ component configured by this builder.
+			//! \return Mutable system component payload.
 			System_& data() {
 				auto ss = m_world.acc_mut(m_entity);
 				auto& sys = ss.smut<System_>();
 				return sys;
 			}
 
+			//! Returns the immutable System_ component configured by this builder.
+			//! \return Immutable system component payload.
 			const System_& data() const {
 				auto ss = m_world.acc(m_entity);
 				const auto& sys = ss.get<System_>();
 				return sys;
 			}
 
+			//! Returns the mutable runtime callback payload configured by this builder.
+			//! \return Mutable system runtime data.
 			SystemRuntimeData& runtime_data() {
 				return m_world.systems().data(m_entity);
 			}
 
+			//! Returns the immutable runtime callback payload configured by this builder.
+			//! \return Immutable system runtime data.
 			const SystemRuntimeData& runtime_data() const {
 				return m_world.systems().data(m_entity);
 			}
 
 		public:
+			//! Constructs a builder for an existing system entity.
+			//! \param world World that owns the system entity and runtime data.
+			//! \param entity Entity carrying the System_ component configured by this builder.
 			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
 			//------------------------------------------------
 
+			//! \name Query cache configuration
+			//! \{
+
 			//! Sets the hard cache-kind requirement for the system query.
 			//! \param kind Requested cache-kind restriction.
 			//! \return Self reference.
+			//! \see QueryImpl::kind(QueryCacheKind)
 			SystemBuilder& kind(QueryCacheKind kind) {
 				validate();
 				data().query.kind(kind);
@@ -127,14 +180,23 @@ namespace gaia {
 			//! Sets the cache scope used by the system query.
 			//! \param scope Requested scope.
 			//! \return Self reference.
+			//! \see QueryImpl::scope(QueryCacheScope)
 			SystemBuilder& scope(QueryCacheScope scope) {
 				validate();
 				data().query.scope(scope);
 				return *this;
 			}
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name Query term construction
+			//! \{
+
+			//! Adds a raw query term to the system query.
+			//! \param item Term descriptor to append.
+			//! \return Self reference.
+			//! \see QueryImpl::add(QueryInput)
 			SystemBuilder& add(QueryInput item) {
 				validate();
 				data().query.add(item);
@@ -143,12 +205,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Adds an Is relationship term that matches entities derived from @a entity.
+			//! \param entity Target entity used with the built-in Is relation.
+			//! \param options Query-term options applied to the generated pair term.
+			//! \return Self reference.
 			SystemBuilder& is(Entity entity, const QueryTermOptions& options = {}) {
 				return all(Pair(Is, entity), options);
 			}
 
 			//------------------------------------------------
 
+			//! Adds an input-only Is relationship term for @a entity.
+			//! \param entity Target entity used with the built-in Is relation.
+			//! \param options Query-term options applied before the input flag is forced.
+			//! \return Self reference.
 			SystemBuilder& in(Entity entity, QueryTermOptions options = {}) {
 				options.in();
 				return all(Pair(Is, entity), options);
@@ -156,75 +226,133 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Adds a required term to the system query.
+			//! \param entity Entity or pair id that must be present.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
 				return *this;
 			}
 
+			//! Adds an any-of term to the system query.
+			//! \param entity Entity or pair id participating in the current any-of set.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.any(entity, options);
 				return *this;
 			}
 
+			//! Adds an or term to the system query.
+			//! \param entity Entity or pair id participating in the current OR chain.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.or_(entity, options);
 				return *this;
 			}
 
+			//! Adds a negated term to the system query.
+			//! \param entity Entity or pair id that must not be present.
+			//! \param options Query-term options such as source or traversal.
+			//! \return Self reference.
 			SystemBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
 				return *this;
 			}
 
+			//! Allows the system query to match prefab entities.
+			//! \return Self reference.
 			SystemBuilder& match_prefab() {
 				validate();
 				data().query.match_prefab();
 				return *this;
 			}
 
+			//! Adds a changed-filter term to the system query.
+			//! \param entity Entity or pair id whose changed state is tested.
+			//! \return Self reference.
 			SystemBuilder& changed(Entity entity) {
 				validate();
 				data().query.changed(entity);
 				return *this;
 			}
 
+			//! Adds a required component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type to require.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& all(const QueryTermOptions& options);
 
+			//! Adds an any-of component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any(const QueryTermOptions& options);
 
+			//! Adds an or component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the OR chain.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& or_(const QueryTermOptions& options);
 
+			//! Adds a negated component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type that must not be present.
+			//! \param options Query-term options such as source or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& no(const QueryTermOptions& options);
 
 			//------------------------------------------------
 
+			//! Adds a required component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type to require.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& all();
 
+			//! Adds an any-of component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any();
 
+			//! Adds an or component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the OR chain.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& or_();
 
+			//! Adds a negated component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type that must not be present.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& no();
 
+			//! Adds a changed-filter term for a component or pair.
+			//! \tparam T Component, entity type, or pair type whose changed state is tested.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& changed();
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name Query ordering and grouping
+			//! \{
+
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \param relation Fragmenting hierarchy relation
+			//! \return Self reference.
+			//! \see QueryImpl::depth_order(Entity)
 			SystemBuilder& depth_order(Entity relation = ChildOf) {
 				data().query.depth_order(relation);
 				return *this;
@@ -232,6 +360,7 @@ namespace gaia {
 
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
+			//! \return Self reference.
 			template <typename Rel>
 			SystemBuilder& depth_order();
 
@@ -240,6 +369,8 @@ namespace gaia {
 			//! Organizes matching archetypes into groups according to the grouping function and entity.
 			//! \param entity The entity to group by.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
+			//! \see QueryImpl::group_by(Entity, TGroupByFunc)
 			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 				data().query.group_by(entity, func);
 				return *this;
@@ -248,6 +379,7 @@ namespace gaia {
 			//! Organizes matching archetypes into groups according to the grouping function.
 			//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
@@ -255,6 +387,7 @@ namespace gaia {
 			//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
 			//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
 			template <typename Rel, typename Tgt>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
@@ -263,6 +396,7 @@ namespace gaia {
 			//! Declares an explicit relation dependency for grouped cache invalidation.
 			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 			//! \param relation Relation the group depends on.
+			//! \return Self reference.
 			SystemBuilder& group_dep(Entity relation) {
 				data().query.group_dep(relation);
 				return *this;
@@ -271,6 +405,7 @@ namespace gaia {
 			//! Declares an explicit relation dependency for grouped cache invalidation.
 			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 			//! \tparam Rel Relation the group depends on.
+			//! \return Self reference.
 			template <typename Rel>
 			SystemBuilder& group_dep();
 
@@ -278,6 +413,7 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \param groupId The group to iterate over.
+			//! \return Self reference.
 			SystemBuilder& group_id(GroupId groupId) {
 				data().query.group_id(groupId);
 				return *this;
@@ -285,6 +421,7 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \param entity The entity to treat as a group to iterate over.
+			//! \return Self reference.
 			SystemBuilder& group_id(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				data().query.group_id(entity.id());
@@ -293,31 +430,60 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& group_id();
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name System metadata
+			//! \{
+
+			//! Assigns a human-readable name to the system entity.
+			//! \param name UTF-8 name. Gaia-ECS copies or interns the string through World::name().
+			//! \param len Optional byte length. 0 lets Gaia-ECS measure the null-terminated string.
+			//! \return Self reference.
 			SystemBuilder& name(const char* name, uint32_t len = 0) {
 				m_world.name(m_entity, name, len);
 				return *this;
 			}
 
+			//! Assigns a raw name to the system entity without additional name normalization.
+			//! \param name UTF-8 name. Gaia-ECS copies or interns the string through World::name_raw().
+			//! \param len Optional byte length. 0 lets Gaia-ECS measure the null-terminated string.
+			//! \return Self reference.
 			SystemBuilder& name_raw(const char* name, uint32_t len = 0) {
 				m_world.name_raw(m_entity, name, len);
 				return *this;
 			}
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name System execution
+			//! \{
+
+			//! Sets the execution mode used when the system runs.
+			//! \param type Query execution mode, for example sequential or parallel execution.
+			//! \return Self reference.
 			SystemBuilder& mode(QueryExecType type) {
 				auto& ctx = data();
 				ctx.execType = type;
 				return *this;
 			}
 
+			//! \name System context
+			//! \{
+			//! Stores a raw, user-owned pointer on the underlying query and exposes it through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see Iter::ctx() const
+
 			//! Sets user-owned data passed to system iterator callbacks.
-			//! The system does not own this pointer; callers must keep it alive while the system can run.
+			//! The system stores this pointer on its underlying query, exactly like QueryImpl::ctx(void*). It does not own,
+			//! allocate, copy, or destroy the pointed-to data.
+			//! \note If the system runs through parallel query execution, every worker observes the same pointer. The caller
+			//! owns synchronization for mutable data referenced by the context.
 			//! \param pCtx Context pointer. May be null.
 			//! \return Self reference.
 			SystemBuilder& ctx(void* pCtx) {
@@ -327,12 +493,18 @@ namespace gaia {
 			}
 
 			//! Returns the user-owned context pointer attached to the system.
-			//! \return Context pointer, or null when none was attached.
+			//! \return Context pointer stored on the underlying query, or null when none was attached.
 			GAIA_NODISCARD void* ctx() const {
 				validate();
 				return data().query.ctx();
 			}
+			//! \}
 
+			//! Registers an iterator-style callback executed when the system runs.
+			//! \tparam Func Callable type invocable with Iter&.
+			//! \param func Callback copied into the system runtime payload.
+			//! \return Self reference.
+			//! \see Iter::ctx() const
 			template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 			SystemBuilder& on_each(Func func) {
 				validate();
@@ -347,22 +519,36 @@ namespace gaia {
 				return (SystemBuilder&)*this;
 			}
 
+			//! Registers a typed component callback executed when the system runs.
+			//! \tparam Func Callable type accepted by the typed query callback adapter.
+			//! \param func Callback copied into the system runtime payload.
+			//! \return Self reference.
+			//! \note Typed component callbacks use Gaia-ECS typed query dispatch and do not receive Iter directly. Use an
+			//! iterator-style callback when the system needs access to Iter::ctx().
 			template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 			SystemBuilder& on_each(Func func);
 
+			//! Returns the entity configured by this builder.
+			//! \return System entity.
 			GAIA_NODISCARD Entity entity() const {
 				return m_entity;
 			}
 
+			//! Runs the system immediately using its configured query and execution mode.
+			//! \see mode(QueryExecType)
+			//! \see job_handle()
 			void exec() {
 				auto& ctx = data();
 				ctx.exec(m_world);
 			}
 
+			//! Returns the active job handle for systems scheduled through Gaia-ECS jobs.
+			//! \return Job handle associated with this system runtime data.
 			GAIA_NODISCARD mt::JobHandle job_handle() {
 				auto& ctx = data();
 				return ctx.job_handle(m_world);
 			}
+			//! \}
 		};
 
 	} // namespace ecs

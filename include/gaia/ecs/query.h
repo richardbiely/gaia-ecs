@@ -890,9 +890,18 @@ namespace gaia {
 					return m_cacheSrcTrav;
 				}
 
+				//! \name Query context
+				//! \{
+				//! Stores raw, user-owned data on this query and exposes it to iterator-style callbacks.
+				//! \see Iter::ctx() const
+				//! \see SystemBuilder::ctx(void*)
+
 				//! Sets the user-owned context pointer visible through Iter::ctx() during iterator callbacks.
-				//! Changing the pointer does not affect query identity, query matching, or cached query storage.
-				//! \param pCtx Context pointer. May be null. Gaia-ECS stores it without taking ownership.
+				//! Changing the pointer does not affect query identity, query matching, shared-cache lookup, or cached query
+				//! storage. Identical shared-cache query shapes may therefore keep different context pointers.
+				//! \note Gaia-ECS stores only the pointer. The caller owns allocation, lifetime, destruction, and any
+				//! synchronization needed when a parallel query callback reads or writes the pointed-to data.
+				//! \param pCtx Context pointer. May be null.
 				//! \return Self reference.
 				QueryImpl& ctx(void* pCtx) {
 					m_ctx = pCtx;
@@ -904,6 +913,7 @@ namespace gaia {
 				GAIA_NODISCARD void* ctx() const {
 					return m_ctx;
 				}
+				//! \}
 
 				//! Sets the hard cache-kind requirement for the query.
 				//! \param cacheKind Requested cache-kind restriction.
@@ -1808,7 +1818,13 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				//! Execute the functor for a given chunk batch
+				//! Executes an iterator callback for one prepared chunk batch.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \tparam TMode Iteration-mode tag controlling enabled/disabled row constraints.
+				//! \param pWorld World owning the chunk batch.
+				//! \param func Callback invoked for the initialized iterator.
+				//! \param batch Prepared chunk batch to expose through the iterator.
+				//! \see run_query_func(World*, Func, std::span<ChunkBatch>)
 				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					Iter it;
@@ -1823,7 +1839,14 @@ namespace gaia {
 					it.clear_touched_writes();
 				}
 
-				//! Execute the functor for a given chunk batch
+				//! Executes an archetype-level iterator callback for one prepared chunk batch.
+				//! The iterator is initialized with archetype metadata but no chunk rows.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \param pWorld World owning the archetype batch.
+				//! \param func Callback invoked for the initialized iterator.
+				//! \param batch Prepared batch carrying the archetype and inherited metadata.
+				//! \param constraints Entity-row constraints associated with this execution.
+				//! \see each_arch(Func, Constraints)
 				template <typename Func>
 				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch, Constraints constraints) {
 					Iter it;
@@ -1837,7 +1860,13 @@ namespace gaia {
 					it.clear_touched_writes();
 				}
 
-				//! Execute the functor in batches
+				//! Executes an iterator callback over a contiguous list of prepared chunk batches.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \tparam TMode Iteration-mode tag controlling enabled/disabled row constraints.
+				//! \param pWorld World owning the chunk batches.
+				//! \param func Callback invoked once per initialized chunk iterator.
+				//! \param batches Prepared chunk batches to iterate.
+				//! \see run_query_func(World*, Func, ChunkBatch&)
 				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
@@ -3911,6 +3940,11 @@ namespace gaia {
 				}
 
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \return True if no entity matches the query under @a constraints.
+				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
@@ -4108,6 +4142,11 @@ namespace gaia {
 				}
 
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \return Number of entities matching the query under @a constraints.
+				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
@@ -4368,6 +4407,11 @@ namespace gaia {
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \param func Callback invoked for each direct-entity iterator.
+				//! \see each(Func)
 				template <typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Constraints constraints, Func func) {
 					auto& world = *queryInfo.world();
@@ -5170,7 +5214,9 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! Iterates query matches using the default execution mode.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each match.
+				//! \see Iter::ctx() const
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func) {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
@@ -5180,8 +5226,10 @@ namespace gaia {
 				void each(Func func);
 
 				//! Iterates query matches using the selected execution mode.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each match.
 				//! \param execType Execution mode.
+				//! \see Iter::ctx() const
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType) {
 					each(func, execType, Constraints::EnabledOnly);
@@ -5235,8 +5283,10 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! Iterates matching archetypes instead of individual entities.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each matching archetype iterator.
 				//! \param constraints Iteration constraints applied before invoking @a func.
+				//! \see Iter::ctx() const
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
@@ -5814,9 +5864,11 @@ namespace gaia {
 				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
 				//! Systems depending on no other matched system are first, then their dependents level-by-level.
 				//! Nodes on the same level are ordered by entity id.
+				//! \tparam Func Callback type. May accept `Iter&` or an entity value.
 				//! \param func Callable invoked for each ordered entity.
 				//! \param relation Dependency relation
 				//! \param constraints QueryImpl constraints
+				//! \see ordered_entities_walk(QueryInfo&, Entity, Constraints)
 				template <typename Func, std::enable_if_t<detail::is_query_walk_core_callback_v<Func>, int> = 0>
 				void each_walk(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();

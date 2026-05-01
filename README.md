@@ -2860,18 +2860,18 @@ w.enable(mySystemEntity, true);
 w.name("MoveSystem");
 ```
 
-Systems can also carry a user-owned context pointer. Gaia-ECS stores it on the system's underlying query, so it follows the same ownership and iterator access rules as query context.
+Systems can also carry a user-owned context pointer. It is stored on the system's underlying query, so the ownership, cache, and iterator access rules are the same as query context above.
 
 ```cpp
 MoveSettings settings{1.0f / 60.0f};
 
-SystemBuilder moveSystem = w.system()
+w.system()
   .ctx(&settings)
   .all<Position&>()
   .all<Velocity>()
   .on_each([](ecs::Iter& it) {
     auto* settings = static_cast<MoveSettings*>(it.ctx());
-    // Iterate and use settings as needed.
+    // Use settings while iterating the system's query result.
   });
 ```
 

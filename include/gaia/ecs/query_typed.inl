@@ -591,6 +591,13 @@ namespace gaia {
 
 			//! Returns a typed direct-chunk view element.
 			//! SoA views are chunk-relative, so they need the absolute row offset. AoS views are already sliced.
+			//! \tparam T Typed query argument represented by @a view.
+			//! \tparam View Prepared chunk view type.
+			//! \param view Direct chunk view for the argument.
+			//! \param row Row relative to the currently processed chunk range.
+			//! \param from Absolute row offset of the current chunk range.
+			//! \return Reference or value selected from @a view for the current row.
+			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, core::func_type_list<T...>)
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_direct_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
@@ -601,6 +608,15 @@ namespace gaia {
 			}
 
 			//! Invokes a row callback from prepared direct chunk views.
+			//! \tparam Func Callback type.
+			//! \tparam ViewsTuple Tuple type containing prepared direct chunk views.
+			//! \tparam T Typed query argument list.
+			//! \tparam I Tuple indices matching @a T.
+			//! \param func Callback invoked for the selected row.
+			//! \param views Prepared direct chunk views.
+			//! \param row Row relative to the current chunk range.
+			//! \param from Absolute row offset of the current chunk range.
+			//! \see typed_direct_chunk_arg_at(View&, uint32_t, uint16_t)
 			template <typename Func, typename ViewsTuple, typename... T, size_t... I>
 			inline void invoke_typed_direct_chunk_row(
 					Func& func, ViewsTuple& views, uint32_t row, uint16_t from, core::func_type_list<T...>,
@@ -609,6 +625,13 @@ namespace gaia {
 			}
 
 			//! Runs a typed row callback directly on a chunk without constructing Iter.
+			//! \tparam Func Callback type.
+			//! \tparam T Typed query argument list.
+			//! \param pChunk Chunk supplying component data.
+			//! \param from First absolute row to process.
+			//! \param to One-past-the-end absolute row to process.
+			//! \param func Callback invoked for each matching row.
+			//! \note This fast path intentionally bypasses Iter construction and therefore does not expose Iter::ctx().
 			template <typename Func, typename... T>
 			inline void
 			run_typed_direct_chunk_rows(Chunk* pChunk, uint16_t from, uint16_t to, Func& func, core::func_type_list<T...>) {
@@ -714,6 +737,15 @@ namespace gaia {
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
+			//! \tparam HasFilters True when changed/entity filters must be evaluated.
+			//! \tparam Func Callback type.
+			//! \tparam T Typed query argument list.
+			//! \param queryInfo Prepared query cache and execution metadata.
+			//! \param plan Prepared query execution plan.
+			//! \param state Typed callback execution metadata.
+			//! \param func Callback invoked for each matching row.
+			//! \param types Type-list tag identifying callback arguments.
+			//! \see prepare_query_plan(const QueryInfo&, const TypedQueryExecState&) const
 			template <bool HasFilters, typename Func, typename... T>
 			inline void QueryImpl::run_query_on_chunks_direct_typed(
 					QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,

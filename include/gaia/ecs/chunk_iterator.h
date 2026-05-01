@@ -1084,8 +1084,14 @@ namespace gaia {
 					return m_groupId;
 				}
 
+				//! \name Iterator context
+				//! \{
+				//! Carries the raw context pointer from the query or system currently driving the iterator callback.
+				//! \see QueryImpl::ctx(void*)
+				//! \see SystemBuilder::ctx(void*)
+
 				//! Sets the user-owned context pointer visible through ctx().
-				//! \param pCtx Context pointer. May be null.
+				//! \param pCtx Context pointer supplied by query execution. May be null.
 				void ctx(void* pCtx) {
 					m_pCtx = pCtx;
 				}
@@ -1095,6 +1101,7 @@ namespace gaia {
 				GAIA_NODISCARD void* ctx() const {
 					return m_pCtx;
 				}
+				//! \}
 
 				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);

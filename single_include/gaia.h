@@ -34327,6 +34327,7 @@ namespace gaia {
 		//! \param pTerms Pointer to the start of the terms array
 		//! \param entity Entity we search for
 		//! \param src Source entity
+		//! \tparam MAX_COMPONENTS Number of terms to scan. Known at compile time so the loop can be optimized.
 		//! \return Index of the component id in the array
 		//! \warning The component id must be present in the array
 		template <uint32_t MAX_COMPONENTS>
@@ -35215,6 +35216,8 @@ namespace gaia {
 				uint16_t m_to;
 				//! GroupId. 0 if not set.
 				GroupId m_groupId = 0;
+				//! User-owned pointer supplied by the caller driving this iteration.
+				void* m_pCtx = nullptr;
 
 			public:
 				ChunkIterImpl() = default;
@@ -35410,6 +35413,25 @@ namespace gaia {
 				GAIA_NODISCARD GroupId group_id() const {
 					return m_groupId;
 				}
+
+				//! \name Iterator context
+				//! \{
+				//! Carries the raw context pointer from the query or system currently driving the iterator callback.
+				//! \see QueryImpl::ctx(void*)
+				//! \see SystemBuilder::ctx(void*)
+
+				//! Sets the user-owned context pointer visible through ctx().
+				//! \param pCtx Context pointer supplied by query execution. May be null.
+				void ctx(void* pCtx) {
+					m_pCtx = pCtx;
+				}
+
+				//! Returns the user-owned context pointer supplied by the caller driving this iteration.
+				//! \return Context pointer, or null when none was supplied.
+				GAIA_NODISCARD void* ctx() const {
+					return m_pCtx;
+				}
+				//! \}
 
 				GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 					auto* pWorld = const_cast<World*>(m_pWorld);
@@ -41128,6 +41150,8 @@ namespace gaia {
 			}
 
 			//! Iterates reusable source entities that participate in direct-source or traversed-source reuse.
+			//! \tparam Func Callback type invoked for each reusable source entity.
+			//! \param func Callback returning true to continue iteration, false to stop the current lookup.
 			template <typename Func>
 			void each_reusable_src_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
@@ -41489,6 +41513,7 @@ namespace gaia {
 			//! \param archetypeLastId Last recorded archetype id
 			//! \param runtimeVarBindings Runtime variable bindings for dynamic queries
 			//! \param runtimeVarBindingMask Mask indicating which runtime variables are bound
+			//! \tparam ArchetypeLookup Archetype lookup container/view type used by the query cache.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			template <typename ArchetypeLookup>
 			void match(
@@ -44286,6 +44311,8 @@ namespace gaia {
 				QueryCacheScope m_cacheScope = QueryCacheScope::Local;
 				//! Traversed-source closure size allowed for explicit snapshot reuse.
 				uint16_t m_cacheSrcTrav = 0;
+				//! User-owned data pointer exposed to iterator callbacks.
+				void* m_ctx = nullptr;
 
 				//! Walk-specific cache and scratch storage, allocated on-demand.
 				struct EachWalkData {
@@ -44559,6 +44586,31 @@ namespace gaia {
 				GAIA_NODISCARD uint16_t cache_src_trav() const {
 					return m_cacheSrcTrav;
 				}
+
+				//! \name Query context
+				//! \{
+				//! Stores raw, user-owned data on this query and exposes it to iterator-style callbacks.
+				//! \see Iter::ctx() const
+				//! \see SystemBuilder::ctx(void*)
+
+				//! Sets the user-owned context pointer visible through Iter::ctx() during iterator callbacks.
+				//! Changing the pointer does not affect query identity, query matching, shared-cache lookup, or cached query
+				//! storage. Identical shared-cache query shapes may therefore keep different context pointers.
+				//! \note Gaia-ECS stores only the pointer. The caller owns allocation, lifetime, destruction, and any
+				//! synchronization needed when a parallel query callback reads or writes the pointed-to data.
+				//! \param pCtx Context pointer. May be null.
+				//! \return Self reference.
+				QueryImpl& ctx(void* pCtx) {
+					m_ctx = pCtx;
+					return *this;
+				}
+
+				//! Returns the user-owned context pointer attached to this query.
+				//! \return Context pointer, or null when none is attached.
+				GAIA_NODISCARD void* ctx() const {
+					return m_ctx;
+				}
+				//! \}
 
 				//! Sets the hard cache-kind requirement for the query.
 				//! \param cacheKind Requested cache-kind restriction.
@@ -45463,7 +45515,13 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				//! Execute the functor for a given chunk batch
+				//! Executes an iterator callback for one prepared chunk batch.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \tparam TMode Iteration-mode tag controlling enabled/disabled row constraints.
+				//! \param pWorld World owning the chunk batch.
+				//! \param func Callback invoked for the initialized iterator.
+				//! \param batch Prepared chunk batch to expose through the iterator.
+				//! \see run_query_func(World*, Func, std::span<ChunkBatch>)
 				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, ChunkBatch& batch) {
 					Iter it;
@@ -45478,7 +45536,14 @@ namespace gaia {
 					it.clear_touched_writes();
 				}
 
-				//! Execute the functor for a given chunk batch
+				//! Executes an archetype-level iterator callback for one prepared chunk batch.
+				//! The iterator is initialized with archetype metadata but no chunk rows.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \param pWorld World owning the archetype batch.
+				//! \param func Callback invoked for the initialized iterator.
+				//! \param batch Prepared batch carrying the archetype and inherited metadata.
+				//! \param constraints Entity-row constraints associated with this execution.
+				//! \see each_arch(Func, Constraints)
 				template <typename Func>
 				static void run_query_arch_func(World* pWorld, Func func, ChunkBatch& batch, Constraints constraints) {
 					Iter it;
@@ -45492,7 +45557,13 @@ namespace gaia {
 					it.clear_touched_writes();
 				}
 
-				//! Execute the functor in batches
+				//! Executes an iterator callback over a contiguous list of prepared chunk batches.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \tparam TMode Iteration-mode tag controlling enabled/disabled row constraints.
+				//! \param pWorld World owning the chunk batches.
+				//! \param func Callback invoked once per initialized chunk iterator.
+				//! \param batches Prepared chunk batches to iterate.
+				//! \see run_query_func(World*, Func, ChunkBatch&)
 				template <typename Func, typename TMode>
 				static void run_query_func(World* pWorld, Func func, std::span<ChunkBatch> batches) {
 					GAIA_PROF_SCOPE(query::run_query_func);
@@ -46665,6 +46736,7 @@ namespace gaia {
 							}
 
 							it.set_query_chunk(pArchetype, pIndices, pChunk, from, to);
+							it.ctx(m_ctx);
 							{
 								GAIA_PROF_SCOPE(query_func);
 								func(it);
@@ -46720,10 +46792,12 @@ namespace gaia {
 
 				struct RuntimeIterCallback {
 					void* pFunc;
+					void* pCtx;
 					void (*invoke)(void*, Iter&);
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pCtx);
 						invoke(pFunc, it);
 					}
 				};
@@ -46736,6 +46810,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						runChunk(*pSelf, it, pFunc, *pState);
 					}
 				};
@@ -46749,6 +46824,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						runChunk(*pSelf, *pQueryInfo, it, pFunc, *pState);
 					}
 				};
@@ -46762,6 +46838,7 @@ namespace gaia {
 
 					void operator()(Iter& it) const {
 						GAIA_PROF_SCOPE(query_func);
+						it.ctx(pSelf->ctx());
 						pSelf->each_iter_erased(it, pFunc, *pState, runDirect, runChunk);
 					}
 				};
@@ -46789,7 +46866,7 @@ namespace gaia {
 				void each_runtime_erased(
 						QueryInfo& queryInfo, const QueryPlan& plan, QueryExecType execType, void* pFunc,
 						void (*invoke)(void*, Iter&), Constraints constraints) {
-					RuntimeIterCallback cb{pFunc, invoke};
+					RuntimeIterCallback cb{pFunc, m_ctx, invoke};
 
 					if (plan.mode == QueryPlanMode::EntitySeed) {
 						each_direct_iter_inter(queryInfo, constraints, cb);
@@ -47560,6 +47637,11 @@ namespace gaia {
 				}
 
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \return True if no entity matches the query under @a constraints.
+				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
@@ -47757,6 +47839,11 @@ namespace gaia {
 				}
 
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \return Number of entities matching the query under @a constraints.
+				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
 					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
@@ -47937,6 +48024,7 @@ namespace gaia {
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 						it.set_chunk(run.pChunk, run.from, run.to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 						it.clear_touched_writes();
@@ -48008,6 +48096,7 @@ namespace gaia {
 					for (const auto entity: entities) {
 						const auto& ec = ::gaia::ecs::fetch(world, entity);
 						init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 						it.clear_touched_writes();
@@ -48015,6 +48104,11 @@ namespace gaia {
 				}
 
 				//! Runs an iterator-based each() callback over directly seeded entities using one-row chunk views.
+				//! \tparam Func Callback type invocable with `Iter&`.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row constraints to apply.
+				//! \param func Callback invoked for each direct-entity iterator.
+				//! \see each(Func)
 				template <typename Func>
 				void each_direct_iter_inter(QueryInfo& queryInfo, Constraints constraints, Func func) {
 					auto& world = *queryInfo.world();
@@ -48028,6 +48122,7 @@ namespace gaia {
 						it.set_constraints(constraints);
 						init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
 						it.set_write_im(false);
+						it.ctx(m_ctx);
 						func(it);
 						finish_iter_writes(it);
 					};
@@ -48816,7 +48911,9 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! Iterates query matches using the default execution mode.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each match.
+				//! \see Iter::ctx() const
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func) {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
@@ -48826,8 +48923,10 @@ namespace gaia {
 				void each(Func func);
 
 				//! Iterates query matches using the selected execution mode.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each match.
 				//! \param execType Execution mode.
+				//! \see Iter::ctx() const
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType) {
 					each(func, execType, Constraints::EnabledOnly);
@@ -48881,8 +48980,10 @@ namespace gaia {
 				//------------------------------------------------
 
 				//! Iterates matching archetypes instead of individual entities.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each matching archetype iterator.
 				//! \param constraints Iteration constraints applied before invoking @a func.
+				//! \see Iter::ctx() const
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
@@ -48891,6 +48992,7 @@ namespace gaia {
 							queryInfo,
 							[&](Iter& it) {
 								GAIA_PROF_SCOPE(query_func_a);
+								it.ctx(m_ctx);
 								func(it);
 							},
 							constraints);
@@ -49459,9 +49561,11 @@ namespace gaia {
 				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
 				//! Systems depending on no other matched system are first, then their dependents level-by-level.
 				//! Nodes on the same level are ordered by entity id.
+				//! \tparam Func Callback type. May accept `Iter&` or an entity value.
 				//! \param func Callable invoked for each ordered entity.
 				//! \param relation Dependency relation
 				//! \param constraints QueryImpl constraints
+				//! \see ordered_entities_walk(QueryInfo&, Entity, Constraints)
 				template <typename Func, std::enable_if_t<detail::is_query_walk_core_callback_v<Func>, int> = 0>
 				void each_walk(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
@@ -50351,6 +50455,13 @@ namespace gaia {
 
 			//! Returns a typed direct-chunk view element.
 			//! SoA views are chunk-relative, so they need the absolute row offset. AoS views are already sliced.
+			//! \tparam T Typed query argument represented by @a view.
+			//! \tparam View Prepared chunk view type.
+			//! \param view Direct chunk view for the argument.
+			//! \param row Row relative to the currently processed chunk range.
+			//! \param from Absolute row offset of the current chunk range.
+			//! \return Reference or value selected from @a view for the current row.
+			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, core::func_type_list<T...>)
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_direct_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
@@ -50361,6 +50472,15 @@ namespace gaia {
 			}
 
 			//! Invokes a row callback from prepared direct chunk views.
+			//! \tparam Func Callback type.
+			//! \tparam ViewsTuple Tuple type containing prepared direct chunk views.
+			//! \tparam T Typed query argument list.
+			//! \tparam I Tuple indices matching @a T.
+			//! \param func Callback invoked for the selected row.
+			//! \param views Prepared direct chunk views.
+			//! \param row Row relative to the current chunk range.
+			//! \param from Absolute row offset of the current chunk range.
+			//! \see typed_direct_chunk_arg_at(View&, uint32_t, uint16_t)
 			template <typename Func, typename ViewsTuple, typename... T, size_t... I>
 			inline void invoke_typed_direct_chunk_row(
 					Func& func, ViewsTuple& views, uint32_t row, uint16_t from, core::func_type_list<T...>,
@@ -50369,6 +50489,13 @@ namespace gaia {
 			}
 
 			//! Runs a typed row callback directly on a chunk without constructing Iter.
+			//! \tparam Func Callback type.
+			//! \tparam T Typed query argument list.
+			//! \param pChunk Chunk supplying component data.
+			//! \param from First absolute row to process.
+			//! \param to One-past-the-end absolute row to process.
+			//! \param func Callback invoked for each matching row.
+			//! \note This fast path intentionally bypasses Iter construction and therefore does not expose Iter::ctx().
 			template <typename Func, typename... T>
 			inline void
 			run_typed_direct_chunk_rows(Chunk* pChunk, uint16_t from, uint16_t to, Func& func, core::func_type_list<T...>) {
@@ -50474,6 +50601,15 @@ namespace gaia {
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
+			//! \tparam HasFilters True when changed/entity filters must be evaluated.
+			//! \tparam Func Callback type.
+			//! \tparam T Typed query argument list.
+			//! \param queryInfo Prepared query cache and execution metadata.
+			//! \param plan Prepared query execution plan.
+			//! \param state Typed callback execution metadata.
+			//! \param func Callback invoked for each matching row.
+			//! \param types Type-list tag identifying callback arguments.
+			//! \see prepare_query_plan(const QueryInfo&, const TypedQueryExecState&) const
 			template <bool HasFilters, typename Func, typename... T>
 			inline void QueryImpl::run_query_on_chunks_direct_typed(
 					QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
@@ -50563,6 +50699,7 @@ namespace gaia {
 						}
 						it.set_chunk(pChunk, from, to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
 						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
@@ -50621,6 +50758,7 @@ namespace gaia {
 						}
 						it.set_chunk(pChunk, from, to);
 						it.set_group_id(0);
+						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
 						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
@@ -50819,6 +50957,7 @@ namespace gaia {
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, *it.world(), InputArgs{});
 				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, metas, argCount);
+				it.ctx(m_ctx);
 				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
 			}
 
@@ -50827,6 +50966,7 @@ namespace gaia {
 					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&)) {
 				auto& queryInfo = fetch();
+				it.ctx(m_ctx);
 				if (state.canUseDirectChunkEval) {
 					runDirectFastChunk(*this, it, pFunc, state);
 					finish_typed_chunk_state(
@@ -50849,6 +50989,7 @@ namespace gaia {
 					Iter it;
 					it.set_constraints(constraints);
 					init_direct_entity_iter(queryInfo, world, entity, it, indices, termIds);
+					it.ctx(m_ctx);
 					runDirectChunk(*this, it, pFunc, state);
 				};
 
@@ -50882,6 +51023,7 @@ namespace gaia {
 									}
 									it.set_chunk(run.pChunk, run.from, run.to);
 									it.set_group_id(0);
+									it.ctx(m_ctx);
 									runDirectChunk(*this, it, pFunc, state);
 								}
 							} else {
@@ -50895,6 +51037,7 @@ namespace gaia {
 									init_direct_entity_iter(queryInfo, world, ec, it, indices, termIds, pLastArchetype);
 									it.set_chunk(run.pChunk, run.from, run.to);
 									it.set_group_id(0);
+									it.ctx(m_ctx);
 									runDirectChunk(*this, it, pFunc, state);
 								}
 							}
@@ -51689,7 +51832,18 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		//! Runtime payload for systems kept out-of-line from ECS component storage.
+		//!
+		//! System entities store their stable configuration in the ECS world, while the callable payload lives here so
+		//! non-trivial function objects do not become component data. The registry owns the callable and clears it during
+		//! teardown or deletion.
+		//! \see SystemRegistry
 		struct SystemRuntimeData {
+			//! Type-erased callback invoked by System_ execution.
+			//!
+			//! The callback receives the system's underlying query and execution mode. Per-system user context is stored on
+			//! the query itself and is visible to iterator callbacks through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see Iter::ctx() const
 			using TSystemExecFunc = util::MoveFunc<void(Query&, QueryExecType)>;
 
 			//! Called every time the system is allowed to tick.
@@ -51697,10 +51851,18 @@ namespace gaia {
 		};
 
 		//! Runtime storage for system callbacks kept out-of-line from ECS component storage.
+		//!
+		//! The registry maps system entities to their callable runtime payload. It deliberately does not participate in
+		//! normal component serialization: systems are expected to be rebuilt by setup code after loading a world.
+		//! \see SystemRuntimeData
 		class SystemRegistry {
 			cnt::map<EntityLookupKey, SystemRuntimeData> m_system_data;
 
 		public:
+			//! Clears all registered system callbacks.
+			//!
+			//! Existing system entities/components are not removed from the world by this call. Only the out-of-line callable
+			//! payload is released.
 			void teardown() {
 				for (auto& it: m_system_data)
 					it.second.on_each_func = {};
@@ -51708,10 +51870,16 @@ namespace gaia {
 				m_system_data = {};
 			}
 
+			//! Creates or returns runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload associated with @a system.
 			SystemRuntimeData& data_add(Entity system) {
 				return m_system_data[EntityLookupKey(system)];
 			}
 
+			//! Tries to find runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload, or null when @a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData* data_try(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -51719,6 +51887,9 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Tries to find runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Immutable runtime payload, or null when @a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData* data_try(Entity system) const {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -51726,18 +51897,31 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Returns runtime data for a registered system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload associated with @a system.
+			//! \warning Asserts if @a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData& data(Entity system) {
 				auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
 				return *pData;
 			}
 
+			//! Returns runtime data for a registered system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Immutable runtime payload associated with @a system.
+			//! \warning Asserts if @a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData& data(Entity system) const {
 				const auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
 				return *pData;
 			}
 
+			//! Deletes runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//!
+			//! Missing entries are ignored. The callback is cleared before erasing the map entry so captured data is released
+			//! promptly.
 			void del(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -64799,6 +64983,12 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 	#endif
 
+		//! Component payload stored on each Gaia-ECS system entity.
+		//!
+		//! A system owns a Query plus the execution mode used when the scheduler or user runs it. The callable itself is
+		//! kept in SystemRegistry so function objects stay out of component storage and serialization.
+		//! \see SystemBuilder
+		//! \see SystemRegistry
 		struct System_ {
 			//! Entity identifying the system
 			Entity entity = EntityBad;
@@ -64809,8 +64999,13 @@ namespace gaia {
 			//! Query job dependency handle
 			mt::JobHandle jobHandle = mt::JobNull;
 
+			//! Creates an empty system component payload.
 			System_() = default;
 
+			//! Waits for and releases any outstanding manual-delete query job.
+			//!
+			//! Gaia-ECS query jobs store their handle here so the system can avoid destroying the query while a worker may
+			//! still access it. The destructor blocks only when a job handle was actually created.
 			~System_() {
 				// If the query contains a job handle we can only
 				// destroy the query once the task associated with the handle is finished.
@@ -64822,6 +65017,13 @@ namespace gaia {
 				}
 			}
 
+			//! Runs the system runtime callback against the stored query.
+			//!
+			//! The callback comes from SystemRegistry and receives this system's Query and QueryExecType. The query is
+			//! fetched before execution so cache state and profiler naming use the latest query metadata.
+			//! \param world World that owns the system runtime data.
+			//! \see SystemBuilder::on_each(Func)
+			//! \see QueryImpl::each_runtime_erased(QueryExecType, void*, detail::TQueryInvokeFunc, Constraints)
 			void exec(World& world) {
 				[[maybe_unused]] auto& queryInfo = query.fetch();
 
@@ -64839,7 +65041,13 @@ namespace gaia {
 				pRuntime->on_each_func(query, execType);
 			}
 
-			//! Returns the job handle associated with the system
+			//! Returns the job handle associated with the system.
+			//!
+			//! The handle is created lazily and wraps exec(World&). Gaia-ECS stores the job as ManualDelete because System_
+			//! owns the handle and releases it from the destructor once the job has completed.
+			//! \param world World that owns the system runtime data.
+			//! \return Job handle for the system execution job.
+			//! \see exec(World&)
 			GAIA_NODISCARD mt::JobHandle job_handle(World& world) {
 				if (jobHandle == (mt::JobHandle)mt::JobNull_t{}) {
 					auto& tp = mt::ThreadPool::get();
@@ -64853,54 +65061,83 @@ namespace gaia {
 				return jobHandle;
 			}
 
-			//! Disable automatic System_ serialization
+			//! Disables automatic System_ serialization.
+			//! \tparam Serializer Serializer adapter type selected by the caller.
+			//! \param s Serializer instance. Unused because runtime systems are rebuilt by code.
 			template <typename Serializer>
 			void save(Serializer& s) const {
 				(void)s;
 			}
-			//! Disable automatic System_ serialization
+			//! Disables automatic System_ deserialization.
+			//! \tparam Serializer Serializer adapter type selected by the caller.
+			//! \param s Serializer instance. Unused because runtime systems are rebuilt by code.
 			template <typename Serializer>
 			void load(Serializer& s) {
 				(void)s;
 			}
 		};
 
+		//! Fluent builder used to configure a system entity and its underlying query.
+		//!
+		//! Most query-shaping calls forward directly to the embedded Query held by System_. The system-specific part of the
+		//! builder is registration of the runtime callback in SystemRegistry and the execution mode used when the system is
+		//! run.
+		//! \see World::system()
+		//! \see Query
 		class SystemBuilder {
 			World& m_world;
 			Entity m_entity;
 
-			void validate() {
+			//! Verifies that the builder still points at a valid system entity.
+			//!
+			//! \warning Asserts when the entity has been deleted or otherwise invalidated.
+			void validate() const {
 				GAIA_ASSERT(m_world.valid(m_entity));
 			}
 
+			//! Returns the mutable System_ component configured by this builder.
+			//! \return Mutable system component payload.
 			System_& data() {
 				auto ss = m_world.acc_mut(m_entity);
 				auto& sys = ss.smut<System_>();
 				return sys;
 			}
 
+			//! Returns the immutable System_ component configured by this builder.
+			//! \return Immutable system component payload.
 			const System_& data() const {
 				auto ss = m_world.acc(m_entity);
 				const auto& sys = ss.get<System_>();
 				return sys;
 			}
 
+			//! Returns the mutable runtime callback payload configured by this builder.
+			//! \return Mutable system runtime data.
 			SystemRuntimeData& runtime_data() {
 				return m_world.systems().data(m_entity);
 			}
 
+			//! Returns the immutable runtime callback payload configured by this builder.
+			//! \return Immutable system runtime data.
 			const SystemRuntimeData& runtime_data() const {
 				return m_world.systems().data(m_entity);
 			}
 
 		public:
+			//! Constructs a builder for an existing system entity.
+			//! \param world World that owns the system entity and runtime data.
+			//! \param entity Entity carrying the System_ component configured by this builder.
 			SystemBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {}
 
 			//------------------------------------------------
 
+			//! \name Query cache configuration
+			//! \{
+
 			//! Sets the hard cache-kind requirement for the system query.
 			//! \param kind Requested cache-kind restriction.
 			//! \return Self reference.
+			//! \see QueryImpl::kind(QueryCacheKind)
 			SystemBuilder& kind(QueryCacheKind kind) {
 				validate();
 				data().query.kind(kind);
@@ -64910,14 +65147,23 @@ namespace gaia {
 			//! Sets the cache scope used by the system query.
 			//! \param scope Requested scope.
 			//! \return Self reference.
+			//! \see QueryImpl::scope(QueryCacheScope)
 			SystemBuilder& scope(QueryCacheScope scope) {
 				validate();
 				data().query.scope(scope);
 				return *this;
 			}
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name Query term construction
+			//! \{
+
+			//! Adds a raw query term to the system query.
+			//! \param item Term descriptor to append.
+			//! \return Self reference.
+			//! \see QueryImpl::add(QueryInput)
 			SystemBuilder& add(QueryInput item) {
 				validate();
 				data().query.add(item);
@@ -64926,12 +65172,20 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Adds an Is relationship term that matches entities derived from @a entity.
+			//! \param entity Target entity used with the built-in Is relation.
+			//! \param options Query-term options applied to the generated pair term.
+			//! \return Self reference.
 			SystemBuilder& is(Entity entity, const QueryTermOptions& options = {}) {
 				return all(Pair(Is, entity), options);
 			}
 
 			//------------------------------------------------
 
+			//! Adds an input-only Is relationship term for @a entity.
+			//! \param entity Target entity used with the built-in Is relation.
+			//! \param options Query-term options applied before the input flag is forced.
+			//! \return Self reference.
 			SystemBuilder& in(Entity entity, QueryTermOptions options = {}) {
 				options.in();
 				return all(Pair(Is, entity), options);
@@ -64939,75 +65193,133 @@ namespace gaia {
 
 			//------------------------------------------------
 
+			//! Adds a required term to the system query.
+			//! \param entity Entity or pair id that must be present.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& all(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.all(entity, options);
 				return *this;
 			}
 
+			//! Adds an any-of term to the system query.
+			//! \param entity Entity or pair id participating in the current any-of set.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& any(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.any(entity, options);
 				return *this;
 			}
 
+			//! Adds an or term to the system query.
+			//! \param entity Entity or pair id participating in the current OR chain.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			SystemBuilder& or_(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.or_(entity, options);
 				return *this;
 			}
 
+			//! Adds a negated term to the system query.
+			//! \param entity Entity or pair id that must not be present.
+			//! \param options Query-term options such as source or traversal.
+			//! \return Self reference.
 			SystemBuilder& no(Entity entity, const QueryTermOptions& options = {}) {
 				validate();
 				data().query.no(entity, options);
 				return *this;
 			}
 
+			//! Allows the system query to match prefab entities.
+			//! \return Self reference.
 			SystemBuilder& match_prefab() {
 				validate();
 				data().query.match_prefab();
 				return *this;
 			}
 
+			//! Adds a changed-filter term to the system query.
+			//! \param entity Entity or pair id whose changed state is tested.
+			//! \return Self reference.
 			SystemBuilder& changed(Entity entity) {
 				validate();
 				data().query.changed(entity);
 				return *this;
 			}
 
+			//! Adds a required component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type to require.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& all(const QueryTermOptions& options);
 
+			//! Adds an any-of component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any(const QueryTermOptions& options);
 
+			//! Adds an or component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the OR chain.
+			//! \param options Query-term options such as source, access mode, or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& or_(const QueryTermOptions& options);
 
+			//! Adds a negated component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type that must not be present.
+			//! \param options Query-term options such as source or traversal.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& no(const QueryTermOptions& options);
 
 			//------------------------------------------------
 
+			//! Adds a required component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type to require.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& all();
 
+			//! Adds an any-of component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the any-of set.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& any();
 
+			//! Adds an or component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type participating in the OR chain.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& or_();
 
+			//! Adds a negated component or pair term to the system query.
+			//! \tparam T Component, entity type, or pair type that must not be present.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& no();
 
+			//! Adds a changed-filter term for a component or pair.
+			//! \tparam T Component, entity type, or pair type whose changed state is tested.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& changed();
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name Query ordering and grouping
+			//! \{
+
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \param relation Fragmenting hierarchy relation
+			//! \return Self reference.
+			//! \see QueryImpl::depth_order(Entity)
 			SystemBuilder& depth_order(Entity relation = ChildOf) {
 				data().query.depth_order(relation);
 				return *this;
@@ -65015,6 +65327,7 @@ namespace gaia {
 
 			//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 			//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
+			//! \return Self reference.
 			template <typename Rel>
 			SystemBuilder& depth_order();
 
@@ -65023,6 +65336,8 @@ namespace gaia {
 			//! Organizes matching archetypes into groups according to the grouping function and entity.
 			//! \param entity The entity to group by.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
+			//! \see QueryImpl::group_by(Entity, TGroupByFunc)
 			SystemBuilder& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 				data().query.group_by(entity, func);
 				return *this;
@@ -65031,6 +65346,7 @@ namespace gaia {
 			//! Organizes matching archetypes into groups according to the grouping function.
 			//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
@@ -65038,6 +65354,7 @@ namespace gaia {
 			//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
 			//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
 			//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+			//! \return Self reference.
 			template <typename Rel, typename Tgt>
 			SystemBuilder& group_by(TGroupByFunc func = group_by_func_default);
 
@@ -65046,6 +65363,7 @@ namespace gaia {
 			//! Declares an explicit relation dependency for grouped cache invalidation.
 			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 			//! \param relation Relation the group depends on.
+			//! \return Self reference.
 			SystemBuilder& group_dep(Entity relation) {
 				data().query.group_dep(relation);
 				return *this;
@@ -65054,6 +65372,7 @@ namespace gaia {
 			//! Declares an explicit relation dependency for grouped cache invalidation.
 			//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 			//! \tparam Rel Relation the group depends on.
+			//! \return Self reference.
 			template <typename Rel>
 			SystemBuilder& group_dep();
 
@@ -65061,6 +65380,7 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \param groupId The group to iterate over.
+			//! \return Self reference.
 			SystemBuilder& group_id(GroupId groupId) {
 				data().query.group_id(groupId);
 				return *this;
@@ -65068,6 +65388,7 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \param entity The entity to treat as a group to iterate over.
+			//! \return Self reference.
 			SystemBuilder& group_id(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				data().query.group_id(entity.id());
@@ -65076,29 +65397,81 @@ namespace gaia {
 
 			//! Selects the group to iterate over.
 			//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
+			//! \return Self reference.
 			template <typename T>
 			SystemBuilder& group_id();
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name System metadata
+			//! \{
+
+			//! Assigns a human-readable name to the system entity.
+			//! \param name UTF-8 name. Gaia-ECS copies or interns the string through World::name().
+			//! \param len Optional byte length. 0 lets Gaia-ECS measure the null-terminated string.
+			//! \return Self reference.
 			SystemBuilder& name(const char* name, uint32_t len = 0) {
 				m_world.name(m_entity, name, len);
 				return *this;
 			}
 
+			//! Assigns a raw name to the system entity without additional name normalization.
+			//! \param name UTF-8 name. Gaia-ECS copies or interns the string through World::name_raw().
+			//! \param len Optional byte length. 0 lets Gaia-ECS measure the null-terminated string.
+			//! \return Self reference.
 			SystemBuilder& name_raw(const char* name, uint32_t len = 0) {
 				m_world.name_raw(m_entity, name, len);
 				return *this;
 			}
+			//! \}
 
 			//------------------------------------------------
 
+			//! \name System execution
+			//! \{
+
+			//! Sets the execution mode used when the system runs.
+			//! \param type Query execution mode, for example sequential or parallel execution.
+			//! \return Self reference.
 			SystemBuilder& mode(QueryExecType type) {
 				auto& ctx = data();
 				ctx.execType = type;
 				return *this;
 			}
 
+			//! \name System context
+			//! \{
+			//! Stores a raw, user-owned pointer on the underlying query and exposes it through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see Iter::ctx() const
+
+			//! Sets user-owned data passed to system iterator callbacks.
+			//! The system stores this pointer on its underlying query, exactly like QueryImpl::ctx(void*). It does not own,
+			//! allocate, copy, or destroy the pointed-to data.
+			//! \note If the system runs through parallel query execution, every worker observes the same pointer. The caller
+			//! owns synchronization for mutable data referenced by the context.
+			//! \param pCtx Context pointer. May be null.
+			//! \return Self reference.
+			SystemBuilder& ctx(void* pCtx) {
+				validate();
+				data().query.ctx(pCtx);
+				return *this;
+			}
+
+			//! Returns the user-owned context pointer attached to the system.
+			//! \return Context pointer stored on the underlying query, or null when none was attached.
+			GAIA_NODISCARD void* ctx() const {
+				validate();
+				return data().query.ctx();
+			}
+			//! \}
+
+			//! Registers an iterator-style callback executed when the system runs.
+			//! \tparam Func Callable type invocable with Iter&.
+			//! \param func Callback copied into the system runtime payload.
+			//! \return Self reference.
+			//! \see Iter::ctx() const
 			template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 			SystemBuilder& on_each(Func func) {
 				validate();
@@ -65113,22 +65486,36 @@ namespace gaia {
 				return (SystemBuilder&)*this;
 			}
 
+			//! Registers a typed component callback executed when the system runs.
+			//! \tparam Func Callable type accepted by the typed query callback adapter.
+			//! \param func Callback copied into the system runtime payload.
+			//! \return Self reference.
+			//! \note Typed component callbacks use Gaia-ECS typed query dispatch and do not receive Iter directly. Use an
+			//! iterator-style callback when the system needs access to Iter::ctx().
 			template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 			SystemBuilder& on_each(Func func);
 
+			//! Returns the entity configured by this builder.
+			//! \return System entity.
 			GAIA_NODISCARD Entity entity() const {
 				return m_entity;
 			}
 
+			//! Runs the system immediately using its configured query and execution mode.
+			//! \see mode(QueryExecType)
+			//! \see job_handle()
 			void exec() {
 				auto& ctx = data();
 				ctx.exec(m_world);
 			}
 
+			//! Returns the active job handle for systems scheduled through Gaia-ECS jobs.
+			//! \return Job handle associated with this system runtime data.
 			GAIA_NODISCARD mt::JobHandle job_handle() {
 				auto& ctx = data();
 				return ctx.job_handle(m_world);
 			}
+			//! \}
 		};
 
 	} // namespace ecs
@@ -65137,6 +65524,11 @@ namespace gaia {
 	#if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
+		//! Adds a typed required term to the underlying system query.
+		//! \tparam T Component, entity type, or pair type to require.
+		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
+		//! \return Self reference.
+		//! \see SystemBuilder::all(Entity, const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::all(const QueryTermOptions& options) {
 			validate();
@@ -65144,6 +65536,11 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::All, options));
 		}
 
+		//! Adds a typed any-of term to the underlying system query.
+		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
+		//! \return Self reference.
+		//! \see SystemBuilder::any(Entity, const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::any(const QueryTermOptions& options) {
 			validate();
@@ -65151,6 +65548,11 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Any, options));
 		}
 
+		//! Adds a typed OR term to the underlying system query.
+		//! \tparam T Component, entity type, or pair type participating in the OR chain.
+		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
+		//! \return Self reference.
+		//! \see SystemBuilder::or_(Entity, const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::or_(const QueryTermOptions& options) {
 			validate();
@@ -65158,6 +65560,11 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Or, options));
 		}
 
+		//! Adds a typed negated term to the underlying system query.
+		//! \tparam T Component, entity type, or pair type that must not be present.
+		//! \param options Query-term options applied after Gaia-ECS derives typed defaults.
+		//! \return Self reference.
+		//! \see SystemBuilder::no(Entity, const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::no(const QueryTermOptions& options) {
 			validate();
@@ -65165,56 +65572,105 @@ namespace gaia {
 					detail::typed_query_term_entity<T>(m_world), detail::typed_query_term_options<T>(QueryOpKind::Not, options));
 		}
 
+		//! Adds a typed required term with default query-term options.
+		//! \tparam T Component, entity type, or pair type to require.
+		//! \return Self reference.
+		//! \see SystemBuilder::all(const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::all() {
 			return all<T>(QueryTermOptions{});
 		}
 
+		//! Adds a typed any-of term with default query-term options.
+		//! \tparam T Component, entity type, or pair type participating in the any-of set.
+		//! \return Self reference.
+		//! \see SystemBuilder::any(const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::any() {
 			return any<T>(QueryTermOptions{});
 		}
 
+		//! Adds a typed OR term with default query-term options.
+		//! \tparam T Component, entity type, or pair type participating in the OR chain.
+		//! \return Self reference.
+		//! \see SystemBuilder::or_(const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::or_() {
 			return or_<T>(QueryTermOptions{});
 		}
 
+		//! Adds a typed negated term with default query-term options.
+		//! \tparam T Component, entity type, or pair type that must not be present.
+		//! \return Self reference.
+		//! \see SystemBuilder::no(const QueryTermOptions&)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::no() {
 			return no<T>(QueryTermOptions{});
 		}
 
+		//! Adds a typed changed-filter term to the underlying system query.
+		//! \tparam T Component, entity type, or pair type whose changed state is tested.
+		//! \return Self reference.
+		//! \see SystemBuilder::changed(Entity)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::changed() {
 			return changed(detail::typed_query_raw_entity<T>(m_world));
 		}
 
+		//! Enables typed relation depth ordering for the underlying system query.
+		//! \tparam Rel Fragmenting hierarchy relation used for breadth-first top-down cache ordering.
+		//! \return Self reference.
+		//! \see SystemBuilder::depth_order(Entity)
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::depth_order() {
 			return depth_order(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
+		//! Groups matching archetypes by a typed entity id.
+		//! \tparam T Component or entity type used as the grouping id.
+		//! \param func Grouping callback used to calculate the GroupId for matching archetypes.
+		//! \return Self reference.
+		//! \see SystemBuilder::group_by(Entity, TGroupByFunc)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
 			return group_by(detail::typed_query_raw_entity<T>(m_world), func);
 		}
 
+		//! Groups matching archetypes by a typed relation pair.
+		//! \tparam Rel Relation type used as the pair relation.
+		//! \tparam Tgt Target type used as the pair target.
+		//! \param func Grouping callback used to calculate the GroupId for matching archetypes.
+		//! \return Self reference.
+		//! \see SystemBuilder::group_by(Entity, TGroupByFunc)
 		template <typename Rel, typename Tgt>
 		inline SystemBuilder& SystemBuilder::group_by(TGroupByFunc func) {
 			return group_by(detail::typed_query_pair_entity<Rel, Tgt>(m_world), func);
 		}
 
+		//! Declares a typed relation dependency for grouped cache invalidation.
+		//! \tparam Rel Relation type the grouping result depends on.
+		//! \return Self reference.
+		//! \see SystemBuilder::group_dep(Entity)
 		template <typename Rel>
 		inline SystemBuilder& SystemBuilder::group_dep() {
 			return group_dep(detail::typed_query_raw_entity<Rel>(m_world));
 		}
 
+		//! Selects a typed group id for the underlying system query.
+		//! \tparam T Component or entity type treated as the group to iterate.
+		//! \return Self reference.
+		//! \see SystemBuilder::group_id(Entity)
 		template <typename T>
 		inline SystemBuilder& SystemBuilder::group_id() {
 			return group_id(detail::typed_query_raw_entity<T>(m_world));
 		}
 
+		//! Registers a typed component callback and prepares the typed query execution path.
+		//! \tparam Func Callable type accepted by Gaia-ECS typed query dispatch.
+		//! \param func Callback copied into the system runtime payload.
+		//! \return Self reference.
+		//! \note This path does not expose Iter directly. Use the iterator callback overload when the system needs
+		//! Iter::ctx().
 		template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int>>
 		inline SystemBuilder& SystemBuilder::on_each(Func func) {
 			validate();

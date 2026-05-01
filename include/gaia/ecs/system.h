@@ -10,7 +10,18 @@
 namespace gaia {
 	namespace ecs {
 		//! Runtime payload for systems kept out-of-line from ECS component storage.
+		//!
+		//! System entities store their stable configuration in the ECS world, while the callable payload lives here so
+		//! non-trivial function objects do not become component data. The registry owns the callable and clears it during
+		//! teardown or deletion.
+		//! \see SystemRegistry
 		struct SystemRuntimeData {
+			//! Type-erased callback invoked by System_ execution.
+			//!
+			//! The callback receives the system's underlying query and execution mode. Per-system user context is stored on
+			//! the query itself and is visible to iterator callbacks through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see Iter::ctx() const
 			using TSystemExecFunc = util::MoveFunc<void(Query&, QueryExecType)>;
 
 			//! Called every time the system is allowed to tick.
@@ -18,10 +29,18 @@ namespace gaia {
 		};
 
 		//! Runtime storage for system callbacks kept out-of-line from ECS component storage.
+		//!
+		//! The registry maps system entities to their callable runtime payload. It deliberately does not participate in
+		//! normal component serialization: systems are expected to be rebuilt by setup code after loading a world.
+		//! \see SystemRuntimeData
 		class SystemRegistry {
 			cnt::map<EntityLookupKey, SystemRuntimeData> m_system_data;
 
 		public:
+			//! Clears all registered system callbacks.
+			//!
+			//! Existing system entities/components are not removed from the world by this call. Only the out-of-line callable
+			//! payload is released.
 			void teardown() {
 				for (auto& it: m_system_data)
 					it.second.on_each_func = {};
@@ -29,10 +48,16 @@ namespace gaia {
 				m_system_data = {};
 			}
 
+			//! Creates or returns runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload associated with @a system.
 			SystemRuntimeData& data_add(Entity system) {
 				return m_system_data[EntityLookupKey(system)];
 			}
 
+			//! Tries to find runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload, or null when @a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData* data_try(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -40,6 +65,9 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Tries to find runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Immutable runtime payload, or null when @a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData* data_try(Entity system) const {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -47,18 +75,31 @@ namespace gaia {
 				return &it->second;
 			}
 
+			//! Returns runtime data for a registered system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Mutable runtime payload associated with @a system.
+			//! \warning Asserts if @a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData& data(Entity system) {
 				auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
 				return *pData;
 			}
 
+			//! Returns runtime data for a registered system entity.
+			//! \param system Entity carrying the System_ component.
+			//! \return Immutable runtime payload associated with @a system.
+			//! \warning Asserts if @a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData& data(Entity system) const {
 				const auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
 				return *pData;
 			}
 
+			//! Deletes runtime data for a system entity.
+			//! \param system Entity carrying the System_ component.
+			//!
+			//! Missing entries are ignored. The callback is cleared before erasing the map entry so captured data is released
+			//! promptly.
 			void del(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())

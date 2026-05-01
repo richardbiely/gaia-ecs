@@ -454,6 +454,8 @@ namespace gaia {
 			}
 
 			//! Iterates reusable source entities that participate in direct-source or traversed-source reuse.
+			//! \tparam Func Callback type invoked for each reusable source entity.
+			//! \param func Callback returning true to continue iteration, false to stop the current lookup.
 			template <typename Func>
 			void each_reusable_src_entity(Func&& func) const {
 				const auto terms = m_plan.ctx.data.terms_view();
@@ -815,6 +817,7 @@ namespace gaia {
 			//! \param archetypeLastId Last recorded archetype id
 			//! \param runtimeVarBindings Runtime variable bindings for dynamic queries
 			//! \param runtimeVarBindingMask Mask indicating which runtime variables are bound
+			//! \tparam ArchetypeLookup Archetype lookup container/view type used by the query cache.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			template <typename ArchetypeLookup>
 			void match(
