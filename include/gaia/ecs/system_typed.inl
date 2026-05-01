@@ -170,16 +170,24 @@ namespace gaia {
 			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
 			const bool hasInheritedTerms = execState.hasInheritedTerms;
 			if (hasInheritedTerms) {
-				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
-																invokeInherited](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk, invokeInherited](
+																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_typed_erased(
 							execType, &func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
 							execState.needsInheritedArgIds, invokeInherited);
+					return SchedJob{};
 				};
 			} else {
-				runtime.on_each_func = [func, execState, runDirectFastChunk,
-																runMappedChunk](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func, execState, runDirectFastChunk, runMappedChunk](
+																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_iter_erased(execType, &func, execState, runDirectFastChunk, runMappedChunk);
+					return SchedJob{};
 				};
 			}
 

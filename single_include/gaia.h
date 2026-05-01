@@ -43600,14 +43600,143 @@ namespace gaia {
 			//! \param pDesc Parallel-for description to execute.
 			//! \return Opaque synchronization token for the scheduled work.
 			SchedToken (*sched_par)(void* pCtx, const SchedParDesc* pDesc) = nullptr;
+			//! Adds one task without submitting it for execution.
+			//! \param pCtx Scheduler-owned context.
+			//! \param pDesc Task description to add.
+			//! \return Opaque token for the added task.
+			SchedToken (*add)(void* pCtx, const SchedTaskDesc* pDesc) = nullptr;
+			//! Adds a parallel-for workload without submitting it for execution.
+			//! \param pCtx Scheduler-owned context.
+			//! \param pDesc Parallel-for description to add.
+			//! \return Opaque token for the added workload.
+			SchedToken (*add_par)(void* pCtx, const SchedParDesc* pDesc) = nullptr;
+			//! Submits a previously added token.
+			//! \param pCtx Scheduler-owned context.
+			//! \param token Opaque token returned by add() or add_par().
+			void (*submit)(void* pCtx, SchedToken token) = nullptr;
+			//! Adds a dependency edge so @a tokenSecond runs after @a tokenFirst.
+			//! \param pCtx Scheduler-owned context.
+			//! \param tokenFirst Work that must complete first.
+			//! \param tokenSecond Work that depends on @a tokenFirst.
+			void (*dep)(void* pCtx, SchedToken tokenFirst, SchedToken tokenSecond) = nullptr;
 			//! Waits until the scheduled work referenced by @a token finishes.
 			//! \param pCtx Scheduler-owned context.
-			//! \param token Opaque synchronization token returned by sched() or sched_par().
+			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
 			void (*wait)(void* pCtx, SchedToken token) = nullptr;
-			//! Frees any scheduler-owned resources associated with @a token.
+			//! Deletes any scheduler-owned resources associated with @a token.
 			//! \param pCtx Scheduler-owned context.
-			//! \param token Opaque synchronization token returned by sched() or sched_par().
-			void (*free)(void* pCtx, SchedToken token) = nullptr;
+			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
+			void (*del)(void* pCtx, SchedToken token) = nullptr;
+		};
+
+		//! Move-only wrapper for scheduler-owned ECS work.
+		//!
+		//! SchedJob keeps the scheduler token together with the scheduler callbacks needed to submit,
+		//! wait for, and delete the work. Query/system deferred execution uses this wrapper instead of
+		//! exposing gaia::mt::JobHandle directly so external job systems can provide their own token type.
+		class SchedJob {
+			Sched m_sched;
+			SchedToken m_token{};
+			void* m_pCleanupCtx = nullptr;
+			void (*m_cleanup)(void* pCtx) = nullptr;
+			bool m_valid = false;
+			bool m_submitted = false;
+			bool m_waited = false;
+
+			void cleanup() {
+				if (m_cleanup != nullptr) {
+					m_cleanup(m_pCleanupCtx);
+					m_cleanup = nullptr;
+					m_pCleanupCtx = nullptr;
+				}
+			}
+
+			GAIA_NODISCARD static bool same_sched(const Sched& a, const Sched& b) {
+				return a.pCtx == b.pCtx && a.sched == b.sched && a.sched_par == b.sched_par && a.add == b.add &&
+							 a.add_par == b.add_par && a.submit == b.submit && a.dep == b.dep && a.wait == b.wait && a.del == b.del;
+			}
+
+		public:
+			//! Creates an empty wrapper.
+			SchedJob() = default;
+			//! Creates a wrapper around @a token from @a sched.
+			//! \param sched Scheduler descriptor that created @a token.
+			//! \param token Scheduler-owned work token.
+			//! \param submitted True if the scheduler already submitted @a token.
+			//! \param pCleanupCtx Optional cleanup context owned by the wrapper.
+			//! \param cleanup Optional cleanup callback executed after the job is waited or deleted unsubmitted.
+			SchedJob(Sched sched, SchedToken token, bool submitted, void* pCleanupCtx, void (*cleanup)(void* pCtx)):
+					m_sched(sched), m_token(token), m_pCleanupCtx(pCleanupCtx), m_cleanup(cleanup), m_valid(true),
+					m_submitted(submitted) {}
+
+			//! Waits for and deletes a still-owned token.
+			~SchedJob() {
+				del();
+			}
+
+			SchedJob(const SchedJob&) = delete;
+			SchedJob& operator=(const SchedJob&) = delete;
+
+			//! Move-constructs a scheduler job wrapper.
+			//! \param other Wrapper to move from.
+			SchedJob(SchedJob&& other) noexcept:
+					m_sched(other.m_sched), m_token(other.m_token), m_pCleanupCtx(other.m_pCleanupCtx),
+					m_cleanup(other.m_cleanup), m_valid(other.m_valid), m_submitted(other.m_submitted), m_waited(other.m_waited) {
+				other.m_valid = false;
+				other.m_cleanup = nullptr;
+				other.m_pCleanupCtx = nullptr;
+			}
+
+			//! Move-assigns a scheduler job wrapper.
+			//! \param other Wrapper to move from.
+			//! \return Self reference.
+			SchedJob& operator=(SchedJob&& other) noexcept {
+				if (this == &other)
+					return *this;
+				del();
+				m_sched = other.m_sched;
+				m_token = other.m_token;
+				m_pCleanupCtx = other.m_pCleanupCtx;
+				m_cleanup = other.m_cleanup;
+				m_valid = other.m_valid;
+				m_submitted = other.m_submitted;
+				m_waited = other.m_waited;
+				other.m_valid = false;
+				other.m_cleanup = nullptr;
+				other.m_pCleanupCtx = nullptr;
+				return *this;
+			}
+
+			//! Returns true if this wrapper owns scheduler work.
+			//! \return True when a scheduler token is owned by the wrapper.
+			GAIA_NODISCARD bool valid() const {
+				return m_valid;
+			}
+
+			//! Returns the opaque scheduler token.
+			//! \return Token owned by this wrapper.
+			GAIA_NODISCARD SchedToken token() const {
+				return m_token;
+			}
+
+			//! Submits the added work if it has not been submitted yet.
+			void submit();
+			//! Adds a dependency edge so this job runs after @a jobFirst.
+			//!
+			//! This member form mirrors the Gaia scheduler naming used by mt::ThreadPool::dep() and sched_dep(). It is
+			//! equivalent to calling sched_dep() with @a jobFirst as the prerequisite and this job as the dependent work.
+			//!
+			//! \param jobFirst Job that must complete before this job can run.
+			//! \warning Both jobs must use the same scheduler descriptor, and dependencies must be added before either job is
+			//! submitted.
+			//! \see sched_dep()
+			//! \see mt::ThreadPool::dep()
+			void dep(const SchedJob& jobFirst);
+			//! Waits for submitted work to complete.
+			//! \warning Waiting does not submit deferred work. Call submit() first.
+			void wait();
+			//! Deletes scheduler resources and runs wrapper cleanup.
+			void del();
 		};
 
 		namespace detail {
@@ -43617,49 +43746,155 @@ namespace gaia {
 				return (uint32_t)execType == 3U ? mt::JobPriority::Low : mt::JobPriority::High;
 			}
 
-			inline SchedToken sched_one_def([[maybe_unused]] void* pCtx, const SchedTaskDesc* pDesc) {
+			enum class SchedTokenKind : uint32_t { None, Single, Parallel };
+
+			struct SchedTokenDefData {
+				cnt::darray<mt::JobHandle> handles;
+				SchedTokenKind kind = SchedTokenKind::None;
+				bool submitted = false;
+
+				GAIA_USE_SMALLBLOCK(SchedTokenDefData)
+			};
+
+			inline SchedToken make_sched_token(SchedTokenDefData* pData) {
+				SchedToken token{};
+				token.value[0] = (uintptr_t)pData;
+				return token;
+			}
+
+			inline SchedTokenDefData* sched_token_data(SchedToken token) {
+				return reinterpret_cast<SchedTokenDefData*>(token.value[0]);
+			}
+
+			inline SchedToken add_one_def([[maybe_unused]] void* pCtx, const SchedTaskDesc* pDesc) {
 				GAIA_ASSERT(pDesc != nullptr);
 				GAIA_ASSERT(pDesc->invoke != nullptr);
 				if (pDesc == nullptr || pDesc->invoke == nullptr)
 					return {};
 
+				auto* pData = new SchedTokenDefData();
+				pData->kind = SchedTokenKind::Single;
+				pData->handles.resize(1);
+
 				mt::Job job;
 				job.priority = exec_prio(pDesc->execType);
+				job.flags = mt::JobCreationFlags::ManualDelete;
 				job.func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
 					invoke(pCtx);
 				};
 
-				const auto handle = mt::ThreadPool::get().sched(GAIA_MOV(job));
-				SchedToken token{};
-				token.value[0] = (uintptr_t)handle.value();
+				pData->handles[0] = mt::ThreadPool::get().add(GAIA_MOV(job));
+				return make_sched_token(pData);
+			}
+
+			inline SchedToken sched_one_def([[maybe_unused]] void* pCtx, const SchedTaskDesc* pDesc) {
+				auto token = add_one_def(pCtx, pDesc);
+				auto* pData = sched_token_data(token);
+				if (pData != nullptr) {
+					mt::ThreadPool::get().submit(pData->handles[0]);
+					pData->submitted = true;
+				}
 				return token;
 			}
 
-			inline SchedToken sched_par_def([[maybe_unused]] void* pCtx, const SchedParDesc* pDesc) {
+			inline SchedToken add_par_def([[maybe_unused]] void* pCtx, const SchedParDesc* pDesc) {
 				GAIA_ASSERT(pDesc != nullptr);
 				GAIA_ASSERT(pDesc->invoke != nullptr);
 				if (pDesc == nullptr || pDesc->invoke == nullptr || pDesc->itemCount == 0)
 					return {};
 
-				mt::JobParallelRef job{};
-				job.pCtx = const_cast<SchedParDesc*>(pDesc);
-				job.priority = exec_prio(pDesc->execType);
-				job.invoke = [](void* pCtx, const mt::JobArgs& args) {
-					auto& desc = *(const SchedParDesc*)pCtx;
-					desc.invoke(desc.pCtx, args.idxStart, args.idxEnd);
-				};
+				auto& tp = mt::ThreadPool::get();
+				const auto prio = exec_prio(pDesc->execType);
+				uint32_t groupSize = pDesc->groupSize;
+				if (groupSize == 0) {
+					const auto workers = core::get_max(1U, tp.workers() + 1U);
+					groupSize = (pDesc->itemCount + workers - 1) / workers;
+					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
+					groupSize = groupSize / maxUnitsOfWorkPerGroup;
+					if (groupSize == 0)
+						groupSize = 1;
+				}
 
-				const auto handle = mt::ThreadPool::get().sched_par(job, pDesc->itemCount, pDesc->groupSize);
-				SchedToken token{};
-				token.value[0] = (uintptr_t)handle.value();
+				const auto jobs = (pDesc->itemCount + groupSize - 1) / groupSize;
+				auto* pData = new SchedTokenDefData();
+				pData->kind = SchedTokenKind::Parallel;
+				pData->handles.resize(jobs + 1);
+
+				for (uint32_t jobIndex = 0; jobIndex < jobs; ++jobIndex) {
+					const uint32_t idxStart = jobIndex * groupSize;
+					const uint32_t idxEnd = core::get_min(idxStart + groupSize, pDesc->itemCount);
+
+					mt::Job job;
+					job.priority = prio;
+					job.flags = mt::JobCreationFlags::ManualDelete;
+					job.func = [desc = *pDesc, idxStart, idxEnd]() {
+						desc.invoke(desc.pCtx, idxStart, idxEnd);
+					};
+					pData->handles[jobIndex] = tp.add(GAIA_MOV(job));
+				}
+				{
+					mt::Job syncJob;
+					syncJob.priority = prio;
+					syncJob.flags = mt::JobCreationFlags::ManualDelete;
+					pData->handles[jobs] = tp.add(GAIA_MOV(syncJob));
+				}
+				tp.dep(std::span(pData->handles.data(), jobs), pData->handles[jobs]);
+				return make_sched_token(pData);
+			}
+
+			inline SchedToken sched_par_def([[maybe_unused]] void* pCtx, const SchedParDesc* pDesc) {
+				auto token = add_par_def(pCtx, pDesc);
+				auto* pData = sched_token_data(token);
+				if (pData != nullptr) {
+					mt::ThreadPool::get().submit(std::span(pData->handles.data(), pData->handles.size()));
+					pData->submitted = true;
+				}
 				return token;
 			}
 
-			inline void sched_wait_def([[maybe_unused]] void* pCtx, SchedToken token) {
-				mt::ThreadPool::get().wait(mt::JobHandle((uint32_t)token.value[0]));
+			inline void sched_submit_def([[maybe_unused]] void* pCtx, SchedToken token) {
+				auto* pData = sched_token_data(token);
+				if (pData == nullptr || pData->submitted)
+					return;
+				auto& tp = mt::ThreadPool::get();
+				tp.submit(std::span(pData->handles.data(), pData->handles.size()));
+				pData->submitted = true;
 			}
 
-			inline void sched_free_def([[maybe_unused]] void* pCtx, [[maybe_unused]] SchedToken token) {}
+			inline void sched_dep_def([[maybe_unused]] void* pCtx, SchedToken tokenFirst, SchedToken tokenSecond) {
+				auto* pFirst = sched_token_data(tokenFirst);
+				auto* pSecond = sched_token_data(tokenSecond);
+				if (pFirst == nullptr || pSecond == nullptr || pFirst->handles.empty() || pSecond->handles.empty())
+					return;
+				auto& tp = mt::ThreadPool::get();
+				const auto firstDone = pFirst->handles.back();
+				if (pSecond->kind == SchedTokenKind::Parallel && pSecond->handles.size() > 1) {
+					const auto childCount = (uint32_t)pSecond->handles.size() - 1;
+					for (uint32_t i = 0; i < childCount; ++i)
+						tp.dep(firstDone, pSecond->handles[i]);
+					return;
+				}
+				tp.dep(firstDone, pSecond->handles.back());
+			}
+
+			inline void sched_wait_def([[maybe_unused]] void* pCtx, SchedToken token) {
+				auto* pData = sched_token_data(token);
+				if (pData == nullptr || pData->handles.empty())
+					return;
+				mt::ThreadPool::get().wait(pData->handles.back());
+			}
+
+			inline void sched_del_def([[maybe_unused]] void* pCtx, [[maybe_unused]] SchedToken token) {
+				auto* pData = sched_token_data(token);
+				if (pData == nullptr)
+					return;
+				auto& tp = mt::ThreadPool::get();
+				for (auto handle: pData->handles) {
+					if (handle != mt::JobNull)
+						tp.del(handle);
+				}
+				delete pData;
+			}
 		} // namespace detail
 
 		//! Returns the default ECS scheduler backed by gaia::mt::ThreadPool.
@@ -43669,8 +43904,12 @@ namespace gaia {
 				Sched b{};
 				b.sched = &detail::sched_one_def;
 				b.sched_par = &detail::sched_par_def;
+				b.add = &detail::add_one_def;
+				b.add_par = &detail::add_par_def;
+				b.submit = &detail::sched_submit_def;
+				b.dep = &detail::sched_dep_def;
 				b.wait = &detail::sched_wait_def;
-				b.free = &detail::sched_free_def;
+				b.del = &detail::sched_del_def;
 				return b;
 			}();
 			return sched;
@@ -43680,7 +43919,8 @@ namespace gaia {
 		//! \param sched Scheduler descriptor to resolve.
 		//! \return Either @a sched or the default scheduler when @a sched is empty.
 		GAIA_NODISCARD inline const Sched& sched_resolve(const Sched& sched) {
-			if (sched.sched == nullptr && sched.sched_par == nullptr && sched.wait == nullptr && sched.free == nullptr)
+			if (sched.sched == nullptr && sched.sched_par == nullptr && sched.add == nullptr && sched.add_par == nullptr &&
+					sched.submit == nullptr && sched.dep == nullptr && sched.wait == nullptr && sched.del == nullptr)
 				return sched_def();
 			return sched;
 		}
@@ -43691,8 +43931,43 @@ namespace gaia {
 		//! \return Opaque synchronization token for the scheduled work.
 		GAIA_NODISCARD inline SchedToken sched_one(const Sched& sched, const SchedTaskDesc& desc) {
 			const auto& resolved = sched_resolve(sched);
-			GAIA_ASSERT(resolved.sched != nullptr);
-			return resolved.sched != nullptr ? resolved.sched(resolved.pCtx, &desc) : SchedToken{};
+			if (resolved.sched != nullptr)
+				return resolved.sched(resolved.pCtx, &desc);
+			GAIA_ASSERT(resolved.add != nullptr);
+			GAIA_ASSERT(resolved.submit != nullptr);
+			const auto token = resolved.add != nullptr ? resolved.add(resolved.pCtx, &desc) : SchedToken{};
+			if (resolved.submit != nullptr)
+				resolved.submit(resolved.pCtx, token);
+			return token;
+		}
+
+		//! Adds one task through @a sched without submitting it.
+		//! \param sched Scheduler descriptor.
+		//! \param desc Task description.
+		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
+		//! \param cleanup Optional cleanup callback executed after wait or unsubmitted deletion.
+		//! \return Deferred scheduler job wrapper.
+		//! \warning Deferred scheduler descriptors must provide submit(), wait(), and del() when add() is present.
+		GAIA_NODISCARD inline SchedJob
+		sched_add(const Sched& sched, const SchedTaskDesc& desc, void* pCleanupCtx, void (*cleanup)(void* pCtx)) {
+			const auto& resolved = sched_resolve(sched);
+			if (resolved.add != nullptr) {
+				if (resolved.submit == nullptr || resolved.wait == nullptr || resolved.del == nullptr) {
+					GAIA_ASSERT(false);
+					if (cleanup != nullptr)
+						cleanup(pCleanupCtx);
+					return {};
+				}
+				return SchedJob(resolved, resolved.add(resolved.pCtx, &desc), false, pCleanupCtx, cleanup);
+			}
+
+			if (resolved.sched == nullptr || resolved.wait == nullptr || resolved.del == nullptr) {
+				GAIA_ASSERT(false);
+				if (cleanup != nullptr)
+					cleanup(pCleanupCtx);
+				return {};
+			}
+			return SchedJob(resolved, resolved.sched(resolved.pCtx, &desc), true, pCleanupCtx, cleanup);
 		}
 
 		//! Schedules a parallel-for workload through @a sched.
@@ -43701,8 +43976,62 @@ namespace gaia {
 		//! \return Opaque synchronization token for the scheduled work.
 		GAIA_NODISCARD inline SchedToken sched_par(const Sched& sched, const SchedParDesc& desc) {
 			const auto& resolved = sched_resolve(sched);
-			GAIA_ASSERT(resolved.sched_par != nullptr);
-			return resolved.sched_par != nullptr ? resolved.sched_par(resolved.pCtx, &desc) : SchedToken{};
+			if (resolved.sched_par != nullptr)
+				return resolved.sched_par(resolved.pCtx, &desc);
+			GAIA_ASSERT(resolved.add_par != nullptr);
+			GAIA_ASSERT(resolved.submit != nullptr);
+			const auto token = resolved.add_par != nullptr ? resolved.add_par(resolved.pCtx, &desc) : SchedToken{};
+			if (resolved.submit != nullptr)
+				resolved.submit(resolved.pCtx, token);
+			return token;
+		}
+
+		//! Adds a parallel-for workload through @a sched without submitting it.
+		//! \param sched Scheduler descriptor.
+		//! \param desc Parallel-for description.
+		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
+		//! \param cleanup Optional cleanup callback executed after wait or unsubmitted deletion.
+		//! \return Deferred scheduler job wrapper.
+		//! \warning Deferred scheduler descriptors must provide submit(), wait(), and del() when add() is present.
+		GAIA_NODISCARD inline SchedJob
+		sched_add_par(const Sched& sched, const SchedParDesc& desc, void* pCleanupCtx, void (*cleanup)(void* pCtx)) {
+			const auto& resolved = sched_resolve(sched);
+			if (resolved.add_par != nullptr) {
+				if (resolved.submit == nullptr || resolved.wait == nullptr || resolved.del == nullptr) {
+					GAIA_ASSERT(false);
+					if (cleanup != nullptr)
+						cleanup(pCleanupCtx);
+					return {};
+				}
+				return SchedJob(resolved, resolved.add_par(resolved.pCtx, &desc), false, pCleanupCtx, cleanup);
+			}
+
+			if (resolved.sched_par == nullptr || resolved.wait == nullptr || resolved.del == nullptr) {
+				GAIA_ASSERT(false);
+				if (cleanup != nullptr)
+					cleanup(pCleanupCtx);
+				return {};
+			}
+			return SchedJob(resolved, resolved.sched_par(resolved.pCtx, &desc), true, pCleanupCtx, cleanup);
+		}
+
+		//! Submits an added scheduler token.
+		//! \param sched Scheduler descriptor.
+		//! \param token Opaque synchronization token returned by sched_add() or sched_add_par().
+		inline void sched_submit(const Sched& sched, SchedToken token) {
+			const auto& resolved = sched_resolve(sched);
+			if (resolved.submit != nullptr)
+				resolved.submit(resolved.pCtx, token);
+		}
+
+		//! Adds a scheduler dependency edge.
+		//! \param sched Scheduler descriptor.
+		//! \param tokenFirst Work that must complete first.
+		//! \param tokenSecond Work that depends on @a tokenFirst.
+		inline void sched_dep(const Sched& sched, SchedToken tokenFirst, SchedToken tokenSecond) {
+			const auto& resolved = sched_resolve(sched);
+			if (resolved.dep != nullptr)
+				resolved.dep(resolved.pCtx, tokenFirst, tokenSecond);
 		}
 
 		//! Waits until the scheduled work referenced by @a token finishes.
@@ -43714,13 +44043,56 @@ namespace gaia {
 				resolved.wait(resolved.pCtx, token);
 		}
 
-		//! Frees any scheduler-owned resources associated with @a token.
+		//! Deletes any scheduler-owned resources associated with @a token.
 		//! \param sched Scheduler descriptor.
 		//! \param token Opaque synchronization token returned by sched_one() or sched_par().
-		inline void sched_free(const Sched& sched, SchedToken token) {
+		inline void sched_del(const Sched& sched, SchedToken token) {
 			const auto& resolved = sched_resolve(sched);
-			if (resolved.free != nullptr)
-				resolved.free(resolved.pCtx, token);
+			if (resolved.del != nullptr)
+				resolved.del(resolved.pCtx, token);
+		}
+
+		inline void SchedJob::submit() {
+			if (!m_valid || m_submitted)
+				return;
+			GAIA_ASSERT(m_sched.submit != nullptr);
+			if (m_sched.submit == nullptr)
+				return;
+			sched_submit(m_sched, m_token);
+			m_submitted = true;
+		}
+
+		inline void SchedJob::dep(const SchedJob& jobFirst) {
+			if (!m_valid || !jobFirst.m_valid)
+				return;
+			GAIA_ASSERT(same_sched(m_sched, jobFirst.m_sched));
+			GAIA_ASSERT(!m_submitted && !jobFirst.m_submitted);
+			if (!same_sched(m_sched, jobFirst.m_sched) || m_submitted || jobFirst.m_submitted)
+				return;
+			sched_dep(m_sched, jobFirst.m_token, m_token);
+		}
+
+		inline void SchedJob::wait() {
+			if (!m_valid || m_waited)
+				return;
+			GAIA_ASSERT(m_submitted);
+			if (!m_submitted)
+				return;
+			sched_wait(m_sched, m_token);
+			m_waited = true;
+			cleanup();
+		}
+
+		inline void SchedJob::del() {
+			if (!m_valid)
+				return;
+			if (m_submitted && !m_waited)
+				wait();
+			sched_del(m_sched, m_token);
+			cleanup();
+			m_valid = false;
+			m_submitted = false;
+			m_waited = false;
 		}
 	} // namespace ecs
 } // namespace gaia
@@ -45634,6 +46006,209 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				template <typename Func, typename TMode>
+				struct QueryJobCtx {
+					QueryImpl* pSelf = nullptr;
+					World* pWorld = nullptr;
+					cnt::darray<ChunkBatch> batches;
+					Func func;
+
+					GAIA_USE_SMALLBLOCK(QueryJobCtx)
+				};
+
+				template <typename Func>
+				struct QueryTaskJobCtx {
+					QueryImpl* pSelf = nullptr;
+					Func func;
+					QueryExecType execType = QueryExecType::Default;
+
+					GAIA_USE_SMALLBLOCK(QueryTaskJobCtx)
+				};
+
+				template <typename Func>
+				struct IterJobCallback {
+					QueryImpl* pSelf = nullptr;
+					Func func;
+
+					void operator()(Iter& it) {
+						it.ctx(pSelf->ctx());
+						func(it);
+					}
+				};
+
+				template <typename Func>
+				static void invoke_query_task_job(void* pCtx) {
+					auto& ctx = *reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
+					ctx.pSelf->each(ctx.func, ctx.execType);
+				}
+
+				template <typename Func>
+				static void cleanup_query_task_job(void* pCtx) {
+					auto* pJobCtx = reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
+					if (pJobCtx == nullptr)
+						return;
+					delete pJobCtx;
+				}
+
+				template <typename Func, typename TMode>
+				static void cleanup_query_job(void* pCtx) {
+					auto* pJobCtx = reinterpret_cast<QueryJobCtx<Func, TMode>*>(pCtx);
+					if (pJobCtx == nullptr)
+						return;
+
+					auto* pWorld = pJobCtx->pWorld;
+					if (pWorld != nullptr) {
+						unlock(*pWorld);
+						commit_cmd_buffer_st(*pWorld);
+						commit_cmd_buffer_mt(*pWorld);
+						if (pJobCtx->pSelf != nullptr)
+							pJobCtx->pSelf->m_changedWorldVersion = *pJobCtx->pSelf->m_worldVersion;
+					}
+
+					delete pJobCtx;
+				}
+
+				template <typename Func, typename TMode, QueryExecType ExecType>
+				GAIA_NODISCARD SchedJob add_parallel_query_job(Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					if (m_batches.empty())
+						return {};
+
+					auto* pWorld = m_storage.world();
+					lock(*pWorld);
+
+					auto* pCtx = new QueryJobCtx<Func, TMode>{this, pWorld, {}, GAIA_MOV(func)};
+					pCtx->batches.resize(m_batches.size());
+					GAIA_EACH(m_batches) pCtx->batches[i] = m_batches[i];
+					m_batches.clear();
+
+					SchedParDesc desc{};
+					desc.pCtx = pCtx;
+					desc.itemCount = (uint32_t)pCtx->batches.size();
+					desc.groupSize = 0;
+					desc.execType = ExecType;
+					desc.invoke = [](void* pInvokeCtx, uint32_t idxStart, uint32_t idxEnd) {
+						auto& ctx = *reinterpret_cast<QueryJobCtx<Func, TMode>*>(pInvokeCtx);
+						run_query_func<Func, TMode>(ctx.pWorld, ctx.func, std::span(&ctx.batches[idxStart], idxEnd - idxStart));
+					};
+
+					return sched_add_par(world_sched(*pWorld), desc, pCtx, &cleanup_query_job<Func, TMode>);
+				}
+
+				template <bool HasFilters>
+				void
+				collect_runtime_parallel_batches(const QueryInfo& queryInfo, const QueryPlan& plan, Constraints constraints) {
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
+					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							if (endRow == startRow)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+							m_batches.push_back(
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+						}
+						return;
+					}
+
+					for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
+						const auto* pArchetype = cacheView[i];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+							continue;
+
+						auto indicesView = queryInfo.indices_mapping_view(i);
+						const auto inheritedDataView =
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+						}
+					}
+				}
+
+				template <typename Func>
+				GAIA_NODISCARD SchedJob add_query_task_job(Func func, QueryExecType execType) {
+					auto* pCtx = new QueryTaskJobCtx<Func>{this, GAIA_MOV(func), execType};
+
+					SchedTaskDesc desc{};
+					desc.pCtx = pCtx;
+					desc.invoke = &invoke_query_task_job<Func>;
+					desc.execType = execType;
+
+					return sched_add(world_sched(*m_storage.world()), desc, pCtx, &cleanup_query_task_job<Func>);
+				}
+
+				template <typename Func, QueryExecType ExecType>
+				GAIA_NODISCARD SchedJob add_iter_parallel_job(Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					const auto constraints = Constraints::EnabledOnly;
+					const auto plan = prepare_query_plan(queryInfo, constraints);
+					if (plan.mode == QueryPlanMode::Empty || plan.idxFrom >= plan.idxTo)
+						return {};
+					if (plan.mode == QueryPlanMode::EntitySeed)
+						return add_query_task_job(GAIA_MOV(func), ExecType);
+
+					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
+					const bool isGroupSet = m_groupIdSet != 0;
+					if (isGroupBy && isGroupSet)
+						return add_query_task_job(GAIA_MOV(func), ExecType);
+
+					::gaia::ecs::update_version(*m_worldVersion);
+					m_batches.clear();
+					if ((plan.flags & QueryPlanFlag_Filtered) != 0)
+						collect_runtime_parallel_batches<true>(queryInfo, plan, constraints);
+					else
+						collect_runtime_parallel_batches<false>(queryInfo, plan, constraints);
+
+					using JobFunc = IterJobCallback<Func>;
+					return add_parallel_query_job<JobFunc, IterModeEnabled, ExecType>(JobFunc{this, GAIA_MOV(func)});
+				}
+
+				//------------------------------------------------
+
 				template <bool HasFilters, typename TMode, typename Func>
 				void run_query_batch_no_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
@@ -45847,10 +46422,10 @@ namespace gaia {
 								std::span(&ctx.pSelf->m_batches[idxStart], idxEnd - idxStart));
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -46017,10 +46592,10 @@ namespace gaia {
 								std::span(&ctx.pSelf->m_batches[idxStart], idxEnd - idxStart));
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -46392,10 +46967,10 @@ namespace gaia {
 								ctx.constraints);
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -46531,10 +47106,10 @@ namespace gaia {
 								ctx.constraints);
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -48909,6 +49484,37 @@ namespace gaia {
 				QueryImpl& group_id();
 
 				//------------------------------------------------
+
+				//! Adds a query execution job without submitting it.
+				//!
+				//! The returned SchedJob is backed by the world's ECS scheduler descriptor rather than a
+				//! gaia::mt::JobHandle, so external schedulers can provide their own token, submission,
+				//! dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler
+				//! token; the query and world must outlive the job.
+				//! \tparam Func Query callback type accepted by each().
+				//! \param func Callback invoked when the added job runs.
+				//! \param execType Query execution mode used inside the job.
+				//! \return Move-only scheduler job wrapper for the added query execution.
+				//! \warning Structural mutations that invalidate this query while the job is pending are not safe.
+				//! \see SchedJob
+				//! \see each(Func, QueryExecType)
+				template <typename Func>
+				GAIA_NODISCARD SchedJob job(Func func, QueryExecType execType) {
+					if constexpr (detail::is_query_iter_callback_v<Func>) {
+						switch (execType) {
+							case QueryExecType::Parallel:
+								return add_iter_parallel_job<Func, QueryExecType::Parallel>(GAIA_MOV(func));
+							case QueryExecType::ParallelPerf:
+								return add_iter_parallel_job<Func, QueryExecType::ParallelPerf>(GAIA_MOV(func));
+							case QueryExecType::ParallelEff:
+								return add_iter_parallel_job<Func, QueryExecType::ParallelEff>(GAIA_MOV(func));
+							default:
+								break;
+						}
+					}
+
+					return add_query_task_job(GAIA_MOV(func), execType);
+				}
 
 				//! Iterates query matches using the default execution mode.
 				//! \tparam Func Iterator callback type invocable with `Iter&`.
@@ -51838,16 +52444,27 @@ namespace gaia {
 		//! teardown or deletion.
 		//! \see SystemRegistry
 		struct SystemRuntimeData {
-			//! Type-erased callback invoked by System_ execution.
-			//!
-			//! The callback receives the system's underlying query and execution mode. Per-system user context is stored on
-			//! the query itself and is visible to iterator callbacks through Iter::ctx().
-			//! \see QueryImpl::ctx(void*)
-			//! \see Iter::ctx() const
-			using TSystemExecFunc = util::MoveFunc<void(Query&, QueryExecType)>;
+			//! Execution path requested from a system runtime callback.
+			enum class RunMode {
+				//! Run the system immediately and return an empty scheduler job.
+				Immediate,
+				//! Prepare scheduler work and return it without submitting it.
+				DeferredJob
+			};
 
-			//! Called every time the system is allowed to tick.
-			TSystemExecFunc on_each_func;
+			//! Type-erased callback used for immediate and deferred system execution.
+			//!
+			//! The callback receives the system's underlying query, execution mode, and requested run mode. Immediate runs
+			//! execute the stored query callback directly and return an empty SchedJob. Deferred runs add a
+			//! scheduler-agnostic job wrapper from the same stored callback object. Per-system user context is stored on the
+			//! query itself and is visible to iterator callbacks through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see Iter::ctx() const
+			using TSystemRunFunc = util::MoveFunc<SchedJob(Query&, QueryExecType, RunMode)>;
+
+			//! Called when the system runs immediately or is added as deferred scheduler work.
+			TSystemRunFunc on_each_func;
 		};
 
 		//! Runtime storage for system callbacks kept out-of-line from ECS component storage.
@@ -51864,8 +52481,9 @@ namespace gaia {
 			//! Existing system entities/components are not removed from the world by this call. Only the out-of-line callable
 			//! payload is released.
 			void teardown() {
-				for (auto& it: m_system_data)
+				for (auto& it: m_system_data) {
 					it.second.on_each_func = {};
+				}
 
 				m_system_data = {};
 			}
@@ -65035,10 +65653,10 @@ namespace gaia {
 
 				auto* pRuntime = world.systems().data_try(entity);
 				GAIA_ASSERT(pRuntime != nullptr);
-				if (pRuntime == nullptr)
+				if (pRuntime == nullptr || !pRuntime->on_each_func)
 					return;
 
-				pRuntime->on_each_func(query, execType);
+				static_cast<void>(pRuntime->on_each_func(query, execType, SystemRuntimeData::RunMode::Immediate));
 			}
 
 			//! Returns the job handle associated with the system.
@@ -65059,6 +65677,24 @@ namespace gaia {
 					jobHandle = tp.add(GAIA_MOV(syncJob));
 				}
 				return jobHandle;
+			}
+
+			//! Prepares this system as scheduler-agnostic deferred work.
+			//!
+			//! The returned wrapper is backed by the system's underlying query and the world's scheduler descriptor. Unlike
+			//! job_handle(World&), this path can expose the query's own parallel-for child work to external schedulers.
+			//! \param world World that owns the system runtime data.
+			//! \return Deferred scheduler job for this system execution, or an empty job when no callback is registered.
+			//! \warning The world, system, query cache, and callback payload must outlive the returned job.
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see SchedJob
+			GAIA_NODISCARD SchedJob job(World& world) {
+				auto* pRuntime = world.systems().data_try(entity);
+				GAIA_ASSERT(pRuntime != nullptr);
+				if (pRuntime == nullptr || !pRuntime->on_each_func)
+					return {};
+
+				return pRuntime->on_each_func(query, execType, SystemRuntimeData::RunMode::DeferredJob);
 			}
 
 			//! Disables automatic System_ serialization.
@@ -65477,10 +66113,14 @@ namespace gaia {
 				validate();
 
 				auto& runtime = runtime_data();
-				runtime.on_each_func = [func](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func](Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_runtime_erased(
 							execType, static_cast<void*>(&func), &detail::QueryImpl::template invoke_runtime_iter<Func, Iter>,
 							Constraints::EnabledOnly);
+					return SchedJob{};
 				};
 
 				return (SystemBuilder&)*this;
@@ -65507,6 +66147,19 @@ namespace gaia {
 			void exec() {
 				auto& ctx = data();
 				ctx.exec(m_world);
+			}
+
+			//! Prepares the system as scheduler-agnostic deferred work.
+			//!
+			//! The returned wrapper uses the system's underlying query. Parallel systems therefore add query child work
+			//! directly instead of wrapping a blocking exec() call.
+			//! \return Deferred scheduler job for this system execution.
+			//! \warning The world, system, and callback payload must outlive the returned job.
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see SchedJob
+			GAIA_NODISCARD SchedJob job() {
+				auto& ctx = data();
+				return ctx.job(m_world);
 			}
 
 			//! Returns the active job handle for systems scheduled through Gaia-ECS jobs.
@@ -65688,16 +66341,24 @@ namespace gaia {
 			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
 			const bool hasInheritedTerms = execState.hasInheritedTerms;
 			if (hasInheritedTerms) {
-				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
-																invokeInherited](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk, invokeInherited](
+																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_typed_erased(
 							execType, &func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
 							execState.needsInheritedArgIds, invokeInherited);
+					return SchedJob{};
 				};
 			} else {
-				runtime.on_each_func = [func, execState, runDirectFastChunk,
-																runMappedChunk](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func, execState, runDirectFastChunk, runMappedChunk](
+																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_iter_erased(execType, &func, execState, runDirectFastChunk, runMappedChunk);
+					return SchedJob{};
 				};
 			}
 

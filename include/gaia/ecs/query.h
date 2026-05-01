@@ -24,6 +24,7 @@
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_info.h"
 #include "gaia/ecs/sched.h"
+#include "gaia/mem/smallblock_allocator.h"
 #include "gaia/ser/ser_buffer_binary.h"
 #include "gaia/ser/ser_ct.h"
 #include "gaia/util/str.h"
@@ -1937,6 +1938,209 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				template <typename Func, typename TMode>
+				struct QueryJobCtx {
+					QueryImpl* pSelf = nullptr;
+					World* pWorld = nullptr;
+					cnt::darray<ChunkBatch> batches;
+					Func func;
+
+					GAIA_USE_SMALLBLOCK(QueryJobCtx)
+				};
+
+				template <typename Func>
+				struct QueryTaskJobCtx {
+					QueryImpl* pSelf = nullptr;
+					Func func;
+					QueryExecType execType = QueryExecType::Default;
+
+					GAIA_USE_SMALLBLOCK(QueryTaskJobCtx)
+				};
+
+				template <typename Func>
+				struct IterJobCallback {
+					QueryImpl* pSelf = nullptr;
+					Func func;
+
+					void operator()(Iter& it) {
+						it.ctx(pSelf->ctx());
+						func(it);
+					}
+				};
+
+				template <typename Func>
+				static void invoke_query_task_job(void* pCtx) {
+					auto& ctx = *reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
+					ctx.pSelf->each(ctx.func, ctx.execType);
+				}
+
+				template <typename Func>
+				static void cleanup_query_task_job(void* pCtx) {
+					auto* pJobCtx = reinterpret_cast<QueryTaskJobCtx<Func>*>(pCtx);
+					if (pJobCtx == nullptr)
+						return;
+					delete pJobCtx;
+				}
+
+				template <typename Func, typename TMode>
+				static void cleanup_query_job(void* pCtx) {
+					auto* pJobCtx = reinterpret_cast<QueryJobCtx<Func, TMode>*>(pCtx);
+					if (pJobCtx == nullptr)
+						return;
+
+					auto* pWorld = pJobCtx->pWorld;
+					if (pWorld != nullptr) {
+						unlock(*pWorld);
+						commit_cmd_buffer_st(*pWorld);
+						commit_cmd_buffer_mt(*pWorld);
+						if (pJobCtx->pSelf != nullptr)
+							pJobCtx->pSelf->m_changedWorldVersion = *pJobCtx->pSelf->m_worldVersion;
+					}
+
+					delete pJobCtx;
+				}
+
+				template <typename Func, typename TMode, QueryExecType ExecType>
+				GAIA_NODISCARD SchedJob add_parallel_query_job(Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+					if (m_batches.empty())
+						return {};
+
+					auto* pWorld = m_storage.world();
+					lock(*pWorld);
+
+					auto* pCtx = new QueryJobCtx<Func, TMode>{this, pWorld, {}, GAIA_MOV(func)};
+					pCtx->batches.resize(m_batches.size());
+					GAIA_EACH(m_batches) pCtx->batches[i] = m_batches[i];
+					m_batches.clear();
+
+					SchedParDesc desc{};
+					desc.pCtx = pCtx;
+					desc.itemCount = (uint32_t)pCtx->batches.size();
+					desc.groupSize = 0;
+					desc.execType = ExecType;
+					desc.invoke = [](void* pInvokeCtx, uint32_t idxStart, uint32_t idxEnd) {
+						auto& ctx = *reinterpret_cast<QueryJobCtx<Func, TMode>*>(pInvokeCtx);
+						run_query_func<Func, TMode>(ctx.pWorld, ctx.func, std::span(&ctx.batches[idxStart], idxEnd - idxStart));
+					};
+
+					return sched_add_par(world_sched(*pWorld), desc, pCtx, &cleanup_query_job<Func, TMode>);
+				}
+
+				template <bool HasFilters>
+				void
+				collect_runtime_parallel_batches(const QueryInfo& queryInfo, const QueryPlan& plan, Constraints constraints) {
+					auto cacheView = queryInfo.cache_archetype_view();
+					auto sortView = queryInfo.cache_sort_view();
+					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
+						sortView = {};
+					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
+					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
+																				 constraints == Constraints::EnabledOnly &&
+																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (needsBarrierCache)
+						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
+
+					if (!sortView.empty()) {
+						for (const auto& view: sortView) {
+							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
+							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+								continue;
+
+							const auto viewFrom = view.startRow;
+							const auto viewTo = (uint16_t)(view.startRow + view.count);
+							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
+							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							const auto startRow = core::get_max(minStartRow, viewFrom);
+							const auto endRow = core::get_min(minEndRow, viewTo);
+							if (endRow == startRow)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*view.pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+								continue;
+							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
+							const auto inheritedDataView =
+									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
+							m_batches.push_back(
+									{pArchetype, view.pChunk, indicesView.data(), inheritedDataView, 0U, startRow, endRow});
+						}
+						return;
+					}
+
+					for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
+						const auto* pArchetype = cacheView[i];
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+							continue;
+
+						auto indicesView = queryInfo.indices_mapping_view(i);
+						const auto inheritedDataView =
+								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
+						const auto& chunks = pArchetype->chunks();
+						for (auto* pChunk: chunks) {
+							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								continue;
+
+							if constexpr (HasFilters) {
+								if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
+									continue;
+							}
+
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+						}
+					}
+				}
+
+				template <typename Func>
+				GAIA_NODISCARD SchedJob add_query_task_job(Func func, QueryExecType execType) {
+					auto* pCtx = new QueryTaskJobCtx<Func>{this, GAIA_MOV(func), execType};
+
+					SchedTaskDesc desc{};
+					desc.pCtx = pCtx;
+					desc.invoke = &invoke_query_task_job<Func>;
+					desc.execType = execType;
+
+					return sched_add(world_sched(*m_storage.world()), desc, pCtx, &cleanup_query_task_job<Func>);
+				}
+
+				template <typename Func, QueryExecType ExecType>
+				GAIA_NODISCARD SchedJob add_iter_parallel_job(Func func) {
+					static_assert(ExecType != QueryExecType::Default);
+
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					const auto constraints = Constraints::EnabledOnly;
+					const auto plan = prepare_query_plan(queryInfo, constraints);
+					if (plan.mode == QueryPlanMode::Empty || plan.idxFrom >= plan.idxTo)
+						return {};
+					if (plan.mode == QueryPlanMode::EntitySeed)
+						return add_query_task_job(GAIA_MOV(func), ExecType);
+
+					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
+					const bool isGroupSet = m_groupIdSet != 0;
+					if (isGroupBy && isGroupSet)
+						return add_query_task_job(GAIA_MOV(func), ExecType);
+
+					::gaia::ecs::update_version(*m_worldVersion);
+					m_batches.clear();
+					if ((plan.flags & QueryPlanFlag_Filtered) != 0)
+						collect_runtime_parallel_batches<true>(queryInfo, plan, constraints);
+					else
+						collect_runtime_parallel_batches<false>(queryInfo, plan, constraints);
+
+					using JobFunc = IterJobCallback<Func>;
+					return add_parallel_query_job<JobFunc, IterModeEnabled, ExecType>(JobFunc{this, GAIA_MOV(func)});
+				}
+
+				//------------------------------------------------
+
 				template <bool HasFilters, typename TMode, typename Func>
 				void run_query_batch_no_group_id(
 						const QueryInfo& queryInfo, const uint32_t idxFrom, const uint32_t idxTo, Func func) {
@@ -2150,10 +2354,10 @@ namespace gaia {
 								std::span(&ctx.pSelf->m_batches[idxStart], idxEnd - idxStart));
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -2320,10 +2524,10 @@ namespace gaia {
 								std::span(&ctx.pSelf->m_batches[idxStart], idxEnd - idxStart));
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -2695,10 +2899,10 @@ namespace gaia {
 								ctx.constraints);
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -2834,10 +3038,10 @@ namespace gaia {
 								ctx.constraints);
 					};
 
-					const auto& backend = world_sched(*m_storage.world());
-					const auto token = sched_par(backend, desc);
-					sched_wait(backend, token);
-					sched_free(backend, token);
+					const auto& sched = world_sched(*m_storage.world());
+					const auto token = sched_par(sched, desc);
+					sched_wait(sched, token);
+					sched_del(sched, token);
 					m_batches.clear();
 
 					unlock(*m_storage.world());
@@ -5212,6 +5416,37 @@ namespace gaia {
 				QueryImpl& group_id();
 
 				//------------------------------------------------
+
+				//! Adds a query execution job without submitting it.
+				//!
+				//! The returned SchedJob is backed by the world's ECS scheduler descriptor rather than a
+				//! gaia::mt::JobHandle, so external schedulers can provide their own token, submission,
+				//! dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler
+				//! token; the query and world must outlive the job.
+				//! \tparam Func Query callback type accepted by each().
+				//! \param func Callback invoked when the added job runs.
+				//! \param execType Query execution mode used inside the job.
+				//! \return Move-only scheduler job wrapper for the added query execution.
+				//! \warning Structural mutations that invalidate this query while the job is pending are not safe.
+				//! \see SchedJob
+				//! \see each(Func, QueryExecType)
+				template <typename Func>
+				GAIA_NODISCARD SchedJob job(Func func, QueryExecType execType) {
+					if constexpr (detail::is_query_iter_callback_v<Func>) {
+						switch (execType) {
+							case QueryExecType::Parallel:
+								return add_iter_parallel_job<Func, QueryExecType::Parallel>(GAIA_MOV(func));
+							case QueryExecType::ParallelPerf:
+								return add_iter_parallel_job<Func, QueryExecType::ParallelPerf>(GAIA_MOV(func));
+							case QueryExecType::ParallelEff:
+								return add_iter_parallel_job<Func, QueryExecType::ParallelEff>(GAIA_MOV(func));
+							default:
+								break;
+						}
+					}
+
+					return add_query_task_job(GAIA_MOV(func), execType);
+				}
 
 				//! Iterates query matches using the default execution mode.
 				//! \tparam Func Iterator callback type invocable with `Iter&`.

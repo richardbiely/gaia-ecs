@@ -16,16 +16,27 @@ namespace gaia {
 		//! teardown or deletion.
 		//! \see SystemRegistry
 		struct SystemRuntimeData {
-			//! Type-erased callback invoked by System_ execution.
-			//!
-			//! The callback receives the system's underlying query and execution mode. Per-system user context is stored on
-			//! the query itself and is visible to iterator callbacks through Iter::ctx().
-			//! \see QueryImpl::ctx(void*)
-			//! \see Iter::ctx() const
-			using TSystemExecFunc = util::MoveFunc<void(Query&, QueryExecType)>;
+			//! Execution path requested from a system runtime callback.
+			enum class RunMode {
+				//! Run the system immediately and return an empty scheduler job.
+				Immediate,
+				//! Prepare scheduler work and return it without submitting it.
+				DeferredJob
+			};
 
-			//! Called every time the system is allowed to tick.
-			TSystemExecFunc on_each_func;
+			//! Type-erased callback used for immediate and deferred system execution.
+			//!
+			//! The callback receives the system's underlying query, execution mode, and requested run mode. Immediate runs
+			//! execute the stored query callback directly and return an empty SchedJob. Deferred runs add a
+			//! scheduler-agnostic job wrapper from the same stored callback object. Per-system user context is stored on the
+			//! query itself and is visible to iterator callbacks through Iter::ctx().
+			//! \see QueryImpl::ctx(void*)
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see Iter::ctx() const
+			using TSystemRunFunc = util::MoveFunc<SchedJob(Query&, QueryExecType, RunMode)>;
+
+			//! Called when the system runs immediately or is added as deferred scheduler work.
+			TSystemRunFunc on_each_func;
 		};
 
 		//! Runtime storage for system callbacks kept out-of-line from ECS component storage.
@@ -42,8 +53,9 @@ namespace gaia {
 			//! Existing system entities/components are not removed from the world by this call. Only the out-of-line callable
 			//! payload is released.
 			void teardown() {
-				for (auto& it: m_system_data)
+				for (auto& it: m_system_data) {
 					it.second.on_each_func = {};
+				}
 
 				m_system_data = {};
 			}

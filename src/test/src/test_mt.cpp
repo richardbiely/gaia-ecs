@@ -22,9 +22,15 @@ struct ExternalExecProbeComp {
 };
 
 struct ExternalSchedProbe {
+	ecs::SchedParDesc addedParallel[8]{};
+	ecs::SchedTaskDesc addedTasks[8]{};
 	uint32_t runParallelCalls = 0;
+	uint32_t addTaskCalls = 0;
+	uint32_t addParallelCalls = 0;
+	uint32_t submitCalls = 0;
+	uint32_t depCalls = 0;
 	uint32_t waitCalls = 0;
-	uint32_t freeCalls = 0;
+	uint32_t delCalls = 0;
 	uint32_t invokeCalls = 0;
 	uint32_t itemsProcessed = 0;
 	ecs::QueryExecType lastExecType = ecs::QueryExecType::Default;
@@ -56,25 +62,218 @@ struct ExternalSchedProbe {
 		return token;
 	}
 
+	static ecs::SchedToken add_task(void* pCtx, const ecs::SchedTaskDesc* pDesc) {
+		auto& probe = *(ExternalSchedProbe*)pCtx;
+		++probe.addTaskCalls;
+		probe.addedTasks[probe.addTaskCalls - 1] = *pDesc;
+
+		ecs::SchedToken token{};
+		token.value[0] = probe.addTaskCalls;
+		token.value[1] = 0;
+		return token;
+	}
+
+	static ecs::SchedToken add_parallel(void* pCtx, const ecs::SchedParDesc* pDesc) {
+		auto& probe = *(ExternalSchedProbe*)pCtx;
+		++probe.addParallelCalls;
+		probe.lastExecType = pDesc->execType;
+		probe.lastItemCount = pDesc->itemCount;
+		probe.lastGroupSize = pDesc->groupSize;
+		probe.addedParallel[probe.addParallelCalls - 1] = *pDesc;
+
+		ecs::SchedToken token{};
+		token.value[0] = probe.addParallelCalls;
+		token.value[1] = pDesc->itemCount;
+		return token;
+	}
+
+	static void submit(void* pCtx, ecs::SchedToken token) {
+		auto& probe = *(ExternalSchedProbe*)pCtx;
+		++probe.submitCalls;
+		if (token.value[1] == 0) {
+			auto& desc = probe.addedTasks[(uint32_t)token.value[0] - 1];
+			desc.invoke(desc.pCtx);
+			++probe.invokeCalls;
+			return;
+		}
+
+		auto& desc = probe.addedParallel[(uint32_t)token.value[0] - 1];
+		const auto mid = desc.itemCount > 1 ? desc.itemCount / 2 : desc.itemCount;
+		if (mid != 0) {
+			desc.invoke(desc.pCtx, 0, mid);
+			++probe.invokeCalls;
+			probe.itemsProcessed += mid;
+		}
+		if (mid < desc.itemCount) {
+			desc.invoke(desc.pCtx, mid, desc.itemCount);
+			++probe.invokeCalls;
+			probe.itemsProcessed += desc.itemCount - mid;
+		}
+	}
+
+	static void dep(void* pCtx, ecs::SchedToken, ecs::SchedToken) {
+		auto& probe = *(ExternalSchedProbe*)pCtx;
+		++probe.depCalls;
+	}
+
 	static void wait(void* pCtx, ecs::SchedToken) {
 		auto& probe = *(ExternalSchedProbe*)pCtx;
 		++probe.waitCalls;
 	}
 
-	static void free(void* pCtx, ecs::SchedToken) {
+	static void del(void* pCtx, ecs::SchedToken) {
 		auto& probe = *(ExternalSchedProbe*)pCtx;
-		++probe.freeCalls;
+		++probe.delCalls;
 	}
 
-	GAIA_NODISCARD ecs::Sched backend() {
-		ecs::Sched backend{};
-		backend.pCtx = this;
-		backend.sched_par = &ExternalSchedProbe::run_parallel;
-		backend.wait = &ExternalSchedProbe::wait;
-		backend.free = &ExternalSchedProbe::free;
-		return backend;
+	GAIA_NODISCARD ecs::Sched sched() {
+		ecs::Sched sched{};
+		sched.pCtx = this;
+		sched.sched_par = &ExternalSchedProbe::run_parallel;
+		sched.add = &ExternalSchedProbe::add_task;
+		sched.add_par = &ExternalSchedProbe::add_parallel;
+		sched.submit = &ExternalSchedProbe::submit;
+		sched.dep = &ExternalSchedProbe::dep;
+		sched.wait = &ExternalSchedProbe::wait;
+		sched.del = &ExternalSchedProbe::del;
+		return sched;
 	}
 };
+
+TEST_CASE("ECS - Query jobs use external scheduler wrappers") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 29;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+	}
+
+	uint32_t hitsA = 0;
+	uint32_t hitsB = 0;
+	auto queryA = wld.query().all<ExternalExecProbeComp>();
+	auto queryB = wld.query().all<ExternalExecProbeComp>();
+
+	auto jobA = queryA.job(
+			[&](ecs::Iter& it) {
+				hitsA += it.entity_rows().size();
+			},
+			ecs::QueryExecType::Default);
+	auto jobB = queryB.job(
+			[&](ecs::Iter& it) {
+				hitsB += it.entity_rows().size();
+			},
+			ecs::QueryExecType::Default);
+
+	CHECK(probe.addTaskCalls == 2);
+	CHECK(probe.addParallelCalls == 0);
+	CHECK(probe.submitCalls == 0);
+	CHECK(probe.waitCalls == 0);
+	CHECK(probe.delCalls == 0);
+	CHECK(hitsA == 0);
+	CHECK(hitsB == 0);
+
+	jobA.submit();
+	jobB.submit();
+	CHECK(probe.submitCalls == 2);
+	CHECK(hitsA == EntityCount);
+	CHECK(hitsB == EntityCount);
+
+	jobA.wait();
+	jobB.wait();
+	jobA.del();
+	jobB.del();
+
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
+}
+
+TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 31;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+	}
+
+	uint32_t hitsA = 0;
+	uint32_t hitsB = 0;
+	auto queryA = wld.query().all<ExternalExecProbeComp>();
+	auto queryB = wld.query().all<ExternalExecProbeComp>();
+
+	auto jobA = queryA.job(
+			[&](ecs::Iter& it) {
+				hitsA += it.entity_rows().size();
+			},
+			ecs::QueryExecType::Parallel);
+	auto jobB = queryB.job(
+			[&](ecs::Iter& it) {
+				hitsB += it.entity_rows().size();
+			},
+			ecs::QueryExecType::Parallel);
+
+	CHECK(probe.addTaskCalls == 0);
+	CHECK(probe.addParallelCalls == 2);
+	CHECK(probe.submitCalls == 0);
+	CHECK(probe.waitCalls == 0);
+	CHECK(probe.delCalls == 0);
+	CHECK(hitsA == 0);
+	CHECK(hitsB == 0);
+
+	jobB.dep(jobA);
+	CHECK(probe.depCalls == 1);
+
+	jobA.submit();
+	jobB.submit();
+	CHECK(probe.submitCalls == 2);
+	CHECK(hitsA == EntityCount);
+	CHECK(hitsB == EntityCount);
+
+	jobA.wait();
+	jobB.wait();
+	jobA.del();
+	jobB.del();
+
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
+}
+
+TEST_CASE("ECS - System jobs use external scheduler wrappers") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 23;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+	}
+
+	uint32_t hits = 0;
+	auto sys = wld.system().all<ExternalExecProbeComp>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		hits += it.entity_rows().size();
+	});
+
+	auto job = sys.job();
+	CHECK(probe.addTaskCalls == 0);
+	CHECK(probe.addParallelCalls == 1);
+	CHECK(probe.submitCalls == 0);
+	CHECK(hits == 0);
+
+	job.submit();
+	CHECK(probe.submitCalls == 1);
+	CHECK(hits == EntityCount);
+
+	job.wait();
+	job.del();
+	CHECK(probe.waitCalls == 1);
+	CHECK(probe.delCalls == 1);
+}
 
 TEST_CASE("Multithreading - JobHandle") {
 	const mt::JobHandle defaultHandle;
@@ -164,10 +363,10 @@ TEST_CASE("Multithreading - ScheduleParallelRef") {
 	CHECK(ctx.batches.load(std::memory_order_relaxed) >= 1);
 }
 
-TEST_CASE("ECS - Query uses external execution backend") {
+TEST_CASE("ECS - Query uses external scheduler") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
-	wld.set_sched(probe.backend());
+	wld.set_sched(probe.sched());
 
 	constexpr uint32_t EntityCount = 37;
 	GAIA_FOR(EntityCount) {
@@ -185,7 +384,7 @@ TEST_CASE("ECS - Query uses external execution backend") {
 
 	CHECK(probe.runParallelCalls == 1);
 	CHECK(probe.waitCalls == 1);
-	CHECK(probe.freeCalls == 1);
+	CHECK(probe.delCalls == 1);
 	CHECK(probe.invokeCalls >= 1);
 	CHECK(probe.itemsProcessed == probe.lastItemCount);
 	CHECK(probe.lastExecType == ecs::QueryExecType::ParallelEff);
@@ -193,10 +392,10 @@ TEST_CASE("ECS - Query uses external execution backend") {
 	CHECK(sum == (EntityCount - 1) * EntityCount / 2);
 }
 
-TEST_CASE("ECS - Systems use external execution backend") {
+TEST_CASE("ECS - Systems use external scheduler") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
-	wld.set_sched(probe.backend());
+	wld.set_sched(probe.sched());
 
 	constexpr uint32_t EntityCount = 19;
 	GAIA_FOR(EntityCount) {
@@ -216,7 +415,7 @@ TEST_CASE("ECS - Systems use external execution backend") {
 
 	CHECK(probe.runParallelCalls == 1);
 	CHECK(probe.waitCalls == 1);
-	CHECK(probe.freeCalls == 1);
+	CHECK(probe.delCalls == 1);
 	CHECK(probe.lastExecType == ecs::QueryExecType::Parallel);
 	CHECK(probe.itemsProcessed == probe.lastItemCount);
 	CHECK(probe.lastItemCount >= 1);

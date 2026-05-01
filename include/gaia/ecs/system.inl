@@ -68,10 +68,10 @@ namespace gaia {
 
 				auto* pRuntime = world.systems().data_try(entity);
 				GAIA_ASSERT(pRuntime != nullptr);
-				if (pRuntime == nullptr)
+				if (pRuntime == nullptr || !pRuntime->on_each_func)
 					return;
 
-				pRuntime->on_each_func(query, execType);
+				static_cast<void>(pRuntime->on_each_func(query, execType, SystemRuntimeData::RunMode::Immediate));
 			}
 
 			//! Returns the job handle associated with the system.
@@ -92,6 +92,24 @@ namespace gaia {
 					jobHandle = tp.add(GAIA_MOV(syncJob));
 				}
 				return jobHandle;
+			}
+
+			//! Prepares this system as scheduler-agnostic deferred work.
+			//!
+			//! The returned wrapper is backed by the system's underlying query and the world's scheduler descriptor. Unlike
+			//! job_handle(World&), this path can expose the query's own parallel-for child work to external schedulers.
+			//! \param world World that owns the system runtime data.
+			//! \return Deferred scheduler job for this system execution, or an empty job when no callback is registered.
+			//! \warning The world, system, query cache, and callback payload must outlive the returned job.
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see SchedJob
+			GAIA_NODISCARD SchedJob job(World& world) {
+				auto* pRuntime = world.systems().data_try(entity);
+				GAIA_ASSERT(pRuntime != nullptr);
+				if (pRuntime == nullptr || !pRuntime->on_each_func)
+					return {};
+
+				return pRuntime->on_each_func(query, execType, SystemRuntimeData::RunMode::DeferredJob);
 			}
 
 			//! Disables automatic System_ serialization.
@@ -510,10 +528,14 @@ namespace gaia {
 				validate();
 
 				auto& runtime = runtime_data();
-				runtime.on_each_func = [func](Query& query, QueryExecType execType) mutable {
+				runtime.on_each_func = [func](Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+					if (mode == SystemRuntimeData::RunMode::DeferredJob)
+						return query.job(func, execType);
+
 					query.each_runtime_erased(
 							execType, static_cast<void*>(&func), &detail::QueryImpl::template invoke_runtime_iter<Func, Iter>,
 							Constraints::EnabledOnly);
+					return SchedJob{};
 				};
 
 				return (SystemBuilder&)*this;
@@ -540,6 +562,19 @@ namespace gaia {
 			void exec() {
 				auto& ctx = data();
 				ctx.exec(m_world);
+			}
+
+			//! Prepares the system as scheduler-agnostic deferred work.
+			//!
+			//! The returned wrapper uses the system's underlying query. Parallel systems therefore add query child work
+			//! directly instead of wrapping a blocking exec() call.
+			//! \return Deferred scheduler job for this system execution.
+			//! \warning The world, system, and callback payload must outlive the returned job.
+			//! \see QueryImpl::job(Func, QueryExecType)
+			//! \see SchedJob
+			GAIA_NODISCARD SchedJob job() {
+				auto& ctx = data();
+				return ctx.job(m_world);
 			}
 
 			//! Returns the active job handle for systems scheduled through Gaia-ECS jobs.

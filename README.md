@@ -2176,7 +2176,7 @@ q.each([](ecs::Iter& iter) { ... }, ecs::QueryExecType::ParallelEff);
 
 Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your system's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.
 
-Queries can't make use of job dependencies directly. To do that, you need to use [systems](#system-jobs).
+For dependency-aware deferred execution, add the query as a scheduler job with `Query::job(...)` and wire the returned `ecs::SchedJob` before submitting it. See [scheduler adapters](#scheduler-adapters).
 
 ## Relationships
 ### Relationship basics
@@ -3584,12 +3584,12 @@ Note, the operating system has the last word here. It might decide to schedule l
 If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.
 
 ```cpp
-struct MyBackendCtx {
+struct MySchedCtx {
   MyEngine::Scheduler* scheduler;
 };
 
 static ecs::SchedToken MyRunParallel(void* pCtx, const ecs::SchedParDesc* pDesc) {
-  auto& ctx = *(MyBackendCtx*)pCtx;
+  auto& ctx = *(MySchedCtx*)pCtx;
 
   auto token = ctx.scheduler->parallel_for(
     pDesc->itemCount,
@@ -3604,22 +3604,22 @@ static ecs::SchedToken MyRunParallel(void* pCtx, const ecs::SchedParDesc* pDesc)
 }
 
 static void MyWait(void* pCtx, ecs::SchedToken token) {
-  auto& ctx = *(MyBackendCtx*)pCtx;
+  auto& ctx = *(MySchedCtx*)pCtx;
   ctx.scheduler->wait(token.value[0], token.value[1]);
 }
 
-static void MyFree(void* pCtx, ecs::SchedToken token) {
-  auto& ctx = *(MyBackendCtx*)pCtx;
+static void MyDel(void* pCtx, ecs::SchedToken token) {
+  auto& ctx = *(MySchedCtx*)pCtx;
   ctx.scheduler->release(token.value[0], token.value[1]);
 }
 
-MyBackendCtx backendCtx{&engineScheduler};
+MySchedCtx schedCtx{&engineScheduler};
 
 ecs::Sched sched{};
-sched.pCtx = &backendCtx;
+sched.pCtx = &schedCtx;
 sched.sched_par = &MyRunParallel;
 sched.wait = &MyWait;
-sched.free = &MyFree;
+sched.del = &MyDel;
 
 ecs::World w;
 w.set_sched(sched);
@@ -3637,6 +3637,32 @@ w.system().all<Velocity>().mode(ecs::QueryExecType::Parallel).on_each([](Velocit
   // ...
 });
 ```
+
+Queries and systems can also be added as scheduler-owned work without submitting immediately. This is useful when an engine wants to wire dependencies in its own job graph and wait once at the end of a phase:
+
+```cpp
+ecs::Query moveQuery = w.query().all<Position>().all<Velocity>();
+ecs::Query boundsQuery = w.query().all<Position>();
+
+auto moveJob = moveQuery.job([](ecs::Iter& it) {
+  // ...
+}, ecs::QueryExecType::Parallel);
+
+auto boundsJob = boundsQuery.job([](ecs::Iter& it) {
+  // ...
+}, ecs::QueryExecType::Parallel);
+
+boundsJob.dep(moveJob);
+moveJob.submit();
+boundsJob.submit();
+
+moveJob.wait();
+boundsJob.wait();
+```
+
+`SchedJob` is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel iterator callbacks add parallel-for work directly; typed callbacks that do not receive `ecs::Iter&` are wrapped as a single added task.
+
+For a fully deferred external scheduler, implement `add` / `add_par`, `submit`, `dep`, `wait`, and `del`. If only `sched` / `sched_par` are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but `Query::job(...)` / `System::job()` cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.
 
 If no scheduler is installed, Gaia-ECS falls back to its built-in `gaia::mt::ThreadPool`.
 
