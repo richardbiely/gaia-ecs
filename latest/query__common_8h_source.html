@@ -1383,20 +1383,20 @@ $(document).ready(function(){initNavTree('query__common_8h_source.html',''); ini
 <div class="line"><a id="l01336" name="l01336"></a><span class="lineno"> 1336</span>      ctx.hashLookup = {core::calculate_hash64(hashLookup)};</div>
 <div class="line"><a id="l01337" name="l01337"></a><span class="lineno"> 1337</span>    }</div>
 <div class="line"><a id="l01338" name="l01338"></a><span class="lineno"> 1338</span> </div>
-<div class="line"><a id="l01345" name="l01345"></a><span class="lineno"> 1345</span>    <span class="keyword">template</span> &lt;u<span class="keywordtype">int</span>32_t MAX_COMPONENTS&gt;</div>
-<div class="line"><a id="l01346" name="l01346"></a><span class="lineno"> 1346</span>    GAIA_NODISCARD <span class="keyword">inline</span> uint32_t comp_idx(<span class="keyword">const</span> QueryTerm* pTerms, Entity entity, Entity src) {</div>
-<div class="line"><a id="l01347" name="l01347"></a><span class="lineno"> 1347</span>      <span class="comment">// We let the compiler know the upper iteration bound at compile-time.</span></div>
-<div class="line"><a id="l01348" name="l01348"></a><span class="lineno"> 1348</span>      <span class="comment">// This way it can optimize better (e.g. loop unrolling, vectorization).</span></div>
-<div class="line"><a id="l01349" name="l01349"></a><span class="lineno"> 1349</span>      GAIA_FOR(MAX_COMPONENTS) {</div>
-<div class="line"><a id="l01350" name="l01350"></a><span class="lineno"> 1350</span>        <span class="keywordflow">if</span> (pTerms[i].<span class="keywordtype">id</span> == entity &amp;&amp; pTerms[i].src == src)</div>
-<div class="line"><a id="l01351" name="l01351"></a><span class="lineno"> 1351</span>          <span class="keywordflow">return</span> i;</div>
-<div class="line"><a id="l01352" name="l01352"></a><span class="lineno"> 1352</span>      }</div>
-<div class="line"><a id="l01353" name="l01353"></a><span class="lineno"> 1353</span> </div>
-<div class="line"><a id="l01354" name="l01354"></a><span class="lineno"> 1354</span>      GAIA_ASSERT(<span class="keyword">false</span>);</div>
-<div class="line"><a id="l01355" name="l01355"></a><span class="lineno"> 1355</span>      <span class="keywordflow">return</span> <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>;</div>
-<div class="line"><a id="l01356" name="l01356"></a><span class="lineno"> 1356</span>    }</div>
-<div class="line"><a id="l01357" name="l01357"></a><span class="lineno"> 1357</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l01358" name="l01358"></a><span class="lineno"> 1358</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l01346" name="l01346"></a><span class="lineno"> 1346</span>    <span class="keyword">template</span> &lt;u<span class="keywordtype">int</span>32_t MAX_COMPONENTS&gt;</div>
+<div class="line"><a id="l01347" name="l01347"></a><span class="lineno"> 1347</span>    GAIA_NODISCARD <span class="keyword">inline</span> uint32_t comp_idx(<span class="keyword">const</span> QueryTerm* pTerms, Entity entity, Entity src) {</div>
+<div class="line"><a id="l01348" name="l01348"></a><span class="lineno"> 1348</span>      <span class="comment">// We let the compiler know the upper iteration bound at compile-time.</span></div>
+<div class="line"><a id="l01349" name="l01349"></a><span class="lineno"> 1349</span>      <span class="comment">// This way it can optimize better (e.g. loop unrolling, vectorization).</span></div>
+<div class="line"><a id="l01350" name="l01350"></a><span class="lineno"> 1350</span>      GAIA_FOR(MAX_COMPONENTS) {</div>
+<div class="line"><a id="l01351" name="l01351"></a><span class="lineno"> 1351</span>        <span class="keywordflow">if</span> (pTerms[i].<span class="keywordtype">id</span> == entity &amp;&amp; pTerms[i].src == src)</div>
+<div class="line"><a id="l01352" name="l01352"></a><span class="lineno"> 1352</span>          <span class="keywordflow">return</span> i;</div>
+<div class="line"><a id="l01353" name="l01353"></a><span class="lineno"> 1353</span>      }</div>
+<div class="line"><a id="l01354" name="l01354"></a><span class="lineno"> 1354</span> </div>
+<div class="line"><a id="l01355" name="l01355"></a><span class="lineno"> 1355</span>      GAIA_ASSERT(<span class="keyword">false</span>);</div>
+<div class="line"><a id="l01356" name="l01356"></a><span class="lineno"> 1356</span>      <span class="keywordflow">return</span> <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>;</div>
+<div class="line"><a id="l01357" name="l01357"></a><span class="lineno"> 1357</span>    }</div>
+<div class="line"><a id="l01358" name="l01358"></a><span class="lineno"> 1358</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l01359" name="l01359"></a><span class="lineno"> 1359</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1sarr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1sarr__ext.html">gaia::cnt::sarr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> sarray_ext_impl.h:27</div></div>
 <div class="ttc" id="aclassgaia_1_1cnt_1_1sarr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1sarr.html">gaia::cnt::sarr</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> sarray_impl.h:26</div></div>

@@ -74,8 +74,8 @@ var searchData=
   ['is_71',['is',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a5386038042f24a22c98a31afb1d290a9',1,'gaia::ecs::detail::QueryImpl::is()'],['../classgaia_1_1ecs_1_1World.html#a4f7ed0ccef5265f11877354ed76ef79e',1,'gaia::ecs::World::is()']]],
   ['is_5f_72',['Is_',['../structgaia_1_1ecs_1_1Is__.html',1,'gaia::ecs']]],
   ['is_5fadjunct_5fdirect_5fterm_73',['is_adjunct_direct_term',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6bfbaaa44f6c2e99e4e8f4a356194615',1,'gaia::ecs::detail::QueryImpl']]],
-  ['is_5fcached_74',['is_cached',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a87c7cd9db02d6f59f76fbada5b47a791',1,'gaia::ecs::detail::QueryImplStorage::is_cached()'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a4a0e21dd7e42f1adfafdd5659e6bf599',1,'gaia::ecs::detail::QueryImpl::is_cached()']]],
-  ['is_5fclear_75',['is_clear',['../classgaia_1_1mt_1_1JobManager.html#a5499b886520db313995eaac1e767e7d0',1,'gaia::mt::JobManager::is_clear(JobHandle jobHandle) const'],['../classgaia_1_1mt_1_1JobManager.html#a9b653170bd603ad1222b2df5abbca455',1,'gaia::mt::JobManager::is_clear(JobContainer &amp;jobData)']]],
+  ['is_5fcached_74',['is_cached',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a4a0e21dd7e42f1adfafdd5659e6bf599',1,'gaia::ecs::detail::QueryImpl::is_cached()'],['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a87c7cd9db02d6f59f76fbada5b47a791',1,'gaia::ecs::detail::QueryImplStorage::is_cached()']]],
+  ['is_5fclear_75',['is_clear',['../classgaia_1_1mt_1_1JobManager.html#a9b653170bd603ad1222b2df5abbca455',1,'gaia::mt::JobManager::is_clear(JobContainer &amp;jobData)'],['../classgaia_1_1mt_1_1JobManager.html#a5499b886520db313995eaac1e767e7d0',1,'gaia::mt::JobManager::is_clear(JobHandle jobHandle) const']]],
   ['is_5fcomplete_76',['is_complete',['../structgaia_1_1core_1_1detail_1_1is__complete.html',1,'gaia::core::detail']]],
   ['is_5fcomplete_3c_20t_2c_20decltype_28sizeof_28t_29_29_3e_77',['is_complete&lt; T, decltype(sizeof(T))&gt;',['../structgaia_1_1core_1_1detail_1_1is__complete_3_01T_00_01decltype_07sizeof_07T_08_08_4.html',1,'gaia::core::detail']]],
   ['is_5fcontainer_78',['is_container',['../structgaia_1_1core_1_1detail_1_1is__container.html',1,'gaia::core::detail']]],
@@ -103,7 +103,7 @@ var searchData=
   ['is_5fpair_100',['is_pair',['../structgaia_1_1ecs_1_1is__pair.html',1,'gaia::ecs']]],
   ['is_5freference_5fwrapper_101',['is_reference_wrapper',['../structgaia_1_1detail_1_1is__reference__wrapper.html',1,'gaia::detail']]],
   ['is_5freference_5fwrapper_3c_20std_3a_3areference_5fwrapper_3c_20u_20_3e_20_3e_102',['is_reference_wrapper&lt; std::reference_wrapper&lt; U &gt; &gt;',['../structgaia_1_1detail_1_1is__reference__wrapper_3_01std_1_1reference__wrapper_3_01U_01_4_01_4.html',1,'gaia::detail']]],
-  ['is_5freq_5fdel_103',['is_req_del',['../classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c',1,'gaia::ecs::World::is_req_del()'],['../classgaia_1_1ecs_1_1Archetype.html#a918a1ce260c8e0980f1bf731dc7e01d1',1,'gaia::ecs::Archetype::is_req_del()']]],
+  ['is_5freq_5fdel_103',['is_req_del',['../classgaia_1_1ecs_1_1Archetype.html#a918a1ce260c8e0980f1bf731dc7e01d1',1,'gaia::ecs::Archetype::is_req_del()'],['../classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c',1,'gaia::ecs::World::is_req_del()']]],
   ['is_5fsemi_104',['is_semi',['../classgaia_1_1ecs_1_1Chunk.html#a56188531a8fb9de52eb0caa990d3ca3c',1,'gaia::ecs::Chunk']]],
   ['is_5fset_105',['is_set',['../classgaia_1_1mt_1_1Event.html#aec01bfc2d370dd6fa35783c5c1fe477d',1,'gaia::mt::Event']]],
   ['is_5fsmaller_106',['is_smaller',['../structgaia_1_1core_1_1is__smaller.html',1,'gaia::core']]],
@@ -128,8 +128,9 @@ var searchData=
   ['iterator_5ftraits_5fbase_3c_20it_2c_20std_3a_3avoid_5ft_3c_20typename_20it_3a_3aiterator_5fcategory_2c_20typename_20it_3a_3avalue_5ftype_2c_20typename_20it_3a_3adifference_5ftype_2c_20typename_20it_3a_3apointer_2c_20typename_20it_3a_3areference_20_3e_20_3e_125',['iterator_traits_base&lt; It, std::void_t&lt; typename It::iterator_category, typename It::value_type, typename It::difference_type, typename It::pointer, typename It::reference &gt; &gt;',['../structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01It_00_01std_1_1void__t_3_01typename_0a642e18983b55d789445bd71d4933245.html',1,'gaia::core::detail']]],
   ['iterator_5ftraits_5fpointer_5fbase_126',['iterator_traits_pointer_base',['../structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base.html',1,'gaia::core::detail']]],
   ['iterator_5ftraits_5fpointer_5fbase_3c_20t_2c_20false_20_3e_127',['iterator_traits_pointer_base&lt; T, false &gt;',['../structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base_3_01T_00_01false_01_4.html',1,'gaia::core::detail']]],
-  ['itermodeacceptall_128',['IterModeAcceptAll',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeAcceptAll.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itermodedisabledonly_129',['IterModeDisabledOnly',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itermodeenabled_130',['IterModeEnabled',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itertermdesc_131',['IterTermDesc',['../structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html',1,'gaia::ecs::detail']]]
+  ['iterjobcallback_128',['IterJobCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodeacceptall_129',['IterModeAcceptAll',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeAcceptAll.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodedisabledonly_130',['IterModeDisabledOnly',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodeenabled_131',['IterModeEnabled',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itertermdesc_132',['IterTermDesc',['../structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html',1,'gaia::ecs::detail']]]
 ];

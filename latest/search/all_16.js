@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['valid_0',['valid',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aeefc15922f8bbaabc60c1ce58b9d72cd',1,'gaia::ecs::detail::QueryImpl::valid()'],['../classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8',1,'gaia::ecs::World::valid()']]],
+  ['valid_0',['valid',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aeefc15922f8bbaabc60c1ce58b9d72cd',1,'gaia::ecs::detail::QueryImpl::valid()'],['../classgaia_1_1ecs_1_1SchedJob.html#a056af6fa34c7644fc73e9b710003f506',1,'gaia::ecs::SchedJob::valid()'],['../classgaia_1_1ecs_1_1World.html#a7f38da2b090f678111ea544b54c5f9a8',1,'gaia::ecs::World::valid()']]],
   ['validate_1',['validate',['../structgaia_1_1cnt_1_1ilist.html#a8a613813700bf24ced262d814c3458fd',1,'gaia::cnt::ilist']]],
   ['value_2',['value',['../index.html#set-or-get-component-value',1,'Set or get component value'],['../structgaia_1_1ecs_1_1SchedToken.html#a787e1e48bf2825f3f4ed374d405fff18',1,'gaia::ecs::SchedToken::value']]],
   ['var_5fname_3',['var_name',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a7d9c714c761b9d2e455ea9cb2e3d9a47',1,'gaia::ecs::detail::QueryImpl::var_name(Entity varEntity, util::str_view name)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8deb4230c373006a4e44e5ca348a9859',1,'gaia::ecs::detail::QueryImpl::var_name(Entity varEntity, const char *name)']]],

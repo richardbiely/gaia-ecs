@@ -19,9 +19,11 @@ var searchData=
   ['queryinfo_16',['QueryInfo',['../classgaia_1_1ecs_1_1QueryInfo.html',1,'gaia::ecs']]],
   ['queryinfocreationctx_17',['QueryInfoCreationCtx',['../structgaia_1_1ecs_1_1QueryInfoCreationCtx.html',1,'gaia::ecs']]],
   ['queryinput_18',['QueryInput',['../structgaia_1_1ecs_1_1QueryInput.html',1,'gaia::ecs']]],
-  ['querylookupkey_19',['QueryLookupKey',['../classgaia_1_1ecs_1_1QueryLookupKey.html',1,'gaia::ecs']]],
-  ['querymatchscratch_20',['QueryMatchScratch',['../structgaia_1_1ecs_1_1QueryMatchScratch.html',1,'gaia::ecs']]],
-  ['queryplan_21',['QueryPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['queryterm_22',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
-  ['querytermoptions_23',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]]
+  ['queryjobctx_19',['QueryJobCtx',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryJobCtx.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['querylookupkey_20',['QueryLookupKey',['../classgaia_1_1ecs_1_1QueryLookupKey.html',1,'gaia::ecs']]],
+  ['querymatchscratch_21',['QueryMatchScratch',['../structgaia_1_1ecs_1_1QueryMatchScratch.html',1,'gaia::ecs']]],
+  ['queryplan_22',['QueryPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['querytaskjobctx_23',['QueryTaskJobCtx',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryTaskJobCtx.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['queryterm_24',['QueryTerm',['../structgaia_1_1ecs_1_1QueryTerm.html',1,'gaia::ecs']]],
+  ['querytermoptions_25',['QueryTermOptions',['../structgaia_1_1ecs_1_1QueryTermOptions.html',1,'gaia::ecs']]]
 ];

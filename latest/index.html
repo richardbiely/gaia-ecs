@@ -1924,7 +1924,7 @@ Parallel execution</h3>
 <div class="line"><span class="comment">// Multi-thread query, use efficiency cores only</span></div>
 <div class="line">q.each([](ecs::Iter&amp; iter) { ... }, ecs::QueryExecType::ParallelEff);</div>
 </div><!-- fragment --><p>Not only is multi-threaded execution possible, but you can also influence what kind of cores actually run your logic. Maybe you want to limit your system's power consumption in which case you target only the efficiency cores. Or, if you want maximum performance, you can easily have all your system's cores participate.</p>
-<p>Queries can't make use of job dependencies directly. To do that, you need to use <a class="el" href="index.html#system-jobs">systems</a>.</p>
+<p>For dependency-aware deferred execution, add the query as a scheduler job with <code>Query::job(...)</code> and wire the returned <code>ecs::SchedJob</code> before submitting it. See <a class="el" href="index.html#scheduler-adapters">scheduler adapters</a>.</p>
 <h2><a class="anchor" id="relationships"></a>
 Relationships</h2>
 <h3><a class="anchor" id="relationship-basics"></a>
@@ -2467,16 +2467,16 @@ System basics</h3>
 <div class="line">w.enable(mySystemEntity, <span class="keyword">true</span>);</div>
 <div class="line"><span class="comment">// System is an entity. Therefore, it is easy to change its name at any point.</span></div>
 <div class="line">w.name(<span class="stringliteral">&quot;MoveSystem&quot;</span>);</div>
-</div><!-- fragment --><p>Systems can also carry a user-owned context pointer. Gaia-ECS stores it on the system's underlying query, so it follows the same ownership and iterator access rules as query context.</p>
+</div><!-- fragment --><p>Systems can also carry a user-owned context pointer. It is stored on the system's underlying query, so the ownership, cache, and iterator access rules are the same as query context above.</p>
 <div class="fragment"><div class="line">MoveSettings settings{1.0f / 60.0f};</div>
 <div class="line"> </div>
-<div class="line">SystemBuilder moveSystem = w.system()</div>
+<div class="line">w.system()</div>
 <div class="line">  .ctx(&amp;settings)</div>
 <div class="line">  .all&lt;Position&amp;&gt;()</div>
 <div class="line">  .all&lt;Velocity&gt;()</div>
 <div class="line">  .on_each([](ecs::Iter&amp; it) {</div>
 <div class="line">    <span class="keyword">auto</span>* settings = <span class="keyword">static_cast&lt;</span>MoveSettings*<span class="keyword">&gt;</span>(it.ctx());</div>
-<div class="line">    <span class="comment">// Iterate and use settings as needed.</span></div>
+<div class="line">    <span class="comment">// Use settings while iterating the system&#39;s query result.</span></div>
 <div class="line">  });</div>
 </div><!-- fragment --><p>The system can be run manually or automatically.</p>
 <div class="fragment"><div class="line"><span class="comment">// Run the system manually.</span></div>
@@ -3038,12 +3038,12 @@ Threads</h3>
 <h3><a class="anchor" id="scheduler-adapters"></a>
 Scheduler adapters</h3>
 <p>If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.</p>
-<div class="fragment"><div class="line"><span class="keyword">struct </span>MyBackendCtx {</div>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>MySchedCtx {</div>
 <div class="line">  MyEngine::Scheduler* scheduler;</div>
 <div class="line">};</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">static</span> ecs::SchedToken MyRunParallel(<span class="keywordtype">void</span>* pCtx, <span class="keyword">const</span> ecs::SchedParDesc* pDesc) {</div>
-<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MySchedCtx*)pCtx;</div>
 <div class="line"> </div>
 <div class="line">  <span class="keyword">auto</span> token = ctx.scheduler-&gt;parallel_for(</div>
 <div class="line">    pDesc-&gt;itemCount,</div>
@@ -3058,22 +3058,22 @@ Scheduler adapters</h3>
 <div class="line">}</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">static</span> <span class="keywordtype">void</span> MyWait(<span class="keywordtype">void</span>* pCtx, ecs::SchedToken token) {</div>
-<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MySchedCtx*)pCtx;</div>
 <div class="line">  ctx.scheduler-&gt;wait(token.value[0], token.value[1]);</div>
 <div class="line">}</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">static</span> <span class="keywordtype">void</span> MyFree(<span class="keywordtype">void</span>* pCtx, ecs::SchedToken token) {</div>
-<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MyBackendCtx*)pCtx;</div>
+<div class="line"><span class="keyword">static</span> <span class="keywordtype">void</span> MyDel(<span class="keywordtype">void</span>* pCtx, ecs::SchedToken token) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MySchedCtx*)pCtx;</div>
 <div class="line">  ctx.scheduler-&gt;release(token.value[0], token.value[1]);</div>
 <div class="line">}</div>
 <div class="line"> </div>
-<div class="line">MyBackendCtx backendCtx{&amp;engineScheduler};</div>
+<div class="line">MySchedCtx schedCtx{&amp;engineScheduler};</div>
 <div class="line"> </div>
 <div class="line">ecs::Sched sched{};</div>
-<div class="line">sched.pCtx = &amp;backendCtx;</div>
+<div class="line">sched.pCtx = &amp;schedCtx;</div>
 <div class="line">sched.sched_par = &amp;MyRunParallel;</div>
 <div class="line">sched.wait = &amp;MyWait;</div>
-<div class="line">sched.free = &amp;MyFree;</div>
+<div class="line">sched.del = &amp;MyDel;</div>
 <div class="line"> </div>
 <div class="line">ecs::World w;</div>
 <div class="line">w.set_sched(sched);</div>
@@ -3086,7 +3086,27 @@ Scheduler adapters</h3>
 <div class="line">w.system().all&lt;Velocity&gt;().mode(ecs::QueryExecType::Parallel).on_each([](Velocity&amp;) {</div>
 <div class="line">  <span class="comment">// ...</span></div>
 <div class="line">});</div>
-</div><!-- fragment --><p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code>.</p>
+</div><!-- fragment --><p>Queries and systems can also be added as scheduler-owned work without submitting immediately. This is useful when an engine wants to wire dependencies in its own job graph and wait once at the end of a phase:</p>
+<div class="fragment"><div class="line">ecs::Query moveQuery = w.query().all&lt;Position&gt;().all&lt;Velocity&gt;();</div>
+<div class="line">ecs::Query boundsQuery = w.query().all&lt;Position&gt;();</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> moveJob = moveQuery.job([](ecs::Iter&amp; it) {</div>
+<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">}, ecs::QueryExecType::Parallel);</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> boundsJob = boundsQuery.job([](ecs::Iter&amp; it) {</div>
+<div class="line">  <span class="comment">// ...</span></div>
+<div class="line">}, ecs::QueryExecType::Parallel);</div>
+<div class="line"> </div>
+<div class="line">boundsJob.dep(moveJob);</div>
+<div class="line">moveJob.submit();</div>
+<div class="line">boundsJob.submit();</div>
+<div class="line"> </div>
+<div class="line">moveJob.wait();</div>
+<div class="line">boundsJob.wait();</div>
+</div><!-- fragment --><p><code>SchedJob</code> is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel iterator callbacks add parallel-for work directly; typed callbacks that do not receive <code>ecs::Iter&amp;</code> are wrapped as a single added task.</p>
+<p>For a fully deferred external scheduler, implement <code>add</code> / <code>add_par</code>, <code>submit</code>, <code>dep</code>, <code>wait</code>, and <code>del</code>. If only <code>sched</code> / <code>sched_par</code> are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but <code>Query::job(...)</code> / <code>System::job()</code> cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.</p>
+<p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code>.</p>
 <p>This adapter hook affects ECS parallel query/system execution. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
 <h2><a class="anchor" id="customization"></a>
 Customization</h2>

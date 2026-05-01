@@ -72,8 +72,9 @@ var searchData=
   ['iterator_5ftraits_5fbase_3c_20it_2c_20std_3a_3avoid_5ft_3c_20typename_20it_3a_3aiterator_5fcategory_2c_20typename_20it_3a_3avalue_5ftype_2c_20typename_20it_3a_3adifference_5ftype_2c_20typename_20it_3a_3apointer_2c_20typename_20it_3a_3areference_20_3e_20_3e_69',['iterator_traits_base&lt; It, std::void_t&lt; typename It::iterator_category, typename It::value_type, typename It::difference_type, typename It::pointer, typename It::reference &gt; &gt;',['../structgaia_1_1core_1_1detail_1_1iterator__traits__base_3_01It_00_01std_1_1void__t_3_01typename_0a642e18983b55d789445bd71d4933245.html',1,'gaia::core::detail']]],
   ['iterator_5ftraits_5fpointer_5fbase_70',['iterator_traits_pointer_base',['../structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base.html',1,'gaia::core::detail']]],
   ['iterator_5ftraits_5fpointer_5fbase_3c_20t_2c_20false_20_3e_71',['iterator_traits_pointer_base&lt; T, false &gt;',['../structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base_3_01T_00_01false_01_4.html',1,'gaia::core::detail']]],
-  ['itermodeacceptall_72',['IterModeAcceptAll',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeAcceptAll.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itermodedisabledonly_73',['IterModeDisabledOnly',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itermodeenabled_74',['IterModeEnabled',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['itertermdesc_75',['IterTermDesc',['../structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html',1,'gaia::ecs::detail']]]
+  ['iterjobcallback_72',['IterJobCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodeacceptall_73',['IterModeAcceptAll',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeAcceptAll.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodedisabledonly_74',['IterModeDisabledOnly',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeDisabledOnly.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itermodeenabled_75',['IterModeEnabled',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html',1,'gaia::ecs::detail::QueryImpl']]],
+  ['itertermdesc_76',['IterTermDesc',['../structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html',1,'gaia::ecs::detail']]]
 ];

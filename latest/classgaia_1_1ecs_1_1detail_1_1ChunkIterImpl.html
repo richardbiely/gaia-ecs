@@ -233,12 +233,6 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_group_id</b> (Gro
 <tr class="memitem:a3dae66779437eebf8b23e29f71b5fff6" id="r_a3dae66779437eebf8b23e29f71b5fff6"><td class="memItemLeft" align="right" valign="top"><a id="a3dae66779437eebf8b23e29f71b5fff6" name="a3dae66779437eebf8b23e29f71b5fff6"></a>
 GAIA_NODISCARD GroupId&#160;</td><td class="memItemRight" valign="bottom"><b>group_id</b> () const</td></tr>
 <tr class="separator:a3dae66779437eebf8b23e29f71b5fff6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a30300ac5cdc5ab179a275b9dd36d7b90" id="r_a30300ac5cdc5ab179a275b9dd36d7b90"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90">ctx</a> (void *pCtx)</td></tr>
-<tr class="memdesc:a30300ac5cdc5ab179a275b9dd36d7b90"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">ctx()</a>.  <br /></td></tr>
-<tr class="separator:a30300ac5cdc5ab179a275b9dd36d7b90"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a37ead354644dab779beb409ba286d8df" id="r_a37ead354644dab779beb409ba286d8df"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df">ctx</a> () const</td></tr>
-<tr class="memdesc:a37ead354644dab779beb409ba286d8df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the user-owned context pointer supplied by the caller driving this iteration.  <br /></td></tr>
-<tr class="separator:a37ead354644dab779beb409ba286d8df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a354691726d36ddfbf12770144d861b7c" id="r_a354691726d36ddfbf12770144d861b7c"><td class="memItemLeft" align="right" valign="top"><a id="a354691726d36ddfbf12770144d861b7c" name="a354691726d36ddfbf12770144d861b7c"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">CommandBufferST</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>cmd_buffer_st</b> () const</td></tr>
 <tr class="separator:a354691726d36ddfbf12770144d861b7c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -355,6 +349,18 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a8640274108ee63a7cb3127c16b8fa54f"><td class="memTemplItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memTemplItemRight" valign="bottom"><b>acc_index</b> (uint32_t idx) const noexcept</td></tr>
 <tr class="memdesc:a8640274108ee63a7cb3127c16b8fa54f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the absolute index that should be used to access an item in the chunk. AoS indices map directly, SoA indices need some adjustments because the view is always considered {0..ChunkCapacity} instead of {FirstEnabled..ChunkSize}. <br /></td></tr>
 <tr class="separator:a8640274108ee63a7cb3127c16b8fa54f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr><td colspan="2"><div class="groupHeader">Iterator context</div></td></tr>
+<tr><td colspan="2"><div class="groupText"><p>Carries the raw context pointer from the query or system currently driving the iterator callback.</p>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8ab65c3360d95f5c378b06ff987d4818" title="Sets the user-owned context pointer visible through Iter::ctx() during iterator callbacks....">QueryImpl::ctx(void*)</a> </dd>
+<dd>
+SystemBuilder::ctx(void*) </dd></dl>
+</div></td></tr>
+<tr class="memitem:a30300ac5cdc5ab179a275b9dd36d7b90" id="r_a30300ac5cdc5ab179a275b9dd36d7b90"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90">ctx</a> (void *pCtx)</td></tr>
+<tr class="memdesc:a30300ac5cdc5ab179a275b9dd36d7b90"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">ctx()</a>.  <br /></td></tr>
+<tr class="separator:a30300ac5cdc5ab179a275b9dd36d7b90"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a37ead354644dab779beb409ba286d8df" id="r_a37ead354644dab779beb409ba286d8df"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df">ctx</a> () const</td></tr>
+<tr class="memdesc:a37ead354644dab779beb409ba286d8df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the user-owned context pointer supplied by the caller driving this iteration.  <br /></td></tr>
+<tr class="separator:a37ead354644dab779beb409ba286d8df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -519,7 +525,7 @@ struct&#160;</td><td class="memItemRight" valign="bottom"><b>ChunkIterTypedOps</
 <p>Sets the user-owned context pointer visible through <a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a30300ac5cdc5ab179a275b9dd36d7b90" title="Sets the user-owned context pointer visible through ctx().">ctx()</a>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">pCtx</td><td>Context pointer. May be null. </td></tr>
+    <tr><td class="paramname">pCtx</td><td>Context pointer supplied by query execution. May be null. </td></tr>
   </table>
   </dd>
 </dl>
