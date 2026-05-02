@@ -3920,7 +3920,7 @@ It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).
 
 The documentation is based on [doxygen](http://www.doxygen.nl). Building it manually is controlled via -DGAIA_GENERATE_DOCS=ON/OFF (OFF by default).
 
-Doxygen reads the source headers under `include/gaia` and this README directly. It does not parse the generated `single_include/gaia.h` umbrella.
+Doxygen reads the source headers under `include/gaia` and this README directly. It does not parse the generated `single_include/gaia.h` file.
 
 The API reference is created in HTML format in ```your_build_directory/docs/html``` directory.
 
