@@ -3748,7 +3748,7 @@ The project is [continuously tested](https://github.com/richardbiely/gaia-ecs/ac
 - [GCC](https://www.gnu.org/software/gcc/) 7 or later<br/>
 
 ## Dependencies
-[CMake](https://cmake.org) 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.
+[CMake](https://cmake.org) 3.14 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing [gaia.h](#single-header) into your project.
 
 Unit testing is handled via [doctest](https://github.com/onqtam/doctest.git). It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).
 
@@ -3811,7 +3811,7 @@ Parameter | Description
 **GAIA_BUILD_UNITTEST** | Builds the [unit test project](#testing)
 **GAIA_BUILD_BENCHMARK** | Builds the [benchmark project](#benchmarks)
 **GAIA_BUILD_EXAMPLES** | Builds [example projects](#examples)
-**GAIA_GENERATE_CC** | Generates `compile_commands.json`
+**GAIA_GENERATE_CC** | Exports `compile_commands.json` and copies it to `ninja/compile_commands.json` for tooling when the active generator supports it
 **GAIA_GENERATE_DOCS** | Builds the [documentation](#documentation)
 **GAIA_GENERATE_SINGLE_HEADER** | Generates a [single-header](#single-header) version of the framework
 **GAIA_FORMAT_SINGLE_HEADER** | Formats the generated single header with `clang-format` when available (`ON` by default)

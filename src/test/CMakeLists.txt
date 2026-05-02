@@ -46,9 +46,7 @@ if(MSVC)
 	enable_cxx_compiler_flag_if_supported("/bigobj")
 endif()
 
-include(CTest)
-enable_testing()
-add_test(NAME ${PROJ_NAME} COMMAND ${PROJ_NAME})
+add_test(NAME ${PROJ_NAME} COMMAND $<TARGET_FILE:${PROJ_NAME}>)
 add_test(
 	NAME ${PROJ_NAME_NO_AUTOREG}
-	COMMAND ${PROJ_NAME_NO_AUTOREG} "--test-case=*component registration*")
+	COMMAND $<TARGET_FILE:${PROJ_NAME_NO_AUTOREG}> "--test-case=*component registration*")

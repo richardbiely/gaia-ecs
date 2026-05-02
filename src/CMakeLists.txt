@@ -295,25 +295,6 @@ if(NOT EMSCRIPTEN)
     endif()
   endif()
 
-  if(GAIA_GENERATE_CC)
-    add_custom_target(generate_compile_commands ALL)
-    add_custom_command(
-      COMMENT "Generating compile_commands.json in: ${CMAKE_BINARY_DIR}/ninja"
-      TARGET generate_compile_commands POST_BUILD
-      COMMAND ${CMAKE_COMMAND}
-      -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -G "Ninja" -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/ninja
-      -DGAIA_USE_SANITIZER=${GAIA_USE_SANITIZER}
-      -DGAIA_PROFILER_CPU=${GAIA_PROFILER_CPU}
-      -DGAIA_PROFILER_MEM=${GAIA_PROFILER_MEM}
-      -DGAIA_DEVMODE=${GAIA_DEVMODE}
-      -DGAIA_ECS_CHUNK_ALLOCATOR=${GAIA_ECS_CHUNK_ALLOCATOR}
-      -DGAIA_FORCE_DEBUG=${GAIA_FORCE_DEBUG}
-      -DGAIA_DISABLE_ASSERTS=${GAIA_DISABLE_ASSERTS}
-      COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/ninja
-      COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/ninja/compile_commands.json ${CMAKE_SOURCE_DIR}/ninja/compile_commands.json
-    )
-  endif()
-
   # Benchmark
   if(GAIA_BUILD_BENCHMARK)
     if(IS_FETCH_AVAILABLE)

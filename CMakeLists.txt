@@ -97,6 +97,10 @@ option(GAIA_GENERATE_CC "Use ninja to generate compile_commands.json as a post-b
 option(GAIA_GENERATE_PACKAGES "Generate packages" OFF)
 option(GAIA_GENERATE_DOCS "Build documentation" OFF)
 
+if(GAIA_GENERATE_CC)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile_commands.json for tooling." FORCE)
+endif()
+
 # Profiling settings
 option(GAIA_PROFILER_CPU "Enable CPU profiling." OFF)
 option(GAIA_PROFILER_MEM "Enable memory profiling." OFF)
@@ -135,6 +139,11 @@ if(GAIA_GENERATE_DOCS)
     add_subdirectory(docs)
 endif()
 
+if(GAIA_BUILD_UNITTEST)
+    include(CTest)
+    enable_testing()
+endif()
+
 # Gaia target
 include(GNUInstallDirs)
 
@@ -160,7 +169,11 @@ install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAME}-targets
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-install(DIRECTORY single_include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(
+    DIRECTORY single_include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
+)
 
 # Export targets
 install(EXPORT ${PROJECT_NAME}-targets
@@ -208,6 +221,23 @@ endif()
 
 if(GAIA_BUILD_SRC)
     add_subdirectory(src)
+endif()
+
+if(GAIA_GENERATE_CC)
+    if(CMAKE_GENERATOR MATCHES "Ninja|Makefiles")
+        add_custom_target(
+            generate_compile_commands ALL
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_SOURCE_DIR}/ninja"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${CMAKE_BINARY_DIR}/compile_commands.json"
+                    "${CMAKE_SOURCE_DIR}/ninja/compile_commands.json"
+            BYPRODUCTS "${CMAKE_SOURCE_DIR}/ninja/compile_commands.json"
+            COMMENT "Copying compile_commands.json to ${CMAKE_SOURCE_DIR}/ninja"
+            VERBATIM
+        )
+    else()
+        message(WARNING "GAIA_GENERATE_CC is ON but ${CMAKE_GENERATOR} does not export compile_commands.json")
+    endif()
 endif()
 
 # # Print project variables
