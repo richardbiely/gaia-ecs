@@ -1,6 +1,5 @@
 var NAVTREEINDEX7 =
 {
-"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html":[10,0,0,3,0,32,14],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html":[10,0,0,3,0,32,15],
 "structgaia_1_1ecs_1_1detail_1_1SchedTokenDefData.html":[10,0,0,3,0,34],
 "structgaia_1_1ecs_1_1detail_1_1SoATermFieldReadProxy.html":[10,0,0,3,0,35],
@@ -249,5 +248,6 @@ var NAVTREEINDEX7 =
 "structgaia_1_1util_1_1detail_1_1LogBuffer.html":[10,0,0,8,0,1],
 "structgaia_1_1util_1_1detail_1_1LogBuffer.html#a6542b143286867769f82b24c88d3a5bd":[10,0,0,8,0,1,1],
 "structgaia_1_1util_1_1detail_1_1LogBuffer_1_1LogRecord.html":[10,0,0,8,0,1,0],
-"structgaia_1_1util_1_1detail_1_1connect__arg__t.html":[10,0,0,8,0,0]
+"structgaia_1_1util_1_1detail_1_1connect__arg__t.html":[10,0,0,8,0,0],
+"structgaia_1_1util_1_1str.html":[10,0,0,8,10]
 };

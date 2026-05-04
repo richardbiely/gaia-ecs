@@ -3169,7 +3169,7 @@ Compiler</h2>
 </ul>
 <h2><a class="anchor" id="dependencies"></a>
 Dependencies</h2>
-<p><a href="https://cmake.org">CMake</a> 3.12 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing <a class="el" href="index.html#single-header">gaia.h</a> into your project.</p>
+<p><a href="https://cmake.org">CMake</a> 3.14 or later is required to prepare the build. Other tools are officially not supported at the moment. However, nothing stops you from placing <a class="el" href="index.html#single-header">gaia.h</a> into your project.</p>
 <p>Unit testing is handled via <a href="https://github.com/onqtam/doctest.git">doctest</a>. It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF when configuring the project (OFF by default).</p>
 <h1><a class="anchor" id="installation"></a>
 Installation</h1>
@@ -3222,7 +3222,7 @@ Project settings</h3>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_BUILD_EXAMPLES</b>   </td><td class="markdownTableBodyNone">Builds <a class="el" href="index.html#examples">example projects</a>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_GENERATE_CC</b>   </td><td class="markdownTableBodyNone">Generates <code>compile_commands.json</code>    </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_GENERATE_CC</b>   </td><td class="markdownTableBodyNone">Exports <code>compile_commands.json</code> and copies it to <code>ninja/compile_commands.json</code> for tooling when the active generator supports it    </td></tr>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_GENERATE_DOCS</b>   </td><td class="markdownTableBodyNone">Builds the <a class="el" href="index.html#documentation">documentation</a>    </td></tr>
 <tr class="markdownTableRowEven">
@@ -3316,7 +3316,8 @@ Testing</h2>
 <p>It can be controlled via -DGAIA_BUILD_UNITTEST=ON/OFF (OFF by default).</p>
 <h2><a class="anchor" id="documentation"></a>
 Documentation</h2>
-<p>The documentation is based on <a href="http://www.doxygen.nl">doxygen</a>. Building it manualy is controled via -DGAIA_GENERATE_DOCS=ON/OFF (OFF by default).</p>
+<p>The documentation is based on <a href="http://www.doxygen.nl">doxygen</a>. Building it manually is controlled via -DGAIA_GENERATE_DOCS=ON/OFF (OFF by default).</p>
+<p>Doxygen reads the source headers under <code>include/gaia</code> and this README directly. It does not parse the generated <code>single_include/gaia.h</code> file.</p>
 <p>The API reference is created in HTML format in <code>your_build_directory/docs/html</code> directory.</p>
 <p>The lastest version is always available <a href="https://richardbiely.github.io/gaia-ecs/">online</a>.</p>
 <h1><a class="anchor" id="future"></a>

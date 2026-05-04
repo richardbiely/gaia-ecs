@@ -1,6 +1,5 @@
 var NAVTREEINDEX6 =
 {
-"structgaia_1_1ecs_1_1EntityContainer.html#afbcaaf2e19b7fd37ef1075c84b9a21eb":[10,0,0,3,45,4],
 "structgaia_1_1ecs_1_1EntityContainerCtx.html":[10,0,0,3,46],
 "structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html":[10,0,0,3,45,0],
 "structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html#a07bd2a7a7935773d5d5fa6b481955726":[10,0,0,3,45,0,1],
@@ -249,5 +248,6 @@ var NAVTREEINDEX6 =
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#ad3c7089725dd94ad3a43a19b0374bf50":[10,0,0,3,0,32,10,0],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryTaskJobCtx.html":[10,0,0,3,0,32,11],
 "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html":[10,0,0,3,0,32,12],
-"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html":[10,0,0,3,0,32,13]
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html":[10,0,0,3,0,32,13],
+"structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html":[10,0,0,3,0,32,14]
 };
