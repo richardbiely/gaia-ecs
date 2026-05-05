@@ -131,6 +131,7 @@ Classes</h2></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Describes which direct term should seed direct non-fragmenting evaluation.  <a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedPlan.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html">IterJobCallback</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback adapter that sets iterator context before invoking an <code><a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a>&amp;</code> user callback.  <a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeAcceptAll.html">IterModeAcceptAll</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -152,6 +153,9 @@ Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedDirectChunkCallback.html">TypedDirectChunkCallback</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html">TypedIterErasedCallback</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html">TypedJobCallback</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback adapter that materializes typed callback arguments on top of a prepared iterator.  <a href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html">TypedMappedChunkCallback</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -404,7 +408,7 @@ template&lt;bool UseFilters, typename ContainerOut &gt; </td></tr>
 <tr class="memitem:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>arr_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, ContainerOut &amp;outArray, Constraints constraints)</td></tr>
 <tr class="separator:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af93e27dd334bc4c1f97b1ea708aa9daf" id="r_af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memItemLeft" align="right" valign="top"><a id="af93e27dd334bc4c1f97b1ea708aa9daf" name="af93e27dd334bc4c1f97b1ea708aa9daf"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
 <tr class="separator:af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb4414f3d06217281ea9df4ccd7faf96" id="r_afb4414f3d06217281ea9df4ccd7faf96"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD QueryId&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afb4414f3d06217281ea9df4ccd7faf96">id</a> () const</td></tr>
 <tr class="memdesc:afb4414f3d06217281ea9df4ccd7faf96"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the cache handle id of this query.  <br /></td></tr>
@@ -534,15 +538,15 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1Or
 <tr class="memdesc:aef8bfeec67e318b3f3004c4e96c0cc9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.  <br /></td></tr>
 <tr class="separator:aef8bfeec67e318b3f3004c4e96c0cc9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aefb18a425986ead471ae032deafefa5a" id="r_aefb18a425986ead471ae032deafefa5a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aefb18a425986ead471ae032deafefa5a">group_by</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, TGroupByFunc func=group_by_func_default)</td></tr>
-<tr class="memdesc:aefb18a425986ead471ae032deafefa5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function and entity.  <br /></td></tr>
+<tr class="memdesc:aefb18a425986ead471ae032deafefa5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function and entity. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters.  <br /></td></tr>
 <tr class="separator:aefb18a425986ead471ae032deafefa5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0be7a4b191f71d6c8923492a6d204a27" id="r_a0be7a4b191f71d6c8923492a6d204a27"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a0be7a4b191f71d6c8923492a6d204a27"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0be7a4b191f71d6c8923492a6d204a27">group_by</a> (TGroupByFunc func=group_by_func_default)</td></tr>
-<tr class="memdesc:a0be7a4b191f71d6c8923492a6d204a27"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function.  <br /></td></tr>
+<tr class="memdesc:a0be7a4b191f71d6c8923492a6d204a27"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters.  <br /></td></tr>
 <tr class="separator:a0be7a4b191f71d6c8923492a6d204a27"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1e9d7148bed62fd3f2ef3bae43d33d28" id="r_a1e9d7148bed62fd3f2ef3bae43d33d28"><td class="memTemplParams" colspan="2">template&lt;typename Rel , typename Tgt &gt; </td></tr>
 <tr class="memitem:a1e9d7148bed62fd3f2ef3bae43d33d28"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1e9d7148bed62fd3f2ef3bae43d33d28">group_by</a> (TGroupByFunc func=group_by_func_default)</td></tr>
-<tr class="memdesc:a1e9d7148bed62fd3f2ef3bae43d33d28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function.  <br /></td></tr>
+<tr class="memdesc:a1e9d7148bed62fd3f2ef3bae43d33d28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Organizes matching archetypes into groups according to the grouping function. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters.  <br /></td></tr>
 <tr class="separator:a1e9d7148bed62fd3f2ef3bae43d33d28"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2443eb79b40e759873b843e422969643" id="r_a2443eb79b40e759873b843e422969643"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2443eb79b40e759873b843e422969643">group_dep</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
 <tr class="memdesc:a2443eb79b40e759873b843e422969643"><td class="mdescLeft">&#160;</td><td class="mdescRight">Declares an explicit relation dependency for grouped cache invalidation. Useful for custom group_by callbacks that depend on hierarchy or relation topology.  <br /></td></tr>
@@ -653,6 +657,62 @@ SystemBuilder::ctx(void*) </dd></dl>
 <tr class="memitem:acd865ee771e6b592d44a008a4358c9a9" id="r_acd865ee771e6b592d44a008a4358c9a9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#acd865ee771e6b592d44a008a4358c9a9">ctx</a> () const</td></tr>
 <tr class="memdesc:acd865ee771e6b592d44a008a4358c9a9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the user-owned context pointer attached to this query.  <br /></td></tr>
 <tr class="separator:acd865ee771e6b592d44a008a4358c9a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr><td colspan="2"><div class="groupHeader">Scheduling declarations</div></td></tr>
+<tr><td colspan="2"><div class="groupText"><p>Marks whether this query must run on the main thread/serial path.</p>
+<p>Use this for callbacks with side effects that are not captured by component read/write declarations, such as external APIs that are main-thread-only. This flag is scheduling metadata only and does not affect query matching, hashing, shared-cache identity, or cache invalidation. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">required</td><td>True when the query requires the main thread/serial path. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+</div></td></tr>
+<tr class="memitem:a05533a7c1a2ca67e5030201934b986a8" id="r_a05533a7c1a2ca67e5030201934b986a8"><td class="memItemLeft" align="right" valign="top"><a id="a05533a7c1a2ca67e5030201934b986a8" name="a05533a7c1a2ca67e5030201934b986a8"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>main_thread</b> (bool required=true)</td></tr>
+<tr class="separator:a05533a7c1a2ca67e5030201934b986a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a73f5ad1a0dde9f09637977762a354ecb" id="r_a73f5ad1a0dde9f09637977762a354ecb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a73f5ad1a0dde9f09637977762a354ecb">main_thread_required</a> () const</td></tr>
+<tr class="memdesc:a73f5ad1a0dde9f09637977762a354ecb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether this query must run on the main thread/serial path.  <br /></td></tr>
+<tr class="separator:a73f5ad1a0dde9f09637977762a354ecb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr><td colspan="2"><div class="groupHeader">Query access declarations</div></td></tr>
+<tr><td colspan="2"><div class="groupText"><p>Declares an additional id read by this query callback.</p>
+<p>Use this for data accessed inside the query kernel but not present as a positive query term. The declaration is scheduling metadata only; it does not change query matching or cache identity. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Component/entity id read by user code. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> </dd></dl>
+</div></td></tr>
+<tr class="memitem:a54113ef0bb7babf43c525522dbafb927" id="r_a54113ef0bb7babf43c525522dbafb927"><td class="memItemLeft" align="right" valign="top"><a id="a54113ef0bb7babf43c525522dbafb927" name="a54113ef0bb7babf43c525522dbafb927"></a>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>reads</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="separator:a54113ef0bb7babf43c525522dbafb927"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b2c39b6e514fc082664e77c7c271bcf" id="r_a2b2c39b6e514fc082664e77c7c271bcf"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a2b2c39b6e514fc082664e77c7c271bcf"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2b2c39b6e514fc082664e77c7c271bcf">reads</a> ()</td></tr>
+<tr class="memdesc:a2b2c39b6e514fc082664e77c7c271bcf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Declares an additional component or pair type read by this query callback.  <br /></td></tr>
+<tr class="separator:a2b2c39b6e514fc082664e77c7c271bcf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6e09618b2abf5478d29c6ccadddfd752" id="r_a6e09618b2abf5478d29c6ccadddfd752"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752">writes</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a6e09618b2abf5478d29c6ccadddfd752"><td class="mdescLeft">&#160;</td><td class="mdescRight">Declares an additional id written by this query callback.  <br /></td></tr>
+<tr class="separator:a6e09618b2abf5478d29c6ccadddfd752"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe68a00ee539daa387d6a8d748af62e6" id="r_afe68a00ee539daa387d6a8d748af62e6"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:afe68a00ee539daa387d6a8d748af62e6"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6">writes</a> ()</td></tr>
+<tr class="memdesc:afe68a00ee539daa387d6a8d748af62e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Declares an additional component or pair type written by this query callback.  <br /></td></tr>
+<tr class="separator:afe68a00ee539daa387d6a8d748af62e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a97663a2ebba32bb26c9a428423976522" id="r_a97663a2ebba32bb26c9a428423976522"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a97663a2ebba32bb26c9a428423976522">custom_reads</a> () const</td></tr>
+<tr class="memdesc:a97663a2ebba32bb26c9a428423976522"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns explicitly declared read ids that are not query terms.  <br /></td></tr>
+<tr class="separator:a97663a2ebba32bb26c9a428423976522"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a71ca0962750ce8d74bf2d010b4526a78" id="r_a71ca0962750ce8d74bf2d010b4526a78"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a71ca0962750ce8d74bf2d010b4526a78">custom_writes</a> () const</td></tr>
+<tr class="memdesc:a71ca0962750ce8d74bf2d010b4526a78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns explicitly declared write ids that are not query terms.  <br /></td></tr>
+<tr class="separator:a71ca0962750ce8d74bf2d010b4526a78"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a064bdfc27add2c8ecee393e34361e1d3" id="r_a064bdfc27add2c8ecee393e34361e1d3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD QueryAccess&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a064bdfc27add2c8ecee393e34361e1d3">access</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a064bdfc27add2c8ecee393e34361e1d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the effective read/write access for an id.  <br /></td></tr>
+<tr class="separator:a064bdfc27add2c8ecee393e34361e1d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac1abf80c1227b1e32ad41f27046fea2b" id="r_ac1abf80c1227b1e32ad41f27046fea2b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac1abf80c1227b1e32ad41f27046fea2b">conflicts_with</a> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;other)</td></tr>
+<tr class="memdesc:ac1abf80c1227b1e32ad41f27046fea2b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether this query conflicts with another query's effective access declarations.  <br /></td></tr>
+<tr class="separator:ac1abf80c1227b1e32ad41f27046fea2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3d6c9c6a912a71cea655f9e2e4d4704d" id="r_a3d6c9c6a912a71cea655f9e2e4d4704d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a3d6c9c6a912a71cea655f9e2e4d4704d">can_run_parallel</a> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;other)</td></tr>
+<tr class="memdesc:a3d6c9c6a912a71cea655f9e2e4d4704d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether this query can run concurrently with another query based on declared scheduling metadata.  <br /></td></tr>
+<tr class="separator:a3d6c9c6a912a71cea655f9e2e4d4704d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -929,6 +989,41 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
+<a id="a064bdfc27add2c8ecee393e34361e1d3" name="a064bdfc27add2c8ecee393e34361e1d3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a064bdfc27add2c8ecee393e34361e1d3">&#9670;&#160;</a></span>access()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD QueryAccess gaia::ecs::detail::QueryImpl::access </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the effective read/write access for an id. </p>
+<p>Effective access combines positive query terms and explicit <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2b2c39b6e514fc082664e77c7c271bcf" title="Declares an additional component or pair type read by this query callback.">reads()</a>/writes() declarations. Pair query terms do not imply data access; use explicit reads(Entity) or <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> when a pair id is a custom scheduling key. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Component/entity id to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Effective access mode for the id. </dd></dl>
+
+</div>
+</div>
 <a id="a530b0de2b67c6d2c248830c20cf9ffef" name="a530b0de2b67c6d2c248830c20cf9ffef"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a530b0de2b67c6d2c248830c20cf9ffef">&#9670;&#160;</a></span>add() <span class="overload">[1/2]</span></h2>
 
@@ -1400,6 +1495,41 @@ template&lt;typename Container &gt; </div>
 
 </div>
 </div>
+<a id="a3d6c9c6a912a71cea655f9e2e4d4704d" name="a3d6c9c6a912a71cea655f9e2e4d4704d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3d6c9c6a912a71cea655f9e2e4d4704d">&#9670;&#160;</a></span>can_run_parallel()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::can_run_parallel </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether this query can run concurrently with another query based on declared scheduling metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Query to compare against. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when neither query requires the main thread and conflicts_with(other) is false. </dd></dl>
+
+</div>
+</div>
 <a id="a91dd480b883a7fcab7abc0f61ba7df29" name="a91dd480b883a7fcab7abc0f61ba7df29"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a91dd480b883a7fcab7abc0f61ba7df29">&#9670;&#160;</a></span>can_use_direct_chunk_term_eval_arg()</h2>
 
@@ -1577,6 +1707,41 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="ac1abf80c1227b1e32ad41f27046fea2b" name="ac1abf80c1227b1e32ad41f27046fea2b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac1abf80c1227b1e32ad41f27046fea2b">&#9670;&#160;</a></span>conflicts_with()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::conflicts_with </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether this query conflicts with another query's effective access declarations. </p>
+<p>Two queries conflict when both access the same id and at least one side writes it. This check uses component access declared by positive query terms plus custom <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2b2c39b6e514fc082664e77c7c271bcf" title="Declares an additional component or pair type read by this query callback.">reads()</a>/writes() declarations. It does not account for world structural mutation or arbitrary side effects. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Query to compare against. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the two queries should not run concurrently based on declared access. </dd></dl>
+
+</div>
+</div>
 <a id="abb331e63037dcb0e875d9de04613856e" name="abb331e63037dcb0e875d9de04613856e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#abb331e63037dcb0e875d9de04613856e">&#9670;&#160;</a></span>count()</h2>
 
@@ -1727,6 +1892,62 @@ template&lt;bool UseFilters&gt; </div>
 
 </div>
 </div>
+<a id="a97663a2ebba32bb26c9a428423976522" name="a97663a2ebba32bb26c9a428423976522"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a97663a2ebba32bb26c9a428423976522">&#9670;&#160;</a></span>custom_reads()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::detail::QueryImpl::custom_reads </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns explicitly declared read ids that are not query terms. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only span over custom read declarations. </dd></dl>
+
+</div>
+</div>
+<a id="a71ca0962750ce8d74bf2d010b4526a78" name="a71ca0962750ce8d74bf2d010b4526a78"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a71ca0962750ce8d74bf2d010b4526a78">&#9670;&#160;</a></span>custom_writes()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::detail::QueryImpl::custom_writes </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns explicitly declared write ids that are not query terms. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only span over custom write declarations. </dd></dl>
+
+</div>
+</div>
 <a id="aef8bfeec67e318b3f3004c4e96c0cc9d" name="aef8bfeec67e318b3f3004c4e96c0cc9d"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aef8bfeec67e318b3f3004c4e96c0cc9d">&#9670;&#160;</a></span>depth_order() <span class="overload">[1/2]</span></h2>
 
@@ -1759,6 +1980,7 @@ template&lt;typename Rel &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this query builder. </dd></dl>
 
 </div>
 </div>
@@ -1789,10 +2011,11 @@ template&lt;typename Rel &gt; </div>
 <p>Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down. Intended only for fragmenting relations such as ChildOf or DependsOn where the target participates in archetype identity. Unlike walk(...), this affects the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the archetype level. For non-fragmenting relations such as Parent, use walk(...) instead. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">relation</td><td>Fragmenting hierarchy relation </td></tr>
+    <tr><td class="paramname">relation</td><td>Fragmenting hierarchy relation. </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this query builder. </dd></dl>
 
 </div>
 </div>
@@ -2596,7 +2819,7 @@ template&lt;typename Func &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Organizes matching archetypes into groups according to the grouping function and entity. </p>
+<p>Organizes matching archetypes into groups according to the grouping function and entity. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td>The entity to group by. </td></tr>
@@ -2604,6 +2827,7 @@ template&lt;typename Func &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this query builder. </dd></dl>
 
 </div>
 </div>
@@ -2633,7 +2857,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Organizes matching archetypes into groups according to the grouping function. </p>
+<p>Organizes matching archetypes into groups according to the grouping function. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> to group by. It is registered if it hasn't been registered yet. </td></tr>
@@ -2646,6 +2870,7 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this query builder. </dd></dl>
 
 </div>
 </div>
@@ -2675,7 +2900,7 @@ template&lt;typename Rel , typename Tgt &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Organizes matching archetypes into groups according to the grouping function. </p>
+<p>Organizes matching archetypes into groups according to the grouping function. Does not order iteration by group id. Use group_id(...) to filter one group. Use depth_order(...) or sort_by(...) when iteration order matters. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Rel</td><td>The relation to group by. It is registered if it hasn't been registered yet. </td></tr>
@@ -2689,6 +2914,7 @@ template&lt;typename Rel , typename Tgt &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this query builder. </dd></dl>
 
 </div>
 </div>
@@ -3374,6 +3600,34 @@ template&lt;typename Func &gt; </div>
 
 <p>Returns a human-readable description of the current kind validation result. </p>
 <dl class="section return"><dt>Returns</dt><dd>Validation message for the current kind requirement. </dd></dl>
+
+</div>
+</div>
+<a id="a73f5ad1a0dde9f09637977762a354ecb" name="a73f5ad1a0dde9f09637977762a354ecb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a73f5ad1a0dde9f09637977762a354ecb">&#9670;&#160;</a></span>main_thread_required()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::main_thread_required </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether this query must run on the main thread/serial path. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when main_thread(true) was set. </dd></dl>
 
 </div>
 </div>
@@ -4101,6 +4355,43 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Query execution plan shared by typed and public iterator adapters. </dd></dl>
+
+</div>
+</div>
+<a id="a2b2c39b6e514fc082664e77c7c271bcf" name="a2b2c39b6e514fc082664e77c7c271bcf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b2c39b6e514fc082664e77c7c271bcf">&#9670;&#160;</a></span>reads()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp; gaia::ecs::detail::QueryImpl::reads </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Declares an additional component or pair type read by this query callback. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, entity type, or pair type to mark as read. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>reads(Entity) </dd></dl>
 
 </div>
 </div>
@@ -5042,6 +5333,79 @@ template&lt;typename Rel , typename Tgt &gt; </div>
   </dd>
 </dl>
 <dl class="section note"><dt>Note</dt><dd>Empty names and reserved name "this" are rejected. </dd></dl>
+
+</div>
+</div>
+<a id="afe68a00ee539daa387d6a8d748af62e6" name="afe68a00ee539daa387d6a8d748af62e6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afe68a00ee539daa387d6a8d748af62e6">&#9670;&#160;</a></span>writes() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp; gaia::ecs::detail::QueryImpl::writes </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Declares an additional component or pair type written by this query callback. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, entity type, or pair type to mark as written. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752" title="Declares an additional id written by this query callback.">writes(Entity)</a> </dd></dl>
+
+</div>
+</div>
+<a id="a6e09618b2abf5478d29c6ccadddfd752" name="a6e09618b2abf5478d29c6ccadddfd752"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6e09618b2abf5478d29c6ccadddfd752">&#9670;&#160;</a></span>writes() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp; gaia::ecs::detail::QueryImpl::writes </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Declares an additional id written by this query callback. </p>
+<p>A write conflicts with any read or write of the same id when comparing two queries with <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac1abf80c1227b1e32ad41f27046fea2b" title="Returns whether this query conflicts with another query&#39;s effective access declarations.">conflicts_with()</a>. The declaration is scheduling metadata only; it does not change query matching or cache identity. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Component/entity id written by user code. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Self reference. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>reads(Entity) </dd></dl>
 
 </div>
 </div>

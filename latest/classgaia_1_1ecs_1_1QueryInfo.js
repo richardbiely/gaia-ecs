@@ -18,6 +18,7 @@ var classgaia_1_1ecs_1_1QueryInfo =
     [ "can_use_direct_create_archetype_match", "classgaia_1_1ecs_1_1QueryInfo.html#a85e642200836d7c4b30db85573025f70", null ],
     [ "compile", "classgaia_1_1ecs_1_1QueryInfo.html#a7ed91ebda613826e2102b613b5874c11", null ],
     [ "direct_create_archetype_match_uses_is", "classgaia_1_1ecs_1_1QueryInfo.html#a7077c939756ff5428bc3982e94cbf786", null ],
+    [ "ensure_group_data", "classgaia_1_1ecs_1_1QueryInfo.html#aec23c572ae4b9788e31c45ee1bb7bc56", null ],
     [ "has_entity_filter_terms", "classgaia_1_1ecs_1_1QueryInfo.html#aa122107381e55b70ede72b90fc4a2f13", null ],
     [ "has_only_direct_or_terms", "classgaia_1_1ecs_1_1QueryInfo.html#a2b7a717464407b55ec60aeda9332728c", null ],
     [ "has_potential_inherited_id_terms", "classgaia_1_1ecs_1_1QueryInfo.html#a8bb4ea8ad3b0ec824dbdb7c6624e0154", null ],

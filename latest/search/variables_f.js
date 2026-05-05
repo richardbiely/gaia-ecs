@@ -28,8 +28,9 @@ var searchData=
   ['prev_25',['prev',['../structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#af7a64794af942e2a9b1c8332f7d88ebb',1,'gaia::mem::detail::AllocationInfo']]],
   ['prevs_5fnext_26',['prevs_next',['../structgaia_1_1cnt_1_1fwd__llist__link.html#a2ccd414276b2ca3ba646e64f2d6b446a',1,'gaia::cnt::fwd_llist_link']]],
   ['prio_27',['prio',['../structgaia_1_1mt_1_1ThreadCtx.html#a7665247b0214cf877fadda4d3ebe7d99',1,'gaia::mt::ThreadCtx::prio'],['../structgaia_1_1mt_1_1JobContainer.html#a8129e385e375a2fc78557b054cd26ba3',1,'gaia::mt::JobContainer::prio']]],
-  ['psingleallterm_28',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
-  ['psoasizes_29',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#aed71c23987645ad1b7c3168d87933749',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]],
-  ['pversions_30',['pversions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords::pVersions'],['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#ae589ff7f137aadb1f593c2f8a6d5967c',1,'gaia::ecs::vm::ArchetypeLookupView::pVersions']]],
-  ['pworld_31',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
+  ['pself_28',['pself',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html#a890bdfa66fa07ee22f2d4889c71f7e86',1,'gaia::ecs::detail::QueryImpl::IterJobCallback::pSelf'],['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html#aca3b957d52b523446762f60bfc71b974',1,'gaia::ecs::detail::QueryImpl::TypedJobCallback::pSelf']]],
+  ['psingleallterm_29',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
+  ['psoasizes_30',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#aed71c23987645ad1b7c3168d87933749',1,'gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx']]],
+  ['pversions_31',['pversions',['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords::pVersions'],['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#ae589ff7f137aadb1f593c2f8a6d5967c',1,'gaia::ecs::vm::ArchetypeLookupView::pVersions']]],
+  ['pworld_32',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
 ];

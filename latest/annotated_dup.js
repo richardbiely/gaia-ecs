@@ -285,6 +285,7 @@ var annotated_dup =
         [ "Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
         [ "Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
         [ "query_sort_cond", "structgaia_1_1ecs_1_1query__sort__cond.html", null ],
+        [ "QueryAccessSet", "structgaia_1_1ecs_1_1QueryAccessSet.html", "structgaia_1_1ecs_1_1QueryAccessSet" ],
         [ "QueryArchetypeCacheCursor", "structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html", "structgaia_1_1ecs_1_1QueryArchetypeCacheCursor" ],
         [ "QueryCache", "classgaia_1_1ecs_1_1QueryCache.html", "classgaia_1_1ecs_1_1QueryCache" ],
         [ "QueryCtx", "structgaia_1_1ecs_1_1QueryCtx.html", "structgaia_1_1ecs_1_1QueryCtx" ],

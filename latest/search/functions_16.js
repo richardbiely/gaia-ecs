@@ -6,5 +6,7 @@ var searchData=
   ['workers_3',['workers',['../classgaia_1_1mt_1_1ThreadPool.html#ad34530603ddff9f01e0a04236f7e736d',1,'gaia::mt::ThreadPool']]],
   ['world_4',['world',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#af9b98ef6bb2123bcb2f58b9e9bf6e452',1,'gaia::ecs::detail::QueryImplStorage']]],
   ['world_5fversion_5',['world_version',['../classgaia_1_1ecs_1_1World.html#a0314449dbd8740cb1c450b901ea93b37',1,'gaia::ecs::World']]],
-  ['ws_6',['ws',['../classgaia_1_1ser_1_1ser__json.html#a23ac336437abeeb34df1fc7649a4feeb',1,'gaia::ser::ser_json']]]
+  ['writes_6',['writes',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6e09618b2abf5478d29c6ccadddfd752',1,'gaia::ecs::detail::QueryImpl::writes(Entity entity)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6',1,'gaia::ecs::detail::QueryImpl::writes()']]],
+  ['writes_5fview_7',['writes_view',['../structgaia_1_1ecs_1_1QueryAccessSet.html#a80527cec1e1fac7f8b885696c6d73115',1,'gaia::ecs::QueryAccessSet']]],
+  ['ws_8',['ws',['../classgaia_1_1ser_1_1ser__json.html#a23ac336437abeeb34df1fc7649a4feeb',1,'gaia::ser::ser_json']]]
 ];
