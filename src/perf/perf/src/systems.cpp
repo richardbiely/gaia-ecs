@@ -226,6 +226,144 @@ void BM_System_IsIter_Direct_D8(picobench::state& state) {
 	BM_System_IsIter<8, true>(state);
 }
 
+static constexpr uint32_t NScheduledSystems = 256;
+static constexpr uint32_t NSchedulerPhases = 8;
+static constexpr uint32_t NSchedulerEntities = 4'096;
+
+void create_schedule_probe_entities(ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count) {
+	entities.clear();
+	entities.reserve(count);
+
+	GAIA_FOR(count) {
+		const auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 31U), 0.0f});
+		w.add<Acceleration>(e, {0.0f, 0.0f, 0.0f});
+	}
+}
+
+void add_balanced_depends_on_edges(ecs::World& w, const cnt::darray<ecs::Entity>& systems, uint32_t stride) {
+	GAIA_ASSERT(stride > 0U);
+	GAIA_FOR2_(stride, systems.size(), i) {
+		const auto lane = i % stride;
+		const auto laneIdx = i / stride;
+		const auto targetIdx = ((laneIdx - 1U) / 2U) * stride + lane;
+		w.add(systems[i], {ecs::DependsOn, systems[targetIdx]});
+	}
+}
+
+void BM_SystemSchedule_SerialOrder_256(picobench::state& state) {
+	(void)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_schedule_probe_entities(w, entities, 1U);
+
+	uint64_t sink = 0;
+	cnt::darray<ecs::Entity> systems;
+	systems.reserve(NScheduledSystems);
+	GAIA_FOR(NScheduledSystems) {
+		auto sys = w.system().all<const Position>().mode(ecs::QueryExecType::Default).on_each([&sink](ecs::Iter& it) {
+			sink += it.entity_rows().size();
+		});
+		systems.push_back(sys.entity());
+	}
+	add_balanced_depends_on_edges(w, systems, 1U);
+
+	GAIA_FOR(4U) {
+		w.update();
+	}
+
+	for (auto _: state) {
+		(void)_;
+		w.update();
+	}
+
+	dont_optimize(sink);
+}
+
+void BM_SystemSchedule_PhasedOrder_256(picobench::state& state) {
+	(void)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_schedule_probe_entities(w, entities, 1U);
+
+	cnt::darray<ecs::Entity> phases;
+	phases.reserve(NSchedulerPhases);
+	GAIA_FOR(NSchedulerPhases) {
+		const auto phase = w.add();
+		phases.push_back(phase);
+		if (i > 0U)
+			w.add(phase, {ecs::DependsOn, phases[i - 1U]});
+	}
+
+	uint64_t sink = 0;
+	cnt::darray<ecs::Entity> systems;
+	systems.reserve(NScheduledSystems);
+	GAIA_FOR(NScheduledSystems) {
+		const auto phase = phases[i % phases.size()];
+		auto sys =
+				w.system().phase(phase).all<const Position>().mode(ecs::QueryExecType::Default).on_each([&sink](ecs::Iter& it) {
+					sink += it.entity_rows().size();
+				});
+		systems.push_back(sys.entity());
+	}
+	add_balanced_depends_on_edges(w, systems, phases.size());
+
+	GAIA_FOR(4U) {
+		w.update();
+	}
+
+	for (auto _: state) {
+		(void)_;
+		w.update();
+	}
+
+	dont_optimize(sink);
+}
+
+void BM_SystemSchedule_ParallelJobsAccess_256(picobench::state& state) {
+	(void)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	create_schedule_probe_entities(w, entities, NSchedulerEntities);
+
+	uint64_t sink = 0;
+	GAIA_FOR(NScheduledSystems) {
+		if ((i % 4U) == 0U) {
+			w.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&sink](ecs::Iter& it) {
+				auto p = it.view_mut<Position>();
+				GAIA_EACH(it) {
+					p[i].x += 1.0f;
+				}
+				sink += it.entity_rows().size();
+			});
+			continue;
+		}
+
+		w.system()
+				.all<const Position>()
+				.reads<Acceleration>()
+				.mode(ecs::QueryExecType::Parallel)
+				.on_each([&sink](ecs::Iter& it) {
+					sink += it.entity_rows().size();
+				});
+	}
+
+	GAIA_FOR(4U) {
+		w.update();
+	}
+
+	for (auto _: state) {
+		(void)_;
+		w.update();
+	}
+
+	dont_optimize(sink);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void register_systems(PerfRunMode mode) {
@@ -259,6 +397,11 @@ void register_systems(PerfRunMode mode) {
 			PICOBENCH_REG(BM_System_Is_Direct_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("is direct d8");
 			PICOBENCH_REG(BM_System_IsIter_Semantic_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("is iter semantic d8");
 			PICOBENCH_REG(BM_System_IsIter_Direct_D8).PICO_SETTINGS_FOCUS().user_data(1024).label("is iter direct d8");
+			PICOBENCH_REG(BM_SystemSchedule_SerialOrder_256).PICO_SETTINGS_FOCUS().label("systems serial order 256");
+			PICOBENCH_REG(BM_SystemSchedule_PhasedOrder_256).PICO_SETTINGS_FOCUS().label("systems phased order 256");
+			PICOBENCH_REG(BM_SystemSchedule_ParallelJobsAccess_256)
+					.PICO_SETTINGS_HEAVY()
+					.label("systems parallel jobs access 256");
 			return;
 		default:
 			return;
