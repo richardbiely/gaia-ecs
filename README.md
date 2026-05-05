@@ -421,7 +421,7 @@ const auto velocityComp = w.get("gameplay.render.Velocity");
 
 ### Non-fragmenting and sparse components
 
-By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.
+By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.
 
 If this is undesired, there is also an option to use out-of-line storage and optional non-fragmenting membership. The two traits are:
 
@@ -1410,14 +1410,26 @@ ecs::Query qTravCached = w.query()
 ```
 
 This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.
+
 ### Traversal order
 
-Use `walk(...)` when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.
+Use `order_by(relation, ecs::TravOrder::...)` when you want to reorder the current query result by a relationship traversal. It does not change what the query matches, only the order in which the current result is visited.
 
-`walk(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
+Traversal orders are deterministic. Roots are visited by entity id. Siblings under the same target are also visited by entity id.
+
+A relation pair `Pair(Rel, X)` on entity `E` means `E` points at `X`. In the names below, `E` is the source and `X` is the target.
+
+- `TravOrder::Down`: visit targets before the sources that point at them. For `ChildOf`, this means parents before children. This is DFS preorder. `TravOrder::Preorder` is the alias.
+- `TravOrder::Up`: visit sources before their targets. For `ChildOf`, this means children before parents. This is DFS postorder. `TravOrder::Postorder` is the alias.
+- `TravOrder::ReverseDown`: exact reverse of `Down`. This is reverse DFS preorder. `TravOrder::ReversePreorder` is the alias.
+- `TravOrder::ReverseUp`: exact reverse of `Up`. This is reverse DFS postorder. `TravOrder::ReversePostorder` is the alias.
+
+There is no breadth-first traversal alias for `order_by(...)`. Use `depth_order(...)` for cached breadth-first top-down ordering on fragmenting acyclic relations.
+
+`order_by(...)` supports entity callbacks, typed callbacks, and regular `ecs::Iter&`.
 Entity and typed callbacks are the best optimized paths.
 
-The iterator-style paths can be significantly slower on heavily reordered BFS results, because breadth-first order often splits the result into many small runs. Use only when for code that is not performance critical.
+The iterator-style paths can be slower on heavily reordered traversal results, because reordered entities often split the result into many small runs. Use them only for code that is not performance critical.
 
 ```cpp
 struct Time { int time; };
@@ -1437,32 +1449,33 @@ wld.add<Time>(setTable, {0});
 // buyGroceries
 // ├─ boilWater
 // ├─ chopVegetables
+// │  └─ cookDinner
 // └─ setTable
-// boilWater + chopVegetables -> cookDinner
 wld.add(boilWater, ecs::Pair(DependsOn, buyGroceries));
 wld.add(chopVegetables, ecs::Pair(DependsOn, buyGroceries));
-wld.add(setTable, ecs::Pair(DependsOn, buyGroceries));
-wld.add(cookDinner, ecs::Pair(DependsOn, boilWater));
 wld.add(cookDinner, ecs::Pair(DependsOn, chopVegetables));
+wld.add(setTable, ecs::Pair(DependsOn, buyGroceries));
 
 ecs::Query q = wld.query().all<Time>();
 
-// With walk(...), query result is reordered by dependency levels:
+// With order_by(...), query result is reordered by dependency traversal:
 // buyGroceries
-// boilWater, chopVegetables, setTable
+// boilWater
+// chopVegetables
 // cookDinner
-q.walk(DependsOn).each([&](ecs::Entity entity) {
+// setTable
+q.order_by(DependsOn, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
   ...
 });
 
-// Without walk(...), the query does not use DependsOn for ordering.
+// Without order_by(...), the query does not use DependsOn for ordering.
 // Therefore, entities are iterated in undefined order.
 q.each([&](ecs::Entity entity) {
   ... // random entity order
 });
 ```
 
-Use `depth_order(...)` when you want cached query iteration itself to run breadth-first top-down by relation depth for a fragmenting acyclic relation such as `ChildOf` or `DependsOn`. For hierarchy-style relations, the cached depth-ordered path only applies when the relation is still fragmenting. Use `walk(...)` when the relation is non-fragmenting, such as `Parent`, or when you want traversal to be resolved per entity instead of through cached archetype ordering.
+Use `depth_order(...)` when you want cached query iteration itself to run breadth-first top-down by relation depth for a fragmenting acyclic relation such as `ChildOf` or `DependsOn`. For hierarchy-style relations, the cached depth-ordered path only applies when the relation is still fragmenting. Use `order_by(relation, ecs::TravOrder::...)` when the relation is non-fragmenting, such as `Parent`, or when you want traversal to be resolved per entity instead of through cached archetype ordering.
 
 ```cpp
 ecs::Entity uiRoot = wld.add();
@@ -1505,8 +1518,8 @@ q.each([&](ecs::Entity entity) {
 
 ecs::Query qParent = wld.query().all<Time>();
 
-// Parent is non-fragmenting, so walk(...) is the supported breadth-first path.
-qParent.walk(ecs::Parent).each([&](ecs::Entity entity) {
+// Parent is non-fragmenting, so order_by(...) is the supported per-entity traversal path.
+qParent.order_by(ecs::Parent, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
   ...
 });
 ```
@@ -2732,13 +2745,13 @@ w.add(logicalChild, ecs::Pair(ecs::Parent, logicalRoot));
 Properites of `Parent`:
 - non-fragmenting hierarchy
 - stored outside archetypes
-- good for logical or organizational hierarchies where reducing archetype churn matters more than pure structural query speed
-- breadth-first traversal is typically better than `ChildOf`, but direct query terms over `Parent` are still less archetype-friendly than `ChildOf`
-- use `query().walk(ecs::Parent)` for breadth-first traversal; `depth_order(...)` is for fragmenting cached ordering and is not the right tool for `Parent`
+- good for logical or organizational hierarchies where reducing archetype movement matters more than pure structural query speed
+- per-entity traversal through `Parent` avoids `ChildOf` archetype movement, but direct query terms over `Parent` are still less archetype-friendly than `ChildOf`
+- use `query().order_by(ecs::Parent, ecs::TravOrder::Down)` or `query().order_by<ecs::Parent_>(ecs::TravOrder::Down)` for traversal. `depth_order(...)` is for fragmenting cached ordering and is not the right tool for `Parent`
 
 More generally, hierarchy semantics come from traversable exclusive parent-chain relations. `ChildOf` and `Parent` are the native built-ins:
 - `ChildOf`: hierarchy + fragmenting, so cached `depth_order(...)` can work at archetype level
-- `Parent`: hierarchy + non-fragmenting, so `walk(...)` is the supported path
+- `Parent`: hierarchy + non-fragmenting, so `order_by(...)` is the supported path
 
 Use `Parent` for:
 - prefab ownership

@@ -101,6 +101,29 @@ namespace gaia {
 			AllSrcTrav
 		};
 
+		//! Entity traversal order for Query::order_by(Entity, TravOrder).
+		//!
+		//! If entity E has Pair(relation, X), E is the source and X is the target.
+		//! Down visits targets before sources. Up visits sources before their targets.
+		enum class TravOrder : uint8_t {
+			//! Visit each source before the target it points at.
+			Up,
+			//! Alias for TravOrder::Up.
+			Postorder = Up,
+			//! Visit each target before the sources that point at it.
+			Down,
+			//! Alias for TravOrder::Down.
+			Preorder = Down,
+			//! Exact reverse of TravOrder::Up.
+			ReverseUp,
+			//! Alias for TravOrder::ReverseUp.
+			ReversePostorder = ReverseUp,
+			//! Exact reverse of TravOrder::Down.
+			ReverseDown,
+			//! Alias for TravOrder::ReverseDown.
+			ReversePreorder = ReverseDown
+		};
+
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
 
@@ -637,6 +660,8 @@ namespace gaia {
 					cnt::darray<detail::BfsChunkRun> cachedRuns;
 					//! Cached relation used by each_walk.
 					Entity cachedRelation = EntityBad;
+					//! Cached traversal order used by each_walk.
+					TravOrder cachedOrder = TravOrder::Down;
 					//! Cached constraints used by each_walk.
 					Constraints cachedConstraints = Constraints::EnabledOnly;
 					//! Relation version when each_walk cache was produced.
@@ -1870,7 +1895,7 @@ namespace gaia {
 				//! depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in
 				//! the archetype share the same direct parent target. That lets us prune the entire archetype when
 				//! its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent
-				//! cannot use this archetype-level check and must stay on the per-entity walk(...) path instead.
+				//! cannot use this archetype-level check and must stay on the per-entity traversal path instead.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
 					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
@@ -5552,36 +5577,63 @@ namespace gaia {
 
 				//------------------------------------------------
 
-				class OrderByWalkView final {
+				class OrderByTravView final {
 					QueryImpl* m_query = nullptr;
 					Entity m_relation = EntityBad;
+					TravOrder m_order = TravOrder::Down;
 
 				public:
-					OrderByWalkView(QueryImpl& query, Entity relation): m_query(&query), m_relation(relation) {}
+					//! Creates a query traversal view.
+					//! \param query Query used to collect matching entities.
+					//! \param relation Relation used to order the matched entities.
+					//! \param order Traversal order to apply.
+					OrderByTravView(QueryImpl& query, Entity relation, TravOrder order):
+							m_query(&query), m_relation(relation), m_order(order) {}
 
+					//! Iterates the query result through the requested relation order.
+					//! \tparam Func Callback accepted by Query::each().
+					//! \param func Callback invoked for each matched entity or iterator run.
 					template <typename Func>
 					void each(Func func) {
-						m_query->each_walk(func, m_relation);
+						m_query->each_walk(func, m_relation, m_order);
 					}
 				};
 
 				//------------------------------------------------
 
-				//! Walks the relation graph in breadth-first levels for the given relation.
-				//! Pair(relation, X) on entity E means E depends on X.
-				//! This path evaluates traversal per entity, so it works for both fragmenting relations
-				//! such as ChildOf and non-fragmenting relations such as Parent.
-				GAIA_NODISCARD OrderByWalkView walk(Entity relation) {
-					return OrderByWalkView(*this, relation);
+				//! Iterates matching entities in an explicit relation traversal order.
+				//!
+				//! Pair(@a relation, X) on entity E means E points at X. Down visits X before E.
+				//! Up visits E before X. Reverse variants produce the exact reverse of their base order.
+				//! Siblings are tie-broken by entity id, so the order is deterministic. The traversal changes
+				//! only visit order; it does not change which entities match the query. This path resolves order
+				//! per entity and works for fragmenting relations such as ChildOf and non-fragmenting relations
+				//! such as Parent. It may be slower than normal chunk iteration.
+				//! \param relation Relation used to order the matched entities.
+				//! \param order Traversal order to apply.
+				//! \return Lightweight view exposing each(...).
+				//! \see depth_order(Entity)
+				//! \see group_by(Entity, TGroupByFunc)
+				//! \see sort_by(Entity, TSortByFunc)
+				GAIA_NODISCARD OrderByTravView order_by(Entity relation, TravOrder order) {
+					return OrderByTravView(*this, relation, order);
 				}
+
+				//! Iterates matching entities in an explicit typed relation traversal order.
+				//! \tparam Rel Relation type. It is registered if it hasn't been registered yet.
+				//! \param order Traversal order to apply.
+				//! \return Lightweight view exposing each(...).
+				//! \see order_by(Entity, TravOrder)
+				template <typename Rel>
+				GAIA_NODISCARD OrderByTravView order_by(TravOrder order);
 
 				//------------------------------------------------
 
 				//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 				//! Intended only for fragmenting relations such as ChildOf or DependsOn where the target
-				//! participates in archetype identity. Unlike walk(...), this affects the cached query
-				//! iteration order itself and can therefore prune fragmenting disabled subtrees at the
-				//! archetype level. For non-fragmenting relations such as Parent, use walk(...) instead.
+				//! participates in archetype identity. Unlike order_by(relation, TravOrder), this affects
+				//! the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the
+				//! archetype level. For non-fragmenting relations such as Parent, use order_by(...) instead.
 				//! \param relation Fragmenting hierarchy relation.
 				//! \return Reference to this query builder.
 				QueryImpl& depth_order(Entity relation = ChildOf) {
@@ -6043,13 +6095,15 @@ namespace gaia {
 				template <typename Container>
 				void arr(Container& outArray, Constraints constraints = Constraints::EnabledOnly);
 
-				//! Builds and caches BFS walk order for the current query result.
+				//! Builds and caches relation traversal order for the current query result.
 				//! \param queryInfo Query info
-				//! \param relation Dependency relation used for the walk.
+				//! \param relation Dependency relation used for traversal.
+				//! \param order Traversal order to apply.
 				//! \param constraints Match constraints applied before ordering.
 				//! \return Ordered view of matched entities.
 				GAIA_NODISCARD std::span<const Entity> ordered_entities_walk(
-						QueryInfo& queryInfo, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+						QueryInfo& queryInfo, Entity relation, TravOrder order,
+						Constraints constraints = Constraints::EnabledOnly) {
 					struct OrderedWalkTargetCtx {
 						const cnt::darray<Entity>* pEntities = nullptr;
 						uint32_t cnt = 0;
@@ -6123,8 +6177,8 @@ namespace gaia {
 						return true;
 					};
 
-					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedConstraints == constraints &&
-							walkData.cachedRelationVersion == relationVersion &&
+					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedOrder == order &&
+							walkData.cachedConstraints == constraints && walkData.cachedRelationVersion == relationVersion &&
 							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) &&
 							!queryInfo.has_filters()) {
 						auto& chunks = walkData.scratchChunks;
@@ -6180,8 +6234,8 @@ namespace gaia {
 							return {};
 					}
 
-					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedConstraints == constraints &&
-							walkData.cachedRelationVersion == relationVersion &&
+					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedOrder == order &&
+							walkData.cachedConstraints == constraints && walkData.cachedRelationVersion == relationVersion &&
 							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) &&
 							entities.size() == walkData.cachedInput.size()) {
 						bool sameInput = true;
@@ -6258,63 +6312,75 @@ namespace gaia {
 
 						ordered.reserve(cnt);
 
-						auto& currLevel = walkData.scratchCurrLevel;
-						currLevel.clear();
-						auto& nextLevel = walkData.scratchNextLevel;
-						nextLevel.clear();
-						for (uint32_t i = 0; i < cnt; ++i) {
-							if (indegree[i] == 0)
-								currLevel.push_back(i);
-						}
+						const bool isUp = order == TravOrder::Up || order == TravOrder::ReverseUp;
+						const bool needsReverse = order == TravOrder::ReverseUp || order == TravOrder::ReverseDown;
 
-						auto sort_level = [&](cnt::darray<uint32_t>& level) {
-							core::sort(level, [&](uint32_t left, uint32_t right) {
-								return entities[left].id() < entities[right].id();
-							});
-						};
+						auto& visited = walkData.scratchWriteCursor;
+						visited.resize(cnt);
+						for (uint32_t i = 0; i < cnt; ++i)
+							visited[i] = 0;
 
-						sort_level(currLevel);
+						auto& stack = walkData.scratchCurrLevel;
+						stack.clear();
+						auto& cursorStack = walkData.scratchNextLevel;
+						cursorStack.clear();
 
-						uint32_t executedCnt = 0;
-						while (!currLevel.empty()) {
-							for (auto idx: currLevel) {
-								ordered.push_back(entities[idx]);
-								++executedCnt;
-							}
+						auto append_from_root = [&](uint32_t rootIdx) {
+							stack.push_back(rootIdx);
+							cursorStack.push_back(offsets[rootIdx]);
 
-							nextLevel.clear();
-							for (auto idx: currLevel) {
-								for (uint32_t edgePos = offsets[idx]; edgePos < offsets[idx + 1]; ++edgePos) {
-									const auto dependentIdx = edges[edgePos];
-									if (indegree[dependentIdx] == 0)
+							while (!stack.empty()) {
+								const auto idx = stack.back();
+								if (visited[idx] == 0) {
+									visited[idx] = 1;
+									if (!isUp)
+										ordered.push_back(entities[idx]);
+								}
+
+								bool pushedChild = false;
+								auto& cursor = cursorStack.back();
+								while (cursor < offsets[idx + 1]) {
+									const auto childIdx = edges[cursor++];
+									if (visited[childIdx] != 0)
 										continue;
 
-									--indegree[dependentIdx];
-									if (indegree[dependentIdx] == 0)
-										nextLevel.push_back(dependentIdx);
+									stack.push_back(childIdx);
+									cursorStack.push_back(offsets[childIdx]);
+									pushedChild = true;
+									break;
 								}
+
+								if (pushedChild)
+									continue;
+
+								if (isUp)
+									ordered.push_back(entities[idx]);
+								visited[idx] = 2;
+								stack.pop_back();
+								cursorStack.pop_back();
 							}
+						};
 
-							if (nextLevel.empty())
-								break;
-
-							sort_level(nextLevel);
-							currLevel.clear();
-							currLevel.reserve(nextLevel.size());
-							for (auto idx: nextLevel)
-								currLevel.push_back(idx);
+						for (uint32_t i = 0; i < cnt; ++i) {
+							if (indegree[i] == 0 && visited[i] == 0)
+								append_from_root(i);
 						}
 
-						// A cycle can still appear in user data. Keep behavior deterministic and output the rest by id.
-						if (executedCnt != cnt) {
-							for (uint32_t i = 0; i < cnt; ++i) {
-								if (indegree[i] > 0)
-									ordered.push_back(entities[i]);
-							}
+						// Cycles are invalid relationship data, but keep traversal deterministic by visiting leftovers by id.
+						for (uint32_t i = 0; i < cnt; ++i) {
+							if (visited[i] == 0)
+								append_from_root(i);
+						}
+
+						if (needsReverse) {
+							const auto orderedCnt = (uint32_t)ordered.size();
+							for (uint32_t i = 0; i < orderedCnt / 2; ++i)
+								core::swap(ordered[i], ordered[orderedCnt - i - 1]);
 						}
 					}
 
 					walkData.cachedRelation = relation;
+					walkData.cachedOrder = order;
 					walkData.cachedConstraints = constraints;
 					walkData.cachedRelationVersion = relationVersion;
 					walkData.cachedEntityVersion = ::gaia::ecs::world_version(world);
@@ -6361,20 +6427,22 @@ namespace gaia {
 					return std::span<const Entity>(walkData.cachedOutput.data(), walkData.cachedOutput.size());
 				}
 
-				//! Iterates entities matching the query ordered in dependency BFS levels.
-				//! For relation R this treats Pair(R, X) on entity E as "E depends on X".
-				//! Systems depending on no other matched system are first, then their dependents level-by-level.
-				//! Nodes on the same level are ordered by entity id.
+				//! Iterates entities matching the query in a requested relation traversal order.
+				//! For relation R this treats Pair(R, X) on entity E as "E points at X".
+				//! Traversal changes only visit order. Nodes with the same parent are ordered by entity id.
 				//! \tparam Func Callback type. May accept `Iter&` or an entity value.
 				//! \param func Callable invoked for each ordered entity.
-				//! \param relation Dependency relation
+				//! \param relation Relation used to order matched entities.
+				//! \param order Traversal order to apply.
 				//! \param constraints QueryImpl constraints
-				//! \see ordered_entities_walk(QueryInfo&, Entity, Constraints)
+				//! \see ordered_entities_walk(QueryInfo&, Entity, TravOrder, Constraints)
 				template <typename Func, std::enable_if_t<detail::is_query_walk_core_callback_v<Func>, int> = 0>
-				void each_walk(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly) {
+				void each_walk(
+						Func func, Entity relation, TravOrder order = TravOrder::Down,
+						Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
-					const auto ordered = ordered_entities_walk(queryInfo, relation, constraints);
+					const auto ordered = ordered_entities_walk(queryInfo, relation, order, constraints);
 
 					if constexpr (std::is_invocable_v<Func, Iter&>) {
 						each_direct_entities_iter(queryInfo, ordered, constraints, func);
@@ -6385,7 +6453,9 @@ namespace gaia {
 				}
 
 				template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int> = 0>
-				void each_walk(Func func, Entity relation, Constraints constraints = Constraints::EnabledOnly);
+				void each_walk(
+						Func func, Entity relation, TravOrder order = TravOrder::Down,
+						Constraints constraints = Constraints::EnabledOnly);
 
 				//------------------------------------------------
 

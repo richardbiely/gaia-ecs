@@ -95,7 +95,7 @@ void BM_Hierarchy_Set(picobench::state& state) {
 }
 
 template <bool UseParent, bool WithDisabledBarrier = false>
-void BM_Hierarchy_Bfs(picobench::state& state) {
+void BM_Hierarchy_Traversal(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -124,7 +124,7 @@ void BM_Hierarchy_Bfs(picobench::state& state) {
 }
 
 template <bool UseParent, bool WithDisabledBarrier = false>
-void BM_Query_Bfs(picobench::state& state) {
+void BM_Query_Traversal(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -137,7 +137,7 @@ void BM_Query_Bfs(picobench::state& state) {
 	auto q = w.query().all<Position>();
 	uint64_t visited = 0;
 
-	q.walk(relation).each([&](ecs::Entity) {
+	q.order_by(relation, ecs::TravOrder::Down).each([&](ecs::Entity) {
 		++visited;
 	});
 	visited = 0;
@@ -145,7 +145,7 @@ void BM_Query_Bfs(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		q.walk(relation).each([&](ecs::Entity) {
+		q.order_by(relation, ecs::TravOrder::Down).each([&](ecs::Entity) {
 			++visited;
 		});
 	}
@@ -260,7 +260,7 @@ void BM_Query_DepthOrder_ChildOf_Fanout(picobench::state& state) {
 }
 
 template <uint32_t BranchingFactor>
-void BM_Query_Walk_DependsOn(picobench::state& state) {
+void BM_Query_Traversal_DependsOn(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -270,7 +270,7 @@ void BM_Query_Walk_DependsOn(picobench::state& state) {
 	auto q = w.query().all<Position>();
 	uint64_t visited = 0;
 
-	q.walk(ecs::DependsOn).each([&](ecs::Entity) {
+	q.order_by(ecs::DependsOn, ecs::TravOrder::Down).each([&](ecs::Entity) {
 		++visited;
 	});
 	visited = 0;
@@ -278,7 +278,7 @@ void BM_Query_Walk_DependsOn(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		q.walk(ecs::DependsOn).each([&](ecs::Entity) {
+		q.order_by(ecs::DependsOn, ecs::TravOrder::Down).each([&](ecs::Entity) {
 			++visited;
 		});
 	}
@@ -393,7 +393,7 @@ void BM_Query_Plain_ChildOf_Component(picobench::state& state) {
 	dont_optimize(sum);
 }
 
-void BM_Query_Bfs_ChildOf_Component(picobench::state& state) {
+void BM_Query_Traversal_ChildOf_Component(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -403,7 +403,7 @@ void BM_Query_Bfs_ChildOf_Component(picobench::state& state) {
 	auto q = w.query().all<Position>();
 	float sum = 0.0f;
 
-	q.walk(ecs::ChildOf).each([&](ecs::Entity entity) {
+	q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
 		sum += w.get<Position>(entity).x;
 	});
 	sum = 0.0f;
@@ -411,7 +411,7 @@ void BM_Query_Bfs_ChildOf_Component(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		q.walk(ecs::ChildOf).each([&](ecs::Entity entity) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
 			sum += w.get<Position>(entity).x;
 		});
 	}
@@ -471,7 +471,7 @@ void BM_Query_Plain_ChildOf_EachComponent(picobench::state& state) {
 	dont_optimize(sum);
 }
 
-void BM_Query_Bfs_ChildOf_EachComponent(picobench::state& state) {
+void BM_Query_Traversal_ChildOf_EachComponent(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -481,7 +481,7 @@ void BM_Query_Bfs_ChildOf_EachComponent(picobench::state& state) {
 	auto q = w.query().all<Position>();
 	float sum = 0.0f;
 
-	q.walk(ecs::ChildOf).each([&](ecs::Entity, const Position& pos) {
+	q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity, const Position& pos) {
 		sum += pos.x;
 	});
 	sum = 0.0f;
@@ -489,7 +489,7 @@ void BM_Query_Bfs_ChildOf_EachComponent(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		q.walk(ecs::ChildOf).each([&](ecs::Entity, const Position& pos) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity, const Position& pos) {
 			sum += pos.x;
 		});
 	}
@@ -555,7 +555,7 @@ void BM_Query_Plain_ChildOf_Iter(picobench::state& state) {
 	dont_optimize(sum);
 }
 
-void BM_Query_Bfs_ChildOf_Iter(picobench::state& state) {
+void BM_Query_Traversal_ChildOf_Iter(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
 	ecs::World w;
@@ -565,7 +565,7 @@ void BM_Query_Bfs_ChildOf_Iter(picobench::state& state) {
 	auto q = w.query().all<Position>();
 	float sum = 0.0f;
 
-	q.walk(ecs::ChildOf).each([&](ecs::Iter& it) {
+	q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Iter& it) {
 		auto posView = it.view<Position>();
 		GAIA_EACH(it) {
 			sum += posView[i].x;
@@ -576,7 +576,7 @@ void BM_Query_Bfs_ChildOf_Iter(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 
-		q.walk(ecs::ChildOf).each([&](ecs::Iter& it) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Iter& it) {
 			auto posView = it.view<Position>();
 			GAIA_EACH(it) {
 				sum += posView[i].x;
@@ -619,20 +619,20 @@ void BM_Query_Cascade_ChildOf_Iter(picobench::state& state) {
 	dont_optimize(sum);
 }
 
-void BM_Hierarchy_Bfs_ChildOf_Disabled(picobench::state& state) {
-	BM_Hierarchy_Bfs<false, true>(state);
+void BM_Hierarchy_Traversal_ChildOf_Disabled(picobench::state& state) {
+	BM_Hierarchy_Traversal<false, true>(state);
 }
 
-void BM_Hierarchy_Bfs_Parent_Disabled(picobench::state& state) {
-	BM_Hierarchy_Bfs<true, true>(state);
+void BM_Hierarchy_Traversal_Parent_Disabled(picobench::state& state) {
+	BM_Hierarchy_Traversal<true, true>(state);
 }
 
-void BM_Query_Bfs_ChildOf_Disabled(picobench::state& state) {
-	BM_Query_Bfs<false, true>(state);
+void BM_Query_Traversal_ChildOf_Disabled(picobench::state& state) {
+	BM_Query_Traversal<false, true>(state);
 }
 
-void BM_Query_Bfs_Parent_Disabled(picobench::state& state) {
-	BM_Query_Bfs<true, true>(state);
+void BM_Query_Traversal_Parent_Disabled(picobench::state& state) {
+	BM_Query_Traversal<true, true>(state);
 }
 
 template <bool UseParent>
@@ -1007,18 +1007,18 @@ void BM_QueryCache_RegisterPairHeavy_RelWildcard(picobench::state& state) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void BM_Hierarchy_Bfs_ChildOf_Disabled(picobench::state& state);
-void BM_Hierarchy_Bfs_Parent_Disabled(picobench::state& state);
+void BM_Hierarchy_Traversal_ChildOf_Disabled(picobench::state& state);
+void BM_Hierarchy_Traversal_Parent_Disabled(picobench::state& state);
 void BM_Hierarchy_DeleteTarget(picobench::state& state);
 void BM_Hierarchy_Set(picobench::state& state);
 void BM_Hierarchy_Sources(picobench::state& state);
 void BM_Hierarchy_TargetWalk(picobench::state& state);
-void BM_Query_Bfs(picobench::state& state);
-void BM_Query_Bfs_ChildOf_Component(picobench::state& state);
-void BM_Query_Bfs_ChildOf_Disabled(picobench::state& state);
-void BM_Query_Bfs_ChildOf_EachComponent(picobench::state& state);
-void BM_Query_Bfs_ChildOf_Iter(picobench::state& state);
-void BM_Query_Bfs_Parent_Disabled(picobench::state& state);
+void BM_Query_Traversal(picobench::state& state);
+void BM_Query_Traversal_ChildOf_Component(picobench::state& state);
+void BM_Query_Traversal_ChildOf_Disabled(picobench::state& state);
+void BM_Query_Traversal_ChildOf_EachComponent(picobench::state& state);
+void BM_Query_Traversal_ChildOf_Iter(picobench::state& state);
+void BM_Query_Traversal_Parent_Disabled(picobench::state& state);
 void BM_Query_Cascade_ChildOf(picobench::state& state);
 void BM_Query_Cascade_ChildOf_Component(picobench::state& state);
 void BM_Query_Cascade_ChildOf_Disabled(picobench::state& state);
@@ -1036,7 +1036,7 @@ void BM_Query_Plain_ChildOf(picobench::state& state);
 void BM_Query_Plain_ChildOf_Component(picobench::state& state);
 void BM_Query_Plain_ChildOf_EachComponent(picobench::state& state);
 void BM_Query_Plain_ChildOf_Iter(picobench::state& state);
-void BM_Query_Walk_DependsOn(picobench::state& state);
+void BM_Query_Traversal_DependsOn(picobench::state& state);
 void BM_Relationship_SourcesWildcard(picobench::state& state);
 void BM_Relationship_TargetsWildcard(picobench::state& state);
 
@@ -1084,11 +1084,11 @@ void register_parent(PerfRunMode mode) {
 	PICOBENCH_REG(BM_Hierarchy_TargetWalk<false>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("childof up-walk 10K");
+			.label("childof up traversal 10K");
 	PICOBENCH_REG(BM_Hierarchy_TargetWalk<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("parent up-walk 10K");
+			.label("parent up traversal 10K");
 	PICOBENCH_REG(BM_Hierarchy_Sources<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof sources 10K");
 	PICOBENCH_REG(BM_Hierarchy_Sources<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent sources 10K");
 	PICOBENCH_REG(BM_Relationship_SourcesWildcard)
@@ -1099,27 +1099,39 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("wildcard targets 10K");
-	PICOBENCH_REG(BM_Hierarchy_Bfs<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof walk 10K");
-	PICOBENCH_REG(BM_Hierarchy_Bfs<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent walk 10K");
-	PICOBENCH_REG(BM_Hierarchy_Bfs_ChildOf_Disabled)
+	PICOBENCH_REG(BM_Hierarchy_Traversal<false>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("childof walk disabled barrier 10K");
-	PICOBENCH_REG(BM_Hierarchy_Bfs_Parent_Disabled)
+			.label("childof traversal 10K");
+	PICOBENCH_REG(BM_Hierarchy_Traversal<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("parent walk disabled barrier 10K");
+			.label("parent traversal 10K");
+	PICOBENCH_REG(BM_Hierarchy_Traversal_ChildOf_Disabled)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("childof traversal disabled barrier 10K");
+	PICOBENCH_REG(BM_Hierarchy_Traversal_Parent_Disabled)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("parent traversal disabled barrier 10K");
 	PICOBENCH_REG(BM_Query_Plain_ChildOf).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("query childof plain 10K");
 	PICOBENCH_REG(BM_Query_Plain_ChildOf_Component)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof plain get 10K");
-	PICOBENCH_REG(BM_Query_Bfs<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("query childof walk 10K");
-	PICOBENCH_REG(BM_Query_Bfs_ChildOf_Component)
+	PICOBENCH_REG(BM_Query_Traversal<false>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query childof walk get 10K");
-	PICOBENCH_REG(BM_Query_Bfs<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("query parent walk 10K");
+			.label("query childof traversal 10K");
+	PICOBENCH_REG(BM_Query_Traversal_ChildOf_Component)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query childof traversal get 10K");
+	PICOBENCH_REG(BM_Query_Traversal<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("query parent traversal 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
@@ -1144,18 +1156,18 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof depth_order disabled barrier 10K");
-	PICOBENCH_REG(BM_Query_Walk_DependsOn<4U>)
+	PICOBENCH_REG(BM_Query_Traversal_DependsOn<4U>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query dependson walk 10K");
+			.label("query dependson traversal 10K");
 	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn<4U>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query dependson depth_order 10K");
-	PICOBENCH_REG(BM_Query_Walk_DependsOn<1U>)
+	PICOBENCH_REG(BM_Query_Traversal_DependsOn<1U>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query dependson walk chain 10K");
+			.label("query dependson traversal chain 10K");
 	PICOBENCH_REG(BM_Query_DepthOrder_DependsOn<1U>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
@@ -1176,10 +1188,10 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof plain each pos 10K");
-	PICOBENCH_REG(BM_Query_Bfs_ChildOf_EachComponent)
+	PICOBENCH_REG(BM_Query_Traversal_ChildOf_EachComponent)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query childof walk each pos 10K");
+			.label("query childof traversal each pos 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_EachComponent)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
@@ -1188,22 +1200,22 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof plain iter pos 10K");
-	PICOBENCH_REG(BM_Query_Bfs_ChildOf_Iter)
+	PICOBENCH_REG(BM_Query_Traversal_ChildOf_Iter)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query childof walk iter pos 10K");
+			.label("query childof traversal iter pos 10K");
 	PICOBENCH_REG(BM_Query_Cascade_ChildOf_Iter)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("query childof depth_order iter pos 10K");
-	PICOBENCH_REG(BM_Query_Bfs_ChildOf_Disabled)
+	PICOBENCH_REG(BM_Query_Traversal_ChildOf_Disabled)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query childof walk disabled barrier 10K");
-	PICOBENCH_REG(BM_Query_Bfs_Parent_Disabled)
+			.label("query childof traversal disabled barrier 10K");
+	PICOBENCH_REG(BM_Query_Traversal_Parent_Disabled)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
-			.label("query parent walk disabled barrier 10K");
+			.label("query parent traversal disabled barrier 10K");
 	PICOBENCH_SUITE_REG("Query cache maintenance");
 	PICOBENCH_REG(BM_Hierarchy_DeleteTarget<false>)
 			.PICO_SETTINGS_FOCUS()

@@ -11322,9 +11322,9 @@ namespace gaia {
 			GAIA_ASSERT(!relation.pair());
 
 			// Depth ordering only makes sense for fragmenting relations whose target participates in archetype identity.
-			// Non-fragmenting relations such as Parent must stay on walk(...), because their targets vary per entity
-			// and cannot be represented by one cached archetype depth.
-			// The level is derived from the cached upward traversal chain so normal query iteration can stay cheap.
+			// Non-fragmenting relations such as Parent must stay on per-entity traversal, because their targets vary per
+			// entity and cannot be represented by one cached archetype depth. The level is derived from the cached upward
+			// traversal chain so normal query iteration can stay cheap.
 			if (!world.supports_depth_order(relation) || archetype.pairs() == 0)
 				return 0;
 

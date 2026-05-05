@@ -1218,10 +1218,10 @@ namespace gaia {
 			}
 
 			template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int>>
-			inline void QueryImpl::each_walk(Func func, Entity relation, Constraints constraints) {
+			inline void QueryImpl::each_walk(Func func, Entity relation, TravOrder order, Constraints constraints) {
 				auto& queryInfo = fetch();
 				match_all(queryInfo);
-				const auto ordered = ordered_entities_walk(queryInfo, relation, constraints);
+				const auto ordered = ordered_entities_walk(queryInfo, relation, order, constraints);
 
 				using InputArgs = decltype(core::func_args(&Func::operator()));
 				GAIA_ASSERT(typed_query_args_match_query(queryInfo, InputArgs{}));

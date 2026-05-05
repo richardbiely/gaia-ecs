@@ -110,6 +110,11 @@ namespace gaia {
 				return depth_order(typed_query_raw_entity<Rel>(*m_storage.world()));
 			}
 
+			template <typename Rel>
+			inline QueryImpl::OrderByTravView QueryImpl::order_by(TravOrder order) {
+				return order_by(typed_query_raw_entity<Rel>(*m_storage.world()), order);
+			}
+
 			template <typename T>
 			inline QueryImpl& QueryImpl::group_by(TGroupByFunc func) {
 				return group_by(typed_query_raw_entity<T>(*m_storage.world()), func);

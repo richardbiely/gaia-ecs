@@ -3470,7 +3470,7 @@ TEST_CASE("Upward traversal with disabled ancestors") {
 	}
 }
 
-TEST_CASE("Query entity each walk") {
+TEST_CASE("Query entity each traversal order") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3494,33 +3494,33 @@ TEST_CASE("Query entity each walk") {
 
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
-	q.walk(rel).each([&](ecs::Entity e) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 
 	CHECK(ents.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 
 	// Re-run without changes (cache hit expected).
 	ents.clear();
-	q.walk(rel).each([&](ecs::Entity e) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 	CHECK(ents.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 
 	// Change dependency topology but keep the same entity set.
 	wld.del(b, {rel, root});
 	wld.add(b, {rel, c});
 
 	ents.clear();
-	q.walk(rel).each([&](ecs::Entity e) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 		ents.push_back(e);
 	});
 	CHECK(ents.size() == 4);
@@ -3530,7 +3530,86 @@ TEST_CASE("Query entity each walk") {
 	CHECK(ents[3] == b);
 }
 
-TEST_CASE("Query typed each walk") {
+TEST_CASE("Query traversal order variants") {
+	static_assert(ecs::TravOrder::Preorder == ecs::TravOrder::Down);
+	static_assert(ecs::TravOrder::Postorder == ecs::TravOrder::Up);
+	static_assert(ecs::TravOrder::ReversePreorder == ecs::TravOrder::ReverseDown);
+	static_assert(ecs::TravOrder::ReversePostorder == ecs::TravOrder::ReverseUp);
+
+	TestWorld twld;
+
+	auto rel = wld.add();
+	auto root = wld.add();
+	auto a = wld.add();
+	auto b = wld.add();
+	auto c = wld.add();
+	auto root2 = wld.add();
+	auto d = wld.add();
+
+	wld.add<Position>(root, {0, 0, 0});
+	wld.add<Position>(a, {0, 0, 0});
+	wld.add<Position>(b, {0, 0, 0});
+	wld.add<Position>(c, {0, 0, 0});
+	wld.add<Position>(root2, {0, 0, 0});
+	wld.add<Position>(d, {0, 0, 0});
+
+	wld.add(a, {rel, root});
+	wld.add(b, {rel, root});
+	wld.add(c, {rel, a});
+	wld.add(d, {rel, root2});
+
+	auto q = wld.query().all<Position>();
+	auto collect = [&](ecs::TravOrder order) {
+		cnt::darray<ecs::Entity> ents;
+		q.order_by(rel, order).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+		return ents;
+	};
+
+	{
+		auto ents = collect(ecs::TravOrder::Up);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == c);
+		CHECK(ents[1] == a);
+		CHECK(ents[2] == b);
+		CHECK(ents[3] == root);
+		CHECK(ents[4] == d);
+		CHECK(ents[5] == root2);
+	}
+	{
+		auto ents = collect(ecs::TravOrder::Down);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == root);
+		CHECK(ents[1] == a);
+		CHECK(ents[2] == c);
+		CHECK(ents[3] == b);
+		CHECK(ents[4] == root2);
+		CHECK(ents[5] == d);
+	}
+	{
+		auto ents = collect(ecs::TravOrder::ReverseUp);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == root2);
+		CHECK(ents[1] == d);
+		CHECK(ents[2] == root);
+		CHECK(ents[3] == b);
+		CHECK(ents[4] == a);
+		CHECK(ents[5] == c);
+	}
+	{
+		auto ents = collect(ecs::TravOrder::ReverseDown);
+		CHECK(ents.size() == 6);
+		CHECK(ents[0] == d);
+		CHECK(ents[1] == root2);
+		CHECK(ents[2] == b);
+		CHECK(ents[3] == c);
+		CHECK(ents[4] == a);
+		CHECK(ents[5] == root);
+	}
+}
+
+TEST_CASE("Query typed each traversal order") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3552,7 +3631,7 @@ TEST_CASE("Query typed each walk") {
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> xs;
-	q.walk(rel).each([&](ecs::Entity e, const Position& pos) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e, const Position& pos) {
 		ents.push_back(e);
 		xs.push_back(pos.x);
 	});
@@ -3561,15 +3640,15 @@ TEST_CASE("Query typed each walk") {
 	CHECK(xs.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 	CHECK(xs[0] == doctest::Approx(0.0f));
 	CHECK(xs[1] == doctest::Approx(1.0f));
-	CHECK(xs[2] == doctest::Approx(2.0f));
-	CHECK(xs[3] == doctest::Approx(3.0f));
+	CHECK(xs[2] == doctest::Approx(3.0f));
+	CHECK(xs[3] == doctest::Approx(2.0f));
 }
 
-TEST_CASE("Query iterator each walk") {
+TEST_CASE("Query iterator each traversal order") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3591,7 +3670,7 @@ TEST_CASE("Query iterator each walk") {
 	auto q = wld.query().all<Position>();
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> xs;
-	q.walk(rel).each([&](ecs::Iter& it) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Iter& it) {
 		auto entView = it.view<ecs::Entity>();
 		auto posView = it.view<Position>();
 		GAIA_EACH(it) {
@@ -3604,19 +3683,19 @@ TEST_CASE("Query iterator each walk") {
 	CHECK(xs.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 	CHECK(xs[0] == doctest::Approx(0.0f));
 	CHECK(xs[1] == doctest::Approx(1.0f));
-	CHECK(xs[2] == doctest::Approx(2.0f));
-	CHECK(xs[3] == doctest::Approx(3.0f));
+	CHECK(xs[2] == doctest::Approx(3.0f));
+	CHECK(xs[3] == doctest::Approx(2.0f));
 
 	wld.del(b, {rel, root});
 	wld.add(b, {rel, c});
 
 	ents.clear();
 	xs.clear();
-	q.walk(rel).each([&](ecs::Iter& it) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Iter& it) {
 		auto entView = it.view<ecs::Entity>();
 		auto posView = it.view<Position>();
 		GAIA_EACH(it) {
@@ -3637,7 +3716,7 @@ TEST_CASE("Query iterator each walk") {
 	CHECK(xs[3] == doctest::Approx(2.0f));
 }
 
-TEST_CASE("Query typed each walk multiple components") {
+TEST_CASE("Query typed each traversal order multiple components") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3665,7 +3744,7 @@ TEST_CASE("Query typed each walk multiple components") {
 	cnt::darray<ecs::Entity> ents;
 	cnt::darray<float> px;
 	cnt::darray<float> sx;
-	q.walk(rel).each([&](ecs::Entity e, const Position& pos, const Scale& scale) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e, const Position& pos, const Scale& scale) {
 		ents.push_back(e);
 		px.push_back(pos.x);
 		sx.push_back(scale.x);
@@ -3676,19 +3755,19 @@ TEST_CASE("Query typed each walk multiple components") {
 	CHECK(sx.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 	CHECK(px[0] == doctest::Approx(0.0f));
 	CHECK(px[1] == doctest::Approx(1.0f));
-	CHECK(px[2] == doctest::Approx(2.0f));
-	CHECK(px[3] == doctest::Approx(3.0f));
+	CHECK(px[2] == doctest::Approx(3.0f));
+	CHECK(px[3] == doctest::Approx(2.0f));
 	CHECK(sx[0] == doctest::Approx(10.0f));
 	CHECK(sx[1] == doctest::Approx(11.0f));
-	CHECK(sx[2] == doctest::Approx(12.0f));
-	CHECK(sx[3] == doctest::Approx(13.0f));
+	CHECK(sx[2] == doctest::Approx(13.0f));
+	CHECK(sx[3] == doctest::Approx(12.0f));
 }
 
-TEST_CASE("Query typed each walk mutable components") {
+TEST_CASE("Query typed each traversal order mutable components") {
 	TestWorld twld;
 
 	auto rel = wld.add();
@@ -3714,7 +3793,7 @@ TEST_CASE("Query typed each walk mutable components") {
 
 	auto q = wld.query().all<Position&>().all<Scale>();
 	cnt::darray<ecs::Entity> ents;
-	q.walk(rel).each([&](ecs::Entity e, Position& pos, const Scale& scale) {
+	q.order_by(rel, ecs::TravOrder::Down).each([&](ecs::Entity e, Position& pos, const Scale& scale) {
 		ents.push_back(e);
 		pos.x += scale.x;
 	});
@@ -3722,8 +3801,8 @@ TEST_CASE("Query typed each walk mutable components") {
 	CHECK(ents.size() == 4);
 	CHECK(ents[0] == root);
 	CHECK(ents[1] == a);
-	CHECK(ents[2] == b);
-	CHECK(ents[3] == c);
+	CHECK(ents[2] == c);
+	CHECK(ents[3] == b);
 
 	CHECK(wld.get<Position>(root).x == doctest::Approx(10.0f));
 	CHECK(wld.get<Position>(a).x == doctest::Approx(12.0f));
@@ -3731,7 +3810,7 @@ TEST_CASE("Query typed each walk mutable components") {
 	CHECK(wld.get<Position>(c).x == doctest::Approx(16.0f));
 }
 
-TEST_CASE("Query entity each walk with disabled ancestor barriers") {
+TEST_CASE("Query entity each traversal order with disabled ancestor barriers") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3748,7 +3827,7 @@ TEST_CASE("Query entity each walk with disabled ancestor barriers") {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3762,7 +3841,7 @@ TEST_CASE("Query entity each walk with disabled ancestor barriers") {
 	wld.enable(root, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3773,7 +3852,7 @@ TEST_CASE("Query entity each walk with disabled ancestor barriers") {
 	wld.enable(child, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::ChildOf).each([&](ecs::Entity e) {
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3781,7 +3860,7 @@ TEST_CASE("Query entity each walk with disabled ancestor barriers") {
 	}
 }
 
-TEST_CASE("Query entity walk Parent prunes disabled subtree") {
+TEST_CASE("Query entity traversal order Parent prunes disabled subtree") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -3798,7 +3877,7 @@ TEST_CASE("Query entity walk Parent prunes disabled subtree") {
 
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+		q.order_by<ecs::Parent_>(ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3810,7 +3889,7 @@ TEST_CASE("Query entity walk Parent prunes disabled subtree") {
 	wld.enable(root, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+		q.order_by<ecs::Parent_>(ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -3821,7 +3900,7 @@ TEST_CASE("Query entity walk Parent prunes disabled subtree") {
 	wld.enable(child, false);
 	{
 		cnt::darr<ecs::Entity> ents;
-		q.walk(ecs::Parent).each([&](ecs::Entity e) {
+		q.order_by<ecs::Parent_>(ecs::TravOrder::Down).each([&](ecs::Entity e) {
 			ents.push_back(e);
 		});
 
@@ -4435,9 +4514,9 @@ void Test_Query_CopyMovePreservesRuntimeCaches() {
 	wld.add<Position>(child, {1.0f, 0.0f, 0.0f});
 	wld.add<Position>(leaf, {2.0f, 0.0f, 0.0f});
 
-	auto check_walk = [&](auto& query) {
+	auto check_traversal = [&](auto& query) {
 		cnt::darr<ecs::Entity> ents;
-		query.walk(ecs::ChildOf).each([&](ecs::Entity entity) {
+		query.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity entity) {
 			ents.push_back(entity);
 		});
 
@@ -4450,23 +4529,23 @@ void Test_Query_CopyMovePreservesRuntimeCaches() {
 		CHECK(query.is_cached() == UseCachedQuery);
 	};
 
-	auto qWalk = make_query<UseCachedQuery>(wld).template all<Position>();
-	check_walk(qWalk);
-	check_walk(qWalk);
+	auto qTraversal = make_query<UseCachedQuery>(wld).template all<Position>();
+	check_traversal(qTraversal);
+	check_traversal(qTraversal);
 
-	auto qWalkCopy(qWalk);
-	check_walk(qWalkCopy);
+	auto qTraversalCopy(qTraversal);
+	check_traversal(qTraversalCopy);
 
-	auto qWalkMoved(GAIA_MOV(qWalkCopy));
-	check_walk(qWalkMoved);
+	auto qTraversalMoved(GAIA_MOV(qTraversalCopy));
+	check_traversal(qTraversalMoved);
 
-	auto qWalkAssigned = make_query<UseCachedQuery>(wld).template all<Rotation>();
-	qWalkAssigned = qWalk;
-	check_walk(qWalkAssigned);
+	auto qTraversalAssigned = make_query<UseCachedQuery>(wld).template all<Rotation>();
+	qTraversalAssigned = qTraversal;
+	check_traversal(qTraversalAssigned);
 
-	auto qWalkMoveAssigned = make_query<UseCachedQuery>(wld).template all<Acceleration>();
-	qWalkMoveAssigned = GAIA_MOV(qWalkAssigned);
-	check_walk(qWalkMoveAssigned);
+	auto qTraversalMoveAssigned = make_query<UseCachedQuery>(wld).template all<Acceleration>();
+	qTraversalMoveAssigned = GAIA_MOV(qTraversalAssigned);
+	check_traversal(qTraversalMoveAssigned);
 
 	const auto base = wld.add();
 	const auto derived = wld.add();
