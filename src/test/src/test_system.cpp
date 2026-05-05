@@ -518,6 +518,120 @@ TEST_CASE("System - phased systems respect intra-phase DependsOn postorder") {
 	}
 }
 
+TEST_CASE("System - phase dependencies run deepest phases before their targets") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseRoot = wld.add();
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+	const auto phaseA0 = wld.add();
+
+	auto make_sys = [&](ecs::Entity phase, char id) {
+		return wld.system().phase(phase).all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	make_sys(phaseRoot, 'R');
+	make_sys(phaseA, 'A');
+	make_sys(phaseB, 'B');
+	make_sys(phaseA0, 'a');
+
+	wld.add(phaseA, {ecs::DependsOn, phaseRoot});
+	wld.add(phaseB, {ecs::DependsOn, phaseRoot});
+	wld.add(phaseA0, {ecs::DependsOn, phaseA});
+
+	wld.update();
+
+	CHECK(order.size() == 4);
+	if (order.size() == 4) {
+		CHECK(order[0] == 'a');
+		CHECK(order[1] == 'A');
+		CHECK(order[2] == 'B');
+		CHECK(order[3] == 'R');
+	}
+}
+
+TEST_CASE("System - phase dependency rewiring updates schedule order") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseRoot = wld.add();
+	const auto phaseChild = wld.add();
+
+	wld.system().phase(phaseRoot).all<Position>().on_each([&order](Position) {
+		order.push_back('R');
+	});
+	wld.system().phase(phaseChild).all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+
+	wld.add(phaseChild, {ecs::DependsOn, phaseRoot});
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'R');
+	}
+
+	wld.del(phaseChild, {ecs::DependsOn, phaseRoot});
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'C');
+	}
+}
+
+TEST_CASE("System - disabled phase skips phased systems") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phase = wld.add();
+	wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('P');
+	});
+	wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('U');
+	});
+
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'P');
+		CHECK(order[1] == 'U');
+	}
+
+	wld.enable(phase, false);
+	order.clear();
+	wld.update();
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'U');
+
+	wld.enable(phase, true);
+	order.clear();
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'P');
+		CHECK(order[1] == 'U');
+	}
+}
+
 TEST_CASE("World - teardown removes runtime callbacks without executing them") {
 	ecs::World world;
 	uint32_t sysCnt = 0;
