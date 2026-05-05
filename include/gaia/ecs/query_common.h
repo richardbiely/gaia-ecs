@@ -378,6 +378,69 @@ namespace gaia {
 			}
 		};
 
+		//! Explicit component/entity access declarations used for scheduling decisions.
+		//!
+		//! Queries derive read/write access from their positive query terms. This small side-band set stores accesses that
+		//! are not part of the query shape, for example a component fetched manually inside the query callback.
+		//!
+		//! \note This metadata is intentionally not part of query identity. It does not affect query hashing, matching,
+		//! cache sharing, or cache invalidation.
+		struct QueryAccessSet {
+			//! Component/entity ids read by the callback outside the query terms.
+			cnt::sarray<Entity, MAX_ITEMS_IN_QUERY> reads;
+			//! Component/entity ids written by the callback outside the query terms.
+			cnt::sarray<Entity, MAX_ITEMS_IN_QUERY> writes;
+			//! Number of valid entries in reads.
+			uint8_t readCnt = 0;
+			//! Number of valid entries in writes.
+			uint8_t writeCnt = 0;
+
+			//! Returns the explicitly declared read ids.
+			//! \return Read-only span over explicit read ids.
+			GAIA_NODISCARD std::span<const Entity> reads_view() const {
+				return {reads.data(), readCnt};
+			}
+
+			//! Returns the explicitly declared write ids.
+			//! \return Read-only span over explicit write ids.
+			GAIA_NODISCARD std::span<const Entity> writes_view() const {
+				return {writes.data(), writeCnt};
+			}
+
+			//! Declares that an id is read.
+			//! \param entity Component/entity id read by user code.
+			void add_read(Entity entity) {
+				if (entity == EntityBad || core::has(reads_view(), entity))
+					return;
+
+				GAIA_ASSERT(readCnt < MAX_ITEMS_IN_QUERY);
+				if (readCnt < MAX_ITEMS_IN_QUERY)
+					reads[readCnt++] = entity;
+			}
+
+			//! Declares that an id is written.
+			//! \param entity Component/entity id written by user code.
+			void add_write(Entity entity) {
+				if (entity == EntityBad || core::has(writes_view(), entity))
+					return;
+
+				GAIA_ASSERT(writeCnt < MAX_ITEMS_IN_QUERY);
+				if (writeCnt < MAX_ITEMS_IN_QUERY)
+					writes[writeCnt++] = entity;
+			}
+
+			//! Returns explicitly declared access for an id.
+			//! \param entity Component/entity id to look up.
+			//! \return Write if explicitly written, Read if explicitly read, None otherwise.
+			GAIA_NODISCARD QueryAccess access(Entity entity) const {
+				if (core::has(writes_view(), entity))
+					return QueryAccess::Write;
+				if (core::has(reads_view(), entity))
+					return QueryAccess::Read;
+				return QueryAccess::None;
+			}
+		};
+
 		//! Internal representation of QueryInput
 		struct QueryTerm {
 			//! Queried id

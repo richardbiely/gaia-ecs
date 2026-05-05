@@ -206,6 +206,52 @@ TEST_CASE("Query - shared cached queries keep separate contexts") {
 	CHECK(second.hits == 1);
 }
 
+TEST_CASE("Query - access declarations describe scheduling conflicts") {
+	TestWorld twld;
+
+	auto readPosA = wld.query().all<const Position>();
+	auto readPosB = wld.query().all<const Position>().reads<Acceleration>();
+	auto writePos = wld.query().all<Position&>();
+	auto writeAccel = wld.query().all<const Position>().writes<Acceleration>();
+	auto readScale = wld.query().all<const Position>().reads<Scale>();
+
+	CHECK(readPosB.custom_reads().size() == 1);
+	CHECK(writeAccel.custom_writes().size() == 1);
+	const auto accelId = readPosB.custom_reads()[0];
+	CHECK(readPosB.access(accelId) == ecs::QueryAccess::Read);
+	CHECK(writeAccel.access(accelId) == ecs::QueryAccess::Write);
+
+	CHECK(readPosA.can_run_parallel(readPosB));
+	CHECK_FALSE(readPosA.can_run_parallel(writePos));
+	CHECK_FALSE(writePos.can_run_parallel(readPosA));
+	CHECK_FALSE(readPosB.can_run_parallel(writeAccel));
+	CHECK(writeAccel.can_run_parallel(readScale));
+
+	auto sharedRead = wld.query().scope(ecs::QueryCacheScope::Shared).all<const Position>().reads<Acceleration>();
+	auto sharedWrite = wld.query().scope(ecs::QueryCacheScope::Shared).all<const Position>().writes<Acceleration>();
+	CHECK(sharedRead.id() == sharedWrite.id());
+	CHECK_FALSE(sharedRead.can_run_parallel(sharedWrite));
+
+	auto mainOnly = wld.query().all<const Position>().main_thread();
+	CHECK(mainOnly.main_thread_required());
+	CHECK_FALSE(mainOnly.can_run_parallel(readPosA));
+}
+
+TEST_CASE("System - access declarations are stored on the underlying query") {
+	TestWorld twld;
+
+	auto sys =
+			wld.system().all<const Position>().main_thread().reads<Acceleration>().writes<Scale>().on_each([](ecs::Iter&) {});
+	auto ss = wld.acc_mut(sys.entity());
+	auto& data = ss.smut<ecs::System_>();
+
+	CHECK(data.query.custom_reads().size() == 1);
+	CHECK(data.query.custom_writes().size() == 1);
+	CHECK(data.query.main_thread_required());
+	CHECK(data.query.access(data.query.custom_reads()[0]) == ecs::QueryAccess::Read);
+	CHECK(data.query.access(data.query.custom_writes()[0]) == ecs::QueryAccess::Write);
+}
+
 TEST_CASE("System - dependency BFS order") {
 	cnt::darr<char> order;
 	TestWorld twld;

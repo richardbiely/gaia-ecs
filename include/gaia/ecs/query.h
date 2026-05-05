@@ -617,6 +617,10 @@ namespace gaia {
 				uint16_t m_cacheSrcTrav = 0;
 				//! User-owned data pointer exposed to iterator callbacks.
 				void* m_ctx = nullptr;
+				//! True when this query must run on the main thread/serial path.
+				bool m_mainThread = false;
+				//! User-declared accesses that are not part of the query term shape.
+				QueryAccessSet m_access;
 
 				//! Walk-specific cache and scratch storage, allocated on-demand.
 				struct EachWalkData {
@@ -742,6 +746,106 @@ namespace gaia {
 				};
 
 				OnDemandDataHolder<DirectSeedRunData> m_directSeedRunData;
+
+				//! Merges two access modes, preserving write access as the strongest mode.
+				//! \param lhs First access mode.
+				//! \param rhs Second access mode.
+				//! \return Strongest access mode represented by either argument.
+				GAIA_NODISCARD static QueryAccess merge_access(QueryAccess lhs, QueryAccess rhs) {
+					if (lhs == QueryAccess::Write || rhs == QueryAccess::Write)
+						return QueryAccess::Write;
+					if (lhs == QueryAccess::Read || rhs == QueryAccess::Read)
+						return QueryAccess::Read;
+					return QueryAccess::None;
+				}
+
+				//! Returns access requested by positive non-pair query terms for an id.
+				//! \param data Compiled query data.
+				//! \param entity Component/entity id to inspect.
+				//! \return Access inferred from query terms, or None when no data access is declared by the query shape.
+				GAIA_NODISCARD static QueryAccess term_access(const QueryCtx::Data& data, Entity entity) {
+					if (entity == EntityBad || entity.pair())
+						return QueryAccess::None;
+
+					QueryAccess access = QueryAccess::None;
+					const auto terms = data.terms_view();
+					GAIA_FOR((uint32_t)terms.size()) {
+						const auto& term = terms[i];
+						if (term.id != entity || (term.op != QueryOpKind::All && term.op != QueryOpKind::Or))
+							continue;
+
+						if ((data.readWriteMask & (uint16_t(1) << i)) != 0)
+							return QueryAccess::Write;
+						access = QueryAccess::Read;
+					}
+
+					return access;
+				}
+
+				//! Returns effective access from query terms plus explicit user declarations.
+				//! \param data Compiled query data.
+				//! \param accessSet Explicit user access declarations.
+				//! \param entity Component/entity id to inspect.
+				//! \return Effective access mode.
+				GAIA_NODISCARD static QueryAccess
+				effective_access(const QueryCtx::Data& data, const QueryAccessSet& accessSet, Entity entity) {
+					return merge_access(term_access(data, entity), accessSet.access(entity));
+				}
+
+				//! Returns whether two access modes conflict.
+				//! \param lhs First access mode.
+				//! \param rhs Second access mode.
+				//! \return True when at least one side writes and the other side accesses the same id.
+				GAIA_NODISCARD static bool access_conflicts(QueryAccess lhs, QueryAccess rhs) {
+					return (lhs == QueryAccess::Write && rhs != QueryAccess::None) ||
+								 (rhs == QueryAccess::Write && lhs != QueryAccess::None);
+				}
+
+				//! Checks one access set against another query's effective access declarations.
+				//! \param leftData Compiled query data for the left query.
+				//! \param leftAccess Explicit access set for the left query.
+				//! \param rightData Compiled query data for the right query.
+				//! \param rightAccess Explicit access set for the right query.
+				//! \return True when any access on the left conflicts with the right query.
+				GAIA_NODISCARD static bool conflicts_one_way(
+						const QueryCtx::Data& leftData, const QueryAccessSet& leftAccess, const QueryCtx::Data& rightData,
+						const QueryAccessSet& rightAccess) {
+					const auto terms = leftData.terms_view();
+					GAIA_FOR((uint32_t)terms.size()) {
+						const auto id = terms[i].id;
+						const auto access = term_access(leftData, id);
+						if (access_conflicts(access, effective_access(rightData, rightAccess, id)))
+							return true;
+					}
+
+					for (const auto id: leftAccess.reads_view()) {
+						if (access_conflicts(QueryAccess::Read, effective_access(rightData, rightAccess, id)))
+							return true;
+					}
+					for (const auto id: leftAccess.writes_view()) {
+						if (access_conflicts(QueryAccess::Write, effective_access(rightData, rightAccess, id)))
+							return true;
+					}
+
+					return false;
+				}
+
+				//! Resolves a component, entity type, or pair type to a Gaia entity id for explicit access declarations.
+				//! \tparam T Component, entity type, or pair type.
+				//! \return Registered entity or pair id.
+				template <typename T>
+				GAIA_NODISCARD Entity access_entity_inter() {
+					if constexpr (is_pair<T>::value) {
+						const auto& descRel = comp_cache_add<typename T::rel_type>(*m_storage.world());
+						const auto& descTgt = comp_cache_add<typename T::tgt_type>(*m_storage.world());
+						return Pair(descRel.entity, descTgt.entity);
+					} else {
+						using UO = typename component_type_t<T>::TypeOriginal;
+						static_assert(core::is_raw_v<UO>, "Use reads()/writes() with raw types only");
+						const auto& desc = comp_cache_add<T>(*m_storage.world());
+						return desc.entity;
+					}
+				}
 
 				//--------------------------------------------------------------------------------
 			public:
@@ -913,6 +1017,116 @@ namespace gaia {
 				//! \return Context pointer, or null when none is attached.
 				GAIA_NODISCARD void* ctx() const {
 					return m_ctx;
+				}
+				//! \}
+
+				//! \name Scheduling declarations
+				//! \{
+				//! Marks whether this query must run on the main thread/serial path.
+				//!
+				//! Use this for callbacks with side effects that are not captured by component read/write declarations, such as
+				//! external APIs that are main-thread-only. This flag is scheduling metadata only and does not affect query
+				//! matching, hashing, shared-cache identity, or cache invalidation.
+				//! \param required True when the query requires the main thread/serial path.
+				//! \return Self reference.
+				QueryImpl& main_thread(bool required = true) {
+					m_mainThread = required;
+					return *this;
+				}
+
+				//! Returns whether this query must run on the main thread/serial path.
+				//! \return True when main_thread(true) was set.
+				GAIA_NODISCARD bool main_thread_required() const {
+					return m_mainThread;
+				}
+				//! \}
+
+				//! \name Query access declarations
+				//! \{
+				//! Declares an additional id read by this query callback.
+				//!
+				//! Use this for data accessed inside the query kernel but not present as a positive query term. The declaration
+				//! is scheduling metadata only; it does not change query matching or cache identity.
+				//! \param entity Component/entity id read by user code.
+				//! \return Self reference.
+				//! \see writes(Entity)
+				QueryImpl& reads(Entity entity) {
+					m_access.add_read(entity);
+					return *this;
+				}
+
+				//! Declares an additional component or pair type read by this query callback.
+				//! \tparam T Component, entity type, or pair type to mark as read.
+				//! \return Self reference.
+				//! \see reads(Entity)
+				template <typename T>
+				QueryImpl& reads() {
+					return reads(access_entity_inter<T>());
+				}
+
+				//! Declares an additional id written by this query callback.
+				//!
+				//! A write conflicts with any read or write of the same id when comparing two queries with conflicts_with().
+				//! The declaration is scheduling metadata only; it does not change query matching or cache identity.
+				//! \param entity Component/entity id written by user code.
+				//! \return Self reference.
+				//! \see reads(Entity)
+				QueryImpl& writes(Entity entity) {
+					m_access.add_write(entity);
+					return *this;
+				}
+
+				//! Declares an additional component or pair type written by this query callback.
+				//! \tparam T Component, entity type, or pair type to mark as written.
+				//! \return Self reference.
+				//! \see writes(Entity)
+				template <typename T>
+				QueryImpl& writes() {
+					return writes(access_entity_inter<T>());
+				}
+
+				//! Returns explicitly declared read ids that are not query terms.
+				//! \return Read-only span over custom read declarations.
+				GAIA_NODISCARD std::span<const Entity> custom_reads() const {
+					return m_access.reads_view();
+				}
+
+				//! Returns explicitly declared write ids that are not query terms.
+				//! \return Read-only span over custom write declarations.
+				GAIA_NODISCARD std::span<const Entity> custom_writes() const {
+					return m_access.writes_view();
+				}
+
+				//! Returns the effective read/write access for an id.
+				//!
+				//! Effective access combines positive query terms and explicit reads()/writes() declarations. Pair query terms
+				//! do not imply data access; use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
+				//! key.
+				//! \param entity Component/entity id to inspect.
+				//! \return Effective access mode for the id.
+				GAIA_NODISCARD QueryAccess access(Entity entity) {
+					return effective_access(fetch().ctx().data, m_access, entity);
+				}
+
+				//! Returns whether this query conflicts with another query's effective access declarations.
+				//!
+				//! Two queries conflict when both access the same id and at least one side writes it. This check uses component
+				//! access declared by positive query terms plus custom reads()/writes() declarations. It does not account for
+				//! world structural mutation or arbitrary side effects.
+				//! \param other Query to compare against.
+				//! \return True if the two queries should not run concurrently based on declared access.
+				GAIA_NODISCARD bool conflicts_with(QueryImpl& other) {
+					const auto& leftData = fetch().ctx().data;
+					const auto& rightData = other.fetch().ctx().data;
+					return conflicts_one_way(leftData, m_access, rightData, other.m_access) ||
+								 conflicts_one_way(rightData, other.m_access, leftData, m_access);
+				}
+
+				//! Returns whether this query can run concurrently with another query based on declared scheduling metadata.
+				//! \param other Query to compare against.
+				//! \return True when neither query requires the main thread and conflicts_with(other) is false.
+				GAIA_NODISCARD bool can_run_parallel(QueryImpl& other) {
+					return !m_mainThread && !other.m_mainThread && !conflicts_with(other);
 				}
 				//! \}
 

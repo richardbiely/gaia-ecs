@@ -1161,6 +1161,28 @@ q.each([](ecs::Iter& it) {
 });
 ```
 
+Queries also expose scheduling access metadata. Positive query terms already describe component reads and writes (`all<const T>()`/`or_<const T>()` read, `all<T&>()`/`or_<T&>()` write). If the callback touches data outside the query shape, declare it explicitly with `reads(Entity)`, `writes(Entity)`, or the typed adapters `reads<T>()` / `writes<T>()`. Use `main_thread()` for callbacks that are not safe to run on worker threads even when component access would otherwise allow it. These declarations are metadata only: they do not change query matching, hashing, shared-cache identity, or cache invalidation.
+
+```cpp
+auto move = w.query()
+  .all<Position&>()
+  .all<const Velocity>();
+
+auto bounds = w.query()
+  .all<const Position>()
+  .writes<WorldBounds>(); // WorldBounds is updated manually inside the callback.
+
+auto uiUpload = w.query()
+  .all<const MeshUpload>()
+  .main_thread(); // The graphics API must be called from the main thread.
+
+if (!move.can_run_parallel(bounds)) {
+  // Add a dependency or keep one of the jobs on the serial path.
+}
+```
+
+Two queries conflict when both access the same id and at least one side writes it. Pair query terms are treated as matching/filtering metadata and do not imply component data access; if a pair id is used as an external scheduling key, declare it explicitly with `reads(pairEntity)` or `writes(pairEntity)`.
+
 Note, the first Query invocation of a cached query is always slower than the subsequent ones because internals of the Query need to be initialized.
 
 ### Simple query

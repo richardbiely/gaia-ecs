@@ -518,6 +518,64 @@ namespace gaia {
 			}
 			//! \}
 
+			//! \name System scheduling declarations
+			//! \{
+			//! Marks whether this system must run on the main thread/serial path.
+			//! \param required True when the system requires the main thread/serial path.
+			//! \return Self reference.
+			//! \see QueryImpl::main_thread(bool)
+			SystemBuilder& main_thread(bool required = true) {
+				validate();
+				data().query.main_thread(required);
+				return *this;
+			}
+			//! \}
+
+			//! \name System access declarations
+			//! \{
+			//! Declares an additional id read by this system callback.
+			//! \param entity Component/entity id read by user code.
+			//! \return Self reference.
+			//! \see QueryImpl::reads(Entity)
+			SystemBuilder& reads(Entity entity) {
+				validate();
+				data().query.reads(entity);
+				return *this;
+			}
+
+			//! Declares an additional component or pair type read by this system callback.
+			//! \tparam T Component, entity type, or pair type to mark as read.
+			//! \return Self reference.
+			//! \see QueryImpl::reads()
+			template <typename T>
+			SystemBuilder& reads() {
+				validate();
+				data().query.template reads<T>();
+				return *this;
+			}
+
+			//! Declares an additional id written by this system callback.
+			//! \param entity Component/entity id written by user code.
+			//! \return Self reference.
+			//! \see QueryImpl::writes(Entity)
+			SystemBuilder& writes(Entity entity) {
+				validate();
+				data().query.writes(entity);
+				return *this;
+			}
+
+			//! Declares an additional component or pair type written by this system callback.
+			//! \tparam T Component, entity type, or pair type to mark as written.
+			//! \return Self reference.
+			//! \see QueryImpl::writes()
+			template <typename T>
+			SystemBuilder& writes() {
+				validate();
+				data().query.template writes<T>();
+				return *this;
+			}
+			//! \}
+
 			//! Registers an iterator-style callback executed when the system runs.
 			//! \tparam Func Callable type invocable with Iter&.
 			//! \param func Callback copied into the system runtime payload.
