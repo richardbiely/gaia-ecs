@@ -36,6 +36,8 @@ struct ExternalSchedProbe {
 	ecs::QueryExecType lastExecType = ecs::QueryExecType::Default;
 	uint32_t lastItemCount = 0;
 	uint32_t lastGroupSize = 0;
+	ecs::SchedToken depFirst[8]{};
+	ecs::SchedToken depSecond[8]{};
 
 	static ecs::SchedToken run_parallel(void* pCtx, const ecs::SchedParDesc* pDesc) {
 		auto& probe = *(ExternalSchedProbe*)pCtx;
@@ -111,8 +113,10 @@ struct ExternalSchedProbe {
 		}
 	}
 
-	static void dep(void* pCtx, ecs::SchedToken, ecs::SchedToken) {
+	static void dep(void* pCtx, ecs::SchedToken tokenFirst, ecs::SchedToken tokenSecond) {
 		auto& probe = *(ExternalSchedProbe*)pCtx;
+		probe.depFirst[probe.depCalls] = tokenFirst;
+		probe.depSecond[probe.depCalls] = tokenSecond;
 		++probe.depCalls;
 	}
 
@@ -414,12 +418,94 @@ TEST_CASE("ECS - Systems use external scheduler") {
 	wld.update();
 
 	CHECK(probe.runParallelCalls == 1);
-	CHECK(probe.waitCalls == 1);
-	CHECK(probe.delCalls == 1);
+	CHECK(probe.addTaskCalls == 1);
+	CHECK(probe.addParallelCalls == 0);
+	CHECK(probe.submitCalls == 1);
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
 	CHECK(probe.lastExecType == ecs::QueryExecType::Parallel);
 	CHECK(probe.itemsProcessed == probe.lastItemCount);
 	CHECK(probe.lastItemCount >= 1);
 	CHECK(hits == EntityCount);
+}
+
+TEST_CASE("ECS - System update wires parallel job dependencies from query access") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 17;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+		wld.add<Acceleration>(e, {1.0F, 0.0F, 0.0F});
+	}
+
+	uint32_t posWritesA = 0;
+	uint32_t posWritesB = 0;
+	uint32_t accelReads = 0;
+	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		posWritesA += it.entity_rows().size();
+	});
+	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		posWritesB += it.entity_rows().size();
+	});
+	wld.system().all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		accelReads += it.entity_rows().size();
+	});
+
+	wld.update();
+
+	CHECK(probe.addParallelCalls == 3);
+	CHECK(probe.submitCalls == 3);
+	CHECK(probe.waitCalls == 3);
+	CHECK(probe.delCalls == 3);
+	CHECK(probe.depCalls == 1);
+	CHECK(probe.depFirst[0].value[0] == 1);
+	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(posWritesA == EntityCount);
+	CHECK(posWritesB == EntityCount);
+	CHECK(accelReads == EntityCount);
+}
+
+TEST_CASE("ECS - System update treats main-thread systems as job barriers") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 11;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+		wld.add<Acceleration>(e, {1.0F, 0.0F, 0.0F});
+	}
+
+	uint32_t beforeHits = 0;
+	uint32_t mainHits = 0;
+	uint32_t afterHits = 0;
+	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		beforeHits += it.entity_rows().size();
+	});
+	wld.system().all<const Position>().main_thread().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		mainHits += it.entity_rows().size();
+		CHECK(probe.submitCalls == 1);
+		CHECK(probe.waitCalls == 1);
+		CHECK(probe.delCalls == 1);
+	});
+	wld.system().all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		afterHits += it.entity_rows().size();
+	});
+
+	wld.update();
+
+	CHECK(probe.addParallelCalls == 2);
+	CHECK(probe.submitCalls == 2);
+	CHECK(probe.waitCalls == 3);
+	CHECK(probe.delCalls == 3);
+	CHECK(probe.depCalls == 0);
+	CHECK(beforeHits == EntityCount);
+	CHECK(mainHits == EntityCount);
+	CHECK(afterHits == EntityCount);
 }
 
 template <typename TQueue>

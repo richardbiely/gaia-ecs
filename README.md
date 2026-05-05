@@ -2909,7 +2909,7 @@ w.update();
 Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve dependencies and execute systems level-by-level (BFS) so parent dependencies run before their dependents.
 
 ### System dependencies
-By default, systems on the same dependency level are executed by their entity id. The lower the id the earlier the system is executed. If a different order is needed, there are multiple ways to influence it.
+By default, systems on the same dependency level are visited by their entity id. Serial systems run in that order. Parallel systems in the same level may run concurrently when their query access metadata does not conflict; conflicting parallel systems receive scheduler dependency edges in visit order. If a different order is needed, there are multiple ways to influence it.
 
 One of them is adding the DependsOn relationship to a system's entity.
 
@@ -2939,40 +2939,61 @@ w.add(system3.entity(), ecs::Pair{ChildOf, group1});
 ```
 
 ### System jobs
-Systems support parallel execution and creating various job dependencies among them because they make use of the jobs internally. To learn more about jobs, navigate [here](#job-dependencies). The logic is virtually the same as shown in the job dependencies example:
+Systems with a parallel execution mode (`Parallel`, `ParallelPerf`, or `ParallelEff`) are prepared as scheduler jobs during `World::update()` when the active scheduler supports the deferred API (`add`, `add_par`, `submit`, `dep`, `wait`, and `del`). Gaia-ECS builds a dependency edge between same-level system jobs when their underlying query access metadata conflicts, then submits the prepared jobs and waits at dependency-level barriers.
+
 ```cpp
-SystemBuilder system1 = w.system().all ...
-SystemBuilder system2 = w.system().all ...
+w.system()
+  .all<Position&>()       // inferred write access to Position
+  .all<const Velocity>()  // inferred read access to Velocity
+  .mode(ecs::QueryExecType::Parallel)
+  .on_each([](ecs::Iter& it) {
+    // Runs as scheduler work during World::update().
+  });
 
-// Get system job handles
-mt::JobHandle job1Handle = system1.job_handle();
-mt::JobHandle job2Handle = system2.job_handle();
+w.system()
+  .all<const Bounds>()
+  .reads<NavigationGrid>() // custom read outside the query terms
+  .mode(ecs::QueryExecType::Parallel)
+  .on_each([](ecs::Iter& it) {
+  });
 
-// Create dependencies between systems
-tp.dep(job1Handle, job2Handle);
-
-// Submit jobs so worker threads can pick them up.
-// The order in which jobs are submitted does not matter.
-tp.submit(job2Handle);
-tp.submit(job1Handle);
-
-// Wait for the last job to complete.
-tp.wait(job1Handle);
+w.update();
 ```
 
-Job handles created by the systems stay active until their system is deleted. Therefore, when managing system dependencies manually and their repeated use is wanted, job handles need to be refreshed before the next iteration:
-```cpp
-GAIA_FOR(1000) {
-  tp.submit(job2Handle);
-  tp.submit(job1Handle);
-  tp.wait(job1Handle);
+Systems that use the default serial mode, systems marked with `main_thread()`, or worlds whose scheduler adapter cannot create deferred dependency-ready work run on the main thread. A main-thread system is a barrier: pending scheduler jobs are completed before it runs, and following parallel systems are prepared after it finishes.
 
-  // Work is complete, let's prepare for the next iteration
-  tp.reset_state(job1handle);
-  tp.reset_state(job2handle);
-  tp.dep_refresh(job1Handle, job2Handle);
-}
+For explicit ordering, keep using the `DependsOn` relationship. `World::update()` still runs dependency levels in order; access metadata only decides which parallel systems inside the same dependency level need scheduler dependency edges.
+
+```cpp
+auto upload = w.system()
+  .all<const MeshUpload>()
+  .main_thread()
+  .on_each([](ecs::Iter& it) {
+    // Main-thread-only graphics API calls.
+  });
 ```
+
+For custom phase builders or external engine graphs, add queries as deferred jobs and wire dependencies using the same access metadata:
+
+```cpp
+auto move = w.query().all<Position&>().all<const Velocity>();
+auto bounds = w.query().all<Bounds&>();
+
+auto moveJob = move.job([](ecs::Iter& it) { /* ... */ }, ecs::QueryExecType::Parallel);
+auto boundsJob = bounds.job([](ecs::Iter& it) { /* ... */ }, ecs::QueryExecType::Parallel);
+
+if (!move.can_run_parallel(bounds))
+  boundsJob.dep(moveJob); // moveJob completes before boundsJob.
+
+moveJob.submit();
+boundsJob.submit();
+boundsJob.wait();
+moveJob.wait();
+boundsJob.del();
+moveJob.del();
+```
+
+`SchedJob::wait()` does not submit work. Submit explicitly before waiting.
 
 ## Data layouts
 By default, all data inside components are treated as an array of structures (AoS).

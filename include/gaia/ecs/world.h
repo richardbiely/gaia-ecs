@@ -6991,6 +6991,17 @@ namespace gaia {
 			void systems_init();
 
 			//! Executes all registered systems once.
+			//!
+			//! Systems are traversed in DependsOn depth order. Serial systems and systems marked with
+			//! QueryImpl::main_thread(bool) run on the caller thread. Parallel systems are prepared as scheduler jobs when
+			//! the active scheduler supports deferred add/dep/submit/wait/del operations; jobs in the same dependency level
+			//! receive dependency edges when their query access metadata conflicts.
+			//!
+			//! \warning Parallel systems must not structurally mutate the world while other scheduler jobs are pending unless
+			//! they synchronize externally or opt into main_thread().
+			//! \see SystemBuilder::mode(QueryExecType)
+			//! \see QueryImpl::can_run_parallel(const QueryImpl&) const
+			//! \see Sched
 			void systems_run();
 
 			//! Creates a system entity with a default local cached query.
@@ -11341,17 +11352,139 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			//! Runs a system entity from the erased system-query callback path.
+			//! Pending scheduler-backed system job owned by World::systems_run().
+			struct PendingSystemJob {
+				//! System entity that created @a job.
+				Entity entity = EntityBad;
+				//! Deferred system work.
+				SchedJob job;
+
+				//! Creates an empty pending entry.
+				PendingSystemJob() = default;
+				//! Creates a pending entry for @a systemEntity.
+				//! \param systemEntity System entity that created @a systemJob.
+				//! \param systemJob Deferred system job moved into this entry.
+				PendingSystemJob(Entity systemEntity, SchedJob&& systemJob): entity(systemEntity), job(GAIA_MOV(systemJob)) {}
+			};
+
+			//! Context used by the erased system run callback.
+			struct SystemRunCtx {
+				//! World that owns collected systems.
+				World* pWorld = nullptr;
+				//! Pending scheduler jobs in the current dependency level.
+				cnt::darray<PendingSystemJob>* pPending = nullptr;
+				//! Current explicit DependsOn depth.
+				uint32_t currentDepth = 0;
+				//! True once @a currentDepth has been initialized.
+				bool hasDepth = false;
+				//! True when the active scheduler can prepare dependency-ready jobs.
+				bool canScheduleSystems = false;
+			};
+
+			//! Calculates the DependsOn depth used for system execution barriers.
+			//! \param world World containing @a systemEntity.
+			//! \param systemEntity System entity to inspect.
+			//! \return Maximum dependency-target depth, or 0 for systems without DependsOn targets.
+			GAIA_NODISCARD inline uint32_t system_dep_depth(World& world, Entity systemEntity) {
+				uint32_t depth = 0;
+				world.targets(systemEntity, DependsOn, [&](Entity target) {
+					const auto targetDepth = world.depth_order_cache(DependsOn, target);
+					if (targetDepth > depth)
+						depth = targetDepth;
+				});
+				return depth;
+			}
+
+			//! Submits all pending system jobs.
+			//! \param pending Pending jobs to submit.
+			inline void submit_pending_system_jobs(cnt::darray<PendingSystemJob>& pending) {
+				for (auto& item: pending)
+					item.job.submit();
+			}
+
+			//! Waits for, deletes, and clears all pending system jobs.
+			//! \param pending Pending jobs to finish.
+			inline void finish_pending_system_jobs(cnt::darray<PendingSystemJob>& pending) {
+				for (auto& item: pending)
+					item.job.wait();
+				for (auto& item: pending)
+					item.job.del();
+				pending.clear();
+			}
+
+			//! Submits and finishes all pending system jobs.
+			//! \param pending Pending jobs to flush.
+			inline void flush_pending_system_jobs(cnt::darray<PendingSystemJob>& pending) {
+				submit_pending_system_jobs(pending);
+				finish_pending_system_jobs(pending);
+			}
+
+			//! Returns whether @a sched supports deferred system jobs and dependency edges.
+			//! \param sched Scheduler descriptor to inspect after default-resolution.
+			//! \return True when system_update can add, depend, submit, wait, and delete jobs safely.
+			GAIA_NODISCARD inline bool sched_supports_deferred_system_jobs(const Sched& sched) {
+				const auto& resolved = sched_resolve(sched);
+				return resolved.add != nullptr && resolved.add_par != nullptr && resolved.submit != nullptr &&
+							 resolved.dep != nullptr && resolved.wait != nullptr && resolved.del != nullptr;
+			}
+
+			//! Returns whether @a type asks Gaia-ECS to prepare scheduler work for a system.
+			//! \param type System query execution type.
+			//! \return True for parallel execution modes.
+			GAIA_NODISCARD inline bool system_exec_uses_scheduler(QueryExecType type) {
+				return type == QueryExecType::Parallel || type == QueryExecType::ParallelPerf ||
+							 type == QueryExecType::ParallelEff;
+			}
+
+			//! Runs or prepares a system entity from the erased system-query callback path.
+			//! \param pCtx Pointer to SystemRunCtx.
+			//! \param systemEntity System entity to run or prepare.
 			inline void run_system_entity_erased(void* pCtx, Entity systemEntity) {
-				auto& world = *static_cast<World*>(pCtx);
+				auto& ctx = *static_cast<SystemRunCtx*>(pCtx);
+				GAIA_ASSERT(ctx.pWorld != nullptr);
+				GAIA_ASSERT(ctx.pPending != nullptr);
+				if (ctx.pWorld == nullptr || ctx.pPending == nullptr)
+					return;
+
+				auto& world = *ctx.pWorld;
+				auto& pending = *ctx.pPending;
 				if (!world.valid(systemEntity) || !world.has(systemEntity, System))
 					return;
 				if (!world.enabled_hierarchy(systemEntity, ChildOf))
 					return;
 
+				const auto depth = system_dep_depth(world, systemEntity);
+				if (!ctx.hasDepth) {
+					ctx.currentDepth = depth;
+					ctx.hasDepth = true;
+				} else if (depth != ctx.currentDepth) {
+					flush_pending_system_jobs(pending);
+					ctx.currentDepth = depth;
+				}
+
 				auto ss = world.acc_mut(systemEntity);
 				auto& sys = ss.smut<ecs::System_>();
-				sys.exec(world);
+				if (!ctx.canScheduleSystems || !system_exec_uses_scheduler(sys.execType) || sys.query.main_thread_required()) {
+					flush_pending_system_jobs(pending);
+					sys.exec(world);
+					return;
+				}
+
+				auto job = sys.job(world);
+				if (!job.valid())
+					return;
+
+				for (auto& pendingJob: pending) {
+					if (!world.valid(pendingJob.entity) || !world.has(pendingJob.entity, System))
+						continue;
+
+					auto prevSs = world.acc_mut(pendingJob.entity);
+					auto& prevSys = prevSs.smut<ecs::System_>();
+					if (!prevSys.query.can_run_parallel(sys.query))
+						job.dep(pendingJob.job);
+				}
+
+				pending.emplace_back(systemEntity, GAIA_MOV(job));
 			}
 
 			//! Collects a system entity from the erased system-query callback path.
@@ -11369,7 +11502,14 @@ namespace gaia {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
 
-			m_systemsQuery.each_entity_enabled(this, detail::run_system_entity_erased);
+			cnt::darray<detail::PendingSystemJob> pending;
+			detail::SystemRunCtx ctx{};
+			ctx.pWorld = this;
+			ctx.pPending = &pending;
+			ctx.canScheduleSystems = detail::sched_supports_deferred_system_jobs(world_sched(*this));
+
+			m_systemsQuery.each_entity_enabled(&ctx, detail::run_system_entity_erased);
+			detail::flush_pending_system_jobs(pending);
 		}
 
 		inline void World::systems_done() {
