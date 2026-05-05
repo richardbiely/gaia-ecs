@@ -33558,7 +33558,7 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q{};
 
-			enum QueryFlags : uint8_t {
+			enum QueryFlags : uint16_t {
 				Empty = 0x00,
 				// Entities need sorting
 				SortEntities = 0x01,
@@ -33576,6 +33576,8 @@ namespace gaia {
 				MatchPrefab = 0x40,
 				// Query mentions Prefab explicitly and therefore must not auto-exclude it.
 				HasPrefabTerms = 0x80,
+				// Grouped archetypes should be ordered by group id during cache refresh.
+				OrderGroups = 0x100,
 			};
 
 			enum class CachePolicy : uint8_t {
@@ -33715,8 +33717,6 @@ namespace gaia {
 				Entity groupBy;
 				//! Function to use to perform the grouping
 				TGroupByFunc groupByFunc;
-				//! True when grouped archetypes should be ordered by group id during cache refresh.
-				bool orderGroups;
 				//! Component mask used for faster matching of simple queries
 				QueryMask queryMask;
 				//! Mask for items with Is relationship pair.
@@ -33737,7 +33737,7 @@ namespace gaia {
 				//! A set bit means write access is requested.
 				uint16_t readWriteMask;
 				//! Query flags
-				uint8_t flags;
+				uint16_t flags;
 				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
 				uint16_t cacheSrcTrav = 0;
 				//! Specialized direct-target evaluation shape for single-term queries.
@@ -34204,7 +34204,7 @@ namespace gaia {
 					return false;
 				if (left.groupByFunc != right.groupByFunc)
 					return false;
-				if (left.orderGroups != right.orderGroups)
+				if ((left.flags & QueryFlags::OrderGroups) != (right.flags & QueryFlags::OrderGroups))
 					return false;
 
 				return true;
@@ -34383,7 +34383,8 @@ namespace gaia {
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupBy.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupByFunc);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.orderGroups);
+				hash =
+						core::hash_combine(hash, (QueryLookupHash::Type)((ctxData.flags & QueryCtx::QueryFlags::OrderGroups) != 0));
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}
@@ -36747,7 +36748,7 @@ namespace gaia {
 				//! If the id is a pair, the second part (gen) is written here.
 				uint32_t as_mask_1;
 				//! Flags copied over from QueryCtx::Data
-				uint8_t flags;
+				uint16_t flags;
 				//! Runtime variable bindings (Var0..Var7) provided by the query.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				//! Bitmask of bindings set in varBindings.
@@ -42119,7 +42120,7 @@ namespace gaia {
 					return;
 				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortGroups;
 
-				if (m_plan.ctx.data.orderGroups)
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) != 0)
 					ensure_group_data(true);
 			}
 
@@ -42195,7 +42196,7 @@ namespace gaia {
 				if (m_plan.ctx.data.groupBy == EntityBad || !m_state.grouped.dataPending)
 					return;
 
-				if (!orderGroups && !m_plan.ctx.data.orderGroups)
+				if (!orderGroups && (m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) == 0)
 					return;
 
 				struct sort_cond {
@@ -44368,14 +44369,17 @@ namespace gaia {
 
 				Entity groupBy;
 				TGroupByFunc func;
-				bool orderGroups;
+				uint16_t flags;
 
 				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
 					ctxData.groupByFunc = func; // group_by_func_default;
-					ctxData.orderGroups = orderGroups;
+					if ((flags & QueryCtx::QueryFlags::OrderGroups) != 0)
+						ctxData.flags |= QueryCtx::QueryFlags::OrderGroups;
+					else
+						ctxData.flags &= ~QueryCtx::QueryFlags::OrderGroups;
 				}
 			};
 
@@ -45749,7 +45753,7 @@ namespace gaia {
 				//--------------------------------------------------------------------------------
 
 				void group_by_inter(Entity entity, TGroupByFunc func, bool orderGroups = false) {
-					QueryCmd_GroupBy cmd{entity, func, orderGroups};
+					QueryCmd_GroupBy cmd{entity, func, orderGroups ? (uint16_t)QueryCtx::QueryFlags::OrderGroups : (uint16_t)0};
 					add_cmd(cmd);
 				}
 
