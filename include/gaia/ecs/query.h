@@ -2171,14 +2171,36 @@ namespace gaia {
 					GAIA_USE_SMALLBLOCK(QueryTaskJobCtx)
 				};
 
+				//! Callback adapter that sets iterator context before invoking an `Iter&` user callback.
+				//! \tparam Func User callback type invocable with `Iter&`.
 				template <typename Func>
 				struct IterJobCallback {
+					//! Query owning the runtime context pointer.
 					QueryImpl* pSelf = nullptr;
+					//! User callback copied into the deferred job context.
 					Func func;
 
+					//! Invokes the stored callback for @a it.
+					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						it.ctx(pSelf->ctx());
 						func(it);
+					}
+				};
+
+				//! Callback adapter that materializes typed callback arguments on top of a prepared iterator.
+				//! \tparam Func Typed query callback type accepted by each().
+				template <typename Func>
+				struct TypedJobCallback {
+					//! Query that owns typed execution metadata and runtime context.
+					QueryImpl* pSelf = nullptr;
+					//! User callback copied into the deferred job context.
+					Func func;
+
+					//! Runs the typed callback for @a it.
+					//! \param it Iterator prepared for the current query batch.
+					void operator()(Iter& it) {
+						pSelf->each_iter(it, func);
 					}
 				};
 
@@ -5654,6 +5676,20 @@ namespace gaia {
 								return add_iter_parallel_job<Func, QueryExecType::ParallelPerf>(GAIA_MOV(func));
 							case QueryExecType::ParallelEff:
 								return add_iter_parallel_job<Func, QueryExecType::ParallelEff>(GAIA_MOV(func));
+							default:
+								break;
+						}
+					} else {
+						switch (execType) {
+							case QueryExecType::Parallel:
+								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::Parallel>(
+										TypedJobCallback<Func>{this, GAIA_MOV(func)});
+							case QueryExecType::ParallelPerf:
+								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::ParallelPerf>(
+										TypedJobCallback<Func>{this, GAIA_MOV(func)});
+							case QueryExecType::ParallelEff:
+								return add_iter_parallel_job<TypedJobCallback<Func>, QueryExecType::ParallelEff>(
+										TypedJobCallback<Func>{this, GAIA_MOV(func)});
 							default:
 								break;
 						}

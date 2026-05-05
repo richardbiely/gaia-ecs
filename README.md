@@ -3703,7 +3703,7 @@ moveJob.wait();
 boundsJob.wait();
 ```
 
-`SchedJob` is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel iterator callbacks add parallel-for work directly; typed callbacks that do not receive `ecs::Iter&` are wrapped as a single added task.
+`SchedJob` is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel `ecs::Iter&` callbacks and typed callbacks both add parallel-for work directly when the query can be split into chunk batches; entity-seeded and grouped paths may still fall back to one added task.
 
 For a fully deferred external scheduler, implement `add` / `add_par`, `submit`, `dep`, `wait`, and `del`. If only `sched` / `sched_par` are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but `Query::job(...)` / `System::job()` cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.
 

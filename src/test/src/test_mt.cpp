@@ -247,6 +247,50 @@ TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
 	CHECK(probe.delCalls == 2);
 }
 
+TEST_CASE("ECS - Typed query jobs add scheduler parallel work without blocking internally") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 27;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+	}
+
+	uint32_t hits = 0;
+	auto query = wld.query().all<ExternalExecProbeComp&>();
+	auto job = query.job(
+			[&](ExternalExecProbeComp& comp) {
+				++hits;
+				++comp.value;
+			},
+			ecs::QueryExecType::Parallel);
+
+	CHECK(probe.addTaskCalls == 0);
+	CHECK(probe.addParallelCalls == 1);
+	CHECK(probe.runParallelCalls == 0);
+	CHECK(probe.submitCalls == 0);
+	CHECK(hits == 0);
+
+	job.submit();
+	CHECK(probe.submitCalls == 1);
+	CHECK(probe.invokeCalls >= 1);
+	CHECK(hits == EntityCount);
+
+	job.wait();
+	uint32_t mutated = 0;
+	wld.query().all<const ExternalExecProbeComp>().each([&](const ExternalExecProbeComp& comp) {
+		CHECK(comp.value == 2);
+		++mutated;
+	});
+	CHECK(mutated == EntityCount);
+
+	job.del();
+	CHECK(probe.waitCalls == 1);
+	CHECK(probe.delCalls == 1);
+}
+
 TEST_CASE("ECS - System jobs use external scheduler wrappers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
@@ -417,12 +461,12 @@ TEST_CASE("ECS - Systems use external scheduler") {
 
 	wld.update();
 
-	CHECK(probe.runParallelCalls == 1);
-	CHECK(probe.addTaskCalls == 1);
-	CHECK(probe.addParallelCalls == 0);
+	CHECK(probe.runParallelCalls == 0);
+	CHECK(probe.addTaskCalls == 0);
+	CHECK(probe.addParallelCalls == 1);
 	CHECK(probe.submitCalls == 1);
-	CHECK(probe.waitCalls == 2);
-	CHECK(probe.delCalls == 2);
+	CHECK(probe.waitCalls == 1);
+	CHECK(probe.delCalls == 1);
 	CHECK(probe.lastExecType == ecs::QueryExecType::Parallel);
 	CHECK(probe.itemsProcessed == probe.lastItemCount);
 	CHECK(probe.lastItemCount >= 1);
@@ -466,6 +510,50 @@ TEST_CASE("ECS - System update wires parallel job dependencies from query access
 	CHECK(posWritesA == EntityCount);
 	CHECK(posWritesB == EntityCount);
 	CHECK(accelReads == EntityCount);
+}
+
+TEST_CASE("ECS - System update wires custom access dependencies") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 13;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+	}
+
+	uint32_t writerHits = 0;
+	uint32_t readerHits = 0;
+	uint32_t independentHits = 0;
+	wld.system()
+			.all<const Position>()
+			.writes<Acceleration>()
+			.mode(ecs::QueryExecType::Parallel)
+			.on_each([&](ecs::Iter& it) {
+				writerHits += it.entity_rows().size();
+			});
+	wld.system()
+			.all<const Position>()
+			.reads<Acceleration>()
+			.mode(ecs::QueryExecType::Parallel)
+			.on_each([&](ecs::Iter& it) {
+				readerHits += it.entity_rows().size();
+			});
+	wld.system().all<const Position>().reads<Scale>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		independentHits += it.entity_rows().size();
+	});
+
+	wld.update();
+
+	CHECK(probe.addParallelCalls == 3);
+	CHECK(probe.submitCalls == 3);
+	CHECK(probe.depCalls == 1);
+	CHECK(probe.depFirst[0].value[0] == 1);
+	CHECK(probe.depSecond[0].value[0] == 2);
+	CHECK(writerHits == EntityCount);
+	CHECK(readerHits == EntityCount);
+	CHECK(independentHits == EntityCount);
 }
 
 TEST_CASE("ECS - System update treats main-thread systems as job barriers") {
