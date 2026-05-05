@@ -484,7 +484,7 @@ Component scope</h3>
 </div><!-- fragment --><p><code>World::module(...)</code> only creates or finds the scope hierarchy. <code>World::scope(...)</code> is the step that makes registration and relative lookup happen inside that scope.</p>
 <h3><a class="anchor" id="non-fragmenting-and-sparse-components"></a>
 Non-fragmenting and sparse components</h3>
-<p>By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype churn and more fragmentation when the data is highly dynamic.</p>
+<p>By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.</p>
 <p>If this is undesired, there is also an option to use out-of-line storage and optional non-fragmenting membership. The two traits are:</p>
 <ul>
 <li><code>ecs::Sparse</code></li>
@@ -1278,12 +1278,21 @@ Query traversal</h3>
 <div class="line">  .all&lt;Position&gt;()</div>
 <div class="line">  .all(level, ecs::QueryTermOptions{}.src(scene).trav())</div>
 <div class="line">  .cache_src_trav(16);</div>
-</div><!-- fragment --><p>This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures. </p>
+</div><!-- fragment --><p>This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.</p>
 <h3><a class="anchor" id="traversal-order"></a>
 Traversal order</h3>
-<p>Use <code>walk(...)</code> when you want to reorder the current query result in breadth-first dependency or traversal order. It does not change what the query matches, only the order in which the current result is visited.</p>
-<p><code>walk(...)</code> supports entity callbacks, typed callbacks, and regular <code>ecs::Iter&amp;</code>. Entity and typed callbacks are the best optimized paths.</p>
-<p>The iterator-style paths can be significantly slower on heavily reordered BFS results, because breadth-first order often splits the result into many small runs. Use only when for code that is not performance critical.</p>
+<p>Use <code>order_by(relation, ecs::TravOrder::...)</code> when you want to reorder the current query result by a relationship traversal. It does not change what the query matches, only the order in which the current result is visited.</p>
+<p>Traversal orders are deterministic. Roots are visited by entity id. Siblings under the same target are also visited by entity id.</p>
+<p>A relation pair <code>Pair(Rel, X)</code> on entity <code>E</code> means <code>E</code> points at <code>X</code>. In the names below, <code>E</code> is the source and <code>X</code> is the target.</p>
+<ul>
+<li><code>TravOrder::Down</code>: visit targets before the sources that point at them. For <code>ChildOf</code>, this means parents before children. This is DFS preorder. <code>TravOrder::Preorder</code> is the alias.</li>
+<li><code>TravOrder::Up</code>: visit sources before their targets. For <code>ChildOf</code>, this means children before parents. This is DFS postorder. <code>TravOrder::Postorder</code> is the alias.</li>
+<li><code>TravOrder::ReverseDown</code>: exact reverse of <code>Down</code>. This is reverse DFS preorder. <code>TravOrder::ReversePreorder</code> is the alias.</li>
+<li><code>TravOrder::ReverseUp</code>: exact reverse of <code>Up</code>. This is reverse DFS postorder. <code>TravOrder::ReversePostorder</code> is the alias.</li>
+</ul>
+<p>There is no breadth-first traversal alias for <code>order_by(...)</code>. Use <code>depth_order(...)</code> for cached breadth-first top-down ordering on fragmenting acyclic relations.</p>
+<p><code>order_by(...)</code> supports entity callbacks, typed callbacks, and regular <code>ecs::Iter&amp;</code>. Entity and typed callbacks are the best optimized paths.</p>
+<p>The iterator-style paths can be slower on heavily reordered traversal results, because reordered entities often split the result into many small runs. Use them only for code that is not performance critical.</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>Time { <span class="keywordtype">int</span> time; };</div>
 <div class="line"> </div>
 <div class="line">ecs::Entity buyGroceries = wld.add();</div>
@@ -1301,30 +1310,31 @@ Traversal order</h3>
 <div class="line"><span class="comment">// buyGroceries</span></div>
 <div class="line"><span class="comment">// ├─ boilWater</span></div>
 <div class="line"><span class="comment">// ├─ chopVegetables</span></div>
+<div class="line"><span class="comment">// │  └─ cookDinner</span></div>
 <div class="line"><span class="comment">// └─ setTable</span></div>
-<div class="line"><span class="comment">// boilWater + chopVegetables -&gt; cookDinner</span></div>
 <div class="line">wld.add(boilWater, ecs::Pair(DependsOn, buyGroceries));</div>
 <div class="line">wld.add(chopVegetables, ecs::Pair(DependsOn, buyGroceries));</div>
-<div class="line">wld.add(setTable, ecs::Pair(DependsOn, buyGroceries));</div>
-<div class="line">wld.add(cookDinner, ecs::Pair(DependsOn, boilWater));</div>
 <div class="line">wld.add(cookDinner, ecs::Pair(DependsOn, chopVegetables));</div>
+<div class="line">wld.add(setTable, ecs::Pair(DependsOn, buyGroceries));</div>
 <div class="line"> </div>
 <div class="line">ecs::Query q = wld.query().all&lt;Time&gt;();</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// With walk(...), query result is reordered by dependency levels:</span></div>
+<div class="line"><span class="comment">// With order_by(...), query result is reordered by dependency traversal:</span></div>
 <div class="line"><span class="comment">// buyGroceries</span></div>
-<div class="line"><span class="comment">// boilWater, chopVegetables, setTable</span></div>
+<div class="line"><span class="comment">// boilWater</span></div>
+<div class="line"><span class="comment">// chopVegetables</span></div>
 <div class="line"><span class="comment">// cookDinner</span></div>
-<div class="line">q.walk(DependsOn).each([&amp;](ecs::Entity entity) {</div>
+<div class="line"><span class="comment">// setTable</span></div>
+<div class="line">q.order_by(DependsOn, ecs::TravOrder::Down).each([&amp;](ecs::Entity entity) {</div>
 <div class="line">  ...</div>
 <div class="line">});</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Without walk(...), the query does not use DependsOn for ordering.</span></div>
+<div class="line"><span class="comment">// Without order_by(...), the query does not use DependsOn for ordering.</span></div>
 <div class="line"><span class="comment">// Therefore, entities are iterated in undefined order.</span></div>
 <div class="line">q.each([&amp;](ecs::Entity entity) {</div>
 <div class="line">  ... <span class="comment">// random entity order</span></div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Use <code>depth_order(...)</code> when you want cached query iteration itself to run breadth-first top-down by relation depth for a fragmenting acyclic relation such as <code>ChildOf</code> or <code>DependsOn</code>. For hierarchy-style relations, the cached depth-ordered path only applies when the relation is still fragmenting. Use <code>walk(...)</code> when the relation is non-fragmenting, such as <code>Parent</code>, or when you want traversal to be resolved per entity instead of through cached archetype ordering.</p>
+</div><!-- fragment --><p>Use <code>depth_order(...)</code> when you want cached query iteration itself to run breadth-first top-down by relation depth for a fragmenting acyclic relation such as <code>ChildOf</code> or <code>DependsOn</code>. For hierarchy-style relations, the cached depth-ordered path only applies when the relation is still fragmenting. Use <code>order_by(relation, ecs::TravOrder::...)</code> when the relation is non-fragmenting, such as <code>Parent</code>, or when you want traversal to be resolved per entity instead of through cached archetype ordering.</p>
 <div class="fragment"><div class="line">ecs::Entity uiRoot = wld.add();</div>
 <div class="line">ecs::Entity topBar = wld.add();</div>
 <div class="line">ecs::Entity inventoryPanel = wld.add();</div>
@@ -1365,8 +1375,8 @@ Traversal order</h3>
 <div class="line"> </div>
 <div class="line">ecs::Query qParent = wld.query().all&lt;Time&gt;();</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Parent is non-fragmenting, so walk(...) is the supported breadth-first path.</span></div>
-<div class="line">qParent.walk(ecs::Parent).each([&amp;](ecs::Entity entity) {</div>
+<div class="line"><span class="comment">// Parent is non-fragmenting, so order_by(...) is the supported per-entity traversal path.</span></div>
+<div class="line">qParent.order_by(ecs::Parent, ecs::TravOrder::Down).each([&amp;](ecs::Entity entity) {</div>
 <div class="line">  ...</div>
 <div class="line">});</div>
 </div><!-- fragment --><h3><a class="anchor" id="query-variables"></a>
@@ -2347,13 +2357,13 @@ Hierarchies</h3>
 </div><!-- fragment --><p>Properites of <code>Parent</code>:</p><ul>
 <li>non-fragmenting hierarchy</li>
 <li>stored outside archetypes</li>
-<li>good for logical or organizational hierarchies where reducing archetype churn matters more than pure structural query speed</li>
-<li>breadth-first traversal is typically better than <code>ChildOf</code>, but direct query terms over <code>Parent</code> are still less archetype-friendly than <code>ChildOf</code></li>
-<li>use <code>query().walk(ecs::Parent)</code> for breadth-first traversal; <code>depth_order(...)</code> is for fragmenting cached ordering and is not the right tool for <code>Parent</code></li>
+<li>good for logical or organizational hierarchies where reducing archetype movement matters more than pure structural query speed</li>
+<li>per-entity traversal through <code>Parent</code> avoids <code>ChildOf</code> archetype movement, but direct query terms over <code>Parent</code> are still less archetype-friendly than <code>ChildOf</code></li>
+<li>use <code>query().order_by(ecs::Parent, ecs::TravOrder::Down)</code> or <code>query().order_by&lt;ecs::Parent_&gt;(ecs::TravOrder::Down)</code> for traversal. <code>depth_order(...)</code> is for fragmenting cached ordering and is not the right tool for <code>Parent</code></li>
 </ul>
 <p>More generally, hierarchy semantics come from traversable exclusive parent-chain relations. <code>ChildOf</code> and <code>Parent</code> are the native built-ins:</p><ul>
 <li><code>ChildOf</code>: hierarchy + fragmenting, so cached <code>depth_order(...)</code> can work at archetype level</li>
-<li><code>Parent</code>: hierarchy + non-fragmenting, so <code>walk(...)</code> is the supported path</li>
+<li><code>Parent</code>: hierarchy + non-fragmenting, so <code>order_by(...)</code> is the supported path</li>
 </ul>
 <p>Use <code>Parent</code> for:</p><ul>
 <li>prefab ownership</li>
@@ -2511,7 +2521,8 @@ System dependencies</h3>
 <div class="fragment"><div class="line">w.add(first.entity(), ecs::Pair{DependsOn, second.entity()});</div>
 </div><!-- fragment --><p>This means <code>first</code> runs before <code>second</code>.</p>
 <p>When there are several levels of dependencies, Gaia-ECS runs the deepest systems first and then walks back to the parent system. Systems at the same level are ordered by entity id. Creating the systems in the same order as the example below gives the same order every run.</p>
-<p>This is separate from query <code>depth_order(...)</code>. Query <code>depth_order(...)</code> is still top-down breadth-first ordering for matching entities. System scheduling uses bottom-up depth-first order because smaller work steps usually need to finish before the system that depends on them.</p>
+<p>This is separate from query <code>depth_order(...)</code>. Query <code>depth_order(...)</code> is still top-down breadth-first ordering for matching entities. System scheduling uses bottom-up depth-first order because smaller work steps usually need to finish before the system that depends on them. Systems without a phase use this same rule.</p>
+<p><code>DependsOn</code> cycles between systems or phases are invalid. Gaia-ECS keeps their fallback order deterministic so release builds can continue safely.</p>
 <p>Example dependency setup:</p>
 <div class="fragment"><div class="line">A0  DependsOn A</div>
 <div class="line">A0x DependsOn A0</div>

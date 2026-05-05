@@ -200,7 +200,11 @@ var annotated_dup =
           [ "SoATermViewGetPointer", "structgaia_1_1ecs_1_1detail_1_1SoATermViewGetPointer.html", null ],
           [ "SoATermViewSet", "structgaia_1_1ecs_1_1detail_1_1SoATermViewSet.html", null ],
           [ "SoATermViewSetEntity", "structgaia_1_1ecs_1_1detail_1_1SoATermViewSetEntity.html", null ],
-          [ "SoATermViewSetPointer", "structgaia_1_1ecs_1_1detail_1_1SoATermViewSetPointer.html", null ]
+          [ "SoATermViewSetPointer", "structgaia_1_1ecs_1_1detail_1_1SoATermViewSetPointer.html", null ],
+          [ "SystemPhaseScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html", "structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem" ],
+          [ "SystemScheduleEdge", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge" ],
+          [ "SystemScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem" ],
+          [ "SystemScheduleScratch", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch" ]
         ] ],
         [ "vm", null, [
           [ "detail", null, [

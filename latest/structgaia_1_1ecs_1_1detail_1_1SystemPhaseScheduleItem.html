@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::detail::QueryImpl::OrderByWalkView Class Reference</title>
+<title>Gaia-ECS: gaia::ecs::detail::SystemPhaseScheduleItem Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -108,31 +108,43 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1detail_1_1QueryImp
 
 <div class="header">
   <div class="summary">
-<a href="#pub-methods">Public Member Functions</a> &#124;
-<a href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::detail::QueryImpl::OrderByWalkView Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+<a href="#pub-attribs">Public Attributes</a> &#124;
+<a href="structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::SystemPhaseScheduleItem Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Scheduling key for one explicit phase entity.  
+ <a href="structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="world_8h_source.html">world.h</a>&gt;</code></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
-Public Member Functions</h2></td></tr>
-<tr class="memitem:aa4740252301d06c2ed1aafce96424c12" id="r_aa4740252301d06c2ed1aafce96424c12"><td class="memItemLeft" align="right" valign="top"><a id="aa4740252301d06c2ed1aafce96424c12" name="aa4740252301d06c2ed1aafce96424c12"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>OrderByWalkView</b> (<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;query, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
-<tr class="separator:aa4740252301d06c2ed1aafce96424c12"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3de43f23ee034e288d54e8759a95780c" id="r_a3de43f23ee034e288d54e8759a95780c"><td class="memTemplParams" colspan="2"><a id="a3de43f23ee034e288d54e8759a95780c" name="a3de43f23ee034e288d54e8759a95780c"></a>
-template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a3de43f23ee034e288d54e8759a95780c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each</b> (Func func)</td></tr>
-<tr class="separator:a3de43f23ee034e288d54e8759a95780c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
+Public Attributes</h2></td></tr>
+<tr class="memitem:a0ee50a560bb2ba5a2a7a3e2d33d3313f" id="r_a0ee50a560bb2ba5a2a7a3e2d33d3313f"><td class="memItemLeft" align="right" valign="top"><a id="a0ee50a560bb2ba5a2a7a3e2d33d3313f" name="a0ee50a560bb2ba5a2a7a3e2d33d3313f"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>phase</b> = EntityBad</td></tr>
+<tr class="memdesc:a0ee50a560bb2ba5a2a7a3e2d33d3313f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Phase entity. <br /></td></tr>
+<tr class="separator:a0ee50a560bb2ba5a2a7a3e2d33d3313f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac7ca0dbcb239d3ef1518ba17b92d6ebb" id="r_ac7ca0dbcb239d3ef1518ba17b92d6ebb"><td class="memItemLeft" align="right" valign="top"><a id="ac7ca0dbcb239d3ef1518ba17b92d6ebb" name="ac7ca0dbcb239d3ef1518ba17b92d6ebb"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>depth</b> = 0</td></tr>
+<tr class="memdesc:ac7ca0dbcb239d3ef1518ba17b92d6ebb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Depth of <em>phase</em> in the phase DependsOn graph. <br /></td></tr>
+<tr class="separator:ac7ca0dbcb239d3ef1518ba17b92d6ebb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aed0700f4ebde319dea8ff019e7eb35ce" id="r_aed0700f4ebde319dea8ff019e7eb35ce"><td class="memItemLeft" align="right" valign="top"><a id="aed0700f4ebde319dea8ff019e7eb35ce" name="aed0700f4ebde319dea8ff019e7eb35ce"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>order</b> = 0</td></tr>
+<tr class="memdesc:aed0700f4ebde319dea8ff019e7eb35ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deterministic child-before-target order of <em>phase</em>. <br /></td></tr>
+<tr class="separator:aed0700f4ebde319dea8ff019e7eb35ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this class was generated from the following file:<ul>
-<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query_8h_source.html">query.h</a></li>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Scheduling key for one explicit phase entity. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="world_8h_source.html">world.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html">OrderByWalkView</a></li>
+    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html">SystemPhaseScheduleItem</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

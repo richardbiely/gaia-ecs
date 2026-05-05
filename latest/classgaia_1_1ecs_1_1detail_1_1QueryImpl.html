@@ -139,7 +139,7 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterModeEnabled.html">IterModeEnabled</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html">OrderByWalkView</a></td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">OrderByTravView</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryJobCtx.html">QueryJobCtx</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -526,12 +526,15 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> ()</td></
 <tr class="memitem:a119b95980e05c6601911a4ecb0362295"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a119b95980e05c6601911a4ecb0362295">sort_by</a> (TSortByFunc func)</td></tr>
 <tr class="memdesc:a119b95980e05c6601911a4ecb0362295"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sorts the query by the specified pair and function.  <br /></td></tr>
 <tr class="separator:a119b95980e05c6601911a4ecb0362295"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5a20ef16c16bdec5da4f4eafb9febe32" id="r_a5a20ef16c16bdec5da4f4eafb9febe32"><td class="memItemLeft" align="right" valign="top"><a id="a5a20ef16c16bdec5da4f4eafb9febe32" name="a5a20ef16c16bdec5da4f4eafb9febe32"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html">OrderByWalkView</a>&#160;</td><td class="memItemRight" valign="bottom"><b>walk</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
-<tr class="memdesc:a5a20ef16c16bdec5da4f4eafb9febe32"><td class="mdescLeft">&#160;</td><td class="mdescRight">Walks the relation graph in breadth-first levels for the given relation. Pair(relation, X) on entity E means E depends on X. This path evaluates traversal per entity, so it works for both fragmenting relations such as ChildOf and non-fragmenting relations such as Parent. <br /></td></tr>
-<tr class="separator:a5a20ef16c16bdec5da4f4eafb9febe32"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5254cd7c717b38bfe8c60b3daa7f4611" id="r_a5254cd7c717b38bfe8c60b3daa7f4611"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">OrderByTravView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a5254cd7c717b38bfe8c60b3daa7f4611">order_by</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, TravOrder order)</td></tr>
+<tr class="memdesc:a5254cd7c717b38bfe8c60b3daa7f4611"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates matching entities in an explicit relation traversal order.  <br /></td></tr>
+<tr class="separator:a5254cd7c717b38bfe8c60b3daa7f4611"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6c081d4b2d0c4487d000d3270a211ab" id="r_af6c081d4b2d0c4487d000d3270a211ab"><td class="memTemplParams" colspan="2">template&lt;typename Rel &gt; </td></tr>
+<tr class="memitem:af6c081d4b2d0c4487d000d3270a211ab"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">OrderByTravView</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af6c081d4b2d0c4487d000d3270a211ab">order_by</a> (TravOrder order)</td></tr>
+<tr class="memdesc:af6c081d4b2d0c4487d000d3270a211ab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates matching entities in an explicit typed relation traversal order.  <br /></td></tr>
+<tr class="separator:af6c081d4b2d0c4487d000d3270a211ab"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a72f838e3e33fd25ed09411f437e60066" id="r_a72f838e3e33fd25ed09411f437e60066"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a72f838e3e33fd25ed09411f437e60066">depth_order</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation=ChildOf)</td></tr>
-<tr class="memdesc:a72f838e3e33fd25ed09411f437e60066"><td class="mdescLeft">&#160;</td><td class="mdescRight">Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down. Intended only for fragmenting relations such as ChildOf or DependsOn where the target participates in archetype identity. Unlike walk(...), this affects the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the archetype level. For non-fragmenting relations such as Parent, use walk(...) instead.  <br /></td></tr>
+<tr class="memdesc:a72f838e3e33fd25ed09411f437e60066"><td class="mdescLeft">&#160;</td><td class="mdescRight">Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down. Intended only for fragmenting relations such as ChildOf or DependsOn where the target participates in archetype identity. Unlike order_by(relation, TravOrder), this affects the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the archetype level. For non-fragmenting relations such as Parent, use order_by(...) instead.  <br /></td></tr>
 <tr class="separator:a72f838e3e33fd25ed09411f437e60066"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aef8bfeec67e318b3f3004c4e96c0cc9d" id="r_aef8bfeec67e318b3f3004c4e96c0cc9d"><td class="memTemplParams" colspan="2">template&lt;typename Rel &gt; </td></tr>
 <tr class="memitem:aef8bfeec67e318b3f3004c4e96c0cc9d"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aef8bfeec67e318b3f3004c4e96c0cc9d">depth_order</a> ()</td></tr>
@@ -623,17 +626,17 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>collect_entities_enab
 <tr class="memitem:a0850fa2a03c76080120e5bc655b377ec"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0850fa2a03c76080120e5bc655b377ec">arr</a> (Container &amp;outArray, Constraints constraints=Constraints::EnabledOnly)</td></tr>
 <tr class="memdesc:a0850fa2a03c76080120e5bc655b377ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends all components or entities matching the query to the output array.  <br /></td></tr>
 <tr class="separator:a0850fa2a03c76080120e5bc655b377ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af73887d9dde01f9e9884153a6994f582" id="r_af73887d9dde01f9e9884153a6994f582"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af73887d9dde01f9e9884153a6994f582">ordered_entities_walk</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, Constraints constraints=Constraints::EnabledOnly)</td></tr>
-<tr class="memdesc:af73887d9dde01f9e9884153a6994f582"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds and caches BFS walk order for the current query result.  <br /></td></tr>
-<tr class="separator:af73887d9dde01f9e9884153a6994f582"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aefaa05aaab8a6e69d234dc3622054e46" id="r_aefaa05aaab8a6e69d234dc3622054e46"><td class="memTemplParams" colspan="2">template&lt;typename Func , std::enable_if_t&lt; detail::is_query_walk_core_callback_v&lt; Func &gt;, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:aefaa05aaab8a6e69d234dc3622054e46"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aefaa05aaab8a6e69d234dc3622054e46">each_walk</a> (Func func, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, Constraints constraints=Constraints::EnabledOnly)</td></tr>
-<tr class="memdesc:aefaa05aaab8a6e69d234dc3622054e46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates entities matching the query ordered in dependency BFS levels. For relation R this treats Pair(R, X) on entity E as "E depends on X". Systems depending on no other matched system are first, then their dependents level-by-level. Nodes on the same level are ordered by entity id.  <br /></td></tr>
-<tr class="separator:aefaa05aaab8a6e69d234dc3622054e46"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aefaa05aaab8a6e69d234dc3622054e46" id="r_aefaa05aaab8a6e69d234dc3622054e46"><td class="memTemplParams" colspan="2"><a id="aefaa05aaab8a6e69d234dc3622054e46" name="aefaa05aaab8a6e69d234dc3622054e46"></a>
+<tr class="memitem:aba4be36607ba7d6e7cd106ae829c9464" id="r_aba4be36607ba7d6e7cd106ae829c9464"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aba4be36607ba7d6e7cd106ae829c9464">ordered_entities_walk</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, TravOrder order, Constraints constraints=Constraints::EnabledOnly)</td></tr>
+<tr class="memdesc:aba4be36607ba7d6e7cd106ae829c9464"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds and caches relation traversal order for the current query result.  <br /></td></tr>
+<tr class="separator:aba4be36607ba7d6e7cd106ae829c9464"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9171ad2df18aa4371f46c44d79c90a5" id="r_ac9171ad2df18aa4371f46c44d79c90a5"><td class="memTemplParams" colspan="2">template&lt;typename Func , std::enable_if_t&lt; detail::is_query_walk_core_callback_v&lt; Func &gt;, int &gt;  = 0&gt; </td></tr>
+<tr class="memitem:ac9171ad2df18aa4371f46c44d79c90a5"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac9171ad2df18aa4371f46c44d79c90a5">each_walk</a> (Func func, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, TravOrder order=TravOrder::Down, Constraints constraints=Constraints::EnabledOnly)</td></tr>
+<tr class="memdesc:ac9171ad2df18aa4371f46c44d79c90a5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterates entities matching the query in a requested relation traversal order. For relation R this treats Pair(R, X) on entity E as "E points at X". Traversal changes only visit order. Nodes with the same parent are ordered by entity id.  <br /></td></tr>
+<tr class="separator:ac9171ad2df18aa4371f46c44d79c90a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9171ad2df18aa4371f46c44d79c90a5" id="r_ac9171ad2df18aa4371f46c44d79c90a5"><td class="memTemplParams" colspan="2"><a id="ac9171ad2df18aa4371f46c44d79c90a5" name="ac9171ad2df18aa4371f46c44d79c90a5"></a>
 template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_callback_v&lt; Func &gt;, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:aefaa05aaab8a6e69d234dc3622054e46"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_walk</b> (Func func, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, Constraints constraints=Constraints::EnabledOnly)</td></tr>
-<tr class="separator:aefaa05aaab8a6e69d234dc3622054e46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac9171ad2df18aa4371f46c44d79c90a5"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_walk</b> (Func func, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation, TravOrder order=TravOrder::Down, Constraints constraints=Constraints::EnabledOnly)</td></tr>
+<tr class="separator:ac9171ad2df18aa4371f46c44d79c90a5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9c6d5ba0fed3b5c35918963b39917eec" id="r_a9c6d5ba0fed3b5c35918963b39917eec"><td class="memItemLeft" align="right" valign="top"><a id="a9c6d5ba0fed3b5c35918963b39917eec" name="a9c6d5ba0fed3b5c35918963b39917eec"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>diag</b> ()</td></tr>
 <tr class="memdesc:a9c6d5ba0fed3b5c35918963b39917eec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Run diagnostics. <br /></td></tr>
@@ -645,6 +648,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>diag</b> ()</td></tr>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>diag_bytecode</b> ()</td></tr>
 <tr class="memdesc:a6a80dd6aa203df89360487a2f2ad88ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prints a textual dump of the generated query VM bytecode. <br /></td></tr>
 <tr class="separator:a6a80dd6aa203df89360487a2f2ad88ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7ef9454050fe2451cafa4d38e6e55a20" id="r_a7ef9454050fe2451cafa4d38e6e55a20"><td class="memTemplParams" colspan="2"><a id="a7ef9454050fe2451cafa4d38e6e55a20" name="a7ef9454050fe2451cafa4d38e6e55a20"></a>
+template&lt;typename Rel &gt; </td></tr>
+<tr class="memitem:a7ef9454050fe2451cafa4d38e6e55a20"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">QueryImpl::OrderByTravView</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><b>order_by</b> (TravOrder order)</td></tr>
+<tr class="separator:a7ef9454050fe2451cafa4d38e6e55a20"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr><td colspan="2"><div class="groupHeader">Query context</div></td></tr>
 <tr><td colspan="2"><div class="groupText"><p>Stores raw, user-owned data on this query and exposes it to iterator-style callbacks.</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df" title="Returns the user-owned context pointer supplied by the caller driving this iteration.">Iter::ctx() const</a> </dd>
@@ -727,7 +734,7 @@ static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b
 <tr class="separator:a985c51d2fb9ae3ab648e913ddc14c676"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3718541c1d6a2075e369aa0901095200" id="r_a3718541c1d6a2075e369aa0901095200"><td class="memItemLeft" align="right" valign="top"><a id="a3718541c1d6a2075e369aa0901095200" name="a3718541c1d6a2075e369aa0901095200"></a>
 static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>survives_cascade_hierarchy_enabled_barrier</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype)</td></tr>
-<tr class="memdesc:a3718541c1d6a2075e369aa0901095200"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations. ChildOf is the native built-in example, but the rule is semantic: the relation must support depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in the archetype share the same direct parent target. That lets us prune the entire archetype when its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must stay on the per-entity walk(...) path instead. <br /></td></tr>
+<tr class="memdesc:a3718541c1d6a2075e369aa0901095200"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations. ChildOf is the native built-in example, but the rule is semantic: the relation must support depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in the archetype share the same direct parent target. That lets us prune the entire archetype when its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must stay on the per-entity traversal path instead. <br /></td></tr>
 <tr class="separator:a3718541c1d6a2075e369aa0901095200"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6e252afec4f90642acd12f4286d34b2c" id="r_a6e252afec4f90642acd12f4286d34b2c"><td class="memTemplParams" colspan="2"><a id="a6e252afec4f90642acd12f4286d34b2c" name="a6e252afec4f90642acd12f4286d34b2c"></a>
 template&lt;typename TIter &gt; </td></tr>
@@ -2008,7 +2015,7 @@ template&lt;typename Rel &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down. Intended only for fragmenting relations such as ChildOf or DependsOn where the target participates in archetype identity. Unlike walk(...), this affects the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the archetype level. For non-fragmenting relations such as Parent, use walk(...) instead. </p>
+<p>Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down. Intended only for fragmenting relations such as ChildOf or DependsOn where the target participates in archetype identity. Unlike order_by(relation, TravOrder), this affects the cached query iteration order itself and can therefore prune fragmenting disabled subtrees at the archetype level. For non-fragmenting relations such as Parent, use order_by(...) instead. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">relation</td><td>Fragmenting hierarchy relation. </td></tr>
@@ -2515,8 +2522,8 @@ template&lt;QueryExecType ExecType, typename Func &gt; </div>
 
 </div>
 </div>
-<a id="aefaa05aaab8a6e69d234dc3622054e46" name="aefaa05aaab8a6e69d234dc3622054e46"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aefaa05aaab8a6e69d234dc3622054e46">&#9670;&#160;</a></span>each_walk()</h2>
+<a id="ac9171ad2df18aa4371f46c44d79c90a5" name="ac9171ad2df18aa4371f46c44d79c90a5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac9171ad2df18aa4371f46c44d79c90a5">&#9670;&#160;</a></span>each_walk()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2541,6 +2548,12 @@ template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_call
         <tr>
           <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">TravOrder&#160;</td>
+          <td class="paramname"><em>order</em> = <code>TravOrder::Down</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
           <td class="paramtype">Constraints&#160;</td>
           <td class="paramname"><em>constraints</em> = <code>Constraints::EnabledOnly</code>&#160;</td>
         </tr>
@@ -2557,7 +2570,7 @@ template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_call
 </table>
 </div><div class="memdoc">
 
-<p>Iterates entities matching the query ordered in dependency BFS levels. For relation R this treats Pair(R, X) on entity E as "E depends on X". Systems depending on no other matched system are first, then their dependents level-by-level. Nodes on the same level are ordered by entity id. </p>
+<p>Iterates entities matching the query in a requested relation traversal order. For relation R this treats Pair(R, X) on entity E as "E points at X". Traversal changes only visit order. Nodes with the same parent are ordered by entity id. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">Func</td><td>Callback type. May accept <code><a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a>&amp;</code> or an entity value. </td></tr>
@@ -2567,12 +2580,13 @@ template&lt;typename Func , std::enable_if_t&lt;!detail::is_query_walk_core_call
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">func</td><td>Callable invoked for each ordered entity. </td></tr>
-    <tr><td class="paramname">relation</td><td>Dependency relation </td></tr>
+    <tr><td class="paramname">relation</td><td>Relation used to order matched entities. </td></tr>
+    <tr><td class="paramname">order</td><td>Traversal order to apply. </td></tr>
     <tr><td class="paramname">constraints</td><td><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> constraints </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af73887d9dde01f9e9884153a6994f582" title="Builds and caches BFS walk order for the current query result.">ordered_entities_walk(QueryInfo&amp;, Entity, Constraints)</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aba4be36607ba7d6e7cd106ae829c9464" title="Builds and caches relation traversal order for the current query result.">ordered_entities_walk(QueryInfo&amp;, Entity, TravOrder, Constraints)</a> </dd></dl>
 
 </div>
 </div>
@@ -4213,8 +4227,95 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="af73887d9dde01f9e9884153a6994f582" name="af73887d9dde01f9e9884153a6994f582"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af73887d9dde01f9e9884153a6994f582">&#9670;&#160;</a></span>ordered_entities_walk()</h2>
+<a id="a5254cd7c717b38bfe8c60b3daa7f4611" name="a5254cd7c717b38bfe8c60b3daa7f4611"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5254cd7c717b38bfe8c60b3daa7f4611">&#9670;&#160;</a></span>order_by() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">OrderByTravView</a> gaia::ecs::detail::QueryImpl::order_by </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">TravOrder&#160;</td>
+          <td class="paramname"><em>order</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Iterates matching entities in an explicit relation traversal order. </p>
+<p>Pair(<em>relation</em>, X) on entity E means E points at X. Down visits X before E. Up visits E before X. Reverse variants produce the exact reverse of their base order. Siblings are tie-broken by entity id, so the order is deterministic. The traversal changes only visit order; it does not change which entities match the query. This path resolves order per entity and works for fragmenting relations such as ChildOf and non-fragmenting relations such as Parent. It may be slower than normal chunk iteration. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation used to order the matched entities. </td></tr>
+    <tr><td class="paramname">order</td><td>Traversal order to apply. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Lightweight view exposing each(...). </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a72f838e3e33fd25ed09411f437e60066" title="Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down....">depth_order(Entity)</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aefb18a425986ead471ae032deafefa5a" title="Organizes matching archetypes into groups according to the grouping function and entity....">group_by(Entity, TGroupByFunc)</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a0140ca3d0cb3affd03de95aa5e7e29be" title="Sorts the query by the specified entity and function.">sort_by(Entity, TSortByFunc)</a> </dd></dl>
+
+</div>
+</div>
+<a id="af6c081d4b2d0c4487d000d3270a211ab" name="af6c081d4b2d0c4487d000d3270a211ab"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af6c081d4b2d0c4487d000d3270a211ab">&#9670;&#160;</a></span>order_by() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Rel &gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html">OrderByTravView</a> gaia::ecs::detail::QueryImpl::order_by </td>
+          <td>(</td>
+          <td class="paramtype">TravOrder&#160;</td>
+          <td class="paramname"><em>order</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Iterates matching entities in an explicit typed relation traversal order. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Rel</td><td>Relation type. It is registered if it hasn't been registered yet. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">order</td><td>Traversal order to apply. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Lightweight view exposing each(...). </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a5254cd7c717b38bfe8c60b3daa7f4611" title="Iterates matching entities in an explicit relation traversal order.">order_by(Entity, TravOrder)</a> </dd></dl>
+
+</div>
+</div>
+<a id="aba4be36607ba7d6e7cd106ae829c9464" name="aba4be36607ba7d6e7cd106ae829c9464"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aba4be36607ba7d6e7cd106ae829c9464">&#9670;&#160;</a></span>ordered_entities_walk()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4237,6 +4338,12 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">TravOrder&#160;</td>
+          <td class="paramname"><em>order</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
           <td class="paramtype">Constraints&#160;</td>
           <td class="paramname"><em>constraints</em> = <code>Constraints::EnabledOnly</code>&#160;</td>
         </tr>
@@ -4253,11 +4360,12 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Builds and caches BFS walk order for the current query result. </p>
+<p>Builds and caches relation traversal order for the current query result. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queryInfo</td><td>Query info </td></tr>
-    <tr><td class="paramname">relation</td><td>Dependency relation used for the walk. </td></tr>
+    <tr><td class="paramname">relation</td><td>Dependency relation used for traversal. </td></tr>
+    <tr><td class="paramname">order</td><td>Traversal order to apply. </td></tr>
     <tr><td class="paramname">constraints</td><td>Match constraints applied before ordering. </td></tr>
   </table>
   </dd>

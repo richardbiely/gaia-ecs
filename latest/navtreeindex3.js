@@ -1,7 +1,10 @@
 var NAVTREEINDEX3 =
 {
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6":[10,0,0,3,0,32,145],
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByWalkView.html":[10,0,0,3,0,32,8],
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe6394db2d9336405f0b0dc18f8ce11d":[10,0,0,3,0,32,127],
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe68a00ee539daa387d6a8d748af62e6":[10,0,0,3,0,32,146],
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html":[10,0,0,3,0,32,8],
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html#a1da037481d3eb8876c01058b41452efa":[10,0,0,3,0,32,8,0],
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1OrderByTravView.html#aee634c490ca1e8249dc37a72e66726aa":[10,0,0,3,0,32,8,1],
 "classgaia_1_1ecs_1_1pair.html":[10,0,0,3,61],
 "classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html":[10,0,0,3,62],
 "classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html":[10,0,0,3,1,3],
@@ -241,13 +244,10 @@ var NAVTREEINDEX3 =
 "functions_enum.html":[10,3,4],
 "functions_eval.html":[10,3,5],
 "functions_f.html":[10,3,0,5],
-"functions_func.html":[10,3,1,0],
 "functions_func.html":[10,3,1],
+"functions_func.html":[10,3,1,0],
 "functions_func_b.html":[10,3,1,1],
 "functions_func_c.html":[10,3,1,2],
 "functions_func_d.html":[10,3,1,3],
-"functions_func_e.html":[10,3,1,4],
-"functions_func_f.html":[10,3,1,5],
-"functions_func_g.html":[10,3,1,6],
-"functions_func_h.html":[10,3,1,7]
+"functions_func_e.html":[10,3,1,4]
 };
