@@ -226,7 +226,8 @@ void BM_System_IsIter_Direct_D8(picobench::state& state) {
 	BM_System_IsIter<8, true>(state);
 }
 
-static constexpr uint32_t NScheduledSystems = 256;
+static constexpr uint32_t NScheduledSystems256 = 256;
+static constexpr uint32_t NScheduledSystems1K = 1'024;
 static constexpr uint32_t NSchedulerPhases = 8;
 static constexpr uint32_t NSchedulerEntities = 4'096;
 
@@ -252,7 +253,8 @@ void add_balanced_depends_on_edges(ecs::World& w, const cnt::darray<ecs::Entity>
 	}
 }
 
-void BM_SystemSchedule_SerialOrder_256(picobench::state& state) {
+template <uint32_t Systems>
+void BM_SystemSchedule_SerialOrder(picobench::state& state) {
 	(void)state.user_data();
 
 	ecs::World w;
@@ -261,8 +263,8 @@ void BM_SystemSchedule_SerialOrder_256(picobench::state& state) {
 
 	uint64_t sink = 0;
 	cnt::darray<ecs::Entity> systems;
-	systems.reserve(NScheduledSystems);
-	GAIA_FOR(NScheduledSystems) {
+	systems.reserve(Systems);
+	GAIA_FOR(Systems) {
 		auto sys = w.system().all<const Position>().mode(ecs::QueryExecType::Default).on_each([&sink](ecs::Iter& it) {
 			sink += it.entity_rows().size();
 		});
@@ -282,7 +284,8 @@ void BM_SystemSchedule_SerialOrder_256(picobench::state& state) {
 	dont_optimize(sink);
 }
 
-void BM_SystemSchedule_PhasedOrder_256(picobench::state& state) {
+template <uint32_t Systems>
+void BM_SystemSchedule_PhasedOrder(picobench::state& state) {
 	(void)state.user_data();
 
 	ecs::World w;
@@ -300,8 +303,8 @@ void BM_SystemSchedule_PhasedOrder_256(picobench::state& state) {
 
 	uint64_t sink = 0;
 	cnt::darray<ecs::Entity> systems;
-	systems.reserve(NScheduledSystems);
-	GAIA_FOR(NScheduledSystems) {
+	systems.reserve(Systems);
+	GAIA_FOR(Systems) {
 		const auto phase = phases[i % phases.size()];
 		auto sys =
 				w.system().phase(phase).all<const Position>().mode(ecs::QueryExecType::Default).on_each([&sink](ecs::Iter& it) {
@@ -323,7 +326,8 @@ void BM_SystemSchedule_PhasedOrder_256(picobench::state& state) {
 	dont_optimize(sink);
 }
 
-void BM_SystemSchedule_ParallelJobsAccess_256(picobench::state& state) {
+template <uint32_t Systems>
+void BM_SystemSchedule_ParallelJobsAccess(picobench::state& state) {
 	(void)state.user_data();
 
 	ecs::World w;
@@ -331,7 +335,7 @@ void BM_SystemSchedule_ParallelJobsAccess_256(picobench::state& state) {
 	create_schedule_probe_entities(w, entities, NSchedulerEntities);
 
 	uint64_t sink = 0;
-	GAIA_FOR(NScheduledSystems) {
+	GAIA_FOR(Systems) {
 		if ((i % 4U) == 0U) {
 			w.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&sink](ecs::Iter& it) {
 				auto p = it.view_mut<Position>();
@@ -362,6 +366,30 @@ void BM_SystemSchedule_ParallelJobsAccess_256(picobench::state& state) {
 	}
 
 	dont_optimize(sink);
+}
+
+void BM_SystemSchedule_SerialOrder_256(picobench::state& state) {
+	BM_SystemSchedule_SerialOrder<NScheduledSystems256>(state);
+}
+
+void BM_SystemSchedule_SerialOrder_1K(picobench::state& state) {
+	BM_SystemSchedule_SerialOrder<NScheduledSystems1K>(state);
+}
+
+void BM_SystemSchedule_PhasedOrder_256(picobench::state& state) {
+	BM_SystemSchedule_PhasedOrder<NScheduledSystems256>(state);
+}
+
+void BM_SystemSchedule_PhasedOrder_1K(picobench::state& state) {
+	BM_SystemSchedule_PhasedOrder<NScheduledSystems1K>(state);
+}
+
+void BM_SystemSchedule_ParallelJobsAccess_256(picobench::state& state) {
+	BM_SystemSchedule_ParallelJobsAccess<NScheduledSystems256>(state);
+}
+
+void BM_SystemSchedule_ParallelJobsAccess_1K(picobench::state& state) {
+	BM_SystemSchedule_ParallelJobsAccess<NScheduledSystems1K>(state);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -402,6 +430,11 @@ void register_systems(PerfRunMode mode) {
 			PICOBENCH_REG(BM_SystemSchedule_ParallelJobsAccess_256)
 					.PICO_SETTINGS_HEAVY()
 					.label("systems parallel jobs access 256");
+			PICOBENCH_REG(BM_SystemSchedule_SerialOrder_1K).PICO_SETTINGS_FOCUS().label("systems serial order 1K");
+			PICOBENCH_REG(BM_SystemSchedule_PhasedOrder_1K).PICO_SETTINGS_FOCUS().label("systems phased order 1K");
+			PICOBENCH_REG(BM_SystemSchedule_ParallelJobsAccess_1K)
+					.PICO_SETTINGS_HEAVY()
+					.label("systems parallel jobs access 1K");
 			return;
 		default:
 			return;

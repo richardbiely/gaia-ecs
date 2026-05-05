@@ -2936,7 +2936,9 @@ This means `first` runs before `second`.
 
 When there are several levels of dependencies, Gaia-ECS runs the deepest systems first and then walks back to the parent system. Systems at the same level are ordered by entity id. Creating the systems in the same order as the example below gives the same order every run.
 
-This is separate from query `depth_order(...)`. Query `depth_order(...)` is still top-down breadth-first ordering for matching entities. System scheduling uses bottom-up depth-first order because smaller work steps usually need to finish before the system that depends on them.
+This is separate from query `depth_order(...)`. Query `depth_order(...)` is still top-down breadth-first ordering for matching entities. System scheduling uses bottom-up depth-first order because smaller work steps usually need to finish before the system that depends on them. Systems without a phase use this same rule.
+
+`DependsOn` cycles between systems or phases are invalid. Gaia-ECS keeps their fallback order deterministic so release builds can continue safely.
 
 Example dependency setup:
 

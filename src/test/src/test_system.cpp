@@ -421,6 +421,32 @@ TEST_CASE("System - DependsOn respects deepest dependency chain") {
 	}
 }
 
+TEST_CASE("System - DependsOn cycle uses deterministic fallback") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto sysA = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	auto sysB = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+
+	wld.add(sysA.entity(), {ecs::DependsOn, sysB.entity()});
+	wld.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'A');
+		CHECK(order[1] == 'B');
+	}
+}
+
 TEST_CASE("System - DependsOn updates after dependency rewiring") {
 	cnt::darr<char> order;
 	TestWorld twld;
