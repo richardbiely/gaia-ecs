@@ -11911,22 +11911,6 @@ namespace gaia {
 							break;
 						}
 					});
-
-					if (!child.hasPhase)
-						continue;
-
-					world.targets(child.phase, DependsOn, [&](Entity targetPhase) {
-						for (uint32_t targetIdx = 0; targetIdx < items.size(); ++targetIdx) {
-							if (childIdx == targetIdx)
-								continue;
-							if (!items[targetIdx].hasPhase)
-								continue;
-							if (items[targetIdx].phase != targetPhase)
-								continue;
-
-							system_schedule_add_edge(edges, childCounts, childIdx, targetIdx);
-						}
-					});
 				}
 			}
 
