@@ -632,6 +632,280 @@ TEST_CASE("System - disabled phase skips phased systems") {
 	}
 }
 
+TEST_CASE("System - phase dependencies respect all direct dependency targets") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+	const auto phaseB0 = wld.add();
+	const auto phaseD = wld.add();
+
+	auto make_sys = [&](ecs::Entity phase, char id) {
+		return wld.system().phase(phase).all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	make_sys(phaseA, 'A');
+	make_sys(phaseB, 'B');
+	make_sys(phaseB0, 'b');
+	make_sys(phaseD, 'D');
+
+	wld.add(phaseB0, {ecs::DependsOn, phaseB});
+	wld.add(phaseD, {ecs::DependsOn, phaseA});
+	wld.add(phaseD, {ecs::DependsOn, phaseB0});
+
+	wld.update();
+
+	int posA = -1;
+	int posB0 = -1;
+	int posD = -1;
+	for (uint32_t i = 0; i < order.size(); ++i) {
+		if (order[i] == 'A')
+			posA = (int)i;
+		if (order[i] == 'b')
+			posB0 = (int)i;
+		if (order[i] == 'D')
+			posD = (int)i;
+	}
+
+	CHECK(order.size() == 4);
+	CHECK(posD >= 0);
+	CHECK(posA >= 0);
+	CHECK(posB0 >= 0);
+	CHECK(posD < posA);
+	CHECK(posD < posB0);
+}
+
+TEST_CASE("System - phase dependency cycle uses deterministic fallback") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+
+	wld.system().phase(phaseA).all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	wld.system().phase(phaseB).all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+
+	wld.add(phaseA, {ecs::DependsOn, phaseB});
+	wld.add(phaseB, {ecs::DependsOn, phaseA});
+
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'A');
+		CHECK(order[1] == 'B');
+	}
+}
+
+TEST_CASE("System - disabled ancestor phase skips descendant phased systems") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseRoot = wld.add();
+	const auto phaseChild = wld.add();
+	wld.child(phaseChild, phaseRoot);
+
+	wld.system().phase(phaseChild).all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+	wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('U');
+	});
+
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'U');
+	}
+
+	wld.enable(phaseRoot, false);
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'U');
+}
+
+TEST_CASE("System - dependency added after warm update reorders next run") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto sysRoot = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('R');
+	});
+	auto sysChild = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'R');
+		CHECK(order[1] == 'C');
+	}
+
+	wld.add(sysChild.entity(), {ecs::DependsOn, sysRoot.entity()});
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'R');
+	}
+}
+
+TEST_CASE("System - removing System component after warm update drops it from scheduling") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto sysA = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	auto sysB = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+
+	wld.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'B');
+		CHECK(order[1] == 'A');
+	}
+
+	wld.del<ecs::System_>(sysB.entity());
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'A');
+}
+
+TEST_CASE("System - new system added after warm update is collected on next run") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto sysRoot = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('R');
+	});
+
+	wld.update();
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 'R');
+
+	auto sysChild = wld.system().all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+	wld.add(sysChild.entity(), {ecs::DependsOn, sysRoot.entity()});
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'R');
+	}
+}
+
+TEST_CASE("System - phase assignment can be moved after warm update") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	const auto phaseRoot = wld.add();
+	const auto phaseChild = wld.add();
+	wld.add(phaseChild, {ecs::DependsOn, phaseRoot});
+
+	auto sys = wld.system().phase(phaseRoot).all<Position>().on_each([&order](Position) {
+		order.push_back('S');
+	});
+	wld.system().phase(phaseChild).all<Position>().on_each([&order](Position) {
+		order.push_back('C');
+	});
+
+	wld.update();
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'S');
+	}
+
+	wld.del(sys.entity(), {ecs::ChildOf, phaseRoot});
+	wld.del(sys.entity(), {ecs::DependsOn, phaseRoot});
+	wld.add(sys.entity(), {ecs::ChildOf, phaseChild});
+	wld.add(sys.entity(), {ecs::DependsOn, phaseChild});
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'S');
+		CHECK(order[1] == 'C');
+	}
+}
+
+TEST_CASE("System - shrinking a large schedule clears stale scratch rows") {
+	cnt::darr<uint32_t> order;
+	cnt::darr<ecs::Entity> systems;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	constexpr uint32_t N = 32;
+	GAIA_FOR(N) {
+		const uint32_t id = i;
+		auto sys = wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+		systems.push_back(sys.entity());
+	}
+
+	wld.update();
+	CHECK(order.size() == N);
+
+	for (uint32_t i = 1; i < systems.size(); ++i)
+		wld.del<ecs::System_>(systems[i]);
+	order.clear();
+	wld.update();
+
+	CHECK(order.size() == 1);
+	if (order.size() == 1)
+		CHECK(order[0] == 0);
+}
+
 TEST_CASE("World - teardown removes runtime callbacks without executing them") {
 	ecs::World world;
 	uint32_t sysCnt = 0;

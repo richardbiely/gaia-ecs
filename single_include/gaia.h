@@ -68450,17 +68450,25 @@ namespace gaia {
 				states[phaseIdx] = 2;
 			}
 
-			//! Assigns deterministic postorder keys to collected phases.
+			//! Assigns deterministic order keys to collected phases.
 			//! \param world World containing the phase entities.
 			//! \param phases Phase keys to update.
+			//! \param scratch Reusable scheduler scratch storage owned by the world.
 			inline void system_schedule_assign_phase_orders(
 					World& world, cnt::darray<SystemPhaseScheduleItem>& phases, SystemScheduleScratch& scratch) {
+				// Phase ordering has two layers:
+				// 1. A cheap DFS postorder over each phase's primary DependsOn target. This gives stable depth/path
+				//    keys and a deterministic fallback for cycles.
+				// 2. A direct DependsOn topological pass. This preserves all explicit phase targets, including
+				//    multi-target dependencies that the primary-target path cannot represent by itself.
 				auto& sortedPhases = scratch.sortedPhases;
 				auto& primaryPhases = scratch.primaryPhases;
 				auto& firstChildren = scratch.firstChildren;
 				auto& nextSiblings = scratch.nextSiblings;
 				auto& states = scratch.states;
 
+				// Work in entity-id order whenever the graph does not force a different order. That keeps
+				// independent phases deterministic and makes cycle fallback stable.
 				sortedPhases.clear();
 				sortedPhases.reserve(phases.size());
 				for (uint32_t i = 0; i < phases.size(); ++i)
@@ -68469,11 +68477,15 @@ namespace gaia {
 					return entity_schedule_less(phases[lhs].phase, phases[rhs].phase);
 				});
 
+				// Collapse each phase's dependency path to one primary target for the DFS ordering key. Direct
+				// multi-target dependencies are handled later by the topological pass.
 				primaryPhases.clear();
 				primaryPhases.resize(phases.size(), UINT32_MAX);
 				for (uint32_t i = 0; i < phases.size(); ++i)
 					primaryPhases[i] = system_schedule_primary_phase_idx(world, phases, i);
 
+				// Build primary-target adjacency once, then walk it instead of repeatedly scanning all phases for
+				// children. Reverse insertion preserves sorted child traversal.
 				firstChildren.clear();
 				nextSiblings.clear();
 				firstChildren.resize(phases.size(), UINT32_MAX);
@@ -68490,6 +68502,8 @@ namespace gaia {
 				states.clear();
 				states.resize(phases.size(), 0);
 
+				// Assign the primary DFS order from roots first. Any phase left unvisited participates in a
+				// primary-target cycle, so it receives a deterministic entity-order fallback below.
 				uint32_t order = 0;
 				for (auto phaseIdx: sortedPhases) {
 					if (states[phaseIdx] == 0 && primaryPhases[phaseIdx] == UINT32_MAX) {
@@ -68504,6 +68518,105 @@ namespace gaia {
 						states[phaseIdx] = 2;
 					}
 				}
+
+				auto& edges = scratch.edges;
+				auto& childCounts = scratch.childCounts;
+				auto& firstEdges = scratch.firstEdges;
+				auto& readyNext = scratch.readyNext;
+				auto& ordered = scratch.sortedIndices;
+				auto& visited = scratch.visited;
+
+				edges.clear();
+				childCounts.clear();
+				childCounts.resize(phases.size(), 0);
+
+				// Build explicit phase edges from the actual DependsOn pairs. We count incoming children per
+				// target so a phase becomes ready only after all phases depending on it have been emitted.
+				for (uint32_t phaseIdx = 0; phaseIdx < phases.size(); ++phaseIdx) {
+					world.targets(phases[phaseIdx].phase, DependsOn, [&](Entity target) {
+						const auto targetIdx = system_schedule_find_phase(phases, target);
+						if (targetIdx == UINT32_MAX || targetIdx == phaseIdx)
+							return;
+
+						SystemScheduleEdge edge{};
+						edge.child = phaseIdx;
+						edge.target = targetIdx;
+						edges.push_back(edge);
+						++childCounts[targetIdx];
+					});
+				}
+				if (edges.empty())
+					return;
+
+				// Link outgoing edges per child phase. This lets the ready-list pass touch only edges affected by
+				// the phase it just emitted.
+				firstEdges.clear();
+				firstEdges.resize(phases.size(), UINT32_MAX);
+				for (uint32_t edgeIdx = edges.size(); edgeIdx > 0; --edgeIdx) {
+					auto& edge = edges[edgeIdx - 1];
+					edge.next = firstEdges[edge.child];
+					firstEdges[edge.child] = edgeIdx - 1;
+				}
+
+				auto phase_less = [&](uint32_t lhs, uint32_t rhs) {
+					const auto& lhsPhase = phases[lhs];
+					const auto& rhsPhase = phases[rhs];
+					if (lhsPhase.order != rhsPhase.order)
+						return lhsPhase.order < rhsPhase.order;
+					if (lhsPhase.depth != rhsPhase.depth)
+						return lhsPhase.depth > rhsPhase.depth;
+					return entity_schedule_less(lhsPhase.phase, rhsPhase.phase);
+				};
+				auto ready_insert = [&](uint32_t& readyHead, uint32_t phaseIdx) {
+					uint32_t* ppCurr = &readyHead;
+					while (*ppCurr != UINT32_MAX && phase_less(*ppCurr, phaseIdx))
+						ppCurr = &readyNext[*ppCurr];
+					readyNext[phaseIdx] = *ppCurr;
+					*ppCurr = phaseIdx;
+				};
+
+				readyNext.clear();
+				readyNext.resize(phases.size(), UINT32_MAX);
+
+				// Kahn pass in Gaia's scheduler direction: children run before their DependsOn targets. The
+				// ordered ready list preserves the primary DFS order whenever several phases are unblocked.
+				uint32_t readyHead = UINT32_MAX;
+				for (auto phaseIdx: sortedPhases) {
+					if (childCounts[phaseIdx] == 0)
+						ready_insert(readyHead, phaseIdx);
+				}
+
+				ordered.clear();
+				ordered.reserve(phases.size());
+				while (readyHead != UINT32_MAX) {
+					const auto phaseIdx = readyHead;
+					readyHead = readyNext[readyHead];
+					ordered.push_back(phaseIdx);
+
+					for (uint32_t edgeIdx = firstEdges[phaseIdx]; edgeIdx != UINT32_MAX; edgeIdx = edges[edgeIdx].next) {
+						const auto targetIdx = edges[edgeIdx].target;
+						GAIA_ASSERT(childCounts[targetIdx] > 0);
+						--childCounts[targetIdx];
+						if (childCounts[targetIdx] == 0)
+							ready_insert(readyHead, targetIdx);
+					}
+				}
+
+				if (ordered.size() != phases.size()) {
+					// A direct phase dependency cycle cannot be topologically sorted. Keep the acyclic prefix and
+					// append the remaining phases in entity order so execution is still deterministic.
+					visited.clear();
+					visited.resize(phases.size(), 0);
+					for (auto phaseIdx: ordered)
+						visited[phaseIdx] = 1;
+					for (auto phaseIdx: sortedPhases) {
+						if (visited[phaseIdx] == 0)
+							ordered.push_back(phaseIdx);
+					}
+				}
+
+				for (uint32_t i = 0; i < ordered.size(); ++i)
+					phases[ordered[i]].order = i;
 			}
 
 			//! Assigns compact deterministic order keys to all collected schedule items.
