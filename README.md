@@ -3987,11 +3987,23 @@ It is possible to measure the performance and memory usage of the framework via 
 ![tracy_1](docs/img/tracy_1.png)
 ![tracy_2](docs/img/tracy_2.png)
 
-CPU part can be controlled via -DGAIA_PROF_CPU=ON/OFF (OFF by default).
+CPU profiling can be controlled via `-DGAIA_PROFILER_CPU=ON/OFF` (OFF by default).
 
-Memory part can be controlled via -DGAIA_PROF_MEM=ON/OFF (OFF by default).
+Memory profiling can be controlled via `-DGAIA_PROFILER_MEM=ON/OFF` (OFF by default).
 
-Building the profiler server can be controlled via -DGAIA_PROF_CPU=ON (OFF by default).
+The Tracy profiler GUI can be built via `-DGAIA_PROFILER_BUILD=ON` (OFF by default). The GUI is always built as an optimized host tool in one shared repo-local build directory:
+
+```text
+build/tools/tracy-profiler-build
+```
+
+The runnable output path is stable across project builds (Debug, Release, and RelWithDebInfo, etc.):
+
+```text
+build/tools/tracy-profiler/tracy-profiler
+build/tools/tracy-profiler/tracy-profiler.exe
+```
+
 >**NOTE:<br/>** This is a low-level feature mostly targeted for maintainers. However, if paired with your own profiler code it can become a very helpful tool.
 
 Custom profiler support can be added by overriding GAIA_PROF_* preprocessor definitions:

@@ -70,12 +70,31 @@
       "problemMatcher": []
     },
     {
+      "label": "Build Tracy Profiler",
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "${workspaceFolder}/build/${input:buildType}",
+        "--target",
+        "gaia_tracy_profiler",
+        "--parallel"
+      ],
+      "group": "build",
+      "presentation": {
+        "reveal": "always"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Profiler",
       "type": "shell",
-      "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/unix/tracy-profiler",
+      "command": "${workspaceFolder}/build/tools/tracy-profiler/tracy-profiler",
       "windows": {
-        "command": "${workspaceFolder}/build/${input:buildType}/_deps/tracy-src/profiler/build/win32/tracy-profiler.exe",
+        "command": "${workspaceFolder}\\build\\tools\\tracy-profiler\\tracy-profiler.exe"
       },
+      "dependsOn": "Build Tracy Profiler",
+      "dependsOrder": "sequence",
       "group": "build",
       "presentation": {
         "reveal": "always"
