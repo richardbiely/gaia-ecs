@@ -6992,11 +6992,15 @@ namespace gaia {
 
 			//! Executes all registered systems once.
 			//!
-			//! Systems are traversed in DependsOn depth order. Systems can join a phase with SystemBuilder::phase(Entity),
-			//! which uses `(ChildOf, phase)` for grouping/enabled-state inheritance and `(DependsOn, phase)` for ordering.
+			//! Phased systems are traversed phase-by-phase in deterministic depth-first postorder over phase DependsOn
+			//! paths. A deeper phase subtree runs before its target phase, and each phase is a scheduler batch boundary.
+			//! Systems can join a phase with SystemBuilder::phase(Entity), which uses `(ChildOf, phase)` for
+			//! grouping/enabled-state inheritance and `(DependsOn, phase)` to assign the system to that phase path. Inside
+			//! one phase, explicit system DependsOn relationships use the same depth-first postorder. Unphased systems use
+			//! that same postorder directly. Systems without relationships are tie-broken by entity id for determinism.
 			//! Serial systems and systems marked with QueryImpl::main_thread(bool) run on the caller thread. Parallel systems
 			//! are prepared as scheduler jobs when the active scheduler supports deferred add/dep/submit/wait/del operations;
-			//! jobs in the same dependency level receive dependency edges when their query access metadata conflicts.
+			//! jobs in the same phase/dependency batch receive dependency edges when their query access metadata conflicts.
 			//!
 			//! \warning Parallel systems must not structurally mutate the world while other scheduler jobs are pending unless
 			//! they synchronize externally or opt into main_thread().
@@ -11368,32 +11372,119 @@ namespace gaia {
 				PendingSystemJob(Entity systemEntity, SchedJob&& systemJob): entity(systemEntity), job(GAIA_MOV(systemJob)) {}
 			};
 
+			//! Scheduling key for one enabled system entity.
+			struct SystemScheduleItem {
+				//! System entity to run.
+				Entity entity = EntityBad;
+				//! Phase entity assigned with SystemBuilder::phase(), or EntityBad for unphased systems.
+				Entity phase = EntityBad;
+				//! Root-to-phase path used for deterministic phase postorder.
+				cnt::darray<Entity> phasePath;
+				//! Root-to-system path used for deterministic system postorder.
+				cnt::darray<Entity> systemPath;
+				//! Depth of @a phase in the phase DependsOn graph.
+				uint32_t phaseDepth = 0;
+				//! Depth of the system in the DependsOn graph, excluding the phase marker target.
+				uint32_t systemDepth = 0;
+				//! True when @a phase is valid.
+				bool hasPhase = false;
+			};
+
+			//! Context used while collecting system scheduling keys.
+			struct SystemCollectCtx {
+				//! World that owns collected systems.
+				World* pWorld = nullptr;
+				//! Output array receiving scheduling keys.
+				cnt::darray<SystemScheduleItem>* pItems = nullptr;
+			};
+
 			//! Context used by the erased system run callback.
 			struct SystemRunCtx {
 				//! World that owns collected systems.
 				World* pWorld = nullptr;
-				//! Pending scheduler jobs in the current dependency level.
+				//! Pending scheduler jobs in the current phase/system-dependency batch.
 				cnt::darray<PendingSystemJob>* pPending = nullptr;
-				//! Current explicit DependsOn depth.
-				uint32_t currentDepth = 0;
-				//! True once @a currentDepth has been initialized.
-				bool hasDepth = false;
+				//! Current scheduling batch key.
+				SystemScheduleItem current{};
+				//! True once @a current has been initialized.
+				bool hasCurrent = false;
 				//! True when the active scheduler can prepare dependency-ready jobs.
 				bool canScheduleSystems = false;
 			};
 
-			//! Calculates the DependsOn depth used for system execution barriers.
+			//! Returns whether @a lhs entity id sorts before @a rhs entity id.
+			//! \param lhs First entity.
+			//! \param rhs Second entity.
+			//! \return True when @a lhs has a smaller id/generation tuple.
+			GAIA_NODISCARD inline bool entity_schedule_less(Entity lhs, Entity rhs) {
+				if (lhs.id() != rhs.id())
+					return lhs.id() < rhs.id();
+				return lhs.gen() < rhs.gen();
+			}
+
+			//! Selects the primary DependsOn target used for deterministic postorder scheduling.
+			//! \param world World containing @a entity.
+			//! \param entity Entity whose DependsOn targets are inspected.
+			//! \param skipTarget Target to ignore, usually the phase marker added by SystemBuilder::phase().
+			//! \return Deepest target, tie-broken by entity id, or EntityBad when no target remains.
+			GAIA_NODISCARD inline Entity system_primary_dep_target(World& world, Entity entity, Entity skipTarget) {
+				Entity best = EntityBad;
+				uint32_t bestDepth = 0;
+				world.targets(entity, DependsOn, [&](Entity target) {
+					if (target == skipTarget)
+						return;
+
+					const auto targetDepth = world.depth_order_cache(DependsOn, target);
+					if (best == EntityBad || targetDepth > bestDepth ||
+							(targetDepth == bestDepth && entity_schedule_less(target, best))) {
+						best = target;
+						bestDepth = targetDepth;
+					}
+				});
+				return best;
+			}
+
+			//! Builds a root-to-entity DependsOn path used by postorder system scheduling.
+			//! \param world World containing @a entity.
+			//! \param entity Entity to append to @a out.
+			//! \param skipTarget Target to ignore when selecting the primary dependency target.
+			//! \param out Output path receiving dependency roots first and @a entity last.
+			inline void system_dep_path(World& world, Entity entity, Entity skipTarget, cnt::darray<Entity>& out) {
+				const auto target = system_primary_dep_target(world, entity, skipTarget);
+				if (target != EntityBad)
+					system_dep_path(world, target, EntityBad, out);
+				out.push_back(entity);
+			}
+
+			//! Returns the phase assigned to @a systemEntity, if any.
 			//! \param world World containing @a systemEntity.
 			//! \param systemEntity System entity to inspect.
-			//! \return Maximum dependency-target depth, or 0 for systems without DependsOn targets.
-			GAIA_NODISCARD inline uint32_t system_dep_depth(World& world, Entity systemEntity) {
-				uint32_t depth = 0;
-				world.targets(systemEntity, DependsOn, [&](Entity target) {
-					const auto targetDepth = world.depth_order_cache(DependsOn, target);
-					if (targetDepth > depth)
-						depth = targetDepth;
-				});
-				return depth;
+			//! \return Phase entity or EntityBad when the system has no phase assignment.
+			GAIA_NODISCARD inline Entity system_phase(World& world, Entity systemEntity) {
+				const auto phase = world.target(systemEntity, ChildOf);
+				if (phase == EntityBad)
+					return EntityBad;
+				if (!world.has(systemEntity, Pair(DependsOn, phase)))
+					return EntityBad;
+				return phase;
+			}
+
+			//! Builds the scheduling key for @a systemEntity.
+			//! \param world World containing @a systemEntity.
+			//! \param systemEntity System entity to inspect.
+			//! \return Scheduling key used by World::systems_run().
+			GAIA_NODISCARD inline SystemScheduleItem system_schedule_item(World& world, Entity systemEntity) {
+				SystemScheduleItem item{};
+				item.entity = systemEntity;
+				item.phase = system_phase(world, systemEntity);
+				item.hasPhase = item.phase != EntityBad;
+				if (item.hasPhase) {
+					system_dep_path(world, item.phase, EntityBad, item.phasePath);
+					item.phaseDepth = item.phasePath.size() > 0 ? item.phasePath.size() - 1 : 0;
+				}
+				system_dep_path(world, systemEntity, item.phase, item.systemPath);
+				item.systemDepth = item.systemPath.size() > 0 ? item.systemPath.size() - 1 : 0;
+				return item;
 			}
 
 			//! Submits all pending system jobs.
@@ -11429,6 +11520,159 @@ namespace gaia {
 							 resolved.dep != nullptr && resolved.wait != nullptr && resolved.del != nullptr;
 			}
 
+			//! Compares root-to-entity dependency paths in deterministic depth-first postorder.
+			//!
+			//! Sibling subtrees are ordered by entity id. When one path is the prefix of the other, the deeper
+			//! descendant sorts first so children execute before their DependsOn target.
+			//!
+			//! \param lhs First root-to-entity path.
+			//! \param rhs Second root-to-entity path.
+			//! \return True when @a lhs must be visited before @a rhs.
+			GAIA_NODISCARD inline bool system_dep_path_less(const cnt::darray<Entity>& lhs, const cnt::darray<Entity>& rhs) {
+				const auto commonLen = lhs.size() < rhs.size() ? lhs.size() : rhs.size();
+				for (uint32_t i = 0; i < commonLen; ++i) {
+					if (lhs[i] == rhs[i])
+						continue;
+					return entity_schedule_less(lhs[i], rhs[i]);
+				}
+
+				if (lhs.size() != rhs.size())
+					return lhs.size() > rhs.size();
+				return false;
+			}
+
+			//! Compares two system scheduling keys.
+			//!
+			//! Phased systems are ordered phase-by-phase using the same depth-first postorder as unphased systems.
+			//! Systems inside one phase are then ordered by explicit system DependsOn postorder. Systems without a
+			//! dependency relation are tie-broken by entity id so the order is deterministic, not random.
+			//!
+			//! \param lhs First scheduling key.
+			//! \param rhs Second scheduling key.
+			//! \return True when @a lhs must be visited before @a rhs.
+			GAIA_NODISCARD inline bool system_schedule_less(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
+				if (lhs.hasPhase != rhs.hasPhase)
+					return lhs.hasPhase;
+
+				if (lhs.hasPhase) {
+					if (lhs.phase != rhs.phase)
+						return system_dep_path_less(lhs.phasePath, rhs.phasePath);
+				} else if (lhs.systemPath != rhs.systemPath)
+					return system_dep_path_less(lhs.systemPath, rhs.systemPath);
+
+				if (lhs.systemPath != rhs.systemPath)
+					return system_dep_path_less(lhs.systemPath, rhs.systemPath);
+				return entity_schedule_less(lhs.entity, rhs.entity);
+			}
+
+			//! Returns whether two schedule items belong to the same explicit system-dependency group.
+			//! \param lhs First schedule item.
+			//! \param rhs Second schedule item.
+			//! \return True when explicit system DependsOn edges may order @a lhs and @a rhs.
+			GAIA_NODISCARD inline bool
+			system_schedule_same_group(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
+				if (lhs.hasPhase != rhs.hasPhase)
+					return false;
+				if (!lhs.hasPhase)
+					return true;
+				return lhs.phase == rhs.phase;
+			}
+
+			//! Returns whether @a child has a direct system dependency on @a target.
+			//! \param world World containing both entities.
+			//! \param child Candidate child system.
+			//! \param target Candidate target system.
+			//! \param skipTarget Target to ignore, usually the phase marker added by SystemBuilder::phase().
+			//! \return True when @a child has `(DependsOn, target)` and the edge is not @a skipTarget.
+			GAIA_NODISCARD inline bool system_has_direct_dep(World& world, Entity child, Entity target, Entity skipTarget) {
+				bool found = false;
+				world.targets(child, DependsOn, [&](Entity depTarget) {
+					if (depTarget == skipTarget)
+						return;
+					if (depTarget == target)
+						found = true;
+				});
+				return found;
+			}
+
+			//! Returns whether any unvisited system must run before @a item.
+			//! \param world World containing the system entities.
+			//! \param items All collected scheduling keys.
+			//! \param visited Per-item visited flags.
+			//! \param itemIdx Index of the candidate target item.
+			//! \return True when an unvisited child still points at @a item through DependsOn.
+			GAIA_NODISCARD inline bool system_has_unvisited_child(
+					World& world, const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint8_t>& visited,
+					uint32_t itemIdx) {
+				const auto& item = items[itemIdx];
+				for (uint32_t i = 0; i < items.size(); ++i) {
+					if (i == itemIdx || visited[i] != 0 || !system_schedule_same_group(item, items[i]))
+						continue;
+					if (system_has_direct_dep(world, items[i].entity, item.entity, items[i].phase))
+						return true;
+				}
+				return false;
+			}
+
+			//! Orders system scheduling keys with a deterministic child-before-target topological pass.
+			//!
+			//! The tie-breaker is the depth-first postorder path comparator, which keeps simple dependency forests in
+			//! subtree order while still respecting every direct DependsOn edge inside the same phase group. Cycles fall
+			//! back to the same comparator so the update remains deterministic.
+			//!
+			//! \param world World containing the system entities.
+			//! \param items Scheduling keys to reorder.
+			inline void order_system_schedule_items(World& world, cnt::darray<SystemScheduleItem>& items) {
+				cnt::darray<SystemScheduleItem> ordered;
+				ordered.reserve(items.size());
+
+				cnt::darray<uint8_t> visited;
+				visited.reserve(items.size());
+				for (uint32_t i = 0; i < items.size(); ++i)
+					visited.push_back(0);
+
+				while (ordered.size() < items.size()) {
+					uint32_t bestIdx = UINT32_MAX;
+					for (uint32_t i = 0; i < items.size(); ++i) {
+						if (visited[i] != 0)
+							continue;
+						if (system_has_unvisited_child(world, items, visited, i))
+							continue;
+						if (bestIdx == UINT32_MAX || system_schedule_less(items[i], items[bestIdx]))
+							bestIdx = i;
+					}
+
+					if (bestIdx == UINT32_MAX) {
+						for (uint32_t i = 0; i < items.size(); ++i) {
+							if (visited[i] == 0 && (bestIdx == UINT32_MAX || system_schedule_less(items[i], items[bestIdx])))
+								bestIdx = i;
+						}
+					}
+
+					GAIA_ASSERT(bestIdx != UINT32_MAX);
+					if (bestIdx == UINT32_MAX)
+						break;
+
+					visited[bestIdx] = 1;
+					ordered.push_back(items[bestIdx]);
+				}
+
+				items = GAIA_MOV(ordered);
+			}
+
+			//! Returns whether @a lhs and @a rhs belong to different scheduler batches.
+			//! \param lhs Current batch key.
+			//! \param rhs Candidate system key.
+			//! \return True when pending jobs must be flushed before @a rhs runs.
+			GAIA_NODISCARD inline bool
+			system_schedule_batch_changed(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
+				if (lhs.hasPhase != rhs.hasPhase)
+					return true;
+				if (lhs.hasPhase)
+					return lhs.phase != rhs.phase || lhs.systemDepth != rhs.systemDepth;
+				return lhs.systemDepth != rhs.systemDepth;
+			}
+
 			//! Returns whether @a type asks Gaia-ECS to prepare scheduler work for a system.
 			//! \param type System query execution type.
 			//! \return True for parallel execution modes.
@@ -11454,13 +11698,13 @@ namespace gaia {
 				if (!world.enabled_hierarchy(systemEntity, ChildOf))
 					return;
 
-				const auto depth = system_dep_depth(world, systemEntity);
-				if (!ctx.hasDepth) {
-					ctx.currentDepth = depth;
-					ctx.hasDepth = true;
-				} else if (depth != ctx.currentDepth) {
+				const auto item = system_schedule_item(world, systemEntity);
+				if (!ctx.hasCurrent) {
+					ctx.current = item;
+					ctx.hasCurrent = true;
+				} else if (system_schedule_batch_changed(ctx.current, item)) {
 					flush_pending_system_jobs(pending);
-					ctx.currentDepth = depth;
+					ctx.current = item;
 				}
 
 				auto ss = world.acc_mut(systemEntity);
@@ -11488,6 +11732,18 @@ namespace gaia {
 				pending.emplace_back(systemEntity, GAIA_MOV(job));
 			}
 
+			//! Collects one system scheduling key from the erased system-query callback path.
+			//! \param pCtx Pointer to SystemCollectCtx.
+			//! \param systemEntity System entity to collect.
+			inline void collect_system_schedule_item_erased(void* pCtx, Entity systemEntity) {
+				auto& ctx = *static_cast<SystemCollectCtx*>(pCtx);
+				GAIA_ASSERT(ctx.pWorld != nullptr);
+				GAIA_ASSERT(ctx.pItems != nullptr);
+				if (ctx.pWorld == nullptr || ctx.pItems == nullptr)
+					return;
+				ctx.pItems->push_back(system_schedule_item(*ctx.pWorld, systemEntity));
+			}
+
 			//! Collects a system entity from the erased system-query callback path.
 			inline void collect_system_entity_erased(void* pCtx, Entity systemEntity) {
 				auto& out = *static_cast<cnt::darray<Entity>*>(pCtx);
@@ -11496,12 +11752,19 @@ namespace gaia {
 		} // namespace detail
 
 		inline void World::systems_init() {
-			m_systemsQuery = query().all(System).depth_order(DependsOn);
+			m_systemsQuery = query().all(System);
 		}
 
 		inline void World::systems_run() {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
+
+			cnt::darray<detail::SystemScheduleItem> items;
+			detail::SystemCollectCtx collectCtx{};
+			collectCtx.pWorld = this;
+			collectCtx.pItems = &items;
+			m_systemsQuery.each_entity_enabled(&collectCtx, detail::collect_system_schedule_item_erased);
+			detail::order_system_schedule_items(*this, items);
 
 			cnt::darray<detail::PendingSystemJob> pending;
 			detail::SystemRunCtx ctx{};
@@ -11509,7 +11772,8 @@ namespace gaia {
 			ctx.pPending = &pending;
 			ctx.canScheduleSystems = detail::sched_supports_deferred_system_jobs(world_sched(*this));
 
-			m_systemsQuery.each_entity_enabled(&ctx, detail::run_system_entity_erased);
+			for (auto item: items)
+				detail::run_system_entity_erased(&ctx, item.entity);
 			detail::flush_pending_system_jobs(pending);
 		}
 

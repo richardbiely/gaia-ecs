@@ -2906,49 +2906,84 @@ mySystem.exec();
 // Call each system when the time is right.
 w.update();
 ```
-Letting systems run via **World::update** automatically is the preferred way and what you would normally do. Gaia-ECS can resolve dependencies and execute systems level-by-level (BFS) so parent dependencies run before their dependents.
+Letting systems run via **World::update** automatically is the preferred path. Gaia-ECS can resolve system order, phase boundaries, and safe parallel work for you.
 
 ### System dependencies
-By default, systems on the same dependency level are visited by their entity id. Serial systems run in that order. Parallel systems in the same level may run concurrently when their query access metadata does not conflict; conflicting parallel systems receive scheduler dependency edges in visit order. If a different order is needed, there are multiple ways to influence it.
-
-One of them is adding the DependsOn relationship to a system's entity.
+`World::update()` uses a clear rule for system `DependsOn`:
 
 ```cpp
-SystemBuilder system1 = w.system().all ...
-SystemBuilder system2 = w.system().all ...
-// Make system1 depend on system2. This way, system1 is always executed after system2.
-w.add(system1.entity(), ecs::Pair{DependsOn, system2});
+w.add(first.entity(), ecs::Pair{DependsOn, second.entity()});
 ```
 
-If you need groups of systems with a shared schedule boundary, put them in phase entities. A phase is a normal entity; order phases with `DependsOn`, then attach systems with `SystemBuilder::phase(...)`. The builder adds both `(ChildOf, phase)` for grouping/enabled-state inheritance and `(DependsOn, phase)` so `World::update()` places the system in the phase's dependency level.
+This means `first` runs before `second`.
 
-`World::update()` schedules systems in `DependsOn` depth waves. A system attached to a phase that is three dependency levels deep runs in the depth-3 wave, after depth 2 has completed; it does not run in parallel with depth 2. Phase entities themselves are not always strict isolated batches, though: independent phase chains at the same depth can overlap, with query access metadata adding dependency edges only where same-wave systems conflict. Add explicit `DependsOn` edges between phases when one phase must complete before another.
+When there are several levels of dependencies, Gaia-ECS runs the deepest systems first and then walks back to the parent system. Systems at the same level are ordered by entity id. Creating the systems in the same order as the example below gives the same order every run.
+
+This is separate from query `depth_order(...)`. Query `depth_order(...)` is still top-down breadth-first ordering for matching entities. System scheduling uses bottom-up depth-first order because smaller work steps usually need to finish before the system that depends on them.
+
+Example dependency setup:
+
+```text
+A0  DependsOn A
+A0x DependsOn A0
+A0y DependsOn A0
+
+B0  DependsOn B
+B0x DependsOn B0
+B1  DependsOn B
+B1x DependsOn B1
+B1y DependsOn B1
+
+C0  DependsOn C
+C0x DependsOn C0
+C0y DependsOn C0
+C0z DependsOn C0
+```
+
+The systems run in this order:
+
+```text
+A0x, A0y, A0, A,
+B0x, B0, B1x, B1y, B1, B,
+C0x, C0y, C0z, C0, C
+```
+
+Use phases when several systems need to share a schedule boundary. A phase is a normal entity. Order phase entities with `DependsOn`, then attach systems with `SystemBuilder::phase(...)`.
+
+`SystemBuilder::phase(phase)` adds both relationships Gaia-ECS needs:
+
+```text
+(ChildOf, phase)
+(DependsOn, phase)
+```
+
+Phase boundaries are strict. Gaia-ECS submits, waits for, and deletes all pending jobs from one phase before starting the next phase. Inside one phase, explicit system `DependsOn` edges use the same bottom-up depth-first order. Systems without `DependsOn` inside the phase are ordered by entity id. Access metadata decides which parallel jobs inside that phase need scheduler dependency edges.
 
 ```cpp
-Entity physics = w.add();
-Entity postPhysics = w.add();
-w.add(postPhysics, ecs::Pair{DependsOn, physics});
+Entity rootPhase = w.add();
+Entity deepPhase = w.add();
+w.add(deepPhase, ecs::Pair{DependsOn, rootPhase});
 
 w.system()
-  .phase(physics)
+  .phase(deepPhase)
   .all<Position&>()
   .all<const Velocity>()
   .mode(ecs::QueryExecType::Parallel)
   .on_each([](ecs::Iter& it) {
-    // Physics systems in the same phase may run concurrently when access metadata allows it.
+    // Runs in deepPhase before rootPhase starts.
   });
 
 w.system()
-  .phase(postPhysics)
+  .phase(rootPhase)
   .all<const Position>()
   .mode(ecs::QueryExecType::Parallel)
   .on_each([](ecs::Iter& it) {
-    // Runs after all pending jobs from the physics phase are complete.
+    // Runs after deepPhase is complete.
   });
 ```
 
 ### System jobs
-Systems with a parallel execution mode (`Parallel`, `ParallelPerf`, or `ParallelEff`) are prepared as scheduler jobs during `World::update()` when the active scheduler supports the deferred API (`add`, `add_par`, `submit`, `dep`, `wait`, and `del`). Gaia-ECS builds a dependency edge between same-level system jobs when their underlying query access metadata conflicts, then submits the prepared jobs and waits at dependency-level barriers.
+Systems with a parallel execution mode (`Parallel`, `ParallelPerf`, or `ParallelEff`) are prepared as scheduler jobs during `World::update()` when the active scheduler supports the deferred API (`add`, `add_par`, `submit`, `dep`, `wait`, and `del`). Gaia-ECS adds dependency edges between jobs in the same phase when their query access metadata conflicts. It then submits the prepared jobs and waits at phase or dependency barriers.
 
 ```cpp
 w.system()
@@ -2971,7 +3006,7 @@ w.update();
 
 Systems that use the default serial mode, systems marked with `main_thread()`, or worlds whose scheduler adapter cannot create deferred dependency-ready work run on the main thread. A main-thread system is a barrier: pending scheduler jobs are completed before it runs, and following parallel systems are prepared after it finishes.
 
-For explicit ordering, keep using the `DependsOn` relationship. `World::update()` still runs dependency levels in order; phase dependencies are level barriers, while access metadata only decides which parallel systems inside the same dependency level need scheduler dependency edges.
+For explicit ordering inside one phase, keep using the `DependsOn` relationship between system entities. `World::update()` uses the same bottom-up depth-first order inside the phase. Phase boundaries are hard scheduler barriers. Access metadata only decides which parallel systems inside the same batch need scheduler dependency edges.
 
 ```cpp
 auto upload = w.system()

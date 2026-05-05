@@ -64,14 +64,14 @@ TEST_CASE("System - simple") {
 
 	testRun();
 
-	// Make sure to execute sys2 before sys1
+	// DependsOn is scheduled as depth-first postorder, so dependents run before their target.
 	wld.add(sys1.entity(), {ecs::DependsOn, sys3.entity()});
 	wld.add(sys2.entity(), {ecs::DependsOn, sys3.entity()});
 
 	testRun();
 
-	CHECK(sys3_run_before_sys1);
-	CHECK(sys3_run_before_sys2);
+	CHECK_FALSE(sys3_run_before_sys1);
+	CHECK_FALSE(sys3_run_before_sys2);
 }
 
 TEST_CASE("System - builder exposes kind and scope") {
@@ -252,7 +252,7 @@ TEST_CASE("System - access declarations are stored on the underlying query") {
 	CHECK(data.query.access(data.query.custom_writes()[0]) == ecs::QueryAccess::Write);
 }
 
-TEST_CASE("System - dependency BFS order") {
+TEST_CASE("System - dependency depth-first postorder") {
 	cnt::darr<char> order;
 	TestWorld twld;
 
@@ -273,7 +273,7 @@ TEST_CASE("System - dependency BFS order") {
 	// Dependency graph:
 	//   R -> A -> C
 	//   R -> B
-	// BFS levels should execute: R, A+B, C.
+	// Systems execute depth-first, deepest child before its DependsOn target: C, A, B, R.
 	wld.add(sysA.entity(), {ecs::DependsOn, sysRoot.entity()});
 	wld.add(sysB.entity(), {ecs::DependsOn, sysRoot.entity()});
 	wld.add(sysC.entity(), {ecs::DependsOn, sysA.entity()});
@@ -282,11 +282,109 @@ TEST_CASE("System - dependency BFS order") {
 
 	CHECK(order.size() == 4);
 	if (order.size() == 4) {
-		CHECK(order[0] == 'R');
+		CHECK(order[0] == 'C');
 		CHECK(order[1] == 'A');
 		CHECK(order[2] == 'B');
-		CHECK(order[3] == 'C');
+		CHECK(order[3] == 'R');
 	}
+}
+
+TEST_CASE("System - dependency forest runs depth-first by subtree") {
+	cnt::darr<uint32_t> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto make_sys = [&](uint32_t id) {
+		return wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	enum : uint32_t { A, B, C, A0, B0, B1, C0, A0x, A0y, B0x, B1x, B1y, C0x, C0y, C0z };
+
+	auto sysA = make_sys(A);
+	auto sysB = make_sys(B);
+	auto sysC = make_sys(C);
+	auto sysA0 = make_sys(A0);
+	auto sysB0 = make_sys(B0);
+	auto sysB1 = make_sys(B1);
+	auto sysC0 = make_sys(C0);
+	auto sysA0x = make_sys(A0x);
+	auto sysA0y = make_sys(A0y);
+	auto sysB0x = make_sys(B0x);
+	auto sysB1x = make_sys(B1x);
+	auto sysB1y = make_sys(B1y);
+	auto sysC0x = make_sys(C0x);
+	auto sysC0y = make_sys(C0y);
+	auto sysC0z = make_sys(C0z);
+
+	wld.add(sysA0.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.add(sysB0.entity(), {ecs::DependsOn, sysB.entity()});
+	wld.add(sysB1.entity(), {ecs::DependsOn, sysB.entity()});
+	wld.add(sysC0.entity(), {ecs::DependsOn, sysC.entity()});
+	wld.add(sysA0x.entity(), {ecs::DependsOn, sysA0.entity()});
+	wld.add(sysA0y.entity(), {ecs::DependsOn, sysA0.entity()});
+	wld.add(sysB0x.entity(), {ecs::DependsOn, sysB0.entity()});
+	wld.add(sysB1x.entity(), {ecs::DependsOn, sysB1.entity()});
+	wld.add(sysB1y.entity(), {ecs::DependsOn, sysB1.entity()});
+	wld.add(sysC0x.entity(), {ecs::DependsOn, sysC0.entity()});
+	wld.add(sysC0y.entity(), {ecs::DependsOn, sysC0.entity()});
+	wld.add(sysC0z.entity(), {ecs::DependsOn, sysC0.entity()});
+
+	wld.update();
+
+	const uint32_t expected[] = {A0x, A0y, A0, A, B0x, B0, B1x, B1y, B1, B, C0x, C0y, C0z, C0, C};
+	CHECK(order.size() == 15);
+	if (order.size() == 15) {
+		for (uint32_t i = 0; i < order.size(); ++i)
+			CHECK(order[i] == expected[i]);
+	}
+}
+
+TEST_CASE("System - DependsOn respects all direct dependency targets") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+
+	auto make_sys = [&](char id) {
+		return wld.system().all<Position>().on_each([&order, id](Position) {
+			order.push_back(id);
+		});
+	};
+
+	auto sysA = make_sys('A');
+	auto sysB = make_sys('B');
+	auto sysB0 = make_sys('b');
+	auto sysD = make_sys('D');
+
+	wld.add(sysB0.entity(), {ecs::DependsOn, sysB.entity()});
+	wld.add(sysD.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.add(sysD.entity(), {ecs::DependsOn, sysB0.entity()});
+
+	wld.update();
+
+	int posA = -1;
+	int posB0 = -1;
+	int posD = -1;
+	for (uint32_t i = 0; i < order.size(); ++i) {
+		if (order[i] == 'A')
+			posA = (int)i;
+		if (order[i] == 'b')
+			posB0 = (int)i;
+		if (order[i] == 'D')
+			posD = (int)i;
+	}
+
+	CHECK(order.size() == 4);
+	CHECK(posD >= 0);
+	CHECK(posA >= 0);
+	CHECK(posB0 >= 0);
+	CHECK(posD < posA);
+	CHECK(posD < posB0);
 }
 
 TEST_CASE("System - DependsOn respects deepest dependency chain") {
@@ -316,10 +414,10 @@ TEST_CASE("System - DependsOn respects deepest dependency chain") {
 
 	CHECK(order.size() == 4);
 	if (order.size() == 4) {
-		CHECK(order[0] == 'R');
-		CHECK(order[1] == 'A');
-		CHECK(order[2] == 'B');
-		CHECK(order[3] == 'C');
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'B');
+		CHECK(order[2] == 'A');
+		CHECK(order[3] == 'R');
 	}
 }
 
@@ -350,10 +448,10 @@ TEST_CASE("System - DependsOn updates after dependency rewiring") {
 
 	CHECK(order.size() == 4);
 	if (order.size() == 4) {
-		CHECK(order[0] == 'R');
-		CHECK(order[1] == 'A');
-		CHECK(order[2] == 'B');
-		CHECK(order[3] == 'C');
+		CHECK(order[0] == 'C');
+		CHECK(order[1] == 'B');
+		CHECK(order[2] == 'A');
+		CHECK(order[3] == 'R');
 	}
 
 	wld.del(sysC.entity(), {ecs::DependsOn, sysB.entity()});
@@ -362,10 +460,35 @@ TEST_CASE("System - DependsOn updates after dependency rewiring") {
 
 	CHECK(order.size() == 4);
 	if (order.size() == 4) {
-		CHECK(order[0] == 'R');
+		CHECK(order[0] == 'B');
 		CHECK(order[1] == 'A');
 		CHECK(order[2] == 'C');
-		CHECK(order[3] == 'B');
+		CHECK(order[3] == 'R');
+	}
+}
+
+TEST_CASE("System - phased systems respect intra-phase DependsOn postorder") {
+	cnt::darr<char> order;
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+	const auto phase = wld.add();
+
+	auto sysA = wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('A');
+	});
+	auto sysB = wld.system().phase(phase).all<Position>().on_each([&order](Position) {
+		order.push_back('B');
+	});
+
+	wld.add(sysB.entity(), {ecs::DependsOn, sysA.entity()});
+	wld.update();
+
+	CHECK(order.size() == 2);
+	if (order.size() == 2) {
+		CHECK(order[0] == 'B');
+		CHECK(order[1] == 'A');
 	}
 }
 
@@ -860,7 +983,7 @@ TEST_CASE("System - DependsOn and semantic Is queries") {
 				directObservedX += pos.x;
 			});
 
-	wld.add(sysDirect.entity(), {ecs::DependsOn, sysSemantic.entity()});
+	wld.add(sysSemantic.entity(), {ecs::DependsOn, sysDirect.entity()});
 	wld.update();
 
 	CHECK_FALSE(directRanTooEarly);

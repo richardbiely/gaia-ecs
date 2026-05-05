@@ -556,7 +556,7 @@ TEST_CASE("ECS - System update wires custom access dependencies") {
 	CHECK(independentHits == EntityCount);
 }
 
-TEST_CASE("ECS - System update treats phase boundaries as job barriers") {
+TEST_CASE("ECS - System update treats phase boundaries as depth-first job barriers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
 	wld.set_sched(probe.sched());
@@ -575,13 +575,14 @@ TEST_CASE("ECS - System update treats phase boundaries as job barriers") {
 	uint32_t phaseAHits = 0;
 	uint32_t phaseBHits = 0;
 	wld.system().phase(phaseA).all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		CHECK(phaseBHits == EntityCount);
 		phaseAHits += it.entity_rows().size();
 	});
 	wld.system().phase(phaseB).all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		CHECK(probe.submitCalls == 2);
-		CHECK(probe.waitCalls == 1);
-		CHECK(probe.delCalls == 1);
-		CHECK(phaseAHits == EntityCount);
+		CHECK(probe.submitCalls == 1);
+		CHECK(probe.waitCalls == 0);
+		CHECK(probe.delCalls == 0);
+		CHECK(phaseAHits == 0);
 		phaseBHits += it.entity_rows().size();
 	});
 

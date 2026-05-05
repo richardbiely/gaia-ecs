@@ -479,9 +479,10 @@ namespace gaia {
 			//! Adds the system to a phase entity used by World::systems_run() ordering.
 			//!
 			//! The phase is represented with existing Gaia relationships: `(ChildOf, phase)` for grouping and enabled-state
-			//! inheritance, plus `(DependsOn, phase)` so the system participates in the phase dependency depth. Phase
-			//! entities can depend on other phase entities with `DependsOn`; World::systems_run() flushes pending scheduler
-			//! jobs when moving between dependency levels.
+			//! inheritance, plus `(DependsOn, phase)` so the system joins the phase's depth-first postorder path. During
+			//! World::systems_run(), phased systems are batched by phase and phase subtrees run before their DependsOn
+			//! target phase. Explicit DependsOn edges between systems use the same child-before-target postorder inside
+			//! the same phase.
 			//!
 			//! \param phaseEntity Entity representing the phase this system belongs to.
 			//! \return Self reference.
