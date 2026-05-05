@@ -68644,8 +68644,8 @@ namespace gaia {
 
 			//! Runs or prepares a system entity from the erased system-query callback path.
 			//! \param pCtx Pointer to SystemRunCtx.
-			//! \param systemEntity System entity to run or prepare.
-			inline void run_system_entity_erased(void* pCtx, Entity systemEntity) {
+			//! \param item Precomputed scheduling key for the system entity to run or prepare.
+			inline void run_system_entity_erased(void* pCtx, const SystemScheduleItem& item) {
 				auto& ctx = *static_cast<SystemRunCtx*>(pCtx);
 				GAIA_ASSERT(ctx.pWorld != nullptr);
 				GAIA_ASSERT(ctx.pPending != nullptr);
@@ -68654,12 +68654,12 @@ namespace gaia {
 
 				auto& world = *ctx.pWorld;
 				auto& pending = *ctx.pPending;
+				const auto systemEntity = item.entity;
 				if (!world.valid(systemEntity) || !world.has(systemEntity, System))
 					return;
 				if (!world.enabled_hierarchy(systemEntity, ChildOf))
 					return;
 
-				const auto item = system_schedule_item(world, systemEntity);
 				if (!ctx.hasCurrent) {
 					ctx.current = item;
 					ctx.hasCurrent = true;
@@ -68733,8 +68733,8 @@ namespace gaia {
 			ctx.pPending = &pending;
 			ctx.canScheduleSystems = detail::sched_supports_deferred_system_jobs(world_sched(*this));
 
-			for (auto item: items)
-				detail::run_system_entity_erased(&ctx, item.entity);
+			for (auto& item: items)
+				detail::run_system_entity_erased(&ctx, item);
 			detail::flush_pending_system_jobs(pending);
 		}
 
