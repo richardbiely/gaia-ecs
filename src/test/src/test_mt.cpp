@@ -556,6 +556,46 @@ TEST_CASE("ECS - System update wires custom access dependencies") {
 	CHECK(independentHits == EntityCount);
 }
 
+TEST_CASE("ECS - System update treats phase boundaries as job barriers") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	constexpr uint32_t EntityCount = 7;
+	GAIA_FOR(EntityCount) {
+		auto e = wld.add();
+		wld.add<Position>(e, {float(i), 0.0F, 0.0F});
+		wld.add<Acceleration>(e, {1.0F, 0.0F, 0.0F});
+	}
+
+	const auto phaseA = wld.add();
+	const auto phaseB = wld.add();
+	wld.add(phaseB, {ecs::DependsOn, phaseA});
+
+	uint32_t phaseAHits = 0;
+	uint32_t phaseBHits = 0;
+	wld.system().phase(phaseA).all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		phaseAHits += it.entity_rows().size();
+	});
+	wld.system().phase(phaseB).all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
+		CHECK(probe.submitCalls == 2);
+		CHECK(probe.waitCalls == 1);
+		CHECK(probe.delCalls == 1);
+		CHECK(phaseAHits == EntityCount);
+		phaseBHits += it.entity_rows().size();
+	});
+
+	wld.update();
+
+	CHECK(probe.addParallelCalls == 2);
+	CHECK(probe.submitCalls == 2);
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
+	CHECK(probe.depCalls == 0);
+	CHECK(phaseAHits == EntityCount);
+	CHECK(phaseBHits == EntityCount);
+}
+
 TEST_CASE("ECS - System update treats main-thread systems as job barriers") {
 	TestWorld twld;
 	ExternalSchedProbe probe;

@@ -475,6 +475,28 @@ namespace gaia {
 				m_world.name_raw(m_entity, name, len);
 				return *this;
 			}
+
+			//! Adds the system to a phase entity used by World::systems_run() ordering.
+			//!
+			//! The phase is represented with existing Gaia relationships: `(ChildOf, phase)` for grouping and enabled-state
+			//! inheritance, plus `(DependsOn, phase)` so the system participates in the phase dependency depth. Phase
+			//! entities can depend on other phase entities with `DependsOn`; World::systems_run() flushes pending scheduler
+			//! jobs when moving between dependency levels.
+			//!
+			//! \param phaseEntity Entity representing the phase this system belongs to.
+			//! \return Self reference.
+			//! \warning This appends relationships and does not remove an earlier phase assignment.
+			//! \see World::systems_run()
+			//! \see DependsOn
+			//! \see ChildOf
+			SystemBuilder& phase(Entity phaseEntity) {
+				validate();
+				GAIA_ASSERT(m_world.valid(phaseEntity));
+				GAIA_ASSERT(!phaseEntity.pair());
+				m_world.add(m_entity, {ChildOf, phaseEntity});
+				m_world.add(m_entity, {DependsOn, phaseEntity});
+				return *this;
+			}
 			//! \}
 
 			//------------------------------------------------

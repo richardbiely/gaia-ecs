@@ -2920,22 +2920,31 @@ SystemBuilder system2 = w.system().all ...
 w.add(system1.entity(), ecs::Pair{DependsOn, system2});
 ```
 
-If you need a specific group of systems depend on another group it can be achieved via the ChildOf relationship.
+If you need groups of systems with a shared schedule boundary, put them in phase entities. A phase is a normal entity; order phases with `DependsOn`, then attach systems with `SystemBuilder::phase(...)`. The builder adds both `(ChildOf, phase)` for grouping/enabled-state inheritance and `(DependsOn, phase)` so `World::update()` places the system in the phase's dependency level.
+
+`World::update()` schedules systems in `DependsOn` depth waves. A system attached to a phase that is three dependency levels deep runs in the depth-3 wave, after depth 2 has completed; it does not run in parallel with depth 2. Phase entities themselves are not always strict isolated batches, though: independent phase chains at the same depth can overlap, with query access metadata adding dependency edges only where same-wave systems conflict. Add explicit `DependsOn` edges between phases when one phase must complete before another.
 
 ```cpp
-// Create 2 entities for system groups
-Entity group1 = w.add();
-Entity group2 = w.add();
-// Create 3 systems
-SystemBuilder system1 = w.system().all ...
-SystemBuilder system2 = w.system().all ...
-SystemBuilder system3 = w.system().all ...
-// System1 and System2 belong in group2.
-// System3 belongs in group1.
-// Therefore, system3 is executed first, followed by system1 and system2.
-w.add(system1.entity(), ecs::Pair{ChildOf, group2});
-w.add(system2.entity(), ecs::Pair{ChildOf, group2});
-w.add(system3.entity(), ecs::Pair{ChildOf, group1});
+Entity physics = w.add();
+Entity postPhysics = w.add();
+w.add(postPhysics, ecs::Pair{DependsOn, physics});
+
+w.system()
+  .phase(physics)
+  .all<Position&>()
+  .all<const Velocity>()
+  .mode(ecs::QueryExecType::Parallel)
+  .on_each([](ecs::Iter& it) {
+    // Physics systems in the same phase may run concurrently when access metadata allows it.
+  });
+
+w.system()
+  .phase(postPhysics)
+  .all<const Position>()
+  .mode(ecs::QueryExecType::Parallel)
+  .on_each([](ecs::Iter& it) {
+    // Runs after all pending jobs from the physics phase are complete.
+  });
 ```
 
 ### System jobs
@@ -2962,7 +2971,7 @@ w.update();
 
 Systems that use the default serial mode, systems marked with `main_thread()`, or worlds whose scheduler adapter cannot create deferred dependency-ready work run on the main thread. A main-thread system is a barrier: pending scheduler jobs are completed before it runs, and following parallel systems are prepared after it finishes.
 
-For explicit ordering, keep using the `DependsOn` relationship. `World::update()` still runs dependency levels in order; access metadata only decides which parallel systems inside the same dependency level need scheduler dependency edges.
+For explicit ordering, keep using the `DependsOn` relationship. `World::update()` still runs dependency levels in order; phase dependencies are level barriers, while access metadata only decides which parallel systems inside the same dependency level need scheduler dependency edges.
 
 ```cpp
 auto upload = w.system()

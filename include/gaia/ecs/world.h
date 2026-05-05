@@ -6992,10 +6992,11 @@ namespace gaia {
 
 			//! Executes all registered systems once.
 			//!
-			//! Systems are traversed in DependsOn depth order. Serial systems and systems marked with
-			//! QueryImpl::main_thread(bool) run on the caller thread. Parallel systems are prepared as scheduler jobs when
-			//! the active scheduler supports deferred add/dep/submit/wait/del operations; jobs in the same dependency level
-			//! receive dependency edges when their query access metadata conflicts.
+			//! Systems are traversed in DependsOn depth order. Systems can join a phase with SystemBuilder::phase(Entity),
+			//! which uses `(ChildOf, phase)` for grouping/enabled-state inheritance and `(DependsOn, phase)` for ordering.
+			//! Serial systems and systems marked with QueryImpl::main_thread(bool) run on the caller thread. Parallel systems
+			//! are prepared as scheduler jobs when the active scheduler supports deferred add/dep/submit/wait/del operations;
+			//! jobs in the same dependency level receive dependency edges when their query access metadata conflicts.
 			//!
 			//! \warning Parallel systems must not structurally mutate the world while other scheduler jobs are pending unless
 			//! they synchronize externally or opt into main_thread().
