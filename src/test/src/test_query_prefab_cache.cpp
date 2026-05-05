@@ -1427,25 +1427,38 @@ TEST_CASE("Query - custom grouped query refreshes on multiple group deps") {
 							 .group_dep(ecs::ChildOf)
 							 .group_dep(ecs::Parent);
 
-	cnt::darr<ecs::Entity> ents;
-	q.each([&](ecs::Entity e) {
-		ents.push_back(e);
-	});
+	auto collect_group = [&](ecs::GroupId groupId) {
+		cnt::darr<ecs::Entity> ents;
+		q.group_id(groupId).each([&](ecs::Entity e) {
+			ents.push_back(e);
+		});
+		return ents;
+	};
 
-	CHECK(ents.size() == 2);
-	CHECK(ents[0] == leafB);
-	CHECK(ents[1] == leafA);
+	{
+		auto ents = collect_group(2);
+		CHECK(ents.size() == 1);
+		CHECK(ents[0] == leafB);
+	}
+	{
+		auto ents = collect_group(3);
+		CHECK(ents.size() == 1);
+		CHECK(ents[0] == leafA);
+	}
 
 	wld.del(parentA, ecs::Pair(ecs::Parent, mid));
 
-	ents.clear();
-	q.each([&](ecs::Entity e) {
-		ents.push_back(e);
-	});
-
-	CHECK(ents.size() == 2);
-	CHECK(ents[0] == leafA);
-	CHECK(ents[1] == leafB);
+	{
+		auto ents = collect_group(1);
+		CHECK(ents.size() == 1);
+		CHECK(ents[0] == leafA);
+	}
+	{
+		auto ents = collect_group(2);
+		CHECK(ents.size() == 1);
+		CHECK(ents[0] == leafB);
+	}
+	CHECK(collect_group(3).empty());
 }
 
 TEST_CASE("Query - cached grouped queries with instance-local group filters") {

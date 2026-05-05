@@ -1045,7 +1045,7 @@ namespace gaia {
 					add_archetype_to_transient_cache(pArchetype);
 
 				sort_entities();
-				ensure_group_data();
+				ensure_group_data(false);
 			}
 
 			bool ensure_matches_one(
@@ -1099,7 +1099,7 @@ namespace gaia {
 				for (const auto* pArch: *ctx.pMatchesArr)
 					add_archetype_to_transient_cache(pArch);
 
-				ensure_group_data();
+				ensure_group_data(false);
 				return matched;
 			}
 
@@ -1355,7 +1355,8 @@ namespace gaia {
 					return;
 				m_plan.ctx.data.flags &= ~QueryCtx::QueryFlags::SortGroups;
 
-				ensure_group_data();
+				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) != 0)
+					ensure_group_data(true);
 			}
 
 			void swap_archetype_cache_entry(uint32_t left, uint32_t right) {
@@ -1423,8 +1424,14 @@ namespace gaia {
 				m_state.exec.inheritedDataPending = false;
 			}
 
-			void ensure_group_data() {
+			//! Rebuilds grouped archetype ranges when a caller needs ordered group data.
+			//! \param orderGroups True to order archetypes by group id even when the query was not explicitly ordered.
+			//! \note Plain grouped iteration passes false so group_by(...) does not sort the cache by itself.
+			void ensure_group_data(bool orderGroups) {
 				if (m_plan.ctx.data.groupBy == EntityBad || !m_state.grouped.dataPending)
+					return;
+
+				if (!orderGroups && (m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) == 0)
 					return;
 
 				struct sort_cond {
@@ -1465,7 +1472,7 @@ namespace gaia {
 				if (!world_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
 					return;
 
-				ensure_group_data();
+				ensure_group_data(true);
 
 				const auto currRelationVersion = world_rel_version(*world(), m_plan.ctx.data.groupBy);
 				const auto currEnabledVersion = world_enabled_hierarchy_version(*world());
@@ -1651,8 +1658,10 @@ namespace gaia {
 
 			//! Returns cached group bounds for the currently selected group filter.
 			//! The cached range is invalidated whenever group layout changes or the selected group id changes.
+			//! \param runtimeGroupId Group id to look up.
+			//! \return Group range for the requested group, or nullptr if the group does not exist.
 			GAIA_NODISCARD const GroupData* selected_group_data(GroupId runtimeGroupId) const {
-				const_cast<QueryInfo*>(this)->ensure_group_data();
+				const_cast<QueryInfo*>(this)->ensure_group_data(true);
 				if (m_plan.ctx.data.groupBy == EntityBad || runtimeGroupId == 0)
 					return nullptr;
 
@@ -1919,7 +1928,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD GroupId group_id(uint32_t archetypeIdx) const {
-				const_cast<QueryInfo*>(this)->ensure_group_data();
+				const_cast<QueryInfo*>(this)->ensure_group_data(true);
 				GAIA_ASSERT(archetypeIdx < m_state.grouped.archetypeGroupIds.size());
 				return m_state.grouped.archetypeGroupIds[archetypeIdx];
 			}
@@ -1965,7 +1974,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
-				const_cast<QueryInfo*>(this)->ensure_group_data();
+				const_cast<QueryInfo*>(this)->ensure_group_data(true);
 				return std::span{m_state.grouped.archetypeGroupData.data(), m_state.grouped.archetypeGroupData.size()};
 			}
 

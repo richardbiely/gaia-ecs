@@ -3264,8 +3264,8 @@ TEST_CASE("Query - group") {
 	{
 		auto qq = wld.query().all<Position>().group_by(eats);
 
-		// Grouping on, no group enforced
-		checkQuery(qq, {&ents_expected[0], 6});
+		// group_by partitions the cache but does not order iteration when no group is selected.
+		checkQuery(qq, {&ents[0], 6});
 		// Grouping on, a group is enforced
 		qq.group_id(carrot);
 		checkQuery(qq, {&ents_expected[0], 2});
@@ -3278,8 +3278,8 @@ TEST_CASE("Query - group") {
 	{
 		auto qq = wld.query().all<Position>().group_by(eats, group_by_rel);
 
-		// Grouping on, no group enforced
-		checkQuery(qq, {&ents_expected[0], 6});
+		// group_by partitions the cache but does not order iteration when no group is selected.
+		checkQuery(qq, {&ents[0], 6});
 		// Grouping on, a group is enforced
 		qq.group_id(carrot);
 		checkQuery(qq, {&ents_expected[0], 2});

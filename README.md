@@ -2008,9 +2008,11 @@ Writes to unrelated components do not make `changed<T>` queries run for `T`; onl
 
 ### Grouping
 
-Grouping is a feature that allows you to assign an id to each archetype and group them together or filter them based on this id. Archetypes are sorted by their groupId in ascending order. If descending order is needed, you can change your groupIds (e.g. instead of 100 you use ecs::GroupIdMax - 100).
+Grouping assigns a group id to each matching archetype. Use it when you want to filter a cached query to one group with `group_id(...)`, or when `Iter::group_id()` is useful inside the callback.
 
-Grouping is best used with [relationships](#relationships). It can be triggered by calling `group_by` before the first call to `each` or other functions that build the query (`count`, `empty`, `arr`).
+Plain `group_by(...)` does not define iteration order. It keeps cache order unless something else orders the query. Use `depth_order(...)` when parent-before-child query iteration matters. Use `sort_by(...)` when you need an explicit value sort.
+
+Grouping is best used with [relationships](#relationships). Call `group_by(...)` before the first call that builds or runs the query, such as `each`, `count`, `empty`, or `arr`.
 
 ```cpp
 ecs::Entity eats = wld.add();
@@ -2036,7 +2038,9 @@ ecs::Query q = wld.query()
   .all<Position>()
   .group_by(eats);
 
-// The query cache is going to contain following 6 archetypes in 3 groups as follows:
+// The query assigns each archetype a group id based on (eats, target).
+// Iteration still follows the query cache order. The groups below are logical groups,
+// not the order in which the callback must see them:
 //  - Eats:carrot:
 //     - Position, (Eats, carrot)
 //     - Position, (Eats, carrot), Healthy
@@ -2073,10 +2077,10 @@ q.group_id(carrot).each([&](ecs::Iter& it) {
 });
 ```
 
-Custom sorting function can be provided if needed. If a custom `group_by(...)` callback depends on hierarchy or relation topology, declare that explicitly with `group_dep(...)` so cached grouping is refreshed when that relation changes.
+Custom grouping function can be provided if needed. If a custom `group_by(...)` callback depends on hierarchy or relation topology, declare that explicitly with `group_dep(...)` so cached grouping is refreshed when that relation changes.
 
 ```cpp
-ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
+ecs::GroupId my_group_func([[maybe_unused]] const ecs::World& world, const ecs::Archetype& archetype, ecs::Entity groupBy) {
   if (archetype.pairs() > 0) {
     auto ids = archetype.ids_view();
     for (auto id: ids) {
@@ -2092,7 +2096,7 @@ ecs::GroupId my_group_sort_func([[maybe_unused]] const ecs::World& world, const 
   return 0;
 }
 
-q.group_by(eats, my_group_sort_func).each(...) { ... };
+q.group_by(eats, my_group_func).each(...) { ... };
 ```
 
 ### Sorting

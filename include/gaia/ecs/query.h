@@ -223,12 +223,17 @@ namespace gaia {
 
 				Entity groupBy;
 				TGroupByFunc func;
+				uint16_t flags;
 
 				void exec(QueryCtx& ctx) const {
 					auto& ctxData = ctx.data;
 					ctxData.groupBy = groupBy;
 					GAIA_ASSERT(func != nullptr);
 					ctxData.groupByFunc = func; // group_by_func_default;
+					if ((flags & QueryCtx::QueryFlags::OrderGroups) != 0)
+						ctxData.flags |= QueryCtx::QueryFlags::OrderGroups;
+					else
+						ctxData.flags &= ~QueryCtx::QueryFlags::OrderGroups;
 				}
 			};
 
@@ -1601,8 +1606,8 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 
-				void group_by_inter(Entity entity, TGroupByFunc func) {
-					QueryCmd_GroupBy cmd{entity, func};
+				void group_by_inter(Entity entity, TGroupByFunc func, bool orderGroups = false) {
+					QueryCmd_GroupBy cmd{entity, func, orderGroups ? (uint16_t)QueryCtx::QueryFlags::OrderGroups : (uint16_t)0};
 					add_cmd(cmd);
 				}
 
@@ -5577,39 +5582,50 @@ namespace gaia {
 				//! participates in archetype identity. Unlike walk(...), this affects the cached query
 				//! iteration order itself and can therefore prune fragmenting disabled subtrees at the
 				//! archetype level. For non-fragmenting relations such as Parent, use walk(...) instead.
-				//! \param relation Fragmenting hierarchy relation
+				//! \param relation Fragmenting hierarchy relation.
+				//! \return Reference to this query builder.
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
 					GAIA_ASSERT(world_supports_depth_order(*m_storage.world(), relation));
-					group_by_inter(relation, group_by_func_depth_order);
+					group_by_inter(relation, group_by_func_depth_order, true);
 					return *this;
 				}
 
 				//! Orders cached query entries by fragmenting relation depth so iteration runs breadth-first top-down.
 				//! \tparam Rel Fragmenting hierarchy relation, typically ChildOf.
+				//! \return Reference to this query builder.
 				template <typename Rel>
 				QueryImpl& depth_order();
 
 				//------------------------------------------------
 
 				//! Organizes matching archetypes into groups according to the grouping function and entity.
+				//! Does not order iteration by group id. Use group_id(...) to filter one group.
+				//! Use depth_order(...) or sort_by(...) when iteration order matters.
 				//! \param entity The entity to group by.
 				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+				//! \return Reference to this query builder.
 				QueryImpl& group_by(Entity entity, TGroupByFunc func = group_by_func_default) {
 					group_by_inter(entity, func);
 					return *this;
 				}
 
 				//! Organizes matching archetypes into groups according to the grouping function.
+				//! Does not order iteration by group id. Use group_id(...) to filter one group.
+				//! Use depth_order(...) or sort_by(...) when iteration order matters.
 				//! \tparam T Component to group by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+				//! \return Reference to this query builder.
 				template <typename T>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default);
 
 				//! Organizes matching archetypes into groups according to the grouping function.
+				//! Does not order iteration by group id. Use group_id(...) to filter one group.
+				//! Use depth_order(...) or sort_by(...) when iteration order matters.
 				//! \tparam Rel The relation to group by. It is registered if it hasn't been registered yet.
 				//! \tparam Tgt The target to group by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for grouping. Returns a GroupId to group the entities by.
+				//! \return Reference to this query builder.
 				template <typename Rel, typename Tgt>
 				QueryImpl& group_by(TGroupByFunc func = group_by_func_default);
 

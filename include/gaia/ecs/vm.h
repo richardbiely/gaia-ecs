@@ -95,7 +95,7 @@ namespace gaia {
 				//! If the id is a pair, the second part (gen) is written here.
 				uint32_t as_mask_1;
 				//! Flags copied over from QueryCtx::Data
-				uint8_t flags;
+				uint16_t flags;
 				//! Runtime variable bindings (Var0..Var7) provided by the query.
 				cnt::sarray<Entity, MaxVarCnt> varBindings;
 				//! Bitmask of bindings set in varBindings.

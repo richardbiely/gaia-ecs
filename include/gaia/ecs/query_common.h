@@ -571,7 +571,7 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q{};
 
-			enum QueryFlags : uint8_t {
+			enum QueryFlags : uint16_t {
 				Empty = 0x00,
 				// Entities need sorting
 				SortEntities = 0x01,
@@ -589,6 +589,8 @@ namespace gaia {
 				MatchPrefab = 0x40,
 				// Query mentions Prefab explicitly and therefore must not auto-exclude it.
 				HasPrefabTerms = 0x80,
+				// Grouped archetypes should be ordered by group id during cache refresh.
+				OrderGroups = 0x100,
 			};
 
 			enum class CachePolicy : uint8_t {
@@ -748,7 +750,7 @@ namespace gaia {
 				//! A set bit means write access is requested.
 				uint16_t readWriteMask;
 				//! Query flags
-				uint8_t flags;
+				uint16_t flags;
 				//! Maximum allowed size of an explicitly cached traversed-source lookup closure.
 				uint16_t cacheSrcTrav = 0;
 				//! Specialized direct-target evaluation shape for single-term queries.
@@ -1215,6 +1217,8 @@ namespace gaia {
 					return false;
 				if (left.groupByFunc != right.groupByFunc)
 					return false;
+				if ((left.flags & QueryFlags::OrderGroups) != (right.flags & QueryFlags::OrderGroups))
+					return false;
 
 				return true;
 			}
@@ -1392,6 +1396,8 @@ namespace gaia {
 
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupBy.value());
 				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupByFunc);
+				hash =
+						core::hash_combine(hash, (QueryLookupHash::Type)((ctxData.flags & QueryCtx::QueryFlags::OrderGroups) != 0));
 
 				hashLookup = core::hash_combine(hashLookup, hash);
 			}

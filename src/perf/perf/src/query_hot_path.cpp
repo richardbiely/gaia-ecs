@@ -853,6 +853,43 @@ void BM_QueryCache_Grouped_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks grouped-query cache refresh when no specific group is selected.
+//! Plain group_by iteration should not sort high-cardinality groups on every cache refresh.
+void BM_QueryCache_Grouped_UnselectedRefresh(picobench::state& state) {
+	const uint32_t archetypeCnt = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto rel = w.add();
+
+	GAIA_FOR(archetypeCnt) {
+		auto target = w.add();
+		auto e = w.add();
+		w.add(e, ecs::Pair(rel, target));
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+	}
+
+	auto q = w.query().all<Position>().group_by(rel);
+	dont_optimize(q.count());
+
+	uint32_t cursor = archetypeCnt;
+	for (auto _: state) {
+		(void)_;
+		auto target = w.add();
+		auto e = w.add();
+		w.add(e, ecs::Pair(rel, target));
+		w.add<Position>(e, {(float)cursor, (float)(cursor % 97U), 0.0f});
+		++cursor;
+
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto rows = it.entity_rows();
+			for (auto row: rows)
+				sum += (uint64_t)row.id();
+		});
+		dont_optimize(sum);
+	}
+}
+
 //! Benchmarks grouped warm reads while rotating the selected group id.
 //! Cached group-id lookup should avoid rescanning all group ranges after each group switch.
 void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
@@ -2629,6 +2666,7 @@ void BM_QueryCache_DirectSource_WarmRead_Default(picobench::state& state);
 void BM_QueryCache_DirectSource_WarmRead_SourceState(picobench::state& state);
 void BM_QueryCache_DynamicRelation_WarmRead(picobench::state& state);
 void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state);
+void BM_QueryCache_Grouped_UnselectedRefresh(picobench::state& state);
 void BM_QueryCache_Grouped_WarmRead(picobench::state& state);
 void BM_QueryCache_Invalidate_Churn(picobench::state& state);
 void BM_QueryCache_Invalidate_Relation(picobench::state& state);
@@ -2887,6 +2925,10 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
 					.label("grouped switching read 10K");
+			PICOBENCH_REG(BM_QueryCache_Grouped_UnselectedRefresh)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesFew)
+					.label("grouped unselected refresh 10K");
 			PICOBENCH_REG(BM_QueryCache_Wildcard_WarmRead)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesFew)
