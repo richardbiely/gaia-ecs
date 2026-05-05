@@ -53010,6 +53010,88 @@ namespace gaia {
 			T value{};
 		};
 
+		namespace detail {
+			//! Scheduling key for one enabled system entity.
+			struct SystemScheduleItem {
+				//! System entity to run.
+				Entity entity = EntityBad;
+				//! Phase entity assigned with SystemBuilder::phase(), or EntityBad for unphased systems.
+				Entity phase = EntityBad;
+				//! Depth of @a phase in the phase DependsOn graph.
+				uint32_t phaseDepth = 0;
+				//! Depth of the system in the DependsOn graph, excluding the phase marker target.
+				uint32_t systemDepth = 0;
+				//! Deterministic child-before-target order of @a phase.
+				uint32_t phaseOrder = 0;
+				//! Deterministic child-before-target order of @a entity inside its scheduling group.
+				uint32_t systemOrder = 0;
+				//! True when @a phase is valid.
+				bool hasPhase = false;
+			};
+
+			//! Scheduling key for one explicit phase entity.
+			struct SystemPhaseScheduleItem {
+				//! Phase entity.
+				Entity phase = EntityBad;
+				//! Depth of @a phase in the phase DependsOn graph.
+				uint32_t depth = 0;
+				//! Deterministic child-before-target order of @a phase.
+				uint32_t order = 0;
+			};
+
+			//! Direct child-before-target scheduling edge between collected systems.
+			struct SystemScheduleEdge {
+				//! Item index that must run first.
+				uint32_t child = 0;
+				//! Item index that must run after @a child.
+				uint32_t target = 0;
+				//! Next edge index in the same child adjacency list.
+				uint32_t next = UINT32_MAX;
+			};
+
+			//! Reusable scratch arrays for one system schedule ordering pass.
+			struct SystemScheduleScratch {
+				//! Collected systems for the current run.
+				cnt::darray<SystemScheduleItem> items;
+				//! Collected unique phases for the current run.
+				cnt::darray<SystemPhaseScheduleItem> phases;
+				//! Explicit dependency edges for the current run.
+				cnt::darray<SystemScheduleEdge> edges;
+				//! Ordered item output used when explicit edges exist.
+				cnt::darray<SystemScheduleItem> ordered;
+				//! Shared entity traversal stack.
+				cnt::darray<Entity> entityStack;
+				//! Item indices sorted by entity id.
+				cnt::darray<uint32_t> entityIndices;
+				//! Item indices sorted inside the active group.
+				cnt::darray<uint32_t> sortedGroupIndices;
+				//! Primary dependency target per item.
+				cnt::darray<uint32_t> primaryTargets;
+				//! First child index per target item.
+				cnt::darray<uint32_t> firstChildren;
+				//! Next sibling index per child item.
+				cnt::darray<uint32_t> nextSiblings;
+				//! Phase indices sorted by entity id.
+				cnt::darray<uint32_t> sortedPhases;
+				//! Primary dependency target per phase.
+				cnt::darray<uint32_t> primaryPhases;
+				//! Reused group item indices.
+				cnt::darray<uint32_t> groupIndices;
+				//! Direct child count per target item.
+				cnt::darray<uint32_t> childCounts;
+				//! Item indices sorted by final deterministic key.
+				cnt::darray<uint32_t> sortedIndices;
+				//! First edge index per child item.
+				cnt::darray<uint32_t> firstEdges;
+				//! Next item in the ready list.
+				cnt::darray<uint32_t> readyNext;
+				//! Visit states reused by group and phase traversal.
+				cnt::darray<uint8_t> states;
+				//! Visit states for the final topological pass.
+				cnt::darray<uint8_t> visited;
+			};
+		} // namespace detail
+
 		class GAIA_API World final {
 		public:
 			//! Allows asserts on duplicate name/alias assignment
@@ -53653,6 +53735,8 @@ namespace gaia {
 			bool m_teardownActive = false;
 			//! Query used to iterate systems
 			Query m_systemsQuery;
+			//! Scratch storage reused by system schedule ordering.
+			detail::SystemScheduleScratch m_systemScheduleScratch;
 			//! Scheduler used by ECS parallel query/system runtime paths.
 			Sched m_sched{};
 			//! Scratch entity-visit stamps reused by wildcard relationship traversal helpers.
@@ -68026,42 +68110,6 @@ namespace gaia {
 				PendingSystemJob(Entity systemEntity, SchedJob&& systemJob): entity(systemEntity), job(GAIA_MOV(systemJob)) {}
 			};
 
-			//! Scheduling key for one enabled system entity.
-			struct SystemScheduleItem {
-				//! System entity to run.
-				Entity entity = EntityBad;
-				//! Phase entity assigned with SystemBuilder::phase(), or EntityBad for unphased systems.
-				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
-				uint32_t phaseDepth = 0;
-				//! Depth of the system in the DependsOn graph, excluding the phase marker target.
-				uint32_t systemDepth = 0;
-				//! Deterministic child-before-target order of @a phase.
-				uint32_t phaseOrder = 0;
-				//! Deterministic child-before-target order of @a entity inside its scheduling group.
-				uint32_t systemOrder = 0;
-				//! True when @a phase is valid.
-				bool hasPhase = false;
-			};
-
-			//! Scheduling key for one explicit phase entity.
-			struct SystemPhaseScheduleItem {
-				//! Phase entity.
-				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
-				uint32_t depth = 0;
-				//! Deterministic child-before-target order of @a phase.
-				uint32_t order = 0;
-			};
-
-			//! Direct child-before-target scheduling edge between collected systems.
-			struct SystemScheduleEdge {
-				//! Item index that must run first.
-				uint32_t child = 0;
-				//! Item index that must run after @a child.
-				uint32_t target = 0;
-			};
-
 			//! Context used while collecting system scheduling keys.
 			struct SystemCollectCtx {
 				//! World that owns collected systems.
@@ -68152,11 +68200,6 @@ namespace gaia {
 				item.entity = systemEntity;
 				item.phase = system_phase(world, systemEntity);
 				item.hasPhase = item.phase != EntityBad;
-				cnt::darray<Entity> stack;
-				if (item.hasPhase)
-					item.phaseDepth = system_schedule_dep_depth(world, item.phase, EntityBad, stack);
-				stack.clear();
-				item.systemDepth = system_schedule_dep_depth(world, systemEntity, item.phase, stack);
 				return item;
 			}
 
@@ -68193,16 +68236,38 @@ namespace gaia {
 							 resolved.dep != nullptr && resolved.wait != nullptr && resolved.del != nullptr;
 			}
 
-			//! Returns the index of @a entity in @a items, constrained to @a groupIndices.
+			//! Builds item indices sorted by system entity id.
 			//! \param items All collected scheduling keys.
-			//! \param groupIndices Item indices that form one phase/system group.
+			//! \param outIndices Output item indices sorted by entity id.
+			inline void
+			system_schedule_entity_indices(const cnt::darray<SystemScheduleItem>& items, cnt::darray<uint32_t>& outIndices) {
+				outIndices.clear();
+				outIndices.reserve(items.size());
+				for (uint32_t i = 0; i < items.size(); ++i)
+					outIndices.push_back(i);
+				core::sort(outIndices, [&](uint32_t lhs, uint32_t rhs) {
+					return entity_schedule_less(items[lhs].entity, items[rhs].entity);
+				});
+			}
+
+			//! Returns the index of @a entity in @a items using sorted entity indices.
+			//! \param items All collected scheduling keys.
+			//! \param entityIndices Item indices sorted by system entity id.
 			//! \param entity Entity to find.
 			//! \return Item index in @a items or UINT32_MAX when not found.
-			GAIA_NODISCARD inline uint32_t system_schedule_find_group_item(
-					const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& groupIndices, Entity entity) {
-				for (auto itemIdx: groupIndices) {
-					if (items[itemIdx].entity == entity)
-						return itemIdx;
+			GAIA_NODISCARD inline uint32_t system_schedule_find_item_by_entity(
+					const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices, Entity entity) {
+				uint32_t lo = 0;
+				uint32_t hi = entityIndices.size();
+				while (lo < hi) {
+					const uint32_t mid = lo + (hi - lo) / 2;
+					const auto midEntity = items[entityIndices[mid]].entity;
+					if (midEntity == entity)
+						return entityIndices[mid];
+					if (entity_schedule_less(midEntity, entity))
+						lo = mid + 1;
+					else
+						hi = mid;
 				}
 				return UINT32_MAX;
 			}
@@ -68223,11 +68288,11 @@ namespace gaia {
 			//! Selects the primary DependsOn target inside one scheduling group.
 			//! \param world World containing the system entities.
 			//! \param items All collected scheduling keys.
-			//! \param groupIndices Item indices that form one phase/system group.
+			//! \param entityIndices Item indices sorted by system entity id.
 			//! \param itemIdx Child item whose primary target is requested.
 			//! \return Item index in @a items or UINT32_MAX when no collected target matches.
 			GAIA_NODISCARD inline uint32_t system_schedule_primary_target_idx(
-					World& world, const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& groupIndices,
+					World& world, const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices,
 					uint32_t itemIdx) {
 				uint32_t bestIdx = UINT32_MAX;
 				uint32_t bestDepth = 0;
@@ -68236,8 +68301,10 @@ namespace gaia {
 					if (target == item.phase)
 						return;
 
-					const auto targetIdx = system_schedule_find_group_item(items, groupIndices, target);
+					const auto targetIdx = system_schedule_find_item_by_entity(items, entityIndices, target);
 					if (targetIdx == UINT32_MAX)
+						return;
+					if (!system_schedule_same_group(item, items[targetIdx]))
 						return;
 
 					const auto targetDepth = items[targetIdx].systemDepth;
@@ -68251,38 +68318,21 @@ namespace gaia {
 			}
 
 			//! Assigns deterministic postorder keys inside one system scheduling group.
-			//! \param world World containing the system entities.
 			//! \param items All collected scheduling keys.
-			//! \param groupIndices Item indices that form one phase/system group.
-			//! \param primaryTargets Precomputed primary target item per scheduling item.
+			//! \param firstChildren First child item per target item.
+			//! \param nextSiblings Next sibling item per child item.
 			//! \param states Per-item visit state, zero-initialized by the caller.
 			//! \param itemIdx Item index to visit.
 			//! \param order Next order value to assign.
 			inline void system_schedule_visit_primary_children(
-					World& world, cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& groupIndices,
-					const cnt::darray<uint32_t>& primaryTargets, cnt::darray<uint8_t>& states, uint32_t itemIdx,
-					uint32_t& order) {
+					cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& firstChildren,
+					const cnt::darray<uint32_t>& nextSiblings, cnt::darray<uint8_t>& states, uint32_t itemIdx, uint32_t& order) {
 				if (states[itemIdx] != 0)
 					return;
 
 				states[itemIdx] = 1;
-				while (true) {
-					uint32_t bestChildIdx = UINT32_MAX;
-					for (auto candidateIdx: groupIndices) {
-						if (states[candidateIdx] != 0)
-							continue;
-						if (primaryTargets[candidateIdx] != itemIdx)
-							continue;
-						if (bestChildIdx == UINT32_MAX ||
-								entity_schedule_less(items[candidateIdx].entity, items[bestChildIdx].entity))
-							bestChildIdx = candidateIdx;
-					}
-
-					if (bestChildIdx == UINT32_MAX)
-						break;
-					system_schedule_visit_primary_children(
-							world, items, groupIndices, primaryTargets, states, bestChildIdx, order);
-				}
+				for (uint32_t childIdx = firstChildren[itemIdx]; childIdx != UINT32_MAX; childIdx = nextSiblings[childIdx])
+					system_schedule_visit_primary_children(items, firstChildren, nextSiblings, states, childIdx, order);
 				items[itemIdx].systemOrder = order++;
 				states[itemIdx] = 2;
 			}
@@ -68291,47 +68341,55 @@ namespace gaia {
 			//! \param world World containing the system entities.
 			//! \param items All collected scheduling keys.
 			//! \param groupIndices Item indices that form one phase/system group.
+			//! \param entityIndices Item indices sorted by system entity id.
 			inline void system_schedule_assign_group_orders(
-					World& world, cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& groupIndices) {
-				cnt::darray<uint32_t> primaryTargets;
+					World& world, cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& groupIndices,
+					const cnt::darray<uint32_t>& entityIndices, SystemScheduleScratch& scratch) {
+				auto& sortedGroupIndices = scratch.sortedGroupIndices;
+				auto& primaryTargets = scratch.primaryTargets;
+				auto& firstChildren = scratch.firstChildren;
+				auto& nextSiblings = scratch.nextSiblings;
+				auto& states = scratch.states;
+
+				sortedGroupIndices = groupIndices;
+				core::sort(sortedGroupIndices, [&](uint32_t lhs, uint32_t rhs) {
+					return entity_schedule_less(items[lhs].entity, items[rhs].entity);
+				});
+
+				primaryTargets.clear();
 				primaryTargets.resize(items.size(), UINT32_MAX);
 				for (auto itemIdx: groupIndices)
-					primaryTargets[itemIdx] = system_schedule_primary_target_idx(world, items, groupIndices, itemIdx);
+					primaryTargets[itemIdx] = system_schedule_primary_target_idx(world, items, entityIndices, itemIdx);
 
-				cnt::darray<uint8_t> states;
+				firstChildren.clear();
+				nextSiblings.clear();
+				firstChildren.resize(items.size(), UINT32_MAX);
+				nextSiblings.resize(items.size(), UINT32_MAX);
+				for (uint32_t i = sortedGroupIndices.size(); i > 0; --i) {
+					const auto itemIdx = sortedGroupIndices[i - 1];
+					const auto targetIdx = primaryTargets[itemIdx];
+					if (targetIdx == UINT32_MAX)
+						continue;
+					nextSiblings[itemIdx] = firstChildren[targetIdx];
+					firstChildren[targetIdx] = itemIdx;
+				}
+
+				states.clear();
 				states.resize(items.size(), 0);
 
 				uint32_t order = 0;
-				while (true) {
-					uint32_t rootIdx = UINT32_MAX;
-					for (auto itemIdx: groupIndices) {
-						if (states[itemIdx] != 0)
-							continue;
-						if (primaryTargets[itemIdx] != UINT32_MAX)
-							continue;
-						if (rootIdx == UINT32_MAX || entity_schedule_less(items[itemIdx].entity, items[rootIdx].entity))
-							rootIdx = itemIdx;
+				for (auto itemIdx: sortedGroupIndices) {
+					if (states[itemIdx] == 0 && primaryTargets[itemIdx] == UINT32_MAX) {
+						system_schedule_visit_primary_children(items, firstChildren, nextSiblings, states, itemIdx, order);
 					}
-
-					if (rootIdx == UINT32_MAX)
-						break;
-					system_schedule_visit_primary_children(world, items, groupIndices, primaryTargets, states, rootIdx, order);
 				}
 
 				// Remaining items are in a DependsOn cycle. The cycle is invalid, but the update stays deterministic.
-				while (true) {
-					uint32_t cycleIdx = UINT32_MAX;
-					for (auto itemIdx: groupIndices) {
-						if (states[itemIdx] != 0)
-							continue;
-						if (cycleIdx == UINT32_MAX || entity_schedule_less(items[itemIdx].entity, items[cycleIdx].entity))
-							cycleIdx = itemIdx;
+				for (auto itemIdx: sortedGroupIndices) {
+					if (states[itemIdx] == 0) {
+						items[itemIdx].systemOrder = order++;
+						states[itemIdx] = 2;
 					}
-
-					if (cycleIdx == UINT32_MAX)
-						break;
-					items[cycleIdx].systemOrder = order++;
-					states[cycleIdx] = 2;
 				}
 			}
 
@@ -68373,34 +68431,21 @@ namespace gaia {
 			}
 
 			//! Assigns deterministic postorder keys below one collected phase.
-			//! \param world World containing the phase entities.
 			//! \param phases Phase keys to update.
-			//! \param primaryPhases Precomputed primary target phase per phase item.
+			//! \param firstChildren First child phase per target phase.
+			//! \param nextSiblings Next sibling phase per child phase.
 			//! \param states Per-phase visit state, zero-initialized by the caller.
 			//! \param phaseIdx Phase index to visit.
 			//! \param order Next order value to assign.
 			inline void system_schedule_visit_phase_children(
-					World& world, cnt::darray<SystemPhaseScheduleItem>& phases, const cnt::darray<uint32_t>& primaryPhases,
-					cnt::darray<uint8_t>& states, uint32_t phaseIdx, uint32_t& order) {
+					cnt::darray<SystemPhaseScheduleItem>& phases, const cnt::darray<uint32_t>& firstChildren,
+					const cnt::darray<uint32_t>& nextSiblings, cnt::darray<uint8_t>& states, uint32_t phaseIdx, uint32_t& order) {
 				if (states[phaseIdx] != 0)
 					return;
 
 				states[phaseIdx] = 1;
-				while (true) {
-					uint32_t childIdx = UINT32_MAX;
-					for (uint32_t i = 0; i < phases.size(); ++i) {
-						if (states[i] != 0)
-							continue;
-						if (primaryPhases[i] != phaseIdx)
-							continue;
-						if (childIdx == UINT32_MAX || entity_schedule_less(phases[i].phase, phases[childIdx].phase))
-							childIdx = i;
-					}
-
-					if (childIdx == UINT32_MAX)
-						break;
-					system_schedule_visit_phase_children(world, phases, primaryPhases, states, childIdx, order);
-				}
+				for (uint32_t childIdx = firstChildren[phaseIdx]; childIdx != UINT32_MAX; childIdx = nextSiblings[childIdx])
+					system_schedule_visit_phase_children(phases, firstChildren, nextSiblings, states, childIdx, order);
 				phases[phaseIdx].order = order++;
 				states[phaseIdx] = 2;
 			}
@@ -68408,63 +68453,87 @@ namespace gaia {
 			//! Assigns deterministic postorder keys to collected phases.
 			//! \param world World containing the phase entities.
 			//! \param phases Phase keys to update.
-			inline void system_schedule_assign_phase_orders(World& world, cnt::darray<SystemPhaseScheduleItem>& phases) {
-				cnt::darray<uint32_t> primaryPhases;
+			inline void system_schedule_assign_phase_orders(
+					World& world, cnt::darray<SystemPhaseScheduleItem>& phases, SystemScheduleScratch& scratch) {
+				auto& sortedPhases = scratch.sortedPhases;
+				auto& primaryPhases = scratch.primaryPhases;
+				auto& firstChildren = scratch.firstChildren;
+				auto& nextSiblings = scratch.nextSiblings;
+				auto& states = scratch.states;
+
+				sortedPhases.clear();
+				sortedPhases.reserve(phases.size());
+				for (uint32_t i = 0; i < phases.size(); ++i)
+					sortedPhases.push_back(i);
+				core::sort(sortedPhases, [&](uint32_t lhs, uint32_t rhs) {
+					return entity_schedule_less(phases[lhs].phase, phases[rhs].phase);
+				});
+
+				primaryPhases.clear();
 				primaryPhases.resize(phases.size(), UINT32_MAX);
 				for (uint32_t i = 0; i < phases.size(); ++i)
 					primaryPhases[i] = system_schedule_primary_phase_idx(world, phases, i);
 
-				cnt::darray<uint8_t> states;
+				firstChildren.clear();
+				nextSiblings.clear();
+				firstChildren.resize(phases.size(), UINT32_MAX);
+				nextSiblings.resize(phases.size(), UINT32_MAX);
+				for (uint32_t i = sortedPhases.size(); i > 0; --i) {
+					const auto phaseIdx = sortedPhases[i - 1];
+					const auto targetIdx = primaryPhases[phaseIdx];
+					if (targetIdx == UINT32_MAX)
+						continue;
+					nextSiblings[phaseIdx] = firstChildren[targetIdx];
+					firstChildren[targetIdx] = phaseIdx;
+				}
+
+				states.clear();
 				states.resize(phases.size(), 0);
 
 				uint32_t order = 0;
-				while (true) {
-					uint32_t rootIdx = UINT32_MAX;
-					for (uint32_t i = 0; i < phases.size(); ++i) {
-						if (states[i] != 0)
-							continue;
-						if (primaryPhases[i] != UINT32_MAX)
-							continue;
-						if (rootIdx == UINT32_MAX || entity_schedule_less(phases[i].phase, phases[rootIdx].phase))
-							rootIdx = i;
+				for (auto phaseIdx: sortedPhases) {
+					if (states[phaseIdx] == 0 && primaryPhases[phaseIdx] == UINT32_MAX) {
+						system_schedule_visit_phase_children(phases, firstChildren, nextSiblings, states, phaseIdx, order);
 					}
-
-					if (rootIdx == UINT32_MAX)
-						break;
-					system_schedule_visit_phase_children(world, phases, primaryPhases, states, rootIdx, order);
 				}
 
 				// Remaining phases are in a DependsOn cycle. The cycle is invalid, but the update stays deterministic.
-				while (true) {
-					uint32_t cycleIdx = UINT32_MAX;
-					for (uint32_t i = 0; i < phases.size(); ++i) {
-						if (states[i] != 0)
-							continue;
-						if (cycleIdx == UINT32_MAX || entity_schedule_less(phases[i].phase, phases[cycleIdx].phase))
-							cycleIdx = i;
+				for (auto phaseIdx: sortedPhases) {
+					if (states[phaseIdx] == 0) {
+						phases[phaseIdx].order = order++;
+						states[phaseIdx] = 2;
 					}
-					if (cycleIdx == UINT32_MAX)
-						break;
-					phases[cycleIdx].order = order++;
-					states[cycleIdx] = 2;
 				}
 			}
 
 			//! Assigns compact deterministic order keys to all collected schedule items.
 			//! \param world World containing the system entities.
 			//! \param items Scheduling keys to update.
-			inline void system_schedule_assign_order_keys(World& world, cnt::darray<SystemScheduleItem>& items) {
-				cnt::darray<SystemPhaseScheduleItem> phases;
+			//! \param entityIndices Item indices sorted by system entity id.
+			inline void system_schedule_assign_order_keys(
+					World& world, cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices,
+					SystemScheduleScratch& scratch) {
+				auto& stack = scratch.entityStack;
+				auto& phases = scratch.phases;
+				auto& groupIndices = scratch.groupIndices;
+
+				for (auto& item: items) {
+					stack.clear();
+					item.systemDepth = system_schedule_dep_depth(world, item.entity, item.phase, stack);
+				}
+
+				phases.clear();
 				for (auto& item: items) {
 					if (!item.hasPhase || system_schedule_find_phase(phases, item.phase) != UINT32_MAX)
 						continue;
 					SystemPhaseScheduleItem phaseItem{};
 					phaseItem.phase = item.phase;
-					phaseItem.depth = item.phaseDepth;
+					stack.clear();
+					phaseItem.depth = system_schedule_dep_depth(world, phaseItem.phase, EntityBad, stack);
 					phases.push_back(phaseItem);
 				}
 
-				system_schedule_assign_phase_orders(world, phases);
+				system_schedule_assign_phase_orders(world, phases, scratch);
 				for (auto& item: items) {
 					if (!item.hasPhase)
 						continue;
@@ -68472,18 +68541,17 @@ namespace gaia {
 					if (phaseIdx == UINT32_MAX)
 						continue;
 					item.phaseOrder = phases[phaseIdx].order;
+					item.phaseDepth = phases[phaseIdx].depth;
 				}
 
-				cnt::darray<uint32_t> groupIndices;
-				groupIndices.reserve(items.size());
-
 				groupIndices.clear();
+				groupIndices.reserve(items.size());
 				for (uint32_t i = 0; i < items.size(); ++i) {
 					if (!items[i].hasPhase)
 						groupIndices.push_back(i);
 				}
 				if (!groupIndices.empty())
-					system_schedule_assign_group_orders(world, items, groupIndices);
+					system_schedule_assign_group_orders(world, items, groupIndices, entityIndices, scratch);
 
 				for (auto& phase: phases) {
 					groupIndices.clear();
@@ -68492,7 +68560,7 @@ namespace gaia {
 							groupIndices.push_back(i);
 					}
 					if (!groupIndices.empty())
-						system_schedule_assign_group_orders(world, items, groupIndices);
+						system_schedule_assign_group_orders(world, items, groupIndices, entityIndices, scratch);
 				}
 			}
 
@@ -68542,30 +68610,42 @@ namespace gaia {
 			//! Builds explicit direct dependency edges between collected scheduling items.
 			//! \param world World containing the system entities.
 			//! \param items Scheduling keys to inspect.
+			//! \param entityIndices Item indices sorted by system entity id.
 			//! \param edges Output edge list.
 			//! \param childCounts Output direct child count per target item.
 			inline void system_schedule_build_edges(
-					World& world, const cnt::darray<SystemScheduleItem>& items, cnt::darray<SystemScheduleEdge>& edges,
-					cnt::darray<uint32_t>& childCounts) {
+					World& world, const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices,
+					cnt::darray<SystemScheduleEdge>& edges, cnt::darray<uint32_t>& childCounts) {
 				childCounts.resize(items.size(), 0);
 				for (uint32_t childIdx = 0; childIdx < items.size(); ++childIdx) {
 					const auto& child = items[childIdx];
 					world.targets(child.entity, DependsOn, [&](Entity target) {
 						if (target == child.phase)
 							return;
-						for (uint32_t targetIdx = 0; targetIdx < items.size(); ++targetIdx) {
-							if (childIdx == targetIdx)
-								continue;
-							if (items[targetIdx].entity != target)
-								continue;
-							if (!system_schedule_same_group(child, items[targetIdx]))
-								continue;
+						const auto targetIdx = system_schedule_find_item_by_entity(items, entityIndices, target);
+						if (targetIdx == UINT32_MAX || targetIdx == childIdx)
+							return;
+						if (!system_schedule_same_group(child, items[targetIdx]))
+							return;
 
-							system_schedule_add_edge(edges, childCounts, childIdx, targetIdx);
-							break;
-						}
+						system_schedule_add_edge(edges, childCounts, childIdx, targetIdx);
 					});
 				}
+			}
+
+			//! Inserts an item into the ready list sorted by deterministic schedule order.
+			//! \param items Scheduling keys used for order comparison.
+			//! \param readyNext Next-item links for the ready list.
+			//! \param readyHead Current ready-list head.
+			//! \param itemIdx Item to insert.
+			inline void system_schedule_ready_insert(
+					const cnt::darray<SystemScheduleItem>& items, cnt::darray<uint32_t>& readyNext, uint32_t& readyHead,
+					uint32_t itemIdx) {
+				uint32_t* ppCurr = &readyHead;
+				while (*ppCurr != UINT32_MAX && system_schedule_less(items[*ppCurr], items[itemIdx]))
+					ppCurr = &readyNext[*ppCurr];
+				readyNext[itemIdx] = *ppCurr;
+				*ppCurr = itemIdx;
 			}
 
 			//! Orders system scheduling keys with a deterministic child-before-target pass.
@@ -68575,33 +68655,74 @@ namespace gaia {
 			//!
 			//! \param world World containing the system entities.
 			//! \param items Scheduling keys to reorder.
-			inline void order_system_schedule_items(World& world, cnt::darray<SystemScheduleItem>& items) {
-				system_schedule_assign_order_keys(world, items);
+			inline void order_system_schedule_items(
+					World& world, cnt::darray<SystemScheduleItem>& items, SystemScheduleScratch& scratch) {
+				auto& entityIndices = scratch.entityIndices;
+				auto& edges = scratch.edges;
+				auto& childCounts = scratch.childCounts;
+				auto& sortedIndices = scratch.sortedIndices;
+				auto& firstEdges = scratch.firstEdges;
+				auto& ordered = scratch.ordered;
+				auto& visited = scratch.visited;
+				auto& readyNext = scratch.readyNext;
 
-				cnt::darray<SystemScheduleEdge> edges;
-				cnt::darray<uint32_t> childCounts;
+				system_schedule_entity_indices(items, entityIndices);
+				system_schedule_assign_order_keys(world, items, entityIndices, scratch);
+
+				edges.clear();
+				childCounts.clear();
 				edges.reserve(items.size());
-				system_schedule_build_edges(world, items, edges, childCounts);
+				system_schedule_build_edges(world, items, entityIndices, edges, childCounts);
+				if (edges.empty()) {
+					core::sort(items, [](const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
+						return system_schedule_less(lhs, rhs);
+					});
+					return;
+				}
 
-				cnt::darray<SystemScheduleItem> ordered;
+				sortedIndices.clear();
+				sortedIndices.reserve(items.size());
+				for (uint32_t i = 0; i < items.size(); ++i)
+					sortedIndices.push_back(i);
+				core::sort(sortedIndices, [&](uint32_t lhs, uint32_t rhs) {
+					return system_schedule_less(items[lhs], items[rhs]);
+				});
+
+				firstEdges.clear();
+				firstEdges.resize(items.size(), UINT32_MAX);
+				for (uint32_t i = edges.size(); i > 0; --i) {
+					auto& edge = edges[i - 1];
+					edge.next = firstEdges[edge.child];
+					firstEdges[edge.child] = i - 1;
+				}
+
+				ordered.clear();
 				ordered.reserve(items.size());
 
-				cnt::darray<uint8_t> visited;
+				visited.clear();
 				visited.resize(items.size(), 0);
+				readyNext.clear();
+				readyNext.resize(items.size(), UINT32_MAX);
+
+				uint32_t readyHead = UINT32_MAX;
+				for (uint32_t i = sortedIndices.size(); i > 0; --i) {
+					const auto itemIdx = sortedIndices[i - 1];
+					if (childCounts[itemIdx] == 0) {
+						readyNext[itemIdx] = readyHead;
+						readyHead = itemIdx;
+					}
+				}
 
 				while (ordered.size() < items.size()) {
-					uint32_t bestIdx = UINT32_MAX;
-					for (uint32_t i = 0; i < items.size(); ++i) {
-						if (visited[i] != 0 || childCounts[i] != 0)
-							continue;
-						if (bestIdx == UINT32_MAX || system_schedule_less(items[i], items[bestIdx]))
-							bestIdx = i;
-					}
-
+					uint32_t bestIdx = readyHead;
+					if (bestIdx != UINT32_MAX)
+						readyHead = readyNext[bestIdx];
 					if (bestIdx == UINT32_MAX) {
-						for (uint32_t i = 0; i < items.size(); ++i) {
-							if (visited[i] == 0 && (bestIdx == UINT32_MAX || system_schedule_less(items[i], items[bestIdx])))
-								bestIdx = i;
+						for (auto itemIdx: sortedIndices) {
+							if (visited[itemIdx] == 0) {
+								bestIdx = itemIdx;
+								break;
+							}
 						}
 					}
 
@@ -68612,16 +68733,20 @@ namespace gaia {
 					visited[bestIdx] = 1;
 					ordered.push_back(items[bestIdx]);
 
-					for (auto edge: edges) {
-						if (edge.child != bestIdx || visited[edge.target] != 0)
+					for (uint32_t edgeIdx = firstEdges[bestIdx]; edgeIdx != UINT32_MAX; edgeIdx = edges[edgeIdx].next) {
+						const auto targetIdx = edges[edgeIdx].target;
+						if (visited[targetIdx] != 0)
 							continue;
-						GAIA_ASSERT(childCounts[edge.target] > 0);
-						if (childCounts[edge.target] > 0)
-							--childCounts[edge.target];
+						GAIA_ASSERT(childCounts[targetIdx] > 0);
+						if (childCounts[targetIdx] > 0) {
+							--childCounts[targetIdx];
+							if (childCounts[targetIdx] == 0)
+								system_schedule_ready_insert(items, readyNext, readyHead, targetIdx);
+						}
 					}
 				}
 
-				items = GAIA_MOV(ordered);
+				items = ordered;
 			}
 
 			//! Returns whether @a lhs and @a rhs belong to different scheduler batches.
@@ -68723,12 +68848,14 @@ namespace gaia {
 			if GAIA_UNLIKELY (tearing_down())
 				return;
 
-			cnt::darray<detail::SystemScheduleItem> items;
+			auto& items = m_systemScheduleScratch.items;
+			items.clear();
+
 			detail::SystemCollectCtx collectCtx{};
 			collectCtx.pWorld = this;
 			collectCtx.pItems = &items;
 			m_systemsQuery.each_entity_enabled(&collectCtx, detail::collect_system_schedule_item_erased);
-			detail::order_system_schedule_items(*this, items);
+			detail::order_system_schedule_items(*this, items, m_systemScheduleScratch);
 
 			cnt::darray<detail::PendingSystemJob> pending;
 			detail::SystemRunCtx ctx{};
