@@ -774,9 +774,9 @@ w.query().all<Position&>().each([&](Position& pos) {
 
 #### Observers for relation pairs
 
-Observers can react to relation-pair changes too. The callback is normal user code. It can update derived stores, rebuild indexes, notify gameplay code, or record work for a later pass.
+Observers also work with relation pairs. Use them when a relation change should run code right away. The callback is normal user code. It can update a store, rebuild an index, notify gameplay code, or save work for a later pass.
 
-Use a wildcard target when any target of a relation should trigger the reaction:
+Use a wildcard target when every target of a relation should trigger the same code:
 
 ```cpp
 const ecs::Entity HomeOf = w.add();
@@ -812,9 +812,9 @@ w.observer()
   });
 ```
 
-Changing a relation target is structural. Replacing `(HomeOf, A)` with `(HomeOf, B)` is observed as a delete of the old pair and an add of the new pair. It is not an `OnSet` event.
+Changing a relation target is structural (changes the entity shape). Replacing `(HomeOf, A)` with `(HomeOf, B)` triggers `OnDel` for the old pair and `OnAdd` for the new pair. It does not trigger `OnSet`.
 
-Wildcard pair observers are broader than exact-pair observers, so their cost is less predictable. That is expected for event reactions.
+Wildcard pair observers can match more changes than exact-pair observers. Their cost depends on how often those changes happen, which is normal for event reactions.
 
 ### Bulk editing
 
@@ -3106,9 +3106,9 @@ moveJob.del();
 `SchedJob::wait()` does not submit work. Submit explicitly before waiting.
 
 ### System callbacks and command buffers
-System callbacks may use `Iter::cmd_buffer_st()` to queue structural changes while iterating. This includes adding or removing already-registered components on the entities matched by the active query. Gaia-ECS commits the iterator command buffer after that system query finishes, once the world is no longer locked for structural changes.
+System callbacks can queue structural changes with `Iter::cmd_buffer_st()`. This includes adding or removing already-registered components on the entities matched by the current query. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.
 
-Later systems in the same `World::update()` or `systems_run()` call can observe those committed changes when scheduling order puts them after the producer. This also applies across phase boundaries. Phase boundaries are strict scheduler barriers, and command-buffer commits from the earlier phase are visible to systems in the later phase.
+A later system in the same `World::update()` or `systems_run()` call can see those changes if it runs after the producer. This works across phase boundaries too. A phase boundary is a scheduler barrier, so commands from the earlier phase are committed before the later phase runs.
 
 ```cpp
 struct NeedsAgent {};
@@ -3139,7 +3139,7 @@ w.add(produceAgents.entity(), ecs::Pair{ecs::DependsOn, consumeAgents.entity()})
 w.update();
 ```
 
-A system callback may also run another retained Gaia query when the system's trigger query is not the real work query. This is useful for tick-row or phase-marker systems that drive a separate cached query over gameplay entities. Row-local writes from that nested query are applied immediately and are visible to later systems in the same `World::update()` or `systems_run()` call when the producer is ordered before the consumer.
+A system callback can also run another retained Gaia query. This is useful when the system is triggered by one query, but the real work happens over a different cached query. For example, a tick system can run a retained query over gameplay entities. Writes made by that nested query are applied immediately. Later systems in the same `World::update()` or `systems_run()` call can see them if they run after the producer.
 
 ```cpp
 struct SimTick {};
@@ -3172,9 +3172,19 @@ auto produceRequests = w.system()
   });
 ```
 
-Declare custom reads or writes on the outer system for component data touched only by the nested query. Gaia-ECS cannot infer those accesses from the outer system's own terms.
+Declare custom reads or writes on the outer system for component data used only by the nested query. Gaia-ECS cannot infer that from the outer system's own terms.
 
-Do not make direct structural changes inside the callback. Queue them through the iterator command buffer, or use a command buffer you own and commit it after query iteration. If work is deferred outside Gaia's system pass, Gaia-ECS cannot make those external mutations visible to direct Gaia systems until the application commits them before the dependent system runs.
+Do not make direct structural changes inside the callback. Queue them with the iterator command buffer, or use your own command buffer and commit it after query iteration.
+
+When moving existing application work into Gaia systems, move dependent producer and consumer work together. A direct Gaia consumer sees the world as it exists when that system runs. It cannot see changes that the application still keeps in an external queue.
+
+Good migration shapes:
+
+- move the producer into a Gaia system before moving direct consumers that depend on it.
+- move the whole producer/consumer chain into Gaia phases.
+- or keep the consumer outside Gaia until the producer commits before Gaia systems run.
+
+If a producer must stay outside Gaia, run it and commit its command buffer before the dependent Gaia system runs. If it runs after `systems_run()`, Gaia systems will not see its changes until the next update.
 
 ## Data layouts
 By default, all data inside components are treated as an array of structures (AoS).
