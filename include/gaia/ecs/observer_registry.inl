@@ -1026,7 +1026,6 @@ namespace gaia {
 			const auto& ec = world.fetch(observer);
 			const auto compIdx = ec.pChunk->comp_idx(Observer);
 			const auto& obs = *reinterpret_cast<const Observer_*>(ec.pChunk->comp_ptr(compIdx, ec.row));
-			auto& index = diff_index(obs.event);
 
 			switch (obs.event) {
 				case ObserverEvent::OnAdd:
@@ -1036,6 +1035,7 @@ namespace gaia {
 					return;
 			}
 
+			auto& index = diff_index(obs.event);
 			add_observer_to_list(index.all, observer);
 
 			bool registered = false;

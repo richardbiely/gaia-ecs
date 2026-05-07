@@ -643,11 +643,11 @@ Hooks can be disabled by defining GAIA_ENABLE_HOOKS 0. Add and del hooks are con
 
 Observers are a mechanism that allows you to register to certain events and listen to them triggering. Similar to hooks, you can listen to add, del or set events. However, unlike hooks there can be any number of these per given component or entity.
 
-Observers can be looked at as reactive alternative to systems. They allow different parts of the application to react to something happening immediately.
+Observers can be looked at as a reactive alternative to systems. They allow different parts of the application to react to something happening immediately.
 
 The feature can be enabled by defining `GAIA_OBSERVERS_ENABLED 1`, and is enabled by default.
 
-Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.
+Under the hood they use the query engine, just like systems. Systems are meant to be used as a regular part of the frame. Observers are event reactions. Their cost is less predictable because events may be rare, happen in bursts, or not happen in a frame at all. If the same work needs to run predictably every frame, use a system instead.
 
 Because observers are query-backed, query shaping helpers such as `depth_order(...)` can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like `ChildOf`.
 
@@ -770,6 +770,50 @@ w.query().all<Position&>().each([&](Position& pos) {
 // OnSet triggered again after the callback completed.
 // For query writes, OnSet is delivered once per modified matching entity.
 ```
+
+#### Observers for relation pairs
+
+Observers can react to relation-pair changes too. The callback is normal user code. It can update derived stores, rebuild indexes, notify gameplay code, or record work for a later pass.
+
+Use a wildcard target when any target of a relation should trigger the reaction:
+
+```cpp
+const ecs::Entity HomeOf = w.add();
+
+w.observer()
+  .event(ecs::ObserverEvent::OnAdd)
+  .all(ecs::Pair(HomeOf, ecs::All))
+  .on_each([&](ecs::Iter& it) {
+    // A source entity gained a HomeOf relation to some target.
+    // Update derived data here, or record work for a later system.
+  });
+```
+
+Use `OnDel` for removals:
+
+```cpp
+w.observer()
+  .event(ecs::ObserverEvent::OnDel)
+  .all(ecs::Pair(HomeOf, ecs::All))
+  .on_each([&](ecs::Iter& it) {
+    // A source entity lost a HomeOf relation.
+  });
+```
+
+Use an exact pair when only one target matters:
+
+```cpp
+w.observer()
+  .event(ecs::ObserverEvent::OnAdd)
+  .all(ecs::Pair(HomeOf, specificHome))
+  .on_each([&](ecs::Iter& it) {
+    // React only to HomeOf(specificHome).
+  });
+```
+
+Changing a relation target is structural. Replacing `(HomeOf, A)` with `(HomeOf, B)` is observed as a delete of the old pair and an add of the new pair. It is not an `OnSet` event.
+
+Wildcard pair observers are broader than exact-pair observers, so their cost is less predictable. That is expected for event reactions.
 
 ### Bulk editing
 

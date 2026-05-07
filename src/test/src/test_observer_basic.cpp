@@ -1222,6 +1222,123 @@ TEST_CASE("copy_ext_n without names and with sparse data") {
 	}
 }
 
+TEST_CASE("Observer - relation wildcard observes add and delete") {
+	TestWorld twld;
+
+	const auto homeOf = wld.add();
+	const auto homeA = wld.add();
+	const auto homeB = wld.add();
+	const auto citizen = wld.add();
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+
+	const auto onAdd = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .all(ecs::Pair(homeOf, ecs::All))
+												 .on_each([&](ecs::Iter&) {
+													 ++addHits;
+												 })
+												 .entity();
+	const auto onDel = wld.observer()
+												 .event(ecs::ObserverEvent::OnDel)
+												 .all(ecs::Pair(homeOf, ecs::All))
+												 .on_each([&](ecs::Iter&) {
+													 ++delHits;
+												 })
+												 .entity();
+	(void)onAdd;
+	(void)onDel;
+
+	wld.add(citizen, ecs::Pair(homeOf, homeA));
+	CHECK(addHits == 1);
+	CHECK(delHits == 0);
+
+	wld.del(citizen, ecs::Pair(homeOf, homeA));
+	CHECK(addHits == 1);
+	CHECK(delHits == 1);
+
+	wld.add(citizen, ecs::Pair(homeOf, homeB));
+	CHECK(addHits == 2);
+	CHECK(delHits == 1);
+}
+
+TEST_CASE("Observer - exact relation pair observes only its target") {
+	TestWorld twld;
+
+	const auto homeOf = wld.add();
+	const auto homeA = wld.add();
+	const auto homeB = wld.add();
+	const auto citizenA = wld.add();
+	const auto citizenB = wld.add();
+
+	uint32_t hits = 0;
+	const auto obs = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all(ecs::Pair(homeOf, homeA))
+											 .on_each([&](ecs::Iter&) {
+												 ++hits;
+											 })
+											 .entity();
+	(void)obs;
+
+	wld.add(citizenA, ecs::Pair(homeOf, homeB));
+	CHECK(hits == 0);
+
+	wld.add(citizenB, ecs::Pair(homeOf, homeA));
+	CHECK(hits == 1);
+}
+
+TEST_CASE("Observer - relation retarget is delete and add") {
+	TestWorld twld;
+
+	const auto homeOf = wld.add();
+	const auto homeA = wld.add();
+	const auto homeB = wld.add();
+	const auto citizen = wld.add();
+
+	uint32_t addHits = 0;
+	uint32_t delHits = 0;
+	uint32_t setHits = 0;
+
+	const auto onAdd = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .all(ecs::Pair(homeOf, ecs::All))
+												 .on_each([&](ecs::Iter&) {
+													 ++addHits;
+												 })
+												 .entity();
+	const auto onDel = wld.observer()
+												 .event(ecs::ObserverEvent::OnDel)
+												 .all(ecs::Pair(homeOf, ecs::All))
+												 .on_each([&](ecs::Iter&) {
+													 ++delHits;
+												 })
+												 .entity();
+	const auto onSet = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all(ecs::Pair(homeOf, ecs::All))
+												 .on_each([&](ecs::Iter&) {
+													 ++setHits;
+												 })
+												 .entity();
+	(void)onAdd;
+	(void)onDel;
+	(void)onSet;
+
+	wld.add(citizen, ecs::Pair(homeOf, homeA));
+	CHECK(addHits == 1);
+	CHECK(delHits == 0);
+	CHECK(setHits == 0);
+
+	wld.del(citizen, ecs::Pair(homeOf, homeA));
+	wld.add(citizen, ecs::Pair(homeOf, homeB));
+
+	CHECK(addHits == 2);
+	CHECK(delHits == 1);
+	CHECK(setHits == 0);
+}
+
 TEST_CASE("Observer - fast path") {
 	TestWorld twld;
 
