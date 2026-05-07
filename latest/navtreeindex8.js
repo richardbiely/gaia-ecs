@@ -1,5 +1,7 @@
 var NAVTREEINDEX8 =
 {
+"structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66baba04f833425d12e668b7acf747192ffe":[10,0,0,6,2,0,1],
+"structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66baf4ec5f57bd4d31b803312d873be40da9":[10,0,0,6,2,0,0],
 "structgaia_1_1mt_1_1Job.html":[10,0,0,6,3],
 "structgaia_1_1mt_1_1JobAllocCtx.html":[10,0,0,6,4],
 "structgaia_1_1mt_1_1JobArgs.html":[10,0,0,6,5],

@@ -72,6 +72,8 @@ var classgaia_1_1ecs_1_1World =
     [ "finish_out_of_line_add_inter", "classgaia_1_1ecs_1_1World.html#affc1635c511a9824f1f182194689d08a", null ],
     [ "for_each_direct_term_entity", "classgaia_1_1ecs_1_1World.html#aa285ddf0f0fbaeab6e23ecc1ba9e7739", null ],
     [ "for_each_direct_term_entity_direct", "classgaia_1_1ecs_1_1World.html#a51bc8e9e0d329a33183f7e5c24737ba5", null ],
+    [ "frame_cleanup", "classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092", null ],
+    [ "frame_end", "classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3", null ],
     [ "get", "classgaia_1_1ecs_1_1World.html#a4720524a65fdfa327a327e563ec627b9", null ],
     [ "get", "classgaia_1_1ecs_1_1World.html#ad665f68271141b2dc2daf28e70932289", null ],
     [ "get", "classgaia_1_1ecs_1_1World.html#a94a775123eb18fe3813daa2b7e71e60d", null ],

@@ -771,9 +771,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>remove_src_entity_ver
 <tr class="memitem:a0f51a6ff401571b251eb413171e08ca5" id="r_a0f51a6ff401571b251eb413171e08ca5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0f51a6ff401571b251eb413171e08ca5">set_max_lifespan</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint32_t lifespan=<a class="el" href="classgaia_1_1ecs_1_1Archetype.html#ad9559fef1b896b56a9933c897d239ae6">Archetype::MAX_ARCHETYPE_LIFESPAN</a>)</td></tr>
 <tr class="memdesc:a0f51a6ff401571b251eb413171e08ca5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets maximal lifespan of an archetype <em>entity</em> belongs to.  <br /></td></tr>
 <tr class="separator:a0f51a6ff401571b251eb413171e08ca5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6f8f781a63d28b06ac5176b52a6fb1e5" id="r_a6f8f781a63d28b06ac5176b52a6fb1e5"><td class="memItemLeft" align="right" valign="top"><a id="a6f8f781a63d28b06ac5176b52a6fb1e5" name="a6f8f781a63d28b06ac5176b52a6fb1e5"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>update</b> ()</td></tr>
-<tr class="memdesc:a6f8f781a63d28b06ac5176b52a6fb1e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs various internal operations related to the end of the frame such as memory cleanup and other management operations which keep the system healthy. <br /></td></tr>
+<tr class="memitem:aad2cc9053ab29b9d3706764d5fa51092" id="r_aad2cc9053ab29b9d3706764d5fa51092"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092">frame_cleanup</a> ()</td></tr>
+<tr class="memdesc:aad2cc9053ab29b9d3706764d5fa51092"><td class="mdescLeft">&#160;</td><td class="mdescRight">Performs deferred cleanup for the current frame.  <br /></td></tr>
+<tr class="separator:aad2cc9053ab29b9d3706764d5fa51092"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae6a7635089afa3b9ad70bcbdc94ec6a3" id="r_ae6a7635089afa3b9ad70bcbdc94ec6a3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3">frame_end</a> ()</td></tr>
+<tr class="memdesc:ae6a7635089afa3b9ad70bcbdc94ec6a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the end of the current frame.  <br /></td></tr>
+<tr class="separator:ae6a7635089afa3b9ad70bcbdc94ec6a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6f8f781a63d28b06ac5176b52a6fb1e5" id="r_a6f8f781a63d28b06ac5176b52a6fb1e5"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6f8f781a63d28b06ac5176b52a6fb1e5">update</a> ()</td></tr>
+<tr class="memdesc:a6f8f781a63d28b06ac5176b52a6fb1e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs systems and then finishes the current frame.  <br /></td></tr>
 <tr class="separator:a6f8f781a63d28b06ac5176b52a6fb1e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac61cf63eefdacc175f9a98cfe83076a4" id="r_ac61cf63eefdacc175f9a98cfe83076a4"><td class="memItemLeft" align="right" valign="top"><a id="ac61cf63eefdacc175f9a98cfe83076a4" name="ac61cf63eefdacc175f9a98cfe83076a4"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>teardown</b> ()</td></tr>
@@ -3506,6 +3511,74 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>False when <em>func</em> requested early stop. True otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="aad2cc9053ab29b9d3706764d5fa51092" name="aad2cc9053ab29b9d3706764d5fa51092"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aad2cc9053ab29b9d3706764d5fa51092">&#9670;&#160;</a></span>frame_cleanup()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::frame_cleanup </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Performs deferred cleanup for the current frame. </p>
+<p>This finalizes deferred entity deletion and runs Gaia-ECS garbage collection. Use this after an external loop calls systems_run() itself, or when a frame has no system pass but still needs world cleanup.</p>
+<dl class="section warning"><dt>Warning</dt><dd>This does not execute registered systems. Call systems_run() first when the frame should run systems. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>systems_run() </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#a6f8f781a63d28b06ac5176b52a6fb1e5" title="Runs systems and then finishes the current frame.">update()</a> </dd></dl>
+
+</div>
+</div>
+<a id="ae6a7635089afa3b9ad70bcbdc94ec6a3" name="ae6a7635089afa3b9ad70bcbdc94ec6a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae6a7635089afa3b9ad70bcbdc94ec6a3">&#9670;&#160;</a></span>frame_end()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::frame_end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks the end of the current frame. </p>
+<p>This flushes pending log output and emits the profiler frame marker. External loops that call systems_run() directly should usually call <a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> and then <a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a> once per frame.</p>
+<dl class="section warning"><dt>Warning</dt><dd>This does not execute registered systems or finalize deferred deletion. </dd></dl>
+<dl class="section see"><dt>See also</dt><dd>systems_run() </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#a6f8f781a63d28b06ac5176b52a6fb1e5" title="Runs systems and then finishes the current frame.">update()</a> </dd></dl>
 
 </div>
 </div>
@@ -7292,6 +7365,39 @@ template&lt;typename Func &gt; </div>
 
 <p>Traverses relationship targets upwards starting from <em>source</em>. Disabled entities act as traversal barriers and are not yielded. </p>
 <dl class="section return"><dt>Returns</dt><dd>True if traversal was stopped by <em>func</em>, false otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a6f8f781a63d28b06ac5176b52a6fb1e5" name="a6f8f781a63d28b06ac5176b52a6fb1e5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6f8f781a63d28b06ac5176b52a6fb1e5">&#9670;&#160;</a></span>update()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::update </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Runs systems and then finishes the current frame. </p>
+<p>This is the normal frame step. It executes registered systems through systems_run(), then calls <a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> and <a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a>.</p>
+<dl class="section see"><dt>See also</dt><dd>systems_run() </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> </dd>
+<dd>
+<a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a> </dd></dl>
 
 </div>
 </div>

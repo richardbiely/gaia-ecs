@@ -1,5 +1,7 @@
 var NAVTREEINDEX6 =
 {
+"structgaia_1_1ecs_1_1Delete__.html":[10,0,0,3,40],
+"structgaia_1_1ecs_1_1DependsOn__.html":[10,0,0,3,41],
 "structgaia_1_1ecs_1_1DontFragment__.html":[10,0,0,3,42],
 "structgaia_1_1ecs_1_1DontInherit__.html":[10,0,0,3,43],
 "structgaia_1_1ecs_1_1Entity.html":[10,0,0,3,44],
@@ -247,7 +249,5 @@ var NAVTREEINDEX6 =
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3":[10,0,0,3,0,33,2],
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ad129420eb4bc12b3027f64cd567f73af":[10,0,0,3,0,33,11],
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ad55f64fbda6e194a97ab8f6d82e82532":[10,0,0,3,0,33,1],
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae041bed44bfaa7c074aa51394dc4fb18":[10,0,0,3,0,33,16],
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae06ddc6fe2fada3924f58bfb8196cc76":[10,0,0,3,0,33,12],
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae0c78467f314e6d15d36828c6833bb3e":[10,0,0,3,0,33,9]
+"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae041bed44bfaa7c074aa51394dc4fb18":[10,0,0,3,0,33,16]
 };
