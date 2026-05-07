@@ -69983,8 +69983,10 @@ namespace gaia {
 				}
 
 				//! Requests a component @a T to be added to @a entity.
-				//! \tparam T Component type
-				//! \param entity Destination entity
+				//! \tparam T Component type.
+				//! \param entity Destination entity.
+				//! \warning Component @a T should be registered in the world before calling this function while
+				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				template <typename T>
 				void add(Entity entity) {
 					verify_comp<T>();
@@ -70009,7 +70011,8 @@ namespace gaia {
 				//! \tparam T Component type
 				//! \param entity Destination entity
 				//! \param value Component value
-				//! \warning Component @a T should be registered in the world before calling this function.
+				//! \warning Component @a T should be registered in the world before calling this function while
+				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T>
 				void add(Entity entity, T&& value) {

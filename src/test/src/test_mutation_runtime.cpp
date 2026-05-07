@@ -1773,6 +1773,33 @@ TEST_CASE("CommandBuffer") {
 		CHECK(cnt == 2);
 	}
 
+	SUBCASE("Adding a component to matched entities from a retained query") {
+		TestWorld twld;
+
+		auto e1 = wld.add();
+		wld.add<Position>(e1, {1, 2, 3});
+		auto e2 = wld.add();
+		wld.add<Position>(e2, {4, 5, 6});
+		wld.add<Rotation>();
+
+		auto q = wld.query().all<Position>();
+		uint32_t queued = 0;
+		q.each([&](ecs::Iter& it) {
+			auto ev = it.view<ecs::Entity>();
+			auto& cb = it.cmd_buffer_st();
+			GAIA_EACH(it) {
+				cb.add<Rotation>(ev[i], {1, 0, 0, 1});
+				++queued;
+			}
+		});
+
+		CHECK(queued == 2);
+		CHECK(wld.has<Rotation>(e1));
+		CHECK(wld.has<Rotation>(e2));
+		CHECK(q.count() == 2);
+		CHECK(wld.query().all<Position>().all<Rotation>().count() == 2);
+	}
+
 	SUBCASE("Entity creation from another entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);

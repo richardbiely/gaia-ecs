@@ -2882,7 +2882,7 @@ cb.commit();
 If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.
 
 >**NOTE:<br/>** 
-There is one situation to be wary about with command buffers. Function `add` accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are a subject to race conditions. To avoid them, make sure that the component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, you need to call this anywhere before you run your system or a query:
+There is one situation to be wary about with command buffers. Function `add` accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are also subject to race conditions. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query:
 ```cpp
 // Register the component YourComponent in the world
 world.add<YourComponent>();
@@ -3106,7 +3106,7 @@ moveJob.del();
 `SchedJob::wait()` does not submit work. Submit explicitly before waiting.
 
 ### System callbacks and command buffers
-System callbacks may use `Iter::cmd_buffer_st()` to queue structural changes while iterating. Gaia-ECS commits the iterator command buffer after that system query finishes, once the world is no longer locked for structural changes.
+System callbacks may use `Iter::cmd_buffer_st()` to queue structural changes while iterating. This includes adding or removing already-registered components on the entities matched by the active query. Gaia-ECS commits the iterator command buffer after that system query finishes, once the world is no longer locked for structural changes.
 
 Later systems in the same `World::update()` or `systems_run()` call can observe those committed changes when scheduling order puts them after the producer. This also applies across phase boundaries. Phase boundaries are strict scheduler barriers, and command-buffer commits from the earlier phase are visible to systems in the later phase.
 
