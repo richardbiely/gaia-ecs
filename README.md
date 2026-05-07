@@ -3139,6 +3139,41 @@ w.add(produceAgents.entity(), ecs::Pair{ecs::DependsOn, consumeAgents.entity()})
 w.update();
 ```
 
+A system callback may also run another retained Gaia query when the system's trigger query is not the real work query. This is useful for tick-row or phase-marker systems that drive a separate cached query over gameplay entities. Row-local writes from that nested query are applied immediately and are visible to later systems in the same `World::update()` or `systems_run()` call when the producer is ordered before the consumer.
+
+```cpp
+struct SimTick {};
+struct TripNeed {
+  uint32_t requests = 0;
+};
+
+w.add<SimTick>();
+w.add<TripNeed>();
+
+auto tripNeeds = w.query().all<TripNeed&>();
+struct RequestProducerCtx {
+  ecs::Query* tripNeeds;
+};
+RequestProducerCtx requestCtx{&tripNeeds};
+
+auto produceRequests = w.system()
+  .ctx(&requestCtx)
+  .all<SimTick>()
+  .writes<TripNeed>() // Scheduling metadata for work done by the nested query.
+  .on_each([](ecs::Iter& tickIt) {
+    auto& ctx = *static_cast<RequestProducerCtx*>(tickIt.ctx());
+
+    ctx.tripNeeds->each([](ecs::Iter& tripIt) {
+      auto needs = tripIt.view_mut<TripNeed>();
+      GAIA_EACH(tripIt) {
+        ++needs[i].requests;
+      }
+    });
+  });
+```
+
+Declare custom reads or writes on the outer system for component data touched only by the nested query. Gaia-ECS cannot infer those accesses from the outer system's own terms.
+
 Do not make direct structural changes inside the callback. Queue them through the iterator command buffer, or use a command buffer you own and commit it after query iteration. If work is deferred outside Gaia's system pass, Gaia-ECS cannot make those external mutations visible to direct Gaia systems until the application commits them before the dependent system runs.
 
 ## Data layouts

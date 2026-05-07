@@ -164,6 +164,65 @@ TEST_CASE("System - iterator command buffer crosses phase boundary") {
 	CHECK(wld.has<PhaseDeferredResult>(e));
 }
 
+TEST_CASE("System - nested retained query writes are visible to later system") {
+	struct NestedTick {};
+	struct NestedWork {
+		uint32_t requests = 0;
+	};
+
+	TestWorld twld;
+	wld.add<NestedTick>();
+	wld.add<NestedWork>();
+
+	const auto tick = wld.add();
+	wld.add<NestedTick>(tick);
+
+	const auto worker = wld.add();
+	wld.add<NestedWork>(worker, {});
+
+	uint32_t tickHits = 0;
+	uint32_t requestCount = 0;
+
+	auto workQuery = wld.query().all<NestedWork&>();
+	struct NestedSystemCtx {
+		ecs::Query* workQuery;
+		uint32_t nestedHits = 0;
+		ecs::Entity requestEntity;
+	};
+	NestedSystemCtx ctx{&workQuery};
+
+	auto producer = wld.system().ctx(&ctx).all<NestedTick>().writes<NestedWork>().on_each([&](ecs::Iter& it) {
+		auto& data = *static_cast<NestedSystemCtx*>(it.ctx());
+		tickHits += it.size();
+
+		data.workQuery->each([&](ecs::Iter& workIt) {
+			auto entities = workIt.view<ecs::Entity>();
+			auto workView = workIt.view_mut<NestedWork>();
+			GAIA_EACH(workIt) {
+				++workView[i].requests;
+				data.requestEntity = entities[i];
+				++data.nestedHits;
+			}
+		});
+	});
+
+	auto consumer = wld.system().all<const NestedWork>().on_each([&](ecs::Iter& it) {
+		auto workView = it.view<NestedWork>();
+		GAIA_EACH(it) {
+			requestCount += workView[i].requests;
+		}
+	});
+
+	wld.add(producer.entity(), {ecs::DependsOn, consumer.entity()});
+	wld.systems_run();
+
+	CHECK(tickHits == 1);
+	CHECK(ctx.nestedHits == 1);
+	CHECK(requestCount == 1);
+	CHECK(ctx.requestEntity == worker);
+	CHECK(wld.get<NestedWork>(worker).requests == 1);
+}
+
 TEST_CASE("System - builder exposes kind and scope") {
 	TestWorld twld;
 
