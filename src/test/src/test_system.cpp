@@ -91,6 +91,79 @@ TEST_CASE("World - frame cleanup does not run systems") {
 	CHECK_FALSE(wld.has(e));
 }
 
+TEST_CASE("System - iterator command buffer is visible to later system") {
+	struct SystemDeferredSource {};
+	struct SystemDeferredResult {};
+
+	TestWorld twld;
+	wld.add<SystemDeferredSource>();
+	wld.add<SystemDeferredResult>();
+
+	const auto e = wld.add();
+	wld.add<SystemDeferredSource>(e);
+
+	uint32_t producerHits = 0;
+	uint32_t consumerHits = 0;
+
+	auto producer = wld.system().all<SystemDeferredSource>().on_each([&](ecs::Iter& it) {
+		auto& cb = it.cmd_buffer_st();
+		auto ev = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			cb.add<SystemDeferredResult>(ev[i]);
+			++producerHits;
+		}
+	});
+
+	auto consumer = wld.system().all<SystemDeferredResult>().on_each([&](ecs::Iter& it) {
+		consumerHits += it.size();
+	});
+
+	wld.add(producer.entity(), {ecs::DependsOn, consumer.entity()});
+	wld.systems_run();
+
+	CHECK(producerHits == 1);
+	CHECK(consumerHits == 1);
+	CHECK(wld.has<SystemDeferredResult>(e));
+}
+
+TEST_CASE("System - iterator command buffer crosses phase boundary") {
+	struct PhaseDeferredSource {};
+	struct PhaseDeferredResult {};
+
+	TestWorld twld;
+	wld.add<PhaseDeferredSource>();
+	wld.add<PhaseDeferredResult>();
+
+	const auto producerPhase = wld.add();
+	const auto consumerPhase = wld.add();
+	wld.add(producerPhase, {ecs::DependsOn, consumerPhase});
+
+	const auto e = wld.add();
+	wld.add<PhaseDeferredSource>(e);
+
+	uint32_t producerHits = 0;
+	uint32_t consumerHits = 0;
+
+	wld.system().phase(producerPhase).all<PhaseDeferredSource>().on_each([&](ecs::Iter& it) {
+		auto& cb = it.cmd_buffer_st();
+		auto ev = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			cb.add<PhaseDeferredResult>(ev[i]);
+			++producerHits;
+		}
+	});
+
+	wld.system().phase(consumerPhase).all<PhaseDeferredResult>().on_each([&](ecs::Iter& it) {
+		consumerHits += it.size();
+	});
+
+	wld.systems_run();
+
+	CHECK(producerHits == 1);
+	CHECK(consumerHits == 1);
+	CHECK(wld.has<PhaseDeferredResult>(e));
+}
+
 TEST_CASE("System - builder exposes kind and scope") {
 	TestWorld twld;
 

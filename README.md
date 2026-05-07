@@ -97,6 +97,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [System basics](#system-basics)
     * [System dependencies](#system-dependencies)
     * [Systems and jobs](#system-jobs)
+    * [System callbacks and command buffers](#system-callbacks-and-command-buffers)
   * [Data layouts](#data-layouts)
   * [Serialization](#serialization)
     * [Compile-time serialization](#compile-time-serialization)
@@ -3103,6 +3104,42 @@ moveJob.del();
 ```
 
 `SchedJob::wait()` does not submit work. Submit explicitly before waiting.
+
+### System callbacks and command buffers
+System callbacks may use `Iter::cmd_buffer_st()` to queue structural changes while iterating. Gaia-ECS commits the iterator command buffer after that system query finishes, once the world is no longer locked for structural changes.
+
+Later systems in the same `World::update()` or `systems_run()` call can observe those committed changes when scheduling order puts them after the producer. This also applies across phase boundaries. Phase boundaries are strict scheduler barriers, and command-buffer commits from the earlier phase are visible to systems in the later phase.
+
+```cpp
+struct NeedsAgent {};
+struct TransportAgent {};
+
+// Register components before the system runs.
+w.add<NeedsAgent>();
+w.add<TransportAgent>();
+
+auto produceAgents = w.system()
+  .all<NeedsAgent>()
+  .on_each([](ecs::Iter& it) {
+    ecs::CommandBufferST& cb = it.cmd_buffer_st();
+    auto entities = it.view<ecs::Entity>();
+
+    GAIA_EACH(it) {
+      cb.add<TransportAgent>(entities[i]);
+    }
+  });
+
+auto consumeAgents = w.system()
+  .all<TransportAgent>()
+  .on_each([](ecs::Iter& it) {
+    // Sees TransportAgent in the same update after produceAgents runs.
+  });
+
+w.add(produceAgents.entity(), ecs::Pair{ecs::DependsOn, consumeAgents.entity()});
+w.update();
+```
+
+Do not make direct structural changes inside the callback. Queue them through the iterator command buffer, or use a command buffer you own and commit it after query iteration. If work is deferred outside Gaia's system pass, Gaia-ECS cannot make those external mutations visible to direct Gaia systems until the application commits them before the dependent system runs.
 
 ## Data layouts
 By default, all data inside components are treated as an array of structures (AoS).
