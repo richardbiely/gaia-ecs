@@ -1964,6 +1964,36 @@ TEST_CASE("CommandBuffer") {
 		CHECK(wld.has(e, p));
 	}
 
+	SUBCASE("Delayed relation pair addition and removal") {
+		TestWorld twld;
+		ecs::CommandBufferST cb(wld);
+
+		auto rel = wld.add();
+		auto tgt = wld.add();
+		auto e = wld.add();
+		ecs::Pair pair(rel, tgt);
+
+		cb.add(e, pair);
+		CHECK_FALSE(wld.has(e, pair));
+		cb.commit();
+		CHECK(wld.has(e, pair));
+
+		cb.del(e, pair);
+		CHECK(wld.has(e, pair));
+		cb.commit();
+		CHECK_FALSE(wld.has(e, pair));
+
+		cb.add(e, static_cast<ecs::Entity>(pair));
+		CHECK_FALSE(wld.has(e, pair));
+		cb.commit();
+		CHECK(wld.has(e, pair));
+
+		cb.del(e, static_cast<ecs::Entity>(pair));
+		CHECK(wld.has(e, pair));
+		cb.commit();
+		CHECK_FALSE(wld.has(e, pair));
+	}
+
 	SUBCASE("Delayed entity addition to an existing entity") {
 		TestWorld twld;
 		ecs::CommandBufferST cb(wld);

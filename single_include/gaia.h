@@ -70007,6 +70007,15 @@ namespace gaia {
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
+				//! Requests a relationship pair to be added to entity @a entity.
+				//! \param entity Destination entity.
+				//! \param pair Relationship pair to add to @a entity.
+				void add(Entity entity, const Pair& pair) {
+					core::lock_scope lock(m_acc);
+
+					push_op({OpType::ADD_COMPONENT, 0, entity, (Entity)pair});
+				}
+
 				//! Requests a component @a T to be added to entity. Also sets its value.
 				//! \tparam T Component type
 				//! \param entity Destination entity
@@ -70014,7 +70023,7 @@ namespace gaia {
 				//! \warning Component @a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
-				template <typename T>
+				template <typename T, std::enable_if_t<!is_pair<std::remove_cv_t<std::remove_reference_t<T>>>::value, int> = 0>
 				void add(Entity entity, T&& value) {
 					verify_comp<T>();
 					core::lock_scope lock(m_acc);
@@ -70081,6 +70090,15 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
+				//! Requests removal of a relationship pair from entity @a entity.
+				//! \param entity Source entity.
+				//! \param pair Relationship pair to remove from @a entity.
+				void del(Entity entity, const Pair& pair) {
+					core::lock_scope lock(m_acc);
+
+					push_op({OpType::DEL_COMPONENT, 0, entity, (Entity)pair});
+				}
+
 			private:
 				//! Returns true if the op modifies a relationship between entities (e.g. adds or removes a component).
 				GAIA_NODISCARD bool is_rel(OpType t) const {
@@ -70102,6 +70120,28 @@ namespace gaia {
 						return m_temp2real[ti];
 
 					return EntityBad;
+				}
+
+				//! Rebuilds a Pair wrapper from its encoded entity form.
+				GAIA_NODISCARD Pair decode_pair(Entity pair) const {
+					GAIA_ASSERT(pair.pair());
+					return Pair(m_world.get(pair.id()), m_world.get(pair.gen()));
+				}
+
+				//! Replays a component or relationship pair addition.
+				void replay_add(Entity target, Entity object) {
+					if (object.pair())
+						World::EntityBuilder(m_world, target).add(decode_pair(object));
+					else
+						World::EntityBuilder(m_world, target).add(object);
+				}
+
+				//! Replays a component or relationship pair removal.
+				void replay_del(Entity target, Entity object) {
+					if (object.pair())
+						World::EntityBuilder(m_world, target).del(decode_pair(object));
+					else
+						World::EntityBuilder(m_world, target).del(object);
 				}
 
 				//! Returns true if a temporary entity was created and then destroyed within the same command buffer (
@@ -70325,13 +70365,13 @@ namespace gaia {
 										const Op& op = m_ops[i];
 										switch (op.type) {
 											case OpType::DEL_COMPONENT:
-												World::EntityBuilder(m_world, tgtReal).del(othReal);
+												replay_del(tgtReal, othReal);
 												break;
 											case OpType::ADD_COMPONENT:
-												World::EntityBuilder(m_world, tgtReal).add(othReal);
+												replay_add(tgtReal, othReal);
 												break;
 											case OpType::ADD_COMPONENT_DATA:
-												World::EntityBuilder(m_world, tgtReal).add(othReal);
+												replay_add(tgtReal, othReal);
 												GAIA_FALLTHROUGH;
 											case OpType::SET_COMPONENT: {
 												const auto& ec = m_world.m_recs.entities[tgtReal.id()];
@@ -70386,11 +70426,11 @@ namespace gaia {
 										}
 										// 2) DEL only
 										else if (hasDel) {
-											World::EntityBuilder(m_world, tgtReal).del(othReal);
+											replay_del(tgtReal, othReal);
 										}
 										// 3) ADD_WITH_DATA or ADD+SET = ADD_WITH_DATA
 										else if (hasAddData || (hasAdd && hasSet)) {
-											World::EntityBuilder(m_world, tgtReal).add(othReal);
+											replay_add(tgtReal, othReal);
 
 											const auto& ec = m_world.m_recs.entities[tgtReal.id()];
 											const auto row = tgtReal.kind() == EntityKind::EK_Uni ? 0U : ec.row;
@@ -70405,7 +70445,7 @@ namespace gaia {
 										}
 										// 4) ADD only
 										else if (hasAdd) {
-											World::EntityBuilder(m_world, tgtReal).add(othReal);
+											replay_add(tgtReal, othReal);
 										}
 										// 5) SET only
 										else if (hasSet) {
