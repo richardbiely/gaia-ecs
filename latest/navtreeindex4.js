@@ -39,8 +39,8 @@ var NAVTREEINDEX4 =
 "functions_type.html":[10,3,3],
 "functions_u.html":[10,3,0,20],
 "functions_v.html":[10,3,0,21],
-"functions_vars.html":[10,3,2,0],
 "functions_vars.html":[10,3,2],
+"functions_vars.html":[10,3,2,0],
 "functions_vars_b.html":[10,3,2,1],
 "functions_vars_c.html":[10,3,2,2],
 "functions_vars_d.html":[10,3,2,3],
@@ -129,6 +129,7 @@ var NAVTREEINDEX4 =
 "index.html#names-and-lookup":[2,1,2],
 "index.html#non-fragmenting-and-sparse-components":[2,1,4],
 "index.html#observers":[2,1,8],
+"index.html#observers-for-relation-pairs":[2,1,8,0],
 "index.html#parallel-execution":[2,2,15],
 "index.html#prefabs":[2,3,7],
 "index.html#priorities":[2,9,2],
@@ -157,6 +158,7 @@ var NAVTREEINDEX4 =
 "index.html#single-header":[4,0,2],
 "index.html#sorting":[2,2,14],
 "index.html#system-basics":[2,6,0],
+"index.html#system-callbacks-and-command-buffers":[2,6,3],
 "index.html#system-dependencies":[2,6,1],
 "index.html#system-jobs":[2,6,2],
 "index.html#systems":[2,6],
@@ -247,7 +249,5 @@ var NAVTREEINDEX4 =
 "structgaia_1_1cnt_1_1const__darr__ext__soa__iterator.html":[10,0,0,0,3],
 "structgaia_1_1cnt_1_1const__darr__soa__iterator.html":[10,0,0,0,4],
 "structgaia_1_1cnt_1_1const__page__iterator.html":[10,0,0,0,5],
-"structgaia_1_1cnt_1_1const__page__iterator__soa.html":[10,0,0,0,6],
-"structgaia_1_1cnt_1_1const__sarr__ext__soa__iterator.html":[10,0,0,0,7],
-"structgaia_1_1cnt_1_1const__sarr__soa__iterator.html":[10,0,0,0,8]
+"structgaia_1_1cnt_1_1const__page__iterator__soa.html":[10,0,0,0,6]
 };

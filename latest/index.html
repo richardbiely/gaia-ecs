@@ -199,6 +199,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#system-basics">System basics</a></li>
 <li><a class="el" href="index.html#system-dependencies">System dependencies</a></li>
 <li><a class="el" href="index.html#system-jobs">Systems and jobs</a></li>
+<li><a class="el" href="index.html#system-callbacks-and-command-buffers">System callbacks and command buffers</a></li>
 </ul>
 </li>
 <li><a class="el" href="index.html#data-layouts">Data layouts</a></li>
@@ -660,9 +661,9 @@ Component hooks</h3>
 <h3><a class="anchor" id="observers"></a>
 Observers</h3>
 <p>Observers are a mechanism that allows you to register to certain events and listen to them triggering. Similar to hooks, you can listen to add, del or set events. However, unlike hooks there can be any number of these per given component or entity.</p>
-<p>Observers can be looked at as reactive alternative to systems. They allow different parts of the application to react to something happening immediately.</p>
+<p>Observers can be looked at as a reactive alternative to systems. They allow different parts of the application to react to something happening immediately.</p>
 <p>The feature can be enabled by defining <code>GAIA_OBSERVERS_ENABLED 1</code>, and is enabled by default.</p>
-<p>Under the hood they use the query engine, just like systems. However, systems are meant to be used as a reqular part of the frame whereas observers are meant as a reaction to something. Their cost is less predictable, and because the event needs to be evaluated for each observer, listening to the event they can also be more costly.</p>
+<p>Under the hood they use the query engine, just like systems. Systems are meant to be used as a regular part of the frame. Observers are event reactions. Their cost is less predictable because events may be rare, happen in bursts, or not happen in a frame at all. If the same work needs to run predictably every frame, use a system instead.</p>
 <p>Because observers are query-backed, query shaping helpers such as <code>depth_order(...)</code> can be used on them as well when you want cached top-down breadth-first iteration over fragmenting hierarchies like <code>ChildOf</code>.</p>
 <p>Observers also expose the same query cache controls as plain queries. By default an observer keeps cached query state locally. Use <code>scope(ecs::QueryCacheScope::Shared)</code> only when many identical observer query shapes are rebuilt and you want them to reuse one shared cache entry. Use <code>kind(ecs::QueryCacheKind::None)</code> only for special cases where you explicitly do not want observer query caches.</p>
 <p>Observer events currently mean:</p><ul>
@@ -764,7 +765,36 @@ Observers</h3>
 <div class="line">});</div>
 <div class="line"><span class="comment">// OnSet triggered again after the callback completed.</span></div>
 <div class="line"><span class="comment">// For query writes, OnSet is delivered once per modified matching entity.</span></div>
-</div><!-- fragment --><h3><a class="anchor" id="bulk-editing"></a>
+</div><!-- fragment --><h4><a class="anchor" id="observers-for-relation-pairs"></a>
+Observers for relation pairs</h4>
+<p>Observers also work with relation pairs. Use them when a relation change should run code right away. The callback is normal user code. It can update a store, rebuild an index, notify gameplay code, or save work for a later pass.</p>
+<p>Use a wildcard target when every target of a relation should trigger the same code:</p>
+<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::Entity HomeOf = w.add();</div>
+<div class="line"> </div>
+<div class="line">w.observer()</div>
+<div class="line">  .event(ecs::ObserverEvent::OnAdd)</div>
+<div class="line">  .all(ecs::Pair(HomeOf, ecs::All))</div>
+<div class="line">  .on_each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="comment">// A source entity gained a HomeOf relation to some target.</span></div>
+<div class="line">    <span class="comment">// Update derived data here, or record work for a later system.</span></div>
+<div class="line">  });</div>
+</div><!-- fragment --><p>Use <code>OnDel</code> for removals:</p>
+<div class="fragment"><div class="line">w.observer()</div>
+<div class="line">  .event(ecs::ObserverEvent::OnDel)</div>
+<div class="line">  .all(ecs::Pair(HomeOf, ecs::All))</div>
+<div class="line">  .on_each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="comment">// A source entity lost a HomeOf relation.</span></div>
+<div class="line">  });</div>
+</div><!-- fragment --><p>Use an exact pair when only one target matters:</p>
+<div class="fragment"><div class="line">w.observer()</div>
+<div class="line">  .event(ecs::ObserverEvent::OnAdd)</div>
+<div class="line">  .all(ecs::Pair(HomeOf, specificHome))</div>
+<div class="line">  .on_each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="comment">// React only to HomeOf(specificHome).</span></div>
+<div class="line">  });</div>
+</div><!-- fragment --><p>Changing a relation target is structural (changes the entity shape). Replacing <code>(HomeOf, A)</code> with <code>(HomeOf, B)</code> triggers <code>OnDel</code> for the old pair and <code>OnAdd</code> for the new pair. It does not trigger <code>OnSet</code>.</p>
+<p>Wildcard pair observers can match more changes than exact-pair observers. Their cost depends on how often those changes happen, which is normal for event reactions.</p>
+<h3><a class="anchor" id="bulk-editing"></a>
 Bulk editing</h3>
 <p>Adding an entity to entity means it becomes a part of a new archetype. Like mentioned <a class="el" href="index.html#implementation">previously</a>, becoming a part of a new archetype means that all data associated with the entity needs to be moved to a new place. The more ids in the archetype the slower the move (empty components/tags are an exception because they do not carry any data). For this reason it is not advised to perform large number of separate additions / removals per frame.</p>
 <p>Instead, when adding or removing multiple entities/components at once it is more efficient doing it via bulk operations. This way only one archetype movement is performed in total rather than one per added/removed entity.</p>
@@ -2431,7 +2461,7 @@ Delayed execution</h2>
 <div class="line">cb.commit();</div>
 </div><!-- fragment --><p>If you try to make an unprotected structural change with GAIA_DEBUG enabled (set by default when Debug configuration is used) the framework will assert letting you know you are using it the wrong way.</p>
 <p>&gt;<b>NOTE:<br  />
-</b> There is one situation to be wary about with command buffers. Function <code>add</code> accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are a subject to race conditions. To avoid them, make sure that the component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, you need to call this anywhere before you run your system or a query: </p><div class="fragment"><div class="line"><span class="comment">// Register the component YourComponent in the world</span></div>
+</b> There is one situation to be wary about with command buffers. Function <code>add</code> accepting a component as template argument needs to make sure that the component is registered in the component cache. If it is not, it will be inserted. Registering a component is a structural change, so it is not safe while the world is locked for query or system iteration. As a result, when used from multiple threads, both CommandBufferST and CommandBufferMT are also subject to race conditions. To avoid both cases, make sure that component T has been registered in the world already. If you already added the component to some entity before, everything is fine. If you did not, call this before you run your system or query: </p><div class="fragment"><div class="line"><span class="comment">// Register the component YourComponent in the world</span></div>
 <div class="line">world.add&lt;YourComponent&gt;();</div>
 </div><!-- fragment --><p> &gt;Technically, template versions of functions <code>set</code> and <code>del</code> experience a similar issue. However, calling neither <code>set</code> nor <code>del</code> makes sense without a previous call to <code>add</code>. Such attempts are undefined behaviors (and reported by triggering an assertion).</p>
 <h3><a class="anchor" id="command-merging-rules"></a>
@@ -2612,6 +2642,75 @@ System jobs</h3>
 <div class="line">boundsJob.del();</div>
 <div class="line">moveJob.del();</div>
 </div><!-- fragment --><p><code>SchedJob::wait()</code> does not submit work. Submit explicitly before waiting.</p>
+<h3><a class="anchor" id="system-callbacks-and-command-buffers"></a>
+System callbacks and command buffers</h3>
+<p>System callbacks can queue structural changes with <code>Iter::cmd_buffer_st()</code>. This includes adding or removing already-registered components on the entities matched by the current query. Gaia-ECS commits that command buffer after the system query finishes and the world is unlocked.</p>
+<p>A later system in the same <code>World::update()</code> or <code>systems_run()</code> call can see those changes if it runs after the producer. This works across phase boundaries too. A phase boundary is a scheduler barrier, so commands from the earlier phase are committed before the later phase runs.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>NeedsAgent {};</div>
+<div class="line"><span class="keyword">struct </span>TransportAgent {};</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Register components before the system runs.</span></div>
+<div class="line">w.add&lt;NeedsAgent&gt;();</div>
+<div class="line">w.add&lt;TransportAgent&gt;();</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> produceAgents = w.system()</div>
+<div class="line">  .all&lt;NeedsAgent&gt;()</div>
+<div class="line">  .on_each([](ecs::Iter&amp; it) {</div>
+<div class="line">    ecs::CommandBufferST&amp; cb = it.cmd_buffer_st();</div>
+<div class="line">    <span class="keyword">auto</span> entities = it.view&lt;ecs::Entity&gt;();</div>
+<div class="line"> </div>
+<div class="line">    GAIA_EACH(it) {</div>
+<div class="line">      cb.add&lt;TransportAgent&gt;(entities[i]);</div>
+<div class="line">    }</div>
+<div class="line">  });</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> consumeAgents = w.system()</div>
+<div class="line">  .all&lt;TransportAgent&gt;()</div>
+<div class="line">  .on_each([](ecs::Iter&amp; it) {</div>
+<div class="line">    <span class="comment">// Sees TransportAgent in the same update after produceAgents runs.</span></div>
+<div class="line">  });</div>
+<div class="line"> </div>
+<div class="line">w.add(produceAgents.entity(), ecs::Pair{ecs::DependsOn, consumeAgents.entity()});</div>
+<div class="line">w.update();</div>
+</div><!-- fragment --><p>A system callback can also run another retained Gaia query. This is useful when the system is triggered by one query, but the real work happens over a different cached query. For example, a tick system can run a retained query over gameplay entities. Writes made by that nested query are applied immediately. Later systems in the same <code>World::update()</code> or <code>systems_run()</code> call can see them if they run after the producer.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>SimTick {};</div>
+<div class="line"><span class="keyword">struct </span>TripNeed {</div>
+<div class="line">  uint32_t requests = 0;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">w.add&lt;SimTick&gt;();</div>
+<div class="line">w.add&lt;TripNeed&gt;();</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> tripNeeds = w.query().all&lt;TripNeed&amp;&gt;();</div>
+<div class="line"><span class="keyword">struct </span>RequestProducerCtx {</div>
+<div class="line">  ecs::Query* tripNeeds;</div>
+<div class="line">};</div>
+<div class="line">RequestProducerCtx requestCtx{&amp;tripNeeds};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> produceRequests = w.system()</div>
+<div class="line">  .ctx(&amp;requestCtx)</div>
+<div class="line">  .all&lt;SimTick&gt;()</div>
+<div class="line">  .writes&lt;TripNeed&gt;() <span class="comment">// Scheduling metadata for work done by the nested query.</span></div>
+<div class="line">  .on_each([](ecs::Iter&amp; tickIt) {</div>
+<div class="line">    <span class="keyword">auto</span>&amp; ctx = *<span class="keyword">static_cast&lt;</span>RequestProducerCtx*<span class="keyword">&gt;</span>(tickIt.ctx());</div>
+<div class="line"> </div>
+<div class="line">    ctx.tripNeeds-&gt;each([](ecs::Iter&amp; tripIt) {</div>
+<div class="line">      <span class="keyword">auto</span> needs = tripIt.view_mut&lt;TripNeed&gt;();</div>
+<div class="line">      GAIA_EACH(tripIt) {</div>
+<div class="line">        ++needs[i].requests;</div>
+<div class="line">      }</div>
+<div class="line">    });</div>
+<div class="line">  });</div>
+</div><!-- fragment --><p>Declare custom reads or writes on the outer system for component data used only by the nested query. Gaia-ECS cannot infer that from the outer system's own terms.</p>
+<p>Do not make direct structural changes inside the callback. Queue them with the iterator command buffer, or use your own command buffer and commit it after query iteration.</p>
+<p>When moving existing application work into Gaia systems, move dependent producer and consumer work together. A direct Gaia consumer sees the world as it exists when that system runs. It cannot see changes that the application still keeps in an external queue.</p>
+<p>Good migration shapes:</p>
+<ul>
+<li>move the producer into a Gaia system before moving direct consumers that depend on it.</li>
+<li>move the whole producer/consumer chain into Gaia phases.</li>
+<li>or keep the consumer outside Gaia until the producer commits before Gaia systems run.</li>
+</ul>
+<p>If a producer must stay outside Gaia, run it and commit its command buffer before the dependent Gaia system runs. If it runs after <code>systems_run()</code>, Gaia systems will not see its changes until the next update.</p>
 <h2><a class="anchor" id="data-layouts"></a>
 Data layouts</h2>
 <p>By default, all data inside components are treated as an array of structures (AoS). This is the natural behavior of the language and what you would normally expect.</p>

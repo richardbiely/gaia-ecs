@@ -42,7 +42,9 @@ var NAVTREE =
         [ "Component presence", "index.html#component-presence", null ],
         [ "Add or remove component", "index.html#add-or-remove-component", null ],
         [ "Component hooks", "index.html#component-hooks", null ],
-        [ "Observers", "index.html#observers", null ],
+        [ "Observers", "index.html#observers", [
+          [ "Observers for relation pairs", "index.html#observers-for-relation-pairs", null ]
+        ] ],
         [ "Bulk editing", "index.html#bulk-editing", null ],
         [ "Set or get component value", "index.html#set-or-get-component-value", null ],
         [ "Copy entity", "index.html#copy-entity", null ],
@@ -96,7 +98,8 @@ var NAVTREE =
       [ "Systems", "index.html#systems", [
         [ "System basics", "index.html#system-basics", null ],
         [ "System dependencies", "index.html#system-dependencies", null ],
-        [ "System jobs", "index.html#system-jobs", null ]
+        [ "System jobs", "index.html#system-jobs", null ],
+        [ "System callbacks and command buffers", "index.html#system-callbacks-and-command-buffers", null ]
       ] ],
       [ "Data layouts", "index.html#data-layouts", null ],
       [ "Serialization", "index.html#serialization", [
@@ -175,10 +178,10 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4",
 "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afa9f8c48f61d4514791fd154ccfbf15a",
 "functions_func_d.html",
-"structgaia_1_1cnt_1_1const__sparse__iterator.html",
-"structgaia_1_1ecs_1_1Delete__.html",
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae06ddc6fe2fada3924f58bfb8196cc76",
-"structgaia_1_1mt_1_1Futex.html#a969a55f248b58be332b77226323ba66baba04f833425d12e668b7acf747192ffe"
+"structgaia_1_1cnt_1_1const__sarr__ext__soa__iterator.html",
+"structgaia_1_1ecs_1_1Component_1_1InternalData.html#afa02b86ecf358dbd7234bd20fe55b845",
+"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ad55f64fbda6e194a97ab8f6d82e82532",
+"structgaia_1_1mt_1_1Futex.html#a84edabe1e9ed58c2507e0409f518b185"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
