@@ -150,10 +150,13 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a01a59c16ea0a57aef920b2549bea46a4" id="r_a01a59c16ea0a57aef920b2549bea46a4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a01a59c16ea0a57aef920b2549bea46a4">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> other)</td></tr>
 <tr class="memdesc:a01a59c16ea0a57aef920b2549bea46a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests an entity <em>other</em> to be added to entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a01a59c16ea0a57aef920b2549bea46a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a425120ddab75c4dd3230b9cd7a8e958d" id="r_a425120ddab75c4dd3230b9cd7a8e958d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a425120ddab75c4dd3230b9cd7a8e958d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a425120ddab75c4dd3230b9cd7a8e958d">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
-<tr class="memdesc:a425120ddab75c4dd3230b9cd7a8e958d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to entity. Also sets its value.  <br /></td></tr>
-<tr class="separator:a425120ddab75c4dd3230b9cd7a8e958d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6dd8ec4aae2d21ce5354bd82cea0d99f" id="r_a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#a6dd8ec4aae2d21ce5354bd82cea0d99f">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
+<tr class="memdesc:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a relationship pair to be added to entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:a6dd8ec4aae2d21ce5354bd82cea0d99f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3" id="r_aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplParams" colspan="2">template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
+<tr class="memitem:aaad838857370b6ff135d71c38ff3e5a3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#aaad838857370b6ff135d71c38ff3e5a3">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
+<tr class="memdesc:aaad838857370b6ff135d71c38ff3e5a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests a component <em>T</em> to be added to entity. Also sets its value.  <br /></td></tr>
+<tr class="separator:aaad838857370b6ff135d71c38ff3e5a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad3553ec0e683738e595fa0894bd3be50" id="r_ad3553ec0e683738e595fa0894bd3be50"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:ad3553ec0e683738e595fa0894bd3be50"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad3553ec0e683738e595fa0894bd3be50">set</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:ad3553ec0e683738e595fa0894bd3be50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests component data to be set to given values for a given entity.  <br /></td></tr>
@@ -168,6 +171,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ad4e8bf7b832dc14d12ca321492ad824d" id="r_ad4e8bf7b832dc14d12ca321492ad824d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad4e8bf7b832dc14d12ca321492ad824d">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:ad4e8bf7b832dc14d12ca321492ad824d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of entity <em>object</em> from entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ad4e8bf7b832dc14d12ca321492ad824d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad73e3d38578a6013daf2ec4607738424" id="r_ad73e3d38578a6013daf2ec4607738424"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html#ad73e3d38578a6013daf2ec4607738424">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>)</td></tr>
+<tr class="memdesc:ad73e3d38578a6013daf2ec4607738424"><td class="mdescLeft">&#160;</td><td class="mdescRight">Requests removal of a relationship pair from entity <em>entity</em>.  <br /></td></tr>
+<tr class="separator:ad73e3d38578a6013daf2ec4607738424"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7031a0a1fc0707d1e0c9249c0af3dd24" id="r_a7031a0a1fc0707d1e0c9249c0af3dd24"><td class="memItemLeft" align="right" valign="top"><a id="a7031a0a1fc0707d1e0c9249c0af3dd24" name="a7031a0a1fc0707d1e0c9249c0af3dd24"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>commit</b> ()</td></tr>
 <tr class="memdesc:a7031a0a1fc0707d1e0c9249c0af3dd24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Commits all queued changes. <br /></td></tr>
@@ -179,7 +185,7 @@ class gaia::ecs::detail::CommandBuffer&lt; AccessContext &gt;</div><p>Buffer for
 <p>Adding and removing components and entities inside World::each or can result in changes of archetypes or chunk structure. This would lead to an undefined behavior. Therefore, such operations have to be executed after the loop is done. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a03af1860a176d3fb9c7619c0d5d337c0" name="a03af1860a176d3fb9c7619c0d5d337c0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a03af1860a176d3fb9c7619c0d5d337c0">&#9670;&#160;</a></span>add() <span class="overload">[1/4]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a03af1860a176d3fb9c7619c0d5d337c0">&#9670;&#160;</a></span>add() <span class="overload">[1/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -223,8 +229,55 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a6dd8ec4aae2d21ce5354bd82cea0d99f" name="a6dd8ec4aae2d21ce5354bd82cea0d99f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6dd8ec4aae2d21ce5354bd82cea0d99f">&#9670;&#160;</a></span>add() <span class="overload">[2/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::add </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;&#160;</td>
+          <td class="paramname"><em>pair</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests a relationship pair to be added to entity <em>entity</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Destination entity. </td></tr>
+    <tr><td class="paramname">pair</td><td>Relationship pair to add to <em>entity</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a01a59c16ea0a57aef920b2549bea46a4" name="a01a59c16ea0a57aef920b2549bea46a4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a01a59c16ea0a57aef920b2549bea46a4">&#9670;&#160;</a></span>add() <span class="overload">[2/4]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a01a59c16ea0a57aef920b2549bea46a4">&#9670;&#160;</a></span>add() <span class="overload">[3/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -270,15 +323,15 @@ template&lt;typename AccessContext &gt; </div>
 
 </div>
 </div>
-<a id="a425120ddab75c4dd3230b9cd7a8e958d" name="a425120ddab75c4dd3230b9cd7a8e958d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a425120ddab75c4dd3230b9cd7a8e958d">&#9670;&#160;</a></span>add() <span class="overload">[3/4]</span></h2>
+<a id="aaad838857370b6ff135d71c38ff3e5a3" name="aaad838857370b6ff135d71c38ff3e5a3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaad838857370b6ff135d71c38ff3e5a3">&#9670;&#160;</a></span>add() <span class="overload">[4/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
 template&lt;typename AccessContext &gt; </div>
 <div class="memtemplate">
-template&lt;typename T &gt; </div>
+template&lt;typename T , std::enable_if_t&lt;!<a class="el" href="structgaia_1_1ecs_1_1is__pair.html">is_pair</a>&lt; std::remove_cv_t&lt; std::remove_reference_t&lt; T &gt; &gt; &gt;::value, int &gt;  = 0&gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -327,7 +380,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="a99b351797d484a7da9660b7892087cef" name="a99b351797d484a7da9660b7892087cef"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a99b351797d484a7da9660b7892087cef">&#9670;&#160;</a></span>add() <span class="overload">[4/4]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a99b351797d484a7da9660b7892087cef">&#9670;&#160;</a></span>add() <span class="overload">[5/5]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -395,7 +448,7 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 </div>
 <a id="a3e59265a3b6b69a8ae40311bd75bfbcf" name="a3e59265a3b6b69a8ae40311bd75bfbcf"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3e59265a3b6b69a8ae40311bd75bfbcf">&#9670;&#160;</a></span>del() <span class="overload">[1/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3e59265a3b6b69a8ae40311bd75bfbcf">&#9670;&#160;</a></span>del() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -431,7 +484,7 @@ template&lt;typename AccessContext &gt; </div>
 </div>
 </div>
 <a id="ac7eedd3e028580614093c1319358a410" name="ac7eedd3e028580614093c1319358a410"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac7eedd3e028580614093c1319358a410">&#9670;&#160;</a></span>del() <span class="overload">[2/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ac7eedd3e028580614093c1319358a410">&#9670;&#160;</a></span>del() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -475,8 +528,55 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="ad73e3d38578a6013daf2ec4607738424" name="ad73e3d38578a6013daf2ec4607738424"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad73e3d38578a6013daf2ec4607738424">&#9670;&#160;</a></span>del() <span class="overload">[3/4]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename AccessContext &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.html">gaia::ecs::detail::CommandBuffer</a>&lt; AccessContext &gt;::del </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> &amp;&#160;</td>
+          <td class="paramname"><em>pair</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Requests removal of a relationship pair from entity <em>entity</em>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Source entity. </td></tr>
+    <tr><td class="paramname">pair</td><td>Relationship pair to remove from <em>entity</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="ad4e8bf7b832dc14d12ca321492ad824d" name="ad4e8bf7b832dc14d12ca321492ad824d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad4e8bf7b832dc14d12ca321492ad824d">&#9670;&#160;</a></span>del() <span class="overload">[3/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad4e8bf7b832dc14d12ca321492ad824d">&#9670;&#160;</a></span>del() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
