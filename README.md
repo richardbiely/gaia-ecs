@@ -2925,6 +2925,8 @@ w.update();
 ```
 Letting systems run via **World::update** automatically is the preferred path. Gaia-ECS can resolve system order, phase boundaries, and safe parallel work for you.
 
+If an external engine loop calls `w.systems_run()` directly, call `w.frame_cleanup()` and then `w.frame_end()` once per frame. `frame_cleanup()` finalizes deferred deletion and garbage collection without running systems again. `frame_end()` flushes logs and emits the profiler frame marker.
+
 ### System dependencies
 `World::update()` uses a clear rule for system `DependsOn`:
 

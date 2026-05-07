@@ -74,6 +74,23 @@ TEST_CASE("System - simple") {
 	CHECK_FALSE(sys3_run_before_sys2);
 }
 
+TEST_CASE("World - frame cleanup does not run systems") {
+	TestWorld twld;
+	uint32_t sysCnt = 0;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {0, 0, 0});
+	wld.system().all<Position>().on_each([&](ecs::Iter& it) {
+		sysCnt += it.size();
+	});
+
+	wld.del(e);
+	wld.frame_cleanup();
+
+	CHECK(sysCnt == 0);
+	CHECK_FALSE(wld.has(e));
+}
+
 TEST_CASE("System - builder exposes kind and scope") {
 	TestWorld twld;
 

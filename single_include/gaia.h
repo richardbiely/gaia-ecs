@@ -60231,21 +60231,51 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Performs various internal operations related to the end of the frame such as
-			//! memory cleanup and other management operations which keep the system healthy.
-			void update() {
-				systems_run();
-
+			//! Performs deferred cleanup for the current frame.
+			//!
+			//! This finalizes deferred entity deletion and runs Gaia-ECS garbage collection. Use this after an
+			//! external loop calls systems_run() itself, or when a frame has no system pass but still needs world cleanup.
+			//!
+			//! \warning This does not execute registered systems. Call systems_run() first when the frame should run systems.
+			//! \see systems_run()
+			//! \see frame_end()
+			//! \see update()
+			void frame_cleanup() {
 				// Finish deleting entities
 				del_finalize();
 
 				// Run garbage collector
 				gc();
+			}
 
+			//! Marks the end of the current frame.
+			//!
+			//! This flushes pending log output and emits the profiler frame marker. External loops that call
+			//! systems_run() directly should usually call frame_cleanup() and then frame_end() once per frame.
+			//!
+			//! \warning This does not execute registered systems or finalize deferred deletion.
+			//! \see systems_run()
+			//! \see frame_cleanup()
+			//! \see update()
+			void frame_end() {
 				util::log_flush();
 
 				// Signal the end of the frame
 				GAIA_PROF_FRAME();
+			}
+
+			//! Runs systems and then finishes the current frame.
+			//!
+			//! This is the normal frame step. It executes registered systems through systems_run(), then calls
+			//! frame_cleanup() and frame_end().
+			//!
+			//! \see systems_run()
+			//! \see frame_cleanup()
+			//! \see frame_end()
+			void update() {
+				systems_run();
+				frame_cleanup();
+				frame_end();
 			}
 
 			//! Performs world shutdown maintenance without running systems or observers.
