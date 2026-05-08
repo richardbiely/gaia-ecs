@@ -5923,7 +5923,6 @@ namespace gaia {
 } // namespace gaia
 
 #include <cstddef>
-#include <new>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -5935,8 +5934,11 @@ namespace gaia {
 			using size_type = uint32_t;
 		} // namespace sarr_detail
 
-		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Fixed-size stack array with AoS storage.
 		//! Interface compatiblity with std::array where it matters.
+		//! \tparam T Element type stored directly in the array.
+		//! \tparam N Number of elements and fixed capacity.
+		//! \note This container can be used in constexpr environment.
 		template <typename T, sarr_detail::size_type N>
 		class sarr {
 		public:
@@ -5957,32 +5959,23 @@ namespace gaia {
 
 			static constexpr size_t value_size = sizeof(T);
 			static constexpr size_type extent = N;
-			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
-			mem::raw_data_holder<T, allocated_bytes> m_data;
+			T m_data[N];
 
-			constexpr sarr() noexcept {
-				core::call_ctor_raw_n(data(), extent);
-			}
+			constexpr sarr() noexcept = default;
 
-			//! Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr<int,10> tmp{} does not
-			//! zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
+			//! Explicit value-initialization constructor for call sites that want zero/value initialization to be obvious.
+			//! \note Even though sarr is an aggregate type and we could zero-initialize by doing sarr<int,10> tmp{}, we keep
+			//!       this function around for design compatibility with other containers that are not aggregate types.
 			constexpr sarr(core::zero_t) noexcept {
-				core::call_ctor_raw_n(data(), extent);
-
-				// explicit zeroing
 				for (auto i = (size_type)0; i < extent; ++i)
-					operator[](i) = {};
+					m_data[i] = {};
 			}
 
-			GAIA_CONSTEXPR_DTOR ~sarr() {
-				core::call_dtor_n(data(), extent);
-			}
+			GAIA_CONSTEXPR_DTOR ~sarr() = default;
 
 			template <typename InputIt>
-			constexpr sarr(InputIt first, InputIt last) noexcept {
-				core::call_ctor_raw_n(data(), extent);
-
+			constexpr sarr(InputIt first, InputIt last) noexcept: sarr() {
 				const auto count = (size_type)core::distance(first, last);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
@@ -6000,14 +5993,9 @@ namespace gaia {
 
 			constexpr sarr(std::initializer_list<T> il): sarr(il.begin(), il.end()) {}
 
-			constexpr sarr(const sarr& other): sarr(other.begin(), other.end()) {}
+			constexpr sarr(const sarr& other) = default;
 
-			constexpr sarr(sarr&& other) noexcept {
-				GAIA_ASSERT(core::addressof(other) != this);
-
-				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T, false>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
-			}
+			constexpr sarr(sarr&& other) noexcept = default;
 
 			sarr& operator=(std::initializer_list<T> il) {
 				*this = sarr(il.begin(), il.end());
@@ -6017,10 +6005,8 @@ namespace gaia {
 			constexpr sarr& operator=(const sarr& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				core::call_ctor_raw_n(data(), extent);
-				mem::copy_elements<T, false>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((const uint8_t*)&other.m_data[0]), other.size(), 0, extent,
-						other.extent);
+				for (size_type i = 0; i < extent; ++i)
+					m_data[i] = other.m_data[i];
 
 				return *this;
 			}
@@ -6028,10 +6014,8 @@ namespace gaia {
 			constexpr sarr& operator=(sarr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				core::call_ctor_raw_n(data(), extent);
-				mem::move_elements<T, false>(
-						GAIA_ACC((uint8_t*)&m_data[0]), GAIA_ACC((uint8_t*)&other.m_data[0]), other.size(), 0, extent,
-						other.extent);
+				for (size_type i = 0; i < extent; ++i)
+					m_data[i] = GAIA_MOV(other.m_data[i]);
 
 				return *this;
 			}
@@ -6041,21 +6025,21 @@ namespace gaia {
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
 			GAIA_NODISCARD constexpr pointer data() noexcept {
-				return GAIA_ACC((pointer)&m_data[0]);
+				return &m_data[0];
 			}
 
 			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
-				return GAIA_ACC((const_pointer)&m_data[0]);
+				return &m_data[0];
 			}
 
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
+				return m_data[pos];
 			}
 
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
-				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
+				return m_data[pos];
 			}
 
 			GAIA_CLANG_WARNING_POP()
@@ -6065,7 +6049,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return begin() == end();
+				return false;
 			}
 
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
@@ -6093,15 +6077,15 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr auto begin() noexcept {
-				return iterator(GAIA_ACC(&m_data[0]));
+				return iterator(&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]));
+				return const_iterator(&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
-				return const_iterator(GAIA_ACC(&m_data[0]));
+				return const_iterator(&m_data[0]);
 			}
 
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
@@ -6117,27 +6101,27 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr auto end() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
+				return iterator(&m_data[0] + size());
 			}
 
 			GAIA_NODISCARD constexpr auto end() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(&m_data[0] + size());
 			}
 
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
+				return const_iterator(&m_data[0] + size());
 			}
 
 			GAIA_NODISCARD constexpr auto rend() noexcept {
-				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
+				return iterator(&m_data[0] - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+				return const_iterator(&m_data[0] - 1);
 			}
 
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
-				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
+				return const_iterator(&m_data[0] - 1);
 			}
 
 			GAIA_NODISCARD constexpr bool operator==(const sarr& other) const {
@@ -17552,8 +17536,10 @@ namespace gaia {
 			}
 		};
 
-		//! Array of elements of type \tparam T with fixed size and capacity \tparam N allocated on stack.
+		//! Fixed-size stack array with SoA storage.
 		//! Interface compatiblity with std::array where it matters.
+		//! \tparam T Element type stored directly in the array.
+		//! \tparam N Number of elements and fixed capacity.
 		template <typename T, sarr_soa_detail::size_type N>
 		class sarr_soa {
 			static_assert(mem::is_soa_layout_v<T>, "sarr_soa can be used only with soa types");
@@ -17579,11 +17565,11 @@ namespace gaia {
 
 			mem::raw_data_holder<T, allocated_bytes> m_data;
 
-			constexpr sarr_soa() noexcept = default;
+			sarr_soa() noexcept = default;
 
 			//! Zero-initialization constructor. Because sarr_soa is not aggretate type, doing: sarr_soa<int,10> tmp{} does
 			//! not zero-initialize its internals. We need to be explicit about our intent and use a special constructor.
-			constexpr sarr_soa(core::zero_t) noexcept {
+			sarr_soa(core::zero_t) noexcept {
 				// explicit zeroing
 				for (auto i = (size_type)0; i < extent; ++i)
 					operator[](i) = {};
@@ -17592,7 +17578,7 @@ namespace gaia {
 			~sarr_soa() = default;
 
 			template <typename InputIt>
-			constexpr sarr_soa(InputIt first, InputIt last) noexcept {
+			sarr_soa(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)core::distance(first, last);
 
 				if constexpr (std::is_pointer_v<InputIt>) {
@@ -17608,11 +17594,11 @@ namespace gaia {
 				}
 			}
 
-			constexpr sarr_soa(std::initializer_list<T> il): sarr_soa(il.begin(), il.end()) {}
+			sarr_soa(std::initializer_list<T> il): sarr_soa(il.begin(), il.end()) {}
 
-			constexpr sarr_soa(const sarr_soa& other): sarr_soa(other.begin(), other.end()) {}
+			sarr_soa(const sarr_soa& other): sarr_soa(other.begin(), other.end()) {}
 
-			constexpr sarr_soa(sarr_soa&& other) noexcept {
+			sarr_soa(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T, true>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
@@ -17623,7 +17609,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr sarr_soa& operator=(const sarr_soa& other) {
+			sarr_soa& operator=(const sarr_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::copy_elements<T, true>(
@@ -17633,7 +17619,7 @@ namespace gaia {
 				return *this;
 			}
 
-			constexpr sarr_soa& operator=(sarr_soa&& other) noexcept {
+			sarr_soa& operator=(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T, true>(
@@ -17647,20 +17633,20 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-			GAIA_NODISCARD constexpr pointer data() noexcept {
+			GAIA_NODISCARD pointer data() noexcept {
 				return GAIA_ACC((pointer)&m_data[0]);
 			}
 
-			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
+			GAIA_NODISCARD const_pointer data() const noexcept {
 				return GAIA_ACC((const_pointer)&m_data[0]);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
+			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
@@ -17672,7 +17658,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
-				return begin() == end();
+				return false;
 			}
 
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
@@ -17683,78 +17669,78 @@ namespace gaia {
 				return N;
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
+			GAIA_NODISCARD decltype(auto) front() noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
+			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				return *begin();
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
+			GAIA_NODISCARD decltype(auto) back() noexcept {
 				return (operator[])(N - 1);
 			}
 
-			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
+			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				return operator[](N - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto begin() noexcept {
+			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
-			GAIA_NODISCARD constexpr auto begin() const noexcept {
+			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
-			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
+			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
-			GAIA_NODISCARD constexpr auto rbegin() noexcept {
+			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
+			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator(m_data, extent, size() - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
+			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator(m_data, extent, size() - 1);
 			}
 
-			GAIA_NODISCARD constexpr auto end() noexcept {
+			GAIA_NODISCARD auto end() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
-			GAIA_NODISCARD constexpr auto end() const noexcept {
+			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
-			GAIA_NODISCARD constexpr auto cend() const noexcept {
+			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
-			GAIA_NODISCARD constexpr auto rend() noexcept {
+			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
-			GAIA_NODISCARD constexpr auto rend() const noexcept {
+			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
-			GAIA_NODISCARD constexpr auto crend() const noexcept {
+			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
-			GAIA_NODISCARD constexpr bool operator==(const sarr_soa& other) const {
+			GAIA_NODISCARD bool operator==(const sarr_soa& other) const {
 				for (size_type i = 0; i < N; ++i)
 					if (!(operator[](i) == other[i]))
 						return false;
 				return true;
 			}
 
-			GAIA_NODISCARD constexpr bool operator!=(const sarr_soa& other) const {
+			GAIA_NODISCARD bool operator!=(const sarr_soa& other) const {
 				return !operator==(other);
 			}
 
@@ -17773,13 +17759,13 @@ namespace gaia {
 
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
-			constexpr sarr_soa<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
+			sarr_soa<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
 
 		template <typename T, uint32_t N>
-		constexpr sarr_soa<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
+		sarr_soa<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
