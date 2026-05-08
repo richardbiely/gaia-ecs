@@ -596,7 +596,7 @@ $(document).ready(function(){initNavTree('config__core_8h_source.html',''); init
 <div class="line"><a id="l00533" name="l00533"></a><span class="lineno">  533</span><span class="preprocessor">#if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC</span></div>
 <div class="line"><a id="l00534" name="l00534"></a><span class="lineno">  534</span><span class="preprocessor">  #define GAIA_LAMBDAINLINE __attribute__((always_inline))</span></div>
 <div class="line"><a id="l00535" name="l00535"></a><span class="lineno">  535</span><span class="preprocessor">#elif GAIA_COMPILER_MSVC</span></div>
-<div class="line"><a id="l00536" name="l00536"></a><span class="lineno">  536</span><span class="preprocessor">  #if _MSC_VER &gt;= 1927 &amp;&amp; _MSVC_LANG &gt; 202002L </span><span class="comment">// MSVC 16.7 or newer &amp;&amp;�/std:c++latest</span></div>
+<div class="line"><a id="l00536" name="l00536"></a><span class="lineno">  536</span><span class="preprocessor">  #if _MSC_VER &gt;= 1927 &amp;&amp; _MSVC_LANG &gt; 202002L </span><span class="comment">// MSVC 16.7 or newer &amp;&amp; /std:c++latest</span></div>
 <div class="line"><a id="l00537" name="l00537"></a><span class="lineno">  537</span><span class="preprocessor">    #define GAIA_LAMBDAINLINE [[msvc::forceinline]]</span></div>
 <div class="line"><a id="l00538" name="l00538"></a><span class="lineno">  538</span><span class="preprocessor">  #else</span></div>
 <div class="line"><a id="l00539" name="l00539"></a><span class="lineno">  539</span><span class="preprocessor">    #define GAIA_LAMBDAINLINE</span></div>
@@ -623,121 +623,127 @@ $(document).ready(function(){initNavTree('config__core_8h_source.html',''); init
 <div class="line"><a id="l00560" name="l00560"></a><span class="lineno">  560</span><span class="preprocessor">  #define GAIA_ASSUME(...)</span></div>
 <div class="line"><a id="l00561" name="l00561"></a><span class="lineno">  561</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00562" name="l00562"></a><span class="lineno">  562</span> </div>
-<div class="line"><a id="l00563" name="l00563"></a><span class="lineno">  563</span><span class="comment">//------------------------------------------------------------------------------</span></div>
-<div class="line"><a id="l00564" name="l00564"></a><span class="lineno">  564</span> </div>
-<div class="line"><a id="l00565" name="l00565"></a><span class="lineno">  565</span><span class="preprocessor">#if GAIA_COMPILER_MSVC</span></div>
-<div class="line"><a id="l00566" name="l00566"></a><span class="lineno">  566</span><span class="preprocessor">  #define GAIA_IMPORT __declspec(dllimport)</span></div>
-<div class="line"><a id="l00567" name="l00567"></a><span class="lineno">  567</span><span class="preprocessor">  #define GAIA_EXPORT __declspec(dllexport)</span></div>
-<div class="line"><a id="l00568" name="l00568"></a><span class="lineno">  568</span><span class="preprocessor">  #define GAIA_HIDDEN</span></div>
-<div class="line"><a id="l00569" name="l00569"></a><span class="lineno">  569</span><span class="preprocessor">#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC</span></div>
-<div class="line"><a id="l00570" name="l00570"></a><span class="lineno">  570</span><span class="preprocessor">  #define GAIA_IMPORT __attribute__((visibility(&quot;default&quot;)))</span></div>
-<div class="line"><a id="l00571" name="l00571"></a><span class="lineno">  571</span><span class="preprocessor">  #define GAIA_EXPORT __attribute__((visibility(&quot;default&quot;)))</span></div>
-<div class="line"><a id="l00572" name="l00572"></a><span class="lineno">  572</span><span class="preprocessor">  #define GAIA_HIDDEN __attribute__((visibility(&quot;hidden&quot;)))</span></div>
-<div class="line"><a id="l00573" name="l00573"></a><span class="lineno">  573</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00574" name="l00574"></a><span class="lineno">  574</span> </div>
-<div class="line"><a id="l00575" name="l00575"></a><span class="lineno">  575</span><span class="preprocessor">#define GAIA_API</span></div>
-<div class="line"><a id="l00576" name="l00576"></a><span class="lineno">  576</span><span class="comment">// NOTE: Gaia is currently a header-only library so exporting/importing should not be necessary</span></div>
-<div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span><span class="comment">// #if defined(GAIA_USE_DLL) // Use DLL file (defined by the executable)</span></div>
-<div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span><span class="comment">//  #define GAIA_API GAIA_IMPORT</span></div>
-<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span><span class="comment">// #elif defined(GAIA_GEN_DLL) // Generate DLL file (defined inside DLL)</span></div>
-<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span><span class="comment">//  #define GAIA_API GAIA_EXPORT</span></div>
-<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span><span class="comment">// #else</span></div>
-<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span><span class="comment">//  #define GAIA_API</span></div>
-<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span><span class="comment">// #endif</span></div>
-<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span> </div>
-<div class="line"><a id="l00585" name="l00585"></a><span class="lineno">  585</span><span class="comment">//------------------------------------------------------------------------------</span></div>
-<div class="line"><a id="l00586" name="l00586"></a><span class="lineno">  586</span><span class="comment">// Warning-related macros and settings</span></div>
-<div class="line"><a id="l00587" name="l00587"></a><span class="lineno">  587</span><span class="comment">// We always set warnings as errors and disable ones we don&#39;t care about.</span></div>
-<div class="line"><a id="l00588" name="l00588"></a><span class="lineno">  588</span><span class="comment">// Sometimes in only limited range of code or around 3rd party includes.</span></div>
-<div class="line"><a id="l00589" name="l00589"></a><span class="lineno">  589</span><span class="comment">//------------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00563" name="l00563"></a><span class="lineno">  563</span><span class="preprocessor">#if defined(__cpp_constexpr) &amp;&amp; GAIA_CPP_VERSION(201907L)</span></div>
+<div class="line"><a id="l00564" name="l00564"></a><span class="lineno">  564</span><span class="preprocessor">  #define GAIA_CONSTEXPR_DTOR constexpr</span></div>
+<div class="line"><a id="l00565" name="l00565"></a><span class="lineno">  565</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00566" name="l00566"></a><span class="lineno">  566</span><span class="preprocessor">  #define GAIA_CONSTEXPR_DTOR</span></div>
+<div class="line"><a id="l00567" name="l00567"></a><span class="lineno">  567</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00568" name="l00568"></a><span class="lineno">  568</span> </div>
+<div class="line"><a id="l00569" name="l00569"></a><span class="lineno">  569</span><span class="comment">//------------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00570" name="l00570"></a><span class="lineno">  570</span> </div>
+<div class="line"><a id="l00571" name="l00571"></a><span class="lineno">  571</span><span class="preprocessor">#if GAIA_COMPILER_MSVC</span></div>
+<div class="line"><a id="l00572" name="l00572"></a><span class="lineno">  572</span><span class="preprocessor">  #define GAIA_IMPORT __declspec(dllimport)</span></div>
+<div class="line"><a id="l00573" name="l00573"></a><span class="lineno">  573</span><span class="preprocessor">  #define GAIA_EXPORT __declspec(dllexport)</span></div>
+<div class="line"><a id="l00574" name="l00574"></a><span class="lineno">  574</span><span class="preprocessor">  #define GAIA_HIDDEN</span></div>
+<div class="line"><a id="l00575" name="l00575"></a><span class="lineno">  575</span><span class="preprocessor">#elif GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC</span></div>
+<div class="line"><a id="l00576" name="l00576"></a><span class="lineno">  576</span><span class="preprocessor">  #define GAIA_IMPORT __attribute__((visibility(&quot;default&quot;)))</span></div>
+<div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span><span class="preprocessor">  #define GAIA_EXPORT __attribute__((visibility(&quot;default&quot;)))</span></div>
+<div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span><span class="preprocessor">  #define GAIA_HIDDEN __attribute__((visibility(&quot;hidden&quot;)))</span></div>
+<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span> </div>
+<div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span><span class="preprocessor">#define GAIA_API</span></div>
+<div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span><span class="comment">// NOTE: Gaia is currently a header-only library so exporting/importing should not be necessary</span></div>
+<div class="line"><a id="l00583" name="l00583"></a><span class="lineno">  583</span><span class="comment">// #if defined(GAIA_USE_DLL) // Use DLL file (defined by the executable)</span></div>
+<div class="line"><a id="l00584" name="l00584"></a><span class="lineno">  584</span><span class="comment">//  #define GAIA_API GAIA_IMPORT</span></div>
+<div class="line"><a id="l00585" name="l00585"></a><span class="lineno">  585</span><span class="comment">// #elif defined(GAIA_GEN_DLL) // Generate DLL file (defined inside DLL)</span></div>
+<div class="line"><a id="l00586" name="l00586"></a><span class="lineno">  586</span><span class="comment">//  #define GAIA_API GAIA_EXPORT</span></div>
+<div class="line"><a id="l00587" name="l00587"></a><span class="lineno">  587</span><span class="comment">// #else</span></div>
+<div class="line"><a id="l00588" name="l00588"></a><span class="lineno">  588</span><span class="comment">//  #define GAIA_API</span></div>
+<div class="line"><a id="l00589" name="l00589"></a><span class="lineno">  589</span><span class="comment">// #endif</span></div>
 <div class="line"><a id="l00590" name="l00590"></a><span class="lineno">  590</span> </div>
-<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span><span class="preprocessor">#if GAIA_COMPILER_MSVC</span></div>
-<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_PUSH() __pragma(warning(push))</span></div>
-<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_POP() __pragma(warning(pop))</span></div>
-<div class="line"><a id="l00594" name="l00594"></a><span class="lineno">  594</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_DISABLE(warningId) __pragma(warning(disable : warningId))</span></div>
-<div class="line"><a id="l00595" name="l00595"></a><span class="lineno">  595</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_ERROR(warningId) __pragma(warning(error : warningId))</span></div>
-<div class="line"><a id="l00596" name="l00596"></a><span class="lineno">  596</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00597" name="l00597"></a><span class="lineno">  597</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_PUSH()</span></div>
-<div class="line"><a id="l00598" name="l00598"></a><span class="lineno">  598</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_POP()</span></div>
-<div class="line"><a id="l00599" name="l00599"></a><span class="lineno">  599</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_DISABLE(warningId)</span></div>
-<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_ERROR(warningId)</span></div>
-<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span> </div>
-<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span><span class="preprocessor">#if GAIA_COMPILER_CLANG</span></div>
-<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span><span class="preprocessor">  #define DO_PRAGMA_(x) _Pragma(#x)</span></div>
-<div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span><span class="preprocessor">  #define DO_PRAGMA(x) DO_PRAGMA_(x)</span></div>
-<div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_PUSH() _Pragma(&quot;clang diagnostic push&quot;)</span></div>
-<div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_POP() _Pragma(&quot;clang diagnostic pop&quot;)</span></div>
-<div class="line"><a id="l00608" name="l00608"></a><span class="lineno">  608</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)</span></div>
-<div class="line"><a id="l00609" name="l00609"></a><span class="lineno">  609</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)</span></div>
-<div class="line"><a id="l00610" name="l00610"></a><span class="lineno">  610</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)</span></div>
-<div class="line"><a id="l00611" name="l00611"></a><span class="lineno">  611</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00612" name="l00612"></a><span class="lineno">  612</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_PUSH()</span></div>
-<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_POP()</span></div>
-<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_DISABLE(warningId)</span></div>
-<div class="line"><a id="l00615" name="l00615"></a><span class="lineno">  615</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ERROR(warningId)</span></div>
-<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ALLOW(warningId)</span></div>
-<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span> </div>
-<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span><span class="preprocessor">#if GAIA_COMPILER_GCC</span></div>
-<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span><span class="preprocessor">  #define DO_PRAGMA_(x) _Pragma(#x)</span></div>
-<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span><span class="preprocessor">  #define DO_PRAGMA(x) DO_PRAGMA_(x)</span></div>
-<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span><span class="preprocessor">  #define GAIA_GCC_WARNING_PUSH() _Pragma(&quot;GCC diagnostic push&quot;)</span></div>
-<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span><span class="preprocessor">  #define GAIA_GCC_WARNING_POP() _Pragma(&quot;GCC diagnostic pop&quot;)</span></div>
-<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span><span class="preprocessor">  #define GAIA_GCC_WARNING_ERROR(warningId) DO_PRAGMA(GCC diagnostic error warningId)</span></div>
-<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span><span class="preprocessor">  #define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored warningId)</span></div>
-<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span><span class="preprocessor">  #define GAIA_GCC_WARNING_PUSH()</span></div>
-<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span><span class="preprocessor">  #define GAIA_GCC_WARNING_POP()</span></div>
-<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span><span class="preprocessor">  #define GAIA_GCC_WARNING_DISABLE(warningId)</span></div>
-<div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span> </div>
-<div class="line"><a id="l00632" name="l00632"></a><span class="lineno">  632</span><span class="preprocessor">#define GAIA_HAS_NO_INLINE_ASSEMBLY 0</span></div>
-<div class="line"><a id="l00633" name="l00633"></a><span class="lineno">  633</span><span class="preprocessor">#if (!defined(__GNUC__) &amp;&amp; !defined(__clang__)) || defined(__pnacl__) || defined(__EMSCRIPTEN__)</span></div>
-<div class="line"><a id="l00634" name="l00634"></a><span class="lineno">  634</span><span class="preprocessor">  #undef GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
-<div class="line"><a id="l00635" name="l00635"></a><span class="lineno">  635</span><span class="preprocessor">  #define GAIA_HAS_NO_INLINE_ASSEMBLY 1</span></div>
+<div class="line"><a id="l00591" name="l00591"></a><span class="lineno">  591</span><span class="comment">//------------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00592" name="l00592"></a><span class="lineno">  592</span><span class="comment">// Warning-related macros and settings</span></div>
+<div class="line"><a id="l00593" name="l00593"></a><span class="lineno">  593</span><span class="comment">// We always set warnings as errors and disable ones we don&#39;t care about.</span></div>
+<div class="line"><a id="l00594" name="l00594"></a><span class="lineno">  594</span><span class="comment">// Sometimes in only limited range of code or around 3rd party includes.</span></div>
+<div class="line"><a id="l00595" name="l00595"></a><span class="lineno">  595</span><span class="comment">//------------------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00596" name="l00596"></a><span class="lineno">  596</span> </div>
+<div class="line"><a id="l00597" name="l00597"></a><span class="lineno">  597</span><span class="preprocessor">#if GAIA_COMPILER_MSVC</span></div>
+<div class="line"><a id="l00598" name="l00598"></a><span class="lineno">  598</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_PUSH() __pragma(warning(push))</span></div>
+<div class="line"><a id="l00599" name="l00599"></a><span class="lineno">  599</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_POP() __pragma(warning(pop))</span></div>
+<div class="line"><a id="l00600" name="l00600"></a><span class="lineno">  600</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_DISABLE(warningId) __pragma(warning(disable : warningId))</span></div>
+<div class="line"><a id="l00601" name="l00601"></a><span class="lineno">  601</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_ERROR(warningId) __pragma(warning(error : warningId))</span></div>
+<div class="line"><a id="l00602" name="l00602"></a><span class="lineno">  602</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00603" name="l00603"></a><span class="lineno">  603</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_PUSH()</span></div>
+<div class="line"><a id="l00604" name="l00604"></a><span class="lineno">  604</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_POP()</span></div>
+<div class="line"><a id="l00605" name="l00605"></a><span class="lineno">  605</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_DISABLE(warningId)</span></div>
+<div class="line"><a id="l00606" name="l00606"></a><span class="lineno">  606</span><span class="preprocessor">  #define GAIA_MSVC_WARNING_ERROR(warningId)</span></div>
+<div class="line"><a id="l00607" name="l00607"></a><span class="lineno">  607</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00608" name="l00608"></a><span class="lineno">  608</span> </div>
+<div class="line"><a id="l00609" name="l00609"></a><span class="lineno">  609</span><span class="preprocessor">#if GAIA_COMPILER_CLANG</span></div>
+<div class="line"><a id="l00610" name="l00610"></a><span class="lineno">  610</span><span class="preprocessor">  #define DO_PRAGMA_(x) _Pragma(#x)</span></div>
+<div class="line"><a id="l00611" name="l00611"></a><span class="lineno">  611</span><span class="preprocessor">  #define DO_PRAGMA(x) DO_PRAGMA_(x)</span></div>
+<div class="line"><a id="l00612" name="l00612"></a><span class="lineno">  612</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_PUSH() _Pragma(&quot;clang diagnostic push&quot;)</span></div>
+<div class="line"><a id="l00613" name="l00613"></a><span class="lineno">  613</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_POP() _Pragma(&quot;clang diagnostic pop&quot;)</span></div>
+<div class="line"><a id="l00614" name="l00614"></a><span class="lineno">  614</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_DISABLE(warningId) DO_PRAGMA(clang diagnostic ignored warningId)</span></div>
+<div class="line"><a id="l00615" name="l00615"></a><span class="lineno">  615</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ERROR(warningId) DO_PRAGMA(clang diagnostic error warningId)</span></div>
+<div class="line"><a id="l00616" name="l00616"></a><span class="lineno">  616</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ALLOW(warningId) DO_PRAGMA(clang diagnostic warning warningId)</span></div>
+<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_PUSH()</span></div>
+<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_POP()</span></div>
+<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_DISABLE(warningId)</span></div>
+<div class="line"><a id="l00621" name="l00621"></a><span class="lineno">  621</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ERROR(warningId)</span></div>
+<div class="line"><a id="l00622" name="l00622"></a><span class="lineno">  622</span><span class="preprocessor">  #define GAIA_CLANG_WARNING_ALLOW(warningId)</span></div>
+<div class="line"><a id="l00623" name="l00623"></a><span class="lineno">  623</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00624" name="l00624"></a><span class="lineno">  624</span> </div>
+<div class="line"><a id="l00625" name="l00625"></a><span class="lineno">  625</span><span class="preprocessor">#if GAIA_COMPILER_GCC</span></div>
+<div class="line"><a id="l00626" name="l00626"></a><span class="lineno">  626</span><span class="preprocessor">  #define DO_PRAGMA_(x) _Pragma(#x)</span></div>
+<div class="line"><a id="l00627" name="l00627"></a><span class="lineno">  627</span><span class="preprocessor">  #define DO_PRAGMA(x) DO_PRAGMA_(x)</span></div>
+<div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span><span class="preprocessor">  #define GAIA_GCC_WARNING_PUSH() _Pragma(&quot;GCC diagnostic push&quot;)</span></div>
+<div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span><span class="preprocessor">  #define GAIA_GCC_WARNING_POP() _Pragma(&quot;GCC diagnostic pop&quot;)</span></div>
+<div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span><span class="preprocessor">  #define GAIA_GCC_WARNING_ERROR(warningId) DO_PRAGMA(GCC diagnostic error warningId)</span></div>
+<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span><span class="preprocessor">  #define GAIA_GCC_WARNING_DISABLE(warningId) DO_PRAGMA(GCC diagnostic ignored warningId)</span></div>
+<div class="line"><a id="l00632" name="l00632"></a><span class="lineno">  632</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00633" name="l00633"></a><span class="lineno">  633</span><span class="preprocessor">  #define GAIA_GCC_WARNING_PUSH()</span></div>
+<div class="line"><a id="l00634" name="l00634"></a><span class="lineno">  634</span><span class="preprocessor">  #define GAIA_GCC_WARNING_POP()</span></div>
+<div class="line"><a id="l00635" name="l00635"></a><span class="lineno">  635</span><span class="preprocessor">  #define GAIA_GCC_WARNING_DISABLE(warningId)</span></div>
 <div class="line"><a id="l00636" name="l00636"></a><span class="lineno">  636</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span> </div>
-<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
-<div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span>  <span class="comment">// The dont_optimize(...) function can be used to prevent a value or</span></div>
-<div class="line"><a id="l00640" name="l00640"></a><span class="lineno">  640</span>  <span class="comment">// expression from being optimized away by the compiler. This function is</span></div>
-<div class="line"><a id="l00641" name="l00641"></a><span class="lineno">  641</span>  <span class="comment">// intended to add little to no overhead.</span></div>
-<div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span>  <span class="comment">// See: https://youtu.be/nXaxk27zwlk?t=2441</span></div>
-<div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span><span class="preprocessor">#if !GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
-<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00645" name="l00645"></a><span class="lineno">  645</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
-<div class="line"><a id="l00646" name="l00646"></a><span class="lineno">  646</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : : <span class="stringliteral">&quot;r,m&quot;</span>(value) : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00647" name="l00647"></a><span class="lineno">  647</span>  }</div>
-<div class="line"><a id="l00648" name="l00648"></a><span class="lineno">  648</span> </div>
-<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T&amp; value) {</div>
-<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span><span class="preprocessor">  #if defined(__clang__)</span></div>
-<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+r,m&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00653" name="l00653"></a><span class="lineno">  653</span><span class="preprocessor">  #else</span></div>
-<div class="line"><a id="l00654" name="l00654"></a><span class="lineno">  654</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+m,r&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00655" name="l00655"></a><span class="lineno">  655</span><span class="preprocessor">  #endif</span></div>
-<div class="line"><a id="l00656" name="l00656"></a><span class="lineno">  656</span>  }</div>
-<div class="line"><a id="l00657" name="l00657"></a><span class="lineno">  657</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00658" name="l00658"></a><span class="lineno">  658</span>  <span class="keyword">namespace </span>detail {</div>
-<div class="line"><a id="l00659" name="l00659"></a><span class="lineno">  659</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> use_char_pointer(<span class="keywordtype">char</span> <span class="keyword">const</span> <span class="keyword">volatile</span>* var) {</div>
-<div class="line"><a id="l00660" name="l00660"></a><span class="lineno">  660</span>      (void)var;</div>
-<div class="line"><a id="l00661" name="l00661"></a><span class="lineno">  661</span>    }</div>
-<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>  } <span class="comment">// namespace detail</span></div>
-<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span> </div>
-<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span><span class="preprocessor">  #if defined(_MSC_VER)</span></div>
-<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00666" name="l00666"></a><span class="lineno">  666</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
-<div class="line"><a id="l00667" name="l00667"></a><span class="lineno">  667</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
-<div class="line"><a id="l00668" name="l00668"></a><span class="lineno">  668</span>    ::_ReadWriteBarrier();</div>
-<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span>  }</div>
-<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span><span class="preprocessor">#define GAIA_HAS_NO_INLINE_ASSEMBLY 0</span></div>
+<div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span><span class="preprocessor">#if (!defined(__GNUC__) &amp;&amp; !defined(__clang__)) || defined(__pnacl__) || defined(__EMSCRIPTEN__)</span></div>
+<div class="line"><a id="l00640" name="l00640"></a><span class="lineno">  640</span><span class="preprocessor">  #undef GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
+<div class="line"><a id="l00641" name="l00641"></a><span class="lineno">  641</span><span class="preprocessor">  #define GAIA_HAS_NO_INLINE_ASSEMBLY 1</span></div>
+<div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span> </div>
+<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
+<div class="line"><a id="l00645" name="l00645"></a><span class="lineno">  645</span>  <span class="comment">// The dont_optimize(...) function can be used to prevent a value or</span></div>
+<div class="line"><a id="l00646" name="l00646"></a><span class="lineno">  646</span>  <span class="comment">// expression from being optimized away by the compiler. This function is</span></div>
+<div class="line"><a id="l00647" name="l00647"></a><span class="lineno">  647</span>  <span class="comment">// intended to add little to no overhead.</span></div>
+<div class="line"><a id="l00648" name="l00648"></a><span class="lineno">  648</span>  <span class="comment">// See: https://youtu.be/nXaxk27zwlk?t=2441</span></div>
+<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span><span class="preprocessor">#if !GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
+<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
+<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : : <span class="stringliteral">&quot;r,m&quot;</span>(value) : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00653" name="l00653"></a><span class="lineno">  653</span>  }</div>
+<div class="line"><a id="l00654" name="l00654"></a><span class="lineno">  654</span> </div>
+<div class="line"><a id="l00655" name="l00655"></a><span class="lineno">  655</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00656" name="l00656"></a><span class="lineno">  656</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T&amp; value) {</div>
+<div class="line"><a id="l00657" name="l00657"></a><span class="lineno">  657</span><span class="preprocessor">  #if defined(__clang__)</span></div>
+<div class="line"><a id="l00658" name="l00658"></a><span class="lineno">  658</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+r,m&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00659" name="l00659"></a><span class="lineno">  659</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00660" name="l00660"></a><span class="lineno">  660</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+m,r&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00661" name="l00661"></a><span class="lineno">  661</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>  }</div>
+<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span>  <span class="keyword">namespace </span>detail {</div>
+<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> use_char_pointer(<span class="keywordtype">char</span> <span class="keyword">const</span> <span class="keyword">volatile</span>* var) {</div>
+<div class="line"><a id="l00666" name="l00666"></a><span class="lineno">  666</span>      (void)var;</div>
+<div class="line"><a id="l00667" name="l00667"></a><span class="lineno">  667</span>    }</div>
+<div class="line"><a id="l00668" name="l00668"></a><span class="lineno">  668</span>  } <span class="comment">// namespace detail</span></div>
+<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span> </div>
+<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span><span class="preprocessor">  #if defined(_MSC_VER)</span></div>
 <div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
 <div class="line"><a id="l00672" name="l00672"></a><span class="lineno">  672</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
 <div class="line"><a id="l00673" name="l00673"></a><span class="lineno">  673</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
-<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span>  }</div>
-<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span><span class="preprocessor">  #endif</span></div>
-<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span>    ::_ReadWriteBarrier();</div>
+<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span>  }</div>
+<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
+<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
+<div class="line"><a id="l00680" name="l00680"></a><span class="lineno">  680</span>  }</div>
+<div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l00682" name="l00682"></a><span class="lineno">  682</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00683" name="l00683"></a><span class="lineno">  683</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
