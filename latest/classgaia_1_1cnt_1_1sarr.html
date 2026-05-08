@@ -117,7 +117,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1cnt_1_1sarr.html',''); in
 </div><!--header-->
 <div class="contents">
 
-<p>Array of elements of type.  
+<p>Fixed-size stack array with AoS storage. Interface compatiblity with std::array where it matters.  
  <a href="classgaia_1_1cnt_1_1sarr.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="sarray__impl_8h_source.html">sarray_impl.h</a>&gt;</code></p>
@@ -160,9 +160,8 @@ Public Types</h2></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aa039c59b980cc359c2336071d6116ae2" id="r_aa039c59b980cc359c2336071d6116ae2"><td class="memItemLeft" align="right" valign="top"><a id="aa039c59b980cc359c2336071d6116ae2" name="aa039c59b980cc359c2336071d6116ae2"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (<a class="el" href="structgaia_1_1core_1_1zero__t.html">core::zero_t</a>) <a class="el" href="classgaia_1_1cnt_1_1darr.html">noexcept</a></td></tr>
-<tr class="memdesc:aa039c59b980cc359c2336071d6116ae2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Zero-initialization constructor. Because sarr is not aggretate type, doing: sarr&lt;int,10&gt; tmp{} does not zero-initialize its internals. We need to be explicit about our intent and use a special constructor. <br /></td></tr>
+<tr class="memitem:aa039c59b980cc359c2336071d6116ae2" id="r_aa039c59b980cc359c2336071d6116ae2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1cnt_1_1sarr.html#aa039c59b980cc359c2336071d6116ae2">sarr</a> (<a class="el" href="structgaia_1_1core_1_1zero__t.html">core::zero_t</a>) <a class="el" href="classgaia_1_1cnt_1_1darr.html">noexcept</a></td></tr>
+<tr class="memdesc:aa039c59b980cc359c2336071d6116ae2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Explicit value-initialization constructor for call sites that want zero/value initialization to be obvious.  <br /></td></tr>
 <tr class="separator:aa039c59b980cc359c2336071d6116ae2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4e3f8eb8ac932ce5059433b37d2cc9ea" id="r_a4e3f8eb8ac932ce5059433b37d2cc9ea"><td class="memTemplParams" colspan="2"><a id="a4e3f8eb8ac932ce5059433b37d2cc9ea" name="a4e3f8eb8ac932ce5059433b37d2cc9ea"></a>
 template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">InputIt</a> &gt; </td></tr>
@@ -171,12 +170,12 @@ template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> <a c
 <tr class="memitem:a33aeb783ee16fe6327240c263b1c95da" id="r_a33aeb783ee16fe6327240c263b1c95da"><td class="memItemLeft" align="right" valign="top"><a id="a33aeb783ee16fe6327240c263b1c95da" name="a33aeb783ee16fe6327240c263b1c95da"></a>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (std::initializer_list&lt; T &gt; <a class="el" href="classgaia_1_1cnt_1_1darr.html">il</a>)</td></tr>
 <tr class="separator:a33aeb783ee16fe6327240c263b1c95da"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a72b56638c6bf34f290fd77091c264e81" id="r_a72b56638c6bf34f290fd77091c264e81"><td class="memItemLeft" align="right" valign="top"><a id="a72b56638c6bf34f290fd77091c264e81" name="a72b56638c6bf34f290fd77091c264e81"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="classgaia_1_1cnt_1_1sarr.html">sarr</a> &amp;other)</td></tr>
-<tr class="separator:a72b56638c6bf34f290fd77091c264e81"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4092268c8151820ff2a70ddcc77e46fa" id="r_a4092268c8151820ff2a70ddcc77e46fa"><td class="memItemLeft" align="right" valign="top"><a id="a4092268c8151820ff2a70ddcc77e46fa" name="a4092268c8151820ff2a70ddcc77e46fa"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (<a class="el" href="classgaia_1_1cnt_1_1sarr.html">sarr</a> &amp;&amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">noexcept</a></td></tr>
-<tr class="separator:a4092268c8151820ff2a70ddcc77e46fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a08511d00515f316ae81263c3705a0335" id="r_a08511d00515f316ae81263c3705a0335"><td class="memItemLeft" align="right" valign="top"><a id="a08511d00515f316ae81263c3705a0335" name="a08511d00515f316ae81263c3705a0335"></a>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="classgaia_1_1cnt_1_1sarr.html">sarr</a> &amp;other)=<a class="el" href="classgaia_1_1cnt_1_1darr.html">default</a></td></tr>
+<tr class="separator:a08511d00515f316ae81263c3705a0335"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1fd532fb7aa319135f377e1922c6e821" id="r_a1fd532fb7aa319135f377e1922c6e821"><td class="memItemLeft" align="right" valign="top"><a id="a1fd532fb7aa319135f377e1922c6e821" name="a1fd532fb7aa319135f377e1922c6e821"></a>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sarr</b> (<a class="el" href="classgaia_1_1cnt_1_1sarr.html">sarr</a> &amp;&amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">noexcept</a>=<a class="el" href="classgaia_1_1cnt_1_1darr.html">default</a></td></tr>
+<tr class="separator:a1fd532fb7aa319135f377e1922c6e821"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95545857e9c72c54bae00c2c7d09558c" id="r_a95545857e9c72c54bae00c2c7d09558c"><td class="memItemLeft" align="right" valign="top"><a id="a95545857e9c72c54bae00c2c7d09558c" name="a95545857e9c72c54bae00c2c7d09558c"></a>
 <a class="el" href="classgaia_1_1cnt_1_1sarr.html">sarr</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (std::initializer_list&lt; T &gt; <a class="el" href="classgaia_1_1cnt_1_1darr.html">il</a>)</td></tr>
 <tr class="separator:a95545857e9c72c54bae00c2c7d09558c"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -267,9 +266,9 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a> 
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
-<tr class="memitem:aec7485371af355e811459271d0d2d802" id="r_aec7485371af355e811459271d0d2d802"><td class="memItemLeft" align="right" valign="top"><a id="aec7485371af355e811459271d0d2d802" name="aec7485371af355e811459271d0d2d802"></a>
-<a class="el" href="structgaia_1_1mem_1_1detail_1_1raw__data__holder.html">mem::raw_data_holder</a>&lt; T, allocated_bytes &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr>
-<tr class="separator:aec7485371af355e811459271d0d2d802"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a681cb96507ea14117dbdc73e3d6905e1" id="r_a681cb96507ea14117dbdc73e3d6905e1"><td class="memItemLeft" align="right" valign="top"><a id="a681cb96507ea14117dbdc73e3d6905e1" name="a681cb96507ea14117dbdc73e3d6905e1"></a>
+T&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b> [<a class="el" href="classgaia_1_1cnt_1_1darr.html">N</a>]</td></tr>
+<tr class="separator:a681cb96507ea14117dbdc73e3d6905e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -279,21 +278,51 @@ Static Public Attributes</h2></td></tr>
 <tr class="memitem:abc1df3cff054c11e37826b6111dd7b6b" id="r_abc1df3cff054c11e37826b6111dd7b6b"><td class="memItemLeft" align="right" valign="top"><a id="abc1df3cff054c11e37826b6111dd7b6b" name="abc1df3cff054c11e37826b6111dd7b6b"></a>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">static</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a> size_type&#160;</td><td class="memItemRight" valign="bottom"><b>extent</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">N</a></td></tr>
 <tr class="separator:abc1df3cff054c11e37826b6111dd7b6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a330a331acc956b575bddbc93e45f100f" id="r_a330a331acc956b575bddbc93e45f100f"><td class="memItemLeft" align="right" valign="top"><a id="a330a331acc956b575bddbc93e45f100f" name="a330a331acc956b575bddbc93e45f100f"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">static</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a>&#160;</td><td class="memItemRight" valign="bottom"><b>allocated_bytes</b> = view_policy::get_min_byte_size(0, <a class="el" href="classgaia_1_1cnt_1_1darr.html">N</a>)</td></tr>
-<tr class="separator:a330a331acc956b575bddbc93e45f100f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> T, sarr_detail::size_type N&gt;<br />
-class gaia::cnt::sarr&lt; T, N &gt;</div><p>Array of elements of type. </p>
+class gaia::cnt::sarr&lt; T, N &gt;</div><p>Fixed-size stack array with AoS storage. Interface compatiblity with std::array where it matters. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">T</td><td>with fixed size and capacity </td></tr>
-    <tr><td class="paramname">N</td><td>allocated on stack. Interface compatiblity with std::array where it matters. </td></tr>
+    <tr><td class="paramname">T</td><td>Element type stored directly in the array. </td></tr>
+    <tr><td class="paramname">N</td><td>Number of elements and fixed capacity. </td></tr>
   </table>
   </dd>
 </dl>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+<dl class="section note"><dt>Note</dt><dd>This container can be used in constexpr environment. </dd></dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="aa039c59b980cc359c2336071d6116ae2" name="aa039c59b980cc359c2336071d6116ae2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa039c59b980cc359c2336071d6116ae2">&#9670;&#160;</a></span>sarr()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">typename</a> T , sarr_detail::size_type N&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1cnt_1_1darr.html">constexpr</a> <a class="el" href="classgaia_1_1cnt_1_1sarr.html">gaia::cnt::sarr</a>&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">N</a> &gt;::sarr </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1core_1_1zero__t.html">core::zero_t</a>&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Explicit value-initialization constructor for call sites that want zero/value initialization to be obvious. </p>
+<dl class="section note"><dt>Note</dt><dd>Even though sarr is an aggregate type and we could zero-initialize by doing sarr&lt;int,10&gt; tmp{}, we keep this function around for design compatibility with other containers that are not aggregate types. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/impl/<a class="el" href="sarray__impl_8h_source.html">sarray_impl.h</a></li>
 </ul>
 </div><!-- contents -->

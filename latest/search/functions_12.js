@@ -1,7 +1,7 @@
 var searchData=
 [
   ['sarr_0',['sarr',['../classgaia_1_1cnt_1_1sarr.html#aa039c59b980cc359c2336071d6116ae2',1,'gaia::cnt::sarr']]],
-  ['sarr_5fsoa_1',['sarr_soa',['../classgaia_1_1cnt_1_1sarr__soa.html#ad5f70a4a985990855cac71fc1f9da8dc',1,'gaia::cnt::sarr_soa']]],
+  ['sarr_5fsoa_1',['sarr_soa',['../classgaia_1_1cnt_1_1sarr__soa.html#ad053b142e9336f0909b5d592d4243dc3',1,'gaia::cnt::sarr_soa']]],
   ['save_2',['save',['../classgaia_1_1ecs_1_1World.html#a8f132200305c56733e0bb939ffecff65',1,'gaia::ecs::World::save()'],['../classgaia_1_1ser_1_1bin__stream.html#a7d711c63ffa10942b8325674dfbf1c1a',1,'gaia::ser::bin_stream::save()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#ac1b3f4a9fb41e35f56e544ff7a1fd2a1',1,'gaia::ser::detail::ser_buffer_binary_impl::save()']]],
   ['save_5fjson_3',['save_json',['../classgaia_1_1ecs_1_1World.html#a183ac00ba291233426d49b07139870a7',1,'gaia::ecs::World::save_json(ser::ser_json &amp;writer, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const'],['../classgaia_1_1ecs_1_1World.html#a0147a79e662e91c818df2ffb7e5e64a2',1,'gaia::ecs::World::save_json(bool &amp;ok, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const']]],
   ['save_5fraw_4',['save_raw',['../classgaia_1_1ser_1_1bin__stream.html#a863f00a526daecbda0eae1e129175c19',1,'gaia::ser::bin_stream::save_raw()'],['../classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#afcb6412e29d6a05dee664b9ab8b986df',1,'gaia::ser::detail::ser_buffer_binary_impl::save_raw()']]],
