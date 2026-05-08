@@ -60,7 +60,7 @@ namespace gaia {
 					operator[](i) = {};
 			}
 
-			~sarr() {
+			GAIA_CONSTEXPR_DTOR ~sarr() {
 				core::call_dtor_n(data(), extent);
 			}
 

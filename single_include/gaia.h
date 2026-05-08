@@ -535,7 +535,7 @@ namespace gaia {
 #if GAIA_COMPILER_CLANG || GAIA_COMPILER_GCC
 	#define GAIA_LAMBDAINLINE __attribute__((always_inline))
 #elif GAIA_COMPILER_MSVC
-	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer &&�/std:c++latest
+	#if _MSC_VER >= 1927 && _MSVC_LANG > 202002L // MSVC 16.7 or newer && /std:c++latest
 		#define GAIA_LAMBDAINLINE [[msvc::forceinline]]
 	#else
 		#define GAIA_LAMBDAINLINE
@@ -560,6 +560,12 @@ namespace gaia {
 #endif
 #ifndef GAIA_ASSUME
 	#define GAIA_ASSUME(...)
+#endif
+
+#if defined(__cpp_constexpr) && GAIA_CPP_VERSION(201907L)
+	#define GAIA_CONSTEXPR_DTOR constexpr
+#else
+	#define GAIA_CONSTEXPR_DTOR
 #endif
 
 //------------------------------------------------------------------------------
@@ -5969,7 +5975,7 @@ namespace gaia {
 					operator[](i) = {};
 			}
 
-			~sarr() {
+			GAIA_CONSTEXPR_DTOR ~sarr() {
 				core::call_dtor_n(data(), extent);
 			}
 
