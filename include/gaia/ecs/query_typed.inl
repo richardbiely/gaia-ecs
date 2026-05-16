@@ -686,7 +686,7 @@ namespace gaia {
 						plan.idxFrom = pGroupData->idxFirst;
 						plan.idxTo = pGroupData->idxLast + 1;
 					}
-					return true;
+					return plan.idxFrom < plan.idxTo;
 				};
 
 				if (state.canUseDirectChunkEval && !canDirectEntitySeed && canDirectChunks) {

@@ -75,6 +75,15 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(directPlan.flags == ecs::detail::QueryImpl::QueryPlanFlag_None);
 	CHECK(directPlan.idxFrom < directPlan.idxTo);
 
+	auto qMissing = wld.query().all<Scale>();
+	const auto emptyTypedPlan = qMissing.test_typed_plan([](const Scale&) {});
+	CHECK(emptyTypedPlan.mode == PlanMode::Empty);
+	CHECK(emptyTypedPlan.idxFrom == emptyTypedPlan.idxTo);
+
+	const auto emptyIterPlan = qMissing.test_iter_plan();
+	CHECK(emptyIterPlan.mode == PlanMode::Empty);
+	CHECK(emptyIterPlan.idxFrom == emptyIterPlan.idxTo);
+
 	const auto iterPlan = q.test_iter_plan();
 	CHECK(iterPlan.mode == PlanMode::DirectDense);
 	CHECK(iterPlan.flags == ecs::detail::QueryImpl::QueryPlanFlag_None);

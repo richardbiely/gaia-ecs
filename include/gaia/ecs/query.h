@@ -2269,8 +2269,10 @@ namespace gaia {
 				template <typename Func, typename TMode, QueryExecType ExecType>
 				GAIA_NODISCARD SchedJob add_parallel_query_job(Func func) {
 					static_assert(ExecType != QueryExecType::Default);
-					if (m_batches.empty())
+					if (m_batches.empty()) {
+						m_changedWorldVersion = *m_worldVersion;
 						return {};
+					}
 
 					auto* pWorld = m_storage.world();
 					lock(*pWorld);
@@ -3448,6 +3450,11 @@ namespace gaia {
 
 					if ((plan.flags & QueryPlanFlag_Filtered) == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
 						plan.mode = QueryPlanMode::EntitySeed;
+						return plan;
+					}
+
+					if (plan.idxFrom >= plan.idxTo) {
+						plan.mode = QueryPlanMode::Empty;
 						return plan;
 					}
 
