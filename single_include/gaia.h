@@ -40985,6 +40985,8 @@ namespace gaia {
 					uint32_t barrierRelVersion = UINT32_MAX;
 					//! Entity enable-state version at which the cached depth-order hierarchy barrier state was last rebuilt.
 					uint32_t barrierEnabledVersion = UINT32_MAX;
+					//! True when at least one cached archetype fails the depth-order hierarchy barrier.
+					uint8_t barrierMayPrune = 0;
 
 					void clear() {
 						archetypeSortData = {};
@@ -40992,6 +40994,7 @@ namespace gaia {
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
+						barrierMayPrune = 0;
 					}
 
 					void clear_transient() {
@@ -41000,6 +41003,7 @@ namespace gaia {
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
+						barrierMayPrune = 0;
 					}
 				};
 
@@ -42238,6 +42242,7 @@ namespace gaia {
 					return;
 
 				m_state.nonTrivial.archetypeBarrierPasses.resize(m_state.archetypeCache.size(), 1);
+				m_state.nonTrivial.barrierMayPrune = 0;
 
 				const auto relation = m_plan.ctx.data.groupBy;
 				for (uint32_t i = 0; i < m_state.archetypeCache.size(); ++i) {
@@ -42251,6 +42256,7 @@ namespace gaia {
 						const auto parent = world_pair_target_if_alive(*world(), pair);
 						if (parent == EntityBad || !world_entity_enabled_hierarchy(*world(), parent, relation)) {
 							barrierPasses = 0;
+							m_state.nonTrivial.barrierMayPrune = 1;
 							break;
 						}
 					}
@@ -42696,6 +42702,11 @@ namespace gaia {
 					return true;
 				GAIA_ASSERT(archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size());
 				return m_state.nonTrivial.archetypeBarrierPasses[archetypeIdx] != 0;
+			}
+
+			GAIA_NODISCARD bool barrier_may_prune() const {
+				const_cast<QueryInfo*>(this)->ensure_depth_order_hierarchy_barrier_cache();
+				return m_state.nonTrivial.barrierMayPrune != 0;
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
@@ -46028,6 +46039,28 @@ namespace gaia {
 								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
+				GAIA_NODISCARD static bool
+				needs_depth_order_hierarchy_barrier_cache(const QueryInfo& queryInfo, Constraints constraints) {
+					return constraints != Constraints::AcceptAll && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+				}
+
+				static void chunk_effective_range(
+						Chunk* pChunk, Constraints constraints, bool needsBarrierCache, bool barrierPasses, uint16_t& from,
+						uint16_t& to) noexcept {
+					if (needsBarrierCache && constraints == Constraints::DisabledOnly && !barrierPasses) {
+						from = 0;
+						to = pChunk->size();
+						return;
+					}
+
+					from = detail::ChunkIterImpl::start_index(pChunk, constraints);
+					to = detail::ChunkIterImpl::end_index(pChunk, constraints);
+				}
+
+				GAIA_NODISCARD static bool depth_order_hierarchy_barrier_prunes(const QueryInfo& queryInfo) {
+					return has_depth_order_hierarchy_enabled_barrier(queryInfo) && queryInfo.barrier_may_prune();
+				}
+
 				//! Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations.
 				//! ChildOf is the native built-in example, but the rule is semantic: the relation must support
 				//! depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in
@@ -46119,10 +46152,8 @@ namespace gaia {
 						return ExecPayloadKind::NonTrivial;
 					if (!queryInfo.has_grouped_payload())
 						return ExecPayloadKind::Plain;
-					if (constraints == Constraints::EnabledOnly) {
-						if (has_depth_order_hierarchy_enabled_barrier(queryInfo))
-							return ExecPayloadKind::NonTrivial;
-					}
+					if (needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints))
+						return ExecPayloadKind::NonTrivial;
 					return ExecPayloadKind::Grouped;
 				}
 
@@ -46407,8 +46438,10 @@ namespace gaia {
 				template <typename Func, typename TMode, QueryExecType ExecType>
 				GAIA_NODISCARD SchedJob add_parallel_query_job(Func func) {
 					static_assert(ExecType != QueryExecType::Default);
-					if (m_batches.empty())
+					if (m_batches.empty()) {
+						m_changedWorldVersion = *m_worldVersion;
 						return {};
+					}
 
 					auto* pWorld = m_storage.world();
 					lock(*pWorld);
@@ -46440,21 +46473,22 @@ namespace gaia {
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
-							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
-							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							uint16_t minStartRow = 0;
+							uint16_t minEndRow = 0;
+							chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							if (endRow == startRow)
@@ -46465,10 +46499,6 @@ namespace gaia {
 									continue;
 							}
 
-							const auto* pArchetype = cacheView[view.archetypeIdx];
-							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
-								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
@@ -46489,7 +46519,10 @@ namespace gaia {
 								hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+							uint16_t from = 0;
+							uint16_t to = 0;
+							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+							if GAIA_UNLIKELY (from == to)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -46497,7 +46530,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
 						}
 					}
 				}
@@ -46558,8 +46591,7 @@ namespace gaia {
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
-																				 std::is_same_v<TMode, IterModeEnabled> &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -46571,15 +46603,16 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
-							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
-
-							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							uint16_t minStartRow = 0;
+							uint16_t minEndRow = 0;
+							chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -46591,10 +46624,6 @@ namespace gaia {
 									continue;
 							}
 
-							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
-							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
-								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
@@ -46626,7 +46655,10 @@ namespace gaia {
 
 								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 								for (auto* pChunk: chunkSpan) {
-									if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+									uint16_t from = 0;
+									uint16_t to = 0;
+									chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+									if GAIA_UNLIKELY (from == to)
 										continue;
 
 									if constexpr (HasFilters) {
@@ -46634,7 +46666,7 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -46673,22 +46705,22 @@ namespace gaia {
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
-																				 std::is_same_v<TMode, IterModeEnabled> &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
-							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
-
-							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							uint16_t minStartRow = 0;
+							uint16_t minEndRow = 0;
+							chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -46700,10 +46732,6 @@ namespace gaia {
 									continue;
 							}
 
-							const auto* pArchetype = cacheView[view.archetypeIdx];
-							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
-								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
@@ -46723,7 +46751,10 @@ namespace gaia {
 									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
-								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								if GAIA_UNLIKELY (from == to)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -46731,7 +46762,7 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
 							}
 						}
 					}
@@ -46782,8 +46813,7 @@ namespace gaia {
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -46817,7 +46847,10 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								if GAIA_UNLIKELY (from == to)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -46825,7 +46858,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -46861,8 +46894,7 @@ namespace gaia {
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -46894,7 +46926,10 @@ namespace gaia {
 						const auto groupId = queryInfo.group_id(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+							uint16_t from = 0;
+							uint16_t to = 0;
+							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+							if GAIA_UNLIKELY (from == to)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -46902,7 +46937,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
 						}
 					}
 
@@ -46998,8 +47033,8 @@ namespace gaia {
 						//       Make it so only valid pointers are linked together.
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
-						const bool needsBarrierCache =
-								constraints == Constraints::EnabledOnly && has_depth_order_hierarchy_enabled_barrier(queryInfo);
+						const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+																					 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 						const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 						if (needsBarrierCache)
 							queryInfo.ensure_depth_order_hierarchy_barrier_cache();
@@ -47109,8 +47144,7 @@ namespace gaia {
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47119,15 +47153,16 @@ namespace gaia {
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
-							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
-
-							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							uint16_t minStartRow = 0;
+							uint16_t minEndRow = 0;
+							chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -47139,10 +47174,6 @@ namespace gaia {
 									continue;
 							}
 
-							auto* pArchetype = const_cast<Archetype*>(cacheView[view.archetypeIdx]);
-							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
-								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
@@ -47175,7 +47206,10 @@ namespace gaia {
 
 								ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 								for (auto* pChunk: chunkSpan) {
-									if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+									uint16_t from = 0;
+									uint16_t to = 0;
+									chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+									if GAIA_UNLIKELY (from == to)
 										continue;
 
 									if constexpr (HasFilters) {
@@ -47183,7 +47217,7 @@ namespace gaia {
 											continue;
 									}
 
-									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+									chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
 								}
 
 								if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -47218,21 +47252,22 @@ namespace gaia {
 						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
 					if (!sortView.empty()) {
 						for (const auto& view: sortView) {
-							const auto chunkEntitiesCnt = detail::ChunkIterImpl::size(view.pChunk, constraints);
-							if GAIA_UNLIKELY (chunkEntitiesCnt == 0)
+							const auto* pArchetype = cacheView[view.archetypeIdx];
+							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
 								continue;
 
 							const auto viewFrom = view.startRow;
 							const auto viewTo = (uint16_t)(view.startRow + view.count);
-							const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-							const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+							uint16_t minStartRow = 0;
+							uint16_t minEndRow = 0;
+							chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 							const auto startRow = core::get_max(minStartRow, viewFrom);
 							const auto endRow = core::get_min(minEndRow, viewTo);
 							const auto totalRows = endRow - startRow;
@@ -47244,10 +47279,6 @@ namespace gaia {
 									continue;
 							}
 
-							const auto* pArchetype = cacheView[view.archetypeIdx];
-							const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
-							if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
-								continue;
 							auto indicesView = queryInfo.indices_mapping_view(view.archetypeIdx);
 							const auto inheritedDataView =
 									hasInheritedData ? queryInfo.inherited_data_view(view.archetypeIdx) : InheritedTermDataView{};
@@ -47267,7 +47298,10 @@ namespace gaia {
 									hasInheritedData ? queryInfo.inherited_data_view(i) : InheritedTermDataView{};
 							const auto& chunks = pArchetype->chunks();
 							for (auto* pChunk: chunks) {
-								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								if GAIA_UNLIKELY (from == to)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -47275,7 +47309,7 @@ namespace gaia {
 										continue;
 								}
 
-								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, 0, 0});
+								m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, 0, from, to});
 							}
 						}
 					}
@@ -47323,8 +47357,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47350,7 +47383,10 @@ namespace gaia {
 
 							ChunkSpanMut chunkSpan((Chunk**)&chunks[chunkOffset], batchSize);
 							for (auto* pChunk: chunkSpan) {
-								if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								if GAIA_UNLIKELY (from == to)
 									continue;
 
 								if constexpr (HasFilters) {
@@ -47358,7 +47394,7 @@ namespace gaia {
 										continue;
 								}
 
-								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+								chunkBatches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
 							}
 
 							if GAIA_UNLIKELY (chunkBatches.size() == chunkBatches.max_size()) {
@@ -47390,8 +47426,7 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 constraints == Constraints::EnabledOnly &&
-																				 has_depth_order_hierarchy_enabled_barrier(queryInfo);
+																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47407,7 +47442,10 @@ namespace gaia {
 						const auto groupId = queryInfo.group_id(i);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
-							if GAIA_UNLIKELY (detail::ChunkIterImpl::size(pChunk, constraints) == 0)
+							uint16_t from = 0;
+							uint16_t to = 0;
+							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+							if GAIA_UNLIKELY (from == to)
 								continue;
 
 							if constexpr (HasFilters) {
@@ -47415,7 +47453,7 @@ namespace gaia {
 									continue;
 							}
 
-							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, 0, 0});
+							m_batches.push_back({pArchetype, pChunk, indicesView.data(), inheritedDataView, groupId, from, to});
 						}
 					}
 
@@ -47557,7 +47595,11 @@ namespace gaia {
 				GAIA_NODISCARD QueryPlan prepare_query_plan(const QueryInfo& queryInfo, Constraints constraints) const {
 					QueryPlan plan{};
 					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
-					if (queryInfo.has_filters())
+					const bool hasFilters = queryInfo.has_filters();
+					const bool hasSortedPayload = queryInfo.has_sorted_payload();
+					const bool hasDepthOrderBarrier = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					bool hasConstrainedDepthOrderBarrier = constraints != Constraints::AcceptAll && hasDepthOrderBarrier;
+					if (hasFilters)
 						plan.flags |= QueryPlanFlag_Filtered;
 					if (queryInfo.has_entity_filter_terms())
 						plan.flags |= QueryPlanFlag_EntityFilter;
@@ -47565,7 +47607,7 @@ namespace gaia {
 						plan.flags |= QueryPlanFlag_InheritedPayload;
 					if (queryInfo.has_grouped_payload())
 						plan.flags |= QueryPlanFlag_Grouped;
-					if (queryInfo.has_sorted_payload() || has_depth_order_hierarchy_enabled_barrier(queryInfo))
+					if (hasSortedPayload || hasDepthOrderBarrier)
 						plan.flags |= QueryPlanFlag_Sorted;
 					plan.payloadKind = exec_payload_kind(queryInfo, constraints);
 
@@ -47589,12 +47631,23 @@ namespace gaia {
 						return plan;
 					}
 
-					if ((plan.flags & QueryPlanFlag_Sorted) != 0) {
+					if (plan.idxFrom >= plan.idxTo) {
+						plan.mode = QueryPlanMode::Empty;
+						return plan;
+					}
+
+					if (hasConstrainedDepthOrderBarrier && !depth_order_hierarchy_barrier_prunes(queryInfo)) {
+						hasConstrainedDepthOrderBarrier = false;
+						if (!hasSortedPayload && (plan.flags & QueryPlanFlag_InheritedPayload) == 0)
+							plan.payloadKind = queryInfo.has_grouped_payload() ? ExecPayloadKind::Grouped : ExecPayloadKind::Plain;
+					}
+
+					if (hasSortedPayload) {
 						plan.mode = QueryPlanMode::Sorted;
 						return plan;
 					}
 
-					if ((plan.flags & QueryPlanFlag_InheritedPayload) != 0) {
+					if (hasConstrainedDepthOrderBarrier || (plan.flags & QueryPlanFlag_InheritedPayload) != 0) {
 						plan.mode = QueryPlanMode::Traversal;
 						return plan;
 					}
@@ -48574,7 +48627,7 @@ namespace gaia {
 
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 					uint32_t idxFrom = 0;
@@ -48602,9 +48655,12 @@ namespace gaia {
 
 						if (!hasEntityFilters) {
 							for (auto* pChunk: chunks) {
-								it.set_chunk(pChunk);
-								if (it.size() == 0)
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								if (from == to)
 									continue;
+								it.set_chunk(pChunk, from, to);
 								if constexpr (UseFilters) {
 									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 										continue;
@@ -48615,7 +48671,12 @@ namespace gaia {
 						}
 
 						const bool isNotEmpty = core::has_if(chunks, [&](Chunk* pChunk) {
-							it.set_chunk(pChunk);
+							uint16_t from = 0;
+							uint16_t to = 0;
+							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+							if (from == to)
+								return false;
+							it.set_chunk(pChunk, from, to);
 							if constexpr (UseFilters)
 								if (it.size() == 0 || !match_filters(*pChunk, queryInfo, m_changedWorldVersion))
 									return false;
@@ -48785,7 +48846,7 @@ namespace gaia {
 					uint32_t cnt = 0;
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -48815,10 +48876,13 @@ namespace gaia {
 
 						if (!hasEntityFilters) {
 							for (auto* pChunk: chunks) {
-								it.set_chunk(pChunk);
-								const auto entityCnt = it.size();
+								uint16_t from = 0;
+								uint16_t to = 0;
+								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+								const auto entityCnt = to - from;
 								if (entityCnt == 0)
 									continue;
+								it.set_chunk(pChunk, from, to);
 
 								if constexpr (UseFilters) {
 									if (!match_filters(*pChunk, queryInfo, m_changedWorldVersion))
@@ -48830,11 +48894,13 @@ namespace gaia {
 							continue;
 						}
 						for (auto* pChunk: chunks) {
-							it.set_chunk(pChunk);
-
-							const auto entityCnt = it.size();
+							uint16_t from = 0;
+							uint16_t to = 0;
+							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
+							const auto entityCnt = to - from;
 							if (entityCnt == 0)
 								continue;
+							it.set_chunk(pChunk, from, to);
 
 							// Filters
 							if constexpr (UseFilters) {
@@ -50067,7 +50133,7 @@ namespace gaia {
 					const bool hasFilters = queryInfo.has_filters();
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, Constraints::EnabledOnly);
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
@@ -50159,7 +50225,7 @@ namespace gaia {
 					const bool hasFilters = queryInfo.has_filters();
 					const bool hasEntityFilters = queryInfo.has_entity_filter_terms();
 					const auto cacheView = queryInfo.cache_archetype_view();
-					const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, Constraints::EnabledOnly);
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
@@ -51320,6 +51386,8 @@ namespace gaia {
 				const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(archetypeIdx);
 				if GAIA_UNLIKELY (!query.can_process_archetype_inter(queryInfo, *pArchetype, it.constraints(), barrierPasses))
 					return;
+				if GAIA_UNLIKELY (from == to)
+					return;
 
 				GAIA_PROF_SCOPE(query::arr);
 
@@ -51567,7 +51635,7 @@ namespace gaia {
 						plan.idxFrom = pGroupData->idxFirst;
 						plan.idxTo = pGroupData->idxLast + 1;
 					}
-					return true;
+					return plan.idxFrom < plan.idxTo;
 				};
 
 				if (state.canUseDirectChunkEval && !canDirectEntitySeed && canDirectChunks) {
@@ -51589,6 +51657,13 @@ namespace gaia {
 
 				if (canDirectEntitySeed) {
 					plan.mode = QueryPlanMode::EntitySeed;
+					return plan;
+				}
+
+				if (!setDenseRange()) {
+					plan.mode = QueryPlanMode::Empty;
+					plan.idxFrom = 0;
+					plan.idxTo = 0;
 					return plan;
 				}
 
@@ -52154,7 +52229,7 @@ namespace gaia {
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
 				const auto cacheView = queryInfo.cache_archetype_view();
 				const auto sortView = queryInfo.cache_sort_view();
-				const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+				const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 				if (needsBarrierCache)
 					queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 				uint32_t idxFrom = 0;
@@ -52172,10 +52247,16 @@ namespace gaia {
 						if (view.archetypeIdx < idxFrom || view.archetypeIdx >= idxTo)
 							continue;
 
-						const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-						const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *cacheView[view.archetypeIdx], constraints, barrierPasses))
+							continue;
+
 						const auto viewFrom = view.startRow;
 						const auto viewTo = (uint16_t)(view.startRow + view.count);
+						uint16_t minStartRow = 0;
+						uint16_t minEndRow = 0;
+						chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 						const auto startRow = core::get_max(minStartRow, viewFrom);
 						const auto endRow = core::get_min(minEndRow, viewTo);
 						if (startRow == endRow)
@@ -52190,11 +52271,19 @@ namespace gaia {
 
 				for (uint32_t i = idxFrom; i < idxTo; ++i) {
 					auto* pArchetype = cacheView[i];
+					const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+						continue;
+
 					const auto& chunks = pArchetype->chunks();
-					for (auto* pChunk: chunks)
+					for (auto* pChunk: chunks) {
+						uint16_t from = 0;
+						uint16_t to = 0;
+						chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
 						run_typed_arr_rows<UseFilters>(
-								*this, queryInfo, it, outArray, m_changedWorldVersion, i, pArchetype, pChunk, 0, 0, needsBarrierCache,
-								canUseDirectChunkEval);
+								*this, queryInfo, it, outArray, m_changedWorldVersion, i, pArchetype, pChunk, from, to,
+								needsBarrierCache, canUseDirectChunkEval);
+					}
 				}
 			}
 

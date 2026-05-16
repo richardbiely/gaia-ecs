@@ -175,9 +175,39 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthTypedPlan.idxFrom < depthTypedPlan.idxTo);
 
 	const auto depthIterPlan = qDepthOrder.test_iter_plan();
-	CHECK(depthIterPlan.mode == PlanMode::Traversal);
+	CHECK(depthIterPlan.mode == PlanMode::General);
+	CHECK(depthIterPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
 	CHECK(depthIterPlan.idxFrom < depthIterPlan.idxTo);
+
+	const auto depthAcceptAllPlan = qDepthOrder.test_iter_plan(ecs::Constraints::AcceptAll);
+	CHECK(depthAcceptAllPlan.mode == PlanMode::General);
+	CHECK(depthAcceptAllPlan.payloadKind == PayloadKind::Grouped);
+	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
+	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthAcceptAllPlan.idxFrom < depthAcceptAllPlan.idxTo);
+
+	const auto depthDisabledOnlyPlan = qDepthOrder.test_iter_plan(ecs::Constraints::DisabledOnly);
+	CHECK(depthDisabledOnlyPlan.mode == PlanMode::General);
+	CHECK(depthDisabledOnlyPlan.payloadKind == PayloadKind::Grouped);
+	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
+	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthDisabledOnlyPlan.idxFrom < depthDisabledOnlyPlan.idxTo);
+
+	wld.enable(e, false);
+	const auto depthEnabledPrunedPlan = qDepthOrder.test_iter_plan();
+	CHECK(depthEnabledPrunedPlan.mode == PlanMode::Traversal);
+	CHECK(depthEnabledPrunedPlan.payloadKind == PayloadKind::NonTrivial);
+	CHECK((depthEnabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
+	CHECK((depthEnabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthEnabledPrunedPlan.idxFrom < depthEnabledPrunedPlan.idxTo);
+
+	const auto depthDisabledPrunedPlan = qDepthOrder.test_iter_plan(ecs::Constraints::DisabledOnly);
+	CHECK(depthDisabledPrunedPlan.mode == PlanMode::Traversal);
+	CHECK(depthDisabledPrunedPlan.payloadKind == PayloadKind::NonTrivial);
+	CHECK((depthDisabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
+	CHECK((depthDisabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthDisabledPrunedPlan.idxFrom < depthDisabledPrunedPlan.idxTo);
 }
 
 TEST_CASE("Query - direct typed chunk rows") {
@@ -4040,6 +4070,28 @@ TEST_CASE("Query depth_order ChildOf prunes disabled subtree") {
 		cnt::darr<ecs::Entity> arr;
 		q.arr(arr);
 		CHECK(arr.empty());
+
+		cnt::darr<ecs::Entity> disabledEnts;
+		q.each(
+				[&](ecs::Iter& it) {
+					auto rows = it.view<ecs::Entity>();
+					GAIA_FOR(it.size()) disabledEnts.push_back(rows[i]);
+				},
+				ecs::Constraints::DisabledOnly);
+		CHECK(disabledEnts.size() == 2);
+		if (disabledEnts.size() == 2) {
+			CHECK(disabledEnts[0] == child);
+			CHECK(disabledEnts[1] == grandChild);
+		}
+		CHECK(q.count(ecs::Constraints::DisabledOnly) == 2);
+
+		cnt::darr<ecs::Entity> disabledArr;
+		q.arr(disabledArr, ecs::Constraints::DisabledOnly);
+		CHECK(disabledArr.size() == 2);
+		if (disabledArr.size() == 2) {
+			CHECK(disabledArr[0] == child);
+			CHECK(disabledArr[1] == grandChild);
+		}
 	}
 
 	wld.enable(root, true);
@@ -4056,6 +4108,28 @@ TEST_CASE("Query depth_order ChildOf prunes disabled subtree") {
 		cnt::darr<ecs::Entity> arr;
 		q.arr(arr);
 		CHECK(arr.empty());
+
+		cnt::darr<ecs::Entity> disabledEnts;
+		q.each(
+				[&](ecs::Iter& it) {
+					auto rows = it.view<ecs::Entity>();
+					GAIA_FOR(it.size()) disabledEnts.push_back(rows[i]);
+				},
+				ecs::Constraints::DisabledOnly);
+		CHECK(disabledEnts.size() == 2);
+		if (disabledEnts.size() == 2) {
+			CHECK(disabledEnts[0] == child);
+			CHECK(disabledEnts[1] == grandChild);
+		}
+		CHECK(q.count(ecs::Constraints::DisabledOnly) == 2);
+
+		cnt::darr<ecs::Entity> disabledArr;
+		q.arr(disabledArr, ecs::Constraints::DisabledOnly);
+		CHECK(disabledArr.size() == 2);
+		if (disabledArr.size() == 2) {
+			CHECK(disabledArr[0] == child);
+			CHECK(disabledArr[1] == grandChild);
+		}
 	}
 }
 

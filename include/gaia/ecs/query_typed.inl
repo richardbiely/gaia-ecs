@@ -439,6 +439,8 @@ namespace gaia {
 				const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(archetypeIdx);
 				if GAIA_UNLIKELY (!query.can_process_archetype_inter(queryInfo, *pArchetype, it.constraints(), barrierPasses))
 					return;
+				if GAIA_UNLIKELY (from == to)
+					return;
 
 				GAIA_PROF_SCOPE(query::arr);
 
@@ -1280,7 +1282,7 @@ namespace gaia {
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
 				const auto cacheView = queryInfo.cache_archetype_view();
 				const auto sortView = queryInfo.cache_sort_view();
-				const bool needsBarrierCache = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+				const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 				if (needsBarrierCache)
 					queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 				uint32_t idxFrom = 0;
@@ -1298,10 +1300,16 @@ namespace gaia {
 						if (view.archetypeIdx < idxFrom || view.archetypeIdx >= idxTo)
 							continue;
 
-						const auto minStartRow = detail::ChunkIterImpl::start_index(view.pChunk, constraints);
-						const auto minEndRow = detail::ChunkIterImpl::end_index(view.pChunk, constraints);
+						const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(view.archetypeIdx);
+						if GAIA_UNLIKELY (!can_process_archetype_inter(
+																	queryInfo, *cacheView[view.archetypeIdx], constraints, barrierPasses))
+							continue;
+
 						const auto viewFrom = view.startRow;
 						const auto viewTo = (uint16_t)(view.startRow + view.count);
+						uint16_t minStartRow = 0;
+						uint16_t minEndRow = 0;
+						chunk_effective_range(view.pChunk, constraints, needsBarrierCache, barrierPasses, minStartRow, minEndRow);
 						const auto startRow = core::get_max(minStartRow, viewFrom);
 						const auto endRow = core::get_min(minEndRow, viewTo);
 						if (startRow == endRow)
@@ -1316,11 +1324,19 @@ namespace gaia {
 
 				for (uint32_t i = idxFrom; i < idxTo; ++i) {
 					auto* pArchetype = cacheView[i];
+					const bool barrierPasses = !needsBarrierCache || queryInfo.barrier_passes(i);
+					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints, barrierPasses))
+						continue;
+
 					const auto& chunks = pArchetype->chunks();
-					for (auto* pChunk: chunks)
+					for (auto* pChunk: chunks) {
+						uint16_t from = 0;
+						uint16_t to = 0;
+						chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
 						run_typed_arr_rows<UseFilters>(
-								*this, queryInfo, it, outArray, m_changedWorldVersion, i, pArchetype, pChunk, 0, 0, needsBarrierCache,
-								canUseDirectChunkEval);
+								*this, queryInfo, it, outArray, m_changedWorldVersion, i, pArchetype, pChunk, from, to,
+								needsBarrierCache, canUseDirectChunkEval);
+					}
 				}
 			}
 

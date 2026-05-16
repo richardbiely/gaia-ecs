@@ -228,6 +228,8 @@ namespace gaia {
 					uint32_t barrierRelVersion = UINT32_MAX;
 					//! Entity enable-state version at which the cached depth-order hierarchy barrier state was last rebuilt.
 					uint32_t barrierEnabledVersion = UINT32_MAX;
+					//! True when at least one cached archetype fails the depth-order hierarchy barrier.
+					uint8_t barrierMayPrune = 0;
 
 					void clear() {
 						archetypeSortData = {};
@@ -235,6 +237,7 @@ namespace gaia {
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
+						barrierMayPrune = 0;
 					}
 
 					void clear_transient() {
@@ -243,6 +246,7 @@ namespace gaia {
 						sortVersion = 0;
 						barrierRelVersion = UINT32_MAX;
 						barrierEnabledVersion = UINT32_MAX;
+						barrierMayPrune = 0;
 					}
 				};
 
@@ -1481,6 +1485,7 @@ namespace gaia {
 					return;
 
 				m_state.nonTrivial.archetypeBarrierPasses.resize(m_state.archetypeCache.size(), 1);
+				m_state.nonTrivial.barrierMayPrune = 0;
 
 				const auto relation = m_plan.ctx.data.groupBy;
 				for (uint32_t i = 0; i < m_state.archetypeCache.size(); ++i) {
@@ -1494,6 +1499,7 @@ namespace gaia {
 						const auto parent = world_pair_target_if_alive(*world(), pair);
 						if (parent == EntityBad || !world_entity_enabled_hierarchy(*world(), parent, relation)) {
 							barrierPasses = 0;
+							m_state.nonTrivial.barrierMayPrune = 1;
 							break;
 						}
 					}
@@ -1939,6 +1945,11 @@ namespace gaia {
 					return true;
 				GAIA_ASSERT(archetypeIdx < m_state.nonTrivial.archetypeBarrierPasses.size());
 				return m_state.nonTrivial.archetypeBarrierPasses[archetypeIdx] != 0;
+			}
+
+			GAIA_NODISCARD bool barrier_may_prune() const {
+				const_cast<QueryInfo*>(this)->ensure_depth_order_hierarchy_barrier_cache();
+				return m_state.nonTrivial.barrierMayPrune != 0;
 			}
 
 			GAIA_NODISCARD CArchetypeDArray::iterator begin() {

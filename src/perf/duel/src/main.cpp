@@ -1272,6 +1272,63 @@ void BM_NonECS_DOD(picobench::state& state) {
 	}
 }
 
+void BM_ECS_DepthOrder_Iter_EnabledOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_DepthOrder_Iter_EnabledOnly);
+
+	ecs::World w;
+	(void)w.add<Position>();
+
+	auto root = w.add();
+	auto child = w.add();
+	w.child(child, root);
+	w.add<Position>(child, {0, 0, 0});
+	w.copy_n(child, (uint32_t)state.user_data() - 1);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	gaia::dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			auto ents = it.view<ecs::Entity>();
+			GAIA_FOR(it.size()) sum += ents[i].id();
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
+void BM_ECS_DepthOrder_Iter_DisabledOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_DepthOrder_Iter_DisabledOnly);
+
+	ecs::World w;
+	(void)w.add<Position>();
+
+	auto root = w.add();
+	auto child = w.add();
+	w.child(child, root);
+	w.add<Position>(child, {0, 0, 0});
+	w.enable(child, false);
+	w.copy_n(child, (uint32_t)state.user_data() - 1, [&](ecs::Entity e) {
+		w.enable(e, false);
+	});
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	gaia::dont_optimize(q.count(ecs::Constraints::DisabledOnly));
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t sum = 0;
+		q.each(
+				[&](ecs::Iter& it) {
+					auto ents = it.view<ecs::Entity>();
+					GAIA_FOR(it.size()) sum += ents[i].id();
+				},
+				ecs::Constraints::DisabledOnly);
+		gaia::dont_optimize(sum);
+	}
+}
+
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_SoA);
@@ -1547,6 +1604,14 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_ECS_Iter_SoA).PICO_SETTINGS().user_data(NMany).label("Iter_SoA Many");
 			PICOBENCH_REG(BM_ECS_Iter_SoA_Dir).PICO_SETTINGS().label("Iter_SoA_Dir");
 			PICOBENCH_REG(BM_ECS_Iter_SoA_Dir).PICO_SETTINGS().user_data(NMany).label("Iter_SoA_Dir Many");
+			PICOBENCH_REG(BM_ECS_DepthOrder_Iter_EnabledOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("DepthOrder_Iter_EnabledOnly Many");
+			PICOBENCH_REG(BM_ECS_DepthOrder_Iter_DisabledOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("DepthOrder_Iter_DisabledOnly Many");
 		}
 	}
 
