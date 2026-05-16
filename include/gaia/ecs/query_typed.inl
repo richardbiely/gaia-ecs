@@ -711,6 +711,13 @@ namespace gaia {
 					return plan;
 				}
 
+				if (!setDenseRange()) {
+					plan.mode = QueryPlanMode::Empty;
+					plan.idxFrom = 0;
+					plan.idxTo = 0;
+					return plan;
+				}
+
 				if (queryInfo.has_sorted_payload()) {
 					plan.mode = QueryPlanMode::Sorted;
 					plan.payloadKind = ExecPayloadKind::NonTrivial;

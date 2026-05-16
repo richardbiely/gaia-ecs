@@ -146,6 +146,24 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(groupedIterPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((groupedIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK(groupedIterPlan.idxFrom == groupedIterPlan.idxTo);
+
+	auto qSortedMissing = wld.query().all<Scale>().sort_by(
+			wld.get<Position>(), []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+				const auto& p0 = *static_cast<const Position*>(pData0);
+				const auto& p1 = *static_cast<const Position*>(pData1);
+				if (p0.x < p1.x)
+					return -1;
+				if (p0.x > p1.x)
+					return 1;
+				return 0;
+			});
+	const auto emptySortedTypedPlan = qSortedMissing.test_typed_plan([](const Scale&) {});
+	CHECK(emptySortedTypedPlan.mode == PlanMode::Empty);
+	CHECK(emptySortedTypedPlan.idxFrom == emptySortedTypedPlan.idxTo);
+
+	const auto emptySortedIterPlan = qSortedMissing.test_iter_plan();
+	CHECK(emptySortedIterPlan.mode == PlanMode::Empty);
+	CHECK(emptySortedIterPlan.idxFrom == emptySortedIterPlan.idxTo);
 }
 
 TEST_CASE("Query - direct typed chunk rows") {
