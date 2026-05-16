@@ -164,6 +164,20 @@ TEST_CASE("Query - query plan classification") {
 	const auto emptySortedIterPlan = qSortedMissing.test_iter_plan();
 	CHECK(emptySortedIterPlan.mode == PlanMode::Empty);
 	CHECK(emptySortedIterPlan.idxFrom == emptySortedIterPlan.idxTo);
+
+	const auto child = wld.add();
+	wld.add<Position>(child, {7.0f, 8.0f, 9.0f});
+	wld.add(child, ecs::Pair(ecs::ChildOf, e));
+	auto qDepthOrder = wld.query().all<Position>().depth_order(ecs::ChildOf);
+	const auto depthTypedPlan = qDepthOrder.test_typed_plan([](const Position&) {});
+	CHECK(depthTypedPlan.mode == PlanMode::Traversal);
+	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthTypedPlan.idxFrom < depthTypedPlan.idxTo);
+
+	const auto depthIterPlan = qDepthOrder.test_iter_plan();
+	CHECK(depthIterPlan.mode == PlanMode::Traversal);
+	CHECK((depthIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthIterPlan.idxFrom < depthIterPlan.idxTo);
 }
 
 TEST_CASE("Query - direct typed chunk rows") {

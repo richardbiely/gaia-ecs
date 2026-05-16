@@ -3421,7 +3421,10 @@ namespace gaia {
 				GAIA_NODISCARD QueryPlan prepare_query_plan(const QueryInfo& queryInfo, Constraints constraints) const {
 					QueryPlan plan{};
 					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
-					if (queryInfo.has_filters())
+					const bool hasFilters = queryInfo.has_filters();
+					const bool hasSortedPayload = queryInfo.has_sorted_payload();
+					const bool hasDepthOrderBarrier = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					if (hasFilters)
 						plan.flags |= QueryPlanFlag_Filtered;
 					if (queryInfo.has_entity_filter_terms())
 						plan.flags |= QueryPlanFlag_EntityFilter;
@@ -3429,7 +3432,7 @@ namespace gaia {
 						plan.flags |= QueryPlanFlag_InheritedPayload;
 					if (queryInfo.has_grouped_payload())
 						plan.flags |= QueryPlanFlag_Grouped;
-					if (queryInfo.has_sorted_payload() || has_depth_order_hierarchy_enabled_barrier(queryInfo))
+					if (hasSortedPayload || hasDepthOrderBarrier)
 						plan.flags |= QueryPlanFlag_Sorted;
 					plan.payloadKind = exec_payload_kind(queryInfo, constraints);
 
@@ -3458,12 +3461,12 @@ namespace gaia {
 						return plan;
 					}
 
-					if ((plan.flags & QueryPlanFlag_Sorted) != 0) {
+					if (hasSortedPayload) {
 						plan.mode = QueryPlanMode::Sorted;
 						return plan;
 					}
 
-					if ((plan.flags & QueryPlanFlag_InheritedPayload) != 0) {
+					if (hasDepthOrderBarrier || (plan.flags & QueryPlanFlag_InheritedPayload) != 0) {
 						plan.mode = QueryPlanMode::Traversal;
 						return plan;
 					}
