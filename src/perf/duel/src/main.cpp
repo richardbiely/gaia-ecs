@@ -1354,6 +1354,42 @@ void BM_ECS_DepthOrder_Typed_EnabledOnly(picobench::state& state) {
 	}
 }
 
+void BM_ECS_DepthOrder_Typed_PrunedEnabledOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_DepthOrder_Typed_PrunedEnabledOnly);
+
+	ecs::World w;
+	(void)w.add<Position>();
+
+	const auto entityCount = (uint32_t)state.user_data();
+	const auto prunedCount = entityCount;
+	const auto enabledCount = entityCount;
+
+	auto disabledRoot = w.add();
+	w.enable(disabledRoot, false);
+	auto prunedChild = w.add();
+	w.child(prunedChild, disabledRoot);
+	w.add<Position>(prunedChild, {2, 0, 0});
+	w.copy_n(prunedChild, prunedCount - 1);
+
+	auto enabledRoot = w.add();
+	auto enabledChild = w.add();
+	w.child(enabledChild, enabledRoot);
+	w.add<Position>(enabledChild, {1, 0, 0});
+	w.copy_n(enabledChild, enabledCount - 1);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	gaia::dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint32_t)p.x;
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_SoA);
@@ -1641,6 +1677,10 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(NMany)
 					.label("DepthOrder_Typed_EnabledOnly Many");
+			PICOBENCH_REG(BM_ECS_DepthOrder_Typed_PrunedEnabledOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("DepthOrder_Typed_PrunedEnabledOnly Many");
 		}
 	}
 
