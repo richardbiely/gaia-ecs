@@ -170,7 +170,9 @@ TEST_CASE("Query - query plan classification") {
 	wld.add(child, ecs::Pair(ecs::ChildOf, e));
 	auto qDepthOrder = wld.query().all<Position>().depth_order(ecs::ChildOf);
 	const auto depthTypedPlan = qDepthOrder.test_typed_plan([](const Position&) {});
-	CHECK(depthTypedPlan.mode == PlanMode::Traversal);
+	CHECK(depthTypedPlan.mode == PlanMode::DirectDense);
+	CHECK(depthTypedPlan.payloadKind == PayloadKind::Grouped);
+	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
 	CHECK(depthTypedPlan.idxFrom < depthTypedPlan.idxTo);
 
@@ -195,6 +197,13 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthDisabledOnlyPlan.idxFrom < depthDisabledOnlyPlan.idxTo);
 
 	wld.enable(e, false);
+	const auto depthTypedPrunedPlan = qDepthOrder.test_typed_plan([](const Position&) {});
+	CHECK(depthTypedPrunedPlan.mode == PlanMode::Traversal);
+	CHECK(depthTypedPrunedPlan.payloadKind == PayloadKind::NonTrivial);
+	CHECK((depthTypedPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
+	CHECK((depthTypedPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK(depthTypedPrunedPlan.idxFrom < depthTypedPrunedPlan.idxTo);
+
 	const auto depthEnabledPrunedPlan = qDepthOrder.test_iter_plan();
 	CHECK(depthEnabledPrunedPlan.mode == PlanMode::Traversal);
 	CHECK(depthEnabledPrunedPlan.payloadKind == PayloadKind::NonTrivial);

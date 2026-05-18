@@ -3386,9 +3386,14 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! Checks whether typed callbacks can use dense chunk iteration while preserving required cache ordering.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when direct chunk iteration preserves required ordering and hierarchy-barrier pruning
+				//! semantics.
 				GAIA_NODISCARD bool can_use_direct_chunk_iteration_fastpath(const QueryInfo& queryInfo) const {
 					const auto& data = queryInfo.ctx().data;
-					return data.sortByFunc == nullptr && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					return data.sortByFunc == nullptr &&
+								 (!has_depth_order_hierarchy_enabled_barrier(queryInfo) || !queryInfo.barrier_may_prune());
 				}
 
 				//! Selects the prepared execution plan for typed callbacks.

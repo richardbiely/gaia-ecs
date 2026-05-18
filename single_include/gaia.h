@@ -47535,9 +47535,14 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! Checks whether typed callbacks can use dense chunk iteration while preserving required cache ordering.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when direct chunk iteration preserves required ordering and hierarchy-barrier pruning
+				//! semantics.
 				GAIA_NODISCARD bool can_use_direct_chunk_iteration_fastpath(const QueryInfo& queryInfo) const {
 					const auto& data = queryInfo.ctx().data;
-					return data.sortByFunc == nullptr && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+					return data.sortByFunc == nullptr &&
+								 (!has_depth_order_hierarchy_enabled_barrier(queryInfo) || !queryInfo.barrier_may_prune());
 				}
 
 				//! Selects the prepared execution plan for typed callbacks.
@@ -51607,6 +51612,9 @@ namespace gaia {
 				plan.payloadKind = exec_payload_kind(queryInfo, Constraints::EnabledOnly);
 
 				const bool hasFilters = queryInfo.has_filters();
+				const bool hasSortedPayload = queryInfo.has_sorted_payload();
+				const bool hasDepthOrderBarrier = has_depth_order_hierarchy_enabled_barrier(queryInfo);
+				const bool depthOrderBarrierPrunes = hasDepthOrderBarrier && depth_order_hierarchy_barrier_prunes(queryInfo);
 				if (hasFilters)
 					plan.flags |= QueryPlanFlag_Filtered;
 				if (queryInfo.has_entity_filter_terms())
@@ -51615,8 +51623,10 @@ namespace gaia {
 					plan.flags |= QueryPlanFlag_InheritedPayload;
 				if (queryInfo.has_grouped_payload())
 					plan.flags |= QueryPlanFlag_Grouped;
-				if (queryInfo.has_sorted_payload() || has_depth_order_hierarchy_enabled_barrier(queryInfo))
+				if (hasSortedPayload || hasDepthOrderBarrier)
 					plan.flags |= QueryPlanFlag_Sorted;
+				if (hasDepthOrderBarrier && !depthOrderBarrierPrunes)
+					plan.payloadKind = ExecPayloadKind::Grouped;
 
 				const bool canDirectEntitySeed = !hasFilters && can_use_direct_entity_seed_eval(queryInfo);
 				const bool canDirectChunks = can_use_direct_chunk_iteration_fastpath(queryInfo);
@@ -51667,15 +51677,26 @@ namespace gaia {
 					return plan;
 				}
 
-				if (queryInfo.has_sorted_payload()) {
+				if (hasSortedPayload) {
 					plan.mode = QueryPlanMode::Sorted;
 					plan.payloadKind = ExecPayloadKind::NonTrivial;
 					return plan;
 				}
 
-				if (has_depth_order_hierarchy_enabled_barrier(queryInfo)) {
+				if (hasDepthOrderBarrier && depthOrderBarrierPrunes) {
 					plan.mode = QueryPlanMode::Traversal;
 					plan.payloadKind = ExecPayloadKind::NonTrivial;
+					return plan;
+				}
+
+				if ((plan.flags & QueryPlanFlag_InheritedPayload) != 0) {
+					plan.mode = QueryPlanMode::Traversal;
+					plan.payloadKind = ExecPayloadKind::NonTrivial;
+					return plan;
+				}
+
+				if (hasDepthOrderBarrier) {
+					plan.payloadKind = ExecPayloadKind::Grouped;
 					return plan;
 				}
 

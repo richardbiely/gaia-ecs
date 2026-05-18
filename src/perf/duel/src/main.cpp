@@ -1329,6 +1329,31 @@ void BM_ECS_DepthOrder_Iter_DisabledOnly(picobench::state& state) {
 	}
 }
 
+void BM_ECS_DepthOrder_Typed_EnabledOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_DepthOrder_Typed_EnabledOnly);
+
+	ecs::World w;
+	(void)w.add<Position>();
+
+	auto root = w.add();
+	auto child = w.add();
+	w.child(child, root);
+	w.add<Position>(child, {1, 0, 0});
+	w.copy_n(child, (uint32_t)state.user_data() - 1);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	gaia::dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t sum = 0;
+		q.each([&](const Position& p) {
+			sum += (uint32_t)p.x;
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
 template <uint32_t Groups>
 void BM_NonECS_DOD_SoA(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_NonECS_DOD_SoA);
@@ -1612,6 +1637,10 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(NMany)
 					.label("DepthOrder_Iter_DisabledOnly Many");
+			PICOBENCH_REG(BM_ECS_DepthOrder_Typed_EnabledOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("DepthOrder_Typed_EnabledOnly Many");
 		}
 	}
 
