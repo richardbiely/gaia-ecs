@@ -1,5 +1,6 @@
 var NAVTREEINDEX7 =
 {
+"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#aaa0462d94d281c5ede80738ebec7cd85":[10,0,0,3,0,33,7],
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3":[10,0,0,3,0,33,2],
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ad129420eb4bc12b3027f64cd567f73af":[10,0,0,3,0,33,11],
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ad55f64fbda6e194a97ab8f6d82e82532":[10,0,0,3,0,33,1],
@@ -248,6 +249,5 @@ var NAVTREEINDEX7 =
 "structgaia_1_1mem_1_1detail_1_1is__soa__layout_3_01T_00_01std_1_1void__t_3_01decltype_07T_1_1gaia__Data__Layout_08_4_01_4.html":[10,0,0,4,0,4],
 "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html":[10,0,0,4,0,6],
 "structgaia_1_1mem_1_1detail_1_1raw__data__holder_3_01Size_00_010_01_4.html":[10,0,0,4,0,7],
-"structgaia_1_1meta_1_1detail_1_1any__type.html":[10,0,0,5,0,0],
-"structgaia_1_1meta_1_1type__info.html":[10,0,0,5,1]
+"structgaia_1_1meta_1_1detail_1_1any__type.html":[10,0,0,5,0,0]
 };

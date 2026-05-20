@@ -1,5 +1,6 @@
 var NAVTREEINDEX4 =
 {
+"functions_func.html":[10,3,1,0],
 "functions_func_b.html":[10,3,1,1],
 "functions_func_c.html":[10,3,1,2],
 "functions_func_d.html":[10,3,1,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX4 =
 "sringbuffer_8h_source.html":[11,0,0,0,0,18],
 "stack__allocator_8h_source.html":[11,0,0,0,5,7],
 "str_8h_source.html":[11,0,0,0,9,4],
-"structgaia_1_1cnt_1_1const__darr__ext__soa__iterator.html":[10,0,0,0,3],
-"structgaia_1_1cnt_1_1const__darr__soa__iterator.html":[10,0,0,0,4]
+"structgaia_1_1cnt_1_1const__darr__ext__soa__iterator.html":[10,0,0,0,3]
 };

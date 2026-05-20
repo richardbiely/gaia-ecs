@@ -315,8 +315,8 @@ template&lt;bool HasFilters, QueryExecType ExecType, typename Func &gt; </td></t
 <tr class="memitem:afe6394db2d9336405f0b0dc18f8ce11d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe6394db2d9336405f0b0dc18f8ce11d">run_query_on_chunks_runtime_planned</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, Constraints constraints, Func func)</td></tr>
 <tr class="memdesc:afe6394db2d9336405f0b0dc18f8ce11d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs public iterator chunk execution from an already prepared plan.  <br /></td></tr>
 <tr class="separator:afe6394db2d9336405f0b0dc18f8ce11d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a34a90c03ecd1c2b9fd91267928c94062" id="r_a34a90c03ecd1c2b9fd91267928c94062"><td class="memItemLeft" align="right" valign="top"><a id="a34a90c03ecd1c2b9fd91267928c94062" name="a34a90c03ecd1c2b9fd91267928c94062"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>can_use_direct_chunk_iteration_fastpath</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo) const</td></tr>
+<tr class="memitem:a34a90c03ecd1c2b9fd91267928c94062" id="r_a34a90c03ecd1c2b9fd91267928c94062"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a34a90c03ecd1c2b9fd91267928c94062">can_use_direct_chunk_iteration_fastpath</a> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo) const</td></tr>
+<tr class="memdesc:a34a90c03ecd1c2b9fd91267928c94062"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether typed callbacks can use dense chunk iteration while preserving required cache ordering.  <br /></td></tr>
 <tr class="separator:a34a90c03ecd1c2b9fd91267928c94062"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2cafa9132d4631dc5fe6a86574a12a4d" id="r_a2cafa9132d4631dc5fe6a86574a12a4d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2cafa9132d4631dc5fe6a86574a12a4d">prepare_query_plan</a> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state) const</td></tr>
 <tr class="memdesc:a2cafa9132d4631dc5fe6a86574a12a4d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Selects the prepared execution plan for typed callbacks.  <br /></td></tr>
@@ -408,7 +408,7 @@ template&lt;bool UseFilters, typename ContainerOut &gt; </td></tr>
 <tr class="memitem:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>arr_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, ContainerOut &amp;outArray, Constraints constraints)</td></tr>
 <tr class="separator:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af93e27dd334bc4c1f97b1ea708aa9daf" id="r_af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memItemLeft" align="right" valign="top"><a id="af93e27dd334bc4c1f97b1ea708aa9daf" name="af93e27dd334bc4c1f97b1ea708aa9daf"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
 <tr class="separator:af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb4414f3d06217281ea9df4ccd7faf96" id="r_afb4414f3d06217281ea9df4ccd7faf96"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD QueryId&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afb4414f3d06217281ea9df4ccd7faf96">id</a> () const</td></tr>
 <tr class="memdesc:afb4414f3d06217281ea9df4ccd7faf96"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the cache handle id of this query.  <br /></td></tr>
@@ -732,6 +732,15 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a985c51d2fb9ae3ab648e913ddc14c676" id="r_a985c51d2fb9ae3ab648e913ddc14c676"><td class="memItemLeft" align="right" valign="top"><a id="a985c51d2fb9ae3ab648e913ddc14c676" name="a985c51d2fb9ae3ab648e913ddc14c676"></a>
 static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_depth_order_hierarchy_enabled_barrier</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo)</td></tr>
 <tr class="separator:a985c51d2fb9ae3ab648e913ddc14c676"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1df24f5c79752a679535122e2e4732d0" id="r_a1df24f5c79752a679535122e2e4732d0"><td class="memItemLeft" align="right" valign="top"><a id="a1df24f5c79752a679535122e2e4732d0" name="a1df24f5c79752a679535122e2e4732d0"></a>
+static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>needs_depth_order_hierarchy_barrier_cache</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints)</td></tr>
+<tr class="separator:a1df24f5c79752a679535122e2e4732d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a06b4e5733b6a7cc04bc3ee94cc6080a7" id="r_a06b4e5733b6a7cc04bc3ee94cc6080a7"><td class="memItemLeft" align="right" valign="top"><a id="a06b4e5733b6a7cc04bc3ee94cc6080a7" name="a06b4e5733b6a7cc04bc3ee94cc6080a7"></a>
+static void&#160;</td><td class="memItemRight" valign="bottom"><b>chunk_effective_range</b> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, Constraints constraints, bool needsBarrierCache, bool barrierPasses, uint16_t &amp;from, uint16_t &amp;to) noexcept</td></tr>
+<tr class="separator:a06b4e5733b6a7cc04bc3ee94cc6080a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94a552d98dd977e7bb3201c0a3911130" id="r_a94a552d98dd977e7bb3201c0a3911130"><td class="memItemLeft" align="right" valign="top"><a id="a94a552d98dd977e7bb3201c0a3911130" name="a94a552d98dd977e7bb3201c0a3911130"></a>
+static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>depth_order_hierarchy_barrier_prunes</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo)</td></tr>
+<tr class="separator:a94a552d98dd977e7bb3201c0a3911130"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3718541c1d6a2075e369aa0901095200" id="r_a3718541c1d6a2075e369aa0901095200"><td class="memItemLeft" align="right" valign="top"><a id="a3718541c1d6a2075e369aa0901095200" name="a3718541c1d6a2075e369aa0901095200"></a>
 static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>survives_cascade_hierarchy_enabled_barrier</b> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype)</td></tr>
 <tr class="memdesc:a3718541c1d6a2075e369aa0901095200"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fast enabled-subtree gate for cached depth_order(...) queries over fragmenting hierarchy relations. ChildOf is the native built-in example, but the rule is semantic: the relation must support depth_order(...) and also form a fragmenting hierarchy chain. For such relations, all rows in the archetype share the same direct parent target. That lets us prune the entire archetype when its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent cannot use this archetype-level check and must stay on the per-entity traversal path instead. <br /></td></tr>
@@ -1534,6 +1543,41 @@ template&lt;typename Container &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True when neither query requires the main thread and conflicts_with(other) is false. </dd></dl>
+
+</div>
+</div>
+<a id="a34a90c03ecd1c2b9fd91267928c94062" name="a34a90c03ecd1c2b9fd91267928c94062"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a34a90c03ecd1c2b9fd91267928c94062">&#9670;&#160;</a></span>can_use_direct_chunk_iteration_fastpath()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::can_use_direct_chunk_iteration_fastpath </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether typed callbacks can use dense chunk iteration while preserving required cache ordering. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">queryInfo</td><td>Prepared query cache and execution metadata. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when direct chunk iteration preserves required ordering and hierarchy-barrier pruning semantics. </dd></dl>
 
 </div>
 </div>

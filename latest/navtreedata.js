@@ -176,12 +176,12 @@ var NAVTREEINDEX =
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8",
 "classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af8d1e2337fca718523beb8d989600241",
-"functions_func_b.html",
-"structgaia_1_1cnt_1_1const__page__iterator.html",
-"structgaia_1_1ecs_1_1Component_1_1InternalData.html#ae70cf0fff3b320ffa64c4ab00ed11ebf",
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3",
-"structgaia_1_1mt_1_1Futex.html"
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af866f7d259aa5b8dfc03b96acc45220b",
+"functions_func.html",
+"structgaia_1_1cnt_1_1const__darr__soa__iterator.html",
+"structgaia_1_1ecs_1_1Component_1_1InternalData.html#ac1aad7b81c3b90dafa638ae262e20d7d",
+"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#aaa0462d94d281c5ede80738ebec7cd85",
+"structgaia_1_1meta_1_1type__info.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

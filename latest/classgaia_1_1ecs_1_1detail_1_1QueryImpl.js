@@ -51,6 +51,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "cache_src_trav", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a65635226fb1125c9236cbfd51dc1e663", null ],
     [ "can_run_parallel", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a3d6c9c6a912a71cea655f9e2e4d4704d", null ],
     [ "can_use_archetype_bucket_count", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a593aa7f0b8f9a1eab67ccf37d94704fb", null ],
+    [ "can_use_direct_chunk_iteration_fastpath", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a34a90c03ecd1c2b9fd91267928c94062", null ],
     [ "can_use_direct_chunk_term_eval_arg", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a91dd480b883a7fcab7abc0f61ba7df29", null ],
     [ "can_use_direct_entity_seed_eval", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a3b4232e48f09a26784e3f2c258fd84fc", null ],
     [ "can_use_direct_seed_run_cache", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ada2b6e7441076ec0ac79113bf1f2e4e3", null ],
