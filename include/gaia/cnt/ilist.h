@@ -402,7 +402,8 @@ namespace gaia {
 			//! \param gen New slot generation.
 			//! \param prev Previous handle value. Unused for simple id/generation handles.
 			//! \return Rebuilt handle preserving the handle type's supported metadata.
-			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle&) {
+			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle& prev) {
+				(void)prev;
 				return TItemHandle(id, gen);
 			}
 		};
