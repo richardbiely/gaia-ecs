@@ -397,12 +397,35 @@ namespace gaia {
 
 		template <typename TItemHandle, typename = void>
 		struct ilist_handle_traits {
+			//! Rebuilds a handle after its generation changes.
+			//! \param id Slot index stored in the handle.
+			//! \param gen New slot generation.
+			//! \param prev Previous handle value. Unused for simple id/generation handles.
+			//! \return Rebuilt handle preserving the handle type's supported metadata.
 			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle&) {
 				return TItemHandle(id, gen);
 			}
 		};
 
-		template <typename TListItem, typename TItemHandle>
+		template <typename TItemHandle>
+		struct ilist_handle_traits<TItemHandle, std::void_t<decltype(std::declval<const TItemHandle&>().prio())>> {
+			//! Rebuilds a handle after its generation changes while preserving packed priority bits.
+			//! \param id Slot index stored in the handle.
+			//! \param gen New slot generation.
+			//! \param prev Previous handle value whose priority bit must be preserved.
+			//! \return Rebuilt handle with the same priority metadata as @a prev.
+			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle& prev) {
+				return TItemHandle(id, gen, prev.prio());
+			}
+		};
+
+		//! Paged implicit list declaration.
+		//! \tparam TListItem Payload type stored in the list.
+		//! \tparam TItemHandle External handle type used to address slots.
+		//! \tparam MaxPages Maximum number of addressable pages. A value of 0 keeps the
+		//!         page table dynamic. A non-zero value embeds a fixed page table in the
+		//!         container so page-table storage never reallocates after construction.
+		template <typename TListItem, typename TItemHandle, uint32_t MaxPages = 0>
 		struct paged_ilist;
 
 		//! Forward iterator used by paged_ilist.
@@ -471,7 +494,10 @@ namespace gaia {
 		//! \tparam TListItem Payload type stored in the list. Must expose slot metadata
 		//!         through ilist_item_traits<TListItem> and ilist-compatible create()/handle() helpers.
 		//! \tparam TItemHandle External handle type exposing id(), gen(), and IdMask.
-		template <typename TListItem, typename TItemHandle>
+		//! \tparam MaxPages Maximum number of page pointers kept by the container. Use 0 for
+		//!         dynamic growth through darray. Use a non-zero value when the maximum slot
+		//!         count is known and pointer-table relocation must be impossible.
+		template <typename TListItem, typename TItemHandle, uint32_t MaxPages>
 		struct paged_ilist {
 			using value_type = TListItem;
 			using reference = TListItem&;
@@ -522,6 +548,8 @@ namespace gaia {
 			}
 
 			static constexpr size_type PageCapacity = calc_page_capacity();
+			static constexpr bool FixedPageTable = MaxPages != 0;
+			static constexpr size_type StaticPageCount = MaxPages == 0 ? 1U : MaxPages;
 
 			struct page_type {
 				using alive_mask_type = cnt::bitset<PageCapacity>;
@@ -646,11 +674,17 @@ namespace gaia {
 				}
 			};
 
+			//! Dynamic page pointer table used when MaxPages is 0.
 			cnt::darray<page_type*> m_pages;
+			//! Fixed page pointer table used when MaxPages is non-zero.
+			//! Page payloads are still allocated lazily; only the pointer table is fixed.
+			page_type* m_staticPages[StaticPageCount]{};
 			size_type m_size = 0;
 
 		public:
+			//! Head of the implicit free-list, or TItemHandle::IdMask when no slots are free.
 			size_type m_nextFreeIdx = (size_type)-1;
+			//! Number of slots currently linked through the implicit free-list.
 			size_type m_freeItems = 0;
 
 		private:
@@ -666,24 +700,75 @@ namespace gaia {
 				return slotCnt == 0 ? 0U : (slotCnt + PageCapacity - 1) / PageCapacity;
 			}
 
+		public:
+			//! Returns the compile-time number of payload slots stored in one page.
+			//! \return Number of slots per page.
+			GAIA_NODISCARD static constexpr size_type page_capacity() noexcept {
+				return PageCapacity;
+			}
+
+			//! Calculates how many pages are needed to address @a slotCnt slots.
+			//! \param slotCnt Number of slots that must be addressable.
+			//! \return Number of pages required for @a slotCnt.
+			GAIA_NODISCARD static constexpr size_type page_count_for_capacity(size_type slotCnt) noexcept {
+				return page_count_for_slots(slotCnt);
+			}
+
+		private:
+			GAIA_NODISCARD size_type page_table_size() const noexcept {
+				if constexpr (FixedPageTable)
+					return MaxPages;
+				else
+					return (size_type)m_pages.size();
+			}
+
+			GAIA_NODISCARD page_type*& page_slot(size_type pageIdx) noexcept {
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageIdx < MaxPages);
+					return m_staticPages[pageIdx];
+				} else {
+					GAIA_ASSERT(pageIdx < (size_type)m_pages.size());
+					return m_pages[pageIdx];
+				}
+			}
+
+			GAIA_NODISCARD const page_type* page_slot(size_type pageIdx) const noexcept {
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageIdx < MaxPages);
+					return m_staticPages[pageIdx];
+				} else {
+					GAIA_ASSERT(pageIdx < (size_type)m_pages.size());
+					return m_pages[pageIdx];
+				}
+			}
+
 			void clear_pages() {
-				for (auto* pPage: m_pages) {
+				const auto pageCnt = page_table_size();
+				GAIA_FOR(pageCnt) {
+					auto*& pPage = page_slot(i);
 					if (pPage == nullptr)
 						continue;
 					delete pPage;
+					pPage = nullptr;
 				}
-				m_pages.clear();
+
+				if constexpr (!FixedPageTable)
+					m_pages.clear();
 			}
 
 			void ensure_page_count(size_type slotCnt) {
 				const auto pageCnt = page_count_for_slots(slotCnt);
-				if (pageCnt > (size_type)m_pages.size())
-					m_pages.resize(pageCnt, nullptr);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages && "Trying to allocate too many paged_ilist pages!");
+				} else {
+					if (pageCnt > (size_type)m_pages.size())
+						m_pages.resize(pageCnt, nullptr);
+				}
 			}
 
 			GAIA_NODISCARD page_type& ensure_page(size_type index) {
 				ensure_page_count(index + 1);
-				auto*& pPage = m_pages[page_index(index)];
+				auto*& pPage = page_slot(page_index(index));
 				if (pPage == nullptr)
 					pPage = new page_type();
 				return *pPage;
@@ -691,16 +776,16 @@ namespace gaia {
 
 			GAIA_NODISCARD page_type* try_page(size_type index) noexcept {
 				const auto pageIdx = page_index(index);
-				if (pageIdx >= (size_type)m_pages.size())
+				if (pageIdx >= page_table_size())
 					return nullptr;
-				return m_pages[pageIdx];
+				return page_slot(pageIdx);
 			}
 
 			GAIA_NODISCARD const page_type* try_page(size_type index) const noexcept {
 				const auto pageIdx = page_index(index);
-				if (pageIdx >= (size_type)m_pages.size())
+				if (pageIdx >= page_table_size())
 					return nullptr;
-				return m_pages[pageIdx];
+				return page_slot(pageIdx);
 			}
 
 			GAIA_NODISCARD reference slot_ref(size_type index) {
@@ -727,8 +812,16 @@ namespace gaia {
 			paged_ilist(const paged_ilist&) = delete;
 			paged_ilist& operator=(const paged_ilist&) = delete;
 			paged_ilist(paged_ilist&& other) noexcept:
-					m_pages(GAIA_MOV(other.m_pages)), m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx),
-					m_freeItems(other.m_freeItems) {
+					m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx), m_freeItems(other.m_freeItems) {
+				if constexpr (FixedPageTable) {
+					GAIA_FOR(MaxPages) {
+						m_staticPages[i] = other.m_staticPages[i];
+						other.m_staticPages[i] = nullptr;
+					}
+				} else {
+					m_pages = GAIA_MOV(other.m_pages);
+				}
+
 				other.m_size = 0;
 				other.m_nextFreeIdx = (size_type)-1;
 				other.m_freeItems = 0;
@@ -736,7 +829,16 @@ namespace gaia {
 			paged_ilist& operator=(paged_ilist&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 				clear_pages();
-				m_pages = GAIA_MOV(other.m_pages);
+
+				if constexpr (FixedPageTable) {
+					GAIA_FOR(MaxPages) {
+						m_staticPages[i] = other.m_staticPages[i];
+						other.m_staticPages[i] = nullptr;
+					}
+				} else {
+					m_pages = GAIA_MOV(other.m_pages);
+				}
+
 				m_size = other.m_size;
 				m_nextFreeIdx = other.m_nextFreeIdx;
 				m_freeItems = other.m_freeItems;
@@ -823,7 +925,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD size_type capacity() const noexcept {
-				return (size_type)m_pages.capacity() * PageCapacity;
+				if constexpr (FixedPageTable)
+					return MaxPages * PageCapacity;
+				else
+					return (size_type)m_pages.capacity() * PageCapacity;
 			}
 
 			//! Returns an iterator over live payload objects only.
@@ -851,8 +956,57 @@ namespace gaia {
 				return const_iterator(this, m_size);
 			}
 
+			//! Reserves page-table capacity for at least @a cap slots.
+			//! \param cap Number of slots that should be addressable without growing the page table.
+			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			//!       Payload pages remain lazily allocated in both modes.
 			void reserve(size_type cap) {
-				m_pages.reserve(page_count_for_slots(cap));
+				const auto pageCnt = page_count_for_slots(cap);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages);
+				} else {
+					m_pages.reserve(pageCnt);
+				}
+			}
+
+			//! Ensures the page pointer table can address @a cap slots without resizing later.
+			//! \param cap Number of slots that must be addressable.
+			//! \note This is stronger than reserve() in dynamic mode because it resizes the pointer
+			//!       table to contain null page entries. It does not allocate payload pages.
+			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			void reserve_slot_table(size_type cap) {
+				const auto pageCnt = page_count_for_slots(cap);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages);
+				} else {
+					ensure_page_count(cap);
+				}
+			}
+
+			//! Returns a live payload slot without consulting list-wide size metadata.
+			//! \param index Slot index to access.
+			//! \return Mutable reference to the live payload at @a index.
+			//! \warning This bypasses index < size() checks. Use only when the caller already
+			//!          validated the handle/index through stronger external synchronization.
+			GAIA_NODISCARD reference live_unsafe(size_type index) {
+				auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				const auto slot = slot_index(index);
+				GAIA_ASSERT(pPage->aliveMask.test(slot));
+				return *pPage->ptr(slot);
+			}
+
+			//! Returns a live payload slot without consulting list-wide size metadata.
+			//! \param index Slot index to access.
+			//! \return Immutable reference to the live payload at @a index.
+			//! \warning This bypasses index < size() checks. Use only when the caller already
+			//!          validated the handle/index through stronger external synchronization.
+			GAIA_NODISCARD const_reference live_unsafe(size_type index) const {
+				const auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				const auto slot = slot_index(index);
+				GAIA_ASSERT(pPage->aliveMask.test(slot));
+				return *pPage->ptr(slot);
 			}
 
 			GAIA_NODISCARD pointer try_get(size_type index) noexcept {
@@ -868,6 +1022,9 @@ namespace gaia {
 			}
 
 			//! Restores a live slot with a preassigned id/generation.
+			//! \param item Payload carrying the slot index and generation to restore.
+			//! \note Existing live payload at the same slot is destroyed first. Existing free-list
+			//!       metadata for that slot is cleared because the restored slot becomes live.
 			void add_live(TListItem&& item) {
 				const auto index = (size_type)ilist_item_traits<TListItem>::idx(item);
 				auto& page = ensure_page(index);
@@ -888,7 +1045,9 @@ namespace gaia {
 				page.nextFree[slot] = TItemHandle::IdMask;
 			}
 
-			//! Restores a free slot with a preassigned id/generation and freelist link.
+			//! Restores a free slot with a preassigned id/generation and free-list link.
+			//! \param handle Handle metadata to restore for the free slot.
+			//! \param nextFreeIdx Next slot in the implicit free-list, or TItemHandle::IdMask.
 			void add_free(TItemHandle handle, uint32_t nextFreeIdx) {
 				const auto index = (size_type)handle.id();
 				auto& page = ensure_page(index);
@@ -910,12 +1069,18 @@ namespace gaia {
 					m_nextFreeIdx = index;
 			}
 
-			//! Restores a free slot with a preassigned id/generation and freelist link.
+			//! Restores a free slot with a preassigned id/generation and free-list link.
+			//! \param index Slot index to restore.
+			//! \param generation Generation to store in the restored handle.
+			//! \param nextFreeIdx Next slot in the implicit free-list, or TItemHandle::IdMask.
 			void add_free(size_type index, uint32_t generation, uint32_t nextFreeIdx) {
 				add_free(ilist_handle_traits<TItemHandle>::make(index, generation, TItemHandle{}), nextFreeIdx);
 			}
 
-			//! Allocates a new item in the list
+			//! Allocates a new item in the list.
+			//! \param ctx Creation context forwarded to TListItem::create().
+			//! \return Handle of the allocated item.
+			//! \note Reused slots keep their generation and clear any keep-live payload before construction.
 			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
 				size_type index = 0;
 				uint32_t generation = 0;
@@ -933,6 +1098,8 @@ namespace gaia {
 					page.nextFree[slot] = TItemHandle::IdMask;
 					generation = page.handles[slot].gen();
 					--m_freeItems;
+					if (page.aliveMask.test(slot))
+						page.destroy(slot);
 				}
 
 				auto& page = ensure_page(index);
@@ -943,7 +1110,9 @@ namespace gaia {
 				return page.handles[slot];
 			}
 
-			//! Allocates a new item in the list
+			//! Allocates a new item in the list.
+			//! \return Handle of the allocated item.
+			//! \note Reused slots keep their generation and clear any keep-live payload before construction.
 			GAIA_NODISCARD TItemHandle alloc() {
 				size_type index = 0;
 				uint32_t generation = 0;
@@ -961,6 +1130,8 @@ namespace gaia {
 					page.nextFree[slot] = TItemHandle::IdMask;
 					generation = page.handles[slot].gen();
 					--m_freeItems;
+					if (page.aliveMask.test(slot))
+						page.destroy(slot);
 				}
 
 				auto& page = ensure_page(index);
@@ -971,6 +1142,9 @@ namespace gaia {
 				return page.handles[slot];
 			}
 
+			//! Frees a live item and destroys its payload immediately.
+			//! \param handle Handle identifying the item to release.
+			//! \note The slot generation is incremented and the slot is linked into the implicit free-list.
 			void free(TItemHandle handle) {
 				GAIA_ASSERT(has(handle));
 
@@ -983,6 +1157,26 @@ namespace gaia {
 				++m_freeItems;
 			}
 
+			//! Frees a handle while keeping the payload alive until slot reuse or clear().
+			//! \param handle Handle identifying the item to release.
+			//! \warning The slot becomes part of the free-list even though its payload remains alive.
+			//!          Iteration and has(handle) treat it as released because the generation changes.
+			//!          Callers that inspect the payload afterward must use live_unsafe() and must
+			//!          guarantee the slot has not been reused.
+			//! \note This is intended for systems that need released-state inspectability without
+			//!       moving page storage while other background work may still observe job data.
+			void free_keep_live(TItemHandle handle) {
+				GAIA_ASSERT(has(handle));
+
+				auto& page = ensure_page(handle.id());
+				const auto slot = slot_index(handle.id());
+				page.handles[slot] = ilist_handle_traits<TItemHandle>::make(handle.id(), handle.gen() + 1, page.handles[slot]);
+				page.nextFree[slot] = m_freeItems == 0 ? TItemHandle::IdMask : m_nextFreeIdx;
+				m_nextFreeIdx = handle.id();
+				++m_freeItems;
+			}
+
+			//! Verifies that the implicit free-list links are well formed.
 			void validate() const {
 				if (m_freeItems == 0)
 					return;
@@ -991,7 +1185,6 @@ namespace gaia {
 				auto nextFreeItem = m_nextFreeIdx;
 				while (freeItems > 0) {
 					GAIA_ASSERT(nextFreeItem < m_size && "Item recycle list broken!");
-					GAIA_ASSERT(!has(nextFreeItem));
 
 					nextFreeItem = next_free(nextFreeItem);
 					--freeItems;

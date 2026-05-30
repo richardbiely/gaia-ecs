@@ -24,10 +24,12 @@ namespace gaia {
 
 		enum JobCreationFlags : uint8_t {
 			Default = 0,
-			//! The job is not deleted automatically. Has to be done by the used.
+			//! The job is not deleted automatically. Has to be done by the user.
 			ManualDelete = 0x01,
 			//! The job can wait for other job (one not set as dependency).
-			CanWait = 0x02
+			CanWait = 0x02,
+			//! The job is executed through the background queue and may span multiple frames.
+			Background = 0x04
 		};
 
 		struct JobAllocCtx {
@@ -211,6 +213,8 @@ namespace gaia {
 			uint32_t workerIdx;
 			//! Job priority
 			JobPriority prio;
+			//! True when the worker executes background jobs.
+			bool background = false;
 			//! True when the worker thread has been successfully created.
 			bool threadCreated = false;
 			//! Event signaled when a job is executed
@@ -222,6 +226,7 @@ namespace gaia {
 			~ThreadCtx() = default;
 
 			void reset() {
+				background = false;
 				threadCreated = false;
 				event.reset();
 				jobQueue.clear();

@@ -3735,16 +3735,44 @@ Job behavior can be partial customized. For example, if we want to manage its li
 mt::Job job;
 // This job's lifetime won't be managed by the threadpool
 job.flags = mt::JobCreationFlags::ManualDelete;
-tp.func = ...;
+job.func = ...;
 mt::JobHandle handle = tp.sched(job);
 tp.wait(handle);
 // We release the job handle ourselves
 tp.del(handle);
 ```
 
+### Background jobs
+
+Frame jobs are expected to finish within the frame that owns them. Work that can legitimately span multiple frames, such as asset streaming, cache building, or other engine-side background tasks, can be routed to background workers instead.
+
+Background jobs are scheduled with `ThreadPool::sched_background`. They use a separate queue and are not drained by `ThreadPool::update`, so the main thread does not accidentally consume multi-frame work while helping the current frame finish. If no background workers are configured, `ThreadPool::wait` is the explicit fallback path that can execute queued background work on the calling thread.
+
+```cpp
+auto& tp = mt::ThreadPool::get();
+
+// Reserve one worker for multi-frame background work.
+tp.set_background_workers(1);
+
+mt::Job job;
+job.flags = mt::JobCreationFlags::ManualDelete;
+job.priority = mt::JobPriority::Low;
+job.func = []() {
+  StreamTextureChunk();
+};
+
+mt::JobHandle handle = tp.sched_background(job);
+
+// Later, when the result is needed:
+tp.wait(handle);
+tp.del(handle);
+```
+
+Background workers are separate from frame workers, but both groups share the thread pool's worker limit. `ThreadPool::workers` reports frame workers only, and `ThreadPool::background_workers` reports background workers only. Background jobs still use `JobPriority` for OS thread priority and QoS hints, but they do not age into frame queues and frame workers do not steal from background queues.
+
 ### Threads
 
-The total number of threads created for the pool is set via `ThreadPool::set_max_workers`. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter how many threads are requested, the final number if always capped to 31 (`ThreadPool::MaxWorkers`). The number of available threads on your hardware can be retrieved via `ThreadPool::hw_thread_cnt`.
+The total number of frame execution contexts for the pool is set via `ThreadPool::set_max_workers`. One context is the main thread, so the number of spawned frame workers is one less than the requested count. By default, the number of frame execution contexts is equal to the number of available CPU threads. However, no matter how many threads are requested, the final number is capped by the thread pool's internal worker limit. Background workers are configured separately with `ThreadPool::set_background_workers` and share the same cap. The number of available threads on your hardware can be retrieved via `ThreadPool::hw_thread_cnt`.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();
@@ -3752,20 +3780,20 @@ auto& tp = mt::ThreadPool::get();
 // Get the number of hardware threads.
 const uint32_t hwThreads = tp.hw_thread_cnt();
 
-// Create "hwThreads" worker threads. Make all of them high priority workers.
+// Create "hwThreads - 1" frame worker threads. Make all of them high priority workers.
 tp.set_max_workers(hwThreads, hwThreads);
 
-// Create "hwThreads" worker threads. Make 1 of them a high priority worker.
-// If more then 1 worker threads were created, the rest of them is dedicated
+// Create "hwThreads - 1" frame worker threads. Make 1 of them a high priority worker.
+// If more than 1 worker thread was created, the rest is dedicated
 // for low-priority jobs.
 tp.set_max_workers(hwThreads, 1);
 
-// No workers threads are used. If there were any before, they are destroyed.
+// No frame worker threads are used. If there were any before, they are destroyed.
 // All processing is happening on the main thread.
 tp.set_max_workers(0, 0);
 ```
 
-The number of worker threads for a given performance level can be adjusted via `ThreadPool::set_workers_high_prio` and `ThreadPool::set_workers_low_prio`. By default, all workers created are high-priority ones.
+The number of frame worker threads for a given performance level can be adjusted via `ThreadPool::set_workers_high_prio` and `ThreadPool::set_workers_low_prio`. By default, all frame workers created are high-priority ones.
 
 ```cpp
 auto& tp = mt::ThreadPool::get();
@@ -3817,19 +3845,43 @@ Note, the operating system has the last word here. It might decide to schedule l
 
 If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.
 
+Scheduler task descriptors carry `SchedFlags`. When `SchedFlags::Background` is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to `ThreadPool::sched_background`; external adapters need to preserve it for both `SchedTaskDesc` and `SchedParDesc` so background work does not silently fall back to a frame-bound queue.
+
 ```cpp
 struct MySchedCtx {
   MyEngine::Scheduler* scheduler;
 };
 
+static ecs::SchedToken MyRunTask(void* pCtx, const ecs::SchedTaskDesc* pDesc) {
+  auto& ctx = *(MySchedCtx*)pCtx;
+  const auto desc = *pDesc;
+  const bool background = ecs::sched_flags_has(desc.flags, ecs::SchedFlags::Background);
+  const auto lane = background ? MyEngine::Lane::Background : MyEngine::Lane::Frame;
+
+  auto token = ctx.scheduler->run(
+    [desc]() {
+      desc.invoke(desc.pCtx);
+    },
+    lane);
+
+  ecs::SchedToken out{};
+  out.value[0] = token.raw0;
+  out.value[1] = token.raw1;
+  return out;
+}
+
 static ecs::SchedToken MyRunParallel(void* pCtx, const ecs::SchedParDesc* pDesc) {
   auto& ctx = *(MySchedCtx*)pCtx;
+  const auto desc = *pDesc;
+  const bool background = ecs::sched_flags_has(desc.flags, ecs::SchedFlags::Background);
+  const auto lane = background ? MyEngine::Lane::Background : MyEngine::Lane::Frame;
 
   auto token = ctx.scheduler->parallel_for(
-    pDesc->itemCount,
-    [pDesc](uint32_t idxStart, uint32_t idxEnd) {
-      pDesc->invoke(pDesc->pCtx, idxStart, idxEnd);
-    });
+    desc.itemCount,
+    [desc](uint32_t idxStart, uint32_t idxEnd) {
+      desc.invoke(desc.pCtx, idxStart, idxEnd);
+    },
+    lane);
 
   ecs::SchedToken out{};
   out.value[0] = token.raw0;
@@ -3851,6 +3903,7 @@ MySchedCtx schedCtx{&engineScheduler};
 
 ecs::Sched sched{};
 sched.pCtx = &schedCtx;
+sched.sched = &MyRunTask;
 sched.sched_par = &MyRunParallel;
 sched.wait = &MyWait;
 sched.del = &MyDel;
@@ -3898,9 +3951,11 @@ boundsJob.wait();
 
 For a fully deferred external scheduler, implement `add` / `add_par`, `submit`, `dep`, `wait`, and `del`. If only `sched` / `sched_par` are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but `Query::job(...)` / `System::job()` cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.
 
+Deferred adapters should make the same background decision inside `add` and `add_par`, store it with the scheduler-owned token, and keep `submit` from moving background work back into a frame queue.
+
 If no scheduler is installed, Gaia-ECS falls back to its built-in `gaia::mt::ThreadPool`.
 
-This adapter hook affects ECS parallel query/system execution. The low-level `gaia::mt::ThreadPool` API remains available directly when you want to use Gaia's jobsystem yourself.
+This adapter hook affects ECS parallel query/system execution and explicit `ecs::sched_*` submissions. The low-level `gaia::mt::ThreadPool` API remains available directly when you want to use Gaia's jobsystem yourself.
 
 ## Customization
 

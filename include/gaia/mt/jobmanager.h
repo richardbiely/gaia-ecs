@@ -231,8 +231,12 @@ namespace gaia {
 
 		//! Storage and lifecycle manager for internal job and parallel callback records.
 		class JobManager {
-			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
-			cnt::ilist<JobContainer, JobHandle> m_jobData;
+			using JobDataLayout = cnt::paged_ilist<JobContainer, JobHandle>;
+			static constexpr uint32_t JobDataPageCount = JobDataLayout::page_count_for_capacity(JobHandle::IdMask);
+
+			//! Paged implicit list of jobs with a fixed page table.
+			//! Payload pages are still allocated lazily, but the page table never moves while background jobs are running.
+			cnt::paged_ilist<JobContainer, JobHandle, JobDataPageCount> m_jobData;
 			//! Shared callback records for parallel jobs.
 			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
 
@@ -240,12 +244,12 @@ namespace gaia {
 			//! Returns mutable internal storage for @a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			JobContainer& data(JobHandle jobHandle) {
-				return m_jobData[jobHandle.id()];
+				return m_jobData.live_unsafe(jobHandle.id());
 			}
 			//! Returns immutable internal storage for @a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			const JobContainer& data(JobHandle jobHandle) const {
-				return m_jobData[jobHandle.id()];
+				return m_jobData.live_unsafe(jobHandle.id());
 			}
 
 			//! Allocates a new job container identified by a unique JobHandle.
@@ -282,11 +286,12 @@ namespace gaia {
 			//! Invalidates @a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
-			//! \warning Must be used from the main thread.
+			//! \warning Caller must serialize job-pool allocation/free access.
 			void free_job(JobHandle jobHandle) {
-				auto& jobData = m_jobData.free(jobHandle);
+				auto& jobData = m_jobData.live_unsafe(jobHandle.id());
 				GAIA_ASSERT(done(jobData));
 				jobData.state.store(JobState::Released);
+				m_jobData.free_keep_live(jobHandle);
 			}
 
 			//! Releases a shared callback record.

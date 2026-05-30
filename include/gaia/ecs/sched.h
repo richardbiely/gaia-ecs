@@ -21,14 +21,32 @@ namespace gaia {
 			uintptr_t value[2]{};
 		};
 
+		//! Scheduler work flags shared by ECS scheduler descriptors.
+		enum class SchedFlags : uint8_t {
+			//! Default frame-bound work.
+			Default = 0,
+			//! Work may span multiple frames and should use the scheduler's background lane.
+			Background = 0x01
+		};
+
+		//! Checks whether a scheduler flag set contains a specific flag.
+		//! \param flags Flag set to inspect.
+		//! \param flag Flag to test for.
+		//! \return True when @a flag is present in @a flags.
+		GAIA_NODISCARD inline bool sched_flags_has(SchedFlags flags, SchedFlags flag) {
+			return ((uint8_t)flags & (uint8_t)flag) != 0U;
+		}
+
 		//! Description of a single task submitted to a scheduler.
 		struct SchedTaskDesc {
 			//! Opaque callback context forwarded to invoke().
 			void* pCtx = nullptr;
 			//! Task entry point.
 			void (*invoke)(void* pCtx) = nullptr;
-			//! Execution hint selected by the ECS caller.
+			//! Execution hint selected by the scheduler caller.
 			QueryExecType execType{};
+			//! Scheduler flags describing non-default execution requirements.
+			SchedFlags flags = SchedFlags::Default;
 		};
 
 		//! Description of a parallel-for submission to a scheduler.
@@ -41,8 +59,10 @@ namespace gaia {
 			uint32_t itemCount = 0;
 			//! Preferred group size. A value of 0 lets the scheduler choose.
 			uint32_t groupSize = 0;
-			//! Execution hint selected by the ECS caller.
+			//! Execution hint selected by the scheduler caller.
 			QueryExecType execType{};
+			//! Scheduler flags describing non-default execution requirements.
+			SchedFlags flags = SchedFlags::Default;
 		};
 
 		//! Scheduler descriptor used by ECS runtime code.
@@ -207,6 +227,17 @@ namespace gaia {
 				return (uint32_t)execType == 3U ? mt::JobPriority::Low : mt::JobPriority::High;
 			}
 
+			inline bool sched_flags_background(SchedFlags flags) {
+				return sched_flags_has(flags, SchedFlags::Background);
+			}
+
+			inline mt::JobCreationFlags job_creation_flags(SchedFlags flags) {
+				uint8_t jobFlags = (uint8_t)mt::JobCreationFlags::ManualDelete;
+				if (sched_flags_background(flags))
+					jobFlags |= (uint8_t)mt::JobCreationFlags::Background;
+				return (mt::JobCreationFlags)jobFlags;
+			}
+
 			enum class SchedTokenKind : uint32_t { None, Single, Parallel };
 
 			struct SchedTokenDefData {
@@ -239,7 +270,7 @@ namespace gaia {
 
 				mt::Job job;
 				job.priority = exec_prio(pDesc->execType);
-				job.flags = mt::JobCreationFlags::ManualDelete;
+				job.flags = job_creation_flags(pDesc->flags);
 				job.func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
 					invoke(pCtx);
 				};
@@ -268,7 +299,9 @@ namespace gaia {
 				const auto prio = exec_prio(pDesc->execType);
 				uint32_t groupSize = pDesc->groupSize;
 				if (groupSize == 0) {
-					const auto workers = core::get_max(1U, tp.workers() + 1U);
+					const bool background = sched_flags_background(pDesc->flags);
+					const auto workers =
+							background ? core::get_max(1U, tp.background_workers()) : core::get_max(1U, tp.workers() + 1U);
 					groupSize = (pDesc->itemCount + workers - 1) / workers;
 					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
 					groupSize = groupSize / maxUnitsOfWorkPerGroup;
@@ -287,7 +320,7 @@ namespace gaia {
 
 					mt::Job job;
 					job.priority = prio;
-					job.flags = mt::JobCreationFlags::ManualDelete;
+					job.flags = job_creation_flags(pDesc->flags);
 					job.func = [desc = *pDesc, idxStart, idxEnd]() {
 						desc.invoke(desc.pCtx, idxStart, idxEnd);
 					};
@@ -296,7 +329,7 @@ namespace gaia {
 				{
 					mt::Job syncJob;
 					syncJob.priority = prio;
-					syncJob.flags = mt::JobCreationFlags::ManualDelete;
+					syncJob.flags = job_creation_flags(pDesc->flags);
 					pData->handles[jobs] = tp.add(GAIA_MOV(syncJob));
 				}
 				tp.dep(std::span(pData->handles.data(), jobs), pData->handles[jobs]);

@@ -323,6 +323,143 @@ TEST_CASE("ECS - System jobs use external scheduler wrappers") {
 	CHECK(probe.delCalls == 1);
 }
 
+TEST_CASE("ECS - Scheduler descriptors preserve background flags for external schedulers") {
+	ExternalSchedProbe probe;
+	const auto sched = probe.sched();
+
+	std::atomic_bool taskRan = false;
+	ecs::SchedTaskDesc taskDesc{};
+	taskDesc.pCtx = &taskRan;
+	taskDesc.invoke = [](void* pCtx) {
+		((std::atomic_bool*)pCtx)->store(true, std::memory_order_release);
+	};
+	taskDesc.execType = ecs::QueryExecType::Default;
+	taskDesc.flags = ecs::SchedFlags::Background;
+
+	auto taskJob = ecs::sched_add(sched, taskDesc, nullptr, nullptr);
+	CHECK(taskJob.valid());
+	CHECK(probe.addTaskCalls == 1);
+	CHECK(probe.addedTasks[0].flags == ecs::SchedFlags::Background);
+	CHECK(ecs::sched_flags_has(probe.addedTasks[0].flags, ecs::SchedFlags::Background));
+	CHECK_FALSE(taskRan.load(std::memory_order_acquire));
+
+	taskJob.submit();
+	CHECK(taskRan.load(std::memory_order_acquire));
+	taskJob.wait();
+	taskJob.del();
+
+	std::atomic_uint32_t items = 0;
+	ecs::SchedParDesc parDesc{};
+	parDesc.pCtx = &items;
+	parDesc.invoke = [](void* pCtx, uint32_t idxStart, uint32_t idxEnd) {
+		((std::atomic_uint32_t*)pCtx)->fetch_add(idxEnd - idxStart, std::memory_order_release);
+	};
+	parDesc.itemCount = 4;
+	parDesc.groupSize = 2;
+	parDesc.execType = ecs::QueryExecType::Parallel;
+	parDesc.flags = ecs::SchedFlags::Background;
+
+	auto parJob = ecs::sched_add_par(sched, parDesc, nullptr, nullptr);
+	CHECK(parJob.valid());
+	CHECK(probe.addParallelCalls == 1);
+	CHECK(probe.addedParallel[0].flags == ecs::SchedFlags::Background);
+	CHECK(ecs::sched_flags_has(probe.addedParallel[0].flags, ecs::SchedFlags::Background));
+	CHECK(items.load(std::memory_order_acquire) == 0);
+
+	parJob.submit();
+	CHECK(items.load(std::memory_order_acquire) == parDesc.itemCount);
+	parJob.wait();
+	parJob.del();
+
+	CHECK(probe.submitCalls == 2);
+	CHECK(probe.waitCalls == 2);
+	CHECK(probe.delCalls == 2);
+}
+
+TEST_CASE("ECS - Default scheduler routes background flags outside frame update") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+	tp.set_background_workers(1);
+
+	struct BackgroundSchedCtx {
+		std::atomic_bool release = false;
+		std::atomic_bool blockingStarted = false;
+		std::atomic_bool blockingDone = false;
+		std::atomic_bool blockingCtxOk = false;
+		std::atomic_bool queuedRan = false;
+		std::atomic_bool queuedCtxOk = false;
+	};
+
+	BackgroundSchedCtx ctx;
+	ecs::SchedTaskDesc blockingDesc{};
+	blockingDesc.pCtx = &ctx;
+	blockingDesc.invoke = [](void* pCtx) {
+		auto& ctx = *(BackgroundSchedCtx*)pCtx;
+		auto* workerCtx = mt::detail::tl_workerCtx;
+		ctx.blockingCtxOk.store(workerCtx != nullptr && workerCtx->background, std::memory_order_release);
+		ctx.blockingStarted.store(true, std::memory_order_release);
+		while (!ctx.release.load(std::memory_order_acquire))
+			std::this_thread::yield();
+		ctx.blockingDone.store(true, std::memory_order_release);
+	};
+	blockingDesc.flags = ecs::SchedFlags::Background;
+
+	auto blockingJob = ecs::sched_add(ecs::Sched{}, blockingDesc, nullptr, nullptr);
+	blockingJob.submit();
+
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+	while (!ctx.blockingStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
+
+	CHECK(ctx.blockingStarted.load(std::memory_order_acquire));
+	CHECK(ctx.blockingCtxOk.load(std::memory_order_acquire));
+
+	ecs::SchedTaskDesc queuedDesc{};
+	queuedDesc.pCtx = &ctx;
+	queuedDesc.invoke = [](void* pCtx) {
+		auto& ctx = *(BackgroundSchedCtx*)pCtx;
+		auto* workerCtx = mt::detail::tl_workerCtx;
+		ctx.queuedCtxOk.store(workerCtx != nullptr && workerCtx->background, std::memory_order_release);
+		ctx.queuedRan.store(true, std::memory_order_release);
+	};
+	queuedDesc.flags = ecs::SchedFlags::Background;
+
+	auto queuedJob = ecs::sched_add(ecs::Sched{}, queuedDesc, nullptr, nullptr);
+	queuedJob.submit();
+
+	std::atomic_bool frameRan = false;
+	mt::Job frameJob;
+	frameJob.flags = mt::JobCreationFlags::ManualDelete;
+	frameJob.func = [&]() {
+		frameRan.store(true, std::memory_order_release);
+	};
+
+	const auto frameHandle = tp.sched(GAIA_MOV(frameJob));
+	tp.wait(frameHandle);
+	tp.del(frameHandle);
+
+	GAIA_FOR(64) {
+		tp.update();
+		std::this_thread::yield();
+	}
+
+	CHECK(frameRan.load(std::memory_order_acquire));
+	CHECK_FALSE(ctx.blockingDone.load(std::memory_order_acquire));
+	CHECK_FALSE(ctx.queuedRan.load(std::memory_order_acquire));
+
+	ctx.release.store(true, std::memory_order_release);
+	blockingJob.wait();
+	queuedJob.wait();
+
+	CHECK(ctx.blockingDone.load(std::memory_order_acquire));
+	CHECK(ctx.queuedRan.load(std::memory_order_acquire));
+	CHECK(ctx.queuedCtxOk.load(std::memory_order_acquire));
+
+	blockingJob.del();
+	queuedJob.del();
+	tp.set_background_workers(0);
+}
+
 TEST_CASE("Multithreading - JobHandle") {
 	const mt::JobHandle defaultHandle;
 	CHECK(defaultHandle.id() == mt::JobHandle::IdMask);
@@ -1204,6 +1341,111 @@ TEST_CASE("Multithreading - Priority overflow does not inline cross-priority wor
 		tp.del(lowHandles[i]);
 	}
 	tp.del(highHandle);
+}
+
+TEST_CASE("Multithreading - Background jobs are isolated from frame update") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(2, 2);
+	tp.set_background_workers(1);
+	CHECK(tp.workers() == 1);
+	CHECK(tp.background_workers() == 1);
+
+	std::atomic_bool releaseBackground = false;
+	std::atomic_bool backgroundStarted = false;
+	std::atomic_bool backgroundDone = false;
+	std::atomic_bool backgroundCtxOk = false;
+	std::atomic_bool queuedBackgroundRan = false;
+	std::atomic_bool queuedBackgroundCtxOk = false;
+	std::atomic_bool frameDone = false;
+	std::atomic_bool frameCtxOk = false;
+
+	mt::Job backgroundJob;
+	backgroundJob.flags = mt::JobCreationFlags::ManualDelete;
+	backgroundJob.func = [&]() {
+		auto* ctx = mt::detail::tl_workerCtx;
+		backgroundCtxOk.store(ctx != nullptr && ctx->background, std::memory_order_release);
+		backgroundStarted.store(true, std::memory_order_release);
+		while (!releaseBackground.load(std::memory_order_acquire))
+			std::this_thread::yield();
+		backgroundDone.store(true, std::memory_order_release);
+	};
+
+	const auto backgroundHandle = tp.sched_background(GAIA_MOV(backgroundJob));
+
+	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+	while (!backgroundStarted.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < deadline)
+		std::this_thread::yield();
+
+	CHECK(backgroundStarted.load(std::memory_order_acquire));
+	CHECK(backgroundCtxOk.load(std::memory_order_acquire));
+
+	mt::Job queuedBackgroundJob;
+	queuedBackgroundJob.flags = mt::JobCreationFlags::ManualDelete;
+	queuedBackgroundJob.func = [&]() {
+		auto* ctx = mt::detail::tl_workerCtx;
+		queuedBackgroundCtxOk.store(ctx != nullptr && ctx->background, std::memory_order_release);
+		queuedBackgroundRan.store(true, std::memory_order_release);
+	};
+
+	const auto queuedBackgroundHandle = tp.sched_background(GAIA_MOV(queuedBackgroundJob));
+
+	mt::Job frameJob;
+	frameJob.flags = mt::JobCreationFlags::ManualDelete;
+	frameJob.func = [&]() {
+		auto* ctx = mt::detail::tl_workerCtx;
+		frameCtxOk.store(ctx != nullptr && !ctx->background, std::memory_order_release);
+		frameDone.store(true, std::memory_order_release);
+	};
+
+	const auto frameHandle = tp.sched(GAIA_MOV(frameJob));
+	tp.wait(frameHandle);
+	tp.del(frameHandle);
+
+	GAIA_FOR(64) {
+		tp.update();
+		std::this_thread::yield();
+	}
+
+	CHECK(frameDone.load(std::memory_order_acquire));
+	CHECK(frameCtxOk.load(std::memory_order_acquire));
+	CHECK_FALSE(backgroundDone.load(std::memory_order_acquire));
+	CHECK_FALSE(queuedBackgroundRan.load(std::memory_order_acquire));
+
+	releaseBackground.store(true, std::memory_order_release);
+	tp.wait(backgroundHandle);
+	tp.wait(queuedBackgroundHandle);
+
+	CHECK(backgroundDone.load(std::memory_order_acquire));
+	CHECK(queuedBackgroundRan.load(std::memory_order_acquire));
+	CHECK(queuedBackgroundCtxOk.load(std::memory_order_acquire));
+
+	tp.del(backgroundHandle);
+	tp.del(queuedBackgroundHandle);
+	tp.set_background_workers(0);
+}
+
+TEST_CASE("Multithreading - Background wait runs without background workers") {
+	auto& tp = mt::ThreadPool::get();
+	tp.set_max_workers(1, 1);
+	tp.set_background_workers(0);
+
+	std::atomic_bool backgroundRan = false;
+
+	mt::Job backgroundJob;
+	backgroundJob.flags = mt::JobCreationFlags::ManualDelete;
+	backgroundJob.func = [&]() {
+		backgroundRan.store(true, std::memory_order_release);
+	};
+
+	const auto backgroundHandle = tp.sched_background(GAIA_MOV(backgroundJob));
+	GAIA_FOR(16)
+		tp.update();
+
+	CHECK_FALSE(backgroundRan.load(std::memory_order_acquire));
+
+	tp.wait(backgroundHandle);
+	CHECK(backgroundRan.load(std::memory_order_acquire));
+	tp.del(backgroundHandle);
 }
 
 TEST_CASE("Multithreading - ScheduleParallel") {

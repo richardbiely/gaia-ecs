@@ -11234,12 +11234,35 @@ namespace gaia {
 
 		template <typename TItemHandle, typename = void>
 		struct ilist_handle_traits {
+			//! Rebuilds a handle after its generation changes.
+			//! \param id Slot index stored in the handle.
+			//! \param gen New slot generation.
+			//! \param prev Previous handle value. Unused for simple id/generation handles.
+			//! \return Rebuilt handle preserving the handle type's supported metadata.
 			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle&) {
 				return TItemHandle(id, gen);
 			}
 		};
 
-		template <typename TListItem, typename TItemHandle>
+		template <typename TItemHandle>
+		struct ilist_handle_traits<TItemHandle, std::void_t<decltype(std::declval<const TItemHandle&>().prio())>> {
+			//! Rebuilds a handle after its generation changes while preserving packed priority bits.
+			//! \param id Slot index stored in the handle.
+			//! \param gen New slot generation.
+			//! \param prev Previous handle value whose priority bit must be preserved.
+			//! \return Rebuilt handle with the same priority metadata as @a prev.
+			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle& prev) {
+				return TItemHandle(id, gen, prev.prio());
+			}
+		};
+
+		//! Paged implicit list declaration.
+		//! \tparam TListItem Payload type stored in the list.
+		//! \tparam TItemHandle External handle type used to address slots.
+		//! \tparam MaxPages Maximum number of addressable pages. A value of 0 keeps the
+		//!         page table dynamic. A non-zero value embeds a fixed page table in the
+		//!         container so page-table storage never reallocates after construction.
+		template <typename TListItem, typename TItemHandle, uint32_t MaxPages = 0>
 		struct paged_ilist;
 
 		//! Forward iterator used by paged_ilist.
@@ -11308,7 +11331,10 @@ namespace gaia {
 		//! \tparam TListItem Payload type stored in the list. Must expose slot metadata
 		//!         through ilist_item_traits<TListItem> and ilist-compatible create()/handle() helpers.
 		//! \tparam TItemHandle External handle type exposing id(), gen(), and IdMask.
-		template <typename TListItem, typename TItemHandle>
+		//! \tparam MaxPages Maximum number of page pointers kept by the container. Use 0 for
+		//!         dynamic growth through darray. Use a non-zero value when the maximum slot
+		//!         count is known and pointer-table relocation must be impossible.
+		template <typename TListItem, typename TItemHandle, uint32_t MaxPages>
 		struct paged_ilist {
 			using value_type = TListItem;
 			using reference = TListItem&;
@@ -11359,6 +11385,8 @@ namespace gaia {
 			}
 
 			static constexpr size_type PageCapacity = calc_page_capacity();
+			static constexpr bool FixedPageTable = MaxPages != 0;
+			static constexpr size_type StaticPageCount = MaxPages == 0 ? 1U : MaxPages;
 
 			struct page_type {
 				using alive_mask_type = cnt::bitset<PageCapacity>;
@@ -11483,11 +11511,17 @@ namespace gaia {
 				}
 			};
 
+			//! Dynamic page pointer table used when MaxPages is 0.
 			cnt::darray<page_type*> m_pages;
+			//! Fixed page pointer table used when MaxPages is non-zero.
+			//! Page payloads are still allocated lazily; only the pointer table is fixed.
+			page_type* m_staticPages[StaticPageCount]{};
 			size_type m_size = 0;
 
 		public:
+			//! Head of the implicit free-list, or TItemHandle::IdMask when no slots are free.
 			size_type m_nextFreeIdx = (size_type)-1;
+			//! Number of slots currently linked through the implicit free-list.
 			size_type m_freeItems = 0;
 
 		private:
@@ -11503,24 +11537,75 @@ namespace gaia {
 				return slotCnt == 0 ? 0U : (slotCnt + PageCapacity - 1) / PageCapacity;
 			}
 
+		public:
+			//! Returns the compile-time number of payload slots stored in one page.
+			//! \return Number of slots per page.
+			GAIA_NODISCARD static constexpr size_type page_capacity() noexcept {
+				return PageCapacity;
+			}
+
+			//! Calculates how many pages are needed to address @a slotCnt slots.
+			//! \param slotCnt Number of slots that must be addressable.
+			//! \return Number of pages required for @a slotCnt.
+			GAIA_NODISCARD static constexpr size_type page_count_for_capacity(size_type slotCnt) noexcept {
+				return page_count_for_slots(slotCnt);
+			}
+
+		private:
+			GAIA_NODISCARD size_type page_table_size() const noexcept {
+				if constexpr (FixedPageTable)
+					return MaxPages;
+				else
+					return (size_type)m_pages.size();
+			}
+
+			GAIA_NODISCARD page_type*& page_slot(size_type pageIdx) noexcept {
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageIdx < MaxPages);
+					return m_staticPages[pageIdx];
+				} else {
+					GAIA_ASSERT(pageIdx < (size_type)m_pages.size());
+					return m_pages[pageIdx];
+				}
+			}
+
+			GAIA_NODISCARD const page_type* page_slot(size_type pageIdx) const noexcept {
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageIdx < MaxPages);
+					return m_staticPages[pageIdx];
+				} else {
+					GAIA_ASSERT(pageIdx < (size_type)m_pages.size());
+					return m_pages[pageIdx];
+				}
+			}
+
 			void clear_pages() {
-				for (auto* pPage: m_pages) {
+				const auto pageCnt = page_table_size();
+				GAIA_FOR(pageCnt) {
+					auto*& pPage = page_slot(i);
 					if (pPage == nullptr)
 						continue;
 					delete pPage;
+					pPage = nullptr;
 				}
-				m_pages.clear();
+
+				if constexpr (!FixedPageTable)
+					m_pages.clear();
 			}
 
 			void ensure_page_count(size_type slotCnt) {
 				const auto pageCnt = page_count_for_slots(slotCnt);
-				if (pageCnt > (size_type)m_pages.size())
-					m_pages.resize(pageCnt, nullptr);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages && "Trying to allocate too many paged_ilist pages!");
+				} else {
+					if (pageCnt > (size_type)m_pages.size())
+						m_pages.resize(pageCnt, nullptr);
+				}
 			}
 
 			GAIA_NODISCARD page_type& ensure_page(size_type index) {
 				ensure_page_count(index + 1);
-				auto*& pPage = m_pages[page_index(index)];
+				auto*& pPage = page_slot(page_index(index));
 				if (pPage == nullptr)
 					pPage = new page_type();
 				return *pPage;
@@ -11528,16 +11613,16 @@ namespace gaia {
 
 			GAIA_NODISCARD page_type* try_page(size_type index) noexcept {
 				const auto pageIdx = page_index(index);
-				if (pageIdx >= (size_type)m_pages.size())
+				if (pageIdx >= page_table_size())
 					return nullptr;
-				return m_pages[pageIdx];
+				return page_slot(pageIdx);
 			}
 
 			GAIA_NODISCARD const page_type* try_page(size_type index) const noexcept {
 				const auto pageIdx = page_index(index);
-				if (pageIdx >= (size_type)m_pages.size())
+				if (pageIdx >= page_table_size())
 					return nullptr;
-				return m_pages[pageIdx];
+				return page_slot(pageIdx);
 			}
 
 			GAIA_NODISCARD reference slot_ref(size_type index) {
@@ -11564,8 +11649,16 @@ namespace gaia {
 			paged_ilist(const paged_ilist&) = delete;
 			paged_ilist& operator=(const paged_ilist&) = delete;
 			paged_ilist(paged_ilist&& other) noexcept:
-					m_pages(GAIA_MOV(other.m_pages)), m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx),
-					m_freeItems(other.m_freeItems) {
+					m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx), m_freeItems(other.m_freeItems) {
+				if constexpr (FixedPageTable) {
+					GAIA_FOR(MaxPages) {
+						m_staticPages[i] = other.m_staticPages[i];
+						other.m_staticPages[i] = nullptr;
+					}
+				} else {
+					m_pages = GAIA_MOV(other.m_pages);
+				}
+
 				other.m_size = 0;
 				other.m_nextFreeIdx = (size_type)-1;
 				other.m_freeItems = 0;
@@ -11573,7 +11666,16 @@ namespace gaia {
 			paged_ilist& operator=(paged_ilist&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 				clear_pages();
-				m_pages = GAIA_MOV(other.m_pages);
+
+				if constexpr (FixedPageTable) {
+					GAIA_FOR(MaxPages) {
+						m_staticPages[i] = other.m_staticPages[i];
+						other.m_staticPages[i] = nullptr;
+					}
+				} else {
+					m_pages = GAIA_MOV(other.m_pages);
+				}
+
 				m_size = other.m_size;
 				m_nextFreeIdx = other.m_nextFreeIdx;
 				m_freeItems = other.m_freeItems;
@@ -11660,7 +11762,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD size_type capacity() const noexcept {
-				return (size_type)m_pages.capacity() * PageCapacity;
+				if constexpr (FixedPageTable)
+					return MaxPages * PageCapacity;
+				else
+					return (size_type)m_pages.capacity() * PageCapacity;
 			}
 
 			//! Returns an iterator over live payload objects only.
@@ -11688,8 +11793,57 @@ namespace gaia {
 				return const_iterator(this, m_size);
 			}
 
+			//! Reserves page-table capacity for at least @a cap slots.
+			//! \param cap Number of slots that should be addressable without growing the page table.
+			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			//!       Payload pages remain lazily allocated in both modes.
 			void reserve(size_type cap) {
-				m_pages.reserve(page_count_for_slots(cap));
+				const auto pageCnt = page_count_for_slots(cap);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages);
+				} else {
+					m_pages.reserve(pageCnt);
+				}
+			}
+
+			//! Ensures the page pointer table can address @a cap slots without resizing later.
+			//! \param cap Number of slots that must be addressable.
+			//! \note This is stronger than reserve() in dynamic mode because it resizes the pointer
+			//!       table to contain null page entries. It does not allocate payload pages.
+			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			void reserve_slot_table(size_type cap) {
+				const auto pageCnt = page_count_for_slots(cap);
+				if constexpr (FixedPageTable) {
+					GAIA_ASSERT(pageCnt <= MaxPages);
+				} else {
+					ensure_page_count(cap);
+				}
+			}
+
+			//! Returns a live payload slot without consulting list-wide size metadata.
+			//! \param index Slot index to access.
+			//! \return Mutable reference to the live payload at @a index.
+			//! \warning This bypasses index < size() checks. Use only when the caller already
+			//!          validated the handle/index through stronger external synchronization.
+			GAIA_NODISCARD reference live_unsafe(size_type index) {
+				auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				const auto slot = slot_index(index);
+				GAIA_ASSERT(pPage->aliveMask.test(slot));
+				return *pPage->ptr(slot);
+			}
+
+			//! Returns a live payload slot without consulting list-wide size metadata.
+			//! \param index Slot index to access.
+			//! \return Immutable reference to the live payload at @a index.
+			//! \warning This bypasses index < size() checks. Use only when the caller already
+			//!          validated the handle/index through stronger external synchronization.
+			GAIA_NODISCARD const_reference live_unsafe(size_type index) const {
+				const auto* pPage = try_page(index);
+				GAIA_ASSERT(pPage != nullptr);
+				const auto slot = slot_index(index);
+				GAIA_ASSERT(pPage->aliveMask.test(slot));
+				return *pPage->ptr(slot);
 			}
 
 			GAIA_NODISCARD pointer try_get(size_type index) noexcept {
@@ -11705,6 +11859,9 @@ namespace gaia {
 			}
 
 			//! Restores a live slot with a preassigned id/generation.
+			//! \param item Payload carrying the slot index and generation to restore.
+			//! \note Existing live payload at the same slot is destroyed first. Existing free-list
+			//!       metadata for that slot is cleared because the restored slot becomes live.
 			void add_live(TListItem&& item) {
 				const auto index = (size_type)ilist_item_traits<TListItem>::idx(item);
 				auto& page = ensure_page(index);
@@ -11725,7 +11882,9 @@ namespace gaia {
 				page.nextFree[slot] = TItemHandle::IdMask;
 			}
 
-			//! Restores a free slot with a preassigned id/generation and freelist link.
+			//! Restores a free slot with a preassigned id/generation and free-list link.
+			//! \param handle Handle metadata to restore for the free slot.
+			//! \param nextFreeIdx Next slot in the implicit free-list, or TItemHandle::IdMask.
 			void add_free(TItemHandle handle, uint32_t nextFreeIdx) {
 				const auto index = (size_type)handle.id();
 				auto& page = ensure_page(index);
@@ -11747,12 +11906,18 @@ namespace gaia {
 					m_nextFreeIdx = index;
 			}
 
-			//! Restores a free slot with a preassigned id/generation and freelist link.
+			//! Restores a free slot with a preassigned id/generation and free-list link.
+			//! \param index Slot index to restore.
+			//! \param generation Generation to store in the restored handle.
+			//! \param nextFreeIdx Next slot in the implicit free-list, or TItemHandle::IdMask.
 			void add_free(size_type index, uint32_t generation, uint32_t nextFreeIdx) {
 				add_free(ilist_handle_traits<TItemHandle>::make(index, generation, TItemHandle{}), nextFreeIdx);
 			}
 
-			//! Allocates a new item in the list
+			//! Allocates a new item in the list.
+			//! \param ctx Creation context forwarded to TListItem::create().
+			//! \return Handle of the allocated item.
+			//! \note Reused slots keep their generation and clear any keep-live payload before construction.
 			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
 				size_type index = 0;
 				uint32_t generation = 0;
@@ -11770,6 +11935,8 @@ namespace gaia {
 					page.nextFree[slot] = TItemHandle::IdMask;
 					generation = page.handles[slot].gen();
 					--m_freeItems;
+					if (page.aliveMask.test(slot))
+						page.destroy(slot);
 				}
 
 				auto& page = ensure_page(index);
@@ -11780,7 +11947,9 @@ namespace gaia {
 				return page.handles[slot];
 			}
 
-			//! Allocates a new item in the list
+			//! Allocates a new item in the list.
+			//! \return Handle of the allocated item.
+			//! \note Reused slots keep their generation and clear any keep-live payload before construction.
 			GAIA_NODISCARD TItemHandle alloc() {
 				size_type index = 0;
 				uint32_t generation = 0;
@@ -11798,6 +11967,8 @@ namespace gaia {
 					page.nextFree[slot] = TItemHandle::IdMask;
 					generation = page.handles[slot].gen();
 					--m_freeItems;
+					if (page.aliveMask.test(slot))
+						page.destroy(slot);
 				}
 
 				auto& page = ensure_page(index);
@@ -11808,6 +11979,9 @@ namespace gaia {
 				return page.handles[slot];
 			}
 
+			//! Frees a live item and destroys its payload immediately.
+			//! \param handle Handle identifying the item to release.
+			//! \note The slot generation is incremented and the slot is linked into the implicit free-list.
 			void free(TItemHandle handle) {
 				GAIA_ASSERT(has(handle));
 
@@ -11820,6 +11994,26 @@ namespace gaia {
 				++m_freeItems;
 			}
 
+			//! Frees a handle while keeping the payload alive until slot reuse or clear().
+			//! \param handle Handle identifying the item to release.
+			//! \warning The slot becomes part of the free-list even though its payload remains alive.
+			//!          Iteration and has(handle) treat it as released because the generation changes.
+			//!          Callers that inspect the payload afterward must use live_unsafe() and must
+			//!          guarantee the slot has not been reused.
+			//! \note This is intended for systems that need released-state inspectability without
+			//!       moving page storage while other background work may still observe job data.
+			void free_keep_live(TItemHandle handle) {
+				GAIA_ASSERT(has(handle));
+
+				auto& page = ensure_page(handle.id());
+				const auto slot = slot_index(handle.id());
+				page.handles[slot] = ilist_handle_traits<TItemHandle>::make(handle.id(), handle.gen() + 1, page.handles[slot]);
+				page.nextFree[slot] = m_freeItems == 0 ? TItemHandle::IdMask : m_nextFreeIdx;
+				m_nextFreeIdx = handle.id();
+				++m_freeItems;
+			}
+
+			//! Verifies that the implicit free-list links are well formed.
 			void validate() const {
 				if (m_freeItems == 0)
 					return;
@@ -11828,7 +12022,6 @@ namespace gaia {
 				auto nextFreeItem = m_nextFreeIdx;
 				while (freeItems > 0) {
 					GAIA_ASSERT(nextFreeItem < m_size && "Item recycle list broken!");
-					GAIA_ASSERT(!has(nextFreeItem));
 
 					nextFreeItem = next_free(nextFreeItem);
 					--freeItems;
@@ -22969,7 +23162,7 @@ namespace gaia {
 				JobInternalType id : IdBits;
 				//! Generation index. Incremented every time an item is deleted
 				JobInternalType gen : GenBits;
-				//! Job priority. 1-priority, 0-background
+				//! Encoded job priority bit.
 				JobInternalType prio : PrioBits;
 			};
 
@@ -23372,10 +23565,12 @@ namespace gaia {
 
 		enum JobCreationFlags : uint8_t {
 			Default = 0,
-			//! The job is not deleted automatically. Has to be done by the used.
+			//! The job is not deleted automatically. Has to be done by the user.
 			ManualDelete = 0x01,
 			//! The job can wait for other job (one not set as dependency).
-			CanWait = 0x02
+			CanWait = 0x02,
+			//! The job is executed through the background queue and may span multiple frames.
+			Background = 0x04
 		};
 
 		struct JobAllocCtx {
@@ -23559,6 +23754,8 @@ namespace gaia {
 			uint32_t workerIdx;
 			//! Job priority
 			JobPriority prio;
+			//! True when the worker executes background jobs.
+			bool background = false;
 			//! True when the worker thread has been successfully created.
 			bool threadCreated = false;
 			//! Event signaled when a job is executed
@@ -23570,6 +23767,7 @@ namespace gaia {
 			~ThreadCtx() = default;
 
 			void reset() {
+				background = false;
 				threadCreated = false;
 				event.reset();
 				jobQueue.clear();
@@ -23804,8 +24002,12 @@ namespace gaia {
 
 		//! Storage and lifecycle manager for internal job and parallel callback records.
 		class JobManager {
-			//! Implicit list of jobs. Page allocated, memory addresses are always fixed.
-			cnt::ilist<JobContainer, JobHandle> m_jobData;
+			using JobDataLayout = cnt::paged_ilist<JobContainer, JobHandle>;
+			static constexpr uint32_t JobDataPageCount = JobDataLayout::page_count_for_capacity(JobHandle::IdMask);
+
+			//! Paged implicit list of jobs with a fixed page table.
+			//! Payload pages are still allocated lazily, but the page table never moves while background jobs are running.
+			cnt::paged_ilist<JobContainer, JobHandle, JobDataPageCount> m_jobData;
 			//! Shared callback records for parallel jobs.
 			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
 
@@ -23813,12 +24015,12 @@ namespace gaia {
 			//! Returns mutable internal storage for @a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			JobContainer& data(JobHandle jobHandle) {
-				return m_jobData[jobHandle.id()];
+				return m_jobData.live_unsafe(jobHandle.id());
 			}
 			//! Returns immutable internal storage for @a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			const JobContainer& data(JobHandle jobHandle) const {
-				return m_jobData[jobHandle.id()];
+				return m_jobData.live_unsafe(jobHandle.id());
 			}
 
 			//! Allocates a new job container identified by a unique JobHandle.
@@ -23855,11 +24057,12 @@ namespace gaia {
 			//! Invalidates @a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
-			//! \warning Must be used from the main thread.
+			//! \warning Caller must serialize job-pool allocation/free access.
 			void free_job(JobHandle jobHandle) {
-				auto& jobData = m_jobData.free(jobHandle);
+				auto& jobData = m_jobData.live_unsafe(jobHandle.id());
 				GAIA_ASSERT(done(jobData));
 				jobData.state.store(JobState::Released);
+				m_jobData.free_keep_live(jobHandle);
 			}
 
 			//! Releases a shared callback record.
@@ -24422,6 +24625,12 @@ namespace gaia {
 			GAIA_ALIGNAS(128) cnt::sarray_ext<ThreadCtx, MaxWorkers> m_workersCtx;
 			//! Global job queue
 			MpmcQueue<JobHandle, 1024> m_jobQueue[JobPriorityCnt];
+			//! Global queue for background jobs that may span multiple frames.
+			MpmcQueue<JobHandle, 1024> m_jobQueueBackground;
+			//! The number of spawned frame worker threads.
+			uint32_t m_frameWorkersCnt = 0;
+			//! The number of spawned background worker threads.
+			uint32_t m_backgroundWorkersCnt = 0;
 			//! The number of workers dedicated for a given level of job priority
 			uint32_t m_workersCnt[JobPriorityCnt]{};
 			//! The number of spawned worker threads dedicated for a given level of job priority.
@@ -24431,6 +24640,8 @@ namespace gaia {
 			uint32_t m_workerThreadsCnt[JobPriorityCnt]{};
 			//! Semaphores controlling if the worker threads are allowed to run
 			SemaphoreFast m_sem[JobPriorityCnt];
+			//! Semaphore controlling if background worker threads are allowed to run
+			SemaphoreFast m_semBackground;
 
 			//! Futex counter
 			std::atomic_uint32_t m_blockedInWorkUntil;
@@ -24438,9 +24649,10 @@ namespace gaia {
 			//! Manager for internal jobs
 			JobManager m_jobManager;
 			//! Job allocation mutex
-			// NOTE: Allocs are done only from the main thread while there are no jobs running.
-			//       Freeing can happen at any point from any thread. Therefore, we need to lock this point.
-			//       Access do job data is not thread-safe. No jobs should be added while there is any job running.
+			//! \note Job creation is expected from the main thread. Freeing can happen from any thread,
+			//! so allocation metadata remains locked.
+			//! \note Job storage uses a fixed page table for the full handle range, so adding a job while
+			//! unrelated background jobs are running does not move existing job containers.
 			GAIA_PROF_MUTEX(SpinLock, m_jobAllocMtx);
 
 		private:
@@ -24478,20 +24690,26 @@ namespace gaia {
 				m_mainThreadId = std::this_thread::get_id();
 			}
 
-			//! Returns the number of worker threads
+			//! Returns the number of frame worker threads
 			GAIA_NODISCARD uint32_t workers() const {
-				return m_workers.size();
+				return m_frameWorkersCnt;
 			}
 
-			//! Set the maximum number of workers for this system.
-			//! \param count Requested number of worker threads to create.
-			//! \param countHighPrio HighPrio Number of high-priority workers to create.
-			//!                      Calculated as Max(count, countHighPrio).
+			//! Returns the number of background worker threads
+			GAIA_NODISCARD uint32_t background_workers() const {
+				return m_backgroundWorkersCnt;
+			}
+
+			//! Set the maximum number of frame execution contexts for this system.
+			//! \param count Requested frame execution contexts, including the main thread.
+			//!              The number of spawned frame worker threads is one less.
+			//! \param countHighPrio Number of high-priority frame execution contexts.
+			//!                      Values larger than @a count are clamped.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_max_workers(uint32_t count, uint32_t countHighPrio) {
-				const auto workersCnt = core::get_max(core::get_min(MaxWorkers, count), 1U);
-				if (countHighPrio > count)
-					countHighPrio = count;
+				const auto maxFrameWorkers = MaxWorkers - m_backgroundWorkersCnt;
+				const auto workersCnt = core::get_max(core::get_min(maxFrameWorkers, count), 1U);
+				countHighPrio = core::get_min(countHighPrio, workersCnt);
 
 				// Stop all threads first
 				reset();
@@ -24500,10 +24718,13 @@ namespace gaia {
 				for (auto& ctx: m_workersCtx)
 					ctx.reset();
 
-				// Resize or array
-				m_workersCtx.resize(workersCnt);
+				m_frameWorkersCnt = workersCnt - 1;
+
+				// The main thread uses context 0. Frame workers follow, and
+				// background workers are appended after them.
+				m_workersCtx.resize(workersCnt + m_backgroundWorkersCnt);
 				// We also have the main thread so there's always one less worker spawned
-				m_workers.resize(workersCnt - 1);
+				m_workers.resize(m_frameWorkersCnt + m_backgroundWorkersCnt);
 
 				// First worker is considered the main thread.
 				// It is also assigned high priority but it doesn't really matter.
@@ -24520,6 +24741,7 @@ namespace gaia {
 				// Create a new set of high and low priority threads (if any)
 				uint32_t workerIdx = 1;
 				set_workers_high_prio_inter(workerIdx, countHighPrio);
+				create_background_worker_threads(workerIdx);
 			}
 
 			//! Updates the number of worker threads participating at high priority workloads.
@@ -24527,22 +24749,15 @@ namespace gaia {
 			//! \param count Requested number of high priority workers.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_high_prio_inter(uint32_t& workerIdx, uint32_t count) {
-				count = gaia::core::get_min(count, m_workers.size());
-				if (count == 0) {
-					m_workersCnt[0] = 1; // main thread
-					m_workersCnt[1] = 0;
-					m_workerThreadsCnt[0] = 0;
-					m_workerThreadsCnt[1] = 0;
-				} else {
-					m_workersCnt[0] = count + 1; // Main thread is always a priority worker
-					m_workersCnt[1] = m_workers.size() - count;
-					m_workerThreadsCnt[0] = count;
-					m_workerThreadsCnt[1] = m_workers.size() - count;
-				}
+				count = gaia::core::get_min(count, m_frameWorkersCnt);
+				m_workerThreadsCnt[0] = count;
+				m_workerThreadsCnt[1] = m_frameWorkersCnt - count;
+				m_workersCnt[0] = count + 1; // Main thread is always a priority worker
+				m_workersCnt[1] = m_workerThreadsCnt[1];
 
 				// Create a new set of high and low priority threads (if any)
-				create_worker_threads(workerIdx, JobPriority::High, m_workersCnt[0] - 1);
-				create_worker_threads(workerIdx, JobPriority::Low, m_workersCnt[1]);
+				create_worker_threads(workerIdx, JobPriority::High, m_workerThreadsCnt[0]);
+				create_worker_threads(workerIdx, JobPriority::Low, m_workerThreadsCnt[1]);
 			}
 
 			//! Updates the number of worker threads participating at low priority workloads.
@@ -24550,22 +24765,15 @@ namespace gaia {
 			//! \param count Requested number of low priority workers.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_workers_low_prio_inter(uint32_t& workerIdx, uint32_t count) {
-				const uint32_t realCnt = gaia::core::get_max(count, m_workers.size());
-				if (realCnt == 0) {
-					m_workersCnt[0] = 0;
-					m_workersCnt[1] = 1; // main thread
-					m_workerThreadsCnt[0] = 0;
-					m_workerThreadsCnt[1] = 0;
-				} else {
-					m_workersCnt[0] = m_workers.size() - realCnt;
-					m_workersCnt[1] = realCnt + 1; // Main thread is always a priority worker;
-					m_workerThreadsCnt[0] = m_workers.size() - realCnt;
-					m_workerThreadsCnt[1] = realCnt;
-				}
+				const uint32_t realCnt = gaia::core::get_min(count, m_frameWorkersCnt);
+				m_workerThreadsCnt[0] = m_frameWorkersCnt - realCnt;
+				m_workerThreadsCnt[1] = realCnt;
+				m_workersCnt[0] = m_workerThreadsCnt[0] + 1; // Main thread is always a priority worker
+				m_workersCnt[1] = m_workerThreadsCnt[1];
 
 				// Create a new set of high and low priority threads (if any)
-				create_worker_threads(workerIdx, JobPriority::High, m_workersCnt[0]);
-				create_worker_threads(workerIdx, JobPriority::Low, m_workersCnt[1]);
+				create_worker_threads(workerIdx, JobPriority::High, m_workerThreadsCnt[0]);
+				create_worker_threads(workerIdx, JobPriority::Low, m_workerThreadsCnt[1]);
 			}
 
 			//! Updates the number of worker threads participating at high priority workloads
@@ -24577,6 +24785,7 @@ namespace gaia {
 
 				uint32_t workerIdx = 1;
 				set_workers_high_prio_inter(workerIdx, count);
+				create_background_worker_threads(workerIdx);
 			}
 
 			//! Updates the number of worker threads participating at low priority workloads
@@ -24588,6 +24797,46 @@ namespace gaia {
 
 				uint32_t workerIdx = 1;
 				set_workers_low_prio_inter(workerIdx, count);
+				create_background_worker_threads(workerIdx);
+			}
+
+			//! Updates the number of worker threads dedicated to background jobs.
+			//! Background workers run jobs submitted through sched_background() and
+			//! are not used by update(). They share the MaxWorkers limit with frame workers.
+			//! \param count Requested number of background worker threads.
+			//! \warning All jobs are finished first before threads are recreated.
+			void set_background_workers(uint32_t count) {
+				const auto maxBackgroundWorkers = MaxWorkers - 1;
+				count = core::get_min(maxBackgroundWorkers, count);
+
+				const auto frameWorkersCntOld = m_frameWorkersCnt;
+				const auto highWorkersCntOld = m_workerThreadsCnt[0];
+
+				// Stop all threads first
+				reset();
+
+				m_backgroundWorkersCnt = count;
+
+				const auto maxFrameWorkers = MaxWorkers - m_backgroundWorkersCnt - 1;
+				m_frameWorkersCnt = core::get_min(frameWorkersCntOld, maxFrameWorkers);
+
+				for (auto& ctx: m_workersCtx)
+					ctx.reset();
+
+				m_workersCtx.resize(m_frameWorkersCnt + 1 + m_backgroundWorkersCnt);
+				m_workers.resize(m_frameWorkersCnt + m_backgroundWorkersCnt);
+
+				detail::tl_workerCtx = m_workersCtx.data();
+				m_workersCtx[0].tp = this;
+				m_workersCtx[0].workerIdx = 0;
+				m_workersCtx[0].prio = JobPriority::High;
+
+				for (auto& worker: m_workers)
+					worker = {};
+
+				uint32_t workerIdx = 1;
+				set_workers_high_prio_inter(workerIdx, highWorkersCntOld);
+				create_background_worker_threads(workerIdx);
 			}
 
 			//! Makes @a jobSecond depend on @a jobFirst.
@@ -24640,7 +24889,8 @@ namespace gaia {
 
 			//! Creates a threadpool job from @a job.
 			//! \warning Must be used from the main thread.
-			//! \warning Can't be called while there are any jobs being executed.
+			//! \warning Frame jobs should be created before frame work is submitted.
+			//!          It is valid to create new frame jobs while unrelated background jobs are running.
 			//! \return Job handle of the scheduled job.
 			template <typename TJob>
 			JobHandle add(TJob job) {
@@ -24805,6 +25055,21 @@ namespace gaia {
 			//! \warning Dependencies can't be modified for this job.
 			//! \return Job handle of the scheduled job.
 			JobHandle sched(Job job) {
+				JobHandle jobHandle = add(GAIA_MOV(job));
+				submit(jobHandle);
+				return jobHandle;
+			}
+
+			//! Schedules a job to run on background workers.
+			//! Background jobs are not drained by update() and may span multiple frames.
+			//! If no background workers are configured, wait() is the explicit fallback
+			//! path that can execute queued background work on the calling thread.
+			//! \param job Job descriptor.
+			//! \warning Must be used from the main thread.
+			//! \warning Dependencies can't be modified for this job.
+			//! \return Job handle of the scheduled background job.
+			JobHandle sched_background(Job job) {
+				job.flags = (JobCreationFlags)((uint8_t)job.flags | (uint8_t)JobCreationFlags::Background);
 				JobHandle jobHandle = add(GAIA_MOV(job));
 				submit(jobHandle);
 				return jobHandle;
@@ -25020,8 +25285,10 @@ namespace gaia {
 			}
 
 			//! Wait until a job associated with the jobHandle finishes executing.
-			//! Cleans up any job allocations and dependencies associated with @a jobHandle
-			//! The calling thread participate in job processing until @a jobHandle is done.
+			//! Cleans up any job allocations and dependencies associated with @a jobHandle.
+			//! The calling thread participates in frame job processing until @a jobHandle is done.
+			//! For background jobs, the calling thread only runs background work when no
+			//! background workers are configured.
 			//! \param jobHandle Job handle to wait for
 			void wait(JobHandle jobHandle) {
 				GAIA_PROF_SCOPE(tp::wait);
@@ -25034,6 +25301,7 @@ namespace gaia {
 
 				auto* ctx = detail::tl_workerCtx;
 				auto& jobData = m_jobManager.data(jobHandle);
+				const bool waitBackground = is_background(jobData);
 				auto state = jobData.state.load();
 
 				// Waiting for a job that has not been initialized is nonsense.
@@ -25043,7 +25311,10 @@ namespace gaia {
 				for (; (state & JobState::STATE_BITS_MASK) < JobState::Done; state = jobData.state.load()) {
 					// The job we are waiting for is not finished yet, try running some other job in the meantime
 					JobHandle otherJobHandle;
-					if (try_fetch_job(*ctx, otherJobHandle)) {
+					const bool canHelpBackground = waitBackground && m_backgroundWorkersCnt == 0;
+					const bool hasBackgroundJob = canHelpBackground && try_fetch_background_job(otherJobHandle);
+					const bool hasJob = hasBackgroundJob || try_fetch_job(*ctx, otherJobHandle);
+					if (hasJob) {
 						if (run(otherJobHandle, ctx))
 							continue;
 					}
@@ -25069,7 +25340,8 @@ namespace gaia {
 				}
 			}
 
-			//! Uses the main thread to help with jobs processing.
+			//! Uses the main thread to help with frame job processing.
+			//! Background jobs are intentionally excluded from update().
 			void update() {
 				GAIA_ASSERT(main_thread());
 				main_thread_tick();
@@ -25213,7 +25485,8 @@ namespace gaia {
 			//! Creates a thread
 			//! \param workerIdx Worker index
 			//! \param prio Priority used for the thread
-			void create_thread(uint32_t workerIdx, JobPriority prio) {
+			//! \param background True when creating a background worker
+			void create_thread(uint32_t workerIdx, JobPriority prio, bool background) {
 				// Idx 0 is reserved for the main thread
 				GAIA_ASSERT(workerIdx > 0);
 
@@ -25221,6 +25494,7 @@ namespace gaia {
 				ctx.tp = this;
 				ctx.workerIdx = workerIdx;
 				ctx.prio = prio;
+				ctx.background = background;
 				ctx.threadCreated = false;
 
 #if GAIA_THREAD_PLATFORM == GAIA_THREAD_STD
@@ -25343,7 +25617,12 @@ namespace gaia {
 
 			void create_worker_threads(uint32_t& workerIdx, JobPriority prio, uint32_t count) {
 				for (uint32_t i = 0; i < count; ++i)
-					create_thread(workerIdx++, prio);
+					create_thread(workerIdx++, prio, false);
+			}
+
+			void create_background_worker_threads(uint32_t& workerIdx) {
+				for (uint32_t i = 0; i < m_backgroundWorkersCnt; ++i)
+					create_thread(workerIdx++, JobPriority::Low, true);
 			}
 
 			void set_thread_priority([[maybe_unused]] uint32_t workerIdx, [[maybe_unused]] JobPriority priority) {
@@ -25417,12 +25696,15 @@ namespace gaia {
 			//! \param workerIdx Index of the worker
 			//! \param prio Worker priority
 			void set_thread_name(uint32_t workerIdx, JobPriority prio) {
+				const bool background = m_workersCtx[workerIdx].background;
+				const char* workerKind = background ? "BG" : prio == JobPriority::High ? "HI" : "LO";
 #if GAIA_PROF_USE_PROFILER_THREAD_NAME
 				char threadName[16]{};
-				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 #elif GAIA_PLATFORM_WINDOWS
 				auto nativeHandle = (HANDLE)m_workers[workerIdx - 1].native_handle();
+				const wchar_t* workerKindW = background ? L"BG" : prio == JobPriority::High ? L"HI" : L"LO";
 
 				TOSApiFunc_SetThreadDescription pSetThreadDescFunc = nullptr;
 				if (auto* pModule = GetModuleHandleA("kernel32.dll")) {
@@ -25431,17 +25713,16 @@ namespace gaia {
 				}
 				if (pSetThreadDescFunc != nullptr) {
 					wchar_t threadName[16]{};
-					swprintf_s(threadName, L"worker_%s_%u", prio == JobPriority::High ? L"HI" : L"LO", workerIdx);
+					swprintf_s(threadName, L"worker_%s_%u", workerKindW, workerIdx);
 
 					auto hr = pSetThreadDescFunc(nativeHandle, threadName);
 					if (FAILED(hr)) {
-						GAIA_LOG_W(
-								"Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+						GAIA_LOG_W("Issue setting name for worker %s thread %u!", workerKind, workerIdx);
 					}
 				} else {
 	#if defined _MSC_VER
 					char threadName[16]{};
-					GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
 
 					THREADNAME_INFO info{};
 					info.dwType = 0x1000;
@@ -25456,19 +25737,19 @@ namespace gaia {
 				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
-				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
 				auto ret = pthread_setname_np(threadName);
 				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					GAIA_LOG_W("Issue setting name for worker %s thread %u!", workerKind, workerIdx);
 #elif GAIA_PLATFORM_LINUX || GAIA_PLATFORM_FREEBSD
 				auto nativeHandle = m_workers[workerIdx - 1];
 
 				char threadName[16]{};
-				GAIA_STRFMT(threadName, 16, "worker_%s_%u", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+				GAIA_STRFMT(threadName, 16, "worker_%s_%u", workerKind, workerIdx);
 				GAIA_PROF_THREAD_NAME(threadName);
 				auto ret = pthread_setname_np(nativeHandle, threadName);
 				if (ret != 0)
-					GAIA_LOG_W("Issue setting name for worker %s thread %u!", prio == JobPriority::High ? "HI" : "LO", workerIdx);
+					GAIA_LOG_W("Issue setting name for worker %s thread %u!", workerKind, workerIdx);
 #endif
 			}
 
@@ -25502,7 +25783,7 @@ namespace gaia {
 				const auto workerCnt = m_workersCtx.size();
 				for (uint32_t i = 0; i < workerCnt;) {
 					// Keep stealing within the same priority class and skip our own queue
-					if (i == ctx.workerIdx || m_workersCtx[i].prio != prio) {
+					if (i == ctx.workerIdx || m_workersCtx[i].background || m_workersCtx[i].prio != prio) {
 						++i;
 						continue;
 					}
@@ -25536,11 +25817,21 @@ namespace gaia {
 				return try_steal_job(ctx, prio, jobHandle);
 			}
 
+			//! Attempts to fetch background work.
+			//! \param[out] jobHandle Receives the next ready background job when one is available.
+			//! \return True when a valid background job was obtained. False otherwise.
+			GAIA_NODISCARD bool try_fetch_background_job(JobHandle& jobHandle) {
+				return m_jobQueueBackground.try_pop(jobHandle);
+			}
+
 			//! Attempts to fetch the next runnable job for a worker.
 			//! \param ctx Worker requesting more work.
 			//! \param[out] jobHandle Receives the next ready job handle when one is available.
 			//! \return True when a valid job was obtained. False otherwise.
 			GAIA_NODISCARD bool try_fetch_job(ThreadCtx& ctx, JobHandle& jobHandle) {
+				if (ctx.background)
+					return try_fetch_background_job(jobHandle);
+
 				// Try getting a job from the local queue
 				if (ctx.jobQueue.try_pop(jobHandle))
 					return true;
@@ -25556,38 +25847,50 @@ namespace gaia {
 				return try_fetch_prio(ctx, ctx.prio, jobHandle);
 			}
 
-			//! Checks whether @a ctx is allowed to execute work from @a prio inline.
+			//! Checks whether @a ctx is allowed to execute @a jobData inline.
 			//! \param ctx Calling worker context. Null when the submission comes from outside worker execution.
-			//! \param prio Priority class of the job being considered.
+			//! \param jobData Job being considered.
 			//! \return True when inline execution is allowed for forward progress.
-			GAIA_NODISCARD bool can_run_inline(const ThreadCtx* ctx, JobPriority prio) const {
+			GAIA_NODISCARD bool can_run_inline(const ThreadCtx* ctx, const JobContainer& jobData) const {
+				const bool background = is_background(jobData);
+				if (background)
+					return (ctx != nullptr && ctx->background) || m_backgroundWorkersCnt == 0;
+
 				// The main thread is allowed to help with both priority classes.
 				if (ctx == nullptr || ctx->workerIdx == 0)
 					return true;
 
 				// Matching worker classes may execute their own overflow inline.
-				if (ctx->prio == prio)
+				if (!ctx->background && ctx->prio == jobData.prio)
 					return true;
 
 				// If there are no spawned workers for the target priority we need to preserve
 				// the forward-progress guarantee and allow inline fallback.
-				return m_workerThreadsCnt[(uint32_t)prio] == 0;
+				return m_workerThreadsCnt[(uint32_t)jobData.prio] == 0;
 			}
 
 			//! Helps the scheduler make progress when a priority queue is temporarily full.
 			//! \param ctx Calling worker context.
-			//! \param prio Priority class whose queue is saturated.
-			void wait_for_queue_space(ThreadCtx& ctx, JobPriority prio) {
-				const auto prioIdx = (uint32_t)prio;
+			//! \param jobData Job whose target queue is saturated.
+			void wait_for_queue_space(ThreadCtx& ctx, const JobContainer& jobData) {
+				const bool background = is_background(jobData);
 
 				// Wake one worker from the target class in case all of them are asleep while
 				// the producer is waiting for queue space to become available.
-				if (m_workerThreadsCnt[prioIdx] != 0)
-					m_sem[prioIdx].release(1);
+				if (background) {
+					if (m_backgroundWorkersCnt != 0)
+						m_semBackground.release(1);
+				} else {
+					const auto prioIdx = (uint32_t)jobData.prio;
+					if (m_workerThreadsCnt[prioIdx] != 0)
+						m_sem[prioIdx].release(1);
+				}
 
 				// Keep the current worker productive without violating the priority boundary.
 				JobHandle otherJobHandle;
-				if (try_fetch_prio(ctx, ctx.prio, otherJobHandle)) {
+				const bool hasWork =
+						ctx.background ? try_fetch_background_job(otherJobHandle) : try_fetch_prio(ctx, ctx.prio, otherJobHandle);
+				if (hasWork) {
 					(void)run(otherJobHandle, &ctx);
 					return;
 				}
@@ -25601,7 +25904,10 @@ namespace gaia {
 			void worker_loop(ThreadCtx& ctx) {
 				while (true) {
 					// Wait for work
-					m_sem[(uint32_t)ctx.prio].wait();
+					if (ctx.background)
+						m_semBackground.wait();
+					else
+						m_sem[(uint32_t)ctx.prio].wait();
 
 					// Keep executing while there is work
 					while (true) {
@@ -25632,6 +25938,8 @@ namespace gaia {
 					if (m_workerThreadsCnt[i] != 0)
 						m_sem[i].release((int32_t)m_workerThreadsCnt[i]);
 				}
+				if (m_backgroundWorkersCnt != 0)
+					m_semBackground.release((int32_t)m_backgroundWorkersCnt);
 
 				auto* ctx = detail::tl_workerCtx;
 				if (ctx == nullptr) {
@@ -25646,6 +25954,9 @@ namespace gaia {
 				while (try_fetch_job(*ctx, jobHandle)) {
 					run(jobHandle, ctx);
 				}
+				while (try_fetch_background_job(jobHandle)) {
+					run(jobHandle, ctx);
+				}
 
 				detail::tl_workerCtx = nullptr;
 
@@ -25656,15 +25967,35 @@ namespace gaia {
 				m_stop.store(false);
 			}
 
+			//! Makes sure the priority is right for the given set of allocated frame workers
+			JobPriority final_frame_prio(JobPriority priority) {
+				const auto cntWorkers = m_workersCnt[(uint32_t)priority];
+				return cntWorkers > 0
+									 // If there is enough workers, keep the priority
+									 ? priority
+									 // Not enough workers, use the other priority that has workers
+									 : (JobPriority)(((uint32_t)priority + 1U) % (uint32_t)JobPriorityCnt);
+			}
+
+			//! Makes sure the priority is right for the given set of allocated workers
+			JobPriority final_prio(const Job& job) {
+				if ((job.flags & JobCreationFlags::Background) != 0U)
+					return job.priority;
+
+				return final_frame_prio(job.priority);
+			}
+
 			//! Makes sure the priority is right for the given set of allocated workers
 			template <typename TJob>
 			JobPriority final_prio(const TJob& job) {
-				const auto cntWorkers = m_workersCnt[(uint32_t)job.priority];
-				return cntWorkers > 0
-									 // If there is enough workers, keep the priority
-									 ? job.priority
-									 // Not enough workers, use the other priority that has workers
-									 : (JobPriority)(((uint32_t)job.priority + 1U) % (uint32_t)JobPriorityCnt);
+				return final_frame_prio(job.priority);
+			}
+
+			//! Checks whether @a jobData is routed through the background worker queue.
+			//! \param jobData Job to inspect.
+			//! \return True when the job is a background job.
+			GAIA_NODISCARD static bool is_background(const JobContainer& jobData) {
+				return (jobData.flags & JobCreationFlags::Background) != 0U;
 			}
 
 			void signal_edges(JobContainer& jobData) {
@@ -25741,14 +26072,23 @@ namespace gaia {
 					// Try pushing all jobs while preserving their priority queue ownership.
 					uint32_t pushed = 0;
 					uint32_t released[JobPriorityCnt]{};
+					uint32_t backgroundReleased = 0;
 					for (; pushed < handles.size(); ++pushed) {
 						const auto handle = handles[pushed];
 						const auto& jobData = m_jobManager.data(handle);
+						if (is_background(jobData)) {
+							if (!m_jobQueueBackground.try_push(handle))
+								break;
+
+							++backgroundReleased;
+							continue;
+						}
+
 						const auto prio = jobData.prio;
 						// Worker-local queues are reserved for work that matches the worker's own
 						// priority class. Cross-priority releases must go through the matching
 						// global queue so the right workers can pick them up.
-						const bool useLocalQueue = ctx != nullptr && ctx->workerIdx != 0 && ctx->prio == prio;
+						const bool useLocalQueue = ctx != nullptr && !ctx->background && ctx->workerIdx != 0 && ctx->prio == prio;
 						const bool res =
 								useLocalQueue ? ctx->jobQueue.try_push(handle) : m_jobQueue[(uint32_t)prio].try_push(handle);
 						if (!res)
@@ -25764,20 +26104,23 @@ namespace gaia {
 						if (cnt != 0)
 							m_sem[i].release((int32_t)cnt);
 					}
+					const auto backgroundCnt = core::get_min(backgroundReleased, m_backgroundWorkersCnt);
+					if (backgroundCnt != 0)
+						m_semBackground.release((int32_t)backgroundCnt);
 
 					handles = handles.subspan(pushed);
 					if (!handles.empty()) {
 						const auto handle = handles[0];
 						const auto& jobData = m_jobManager.data(handle);
 
-						if (can_run_inline(ctx, jobData.prio)) {
+						if (can_run_inline(ctx, jobData)) {
 							// The queue was full. Execute the job right away only when the
 							// current execution context is allowed to run this priority class.
 							run(handle, ctx);
 							handles = handles.subspan(1);
 						} else {
 							GAIA_ASSERT(ctx != nullptr);
-							wait_for_queue_space(*ctx, jobData.prio);
+							wait_for_queue_space(*ctx, jobData);
 						}
 					}
 				}
@@ -43641,14 +43984,32 @@ namespace gaia {
 			uintptr_t value[2]{};
 		};
 
+		//! Scheduler work flags shared by ECS scheduler descriptors.
+		enum class SchedFlags : uint8_t {
+			//! Default frame-bound work.
+			Default = 0,
+			//! Work may span multiple frames and should use the scheduler's background lane.
+			Background = 0x01
+		};
+
+		//! Checks whether a scheduler flag set contains a specific flag.
+		//! \param flags Flag set to inspect.
+		//! \param flag Flag to test for.
+		//! \return True when @a flag is present in @a flags.
+		GAIA_NODISCARD inline bool sched_flags_has(SchedFlags flags, SchedFlags flag) {
+			return ((uint8_t)flags & (uint8_t)flag) != 0U;
+		}
+
 		//! Description of a single task submitted to a scheduler.
 		struct SchedTaskDesc {
 			//! Opaque callback context forwarded to invoke().
 			void* pCtx = nullptr;
 			//! Task entry point.
 			void (*invoke)(void* pCtx) = nullptr;
-			//! Execution hint selected by the ECS caller.
+			//! Execution hint selected by the scheduler caller.
 			QueryExecType execType{};
+			//! Scheduler flags describing non-default execution requirements.
+			SchedFlags flags = SchedFlags::Default;
 		};
 
 		//! Description of a parallel-for submission to a scheduler.
@@ -43661,8 +44022,10 @@ namespace gaia {
 			uint32_t itemCount = 0;
 			//! Preferred group size. A value of 0 lets the scheduler choose.
 			uint32_t groupSize = 0;
-			//! Execution hint selected by the ECS caller.
+			//! Execution hint selected by the scheduler caller.
 			QueryExecType execType{};
+			//! Scheduler flags describing non-default execution requirements.
+			SchedFlags flags = SchedFlags::Default;
 		};
 
 		//! Scheduler descriptor used by ECS runtime code.
@@ -43827,6 +44190,17 @@ namespace gaia {
 				return (uint32_t)execType == 3U ? mt::JobPriority::Low : mt::JobPriority::High;
 			}
 
+			inline bool sched_flags_background(SchedFlags flags) {
+				return sched_flags_has(flags, SchedFlags::Background);
+			}
+
+			inline mt::JobCreationFlags job_creation_flags(SchedFlags flags) {
+				uint8_t jobFlags = (uint8_t)mt::JobCreationFlags::ManualDelete;
+				if (sched_flags_background(flags))
+					jobFlags |= (uint8_t)mt::JobCreationFlags::Background;
+				return (mt::JobCreationFlags)jobFlags;
+			}
+
 			enum class SchedTokenKind : uint32_t { None, Single, Parallel };
 
 			struct SchedTokenDefData {
@@ -43859,7 +44233,7 @@ namespace gaia {
 
 				mt::Job job;
 				job.priority = exec_prio(pDesc->execType);
-				job.flags = mt::JobCreationFlags::ManualDelete;
+				job.flags = job_creation_flags(pDesc->flags);
 				job.func = [pCtx = pDesc->pCtx, invoke = pDesc->invoke]() {
 					invoke(pCtx);
 				};
@@ -43888,7 +44262,9 @@ namespace gaia {
 				const auto prio = exec_prio(pDesc->execType);
 				uint32_t groupSize = pDesc->groupSize;
 				if (groupSize == 0) {
-					const auto workers = core::get_max(1U, tp.workers() + 1U);
+					const bool background = sched_flags_background(pDesc->flags);
+					const auto workers =
+							background ? core::get_max(1U, tp.background_workers()) : core::get_max(1U, tp.workers() + 1U);
 					groupSize = (pDesc->itemCount + workers - 1) / workers;
 					constexpr uint32_t maxUnitsOfWorkPerGroup = 8;
 					groupSize = groupSize / maxUnitsOfWorkPerGroup;
@@ -43907,7 +44283,7 @@ namespace gaia {
 
 					mt::Job job;
 					job.priority = prio;
-					job.flags = mt::JobCreationFlags::ManualDelete;
+					job.flags = job_creation_flags(pDesc->flags);
 					job.func = [desc = *pDesc, idxStart, idxEnd]() {
 						desc.invoke(desc.pCtx, idxStart, idxEnd);
 					};
@@ -43916,7 +44292,7 @@ namespace gaia {
 				{
 					mt::Job syncJob;
 					syncJob.priority = prio;
-					syncJob.flags = mt::JobCreationFlags::ManualDelete;
+					syncJob.flags = job_creation_flags(pDesc->flags);
 					pData->handles[jobs] = tp.add(GAIA_MOV(syncJob));
 				}
 				tp.dep(std::span(pData->handles.data(), jobs), pData->handles[jobs]);

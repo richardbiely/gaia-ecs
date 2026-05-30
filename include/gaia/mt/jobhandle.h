@@ -31,7 +31,7 @@ namespace gaia {
 				JobInternalType id : IdBits;
 				//! Generation index. Incremented every time an item is deleted
 				JobInternalType gen : GenBits;
-				//! Job priority. 1-priority, 0-background
+				//! Encoded job priority bit.
 				JobInternalType prio : PrioBits;
 			};
 
