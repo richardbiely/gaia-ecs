@@ -91,7 +91,6 @@ var hierarchy =
     [ "gaia::ecs::CopyIter", "classgaia_1_1ecs_1_1CopyIter.html", null ],
     [ "gaia::ecs::Core_", "structgaia_1_1ecs_1_1Core__.html", null ],
     [ "gaia::cnt::darr< T, Allocator >", "classgaia_1_1cnt_1_1darr.html", [
-      [ "gaia::cnt::darray_ilist_storage< gaia::mt::JobContainer >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ],
       [ "gaia::cnt::darray_ilist_storage< gaia::mt::ParallelCallbackRecord >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ],
       [ "gaia::cnt::darray_ilist_storage< TListItem >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ]
     ] ],
@@ -332,10 +331,10 @@ var hierarchy =
     [ "robin_hood::hash< T, typename std::enable_if< gaia::core::is_direct_hash_key_v< T > >::type >", "structrobin__hood_1_1hash_3_01T_00_01typename_01std_1_1enable__if_3_01gaia_1_1core_1_1is__directb90c969b64bee2ef071a5927f60384d3.html", null ],
     [ "gaia::ecs::vm::detail::IdCmpResult", "structgaia_1_1ecs_1_1vm_1_1detail_1_1IdCmpResult.html", null ],
     [ "gaia::cnt::ilist< TListItem, TItemHandle, TInternalStorage >", "structgaia_1_1cnt_1_1ilist.html", null ],
-    [ "gaia::cnt::ilist< gaia::mt::JobContainer, gaia::mt::JobHandle >", "structgaia_1_1cnt_1_1ilist.html", null ],
     [ "gaia::cnt::ilist< gaia::mt::ParallelCallbackRecord, gaia::mt::ParallelCallbackHandle >", "structgaia_1_1cnt_1_1ilist.html", null ],
     [ "gaia::cnt::ilist_handle_traits< TItemHandle, typename >", "structgaia_1_1cnt_1_1ilist__handle__traits.html", null ],
     [ "gaia::cnt::ilist_handle_traits< ecs::Entity >", "structgaia_1_1cnt_1_1ilist__handle__traits_3_01ecs_1_1Entity_01_4.html", null ],
+    [ "gaia::cnt::ilist_handle_traits< TItemHandle, std::void_t< decltype(std::declval< const TItemHandle & >().prio())> >", "structgaia_1_1cnt_1_1ilist__handle__traits_3_01TItemHandle_00_01std_1_1void__t_3_01decltype_07st2a0d0d6f9c6aac50cc62708895916597.html", null ],
     [ "gaia::cnt::ilist_item", "structgaia_1_1cnt_1_1ilist__item.html", [
       [ "gaia::mt::JobContainer", "structgaia_1_1mt_1_1JobContainer.html", null ],
       [ "gaia::mt::ParallelCallbackRecord", "structgaia_1_1mt_1_1ParallelCallbackRecord.html", null ]
@@ -493,9 +492,10 @@ var hierarchy =
     [ "gaia::cnt::page_iterator< T, Allocator, IsFwd >", "structgaia_1_1cnt_1_1page__iterator.html", null ],
     [ "gaia::cnt::page_iterator_soa< T, Allocator, IsFwd >", "structgaia_1_1cnt_1_1page__iterator__soa.html", null ],
     [ "gaia::cnt::page_storage< T >", "classgaia_1_1cnt_1_1page__storage.html", null ],
-    [ "gaia::cnt::paged_ilist< TListItem, TItemHandle >", "structgaia_1_1cnt_1_1paged__ilist.html", null ],
+    [ "gaia::cnt::paged_ilist< TListItem, TItemHandle, MaxPages >", "structgaia_1_1cnt_1_1paged__ilist.html", null ],
     [ "gaia::cnt::paged_ilist< gaia::ecs::EntityContainer, gaia::ecs::Entity >", "structgaia_1_1cnt_1_1paged__ilist.html", null ],
     [ "gaia::cnt::paged_ilist< gaia::ecs::QueryInfo, gaia::ecs::QueryHandle >", "structgaia_1_1cnt_1_1paged__ilist.html", null ],
+    [ "gaia::cnt::paged_ilist< gaia::mt::JobContainer, gaia::mt::JobHandle, JobDataPageCount >", "structgaia_1_1cnt_1_1paged__ilist.html", null ],
     [ "gaia::cnt::paged_ilist_iterator< TPagedIList, IsConst >", "classgaia_1_1cnt_1_1paged__ilist__iterator.html", null ],
     [ "gaia::mem::detail::PagedAllocatorImpl< T, RequestedBlockSize >", "classgaia_1_1mem_1_1detail_1_1PagedAllocatorImpl.html", null ],
     [ "gaia::cnt::detail::mem_page_data< T >::PageHeader", "structgaia_1_1cnt_1_1detail_1_1mem__page__data_1_1PageHeader.html", null ],

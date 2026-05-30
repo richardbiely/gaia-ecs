@@ -14,7 +14,7 @@ var searchData=
   ['jobparallel_11',['JobParallel',['../structgaia_1_1mt_1_1JobParallel.html',1,'gaia::mt']]],
   ['jobparallelref_12',['JobParallelRef',['../structgaia_1_1mt_1_1JobParallelRef.html',1,'gaia::mt']]],
   ['jobqueue_13',['jobQueue',['../structgaia_1_1mt_1_1ThreadCtx.html#afd02a09d14111d025256fe343310b3b3',1,'gaia::mt::ThreadCtx']]],
-  ['jobs_14',['jobs',['../index.html#jobs',1,'Jobs'],['../index.html#system-jobs',1,'System jobs']]],
+  ['jobs_14',['jobs',['../index.html#background-jobs',1,'Background jobs'],['../index.html#jobs',1,'Jobs'],['../index.html#system-jobs',1,'System jobs']]],
   ['jsondiagnostic_15',['JsonDiagnostic',['../structgaia_1_1ser_1_1JsonDiagnostic.html',1,'gaia::ser']]],
   ['jsondiagnostics_16',['JsonDiagnostics',['../structgaia_1_1ser_1_1JsonDiagnostics.html',1,'gaia::ser']]]
 ];

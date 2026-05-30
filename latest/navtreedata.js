@@ -112,6 +112,7 @@ var NAVTREE =
         [ "Job dependencies", "index.html#job-dependencies", null ],
         [ "Priorities", "index.html#priorities", null ],
         [ "Job behavior", "index.html#job-behavior", null ],
+        [ "Background jobs", "index.html#background-jobs", null ],
         [ "Threads", "index.html#threads", null ],
         [ "Scheduler adapters", "index.html#scheduler-adapters", null ]
       ] ],
@@ -177,11 +178,11 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8",
 "classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4",
 "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af866f7d259aa5b8dfc03b96acc45220b",
-"functions_func.html",
-"structgaia_1_1cnt_1_1const__darr__soa__iterator.html",
-"structgaia_1_1ecs_1_1Component_1_1InternalData.html#ac1aad7b81c3b90dafa638ae262e20d7d",
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#aaa0462d94d281c5ede80738ebec7cd85",
-"structgaia_1_1meta_1_1type__info.html"
+"functions_eval.html",
+"sringbuffer_8h_source.html",
+"structgaia_1_1ecs_1_1ComponentGetter.html#abb919550729f83d58aa7614093183639",
+"structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#afdc86eba4413c81bd786f258751897e3",
+"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#ae5492716244697fea5db3db861a22881"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

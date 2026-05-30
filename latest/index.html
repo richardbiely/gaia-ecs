@@ -3148,31 +3148,53 @@ Job behavior</h3>
 <p>Job behavior can be partial customized. For example, if we want to manage its lifetime manually, on its creation we can tell the threadpool. </p><div class="fragment"><div class="line">mt::Job job;</div>
 <div class="line"><span class="comment">// This job&#39;s lifetime won&#39;t be managed by the threadpool</span></div>
 <div class="line">job.flags = mt::JobCreationFlags::ManualDelete;</div>
-<div class="line">tp.func = ...;</div>
+<div class="line">job.func = ...;</div>
 <div class="line">mt::JobHandle handle = tp.sched(job);</div>
 <div class="line">tp.wait(handle);</div>
 <div class="line"><span class="comment">// We release the job handle ourselves</span></div>
 <div class="line">tp.del(handle);</div>
-</div><!-- fragment --><h3><a class="anchor" id="threads"></a>
+</div><!-- fragment --><h3><a class="anchor" id="background-jobs"></a>
+Background jobs</h3>
+<p>Frame jobs are expected to finish within the frame that owns them. Work that can legitimately span multiple frames, such as asset streaming, cache building, or other engine-side background tasks, can be routed to background workers instead.</p>
+<p>Background jobs are scheduled with <code>ThreadPool::sched_background</code>. They use a separate queue and are not drained by <code>ThreadPool::update</code>, so the main thread does not accidentally consume multi-frame work while helping the current frame finish. If no background workers are configured, <code>ThreadPool::wait</code> is the explicit fallback path that can execute queued background work on the calling thread.</p>
+<div class="fragment"><div class="line"><span class="keyword">auto</span>&amp; tp = mt::ThreadPool::get();</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Reserve one worker for multi-frame background work.</span></div>
+<div class="line">tp.set_background_workers(1);</div>
+<div class="line"> </div>
+<div class="line">mt::Job job;</div>
+<div class="line">job.flags = mt::JobCreationFlags::ManualDelete;</div>
+<div class="line">job.priority = mt::JobPriority::Low;</div>
+<div class="line">job.func = []() {</div>
+<div class="line">  StreamTextureChunk();</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">mt::JobHandle handle = tp.sched_background(job);</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// Later, when the result is needed:</span></div>
+<div class="line">tp.wait(handle);</div>
+<div class="line">tp.del(handle);</div>
+</div><!-- fragment --><p>Background workers are separate from frame workers, but both groups share the thread pool's worker limit. <code>ThreadPool::workers</code> reports frame workers only, and <code>ThreadPool::background_workers</code> reports background workers only. Background jobs still use <code>JobPriority</code> for OS thread priority and QoS hints, but they do not age into frame queues and frame workers do not steal from background queues.</p>
+<h3><a class="anchor" id="threads"></a>
 Threads</h3>
-<p>The total number of threads created for the pool is set via <code>ThreadPool::set_max_workers</code>. By default, the number of threads created is equal to the number of available CPU threads minus 1 (the main thread). However, no matter how many threads are requested, the final number if always capped to 31 (<code>ThreadPool::MaxWorkers</code>). The number of available threads on your hardware can be retrieved via <code>ThreadPool::hw_thread_cnt</code>.</p>
+<p>The total number of frame execution contexts for the pool is set via <code>ThreadPool::set_max_workers</code>. One context is the main thread, so the number of spawned frame workers is one less than the requested count. By default, the number of frame execution contexts is equal to the number of available CPU threads. However, no matter how many threads are requested, the final number is capped by the thread pool's internal worker limit. Background workers are configured separately with <code>ThreadPool::set_background_workers</code> and share the same cap. The number of available threads on your hardware can be retrieved via <code>ThreadPool::hw_thread_cnt</code>.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span>&amp; tp = mt::ThreadPool::get();</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Get the number of hardware threads.</span></div>
 <div class="line"><span class="keyword">const</span> uint32_t hwThreads = tp.hw_thread_cnt();</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Create &quot;hwThreads&quot; worker threads. Make all of them high priority workers.</span></div>
+<div class="line"><span class="comment">// Create &quot;hwThreads - 1&quot; frame worker threads. Make all of them high priority workers.</span></div>
 <div class="line">tp.set_max_workers(hwThreads, hwThreads);</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Create &quot;hwThreads&quot; worker threads. Make 1 of them a high priority worker.</span></div>
-<div class="line"><span class="comment">// If more then 1 worker threads were created, the rest of them is dedicated</span></div>
+<div class="line"><span class="comment">// Create &quot;hwThreads - 1&quot; frame worker threads. Make 1 of them a high priority worker.</span></div>
+<div class="line"><span class="comment">// If more than 1 worker thread was created, the rest is dedicated</span></div>
 <div class="line"><span class="comment">// for low-priority jobs.</span></div>
 <div class="line">tp.set_max_workers(hwThreads, 1);</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// No workers threads are used. If there were any before, they are destroyed.</span></div>
+<div class="line"><span class="comment">// No frame worker threads are used. If there were any before, they are destroyed.</span></div>
 <div class="line"><span class="comment">// All processing is happening on the main thread.</span></div>
 <div class="line">tp.set_max_workers(0, 0);</div>
-</div><!-- fragment --><p>The number of worker threads for a given performance level can be adjusted via <code>ThreadPool::set_workers_high_prio</code> and <code>ThreadPool::set_workers_low_prio</code>. By default, all workers created are high-priority ones.</p>
+</div><!-- fragment --><p>The number of frame worker threads for a given performance level can be adjusted via <code>ThreadPool::set_workers_high_prio</code> and <code>ThreadPool::set_workers_low_prio</code>. By default, all frame workers created are high-priority ones.</p>
 <div class="fragment"><div class="line"><span class="keyword">auto</span>&amp; tp = mt::ThreadPool::get();</div>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Get the number of worker threads available for this system.</span></div>
@@ -3213,18 +3235,41 @@ Threads</h3>
 <h3><a class="anchor" id="scheduler-adapters"></a>
 Scheduler adapters</h3>
 <p>If you already have your own task scheduler or are integrating Gaia-ECS into a larger engine, ECS parallel execution can be routed through a custom scheduler instead of the built-in Gaia thread pool.</p>
+<p>Scheduler task descriptors carry <code>SchedFlags</code>. When <code>SchedFlags::Background</code> is present, the adapter should route the task to a scheduler lane that is allowed to outlive the current frame. The default Gaia-ECS scheduler maps this flag to <code>ThreadPool::sched_background</code>; external adapters need to preserve it for both <code>SchedTaskDesc</code> and <code>SchedParDesc</code> so background work does not silently fall back to a frame-bound queue.</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>MySchedCtx {</div>
 <div class="line">  MyEngine::Scheduler* scheduler;</div>
 <div class="line">};</div>
 <div class="line"> </div>
+<div class="line"><span class="keyword">static</span> ecs::SchedToken MyRunTask(<span class="keywordtype">void</span>* pCtx, <span class="keyword">const</span> ecs::SchedTaskDesc* pDesc) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MySchedCtx*)pCtx;</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span> desc = *pDesc;</div>
+<div class="line">  <span class="keyword">const</span> <span class="keywordtype">bool</span> background = ecs::sched_flags_has(desc.flags, ecs::SchedFlags::Background);</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span> lane = background ? MyEngine::Lane::Background : MyEngine::Lane::Frame;</div>
+<div class="line"> </div>
+<div class="line">  <span class="keyword">auto</span> token = ctx.scheduler-&gt;run(</div>
+<div class="line">    [desc]() {</div>
+<div class="line">      desc.invoke(desc.pCtx);</div>
+<div class="line">    },</div>
+<div class="line">    lane);</div>
+<div class="line"> </div>
+<div class="line">  ecs::SchedToken out{};</div>
+<div class="line">  out.value[0] = token.raw0;</div>
+<div class="line">  out.value[1] = token.raw1;</div>
+<div class="line">  <span class="keywordflow">return</span> out;</div>
+<div class="line">}</div>
+<div class="line"> </div>
 <div class="line"><span class="keyword">static</span> ecs::SchedToken MyRunParallel(<span class="keywordtype">void</span>* pCtx, <span class="keyword">const</span> ecs::SchedParDesc* pDesc) {</div>
 <div class="line">  <span class="keyword">auto</span>&amp; ctx = *(MySchedCtx*)pCtx;</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span> desc = *pDesc;</div>
+<div class="line">  <span class="keyword">const</span> <span class="keywordtype">bool</span> background = ecs::sched_flags_has(desc.flags, ecs::SchedFlags::Background);</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span> lane = background ? MyEngine::Lane::Background : MyEngine::Lane::Frame;</div>
 <div class="line"> </div>
 <div class="line">  <span class="keyword">auto</span> token = ctx.scheduler-&gt;parallel_for(</div>
-<div class="line">    pDesc-&gt;itemCount,</div>
-<div class="line">    [pDesc](uint32_t idxStart, uint32_t idxEnd) {</div>
-<div class="line">      pDesc-&gt;invoke(pDesc-&gt;pCtx, idxStart, idxEnd);</div>
-<div class="line">    });</div>
+<div class="line">    desc.itemCount,</div>
+<div class="line">    [desc](uint32_t idxStart, uint32_t idxEnd) {</div>
+<div class="line">      desc.invoke(desc.pCtx, idxStart, idxEnd);</div>
+<div class="line">    },</div>
+<div class="line">    lane);</div>
 <div class="line"> </div>
 <div class="line">  ecs::SchedToken out{};</div>
 <div class="line">  out.value[0] = token.raw0;</div>
@@ -3246,6 +3291,7 @@ Scheduler adapters</h3>
 <div class="line"> </div>
 <div class="line">ecs::Sched sched{};</div>
 <div class="line">sched.pCtx = &amp;schedCtx;</div>
+<div class="line">sched.sched = &amp;MyRunTask;</div>
 <div class="line">sched.sched_par = &amp;MyRunParallel;</div>
 <div class="line">sched.wait = &amp;MyWait;</div>
 <div class="line">sched.del = &amp;MyDel;</div>
@@ -3281,8 +3327,9 @@ Scheduler adapters</h3>
 <div class="line">boundsJob.wait();</div>
 </div><!-- fragment --><p><code>SchedJob</code> is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel <code>ecs::Iter&amp;</code> callbacks and typed callbacks both add parallel-for work directly when the query can be split into chunk batches; entity-seeded and grouped paths may still fall back to one added task.</p>
 <p>For a fully deferred external scheduler, implement <code>add</code> / <code>add_par</code>, <code>submit</code>, <code>dep</code>, <code>wait</code>, and <code>del</code>. If only <code>sched</code> / <code>sched_par</code> are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but <code>Query::job(...)</code> / <code>System::job()</code> cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.</p>
+<p>Deferred adapters should make the same background decision inside <code>add</code> and <code>add_par</code>, store it with the scheduler-owned token, and keep <code>submit</code> from moving background work back into a frame queue.</p>
 <p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code>.</p>
-<p>This adapter hook affects ECS parallel query/system execution. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
+<p>This adapter hook affects ECS parallel query/system execution and explicit <code>ecs::sched_*</code> submissions. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
 <h2><a class="anchor" id="customization"></a>
 Customization</h2>
 <p>Certain aspects of the library can be customized.</p>

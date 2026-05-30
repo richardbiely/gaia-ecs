@@ -124,10 +124,14 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>make_main_thread</b> 
 <tr class="separator:ab8f242ce7bce79ca45c5bb9d5af8ee3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad34530603ddff9f01e0a04236f7e736d" id="r_ad34530603ddff9f01e0a04236f7e736d"><td class="memItemLeft" align="right" valign="top"><a id="ad34530603ddff9f01e0a04236f7e736d" name="ad34530603ddff9f01e0a04236f7e736d"></a>
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>workers</b> () const</td></tr>
-<tr class="memdesc:ad34530603ddff9f01e0a04236f7e736d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of worker threads. <br /></td></tr>
+<tr class="memdesc:ad34530603ddff9f01e0a04236f7e736d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of frame worker threads. <br /></td></tr>
 <tr class="separator:ad34530603ddff9f01e0a04236f7e736d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0b092b9ecb5f1277146278d6f038f8ed" id="r_a0b092b9ecb5f1277146278d6f038f8ed"><td class="memItemLeft" align="right" valign="top"><a id="a0b092b9ecb5f1277146278d6f038f8ed" name="a0b092b9ecb5f1277146278d6f038f8ed"></a>
+GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>background_workers</b> () const</td></tr>
+<tr class="memdesc:a0b092b9ecb5f1277146278d6f038f8ed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of background worker threads. <br /></td></tr>
+<tr class="separator:a0b092b9ecb5f1277146278d6f038f8ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6973cb5704fb43eee582498925ed3b4f" id="r_a6973cb5704fb43eee582498925ed3b4f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a6973cb5704fb43eee582498925ed3b4f">set_max_workers</a> (uint32_t count, uint32_t countHighPrio)</td></tr>
-<tr class="memdesc:a6973cb5704fb43eee582498925ed3b4f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the maximum number of workers for this system.  <br /></td></tr>
+<tr class="memdesc:a6973cb5704fb43eee582498925ed3b4f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set the maximum number of frame execution contexts for this system.  <br /></td></tr>
 <tr class="separator:a6973cb5704fb43eee582498925ed3b4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0223557ad9bf5f8fe05a5fd3794f2268" id="r_a0223557ad9bf5f8fe05a5fd3794f2268"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a0223557ad9bf5f8fe05a5fd3794f2268">set_workers_high_prio_inter</a> (uint32_t &amp;workerIdx, uint32_t count)</td></tr>
 <tr class="memdesc:a0223557ad9bf5f8fe05a5fd3794f2268"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the number of worker threads participating at high priority workloads.  <br /></td></tr>
@@ -141,6 +145,9 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>wo
 <tr class="memitem:ac1dfd17defbb8ef7890bc137f4bab873" id="r_ac1dfd17defbb8ef7890bc137f4bab873"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ac1dfd17defbb8ef7890bc137f4bab873">set_workers_low_prio</a> (uint32_t count)</td></tr>
 <tr class="memdesc:ac1dfd17defbb8ef7890bc137f4bab873"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the number of worker threads participating at low priority workloads.  <br /></td></tr>
 <tr class="separator:ac1dfd17defbb8ef7890bc137f4bab873"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a75c3bbac493834249de4be01ab6a142e" id="r_a75c3bbac493834249de4be01ab6a142e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a75c3bbac493834249de4be01ab6a142e">set_background_workers</a> (uint32_t count)</td></tr>
+<tr class="memdesc:a75c3bbac493834249de4be01ab6a142e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the number of worker threads dedicated to background jobs. Background workers run jobs submitted through <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ae63a44ccc90166361df38f7912d9ed24" title="Schedules a job to run on background workers. Background jobs are not drained by update() and may spa...">sched_background()</a> and are not used by <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a208c24048e8b702dced46716d0c79ba3" title="Uses the main thread to help with frame job processing. Background jobs are intentionally excluded fr...">update()</a>. They share the MaxWorkers limit with frame workers.  <br /></td></tr>
+<tr class="separator:a75c3bbac493834249de4be01ab6a142e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a684585cca8c1be78e730e8681db6b34e" id="r_a684585cca8c1be78e730e8681db6b34e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a684585cca8c1be78e730e8681db6b34e">dep</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobFirst, <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobSecond)</td></tr>
 <tr class="memdesc:a684585cca8c1be78e730e8681db6b34e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Makes <em>jobSecond</em> depend on <em>jobFirst</em>. This means <em>jobSecond</em> will not run until <em>jobFirst</em> finishes.  <br /></td></tr>
 <tr class="separator:a684585cca8c1be78e730e8681db6b34e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -182,6 +189,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> (<a class="
 <tr class="memitem:a8c7dec10f814ff615028c232277d6fd6" id="r_a8c7dec10f814ff615028c232277d6fd6"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a8c7dec10f814ff615028c232277d6fd6">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job)</td></tr>
 <tr class="memdesc:a8c7dec10f814ff615028c232277d6fd6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
 <tr class="separator:a8c7dec10f814ff615028c232277d6fd6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae63a44ccc90166361df38f7912d9ed24" id="r_ae63a44ccc90166361df38f7912d9ed24"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ae63a44ccc90166361df38f7912d9ed24">sched_background</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job)</td></tr>
+<tr class="memdesc:ae63a44ccc90166361df38f7912d9ed24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on background workers. Background jobs are not drained by <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a208c24048e8b702dced46716d0c79ba3" title="Uses the main thread to help with frame job processing. Background jobs are intentionally excluded fr...">update()</a> and may span multiple frames. If no background workers are configured, <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810" title="Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and ...">wait()</a> is the explicit fallback path that can execute queued background work on the calling thread.  <br /></td></tr>
+<tr class="separator:ae63a44ccc90166361df38f7912d9ed24"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa3d2253eba9d35238f70435f548b1c4f" id="r_aa3d2253eba9d35238f70435f548b1c4f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#aa3d2253eba9d35238f70435f548b1c4f">sched</a> (<a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> job, <a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> dependsOn)</td></tr>
 <tr class="memdesc:aa3d2253eba9d35238f70435f548b1c4f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a job to run on a worker thread.  <br /></td></tr>
 <tr class="separator:aa3d2253eba9d35238f70435f548b1c4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -192,11 +202,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> (<a class="
 <tr class="memdesc:a104b8eb7b657174c0e4a721b63a34f42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Schedules a non-owning parallel job descriptor on worker threads.  <br /></td></tr>
 <tr class="separator:a104b8eb7b657174c0e4a721b63a34f42"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abae2dc1ab79367b708af43dfa2cae810" id="r_abae2dc1ab79367b708af43dfa2cae810"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810">wait</a> (<a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> jobHandle)</td></tr>
-<tr class="memdesc:abae2dc1ab79367b708af43dfa2cae810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em> The calling thread participate in job processing until <em>jobHandle</em> is done.  <br /></td></tr>
+<tr class="memdesc:abae2dc1ab79367b708af43dfa2cae810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em>. The calling thread participates in frame job processing until <em>jobHandle</em> is done. For background jobs, the calling thread only runs background work when no background workers are configured.  <br /></td></tr>
 <tr class="separator:abae2dc1ab79367b708af43dfa2cae810"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a208c24048e8b702dced46716d0c79ba3" id="r_a208c24048e8b702dced46716d0c79ba3"><td class="memItemLeft" align="right" valign="top"><a id="a208c24048e8b702dced46716d0c79ba3" name="a208c24048e8b702dced46716d0c79ba3"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>update</b> ()</td></tr>
-<tr class="memdesc:a208c24048e8b702dced46716d0c79ba3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Uses the main thread to help with jobs processing. <br /></td></tr>
+<tr class="memdesc:a208c24048e8b702dced46716d0c79ba3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Uses the main thread to help with frame job processing. Background jobs are intentionally excluded from <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a208c24048e8b702dced46716d0c79ba3" title="Uses the main thread to help with frame job processing. Background jobs are intentionally excluded fr...">update()</a>. <br /></td></tr>
 <tr class="separator:a208c24048e8b702dced46716d0c79ba3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
@@ -247,7 +257,7 @@ template&lt;typename TJob &gt; </div>
 <p>Creates a threadpool job from <em>job</em>. </p>
 <dl class="section warning"><dt>Warning</dt><dd>Must be used from the main thread. </dd>
 <dd>
-Can't be called while there are any jobs being executed. </dd></dl>
+Frame jobs should be created before frame work is submitted. It is valid to create new frame jobs while unrelated background jobs are running. </dd></dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> handle of the scheduled job. </dd></dl>
 
 </div>
@@ -643,6 +653,44 @@ Dependencies can't be modified for this job. </dd></dl>
 
 </div>
 </div>
+<a id="ae63a44ccc90166361df38f7912d9ed24" name="ae63a44ccc90166361df38f7912d9ed24"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae63a44ccc90166361df38f7912d9ed24">&#9670;&#160;</a></span>sched_background()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mt_1_1JobHandle.html">JobHandle</a> gaia::mt::ThreadPool::sched_background </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a>&#160;</td>
+          <td class="paramname"><em>job</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Schedules a job to run on background workers. Background jobs are not drained by <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a208c24048e8b702dced46716d0c79ba3" title="Uses the main thread to help with frame job processing. Background jobs are intentionally excluded fr...">update()</a> and may span multiple frames. If no background workers are configured, <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#abae2dc1ab79367b708af43dfa2cae810" title="Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and ...">wait()</a> is the explicit fallback path that can execute queued background work on the calling thread. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">job</td><td><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> descriptor. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>Must be used from the main thread. </dd>
+<dd>
+Dependencies can't be modified for this job. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> handle of the scheduled background job. </dd></dl>
+
+</div>
+</div>
 <a id="a53ffd7b70b14397a14bd1f465bb1521d" name="a53ffd7b70b14397a14bd1f465bb1521d"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a53ffd7b70b14397a14bd1f465bb1521d">&#9670;&#160;</a></span>sched_par() <span class="overload">[1/2]</span></h2>
 
@@ -755,6 +803,41 @@ The pointed-to context must remain alive until the returned handle completes. </
 
 </div>
 </div>
+<a id="a75c3bbac493834249de4be01ab6a142e" name="a75c3bbac493834249de4be01ab6a142e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a75c3bbac493834249de4be01ab6a142e">&#9670;&#160;</a></span>set_background_workers()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::mt::ThreadPool::set_background_workers </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>count</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Updates the number of worker threads dedicated to background jobs. Background workers run jobs submitted through <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#ae63a44ccc90166361df38f7912d9ed24" title="Schedules a job to run on background workers. Background jobs are not drained by update() and may spa...">sched_background()</a> and are not used by <a class="el" href="classgaia_1_1mt_1_1ThreadPool.html#a208c24048e8b702dced46716d0c79ba3" title="Uses the main thread to help with frame job processing. Background jobs are intentionally excluded fr...">update()</a>. They share the MaxWorkers limit with frame workers. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">count</td><td>Requested number of background worker threads. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>Warning</dt><dd>All jobs are finished first before threads are recreated. </dd></dl>
+
+</div>
+</div>
 <a id="a6973cb5704fb43eee582498925ed3b4f" name="a6973cb5704fb43eee582498925ed3b4f"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a6973cb5704fb43eee582498925ed3b4f">&#9670;&#160;</a></span>set_max_workers()</h2>
 
@@ -789,11 +872,11 @@ The pointed-to context must remain alive until the returned handle completes. </
 </table>
 </div><div class="memdoc">
 
-<p>Set the maximum number of workers for this system. </p>
+<p>Set the maximum number of frame execution contexts for this system. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">count</td><td>Requested number of worker threads to create. </td></tr>
-    <tr><td class="paramname">countHighPrio</td><td>HighPrio Number of high-priority workers to create. Calculated as Max(count, countHighPrio). </td></tr>
+    <tr><td class="paramname">count</td><td>Requested frame execution contexts, including the main thread. The number of spawned frame worker threads is one less. </td></tr>
+    <tr><td class="paramname">countHighPrio</td><td>Number of high-priority frame execution contexts. Values larger than <em>count</em> are clamped. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1033,7 +1116,7 @@ The pointed-to context must remain alive until the returned handle completes. </
 </table>
 </div><div class="memdoc">
 
-<p>Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em> The calling thread participate in job processing until <em>jobHandle</em> is done. </p>
+<p>Wait until a job associated with the jobHandle finishes executing. Cleans up any job allocations and dependencies associated with <em>jobHandle</em>. The calling thread participates in frame job processing until <em>jobHandle</em> is done. For background jobs, the calling thread only runs background work when no background workers are configured. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">jobHandle</td><td><a class="el" href="structgaia_1_1mt_1_1Job.html">Job</a> handle to wait for </td></tr>

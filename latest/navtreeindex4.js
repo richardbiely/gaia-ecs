@@ -1,5 +1,8 @@
 var NAVTREEINDEX4 =
 {
+"functions_eval.html":[10,3,5],
+"functions_f.html":[10,3,0,5],
+"functions_func.html":[10,3,1],
 "functions_func.html":[10,3,1,0],
 "functions_func_b.html":[10,3,1,1],
 "functions_func_c.html":[10,3,1,2],
@@ -42,8 +45,8 @@ var NAVTREEINDEX4 =
 "functions_type.html":[10,3,3],
 "functions_u.html":[10,3,0,20],
 "functions_v.html":[10,3,0,21],
-"functions_vars.html":[10,3,2],
 "functions_vars.html":[10,3,2,0],
+"functions_vars.html":[10,3,2],
 "functions_vars_b.html":[10,3,2,1],
 "functions_vars_c.html":[10,3,2,2],
 "functions_vars_d.html":[10,3,2,3],
@@ -79,6 +82,7 @@ var NAVTREEINDEX4 =
 "index.html":[],
 "index.html#add-or-remove-component":[2,1,6],
 "index.html#archetype-lifespan":[2,1,15],
+"index.html#background-jobs":[2,9,4],
 "index.html#basic-operations":[2,1],
 "index.html#batched-creation":[2,1,13],
 "index.html#benchmarks":[5,1],
@@ -154,7 +158,7 @@ var NAVTREEINDEX4 =
 "index.html#runtime-serialization":[2,8,1],
 "index.html#safeentity":[2,1,14,0],
 "index.html#sanitizers":[4,0,1],
-"index.html#scheduler-adapters":[2,9,5],
+"index.html#scheduler-adapters":[2,9,6],
 "index.html#serialization":[2,8],
 "index.html#set-or-get-component-value":[2,1,10],
 "index.html#simple-query":[2,2,1],
@@ -168,7 +172,7 @@ var NAVTREEINDEX4 =
 "index.html#table-of-contents":[0],
 "index.html#targets":[2,3,1],
 "index.html#testing":[5,3],
-"index.html#threads":[2,9,4],
+"index.html#threads":[2,9,5],
 "index.html#traversal-order":[2,2,3],
 "index.html#uncached-query":[2,2,8],
 "index.html#unique-components":[2,4],
@@ -245,9 +249,5 @@ var NAVTREEINDEX4 =
 "span_8h_source.html":[11,0,0,0,2,7],
 "span__impl_8h_source.html":[11,0,0,0,2,0,0],
 "sparse__storage_8h_source.html":[11,0,0,0,0,17],
-"spinlock_8h_source.html":[11,0,0,0,7,8],
-"sringbuffer_8h_source.html":[11,0,0,0,0,18],
-"stack__allocator_8h_source.html":[11,0,0,0,5,7],
-"str_8h_source.html":[11,0,0,0,9,4],
-"structgaia_1_1cnt_1_1const__darr__ext__soa__iterator.html":[10,0,0,0,3]
+"spinlock_8h_source.html":[11,0,0,0,7,8]
 };
