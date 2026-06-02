@@ -2197,6 +2197,7 @@ void Test_Query_Variable_Opcode_Paths() {
 
 		const auto devA = wld.add();
 		const auto devB = wld.add();
+		const auto devC = wld.add();
 
 		const auto cableA = wld.add();
 		wld.add<Cable>(cableA);
@@ -2220,6 +2221,23 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_any_bind") != BadIndex);
 		CHECK(bytecode.find("term_all_check") == BadIndex);
 		CHECK(bytecode.find("term_all_bind") == BadIndex);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		//! Runtime bindings must not turn optional ANY terms into row filters.
+		q.set_var(ecs::Var0, devA);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		q.set_var(ecs::Var0, devB);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		q.set_var(ecs::Var0, devC);
+		CHECK(q.count() == 2);
+		expect_exact_entities(q, {cableA, cableB});
+
+		q.clear_vars();
 		CHECK(q.count() == 2);
 		expect_exact_entities(q, {cableA, cableB});
 	}
