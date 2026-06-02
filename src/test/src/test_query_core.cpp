@@ -358,9 +358,16 @@ void Test_Query_SourceLookup() {
 	CHECK(qSrc.count() == N);
 	expect_positions(qSrc, true);
 
+	auto qSrcOnly = make_query<UseCachedQuery>(wld).template all<Level>(ecs::QueryTermOptions{}.src(game));
+	const auto srcOnlyBytecode = qSrcOnly.bytecode();
+	CHECK(srcOnlyBytecode.find("src_all: 1") != BadIndex);
+	CHECK(srcOnlyBytecode.find("ids_all:") == BadIndex);
+	CHECK(qSrcOnly.count() > N);
+
 	wld.del<Level>(game);
 	CHECK(qSrc.count() == 0);
 	expect_positions(qSrc, false);
+	CHECK(qSrcOnly.count() == 0);
 
 	wld.add<Level>(game, {2});
 	CHECK(qSrc.count() == N);
@@ -2237,7 +2244,13 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 	struct RoutedVia {};
 	struct Marker {};
 
-	auto build_bytecode = [&](uint32_t extraMarkerCnt) {
+	struct CompileShape {
+		util::str bytecode;
+		uint64_t opSignature;
+		uint32_t opCount;
+	};
+
+	auto build_shape = [&](uint32_t extraMarkerCnt) {
 		TestWorld twld;
 		const auto connectedTo = wld.add<ConnectedTo>().entity;
 		const auto linkedTo = wld.add<LinkedTo>().entity;
@@ -2279,13 +2292,16 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 		CHECK(bytecode.find("term_or_check") != BadIndex);
 		CHECK(bytecode.find("term_or_bind") != BadIndex);
 		CHECK(q.count() == 2);
-		return bytecode;
+		auto& queryInfo = q.fetch();
+		return CompileShape{bytecode, queryInfo.op_signature(), queryInfo.op_count()};
 	};
 
-	const auto bytecodeFew = build_bytecode(0);
-	const auto bytecodeMany = build_bytecode(1024);
+	const auto shapeFew = build_shape(0);
+	const auto shapeMany = build_shape(1024);
 
-	CHECK(bytecodeFew == bytecodeMany);
+	CHECK(shapeFew.bytecode == shapeMany.bytecode);
+	CHECK(shapeFew.opSignature == shapeMany.opSignature);
+	CHECK(shapeFew.opCount == shapeMany.opCount);
 }
 
 TEST_CASE("Query - variable opcode selection is structural") {
