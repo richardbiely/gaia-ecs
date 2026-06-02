@@ -132,6 +132,17 @@ TEST_CASE("Query - query plan classification") {
 	CHECK((filteredIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Filtered) != 0);
 	CHECK(filteredIterPlan.idxFrom < filteredIterPlan.idxTo);
 
+	{
+		SparseTestWorld sparseTwld;
+		const auto sparse = sparseTwld.m_w.add();
+		sparseTwld.m_w.add<PositionSparse>(sparse, {10.0f, 11.0f, 12.0f});
+		const auto mappedTypedPlan =
+				sparseTwld.m_w.query().all<PositionSparse>().test_typed_plan([](const PositionSparse&) {});
+		CHECK(mappedTypedPlan.mode == PlanMode::MappedDense);
+		CHECK(mappedTypedPlan.payloadKind == PayloadKind::Plain);
+		CHECK(mappedTypedPlan.idxFrom < mappedTypedPlan.idxTo);
+	}
+
 	const auto eats = wld.add();
 	const auto missingGroup = wld.add();
 	auto qGrouped = wld.query().all<Position>().group_by(eats).group_id(missingGroup);

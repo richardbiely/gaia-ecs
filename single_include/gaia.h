@@ -39294,6 +39294,9 @@ namespace gaia {
 				}
 			} // namespace detail
 
+			//! Compiles query terms into matching bytecode and evaluates that bytecode against archetypes.
+			//! The VM owns query matching and cache construction only. Row, chunk, entity-seed, sorted,
+			//! traversal, and mapped typed callback dispatch are selected later by QueryImpl::QueryPlan.
 			class VirtualMachine {
 				static constexpr uint32_t OpcodeArgLimit = 256u;
 				static_assert(
@@ -46552,7 +46555,8 @@ namespace gaia {
 					EntitySeed,
 					//! Direct cached archetype/chunk iteration with query-term indices matching storage layout.
 					DirectDense,
-					//! Cached archetype/chunk iteration that needs query-term to archetype-component remapping.
+					//! Typed dense cached archetype/chunk iteration using mapped component access.
+					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
 					//! Sorted payload or depth-order barrier execution that must preserve cache-provided order.
 					Sorted,
@@ -48037,8 +48041,17 @@ namespace gaia {
 					if ((plan.flags & QueryPlanFlag_EntityFilter) != 0)
 						return plan;
 
-					if (plan.payloadKind != ExecPayloadKind::Plain)
+					if (plan.payloadKind != ExecPayloadKind::Plain) {
+						if (plan.payloadKind != ExecPayloadKind::Grouped || !hasDepthOrderBarrier)
+							return plan;
+						if (hasConstrainedDepthOrderBarrier)
+							return plan;
+						if (!can_use_direct_chunk_iteration_fastpath(queryInfo))
+							return plan;
+
+						plan.mode = QueryPlanMode::DirectDense;
 						return plan;
+					}
 
 					if (!can_use_direct_chunk_iteration_fastpath(queryInfo))
 						return plan;
@@ -48049,12 +48062,15 @@ namespace gaia {
 
 				//! Runs a public Iter callback over cached chunks without creating chunk batches.
 				//! \tparam HasFilters When true, chunks must pass changed-filter checks before callback invocation.
+				//! \tparam HasGroups When true, the prepared cache range carries per-archetype group ids.
 				//! \tparam Func Public iterator callback type.
 				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param plan Prepared query execution metadata.
 				//! \param constraints Entity-row subset exposed to the callback.
 				//! \param func Callback invoked once for each matching chunk.
-				template <bool HasFilters, typename Func>
-				void run_query_on_chunks_runtime_direct_plain_impl(QueryInfo& queryInfo, Constraints constraints, Func& func) {
+				template <bool HasFilters, bool HasGroups, typename Func>
+				void run_query_on_chunks_runtime_direct_plain_impl(
+						QueryInfo& queryInfo, const QueryPlan& plan, Constraints constraints, Func& func) {
 					::gaia::ecs::update_version(*m_worldVersion);
 
 					auto cacheView = queryInfo.cache_archetype_view();
@@ -48063,13 +48079,14 @@ namespace gaia {
 					Iter it;
 					it.init_query_state(queryInfo.world(), constraints, false);
 
-					for (uint32_t i = 0; i < cacheView.size(); ++i) {
+					for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 						auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
 						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
 						const auto* pIndices = indicesView.data();
+						const auto groupId = HasGroups ? queryInfo.group_id(i) : GroupId(0);
 						const auto& chunks = pArchetype->chunks();
 						for (auto* pChunk: chunks) {
 							const auto from = detail::ChunkIterImpl::start_index(pChunk, constraints);
@@ -48082,6 +48099,8 @@ namespace gaia {
 							}
 
 							it.set_query_chunk(pArchetype, pIndices, pChunk, from, to);
+							if constexpr (HasGroups)
+								it.set_group_id(groupId);
 							it.ctx(m_ctx);
 							{
 								GAIA_PROF_SCOPE(query_func);
@@ -48110,10 +48129,18 @@ namespace gaia {
 						match_all(queryInfo);
 						const auto plan = prepare_query_plan(queryInfo, constraints);
 						if (plan.mode == QueryPlanMode::DirectDense) {
-							if ((plan.flags & QueryPlanFlag_Filtered) != 0)
-								run_query_on_chunks_runtime_direct_plain_impl<true>(queryInfo, constraints, func);
-							else
-								run_query_on_chunks_runtime_direct_plain_impl<false>(queryInfo, constraints, func);
+							const bool hasGroups = (plan.flags & QueryPlanFlag_Grouped) != 0;
+							if ((plan.flags & QueryPlanFlag_Filtered) != 0) {
+								if (hasGroups)
+									run_query_on_chunks_runtime_direct_plain_impl<true, true>(queryInfo, plan, constraints, func);
+								else
+									run_query_on_chunks_runtime_direct_plain_impl<true, false>(queryInfo, plan, constraints, func);
+							} else {
+								if (hasGroups)
+									run_query_on_chunks_runtime_direct_plain_impl<false, true>(queryInfo, plan, constraints, func);
+								else
+									run_query_on_chunks_runtime_direct_plain_impl<false, false>(queryInfo, plan, constraints, func);
+							}
 							return;
 						}
 

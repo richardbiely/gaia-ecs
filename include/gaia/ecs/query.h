@@ -2026,7 +2026,8 @@ namespace gaia {
 					EntitySeed,
 					//! Direct cached archetype/chunk iteration with query-term indices matching storage layout.
 					DirectDense,
-					//! Cached archetype/chunk iteration that needs query-term to archetype-component remapping.
+					//! Typed dense cached archetype/chunk iteration using mapped component access.
+					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
 					//! Sorted payload or depth-order barrier execution that must preserve cache-provided order.
 					Sorted,

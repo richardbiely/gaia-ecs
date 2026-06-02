@@ -2305,6 +2305,9 @@ namespace gaia {
 				}
 			} // namespace detail
 
+			//! Compiles query terms into matching bytecode and evaluates that bytecode against archetypes.
+			//! The VM owns query matching and cache construction only. Row, chunk, entity-seed, sorted,
+			//! traversal, and mapped typed callback dispatch are selected later by QueryImpl::QueryPlan.
 			class VirtualMachine {
 				static constexpr uint32_t OpcodeArgLimit = 256u;
 				static_assert(
