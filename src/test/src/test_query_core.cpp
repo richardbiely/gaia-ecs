@@ -177,20 +177,20 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthTypedPlan.idxFrom < depthTypedPlan.idxTo);
 
 	const auto depthIterPlan = qDepthOrder.test_iter_plan();
-	CHECK(depthIterPlan.mode == PlanMode::General);
+	CHECK(depthIterPlan.mode == PlanMode::DirectDense);
 	CHECK(depthIterPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
 	CHECK(depthIterPlan.idxFrom < depthIterPlan.idxTo);
 
 	const auto depthAcceptAllPlan = qDepthOrder.test_iter_plan(ecs::Constraints::AcceptAll);
-	CHECK(depthAcceptAllPlan.mode == PlanMode::General);
+	CHECK(depthAcceptAllPlan.mode == PlanMode::DirectDense);
 	CHECK(depthAcceptAllPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
 	CHECK(depthAcceptAllPlan.idxFrom < depthAcceptAllPlan.idxTo);
 
 	const auto depthDisabledOnlyPlan = qDepthOrder.test_iter_plan(ecs::Constraints::DisabledOnly);
-	CHECK(depthDisabledOnlyPlan.mode == PlanMode::General);
+	CHECK(depthDisabledOnlyPlan.mode == PlanMode::DirectDense);
 	CHECK(depthDisabledOnlyPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);

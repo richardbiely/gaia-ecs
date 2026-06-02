@@ -222,6 +222,102 @@ void BM_ECS(picobench::state& state) {
 	}
 }
 
+void BM_ECS_ReadPositionOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadPositionOnly);
+
+	ecs::World w;
+	auto queryPos = w.query().all<Position>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryPos.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		queryPos.each([&](const Position& p) {
+			sum += p.x + p.y + p.z;
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
+void BM_ECS_UpdatePositionOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnly);
+
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryPosCVel.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		queryPosCVel.each([&](Position& p, const Velocity& v) {
+			p.x += v.x * cdt;
+			p.y += v.y * cdt;
+			p.z += v.z * cdt;
+		});
+	}
+}
+
+void BM_ECS_ReadVelocityOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadVelocityOnly);
+
+	ecs::World w;
+	auto queryVel = w.query().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryVel.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		queryVel.each([&](const Velocity& v) {
+			sum += v.x + v.y + v.z;
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
+void BM_ECS_WriteVelocityOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WriteVelocityOnly);
+
+	ecs::World w;
+	auto queryVel = w.query().all<Velocity&>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryVel.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		queryVel.each([&](Velocity& v) {
+			v.y += 9.81f * cdt;
+		});
+	}
+}
+
 void BM_ECS_Iter(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_WithSystems);
 
@@ -1657,6 +1753,10 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_SUITE_REG("ECS");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().user_data(NMany).label("Default Many");
+			PICOBENCH_REG(BM_ECS_ReadPositionOnly).PICO_SETTINGS().user_data(NMany).label("ReadPositionOnly Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnly).PICO_SETTINGS().user_data(NMany).label("UpdatePositionOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadVelocityOnly).PICO_SETTINGS().user_data(NMany).label("ReadVelocityOnly Many");
+			PICOBENCH_REG(BM_ECS_WriteVelocityOnly).PICO_SETTINGS().user_data(NMany).label("WriteVelocityOnly Many");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().label("Iter");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().user_data(NMany).label("Iter Many");
 			PICOBENCH_REG(BM_ECS_Iter_Dir).PICO_SETTINGS().label("Iter_Dir");
