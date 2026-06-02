@@ -415,6 +415,32 @@ void BM_QueryCache_DirectSource_WarmRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks warm reads for a direct concrete-source query with no direct id terms.
+void BM_QueryCache_SourceOnly_WarmRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(n);
+
+	ecs::World w;
+	auto source = w.add();
+	w.add<Acceleration>(source, {1, 2, 3});
+
+	GAIA_FOR(n) {
+		auto e = w.add();
+		entities.push_back(e);
+		w.add<Position>(e, {(float)i, (float)(i % 97U), 0.0f});
+	}
+
+	auto q = w.query().all<Acceleration>(ecs::QueryTermOptions{}.src(source));
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		dont_optimize(q.count());
+	}
+}
+
 //! Benchmarks warm reads for a query with no source terms, with traversed-source snapshot caching toggled.
 template <bool CacheSourceState>
 void BM_QueryCache_NoSource_WarmRead(picobench::state& state) {
@@ -2682,6 +2708,7 @@ void BM_QueryCache_SourceTraversal_WarmRead_LargeClosure(picobench::state& state
 void BM_QueryCache_SourceTraversal_WarmRead_Lazy(picobench::state& state);
 void BM_QueryCache_SourceTraversal_WarmRead_SmallClosure(picobench::state& state);
 void BM_QueryCache_SourceTraversal_WarmRead_Snapshotted(picobench::state& state);
+void BM_QueryCache_SourceOnly_WarmRead(picobench::state& state);
 void BM_QueryCache_Wildcard_WarmRead(picobench::state& state);
 void BM_QueryCompile_Variable_1VarOrSource_Uncached(picobench::state& state);
 void BM_QueryCompile_Variable_1VarSource_Uncached(picobench::state& state);
@@ -2853,6 +2880,10 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)
 					.label("direct source src-trav");
+			PICOBENCH_REG(BM_QueryCache_SourceOnly_WarmRead)
+					.PICO_SETTINGS()
+					.user_data(NEntitiesMedium)
+					.label("source-only direct source");
 			PICOBENCH_REG(BM_QueryCache_SourceTraversal_WarmRead_Lazy)
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)
