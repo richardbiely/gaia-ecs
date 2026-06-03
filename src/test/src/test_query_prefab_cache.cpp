@@ -124,20 +124,20 @@ TEST_CASE("Query - cached query reverse-index revision changes only on membershi
 	auto q = wld.query().all<Position&>().all<Acceleration&>();
 	auto& info = q.fetch();
 	q.match_all(info);
-	const auto revBefore = info.reverse_index_revision();
+	const auto revBefore = info.result_cache_rev();
 
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
-	CHECK(info.reverse_index_revision() == revBefore);
+	CHECK(info.result_cache_rev() == revBefore);
 
 	wld.add<Acceleration>(e, {4, 5, 6});
-	const auto revAfterMembershipChange = info.reverse_index_revision();
+	const auto revAfterMembershipChange = info.result_cache_rev();
 	CHECK(revAfterMembershipChange != revBefore);
 	CHECK(info.cache_archetype_view().size() == 1);
 
 	info.invalidate_result();
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revAfterMembershipChange);
+	CHECK(info.result_cache_rev() == revAfterMembershipChange);
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
@@ -159,25 +159,25 @@ TEST_CASE("Query - cached dynamic query after input changes") {
 
 	auto& info = q.fetch();
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(info.cache_archetype_view().size() == 1);
 	CHECK(q.count() == 1);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revA);
+	CHECK(info.result_cache_rev() == revA);
 	CHECK(q.count() == 1);
 
 	q.set_var(ecs::Var0, tgtB);
 	auto& infoB = q.fetch();
 	CHECK(&infoB == &info);
 	q.match_all(infoB);
-	const auto revB = info.reverse_index_revision();
+	const auto revB = info.result_cache_rev();
 	CHECK(revB != revA);
 	CHECK(info.cache_archetype_view().size() == 1);
 	CHECK(q.count() == 1);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revB);
+	CHECK(info.result_cache_rev() == revB);
 	CHECK(q.count() == 1);
 }
 
@@ -192,23 +192,23 @@ TEST_CASE("Query - cached direct-source query after source changes") {
 	wld.add<Position>(e, {1, 2, 3});
 
 	q.match_all(info);
-	const auto revEmpty = info.reverse_index_revision();
+	const auto revEmpty = info.result_cache_rev();
 	CHECK(q.count() == 0);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revEmpty);
+	CHECK(info.result_cache_rev() == revEmpty);
 	CHECK(q.count() == 0);
 
 	wld.add<Acceleration>(source, {1, 2, 3});
 	q.match_all(info);
-	const auto revFilled = info.reverse_index_revision();
+	const auto revFilled = info.result_cache_rev();
 	CHECK(revFilled != revEmpty);
 	CHECK(q.count() == 1);
-	CHECK(info.reverse_index_revision() == revFilled);
+	CHECK(info.result_cache_rev() == revFilled);
 
 	wld.del<Acceleration>(source);
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revFilled);
+	CHECK(info.result_cache_rev() != revFilled);
 	CHECK(q.count() == 0);
 }
 
@@ -225,7 +225,7 @@ TEST_CASE("Query - cached direct-source query with unrelated archetype changes")
 	wld.add<Position>(matched, {1, 2, 3});
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 1);
 
 	auto unrelated = wld.add();
@@ -233,7 +233,7 @@ TEST_CASE("Query - cached direct-source query with unrelated archetype changes")
 	wld.add<Scale>(unrelated, {7, 8, 9});
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revA);
+	CHECK(info.result_cache_rev() == revA);
 	CHECK(q.count() == 1);
 }
 
@@ -250,13 +250,13 @@ TEST_CASE("Query - cached direct-source query with deleted source entities") {
 	wld.add<Position>(matched, {1, 2, 3});
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 1);
 
 	wld.del(source);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revA);
+	CHECK(info.result_cache_rev() != revA);
 	CHECK(q.count() == 0);
 }
 
@@ -273,7 +273,7 @@ TEST_CASE("Query - cached direct-source query ignores recycled source ids") {
 	wld.add<Position>(matched, {1, 2, 3});
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 1);
 
 	wld.del(source);
@@ -285,7 +285,7 @@ TEST_CASE("Query - cached direct-source query ignores recycled source ids") {
 	wld.add<Acceleration>(recycled, {4, 5, 6});
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revA);
+	CHECK(info.result_cache_rev() != revA);
 	CHECK(q.count() == 0);
 
 	auto freshQuery = wld.query().all<Position>().all<Acceleration>(ecs::QueryTermOptions{}.src(recycled));
@@ -351,18 +351,18 @@ TEST_CASE("Query - cached direct-source negative term tracks source changes") {
 	auto& info = q.fetch();
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 1);
 
 	wld.add<Blocked>(source);
 	q.match_all(info);
-	const auto revB = info.reverse_index_revision();
+	const auto revB = info.result_cache_rev();
 	CHECK(revB != revA);
 	CHECK(q.count() == 0);
 
 	wld.del<Blocked>(source);
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revB);
+	CHECK(info.result_cache_rev() != revB);
 	CHECK(q.count() == 1);
 }
 
@@ -394,18 +394,18 @@ TEST_CASE("Query - cached direct-source or term tracks source changes") {
 	auto& info = q.fetch();
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 0);
 
 	wld.add<Acceleration>(source, {4, 5, 6});
 	q.match_all(info);
-	const auto revB = info.reverse_index_revision();
+	const auto revB = info.result_cache_rev();
 	CHECK(revB != revA);
 	CHECK(q.count() == 1);
 
 	wld.del<Acceleration>(source);
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revB);
+	CHECK(info.result_cache_rev() != revB);
 	CHECK(q.count() == 0);
 }
 
@@ -428,27 +428,27 @@ TEST_CASE("Query - cached traversed-source query after traversal changes") {
 	auto& info = q.fetch();
 
 	q.match_all(info);
-	const auto revEmpty = info.reverse_index_revision();
+	const auto revEmpty = info.result_cache_rev();
 	CHECK(q.count() == 0);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revEmpty);
+	CHECK(info.result_cache_rev() == revEmpty);
 	CHECK(q.count() == 0);
 
 	wld.add<Acceleration>(parent, {1, 2, 3});
 	q.match_all(info);
-	const auto revParent = info.reverse_index_revision();
+	const auto revParent = info.result_cache_rev();
 	CHECK(revParent != revEmpty);
 	CHECK(q.count() == 1);
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revParent);
+	CHECK(info.result_cache_rev() == revParent);
 	CHECK(q.count() == 1);
 
 	wld.del<Acceleration>(parent);
 	wld.add<Acceleration>(root, {4, 5, 6});
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() != revParent);
+	CHECK(info.result_cache_rev() != revParent);
 	CHECK(q.count() == 0);
 }
 
@@ -472,7 +472,7 @@ TEST_CASE("Query - cached traversed-source query with unrelated archetype change
 	auto& info = q.fetch();
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
+	const auto revA = info.result_cache_rev();
 	CHECK(q.count() == 1);
 
 	auto unrelated = wld.add();
@@ -480,7 +480,7 @@ TEST_CASE("Query - cached traversed-source query with unrelated archetype change
 	wld.add<Scale>(unrelated, {7, 8, 9});
 
 	q.match_all(info);
-	CHECK(info.reverse_index_revision() == revA);
+	CHECK(info.result_cache_rev() == revA);
 	CHECK(q.count() == 1);
 }
 
@@ -519,12 +519,14 @@ TEST_CASE("Query - capped traversed-source snapshots fall back to lazy rebuild")
 	auto& info = q.fetch();
 
 	q.match_all(info);
-	const auto revA = info.reverse_index_revision();
 	CHECK(q.count() == 1);
+	const auto revA = info.result_cache_rev();
+	const auto passA = info.test_match_pass_count();
 
 	q.match_all(info);
-	const auto revB = info.reverse_index_revision();
-	CHECK(revB != revA);
+	const auto revB = info.result_cache_rev();
+	CHECK(revB == revA);
+	CHECK(info.test_match_pass_count() == passA + 1);
 	CHECK(q.count() == 1);
 }
 

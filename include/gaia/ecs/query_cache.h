@@ -429,7 +429,7 @@ namespace gaia {
 				const auto archetypes = queryInfo.cache_archetype_view();
 				const auto key = QueryHandleLookupKey(handle);
 				auto it = m_queryToArchetype.find(key);
-				if (it != m_queryToArchetype.end() && it->second.syncedRevision == queryInfo.reverse_index_revision())
+				if (it != m_queryToArchetype.end() && it->second.syncedRevision == queryInfo.result_cache_rev())
 					return;
 
 				unregister_query_archetypes(handle);
@@ -447,7 +447,7 @@ namespace gaia {
 					tracked.push_back(pArchetype);
 					add_archetype_query_pair(pArchetype, handle);
 				}
-				trackedIt->second.syncedRevision = queryInfo.reverse_index_revision();
+				trackedIt->second.syncedRevision = queryInfo.result_cache_rev();
 			}
 
 			void remove_archetype_from_queries(Archetype* pArchetype) {
@@ -517,7 +517,7 @@ namespace gaia {
 					if (!pInfo->register_archetype(*pArchetype, candidate.matchedSelector, true))
 						continue;
 
-					register_query_archetype(candidate.handle, pArchetype, pInfo->reverse_index_revision());
+					register_query_archetype(candidate.handle, pArchetype, pInfo->result_cache_rev());
 				}
 			}
 

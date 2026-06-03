@@ -539,8 +539,8 @@ TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
 	}
 
 	auto q = wld.query() //
-					 .all<DynamicSourcePosition>()
-					 .all<DynamicSourceLevel>(ecs::QueryTermOptions{}.src(source));
+							 .all<DynamicSourcePosition>()
+							 .all<DynamicSourceLevel>(ecs::QueryTermOptions{}.src(source));
 	auto& info = q.fetch();
 
 	CHECK(q.count() == N);
@@ -572,6 +572,50 @@ TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
 	wld.add<DynamicSourceOther>(unrelated);
 	CHECK(q.count() == N);
 	CHECK(info.test_match_pass_count() == sourceRestoredMatchPassCount + 1);
+}
+
+TEST_CASE("Query - dynamic traversal refresh preserves reverse index revision for same membership") {
+	struct DynamicTraversalPosition {};
+	struct DynamicTraversalLevel {};
+	struct DynamicTraversalLinkedTo {};
+
+	TestWorld twld;
+	const auto rel = wld.add<DynamicTraversalLinkedTo>().entity;
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto rootEmpty = wld.add();
+	const auto source = wld.add();
+	wld.add<DynamicTraversalLevel>(rootA);
+	wld.add<DynamicTraversalLevel>(rootB);
+	wld.add(source, ecs::Pair(rel, rootA));
+
+	constexpr uint32_t N = 8;
+	GAIA_FOR(N) {
+		const auto entity = wld.add();
+		wld.add<DynamicTraversalPosition>(entity);
+	}
+
+	auto q = wld.query() //
+							 .all<DynamicTraversalPosition>()
+							 .all<DynamicTraversalLevel>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	auto& info = q.fetch();
+
+	CHECK(q.count() == N);
+	const auto firstRevision = info.result_cache_rev();
+	const auto firstMatchPassCount = info.test_match_pass_count();
+	CHECK(firstMatchPassCount == 1);
+
+	wld.del(source, ecs::Pair(rel, rootA));
+	wld.add(source, ecs::Pair(rel, rootB));
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount + 1);
+	CHECK(info.result_cache_rev() == firstRevision);
+
+	wld.del(source, ecs::Pair(rel, rootB));
+	wld.add(source, ecs::Pair(rel, rootEmpty));
+	CHECK(q.count() == 0);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount + 2);
+	CHECK(info.result_cache_rev() != firstRevision);
 }
 
 template <typename TQuery>

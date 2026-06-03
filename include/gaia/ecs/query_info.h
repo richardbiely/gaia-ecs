@@ -36,6 +36,8 @@ namespace gaia {
 			const void* data[ChunkHeader::MAX_COMPONENTS];
 		};
 
+		//! Temporary VM matching buffer meant to be owned by an ECS World.
+		//! QueryInfo only acquires a frame while executing the VM.
 		struct QueryMatchScratch {
 			GAIA_USE_SMALLBLOCK(QueryMatchScratch)
 
@@ -45,12 +47,15 @@ namespace gaia {
 			//! Pages stay allocated on the scratch frame so repeated matches do not keep
 			//! reallocating heap memory when archetype ids revisit the same ranges.
 			ArchetypeMatchStamps matchStamps;
+			//! Previous result membership used when a dynamic rebuild compares reverse-index changes.
+			cnt::darray<const Archetype*> matchesArrDynPrev;
 			//! Monotonic dedup stamp used when the same scratch frame is reused by later
 			//! full match() calls without clearing stamp pages.
 			uint32_t matchVersion = 0;
 
 			void clear_temporary_matches() {
 				matchesArr.clear();
+				matchesArrDynPrev.clear();
 				matchStamps.clear();
 				matchVersion = 0;
 			}
@@ -59,6 +64,7 @@ namespace gaia {
 				//! Full match() can reuse prior stamp pages and advance matchVersion instead
 				//! of zeroing the whole table again.
 				matchesArr.clear();
+				matchesArrDynPrev.clear();
 			}
 
 			void reset_stamps() {
@@ -350,8 +356,8 @@ namespace gaia {
 
 			enum QueryCmdType : uint8_t { ALL, OR, NOT };
 
-			void reset_matching_cache() {
-				if (!m_state.archetypeCache.empty())
+			void reset_matching_cache(bool trackMembershipChange) {
+				if (trackMembershipChange && !m_state.archetypeCache.empty())
 					mark_result_cache_membership_changed();
 
 				m_state.reset();
@@ -366,9 +372,13 @@ namespace gaia {
 				m_state.clear_result_cache();
 			}
 
-			void mark_result_cache_membership_changed() {
+			void invalidate_result_barriers() {
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
+			}
+
+			void mark_result_cache_membership_changed() {
+				invalidate_result_barriers();
 				++m_state.resultCacheRevision;
 				if (m_state.resultCacheRevision != 0)
 					return;
@@ -463,12 +473,6 @@ namespace gaia {
 				}
 			}
 
-			//! Returns thread-local scratch reused when a traversed-source closure must be rebuilt for comparison.
-			GAIA_NODISCARD static cnt::darray<SrcTravSnapshotItem>& src_trav_snapshot_scratch() {
-				static thread_local cnt::darray<SrcTravSnapshotItem> scratch;
-				return scratch;
-			}
-
 			//! Builds the traversed-source closure snapshot.
 			//! Returns false if the configured snapshot cap was exceeded.
 			GAIA_NODISCARD bool build_src_trav_snapshot(cnt::darray<SrcTravSnapshotItem>& items) const {
@@ -518,7 +522,7 @@ namespace gaia {
 				if (!relationVersionsChanged)
 					return traversed_src_versions_changed();
 
-				auto& scratch = src_trav_snapshot_scratch();
+				cnt::darray<SrcTravSnapshotItem> scratch;
 				if (!build_src_trav_snapshot(scratch))
 					return true;
 
@@ -578,7 +582,7 @@ namespace gaia {
 				}
 
 				if (uses_src_trav_snapshot()) {
-					auto& scratch = src_trav_snapshot_scratch();
+					cnt::darray<SrcTravSnapshotItem> scratch;
 					if (build_src_trav_snapshot(scratch)) {
 						m_state.srcTravSnapshot = scratch;
 						m_state.srcTravSnapshotOverflowed = false;
@@ -659,13 +663,14 @@ namespace gaia {
 			}
 
 			void reset() {
-				reset_matching_cache();
+				reset_matching_cache(true);
 			}
 
 			void invalidate(InvalidationKind kind = InvalidationKind::All) {
 				switch (kind) {
 					case InvalidationKind::Result:
 						m_state.invalidate_result();
+						invalidate_result_barriers();
 						break;
 					case InvalidationKind::Seed:
 						m_state.invalidate_seed();
@@ -762,7 +767,7 @@ namespace gaia {
 				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
-			GAIA_NODISCARD uint32_t reverse_index_revision() const {
+			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
 			}
 
@@ -833,12 +838,23 @@ namespace gaia {
 
 				const bool hasDynamicTerms = has_dyn_terms();
 				const bool canReuseDynamicCache = can_reuse_dyn_cache();
-				if (hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
-																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) {
+				const bool refreshDynamicCache =
+						hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
+																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask));
+				bool compareDynamicMembership = false;
+				QueryMatchScratch* pMatchScratch = nullptr;
+
+				if (refreshDynamicCache) {
+					compareDynamicMembership = !m_state.archetypeCache.empty();
+					if (compareDynamicMembership) {
+						auto& w = *world();
+						pMatchScratch = &query_match_scratch_acquire(w);
+						pMatchScratch->matchesArrDynPrev = m_state.archetypeCache;
+					}
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
-					reset_matching_cache();
+					reset_matching_cache(!compareDynamicMembership);
 				} else if (m_state.seed_dirty()) {
-					reset_matching_cache();
+					reset_matching_cache(true);
 				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
 					if (m_state.lastArchetypeId == archetypeLastId) {
@@ -863,7 +879,7 @@ namespace gaia {
 				GAIA_PROF_SCOPE(queryinfo::match);
 
 				auto& w = *world();
-				auto& matchScratch = query_match_scratch_acquire(w);
+				auto& matchScratch = pMatchScratch != nullptr ? *pMatchScratch : query_match_scratch_acquire(w);
 				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				// Prepare the context
@@ -899,13 +915,19 @@ namespace gaia {
 				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
+				const bool trackMembershipChangeOnAdd = !compareDynamicMembership;
 				for (const auto* pArchetype: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArchetype, true);
+						add_archetype_to_cache(pArchetype, trackMembershipChangeOnAdd);
 					} else {
 						add_archetype_to_seed_cache(pArchetype);
 						add_archetype_to_cache(pArchetype, true);
 					}
+				}
+
+				if (compareDynamicMembership) {
+					if (!has_same_result_membership_as(matchScratch.matchesArrDynPrev))
+						mark_result_cache_membership_changed();
 				}
 
 				// Sort entities if necessary
@@ -942,7 +964,7 @@ namespace gaia {
 																 dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
-					reset_matching_cache();
+					reset_matching_cache(true);
 				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
 				}
@@ -1701,6 +1723,18 @@ namespace gaia {
 					return false;
 
 				for (const auto* pArchetype: m_state.seedArchetypeCache) {
+					if (!m_state.archetypeSet.contains(pArchetype))
+						return false;
+				}
+
+				return true;
+			}
+
+			GAIA_NODISCARD bool has_same_result_membership_as(const CArchetypeDArray& archetypeCache) const {
+				if (m_state.archetypeSet.size() != archetypeCache.size())
+					return false;
+
+				for (const auto* pArchetype: archetypeCache) {
 					if (!m_state.archetypeSet.contains(pArchetype))
 						return false;
 				}
