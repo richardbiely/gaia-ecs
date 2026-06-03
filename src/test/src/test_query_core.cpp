@@ -523,6 +523,52 @@ TEST_CASE("Query - source lookup") {
 	}
 }
 
+TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
+	struct DynamicSourceLevel {};
+	struct DynamicSourcePosition {};
+	struct DynamicSourceOther {};
+
+	TestWorld twld;
+	const auto source = wld.add();
+	wld.add<DynamicSourceLevel>(source);
+
+	constexpr uint32_t N = 8;
+	GAIA_FOR(N) {
+		const auto entity = wld.add();
+		wld.add<DynamicSourcePosition>(entity);
+	}
+
+	auto q = wld.query() //
+					 .all<DynamicSourcePosition>()
+					 .all<DynamicSourceLevel>(ecs::QueryTermOptions{}.src(source));
+	auto& info = q.fetch();
+
+	CHECK(q.count() == N);
+	const auto firstMatchPassCount = info.test_match_pass_count();
+	CHECK(firstMatchPassCount == 1);
+
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount);
+
+	wld.del<DynamicSourceLevel>(source);
+	CHECK(q.count() == 0);
+	const auto sourceRemovedMatchPassCount = info.test_match_pass_count();
+	CHECK(sourceRemovedMatchPassCount == firstMatchPassCount + 1);
+
+	CHECK(q.count() == 0);
+	CHECK(info.test_match_pass_count() == sourceRemovedMatchPassCount);
+
+	wld.add<DynamicSourceLevel>(source);
+	CHECK(q.count() == N);
+	const auto sourceRestoredMatchPassCount = info.test_match_pass_count();
+	CHECK(sourceRestoredMatchPassCount == sourceRemovedMatchPassCount + 1);
+
+	const auto unrelated = wld.add();
+	wld.add<DynamicSourceOther>(unrelated);
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == sourceRestoredMatchPassCount + 1);
+}
+
 template <typename TQuery>
 void Test_Query_All_Any_Or_Semantics() {
 	constexpr bool UseCachedQuery = use_cached_query_v<TQuery>;

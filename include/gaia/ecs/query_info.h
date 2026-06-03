@@ -340,6 +340,10 @@ namespace gaia {
 			};
 
 			uint32_t m_refs = 0;
+#if GAIA_ECS_TEST_HOOKS
+			//! Persistent VM match-pass count used only by query-cache reuse tests.
+			uint32_t m_testMatchPassCount = 0;
+#endif
 
 			QueryPlan m_plan;
 			QueryState m_state;
@@ -380,21 +384,7 @@ namespace gaia {
 
 			//! Returns true when the dynamic cache can be reused by checking tracked runtime inputs.
 			GAIA_NODISCARD bool can_reuse_dyn_cache() const {
-				if (!has_dyn_terms())
-					return false;
-
-				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
-					return true;
-
-				if (!deps.can_reuse_src_cache())
-					return false;
-
-				// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
-					return true;
-
-				return m_plan.ctx.data.cacheSrcTrav != 0;
+				return m_plan.ctx.data.canReuseDynamicCache;
 			}
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
@@ -842,8 +832,6 @@ namespace gaia {
 				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
 																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
-					// Source-based queries still take the conservative rebuild path until their inputs
-					// are tracked with finer-grained version metadata.
 					reset_matching_cache();
 				} else if (m_state.seed_dirty()) {
 					reset_matching_cache();
@@ -857,9 +845,10 @@ namespace gaia {
 					}
 				}
 
-				// Skip if no new archetype appeared
+				// Skip if no new archetype appeared and the cached match set is still valid.
 				GAIA_ASSERT(archetypeLastId >= m_state.lastArchetypeId);
-				if (!hasDynamicTerms && !m_state.needs_refresh() && m_state.lastArchetypeId == archetypeLastId) {
+				if (!m_state.needs_refresh() && m_state.lastArchetypeId == archetypeLastId &&
+						(!hasDynamicTerms || can_reuse_dyn_cache())) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -900,6 +889,9 @@ namespace gaia {
 				ctx.varBindingMask = runtimeVarBindingMask;
 
 				// Run the virtual machine
+#if GAIA_ECS_TEST_HOOKS
+				++m_testMatchPassCount;
+#endif
 				m_plan.vm.exec(ctx);
 
 				// Write found matches to cache
@@ -945,8 +937,6 @@ namespace gaia {
 																 dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
-					// Source-based queries still take the conservative rebuild path until their inputs
-					// are tracked with finer-grained version metadata.
 					reset_matching_cache();
 				} else if (m_state.result_dirty()) {
 					sync_result_cache_from_seed_cache();
@@ -979,6 +969,9 @@ namespace gaia {
 				ctx.varBindingMask = runtimeVarBindingMask;
 
 				// Run the virtual machine
+#if GAIA_ECS_TEST_HOOKS
+				++m_testMatchPassCount;
+#endif
 				m_plan.vm.exec(ctx);
 				const bool matched = !ctx.pMatchesArr->empty();
 
@@ -1990,6 +1983,12 @@ namespace gaia {
 			}
 
 #if GAIA_ECS_TEST_HOOKS
+			//! Returns the number of persistent VM match passes executed by this query info.
+			//! \return Persistent VM match-pass count for test diagnostics.
+			GAIA_NODISCARD uint32_t test_match_pass_count() const {
+				return m_testMatchPassCount;
+			}
+
 			//! Test-only helper that seeds the transient cache with one archetype so unit tests can
 			//! inspect derived execution payloads deterministically without relying on runtime query paths.
 			void test_add_transient_archetype(const Archetype* pArchetype) {

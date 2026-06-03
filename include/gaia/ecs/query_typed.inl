@@ -762,7 +762,7 @@ namespace gaia {
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
-			//! \tparam HasFilters True when changed/entity filters must be evaluated.
+			//! \tparam HasFilters True when changed/per-chunk filters must be evaluated.
 			//! \tparam Func Callback type.
 			//! \tparam T Typed query argument list.
 			//! \param queryInfo Prepared query cache and execution metadata.

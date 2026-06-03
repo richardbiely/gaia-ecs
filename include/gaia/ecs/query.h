@@ -2044,7 +2044,7 @@ namespace gaia {
 					QueryPlanFlag_None = 0,
 					//! The query has per-chunk filters such as changed terms.
 					QueryPlanFlag_Filtered = 1 << 0,
-					//! The query has entity-filter terms that require generic evaluation.
+					//! The query has entity-filter terms that require per-entity rechecks.
 					QueryPlanFlag_EntityFilter = 1 << 1,
 					//! The query carries inherited component data into iterator payloads.
 					QueryPlanFlag_InheritedPayload = 1 << 2,
@@ -4481,7 +4481,7 @@ namespace gaia {
 				}
 
 				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
-				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
 				//! \return True if no entity matches the query under @a constraints.
@@ -4691,7 +4691,7 @@ namespace gaia {
 				}
 
 				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
-				//! \tparam UseFilters True when changed/entity filters must be evaluated.
+				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
 				//! \return Number of entities matching the query under @a constraints.

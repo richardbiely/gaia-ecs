@@ -763,6 +763,8 @@ namespace gaia {
 				bool canDirectEntitySeedEvalShape = false;
 				//! True when the query contains only direct OR/NOT terms and at least one OR term.
 				bool hasOnlyDirectOrTerms = false;
+				//! True when a dynamic cache can be reused by checking tracked runtime inputs.
+				bool canReuseDynamicCache = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -815,6 +817,25 @@ namespace gaia {
 				GAIA_NODISCARD std::span<const QueryTerm> terms_view() const {
 					return {terms.data(), idsCnt};
 				}
+
+				//! Returns whether the current query shape can reuse dynamic-cache results.
+				//! \return True when tracked runtime inputs are sufficient to validate the dynamic cache.
+				GAIA_NODISCARD bool calc_can_reuse_dynamic_cache() const {
+					if (cachePolicy != CachePolicy::Dynamic)
+						return false;
+
+					if (!deps.has_dep_flag(DependencyHasSourceTerms))
+						return true;
+
+					if (!deps.can_reuse_src_cache())
+						return false;
+
+					// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
+					if (!deps.has_dep_flag(DependencyHasTraversalTerms))
+						return true;
+
+					return cacheSrcTrav != 0;
+				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY < 16);
@@ -835,6 +856,7 @@ namespace gaia {
 				const auto canDirectTargetEval_old = data.canDirectTargetEval;
 				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
+				const auto canReuseDynamicCache_old = data.canReuseDynamicCache;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -1125,6 +1147,8 @@ namespace gaia {
 					if (!data.deps.has_dep_flag(DependencyHasSourceTerms) || !data.deps.has_dep_flag(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
 
+					data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
+
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
 					if (isComplex) {
@@ -1151,7 +1175,8 @@ namespace gaia {
 						hasVariableTerms_old != (data.flags & QueryFlags::HasVariableTerms) ||
 						canDirectTargetEval_old != data.canDirectTargetEval ||
 						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
-						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms || cachePolicy_old != data.cachePolicy ||
+						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms ||
+						canReuseDynamicCache_old != data.canReuseDynamicCache || cachePolicy_old != data.cachePolicy ||
 						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
 						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
