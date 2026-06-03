@@ -34088,6 +34088,10 @@ namespace gaia {
 				bool hasOnlyDirectOrTerms = false;
 				//! True when a dynamic cache can be reused by checking tracked runtime inputs.
 				bool canReuseDynamicCache = false;
+				//! True when reusable dynamic-cache checks use direct source entity archetype versions.
+				bool usesDirectSrcVersionTracking = false;
+				//! True when reusable dynamic-cache checks use a traversed source closure snapshot.
+				bool usesSrcTravSnapshot = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -34180,6 +34184,8 @@ namespace gaia {
 				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto canReuseDynamicCache_old = data.canReuseDynamicCache;
+				const auto usesDirectSrcVersionTracking_old = data.usesDirectSrcVersionTracking;
+				const auto usesSrcTravSnapshot_old = data.usesSrcTravSnapshot;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -34471,6 +34477,9 @@ namespace gaia {
 						data.cacheSrcTrav = 0;
 
 					data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
+					data.usesDirectSrcVersionTracking =
+							data.canReuseDynamicCache && !data.deps.has_dep_flag(DependencyHasTraversalTerms);
+					data.usesSrcTravSnapshot = data.canReuseDynamicCache && data.deps.has_dep_flag(DependencyHasTraversalTerms);
 
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
@@ -34499,7 +34508,9 @@ namespace gaia {
 						canDirectTargetEval_old != data.canDirectTargetEval ||
 						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
 						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms ||
-						canReuseDynamicCache_old != data.canReuseDynamicCache || cachePolicy_old != data.cachePolicy ||
+						canReuseDynamicCache_old != data.canReuseDynamicCache ||
+						usesDirectSrcVersionTracking_old != data.usesDirectSrcVersionTracking ||
+						usesSrcTravSnapshot_old != data.usesSrcTravSnapshot || cachePolicy_old != data.cachePolicy ||
 						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
 						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
@@ -41518,16 +41529,12 @@ namespace gaia {
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
-				const auto& deps = m_plan.ctx.data.deps;
-				return !deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dyn_cache();
+				return m_plan.ctx.data.usesDirectSrcVersionTracking;
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
-				const auto& deps = m_plan.ctx.data.deps;
-				return deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dyn_cache();
+				return m_plan.ctx.data.usesSrcTravSnapshot;
 			}
 
 			//! Checks tracked relation versions used by the dynamic cache.
@@ -41547,6 +41554,8 @@ namespace gaia {
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) const {
 				if (m_state.varBindingMask != runtimeVarBindingMask)
 					return true;
+				if (runtimeVarBindingMask == 0)
+					return false;
 
 				GAIA_FOR(MaxVarCnt) {
 					const auto bit = (uint8_t(1) << i);
@@ -41671,14 +41680,15 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return false;
 
-				if (dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
+						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
 					return true;
 
 				const bool relationVersionsChanged = dyn_rel_versions_changed();
 				if (relationVersionsChanged && !uses_src_trav_snapshot())
 					return true;
 
-				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return relationVersionsChanged;
 
@@ -41721,8 +41731,12 @@ namespace gaia {
 					m_state.srcTravSnapshotOverflowed = false;
 				}
 
-				m_state.varBindings = runtimeVarBindings;
-				m_state.varBindingMask = runtimeVarBindingMask;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms)) {
+					m_state.varBindings = runtimeVarBindings;
+					m_state.varBindingMask = runtimeVarBindingMask;
+				} else {
+					m_state.varBindingMask = 0;
+				}
 			}
 
 			template <typename TType>
@@ -41958,7 +41972,8 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+				const bool canReuseDynamicCache = can_reuse_dyn_cache();
+				if (hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
 																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					reset_matching_cache();
@@ -41977,7 +41992,7 @@ namespace gaia {
 				// Skip if no new archetype appeared and the cached match set is still valid.
 				GAIA_ASSERT(archetypeLastId >= m_state.lastArchetypeId);
 				if (!m_state.needs_refresh() && m_state.lastArchetypeId == archetypeLastId &&
-						(!hasDynamicTerms || can_reuse_dyn_cache())) {
+						(!hasDynamicTerms || canReuseDynamicCache)) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -42062,7 +42077,8 @@ namespace gaia {
 					return false;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+				const bool canReuseDynamicCache = can_reuse_dyn_cache();
+				if ((hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
 																 dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.

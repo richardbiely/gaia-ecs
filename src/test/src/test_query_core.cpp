@@ -550,6 +550,11 @@ TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
 	CHECK(q.count() == N);
 	CHECK(info.test_match_pass_count() == firstMatchPassCount);
 
+	const auto unusedVarSource = wld.add();
+	q.set_var(ecs::Var0, unusedVarSource);
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount);
+
 	wld.del<DynamicSourceLevel>(source);
 	CHECK(q.count() == 0);
 	const auto sourceRemovedMatchPassCount = info.test_match_pass_count();

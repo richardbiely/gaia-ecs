@@ -765,6 +765,10 @@ namespace gaia {
 				bool hasOnlyDirectOrTerms = false;
 				//! True when a dynamic cache can be reused by checking tracked runtime inputs.
 				bool canReuseDynamicCache = false;
+				//! True when reusable dynamic-cache checks use direct source entity archetype versions.
+				bool usesDirectSrcVersionTracking = false;
+				//! True when reusable dynamic-cache checks use a traversed source closure snapshot.
+				bool usesSrcTravSnapshot = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
@@ -857,6 +861,8 @@ namespace gaia {
 				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto canReuseDynamicCache_old = data.canReuseDynamicCache;
+				const auto usesDirectSrcVersionTracking_old = data.usesDirectSrcVersionTracking;
+				const auto usesSrcTravSnapshot_old = data.usesSrcTravSnapshot;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -1148,6 +1154,9 @@ namespace gaia {
 						data.cacheSrcTrav = 0;
 
 					data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
+					data.usesDirectSrcVersionTracking =
+							data.canReuseDynamicCache && !data.deps.has_dep_flag(DependencyHasTraversalTerms);
+					data.usesSrcTravSnapshot = data.canReuseDynamicCache && data.deps.has_dep_flag(DependencyHasTraversalTerms);
 
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
@@ -1176,7 +1185,9 @@ namespace gaia {
 						canDirectTargetEval_old != data.canDirectTargetEval ||
 						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
 						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms ||
-						canReuseDynamicCache_old != data.canReuseDynamicCache || cachePolicy_old != data.cachePolicy ||
+						canReuseDynamicCache_old != data.canReuseDynamicCache ||
+						usesDirectSrcVersionTracking_old != data.usesDirectSrcVersionTracking ||
+						usesSrcTravSnapshot_old != data.usesSrcTravSnapshot || cachePolicy_old != data.cachePolicy ||
 						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
 						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||

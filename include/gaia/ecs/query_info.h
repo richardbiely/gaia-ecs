@@ -389,16 +389,12 @@ namespace gaia {
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
-				const auto& deps = m_plan.ctx.data.deps;
-				return !deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dyn_cache();
+				return m_plan.ctx.data.usesDirectSrcVersionTracking;
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
-				const auto& deps = m_plan.ctx.data.deps;
-				return deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms) && //
-							 can_reuse_dyn_cache();
+				return m_plan.ctx.data.usesSrcTravSnapshot;
 			}
 
 			//! Checks tracked relation versions used by the dynamic cache.
@@ -418,6 +414,8 @@ namespace gaia {
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) const {
 				if (m_state.varBindingMask != runtimeVarBindingMask)
 					return true;
+				if (runtimeVarBindingMask == 0)
+					return false;
 
 				GAIA_FOR(MaxVarCnt) {
 					const auto bit = (uint8_t(1) << i);
@@ -542,14 +540,15 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return false;
 
-				if (dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
+						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
 					return true;
 
 				const bool relationVersionsChanged = dyn_rel_versions_changed();
 				if (relationVersionsChanged && !uses_src_trav_snapshot())
 					return true;
 
-				const auto& deps = m_plan.ctx.data.deps;
 				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
 					return relationVersionsChanged;
 
@@ -592,8 +591,12 @@ namespace gaia {
 					m_state.srcTravSnapshotOverflowed = false;
 				}
 
-				m_state.varBindings = runtimeVarBindings;
-				m_state.varBindingMask = runtimeVarBindingMask;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms)) {
+					m_state.varBindings = runtimeVarBindings;
+					m_state.varBindingMask = runtimeVarBindingMask;
+				} else {
+					m_state.varBindingMask = 0;
+				}
 			}
 
 			template <typename TType>
@@ -829,7 +832,8 @@ namespace gaia {
 					return;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if (hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+				const bool canReuseDynamicCache = can_reuse_dyn_cache();
+				if (hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
 																dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
 					reset_matching_cache();
@@ -848,7 +852,7 @@ namespace gaia {
 				// Skip if no new archetype appeared and the cached match set is still valid.
 				GAIA_ASSERT(archetypeLastId >= m_state.lastArchetypeId);
 				if (!m_state.needs_refresh() && m_state.lastArchetypeId == archetypeLastId &&
-						(!hasDynamicTerms || can_reuse_dyn_cache())) {
+						(!hasDynamicTerms || canReuseDynamicCache)) {
 					// Sort entities if necessary
 					sort_entities();
 					return;
@@ -933,7 +937,8 @@ namespace gaia {
 					return false;
 
 				const bool hasDynamicTerms = has_dyn_terms();
-				if ((hasDynamicTerms && (!can_reuse_dyn_cache() || m_state.needs_refresh() ||
+				const bool canReuseDynamicCache = can_reuse_dyn_cache();
+				if ((hasDynamicTerms && (!canReuseDynamicCache || m_state.needs_refresh() ||
 																 dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask))) ||
 						m_state.seed_dirty()) {
 					// Dynamic queries keep their cached result as long as tracked runtime inputs stay stable.
