@@ -53,6 +53,7 @@ namespace gaia {
 			//! full match() calls without clearing stamp pages.
 			uint32_t matchVersion = 0;
 
+			//! Clears all temporary match data, including dedup stamps.
 			void clear_temporary_matches() {
 				matchesArr.clear();
 				matchesArrDynPrev.clear();
@@ -60,18 +61,22 @@ namespace gaia {
 				matchVersion = 0;
 			}
 
+			//! Clears temporary match arrays while preserving allocated dedup stamp pages.
+			//! Full match() can reuse prior stamp pages and advance matchVersion instead
+			//! of zeroing the whole table again.
 			void clear_temporary_matches_keep_stamps() {
-				//! Full match() can reuse prior stamp pages and advance matchVersion instead
-				//! of zeroing the whole table again.
 				matchesArr.clear();
 				matchesArrDynPrev.clear();
 			}
 
+			//! Clears dedup stamps and resets the match-version counter.
 			void reset_stamps() {
 				matchStamps.clear();
 				matchVersion = 0;
 			}
 
+			//! Advances and returns the dedup stamp for the next VM match pass.
+			//! \return Non-zero match version reserved for the current pass.
 			GAIA_NODISCARD uint32_t next_match_version() {
 				++matchVersion;
 				if (matchVersion != 0)
@@ -178,6 +183,7 @@ namespace gaia {
 					//! True when grouped archetype order/ranges need to be rebuilt.
 					bool dataPending = false;
 
+					//! Releases grouped payload storage and resets cached group selection state.
 					void clear() {
 						archetypeGroupIds = {};
 						archetypeGroupData = {};
@@ -186,6 +192,7 @@ namespace gaia {
 						dataPending = false;
 					}
 
+					//! Clears grouped payload contents while preserving allocated storage.
 					void clear_transient() {
 						archetypeGroupIds.clear();
 						archetypeGroupData.clear();
@@ -207,6 +214,7 @@ namespace gaia {
 					//! still needs to be built on demand.
 					bool inheritedDataPending = false;
 
+					//! Releases execution payload storage and clears pending rebuild flags.
 					void clear() {
 						archetypeCompIndices = {};
 						archetypeInheritedData = {};
@@ -214,6 +222,7 @@ namespace gaia {
 						inheritedDataPending = false;
 					}
 
+					//! Clears execution payload contents while preserving allocated storage.
 					void clear_transient() {
 						archetypeCompIndices.clear();
 						archetypeInheritedData.clear();
@@ -237,6 +246,7 @@ namespace gaia {
 					//! True when at least one cached archetype fails the depth-order hierarchy barrier.
 					uint8_t barrierMayPrune = 0;
 
+					//! Releases nontrivial execution payload storage and resets version stamps.
 					void clear() {
 						archetypeSortData = {};
 						archetypeBarrierPasses = {};
@@ -246,6 +256,7 @@ namespace gaia {
 						barrierMayPrune = 0;
 					}
 
+					//! Clears nontrivial payload contents while preserving allocated storage.
 					void clear_transient() {
 						archetypeSortData.clear();
 						archetypeBarrierPasses.clear();
@@ -283,11 +294,13 @@ namespace gaia {
 				//! Dirty flags
 				uint8_t dirtyFlags = DirtyFlags::All;
 
+				//! Clears structural seed matches without touching dynamic input snapshots.
 				void clear_seed_cache() {
 					seedArchetypeSet = {};
 					seedArchetypeCache = {};
 				}
 
+				//! Clears final result matches and all payloads derived from result-cache order.
 				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
@@ -296,6 +309,7 @@ namespace gaia {
 					nonTrivial.clear();
 				}
 
+				//! Clears transient final result matches while preserving reusable payload allocation.
 				void clear_transient_result_cache() {
 					archetypeCache.clear();
 					exec.clear_transient();
@@ -303,11 +317,13 @@ namespace gaia {
 					nonTrivial.clear_transient();
 				}
 
+				//! Clears both structural seed matches and final result matches.
 				void clear_cache() {
 					clear_seed_cache();
 					clear_result_cache();
 				}
 
+				//! Resets all query cache state, dynamic snapshots, cursors, and dirty flags.
 				void reset() {
 					clear_cache();
 					srcTravSnapshot.clear();
@@ -316,30 +332,37 @@ namespace gaia {
 					dirtyFlags = DirtyFlags::All;
 				}
 
+				//! Marks structural seed matches stale, which also invalidates final results.
 				void invalidate_seed() {
 					dirtyFlags = (uint8_t)(dirtyFlags | DirtyFlags::Seed | DirtyFlags::Result);
 				}
 
+				//! Marks final result matches stale while keeping structural seed matches reusable.
 				void invalidate_result() {
 					dirtyFlags = (uint8_t)(dirtyFlags | DirtyFlags::Result);
 				}
 
+				//! Marks every cache layer stale.
 				void invalidate_all() {
 					dirtyFlags = DirtyFlags::All;
 				}
 
+				//! Returns true when structural seed matches must be rebuilt.
 				GAIA_NODISCARD bool seed_dirty() const {
 					return (dirtyFlags & DirtyFlags::Seed) != 0;
 				}
 
+				//! Returns true when final result matches must be rebuilt from the seed cache or VM.
 				GAIA_NODISCARD bool result_dirty() const {
 					return (dirtyFlags & DirtyFlags::Result) != 0;
 				}
 
+				//! Returns true when any cache layer is marked dirty.
 				GAIA_NODISCARD bool needs_refresh() const {
 					return seed_dirty() || result_dirty();
 				}
 
+				//! Marks all cache layers clean after a successful refresh.
 				void clear_dirty() {
 					dirtyFlags = DirtyFlags::Clean;
 				}
@@ -356,6 +379,8 @@ namespace gaia {
 
 			enum QueryCmdType : uint8_t { ALL, OR, NOT };
 
+			//! Clears all cached match state and resets incremental lookup cursors.
+			//! \param trackMembershipChange True to bump the result membership revision when non-empty results are discarded.
 			void reset_matching_cache(bool trackMembershipChange) {
 				if (trackMembershipChange && !m_state.archetypeCache.empty())
 					mark_result_cache_membership_changed();
@@ -368,15 +393,20 @@ namespace gaia {
 				ctxData.lastMatchedArchetypeIdx_Not = {};
 			}
 
+			//! Clears only the final result cache while keeping structural seed matches intact.
 			void clear_result_cache() {
 				m_state.clear_result_cache();
 			}
 
+			//! Invalidates hierarchy barrier payloads derived from the current result cache.
+			//! This does not bump resultCacheRevision because reverse-index membership may be unchanged.
 			void invalidate_result_barriers() {
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
 				m_state.nonTrivial.barrierEnabledVersion = UINT32_MAX;
 			}
 
+			//! Marks final result membership as changed for reverse-index users.
+			//! Also invalidates hierarchy barrier payloads because they are indexed by result-cache membership.
 			void mark_result_cache_membership_changed() {
 				invalidate_result_barriers();
 				++m_state.resultCacheRevision;
@@ -603,6 +633,10 @@ namespace gaia {
 				}
 			}
 
+			//! Returns whether a compiled query contains a term with the requested access mode.
+			//! \tparam TType Component or Entity argument type to check.
+			//! \param op Query operation kind to match.
+			//! \param isReadWrite True when the query argument is mutable.
 			template <typename TType>
 			GAIA_NODISCARD bool has_inter([[maybe_unused]] QueryOpKind op, bool isReadWrite) const {
 				using T = core::raw_t<TType>;
@@ -636,6 +670,9 @@ namespace gaia {
 				}
 			}
 
+			//! Returns whether a compiled query contains a term with the requested operation kind.
+			//! \tparam T Component or Entity argument type to check.
+			//! \param op Query operation kind to match.
 			template <typename T>
 			GAIA_NODISCARD bool has_inter(QueryOpKind op) const {
 				// static_assert(is_raw_v<<T>, "has() must be used with raw types");
@@ -644,28 +681,36 @@ namespace gaia {
 			}
 
 		public:
+			//! Adds one external reference to this query slot.
 			void add_ref() {
 				++m_refs;
 				GAIA_ASSERT(m_refs != 0);
 			}
 
+			//! Releases one external reference to this query slot.
 			void dec_ref() {
 				GAIA_ASSERT(m_refs > 0);
 				--m_refs;
 			}
 
+			//! Returns the current external reference count.
 			uint32_t refs() const {
 				return m_refs;
 			}
 
+			//! Binds this query info to a world after slot allocation.
+			//! \param world World owning the query.
 			void init(World* world) {
 				m_plan.ctx.w = world;
 			}
 
+			//! Resets cached query state for slot reuse while keeping the compiled context object.
 			void reset() {
 				reset_matching_cache(true);
 			}
 
+			//! Marks cached query results stale.
+			//! \param kind Cache layer to invalidate.
 			void invalidate(InvalidationKind kind = InvalidationKind::All) {
 				switch (kind) {
 					case InvalidationKind::Result:
@@ -681,10 +726,12 @@ namespace gaia {
 				}
 			}
 
+			//! Marks structural seed matches stale.
 			void invalidate_seed() {
 				invalidate(InvalidationKind::Seed);
 			}
 
+			//! Marks final result matches stale while preserving structural seed matches.
 			void invalidate_result() {
 				invalidate(InvalidationKind::Result);
 			}
@@ -695,6 +742,11 @@ namespace gaia {
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 			}
 
+			//! Creates and compiles a query info object from a moved query context.
+			//! \param id Query slot id.
+			//! \param ctx Query context to take ownership of.
+			//! \param entityToArchetypeMap World archetype lookup used during compilation.
+			//! \param allArchetypes Current world archetype list.
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
 					std::span<const Archetype*> allArchetypes) {
@@ -714,6 +766,10 @@ namespace gaia {
 				return info;
 			}
 
+			//! Creates and compiles a query info object from slot creation context.
+			//! \param idx Query slot index.
+			//! \param gen Query slot generation.
+			//! \param pCtx Pointer to QueryInfoCreationCtx.
 			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = *pCreationCtx->pQueryCtx;
@@ -735,6 +791,7 @@ namespace gaia {
 				return info;
 			}
 
+			//! Builds a stable query handle from query slot metadata.
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
 				return QueryHandle(info.idx, info.gen);
 			}
@@ -755,22 +812,27 @@ namespace gaia {
 				m_plan.vm.create_opcodes(m_plan.ctx);
 			}
 
+			//! Returns the query cache policy selected during compilation.
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
 				return m_plan.ctx.data.cachePolicy;
 			}
 
+			//! Returns true when grouped-query payloads are active for this query.
 			GAIA_NODISCARD bool has_grouped_payload() const {
 				return m_plan.ctx.data.groupBy != EntityBad;
 			}
 
+			//! Returns true when sorted-query payloads are active for this query.
 			GAIA_NODISCARD bool has_sorted_payload() const {
 				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
+			//! Returns the result membership revision used by reverse-index cache users.
 			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
 			}
 
+			//! Returns true when a new archetype can be propagated into the current cache incrementally.
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only immediate structural queries participate in archetype-create propagation.
 				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
@@ -884,7 +946,7 @@ namespace gaia {
 
 				// Prepare the context
 				vm::MatchingCtx ctx{};
-				ctx.pWorld = world();
+				ctx.pWorld = &w;
 				// ctx.targetEntities = {};
 				ctx.allArchetypes = allArchetypes;
 				if constexpr (std::is_same_v<ArchetypeLookup, EntityToArchetypeMap>) {
@@ -918,10 +980,10 @@ namespace gaia {
 				const bool trackMembershipChangeOnAdd = !compareDynamicMembership;
 				for (const auto* pArchetype: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArchetype, trackMembershipChangeOnAdd);
+						add_archetype_to_cache(pArchetype, trackMembershipChangeOnAdd, false);
 					} else {
 						add_archetype_to_seed_cache(pArchetype);
-						add_archetype_to_cache(pArchetype, true);
+						add_archetype_to_cache(pArchetype, true, false);
 					}
 				}
 
@@ -977,7 +1039,7 @@ namespace gaia {
 
 				// Prepare the context
 				vm::MatchingCtx ctx{};
-				ctx.pWorld = world();
+				ctx.pWorld = &w;
 				ctx.targetEntities = targetEntities;
 				const auto* pArchetype = &archetype;
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
@@ -1005,10 +1067,10 @@ namespace gaia {
 				// Write found matches to cache
 				for (const auto* pArch: *ctx.pMatchesArr) {
 					if (hasDynamicTerms) {
-						add_archetype_to_cache(pArch, true);
+						add_archetype_to_cache(pArch, true, false);
 					} else {
 						add_archetype_to_seed_cache(pArch);
-						add_archetype_to_cache(pArch, true);
+						add_archetype_to_cache(pArch, true, false);
 					}
 				}
 				snapshot_dyn_inputs(runtimeVarBindings, runtimeVarBindingMask);
@@ -1044,7 +1106,7 @@ namespace gaia {
 				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				vm::MatchingCtx ctx{};
-				ctx.pWorld = world();
+				ctx.pWorld = &w;
 				ctx.allArchetypes = allArchetypes;
 				ctx.archetypeLookup = vm::make_archetype_lookup_view(entityToArchetypeMap, entityToArchetypeMapVersions);
 				ctx.pMatchesArr = &matchScratch.matchesArr;
@@ -1096,7 +1158,7 @@ namespace gaia {
 				CleanUpTmpArchetypeMatches autoCleanup(w, true);
 
 				vm::MatchingCtx ctx{};
-				ctx.pWorld = world();
+				ctx.pWorld = &w;
 				ctx.targetEntities = targetEntities;
 				const auto* pArchetype = &archetype;
 				ctx.allArchetypes = std::span((const Archetype**)&pArchetype, 1);
@@ -1127,6 +1189,11 @@ namespace gaia {
 				return matched;
 			}
 
+			//! Registers a new or updated archetype with query caches when it matches this query.
+			//! \param archetype Archetype to evaluate.
+			//! \param matchedSelector Optional selector that already matched the archetype.
+			//! \param assumeNew True when the caller knows the archetype is not present in the caches.
+			//! \return True when the archetype was added to a cache.
 			bool register_archetype(const Archetype& archetype, Entity matchedSelector = EntityBad, bool assumeNew = false) {
 				auto& ctxData = m_plan.ctx.data;
 
@@ -1357,6 +1424,7 @@ namespace gaia {
 				}
 			}
 
+			//! Applies query entity sorting and rebuilds sorted chunk slices when needed.
 			void sort_entities() {
 				if (m_plan.ctx.data.sortByFunc == nullptr)
 					return;
@@ -1374,6 +1442,7 @@ namespace gaia {
 				m_state.nonTrivial.sortVersion = ::gaia::ecs::world_version(*world());
 			}
 
+			//! Sorts cached archetypes by group id when grouped iteration requested ordering.
 			void sort_cache_groups() {
 				if ((m_plan.ctx.data.flags & QueryCtx::QueryFlags::SortGroups) == 0)
 					return;
@@ -1383,6 +1452,9 @@ namespace gaia {
 					ensure_group_data(true);
 			}
 
+			//! Swaps two result-cache entries and every parallel payload array that mirrors cache order.
+			//! \param left Index of the first cache entry.
+			//! \param right Index of the second cache entry.
 			void swap_archetype_cache_entry(uint32_t left, uint32_t right) {
 				auto* pTmpArchetype = m_state.archetypeCache[left];
 				m_state.archetypeCache[left] = m_state.archetypeCache[right];
@@ -1414,6 +1486,7 @@ namespace gaia {
 				}
 			}
 
+			//! Rebuilds cached component-index payloads for matched archetypes when marked pending.
 			void ensure_comp_indices() {
 				if (!m_state.exec.compIndicesPending)
 					return;
@@ -1426,10 +1499,12 @@ namespace gaia {
 				m_state.exec.compIndicesPending = false;
 			}
 
+			//! Returns true when query iteration needs cached inherited data payloads.
 			GAIA_NODISCARD bool has_inherited_data_payload() const {
 				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedDataTerms);
 			}
 
+			//! Rebuilds inherited-data payloads for matched archetypes when query terms require them.
 			void ensure_inherited_data() {
 				if (!m_state.exec.inheritedDataPending)
 					return;
@@ -1492,6 +1567,7 @@ namespace gaia {
 				m_state.grouped.dataPending = false;
 			}
 
+			//! Rebuilds cached depth-order hierarchy barrier results when relation or enabled-state versions changed.
 			void ensure_depth_order_hierarchy_barrier_cache_inter() {
 				if (!world_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
 					return;
@@ -1529,6 +1605,9 @@ namespace gaia {
 				m_state.nonTrivial.barrierEnabledVersion = currEnabledVersion;
 			}
 
+			//! Builds field-to-archetype component indices for one matched archetype.
+			//! \param pArchetype Matched archetype whose layout is mapped to query fields.
+			//! \return Component-index mapping consumed by query iteration.
 			ArchetypeCompIndices create_comp_indices(const Archetype* pArchetype) {
 				ArchetypeCompIndices cacheData{};
 				core::fill(cacheData.indices, cacheData.indices + ChunkHeader::MAX_COMPONENTS, (uint8_t)0xFF);
@@ -1561,6 +1640,8 @@ namespace gaia {
 				return cacheData;
 			}
 
+			//! Builds inherited component data pointers for semantic self-source terms on one archetype.
+			//! \param pArchetype Matched archetype whose inherited term data is cached.
 			void create_inherited_data(const Archetype* pArchetype) {
 				ArchetypeInheritedData inheritedData{};
 				core::fill(inheritedData.data, inheritedData.data + ChunkHeader::MAX_COMPONENTS, nullptr);
@@ -1591,6 +1672,10 @@ namespace gaia {
 				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
+			//! Adds an archetype to the final result cache for ungrouped queries.
+			//! \param pArchetype Matched archetype to cache.
+			//! \param trackMembershipChange True to bump result membership revision after insertion.
+			//! \param assumeAbsent True when the caller already proved the archetype is not cached.
 			void add_archetype_to_cache_no_grouping(
 					const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_ng);
@@ -1609,6 +1694,9 @@ namespace gaia {
 					mark_result_cache_membership_changed();
 			}
 
+			//! Adds an archetype to the structural seed cache.
+			//! \param pArchetype Structurally matched archetype to cache.
+			//! \param assumeAbsent True when the caller already proved the archetype is not cached.
 			void add_archetype_to_seed_cache(const Archetype* pArchetype, bool assumeAbsent = false) {
 				if (!assumeAbsent && m_state.seedArchetypeSet.contains(pArchetype))
 					return;
@@ -1619,6 +1707,8 @@ namespace gaia {
 			}
 
 			//! Adds a newly matched archetype to both immediate caches while reusing one computed index mapping.
+			//! \param pArchetype Newly matched archetype to cache.
+			//! \param trackMembershipChange True to bump result membership revision after insertion.
 			void add_new_archetype_to_immediate_caches(const Archetype* pArchetype, bool trackMembershipChange) {
 				GAIA_ASSERT(m_plan.ctx.data.groupBy == EntityBad);
 				GAIA_ASSERT(m_plan.ctx.data.sortByFunc == nullptr);
@@ -1636,6 +1726,10 @@ namespace gaia {
 					mark_result_cache_membership_changed();
 			}
 
+			//! Adds an archetype to the final result cache and records its group id.
+			//! \param pArchetype Matched archetype to cache.
+			//! \param trackMembershipChange True to bump result membership revision after insertion.
+			//! \param assumeAbsent True when the caller already proved the archetype is not cached.
 			void add_archetype_to_cache_w_grouping(
 					const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
 				GAIA_PROF_SCOPE(queryinfo::add_cache_wg);
@@ -1661,7 +1755,11 @@ namespace gaia {
 					mark_result_cache_membership_changed();
 			}
 
-			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent = false) {
+			//! Adds an archetype to the final result cache and updates derived-payload dirty flags.
+			//! \param pArchetype Matched archetype to cache.
+			//! \param trackMembershipChange True to bump result membership revision after insertion.
+			//! \param assumeAbsent True when the caller already proved the archetype is not cached.
+			void add_archetype_to_cache(const Archetype* pArchetype, bool trackMembershipChange, bool assumeAbsent) {
 				if (m_plan.ctx.data.sortByFunc != nullptr)
 					m_plan.ctx.data.flags |= QueryCtx::QueryFlags::SortEntities;
 
@@ -1671,6 +1769,8 @@ namespace gaia {
 					add_archetype_to_cache_no_grouping(pArchetype, trackMembershipChange, assumeAbsent);
 			}
 
+			//! Adds an archetype to the transient result cache used by non-persistent matching paths.
+			//! \param pArchetype Matched archetype to cache for this transient result.
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
 				m_state.exec.compIndicesPending = true;
@@ -1718,6 +1818,8 @@ namespace gaia {
 				return &m_state.grouped.selectedGroupData;
 			}
 
+			//! Compares final result-cache membership with the structural seed cache.
+			//! \return True when both caches contain the same archetypes.
 			GAIA_NODISCARD bool has_same_result_membership_as_seed_cache() const {
 				if (m_state.archetypeSet.size() != m_state.seedArchetypeSet.size())
 					return false;
@@ -1730,6 +1832,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares final result-cache membership with another archetype array.
+			//! \param archetypeCache Archetype membership to compare against the final result cache.
+			//! \return True when both collections contain the same archetypes.
 			GAIA_NODISCARD bool has_same_result_membership_as(const CArchetypeDArray& archetypeCache) const {
 				if (m_state.archetypeSet.size() != archetypeCache.size())
 					return false;
@@ -1742,17 +1847,22 @@ namespace gaia {
 				return true;
 			}
 
+			//! Rebuilds the final result cache from structural seed matches.
+			//! Bumps result membership revision only when the final membership actually changes.
 			void sync_result_cache_from_seed_cache() {
 				const bool membershipChanged = !has_same_result_membership_as_seed_cache();
 				clear_result_cache();
 				const auto cnt = (uint32_t)m_state.seedArchetypeCache.size();
 				GAIA_FOR(cnt) {
-					add_archetype_to_cache(m_state.seedArchetypeCache[i], false);
+					add_archetype_to_cache(m_state.seedArchetypeCache[i], false, false);
 				}
 				if (membershipChanged)
 					mark_result_cache_membership_changed();
 			}
 
+			//! Removes an archetype from the final result cache and mirrored payload arrays.
+			//! \param pArchetype Archetype to remove.
+			//! \return True if the archetype was present or its set entry was removed.
 			bool del_archetype_from_cache(const Archetype* pArchetype) {
 				const auto it = m_state.archetypeSet.find(pArchetype);
 				if (it == m_state.archetypeSet.end())
@@ -1791,6 +1901,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Removes an archetype from the structural seed cache.
+			//! \param pArchetype Archetype to remove.
+			//! \return True if the archetype was present or its set entry was removed.
 			bool del_archetype_from_seed_cache(const Archetype* pArchetype) {
 				const auto it = m_state.seedArchetypeSet.find(pArchetype);
 				if (it == m_state.seedArchetypeSet.end())
@@ -1807,41 +1920,51 @@ namespace gaia {
 				return true;
 			}
 
+			//! Returns the mutable world owning this query.
 			GAIA_NODISCARD World* world() {
 				GAIA_ASSERT(m_plan.ctx.w != nullptr);
 				return const_cast<World*>(m_plan.ctx.w);
 			}
+			//! Returns the world owning this query.
 			GAIA_NODISCARD const World* world() const {
 				GAIA_ASSERT(m_plan.ctx.w != nullptr);
 				return m_plan.ctx.w;
 			}
 
+			//! Returns the query serialization buffer associated with the owning world.
 			GAIA_NODISCARD QuerySerBuffer& ser_buffer() {
 				return m_plan.ctx.q.ser_buffer(world());
 			}
+			//! Resets the query serialization buffer associated with the owning world.
 			void ser_buffer_reset() {
 				m_plan.ctx.q.ser_buffer_reset(world());
 			}
 
+			//! Returns the mutable compiled query context.
 			GAIA_NODISCARD QueryCtx& ctx() {
 				return m_plan.ctx;
 			}
+			//! Returns the compiled query context.
 			GAIA_NODISCARD const QueryCtx& ctx() const {
 				return m_plan.ctx;
 			}
 
+			//! Returns a textual dump of the compiled VM bytecode.
 			GAIA_NODISCARD util::str bytecode() const {
 				return m_plan.vm.bytecode(*world());
 			}
 
+			//! Returns the number of VM operations in the compiled query.
 			GAIA_NODISCARD uint32_t op_count() const {
 				return m_plan.vm.op_count();
 			}
 
+			//! Returns a stable signature for the compiled VM operation stream.
 			GAIA_NODISCARD uint64_t op_signature() const {
 				return m_plan.vm.op_signature();
 			}
 
+			//! Returns true when the query has per-entity changed/filter terms.
 			GAIA_NODISCARD bool has_filters() const {
 				const auto& ctxData = m_plan.ctx.data;
 				return ctxData.changedCnt > 0;
@@ -1859,10 +1982,12 @@ namespace gaia {
 				return ctxData.deps.has_dep_flag(QueryCtx::DependencyHasPotentialInheritedIdTerms);
 			}
 
+			//! Returns the direct target evaluation mode selected during compilation.
 			GAIA_NODISCARD QueryCtx::DirectTargetEvalKind direct_target_eval_kind() const {
 				return m_plan.ctx.data.directTargetEvalKind;
 			}
 
+			//! Returns the concrete direct target id used by direct target evaluation.
 			GAIA_NODISCARD Entity direct_target_eval_id() const {
 				return m_plan.ctx.data.directTargetEvalId;
 			}
@@ -1889,21 +2014,25 @@ namespace gaia {
 							 (ctxData.flags & QueryCtx::QueryFlags::HasPrefabTerms) != 0;
 			}
 
+			//! Returns true when any of the requested types is present as an Any term.
 			template <typename... T>
 			GAIA_NODISCARD bool has_any() const {
 				return (has_inter<T>(QueryOpKind::Any) || ...);
 			}
 
+			//! Returns true when any of the requested types is present as an Or term.
 			template <typename... T>
 			GAIA_NODISCARD bool has_or() const {
 				return (has_inter<T>(QueryOpKind::Or) || ...);
 			}
 
+			//! Returns true when all requested types are present as All terms.
 			template <typename... T>
 			GAIA_NODISCARD bool has_all() const {
 				return (has_inter<T>(QueryOpKind::All) && ...);
 			}
 
+			//! Returns true when none of the requested types is present as a Not term.
 			template <typename... T>
 			GAIA_NODISCARD bool has_no() const {
 				return (!has_inter<T>(QueryOpKind::Not) && ...);
@@ -1925,6 +2054,8 @@ namespace gaia {
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
 			}
 
+			//! Returns cached inherited-term data for a matched archetype index.
+			//! \param archetypeIdx Result-cache archetype index.
 			InheritedTermDataView inherited_data_view(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_inherited_data();
 				if (archetypeIdx >= m_state.exec.archetypeInheritedData.size())
@@ -1933,6 +2064,8 @@ namespace gaia {
 				return {ctxData.data, ChunkHeader::MAX_COMPONENTS};
 			}
 
+			//! Returns cached inherited-term data for a matched archetype pointer.
+			//! \param pArchetype Matched archetype to look up.
 			InheritedTermDataView inherited_data_view(const Archetype* pArchetype) const {
 				if (!has_inherited_data_payload())
 					return {};
@@ -1942,6 +2075,7 @@ namespace gaia {
 				return inherited_data_view((uint32_t)archetypeIdx);
 			}
 
+			//! Ensures depth-order hierarchy barrier results are current before public reads.
 			void ensure_depth_order_hierarchy_barrier_cache() {
 				ensure_depth_order_hierarchy_barrier_cache_inter();
 			}
@@ -1956,6 +2090,8 @@ namespace gaia {
 				return indices_mapping_view(archetypeIdx);
 			}
 
+			//! Returns cached inherited-term data if it is already available for a matched archetype.
+			//! \param pArchetype Matched archetype to look up.
 			InheritedTermDataView try_inherited_data_view(const Archetype* pArchetype) const {
 				if (!has_inherited_data_payload() || m_state.exec.inheritedDataPending)
 					return {};
@@ -1965,12 +2101,16 @@ namespace gaia {
 				return inherited_data_view((uint32_t)archetypeIdx);
 			}
 
+			//! Returns the cached group id for a matched archetype index.
+			//! \param archetypeIdx Result-cache archetype index.
 			GAIA_NODISCARD GroupId group_id(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_group_data(true);
 				GAIA_ASSERT(archetypeIdx < m_state.grouped.archetypeGroupIds.size());
 				return m_state.grouped.archetypeGroupIds[archetypeIdx];
 			}
 
+			//! Returns true when the matched archetype passes the depth-order hierarchy barrier.
+			//! \param archetypeIdx Result-cache archetype index.
 			GAIA_NODISCARD bool barrier_passes(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_depth_order_hierarchy_barrier_cache();
 				if (m_state.nonTrivial.archetypeBarrierPasses.empty())
@@ -1979,43 +2119,53 @@ namespace gaia {
 				return m_state.nonTrivial.archetypeBarrierPasses[archetypeIdx] != 0;
 			}
 
+			//! Returns true when any cached archetype can be pruned by the hierarchy barrier.
 			GAIA_NODISCARD bool barrier_may_prune() const {
 				const_cast<QueryInfo*>(this)->ensure_depth_order_hierarchy_barrier_cache();
 				return m_state.nonTrivial.barrierMayPrune != 0;
 			}
 
+			//! Returns a mutable iterator to the first cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::iterator begin() {
 				return m_state.archetypeCache.begin();
 			}
 
+			//! Returns an iterator to the first cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::const_iterator begin() const {
 				return m_state.archetypeCache.begin();
 			}
 
+			//! Returns a const iterator to the first cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::const_iterator cbegin() const {
 				return m_state.archetypeCache.begin();
 			}
 
+			//! Returns a mutable iterator past the last cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::iterator end() {
 				return m_state.archetypeCache.end();
 			}
 
+			//! Returns an iterator past the last cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::const_iterator end() const {
 				return m_state.archetypeCache.end();
 			}
 
+			//! Returns a const iterator past the last cached result archetype.
 			GAIA_NODISCARD CArchetypeDArray::const_iterator cend() const {
 				return m_state.archetypeCache.end();
 			}
 
+			//! Returns the cached result archetypes as a span.
 			GAIA_NODISCARD std::span<const Archetype*> cache_archetype_view() const {
 				return std::span{(const Archetype**)m_state.archetypeCache.data(), m_state.archetypeCache.size()};
 			}
 
+			//! Returns cached sorted chunk slices.
 			GAIA_NODISCARD std::span<const SortData> cache_sort_view() const {
 				return std::span{m_state.nonTrivial.archetypeSortData.data(), m_state.nonTrivial.archetypeSortData.size()};
 			}
 
+			//! Returns cached group ranges, rebuilding grouped data when needed.
 			GAIA_NODISCARD std::span<const GroupData> group_data_view() const {
 				const_cast<QueryInfo*>(this)->ensure_group_data(true);
 				return std::span{m_state.grouped.archetypeGroupData.data(), m_state.grouped.archetypeGroupData.size()};
