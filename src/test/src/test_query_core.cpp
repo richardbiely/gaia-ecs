@@ -315,6 +315,7 @@ void Test_Query_SourceLookup() {
 	struct Level {
 		uint32_t value;
 	};
+	struct Mode {};
 
 	constexpr uint32_t N = 64;
 	cnt::darr<ecs::Entity> positionEntities;
@@ -364,10 +365,34 @@ void Test_Query_SourceLookup() {
 	CHECK(srcOnlyBytecode.find("ids_all:") == BadIndex);
 	CHECK(qSrcOnly.count() > N);
 
+	auto qSrcOnlyOr = make_query<UseCachedQuery>(wld)
+												.template or_<Level>(ecs::QueryTermOptions{}.src(game))
+												.template or_<Mode>(ecs::QueryTermOptions{}.src(game));
+	const auto srcOnlyOrBytecode = qSrcOnlyOr.bytecode();
+	CHECK(srcOnlyOrBytecode.find("src_or: 2") != BadIndex);
+	CHECK(srcOnlyOrBytecode.find("ids_all:") == BadIndex);
+	CHECK(srcOnlyOrBytecode.find("ids_or:") == BadIndex);
+	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+
+	auto qSrcOnlyNot = make_query<UseCachedQuery>(wld).template no<Mode>(ecs::QueryTermOptions{}.src(game));
+	const auto srcOnlyNotBytecode = qSrcOnlyNot.bytecode();
+	CHECK(srcOnlyNotBytecode.find("src_not: 1") != BadIndex);
+	CHECK(srcOnlyNotBytecode.find("ids_all:") == BadIndex);
+	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
+
+	wld.add<Mode>(game);
+	CHECK(qSrcOnly.count() > N);
+	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+	CHECK(qSrcOnlyNot.count() == 0);
+	wld.del<Mode>(game);
+	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
+
 	wld.del<Level>(game);
 	CHECK(qSrc.count() == 0);
 	expect_positions(qSrc, false);
 	CHECK(qSrcOnly.count() == 0);
+	CHECK(qSrcOnlyOr.count() == 0);
+	CHECK(qSrcOnlyNot.count() > N);
 
 	wld.add<Level>(game, {2});
 	CHECK(qSrc.count() == N);
@@ -378,6 +403,11 @@ void Test_Query_SourceLookup() {
 	const auto scene = wld.add();
 	wld.child(scene, parent);
 	wld.child(parent, root);
+
+	auto qSourceTravOnly = make_query<UseCachedQuery>(wld).template all<Level>(ecs::QueryTermOptions{}.src(scene).trav());
+	const auto sourceTravOnlyBytecode = qSourceTravOnly.bytecode();
+	CHECK(sourceTravOnlyBytecode.find("src_all: 1") != BadIndex);
+	CHECK(sourceTravOnlyBytecode.find("ids_all:") == BadIndex);
 
 	auto qSelfUp = make_query<UseCachedQuery>(wld) //
 										 .template all<Position>()
@@ -416,6 +446,7 @@ void Test_Query_SourceLookup() {
 														 .template all<Position>()
 														 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
 
+	CHECK(qSourceTravOnly.count() == 0);
 	CHECK(qSelfUp.count() == 0);
 	expect_positions(qSelfUp, false);
 	CHECK(qUpOnly.count() == 0);
@@ -440,6 +471,7 @@ void Test_Query_SourceLookup() {
 	expect_positions(qSelfDownDepth1, false);
 
 	wld.add<Level>(scene, {3});
+	CHECK(qSourceTravOnly.count() > N);
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == 0);
@@ -465,6 +497,7 @@ void Test_Query_SourceLookup() {
 
 	wld.del<Level>(scene);
 	wld.add<Level>(parent, {4});
+	CHECK(qSourceTravOnly.count() > N);
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
@@ -490,6 +523,7 @@ void Test_Query_SourceLookup() {
 
 	wld.del<Level>(parent);
 	wld.add<Level>(root, {5});
+	CHECK(qSourceTravOnly.count() > N);
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
