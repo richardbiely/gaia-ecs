@@ -568,10 +568,17 @@ TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
 	const auto sourceRestoredMatchPassCount = info.test_match_pass_count();
 	CHECK(sourceRestoredMatchPassCount == sourceRemovedMatchPassCount + 1);
 
+	const auto sourceRestoredResultRev = info.result_cache_rev();
+	wld.add<DynamicSourceOther>(source);
+	CHECK(q.count() == N);
+	const auto sourceMovedMatchPassCount = info.test_match_pass_count();
+	CHECK(sourceMovedMatchPassCount == sourceRestoredMatchPassCount + 1);
+	CHECK(info.result_cache_rev() == sourceRestoredResultRev);
+
 	const auto unrelated = wld.add();
 	wld.add<DynamicSourceOther>(unrelated);
 	CHECK(q.count() == N);
-	CHECK(info.test_match_pass_count() == sourceRestoredMatchPassCount + 1);
+	CHECK(info.test_match_pass_count() == sourceMovedMatchPassCount + 1);
 }
 
 TEST_CASE("Query - dynamic traversal refresh preserves reverse index revision for same membership") {
@@ -2188,6 +2195,11 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add<Cable>(cableB);
 		wld.add(cableB, {linkedTo, devB});
 
+		const auto cableBoth = wld.add();
+		wld.add<Cable>(cableBoth);
+		wld.add(cableBoth, {connectedTo, devA});
+		wld.add(cableBoth, {linkedTo, devA});
+
 		auto q = make_query<UseCachedQuery>(wld) //
 								 .template all<Cable>()
 								 .or_(ecs::Pair(connectedTo, ecs::Var0))
@@ -2206,8 +2218,16 @@ void Test_Query_Variable_Opcode_Paths() {
 		CHECK(bytecode.find("term_all_bind") == BadIndex);
 		CHECK(bytecode.find("final_require_or") != BadIndex);
 		CHECK(bytecode.find("final_or_check") != BadIndex);
+		CHECK(q.count() == 3);
+		expect_exact_entities(q, {cableA, cableB, cableBoth});
+
+		q.set_var(ecs::Var0, devA);
 		CHECK(q.count() == 2);
-		expect_exact_entities(q, {cableA, cableB});
+		expect_exact_entities(q, {cableA, cableBoth});
+
+		q.clear_vars();
+		CHECK(q.count() == 3);
+		expect_exact_entities(q, {cableA, cableB, cableBoth});
 	}
 
 	// Single-variable pair mixed ALL/OR/NOT query should use the shared variable program opcode.
