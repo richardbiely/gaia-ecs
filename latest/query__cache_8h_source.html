@@ -132,7 +132,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">template</span> &lt;&gt;</div>
 <div class="foldopen" id="foldopen00016" data-start="{" data-end="};">
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__page__storage__id_3_01ecs_1_1QueryInfo_01_4.html">   16</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__page__storage__id.html">to_page_storage_id</a>&lt;ecs::QueryInfo&gt; {</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">page_storage_id</a> get(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">ecs::QueryInfo</a>&amp; item) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">page_storage_id</a> get(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">ecs::QueryInfo</a>&amp; item) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>        <span class="keywordflow">return</span> item.<a class="code hl_variable" href="classgaia_1_1ecs_1_1QueryInfo.html#a6ad7587f5f8d2c175efcdfd53b05d439">idx</a>;</div>
 <div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>      }</div>
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    };</div>
@@ -194,11 +194,11 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>    <span class="keyword">private</span>:</div>
 <div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>      <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&amp; register_query_info(<a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> handle, <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&amp; info) {</div>
 <div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="comment">// Add the entity-&gt;query pair</span></div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        add_entity_to_query_pairs(info.ctx().data.ids_view(), handle);</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        add_rel_to_query_pairs(info.ctx(), handle);</div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        add_sort_to_query_pairs(info.ctx(), handle);</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        add_sorted_query(info.ctx(), handle);</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        add_create_to_query_pairs(info.ctx(), handle);</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>        add_entity_to_query_pairs(info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>().data.ids_view(), handle);</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>        add_rel_to_query_pairs(info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>(), handle);</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>        add_sort_to_query_pairs(info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>(), handle);</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        add_sorted_query(info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>(), handle);</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>        add_create_to_query_pairs(info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>(), handle);</div>
 <div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span> </div>
 <div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>        <span class="keywordflow">return</span> info;</div>
 <div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>      }</div>
@@ -218,22 +218,22 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>      };</div>
 <div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span> </div>
 <div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>      <span class="keyword">struct </span>TrackedArchetypes {</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;const Archetype*&gt;</a> archetypes;</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>        <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;const Archetype*&gt;</a> archetypes;</div>
 <div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>        uint32_t syncedRevision = 0;</div>
 <div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>      };</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;QueryLookupKey, QueryInfo*&gt;</a> m_pCache;</div>
-<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::paged_ilist&lt;QueryInfo, QueryHandle&gt;</a> m_queryArr;</div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;QueryLookupKey, QueryInfo*&gt;</a> m_pCache;</div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::paged_ilist&lt;QueryInfo, QueryHandle&gt;</a> m_queryArr;</div>
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span> </div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_entityToQuery;</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_relationToQuery;</div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_sortEntityToQuery;</div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;QueryHandle&gt;</a> m_sortedQueries;</div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_entityToCreateQuery;</div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;ArchetypeIdLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_archetypeToQuery;</div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;QueryHandleLookupKey, TrackedArchetypes&gt;</a> m_queryToArchetype;</div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;CreateQueryCandidate&gt;</a> m_createQueryHandleScratch;</div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;uint32_t&gt;</a> m_createQueryHandleStampById;</div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_entityToQuery;</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_relationToQuery;</div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_sortEntityToQuery;</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;QueryHandle&gt;</a> m_sortedQueries;</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;EntityLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_entityToCreateQuery;</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;ArchetypeIdLookupKey, cnt::darray&lt;QueryHandle&gt;</a>&gt; m_archetypeToQuery;</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::map&lt;QueryHandleLookupKey, TrackedArchetypes&gt;</a> m_queryToArchetype;</div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;CreateQueryCandidate&gt;</a> m_createQueryHandleScratch;</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;uint32_t&gt;</a> m_createQueryHandleStampById;</div>
 <div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>      uint32_t m_createQueryHandleStamp = 1;</div>
 <div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>      uint32_t m_createQuerySelectorCnt[(size_t)CreateSelectorKind::Count] = {};</div>
 <div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span> </div>
@@ -377,7 +377,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>      <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&amp;</div>
 <div class="foldopen" id="foldopen00280" data-start="{" data-end="}">
 <div class="line"><a id="l00280" name="l00280"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1QueryCache.html#a418670f276c148f93317337301ecd372">  280</a></span>      <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#a418670f276c148f93317337301ecd372">add</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a>&amp;&amp; ctx, <span class="comment">//</span></div>
-<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <span class="comment">//</span></div>
+<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <span class="comment">//</span></div>
 <div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>          <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes) {</div>
 <div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span>        GAIA_ASSERT(ctx.hashLookup.hash != 0);</div>
 <div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span> </div>
@@ -400,9 +400,9 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>        <span class="comment">// We are moving the rvalue to &quot;ctx&quot;. As a result, the pointer stored in m_pCache.emplace above is no longer</span></div>
 <div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span>        <span class="comment">// going to be valid. Therefore we swap the map key with a one with a valid pointer.</span></div>
 <div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span>        <span class="keyword">auto</span>&amp; info = <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#a6ac8a3f4f3de555cdeca4d0a9b8eaeb2">get</a>(handle);</div>
-<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>        info.add_ref();</div>
+<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>        info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a9968e5807d89168102d919a81c5a46b7">add_ref</a>();</div>
 <div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>        ret.first-&gt;second = &amp;info;</div>
-<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>        <span class="keyword">auto</span> new_p = <a class="code hl_struct" href="structrobin__hood_1_1pair.html">robin_hood::pair</a>(std::make_pair(<a class="code hl_class" href="classgaia_1_1ecs_1_1QueryLookupKey.html">QueryLookupKey</a>(ctx.hashLookup, &amp;info.ctx()), &amp;info));</div>
+<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>        <span class="keyword">auto</span> new_p = <a class="code hl_struct" href="structrobin__hood_1_1pair.html">robin_hood::pair</a>(std::make_pair(<a class="code hl_class" href="classgaia_1_1ecs_1_1QueryLookupKey.html">QueryLookupKey</a>(ctx.hashLookup, &amp;info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>()), &amp;info));</div>
 <div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>        ret.first-&gt;swap(new_p);</div>
 <div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span> </div>
 <div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span>        <span class="keywordflow">return</span> register_query_info(handle, info);</div>
@@ -412,7 +412,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="foldopen" id="foldopen00313" data-start="{" data-end="}">
 <div class="line"><a id="l00313" name="l00313"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1QueryCache.html#aba2e3520b10df4c427d8ec893ea22df4">  313</a></span>      <a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&amp; <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#aba2e3520b10df4c427d8ec893ea22df4">add_local</a>(</div>
 <div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span>          <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a>&amp;&amp; ctx, <span class="comment">//</span></div>
-<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <span class="comment">//</span></div>
+<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span>          <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeMap</a>&amp; entityToArchetypeMap, <span class="comment">//</span></div>
 <div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span>          <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const Archetype*&gt;</a> allArchetypes) {</div>
 <div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>        <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryInfoCreationCtx.html">QueryInfoCreationCtx</a> creationCtx{};</div>
 <div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span>        creationCtx.pQueryCtx = &amp;ctx;</div>
@@ -421,7 +421,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span>        <span class="keyword">auto</span> handle = m_queryArr.alloc(&amp;creationCtx);</div>
 <div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span> </div>
 <div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>        <span class="keyword">auto</span>&amp; info = <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#a6ac8a3f4f3de555cdeca4d0a9b8eaeb2">get</a>(handle);</div>
-<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>        info.add_ref();</div>
+<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>        info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a9968e5807d89168102d919a81c5a46b7">add_ref</a>();</div>
 <div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>        <span class="keywordflow">return</span> register_query_info(handle, info);</div>
 <div class="line"><a id="l00326" name="l00326"></a><span class="lineno">  326</span>      }</div>
 </div>
@@ -441,7 +441,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>        <span class="comment">// If this was the last reference to the query, we can safely remove it</span></div>
 <div class="line"><a id="l00343" name="l00343"></a><span class="lineno">  343</span>        <span class="keyword">auto</span> it = m_pCache.find(<a class="code hl_class" href="classgaia_1_1ecs_1_1QueryLookupKey.html">QueryLookupKey</a>(pInfo-&gt;ctx().hashLookup, &amp;pInfo-&gt;ctx()));</div>
 <div class="line"><a id="l00344" name="l00344"></a><span class="lineno">  344</span>        <span class="keywordflow">if</span> (it != m_pCache.end())</div>
-<div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>          m_pCache.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>          m_pCache.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00346" name="l00346"></a><span class="lineno">  346</span> </div>
 <div class="line"><a id="l00347" name="l00347"></a><span class="lineno">  347</span>        <span class="comment">// Remove the entity-&gt;query pair</span></div>
 <div class="line"><a id="l00348" name="l00348"></a><span class="lineno">  348</span>        del_entity_to_query_pairs(pInfo-&gt;ctx().data.ids_view(), handle);</div>
@@ -474,7 +474,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00380" name="l00380"></a><span class="lineno">  380</span>          <span class="keyword">auto</span>&amp; info = <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#a6ac8a3f4f3de555cdeca4d0a9b8eaeb2">get</a>(handle);</div>
 <div class="line"><a id="l00381" name="l00381"></a><span class="lineno">  381</span>          <span class="comment">// World mutations invalidate cached results, but they do not change query shape.</span></div>
 <div class="line"><a id="l00382" name="l00382"></a><span class="lineno">  382</span>          <span class="comment">// Recomputing QueryCtx metadata here only adds overhead to the invalidation path.</span></div>
-<div class="line"><a id="l00383" name="l00383"></a><span class="lineno">  383</span>          info.invalidate(select_invalidation_kind(info, changeKind));</div>
+<div class="line"><a id="l00383" name="l00383"></a><span class="lineno">  383</span>          info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#aeb3d99cc6e5e4b488818c4221304ede7">invalidate</a>(select_invalidation_kind(info, changeKind));</div>
 <div class="line"><a id="l00384" name="l00384"></a><span class="lineno">  384</span>        }</div>
 <div class="line"><a id="l00385" name="l00385"></a><span class="lineno">  385</span>      }</div>
 </div>
@@ -487,7 +487,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00392" name="l00392"></a><span class="lineno">  392</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span> handle: it-&gt;second) {</div>
 <div class="line"><a id="l00393" name="l00393"></a><span class="lineno">  393</span>          <span class="keyword">auto</span>&amp; info = <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryCache.html#a6ac8a3f4f3de555cdeca4d0a9b8eaeb2">get</a>(handle);</div>
 <div class="line"><a id="l00394" name="l00394"></a><span class="lineno">  394</span>          <span class="comment">// Relation changes affect dynamic freshness, not the query definition itself.</span></div>
-<div class="line"><a id="l00395" name="l00395"></a><span class="lineno">  395</span>          info.invalidate(select_invalidation_kind(info, changeKind));</div>
+<div class="line"><a id="l00395" name="l00395"></a><span class="lineno">  395</span>          info.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#aeb3d99cc6e5e4b488818c4221304ede7">invalidate</a>(select_invalidation_kind(info, changeKind));</div>
 <div class="line"><a id="l00396" name="l00396"></a><span class="lineno">  396</span>        }</div>
 <div class="line"><a id="l00397" name="l00397"></a><span class="lineno">  397</span>      }</div>
 <div class="line"><a id="l00398" name="l00398"></a><span class="lineno">  398</span> </div>
@@ -518,14 +518,14 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 </div>
 <div class="line"><a id="l00423" name="l00423"></a><span class="lineno">  423</span> </div>
 <div class="line"><a id="l00424" name="l00424"></a><span class="lineno">  424</span>      <span class="keywordtype">void</span> sync_archetype_cache(<a class="code hl_class" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&amp; queryInfo) {</div>
-<div class="line"><a id="l00425" name="l00425"></a><span class="lineno">  425</span>        <span class="keyword">const</span> <span class="keyword">auto</span> handle = QueryInfo::handle(queryInfo);</div>
+<div class="line"><a id="l00425" name="l00425"></a><span class="lineno">  425</span>        <span class="keyword">const</span> <span class="keyword">auto</span> handle = <a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#ac1b27c4d9d9ae33cd70161aaff2b0f45">QueryInfo::handle</a>(queryInfo);</div>
 <div class="line"><a id="l00426" name="l00426"></a><span class="lineno">  426</span>        <span class="keywordflow">if</span> (!valid(handle))</div>
 <div class="line"><a id="l00427" name="l00427"></a><span class="lineno">  427</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l00428" name="l00428"></a><span class="lineno">  428</span> </div>
-<div class="line"><a id="l00429" name="l00429"></a><span class="lineno">  429</span>        <span class="keyword">const</span> <span class="keyword">auto</span> archetypes = queryInfo.cache_archetype_view();</div>
+<div class="line"><a id="l00429" name="l00429"></a><span class="lineno">  429</span>        <span class="keyword">const</span> <span class="keyword">auto</span> archetypes = queryInfo.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a34527236761c17071ec66cf6ce5edaf9">cache_archetype_view</a>();</div>
 <div class="line"><a id="l00430" name="l00430"></a><span class="lineno">  430</span>        <span class="keyword">const</span> <span class="keyword">auto</span> key = <a class="code hl_struct" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a>(handle);</div>
 <div class="line"><a id="l00431" name="l00431"></a><span class="lineno">  431</span>        <span class="keyword">auto</span> it = m_queryToArchetype.find(key);</div>
-<div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span>        <span class="keywordflow">if</span> (it != m_queryToArchetype.end() &amp;&amp; it-&gt;second.syncedRevision == queryInfo.reverse_index_revision())</div>
+<div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span>        <span class="keywordflow">if</span> (it != m_queryToArchetype.end() &amp;&amp; it-&gt;second.syncedRevision == queryInfo.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a3d3ca3af841e4aa8aca5434e8994249f">result_cache_rev</a>())</div>
 <div class="line"><a id="l00433" name="l00433"></a><span class="lineno">  433</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l00434" name="l00434"></a><span class="lineno">  434</span> </div>
 <div class="line"><a id="l00435" name="l00435"></a><span class="lineno">  435</span>        unregister_query_archetypes(handle);</div>
@@ -543,7 +543,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00447" name="l00447"></a><span class="lineno">  447</span>          tracked.push_back(pArchetype);</div>
 <div class="line"><a id="l00448" name="l00448"></a><span class="lineno">  448</span>          add_archetype_query_pair(pArchetype, handle);</div>
 <div class="line"><a id="l00449" name="l00449"></a><span class="lineno">  449</span>        }</div>
-<div class="line"><a id="l00450" name="l00450"></a><span class="lineno">  450</span>        trackedIt-&gt;second.syncedRevision = queryInfo.reverse_index_revision();</div>
+<div class="line"><a id="l00450" name="l00450"></a><span class="lineno">  450</span>        trackedIt-&gt;second.syncedRevision = queryInfo.<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a3d3ca3af841e4aa8aca5434e8994249f">result_cache_rev</a>();</div>
 <div class="line"><a id="l00451" name="l00451"></a><span class="lineno">  451</span>      }</div>
 <div class="line"><a id="l00452" name="l00452"></a><span class="lineno">  452</span> </div>
 <div class="line"><a id="l00453" name="l00453"></a><span class="lineno">  453</span>      <span class="keywordtype">void</span> remove_archetype_from_queries(Archetype* pArchetype) {</div>
@@ -565,10 +565,10 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00469" name="l00469"></a><span class="lineno">  469</span>          <span class="keyword">auto</span>&amp; tracked = trackedIt-&gt;second.archetypes;</div>
 <div class="line"><a id="l00470" name="l00470"></a><span class="lineno">  470</span>          core::swap_erase(tracked, core::get_index(tracked, pArchetype));</div>
 <div class="line"><a id="l00471" name="l00471"></a><span class="lineno">  471</span>          <span class="keywordflow">if</span> (tracked.empty())</div>
-<div class="line"><a id="l00472" name="l00472"></a><span class="lineno">  472</span>            m_queryToArchetype.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(trackedIt);</div>
+<div class="line"><a id="l00472" name="l00472"></a><span class="lineno">  472</span>            m_queryToArchetype.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(trackedIt);</div>
 <div class="line"><a id="l00473" name="l00473"></a><span class="lineno">  473</span>        }</div>
 <div class="line"><a id="l00474" name="l00474"></a><span class="lineno">  474</span> </div>
-<div class="line"><a id="l00475" name="l00475"></a><span class="lineno">  475</span>        m_archetypeToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00475" name="l00475"></a><span class="lineno">  475</span>        m_archetypeToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00476" name="l00476"></a><span class="lineno">  476</span>      }</div>
 <div class="line"><a id="l00477" name="l00477"></a><span class="lineno">  477</span> </div>
 <div class="line"><a id="l00478" name="l00478"></a><span class="lineno">  478</span>      <span class="keywordtype">void</span> register_archetype_with_queries(<span class="keyword">const</span> Archetype* pArchetype) {</div>
@@ -613,7 +613,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00517" name="l00517"></a><span class="lineno">  517</span>          <span class="keywordflow">if</span> (!pInfo-&gt;register_archetype(*pArchetype, candidate.matchedSelector, <span class="keyword">true</span>))</div>
 <div class="line"><a id="l00518" name="l00518"></a><span class="lineno">  518</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00519" name="l00519"></a><span class="lineno">  519</span> </div>
-<div class="line"><a id="l00520" name="l00520"></a><span class="lineno">  520</span>          register_query_archetype(candidate.handle, pArchetype, pInfo-&gt;reverse_index_revision());</div>
+<div class="line"><a id="l00520" name="l00520"></a><span class="lineno">  520</span>          register_query_archetype(candidate.handle, pArchetype, pInfo-&gt;result_cache_rev());</div>
 <div class="line"><a id="l00521" name="l00521"></a><span class="lineno">  521</span>        }</div>
 <div class="line"><a id="l00522" name="l00522"></a><span class="lineno">  522</span>      }</div>
 <div class="line"><a id="l00523" name="l00523"></a><span class="lineno">  523</span> </div>
@@ -715,7 +715,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00628" name="l00628"></a><span class="lineno">  628</span> </div>
 <div class="line"><a id="l00629" name="l00629"></a><span class="lineno">  629</span>        <span class="comment">// Remove the mapping if there are no more matches</span></div>
 <div class="line"><a id="l00630" name="l00630"></a><span class="lineno">  630</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span>          m_entityToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00631" name="l00631"></a><span class="lineno">  631</span>          m_entityToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00632" name="l00632"></a><span class="lineno">  632</span>      }</div>
 <div class="line"><a id="l00633" name="l00633"></a><span class="lineno">  633</span> </div>
 <div class="line"><a id="l00637" name="l00637"></a><span class="lineno">  637</span>      <span class="keywordtype">void</span> add_entity_to_query_pairs(EntitySpan entities, QueryHandle handle) {</div>
@@ -766,7 +766,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00685" name="l00685"></a><span class="lineno">  685</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
 <div class="line"><a id="l00686" name="l00686"></a><span class="lineno">  686</span>        core::swap_erase(handles, core::get_index(handles, handle));</div>
 <div class="line"><a id="l00687" name="l00687"></a><span class="lineno">  687</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00688" name="l00688"></a><span class="lineno">  688</span>          m_sortEntityToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00688" name="l00688"></a><span class="lineno">  688</span>          m_sortEntityToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00689" name="l00689"></a><span class="lineno">  689</span>      }</div>
 <div class="line"><a id="l00690" name="l00690"></a><span class="lineno">  690</span> </div>
 <div class="line"><a id="l00691" name="l00691"></a><span class="lineno">  691</span>      <span class="keywordtype">void</span> add_sort_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
@@ -809,7 +809,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00728" name="l00728"></a><span class="lineno">  728</span>        core::swap_erase(handles, core::get_index(handles, handle));</div>
 <div class="line"><a id="l00729" name="l00729"></a><span class="lineno">  729</span>        untrack_create_selector(entity);</div>
 <div class="line"><a id="l00730" name="l00730"></a><span class="lineno">  730</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00731" name="l00731"></a><span class="lineno">  731</span>          m_entityToCreateQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00731" name="l00731"></a><span class="lineno">  731</span>          m_entityToCreateQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00732" name="l00732"></a><span class="lineno">  732</span>      }</div>
 <div class="line"><a id="l00733" name="l00733"></a><span class="lineno">  733</span> </div>
 <div class="line"><a id="l00734" name="l00734"></a><span class="lineno">  734</span>      <span class="keywordtype">void</span> add_create_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
@@ -893,7 +893,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00812" name="l00812"></a><span class="lineno">  812</span>        GAIA_ASSERT(idx != <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>);</div>
 <div class="line"><a id="l00813" name="l00813"></a><span class="lineno">  813</span>        core::swap_erase(handles, idx);</div>
 <div class="line"><a id="l00814" name="l00814"></a><span class="lineno">  814</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00815" name="l00815"></a><span class="lineno">  815</span>          m_archetypeToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00815" name="l00815"></a><span class="lineno">  815</span>          m_archetypeToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00816" name="l00816"></a><span class="lineno">  816</span>      }</div>
 <div class="line"><a id="l00817" name="l00817"></a><span class="lineno">  817</span> </div>
 <div class="line"><a id="l00818" name="l00818"></a><span class="lineno">  818</span>      <span class="keywordtype">void</span> unregister_query_archetypes(QueryHandle handle) {</div>
@@ -905,7 +905,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00824" name="l00824"></a><span class="lineno">  824</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>* pArchetype: tracked)</div>
 <div class="line"><a id="l00825" name="l00825"></a><span class="lineno">  825</span>          del_archetype_query_pair(pArchetype, handle);</div>
 <div class="line"><a id="l00826" name="l00826"></a><span class="lineno">  826</span> </div>
-<div class="line"><a id="l00827" name="l00827"></a><span class="lineno">  827</span>        m_queryToArchetype.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00827" name="l00827"></a><span class="lineno">  827</span>        m_queryToArchetype.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00828" name="l00828"></a><span class="lineno">  828</span>      }</div>
 <div class="line"><a id="l00829" name="l00829"></a><span class="lineno">  829</span> </div>
 <div class="line"><a id="l00830" name="l00830"></a><span class="lineno">  830</span>      <span class="keywordtype">void</span> register_query_archetype(QueryHandle handle, <span class="keyword">const</span> Archetype* pArchetype, uint32_t syncedRevision) {</div>
@@ -941,7 +941,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="line"><a id="l00860" name="l00860"></a><span class="lineno">  860</span>        <span class="keyword">auto</span>&amp; handles = it-&gt;second;</div>
 <div class="line"><a id="l00861" name="l00861"></a><span class="lineno">  861</span>        core::swap_erase(handles, core::get_index(handles, handle));</div>
 <div class="line"><a id="l00862" name="l00862"></a><span class="lineno">  862</span>        <span class="keywordflow">if</span> (handles.empty())</div>
-<div class="line"><a id="l00863" name="l00863"></a><span class="lineno">  863</span>          m_relationToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
+<div class="line"><a id="l00863" name="l00863"></a><span class="lineno">  863</span>          m_relationToQuery.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">erase</a>(it);</div>
 <div class="line"><a id="l00864" name="l00864"></a><span class="lineno">  864</span>      }</div>
 <div class="line"><a id="l00865" name="l00865"></a><span class="lineno">  865</span> </div>
 <div class="line"><a id="l00866" name="l00866"></a><span class="lineno">  866</span>      <span class="keywordtype">void</span> add_rel_to_query_pairs(<span class="keyword">const</span> QueryCtx&amp; ctx, QueryHandle handle) {</div>
@@ -957,8 +957,8 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 </div>
 <div class="line"><a id="l00876" name="l00876"></a><span class="lineno">  876</span>  } <span class="comment">// namespace ecs</span></div>
 <div class="line"><a id="l00877" name="l00877"></a><span class="lineno">  877</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_abfb7024398b4835c0ebf3b3413f482fa"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">gaia::cnt::darr::erase</a></div><div class="ttdeci">iterator erase(iterator pos) noexcept</div><div class="ttdoc">Removes the element at pos.</div><div class="ttdef"><b>Definition</b> darray_impl.h:331</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:28</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html_ae18962943b0b2421300621d5009f08a3"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html#ae18962943b0b2421300621d5009f08a3">gaia::cnt::darr_ext::erase</a></div><div class="ttdeci">iterator erase(iterator pos) noexcept</div><div class="ttdoc">Removes the element at pos.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:375</div></div>
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryCache_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryCache.html">gaia::ecs::QueryCache</a></div><div class="ttdef"><b>Definition</b> query_cache.h:61</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryCache_html_a38f9c2fdf493f36027fcdd09cc7db069"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryCache.html#a38f9c2fdf493f36027fcdd09cc7db069">gaia::ecs::QueryCache::clear_archetype_tracking</a></div><div class="ttdeci">void clear_archetype_tracking()</div><div class="ttdoc">Clears only the reverse indices that keep raw archetype pointers alive. Used during world shutdown be...</div><div class="ttdef"><b>Definition</b> query_cache.h:175</div></div>
@@ -970,13 +970,19 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryCache_html_ad444c9da065d8eb3712cee5f67f23b28"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryCache.html#ad444c9da065d8eb3712cee5f67f23b28">gaia::ecs::QueryCache::try_get</a></div><div class="ttdeci">const QueryInfo * try_get(QueryHandle handle) const</div><div class="ttdoc">Returns a QueryInfo object associated with handle.</div><div class="ttdef"><b>Definition</b> query_cache.h:196</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryCache_html_ad521e5688b9e1ac5b59a8ebb7bcdcc8a"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryCache.html#ad521e5688b9e1ac5b59a8ebb7bcdcc8a">gaia::ecs::QueryCache::invalidate_sorted_queries</a></div><div class="ttdeci">void invalidate_sorted_queries()</div><div class="ttdoc">Invalidates all cached sorted queries after chunk row order changes.</div><div class="ttdef"><b>Definition</b> query_cache.h:414</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryCache_html_adb568add95db5c5f9dc6db66edbb80db"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryCache.html#adb568add95db5c5f9dc6db66edbb80db">gaia::ecs::QueryCache::invalidate_queries_for_entity</a></div><div class="ttdeci">void invalidate_queries_for_entity(EntityLookupKey entityKey, ChangeKind changeKind)</div><div class="ttdoc">Invalidates all cached queries that work with the given entity This covers the following kinds of que...</div><div class="ttdef"><b>Definition</b> query_cache.h:373</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html">gaia::ecs::QueryInfo</a></div><div class="ttdef"><b>Definition</b> query_info.h:89</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6083a66405863f8723c6b81f6904bc28"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28">gaia::ecs::QueryInfo::InvalidationKind</a></div><div class="ttdeci">InvalidationKind</div><div class="ttdef"><b>Definition</b> query_info.h:135</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html">gaia::ecs::QueryInfo</a></div><div class="ttdef"><b>Definition</b> query_info.h:100</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a34527236761c17071ec66cf6ce5edaf9"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a34527236761c17071ec66cf6ce5edaf9">gaia::ecs::QueryInfo::cache_archetype_view</a></div><div class="ttdeci">GAIA_NODISCARD std::span&lt; const Archetype * &gt; cache_archetype_view() const</div><div class="ttdoc">Returns the cached result archetypes as a span.</div><div class="ttdef"><b>Definition</b> query_info.h:2159</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a3d3ca3af841e4aa8aca5434e8994249f"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a3d3ca3af841e4aa8aca5434e8994249f">gaia::ecs::QueryInfo::result_cache_rev</a></div><div class="ttdeci">GAIA_NODISCARD uint32_t result_cache_rev() const</div><div class="ttdoc">Returns the result membership revision used by reverse-index cache users.</div><div class="ttdef"><b>Definition</b> query_info.h:831</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6083a66405863f8723c6b81f6904bc28"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28">gaia::ecs::QueryInfo::InvalidationKind</a></div><div class="ttdeci">InvalidationKind</div><div class="ttdef"><b>Definition</b> query_info.h:146</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6083a66405863f8723c6b81f6904bc28a8eea62084ca7e541d918e823422bd82e"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28a8eea62084ca7e541d918e823422bd82e">gaia::ecs::QueryInfo::InvalidationKind::Result</a></div><div class="ttdeci">@ Result</div><div class="ttdoc">Only the final result cache is stale. Structural seed matches remain valid and can be reused.</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6083a66405863f8723c6b81f6904bc28ab1c94ca2fbc3e78fc30069c8d0f01680"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28ab1c94ca2fbc3e78fc30069c8d0f01680">gaia::ecs::QueryInfo::InvalidationKind::All</a></div><div class="ttdeci">@ All</div><div class="ttdoc">Full invalidation of all query cache state.</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6083a66405863f8723c6b81f6904bc28adba005190e58b252f9b5375cdf5655d9"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28adba005190e58b252f9b5375cdf5655d9">gaia::ecs::QueryInfo::InvalidationKind::Seed</a></div><div class="ttdeci">@ Seed</div><div class="ttdoc">Structural seed matches are stale. This also implies the final result cache must be rebuilt.</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6ad7587f5f8d2c175efcdfd53b05d439"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6ad7587f5f8d2c175efcdfd53b05d439">gaia::ecs::QueryInfo::idx</a></div><div class="ttdeci">uint32_t idx</div><div class="ttdoc">Allocated items: index in the query slot list. Deleted items: index of the next deleted item in the s...</div><div class="ttdef"><b>Definition</b> query_info.h:93</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_aa5870206ae6754218d9f7e86332560e8"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8">gaia::ecs::QueryInfo::gen</a></div><div class="ttdeci">uint32_t gen</div><div class="ttdoc">Generation ID of the query slot.</div><div class="ttdef"><b>Definition</b> query_info.h:95</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a6ad7587f5f8d2c175efcdfd53b05d439"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a6ad7587f5f8d2c175efcdfd53b05d439">gaia::ecs::QueryInfo::idx</a></div><div class="ttdeci">uint32_t idx</div><div class="ttdoc">Allocated items: index in the query slot list. Deleted items: index of the next deleted item in the s...</div><div class="ttdef"><b>Definition</b> query_info.h:104</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_a9968e5807d89168102d919a81c5a46b7"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#a9968e5807d89168102d919a81c5a46b7">gaia::ecs::QueryInfo::add_ref</a></div><div class="ttdeci">void add_ref()</div><div class="ttdoc">Adds one external reference to this query slot.</div><div class="ttdef"><b>Definition</b> query_info.h:685</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_aa5870206ae6754218d9f7e86332560e8"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8">gaia::ecs::QueryInfo::gen</a></div><div class="ttdeci">uint32_t gen</div><div class="ttdoc">Generation ID of the query slot.</div><div class="ttdef"><b>Definition</b> query_info.h:106</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_abf56f2bf70bb2a3e18b6908e4c8bc57a"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">gaia::ecs::QueryInfo::ctx</a></div><div class="ttdeci">GAIA_NODISCARD QueryCtx &amp; ctx()</div><div class="ttdoc">Returns the mutable compiled query context.</div><div class="ttdef"><b>Definition</b> query_info.h:1944</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_ac1b27c4d9d9ae33cd70161aaff2b0f45"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#ac1b27c4d9d9ae33cd70161aaff2b0f45">gaia::ecs::QueryInfo::handle</a></div><div class="ttdeci">static GAIA_NODISCARD QueryHandle handle(const QueryInfo &amp;info)</div><div class="ttdoc">Builds a stable query handle from query slot metadata.</div><div class="ttdef"><b>Definition</b> query_info.h:795</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1QueryInfo_html_aeb3d99cc6e5e4b488818c4221304ede7"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryInfo.html#aeb3d99cc6e5e4b488818c4221304ede7">gaia::ecs::QueryInfo::invalidate</a></div><div class="ttdeci">void invalidate(InvalidationKind kind=InvalidationKind::All)</div><div class="ttdoc">Marks cached query results stale.</div><div class="ttdef"><b>Definition</b> query_info.h:714</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1QueryLookupKey_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1QueryLookupKey.html">gaia::ecs::QueryLookupKey</a></div><div class="ttdef"><b>Definition</b> query_cache.h:24</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:223</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
@@ -990,7 +996,7 @@ $(document).ready(function(){initNavTree('query__cache_8h_source.html',''); init
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryHandleLookupKey_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">gaia::ecs::QueryHandleLookupKey</a></div><div class="ttdoc">Hashmap lookup structure used for Entity.</div><div class="ttdef"><b>Definition</b> query_common.h:193</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryHandle_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryHandle.html">gaia::ecs::QueryHandle</a></div><div class="ttdef"><b>Definition</b> query_common.h:144</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1QueryIdentity_html_a5793d60892c9e352d755c07fe5545c5e"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryIdentity.html#a5793d60892c9e352d755c07fe5545c5e">gaia::ecs::QueryIdentity::handle</a></div><div class="ttdeci">QueryHandle handle</div><div class="ttdoc">Query id.</div><div class="ttdef"><b>Definition</b> query_common.h:552</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1QueryInfoCreationCtx_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryInfoCreationCtx.html">gaia::ecs::QueryInfoCreationCtx</a></div><div class="ttdef"><b>Definition</b> query_info.h:83</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1QueryInfoCreationCtx_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1QueryInfoCreationCtx.html">gaia::ecs::QueryInfoCreationCtx</a></div><div class="ttdef"><b>Definition</b> query_info.h:94</div></div>
 <div class="ttc" id="astructrobin__hood_1_1pair_html"><div class="ttname"><a href="structrobin__hood_1_1pair.html">robin_hood::pair</a></div><div class="ttdef"><b>Definition</b> robin_hood.h:418</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

@@ -3,6 +3,7 @@ var structgaia_1_1ecs_1_1QueryCtx_1_1Data =
     [ "Dependencies", "structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html", null ],
     [ "add_group_dep", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a2afc29af74f608d7cf1142955c37cd38", null ],
     [ "add_group_deps", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a81bf063ca593f3031c98af14a6b55ff1", null ],
+    [ "calc_can_reuse_dynamic_cache", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acebac4c691c7cabde80b660199b1ba63", null ],
     [ "changed_fields_view", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a848e549e84f6b39c88dc02da3855eb19", null ],
     [ "as_mask_0", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1c1a2a9791df0cd9cc0cf7c69d4ee161", null ],
     [ "as_mask_1", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4c123a9fdea7d3cf1685c1929aa92ec3", null ],
@@ -10,6 +11,7 @@ var structgaia_1_1ecs_1_1QueryCtx_1_1Data =
     [ "cacheSrcTrav", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a56fd79bf91cc3fb98f10b6f049dd0759", null ],
     [ "canDirectEntitySeedEvalShape", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a53899d00bbb323b88a69c255c787683f", null ],
     [ "canDirectTargetEval", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ab1175d4f5a55f05741df8ad3031aceb2", null ],
+    [ "canReuseDynamicCache", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#af9eed790979af7c1d5a1caf3d1efe222", null ],
     [ "changed", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad39f2592985873852a48cb84548e17ee", null ],
     [ "changedFields", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a3e1d65c5ad95b615523547fc23d0f221", null ],
     [ "changedLookup", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a5d2b7d7af177c7707e8ca6e0bbcf7fe0", null ],
@@ -34,5 +36,7 @@ var structgaia_1_1ecs_1_1QueryCtx_1_1Data =
     [ "readWriteMask", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a07c516a894aeb993f403a90d15d044f4", null ],
     [ "sortBy", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a10032c2935f4d6fd750fdeadf9334d3c", null ],
     [ "sortByFunc", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aa58c69e664c3a3a1dab1a144dbcc7e7f", null ],
-    [ "terms", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae445b34c3c1b01df8397383cf234ff8b", null ]
+    [ "terms", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae445b34c3c1b01df8397383cf234ff8b", null ],
+    [ "usesDirectSrcVersionTracking", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a06b23f0d04ee102459c045560289d77b", null ],
+    [ "usesSrcTravSnapshot", "structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a952d952c9d80a245e2e79ec49c0e80d0", null ]
 ];

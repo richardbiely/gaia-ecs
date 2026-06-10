@@ -6,7 +6,7 @@ var searchData=
   ['weakentity_3',['WeakEntity',['../index.html#weakentity',1,'']]],
   ['workeridx_4',['workerIdx',['../structgaia_1_1mt_1_1ThreadCtx.html#a88e9751da52b801dfd3f86f01aca526b',1,'gaia::mt::ThreadCtx']]],
   ['workers_5',['workers',['../classgaia_1_1mt_1_1ThreadPool.html#ad34530603ddff9f01e0a04236f7e736d',1,'gaia::mt::ThreadPool']]],
-  ['world_6',['world',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#af9b98ef6bb2123bcb2f58b9e9bf6e452',1,'gaia::ecs::detail::QueryImplStorage::world()'],['../structgaia_1_1ecs_1_1ChunkHeader.html#acdb72fc60d0429828344d0a6e52ef900',1,'gaia::ecs::ChunkHeader::world'],['../classgaia_1_1ecs_1_1World.html',1,'gaia::ecs::World']]],
+  ['world_6',['world',['../classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165',1,'gaia::ecs::QueryInfo::world()'],['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#af9b98ef6bb2123bcb2f58b9e9bf6e452',1,'gaia::ecs::detail::QueryImplStorage::world()'],['../structgaia_1_1ecs_1_1ChunkHeader.html#acdb72fc60d0429828344d0a6e52ef900',1,'gaia::ecs::ChunkHeader::world'],['../classgaia_1_1ecs_1_1QueryInfo.html#a2179ca716028d3a39adb0c34ff301b8b',1,'gaia::ecs::QueryInfo::world()'],['../classgaia_1_1ecs_1_1World.html',1,'gaia::ecs::World']]],
   ['world_20serialization_7',['World serialization',['../index.html#world-serialization',1,'']]],
   ['world_5fcomponent_5findex_5fbucket_5fsize_8',['world_component_index_bucket_size',['../classgaia_1_1ecs_1_1World.html#a6e643163a2026c31ac421613ff26cf62',1,'gaia::ecs::World']]],
   ['world_5fcomponent_5findex_5fcomp_5fidx_9',['world_component_index_comp_idx',['../classgaia_1_1ecs_1_1World.html#a4256da3a8b9b1fe4e77ed0408e5586bb',1,'gaia::ecs::World']]],

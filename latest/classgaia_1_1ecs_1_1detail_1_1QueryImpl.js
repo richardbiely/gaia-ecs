@@ -142,7 +142,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "run_query_func", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a029aee41f66a195cb5b007ed58aaf448", null ],
     [ "run_query_func", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2a6078892c93899d31c882f460f8402b", null ],
     [ "run_query_on_chunks_direct_typed", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9b2150b9bfd712679c78ca4ff3c8277a", null ],
-    [ "run_query_on_chunks_runtime_direct_plain_impl", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a72088c30b5e5e697b4c6b0798e734039", null ],
+    [ "run_query_on_chunks_runtime_direct_plain_impl", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a4f3da7626d2532efeaaa224d22fc3b4e", null ],
     [ "run_query_on_chunks_runtime_planned", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afe6394db2d9336405f0b0dc18f8ce11d", null ],
     [ "scope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab5209d3d5fc0237e8e0ff73bd3bd729e", null ],
     [ "scope", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a04d612775fede8686b71049014cb0998", null ],

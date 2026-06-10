@@ -352,10 +352,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>each_walk_inter</b> (
 <tr class="memitem:a1c385740f47a2b4e3c2de1077c0d8bbc" id="r_a1c385740f47a2b4e3c2de1077c0d8bbc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1c385740f47a2b4e3c2de1077c0d8bbc">prepare_query_plan</a> (const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints) const</td></tr>
 <tr class="memdesc:a1c385740f47a2b4e3c2de1077c0d8bbc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Selects the prepared execution plan for public iterator callbacks.  <br /></td></tr>
 <tr class="separator:a1c385740f47a2b4e3c2de1077c0d8bbc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a72088c30b5e5e697b4c6b0798e734039" id="r_a72088c30b5e5e697b4c6b0798e734039"><td class="memTemplParams" colspan="2">template&lt;bool HasFilters, typename Func &gt; </td></tr>
-<tr class="memitem:a72088c30b5e5e697b4c6b0798e734039"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a72088c30b5e5e697b4c6b0798e734039">run_query_on_chunks_runtime_direct_plain_impl</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints, Func &amp;func)</td></tr>
-<tr class="memdesc:a72088c30b5e5e697b4c6b0798e734039"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs a public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callback over cached chunks without creating chunk batches.  <br /></td></tr>
-<tr class="separator:a72088c30b5e5e697b4c6b0798e734039"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4f3da7626d2532efeaaa224d22fc3b4e" id="r_a4f3da7626d2532efeaaa224d22fc3b4e"><td class="memTemplParams" colspan="2">template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </td></tr>
+<tr class="memitem:a4f3da7626d2532efeaaa224d22fc3b4e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a4f3da7626d2532efeaaa224d22fc3b4e">run_query_on_chunks_runtime_direct_plain_impl</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, Constraints constraints, Func &amp;func)</td></tr>
+<tr class="memdesc:a4f3da7626d2532efeaaa224d22fc3b4e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs a public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callback over cached chunks without creating chunk batches.  <br /></td></tr>
+<tr class="separator:a4f3da7626d2532efeaaa224d22fc3b4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4dc215d65f5a4a66208eaf76e1796e0" id="r_ab4dc215d65f5a4a66208eaf76e1796e0"><td class="memTemplParams" colspan="2">template&lt;QueryExecType ExecType, typename Func &gt; </td></tr>
 <tr class="memitem:ab4dc215d65f5a4a66208eaf76e1796e0"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab4dc215d65f5a4a66208eaf76e1796e0">each_runtime_inter</a> (Func func, Constraints constraints=Constraints::EnabledOnly)</td></tr>
 <tr class="memdesc:ab4dc215d65f5a4a66208eaf76e1796e0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs a public iterator callback through the fastest supported runtime path.  <br /></td></tr>
@@ -408,7 +408,7 @@ template&lt;bool UseFilters, typename ContainerOut &gt; </td></tr>
 <tr class="memitem:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>arr_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, ContainerOut &amp;outArray, Constraints constraints)</td></tr>
 <tr class="separator:ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af93e27dd334bc4c1f97b1ea708aa9daf" id="r_af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memItemLeft" align="right" valign="top"><a id="af93e27dd334bc4c1f97b1ea708aa9daf" name="af93e27dd334bc4c1f97b1ea708aa9daf"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
+&#160;</td><td class="memItemRight" valign="bottom"><b>QueryImpl</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1QueryCache.html">QueryCache</a> &amp;queryCache, ArchetypeId &amp;nextArchetypeId, uint32_t &amp;worldVersion, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">ArchetypeDArray</a> &amp;allArchetypes)</td></tr>
 <tr class="separator:af93e27dd334bc4c1f97b1ea708aa9daf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afb4414f3d06217281ea9df4ccd7faf96" id="r_afb4414f3d06217281ea9df4ccd7faf96"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD QueryId&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#afb4414f3d06217281ea9df4ccd7faf96">id</a> () const</td></tr>
 <tr class="memdesc:afb4414f3d06217281ea9df4ccd7faf96"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the cache handle id of this query.  <br /></td></tr>
@@ -951,7 +951,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 </td></tr>
 <tr><td class="fieldname"><a id="a52ab4322e901642b8b1ce4bce51fac98a54ddce2414f3c0c1a7f522d1ae86cbfa" name="a52ab4322e901642b8b1ce4bce51fac98a54ddce2414f3c0c1a7f522d1ae86cbfa"></a>QueryPlanFlag_Filtered&#160;</td><td class="fielddoc"><p>The query has per-chunk filters such as changed terms. </p>
 </td></tr>
-<tr><td class="fieldname"><a id="a52ab4322e901642b8b1ce4bce51fac98ab433278d991be7ddb8e02151fd5d1767" name="a52ab4322e901642b8b1ce4bce51fac98ab433278d991be7ddb8e02151fd5d1767"></a>QueryPlanFlag_EntityFilter&#160;</td><td class="fielddoc"><p>The query has entity-filter terms that require generic evaluation. </p>
+<tr><td class="fieldname"><a id="a52ab4322e901642b8b1ce4bce51fac98ab433278d991be7ddb8e02151fd5d1767" name="a52ab4322e901642b8b1ce4bce51fac98ab433278d991be7ddb8e02151fd5d1767"></a>QueryPlanFlag_EntityFilter&#160;</td><td class="fielddoc"><p>The query has entity-filter terms that require per-entity rechecks. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="a52ab4322e901642b8b1ce4bce51fac98a6231872b1ffdbd4c72bf20f8607a30c3" name="a52ab4322e901642b8b1ce4bce51fac98a6231872b1ffdbd4c72bf20f8607a30c3"></a>QueryPlanFlag_InheritedPayload&#160;</td><td class="fielddoc"><p>The query carries inherited component data into iterator payloads. </p>
 </td></tr>
@@ -994,7 +994,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 </td></tr>
 <tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50"></a>DirectDense&#160;</td><td class="fielddoc"><p>Direct cached archetype/chunk iteration with query-term indices matching storage layout. </p>
 </td></tr>
-<tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1"></a>MappedDense&#160;</td><td class="fielddoc"><p>Cached archetype/chunk iteration that needs query-term to archetype-component remapping. </p>
+<tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1"></a>MappedDense&#160;</td><td class="fielddoc"><p>Typed dense cached archetype/chunk iteration using mapped component access. Public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callbacks use DirectDense with iterator component-index mapping instead. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033"></a>Sorted&#160;</td><td class="fielddoc"><p>Sorted payload or depth-order barrier execution that must preserve cache-provided order. </p>
 </td></tr>
@@ -1863,7 +1863,7 @@ template&lt;bool UseFilters&gt; </div>
 <p>Fast <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abb331e63037dcb0e875d9de04613856e" title="Calculates the number of entities matching the query.">count()</a> path for direct non-fragmenting queries that can seed from entity-backed indices. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">UseFilters</td><td>True when changed/entity filters must be evaluated. </td></tr>
+    <tr><td class="paramname">UseFilters</td><td>True when changed/per-chunk filters must be evaluated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2704,7 +2704,7 @@ template&lt;bool UseFilters&gt; </div>
 <p>Fast <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac4dc5228c7c25c83a4ff180f50de489d" title="Returns true or false depending on whether there are any entities matching the query.">empty()</a> path for direct non-fragmenting queries that can seed from entity-backed indices. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">UseFilters</td><td>True when changed/entity filters must be evaluated. </td></tr>
+    <tr><td class="paramname">UseFilters</td><td>True when changed/per-chunk filters must be evaluated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4796,7 +4796,7 @@ template&lt;bool HasFilters, typename Func , typename... T&gt; </div>
 <p>Runs the prepared direct typed row path for simple cached queries. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">HasFilters</td><td>True when changed/entity filters must be evaluated. </td></tr>
+    <tr><td class="paramname">HasFilters</td><td>True when changed/per-chunk filters must be evaluated. </td></tr>
     <tr><td class="paramname">Func</td><td>Callback type. </td></tr>
     <tr><td class="paramname">T</td><td>Typed query argument list. </td></tr>
   </table>
@@ -4816,13 +4816,13 @@ template&lt;bool HasFilters, typename Func , typename... T&gt; </div>
 
 </div>
 </div>
-<a id="a72088c30b5e5e697b4c6b0798e734039" name="a72088c30b5e5e697b4c6b0798e734039"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a72088c30b5e5e697b4c6b0798e734039">&#9670;&#160;</a></span>run_query_on_chunks_runtime_direct_plain_impl()</h2>
+<a id="a4f3da7626d2532efeaaa224d22fc3b4e" name="a4f3da7626d2532efeaaa224d22fc3b4e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4f3da7626d2532efeaaa224d22fc3b4e">&#9670;&#160;</a></span>run_query_on_chunks_runtime_direct_plain_impl()</h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;bool HasFilters, typename Func &gt; </div>
+template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -4832,6 +4832,12 @@ template&lt;bool HasFilters, typename Func &gt; </div>
           <td>(</td>
           <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
           <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;&#160;</td>
+          <td class="paramname"><em>plan</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -4862,6 +4868,7 @@ template&lt;bool HasFilters, typename Func &gt; </div>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">HasFilters</td><td>When true, chunks must pass changed-filter checks before callback invocation. </td></tr>
+    <tr><td class="paramname">HasGroups</td><td>When true, the prepared cache range carries per-archetype group ids. </td></tr>
     <tr><td class="paramname">Func</td><td>Public iterator callback type. </td></tr>
   </table>
   </dd>
@@ -4869,6 +4876,7 @@ template&lt;bool HasFilters, typename Func &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">queryInfo</td><td>Prepared query cache and execution metadata. </td></tr>
+    <tr><td class="paramname">plan</td><td>Prepared query execution metadata. </td></tr>
     <tr><td class="paramname">constraints</td><td>Entity-row subset exposed to the callback. </td></tr>
     <tr><td class="paramname">func</td><td>Callback invoked once for each matching chunk. </td></tr>
   </table>

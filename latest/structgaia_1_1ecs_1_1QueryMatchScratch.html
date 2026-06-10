@@ -114,19 +114,28 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryMatchScratch
   <div class="headertitle"><div class="title">gaia::ecs::QueryMatchScratch Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Temporary VM matching buffer meant to be owned by an ECS <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a>. <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> only acquires a frame while executing the VM.  
+ <a href="structgaia_1_1ecs_1_1QueryMatchScratch.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__info_8h_source.html">query_info.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a26de61ca0f8751601f3442a3641c14a8" id="r_a26de61ca0f8751601f3442a3641c14a8"><td class="memItemLeft" align="right" valign="top"><a id="a26de61ca0f8751601f3442a3641c14a8" name="a26de61ca0f8751601f3442a3641c14a8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_temporary_matches</b> ()</td></tr>
+<tr class="memdesc:a26de61ca0f8751601f3442a3641c14a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Clears all temporary match data, including dedup stamps. <br /></td></tr>
 <tr class="separator:a26de61ca0f8751601f3442a3641c14a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a533cb2fb16475a174cfb8479286214fb" id="r_a533cb2fb16475a174cfb8479286214fb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryMatchScratch.html#a533cb2fb16475a174cfb8479286214fb">clear_temporary_matches_keep_stamps</a> ()</td></tr>
+<tr class="memitem:a533cb2fb16475a174cfb8479286214fb" id="r_a533cb2fb16475a174cfb8479286214fb"><td class="memItemLeft" align="right" valign="top"><a id="a533cb2fb16475a174cfb8479286214fb" name="a533cb2fb16475a174cfb8479286214fb"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_temporary_matches_keep_stamps</b> ()</td></tr>
+<tr class="memdesc:a533cb2fb16475a174cfb8479286214fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Clears temporary match arrays while preserving allocated dedup stamp pages. Full match() can reuse prior stamp pages and advance matchVersion instead of zeroing the whole table again. <br /></td></tr>
 <tr class="separator:a533cb2fb16475a174cfb8479286214fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae8632672a5610d5ea3fdc21f28d6618b" id="r_ae8632672a5610d5ea3fdc21f28d6618b"><td class="memItemLeft" align="right" valign="top"><a id="ae8632672a5610d5ea3fdc21f28d6618b" name="ae8632672a5610d5ea3fdc21f28d6618b"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_stamps</b> ()</td></tr>
+<tr class="memdesc:ae8632672a5610d5ea3fdc21f28d6618b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Clears dedup stamps and resets the match-version counter. <br /></td></tr>
 <tr class="separator:ae8632672a5610d5ea3fdc21f28d6618b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acb9839c66b8d784af9f3258bcdf16b0f" id="r_acb9839c66b8d784af9f3258bcdf16b0f"><td class="memItemLeft" align="right" valign="top"><a id="acb9839c66b8d784af9f3258bcdf16b0f" name="acb9839c66b8d784af9f3258bcdf16b0f"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>next_match_version</b> ()</td></tr>
+<tr class="memitem:acb9839c66b8d784af9f3258bcdf16b0f" id="r_acb9839c66b8d784af9f3258bcdf16b0f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryMatchScratch.html#acb9839c66b8d784af9f3258bcdf16b0f">next_match_version</a> ()</td></tr>
+<tr class="memdesc:acb9839c66b8d784af9f3258bcdf16b0f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances and returns the dedup stamp for the next VM match pass.  <br /></td></tr>
 <tr class="separator:acb9839c66b8d784af9f3258bcdf16b0f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -139,14 +148,20 @@ Public Attributes</h2></td></tr>
 <a class="el" href="structgaia_1_1ecs_1_1ArchetypeMatchStamps.html">ArchetypeMatchStamps</a>&#160;</td><td class="memItemRight" valign="bottom"><b>matchStamps</b></td></tr>
 <tr class="memdesc:aa1b05b17d13b0e713dc4922d80db0de0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Paged O(1) dedup table keyed by world-local archetype ids. Pages stay allocated on the scratch frame so repeated matches do not keep reallocating heap memory when archetype ids revisit the same ranges. <br /></td></tr>
 <tr class="separator:aa1b05b17d13b0e713dc4922d80db0de0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6163f2de4753deb572d165e8691e3198" id="r_a6163f2de4753deb572d165e8691e3198"><td class="memItemLeft" align="right" valign="top"><a id="a6163f2de4753deb572d165e8691e3198" name="a6163f2de4753deb572d165e8691e3198"></a>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>matchesArrDynPrev</b></td></tr>
+<tr class="memdesc:a6163f2de4753deb572d165e8691e3198"><td class="mdescLeft">&#160;</td><td class="mdescRight">Previous result membership used when a dynamic rebuild compares reverse-index changes. <br /></td></tr>
+<tr class="separator:a6163f2de4753deb572d165e8691e3198"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3aed9b15852103a00459975b03b0bfc7" id="r_a3aed9b15852103a00459975b03b0bfc7"><td class="memItemLeft" align="right" valign="top"><a id="a3aed9b15852103a00459975b03b0bfc7" name="a3aed9b15852103a00459975b03b0bfc7"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchVersion</b> = 0</td></tr>
 <tr class="memdesc:a3aed9b15852103a00459975b03b0bfc7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Monotonic dedup stamp used when the same scratch frame is reused by later full match() calls without clearing stamp pages. <br /></td></tr>
 <tr class="separator:a3aed9b15852103a00459975b03b0bfc7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Function Documentation</h2>
-<a id="a533cb2fb16475a174cfb8479286214fb" name="a533cb2fb16475a174cfb8479286214fb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a533cb2fb16475a174cfb8479286214fb">&#9670;&#160;</a></span>clear_temporary_matches_keep_stamps()</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Temporary VM matching buffer meant to be owned by an ECS <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a>. <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> only acquires a frame while executing the VM. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="acb9839c66b8d784af9f3258bcdf16b0f" name="acb9839c66b8d784af9f3258bcdf16b0f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acb9839c66b8d784af9f3258bcdf16b0f">&#9670;&#160;</a></span>next_match_version()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -155,7 +170,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchVersion</b> 
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void gaia::ecs::QueryMatchScratch::clear_temporary_matches_keep_stamps </td>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::QueryMatchScratch::next_match_version </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -167,7 +182,9 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchVersion</b> 
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Full match() can reuse prior stamp pages and advance matchVersion instead of zeroing the whole table again.</p>
+
+<p>Advances and returns the dedup stamp for the next VM match pass. </p>
+<dl class="section return"><dt>Returns</dt><dd>Non-zero match version reserved for the current pass. </dd></dl>
 
 </div>
 </div>

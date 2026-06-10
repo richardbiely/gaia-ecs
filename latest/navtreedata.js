@@ -176,13 +176,14 @@ var NAVTREEINDEX =
 [
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8",
-"classgaia_1_1ecs_1_1World.html#ac1a17b23aa7be61e240fd9d68186c8a4",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af866f7d259aa5b8dfc03b96acc45220b",
-"functions_eval.html",
-"sringbuffer_8h_source.html",
-"structgaia_1_1ecs_1_1ComponentGetter.html#abb919550729f83d58aa7614093183639",
-"structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#afdc86eba4413c81bd786f258751897e3",
-"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#ae5492716244697fea5db3db861a22881"
+"classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a747c6a23f81b15d543e963367acef133",
+"classgaia_1_1util_1_1signal_3_01Ret_07Args_8_8_8_08_4.html",
+"jobmanager_8h_source.html",
+"structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a0efe769c0529a8951ef522c56df60de6",
+"structgaia_1_1ecs_1_1SchedParDesc.html#a7ce77a1e798d27672f6253ac658e2ed0",
+"structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1SourceTermOp.html",
+"structstd_1_1tuple__element_3_01I_00_01gaia_1_1cnt_1_1sarr__ext_3_01T_00_01N_01_4_01_4.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';
