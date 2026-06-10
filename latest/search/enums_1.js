@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['matcharchetypequeryret_0',['MatchArchetypeQueryRet',['../classgaia_1_1ecs_1_1QueryInfo.html#a33e537aa04091a4466391190e2dd5e0d',1,'gaia::ecs::QueryInfo']]]
+  ['execpayloadkind_0',['ExecPayloadKind',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd',1,'gaia::ecs::detail::QueryImpl']]]
 ];

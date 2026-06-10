@@ -150,6 +150,18 @@ Public Types</h2></td></tr>
 , <b>DirectStructuralTerms</b>
  }</td></tr>
 <tr class="separator:a97d2f17f09aed5a440566bb3f2797ae1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adb9e3e7d3f0ff86c236849de7c619ee6" id="r_adb9e3e7d3f0ff86c236849de7c619ee6"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">DynamicCacheKind</a> : uint8_t { <br />
+&#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754">None</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6ace078330230a1c4cae386dad0f228543">RelationOnly</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a671b43a8aa7f492975b2f27645d9d3ca">DirectSource</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a5302842f1bffeedb8c7898cad875e3be">TraversedSource</a>
+, <br />
+&#160;&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a47c14840d8e15331fa420b9b2f757cd9">Variable</a>
+, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a699b4f79215d191584653efebf156e52">Mixed</a>
+<br />
+ }</td></tr>
+<tr class="memdesc:adb9e3e7d3f0ff86c236849de7c619ee6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamic-cache dependency shape derived from compiled query metadata.  <a href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">More...</a><br /></td></tr>
+<tr class="separator:adb9e3e7d3f0ff86c236849de7c619ee6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab8166867f88443ab6730b17e3e3b063c" id="r_ab8166867f88443ab6730b17e3e3b063c"><td class="memItemLeft" align="right" valign="top"><a id="ab8166867f88443ab6730b17e3e3b063c" name="ab8166867f88443ab6730b17e3e3b063c"></a>enum class &#160;</td><td class="memItemRight" valign="bottom"><b>DirectTargetEvalKind</b> : uint8_t { <br />
 &#160;&#160;<b>Generic</b>
 , <b>SingleAllDirect</b>
@@ -223,6 +235,45 @@ const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
 struct <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">gaia::ecs::QueryCtx::Data</a>&#160;</td><td class="memItemRight" valign="bottom"><b>data</b></td></tr>
 <tr class="separator:a13a3a2c402eb2d290c9c0c175094809c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Enumeration Documentation</h2>
+<a id="adb9e3e7d3f0ff86c236849de7c619ee6" name="adb9e3e7d3f0ff86c236849de7c619ee6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adb9e3e7d3f0ff86c236849de7c619ee6">&#9670;&#160;</a></span>DynamicCacheKind</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum class <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">gaia::ecs::QueryCtx::DynamicCacheKind</a> : uint8_t</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">strong</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Dynamic-cache dependency shape derived from compiled query metadata. </p>
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754" name="adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754"></a>None&#160;</td><td class="fielddoc"><p>Query does not use dynamic-cache validation. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6ace078330230a1c4cae386dad0f228543" name="adb9e3e7d3f0ff86c236849de7c619ee6ace078330230a1c4cae386dad0f228543"></a>RelationOnly&#160;</td><td class="fielddoc"><p>Dynamic cache is invalidated by relation version dependencies only. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6a671b43a8aa7f492975b2f27645d9d3ca" name="adb9e3e7d3f0ff86c236849de7c619ee6a671b43a8aa7f492975b2f27645d9d3ca"></a>DirectSource&#160;</td><td class="fielddoc"><p>Dynamic cache tracks concrete source entity archetype versions. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6a5302842f1bffeedb8c7898cad875e3be" name="adb9e3e7d3f0ff86c236849de7c619ee6a5302842f1bffeedb8c7898cad875e3be"></a>TraversedSource&#160;</td><td class="fielddoc"><p>Dynamic cache tracks a traversed source closure. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6a47c14840d8e15331fa420b9b2f757cd9" name="adb9e3e7d3f0ff86c236849de7c619ee6a47c14840d8e15331fa420b9b2f757cd9"></a>Variable&#160;</td><td class="fielddoc"><p>Dynamic cache tracks runtime variable bindings only. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="adb9e3e7d3f0ff86c236849de7c619ee6a699b4f79215d191584653efebf156e52" name="adb9e3e7d3f0ff86c236849de7c619ee6a699b4f79215d191584653efebf156e52"></a>Mixed&#160;</td><td class="fielddoc"><p>Dynamic cache tracks more than one dependency family. </p>
+</td></tr>
+</table>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>

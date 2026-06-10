@@ -1711,6 +1711,21 @@ Iterating over components not present in the query is not supported and results 
 <div class="line">    p[i].z += v[i].z * dt;</div>
 <div class="line">  }</div>
 <div class="line">}, ecs::Constraints::AcceptAll);</div>
+</div><!-- fragment --><p>For update loops that also compute a reduction or checksum, keep the reduction local to the iterator callback and update captured state once at the end of the callback. This exposes a chunk-local loop to the compiler and avoids repeatedly writing captured state from every row.</p>
+<div class="fragment"><div class="line"><span class="keywordtype">float</span> total = 0.0f;</div>
+<div class="line">q.each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">  <span class="keyword">auto</span> p = it.view_mut&lt;Position&gt;(0);</div>
+<div class="line">  <span class="keyword">auto</span> v = it.view&lt;Velocity&gt;(1);</div>
+<div class="line"> </div>
+<div class="line">  <span class="keywordtype">float</span> localTotal = 0.0f;</div>
+<div class="line">  GAIA_EACH(it) {</div>
+<div class="line">    p[i].x += v[i].x * dt;</div>
+<div class="line">    p[i].y += v[i].y * dt;</div>
+<div class="line">    p[i].z += v[i].z * dt;</div>
+<div class="line">    localTotal += p[i].x + p[i].y + p[i].z;</div>
+<div class="line">  }</div>
+<div class="line">  total += localTotal;</div>
+<div class="line">});</div>
 </div><!-- fragment --><p>Performance of views can be improved slightly by explicitly providing the index of the component in the query. For indexed access, plain <code>view(termIdx)</code> assumes the term maps to a chunk column. Use <code>view_any(termIdx)</code> when the indexed term may resolve through inheritance or non-direct storage.</p>
 <div class="fragment"><div class="line">ecs::Query q = w.query();</div>
 <div class="line">q.any&lt;Something&gt;()</div>

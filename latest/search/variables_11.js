@@ -4,7 +4,8 @@ var searchData=
   ['reads_1',['reads',['../structgaia_1_1ecs_1_1QueryAccessSet.html#a84127b9c8f64c9fc47f38ca46107c0f6',1,'gaia::ecs::QueryAccessSet']]],
   ['readwritemask_2',['readWriteMask',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a07c516a894aeb993f403a90d15d044f4',1,'gaia::ecs::QueryCtx::Data']]],
   ['readynext_3',['readyNext',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#a7267ef9836cbfb6569682d641d261d3c',1,'gaia::ecs::detail::SystemScheduleScratch']]],
-  ['revision_4',['revision',['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc',1,'gaia::ecs::QueryArchetypeCacheCursor']]],
-  ['row_5',['row',['../structgaia_1_1ecs_1_1EntityContainer.html#a76ddc06ce392dbee3d335895a6903170',1,'gaia::ecs::EntityContainer']]],
-  ['rowfirstenabledentity_6',['rowFirstEnabledEntity',['../structgaia_1_1ecs_1_1ChunkHeader.html#aeea18be0d95eb20cfc93e8751bc429fa',1,'gaia::ecs::ChunkHeader']]]
+  ['relation_4',['relation',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#abcd8e30131de740f8360baca84c35eb8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
+  ['revision_5',['revision',['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc',1,'gaia::ecs::QueryArchetypeCacheCursor']]],
+  ['row_6',['row',['../structgaia_1_1ecs_1_1EntityContainer.html#a76ddc06ce392dbee3d335895a6903170',1,'gaia::ecs::EntityContainer']]],
+  ['rowfirstenabledentity_7',['rowFirstEnabledEntity',['../structgaia_1_1ecs_1_1ChunkHeader.html#aeea18be0d95eb20cfc93e8751bc429fa',1,'gaia::ecs::ChunkHeader']]]
 ];

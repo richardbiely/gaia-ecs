@@ -104,7 +104,9 @@ var searchData=
   ['directentityseedevalplan_101',['DirectEntitySeedEvalPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html',1,'gaia::ecs::detail::QueryImpl']]],
   ['directentityseedinfo_102',['DirectEntitySeedInfo',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedInfo.html',1,'gaia::ecs::detail::QueryImpl']]],
   ['directentityseedplan_103',['DirectEntitySeedPlan',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedPlan.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['dontfragment_5f_104',['DontFragment_',['../structgaia_1_1ecs_1_1DontFragment__.html',1,'gaia::ecs']]],
-  ['dontinherit_5f_105',['DontInherit_',['../structgaia_1_1ecs_1_1DontInherit__.html',1,'gaia::ecs']]],
-  ['dyn_5fsingleton_106',['dyn_singleton',['../classgaia_1_1core_1_1dyn__singleton.html',1,'gaia::core']]]
+  ['directsourcepayload_104',['DirectSourcePayload',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
+  ['dontfragment_5f_105',['DontFragment_',['../structgaia_1_1ecs_1_1DontFragment__.html',1,'gaia::ecs']]],
+  ['dontinherit_5f_106',['DontInherit_',['../structgaia_1_1ecs_1_1DontInherit__.html',1,'gaia::ecs']]],
+  ['dyn_5fsingleton_107',['dyn_singleton',['../classgaia_1_1core_1_1dyn__singleton.html',1,'gaia::core']]],
+  ['dynamiccachestate_108',['DynamicCacheState',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html',1,'gaia::ecs::QueryInfo::QueryState']]]
 ];

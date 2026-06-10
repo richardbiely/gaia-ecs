@@ -178,7 +178,7 @@ $(document).ready(function(){initNavTree('ser__json_8h_source.html',''); initRes
 <div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>      <span class="keyword">static</span> <span class="keyword">constexpr</span> uint32_t MaxDiagPathLength = 1024;</div>
 <div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>      <span class="keyword">static</span> <span class="keyword">constexpr</span> uint32_t MaxDiagMessageLength = 2048;</div>
 <div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span> </div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;JsonDiagnostic&gt;</a> items;</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;JsonDiagnostic&gt;</a> items;</div>
 <div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>      <span class="keywordtype">bool</span> hasWarnings = <span class="keyword">false</span>;</div>
 <div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>      <span class="keywordtype">bool</span> hasErrors = <span class="keyword">false</span>;</div>
 <div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span> </div>
@@ -231,7 +231,7 @@ $(document).ready(function(){initNavTree('ser__json_8h_source.html',''); initRes
 <div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span> </div>
 <div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>      <a class="code hl_struct" href="structgaia_1_1util_1_1str.html">json_str</a> m_out;</div>
 <div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>      <a class="code hl_struct" href="structgaia_1_1util_1_1str.html">json_str</a> m_parseScratch;</div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray&lt;Ctx&gt;</a> m_ctx;</div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::darray&lt;Ctx&gt;</a> m_ctx;</div>
 <div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>      <span class="keyword">const</span> <span class="keywordtype">char</span>* m_it = <span class="keyword">nullptr</span>;</div>
 <div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>      <span class="keyword">const</span> <span class="keywordtype">char</span>* m_end = <span class="keyword">nullptr</span>;</div>
 <div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span> </div>
@@ -901,7 +901,7 @@ $(document).ready(function(){initNavTree('ser__json_8h_source.html',''); initRes
 <div class="line"><a id="l00776" name="l00776"></a><span class="lineno">  776</span>    } <span class="comment">// namespace detail</span></div>
 <div class="line"><a id="l00777" name="l00777"></a><span class="lineno">  777</span>  } <span class="comment">// namespace ser</span></div>
 <div class="line"><a id="l00778" name="l00778"></a><span class="lineno">  778</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:28</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
 <div class="ttc" id="aclassgaia_1_1ser_1_1ser__json_html"><div class="ttname"><a href="classgaia_1_1ser_1_1ser__json.html">gaia::ser::ser_json</a></div><div class="ttdoc">Lightweight JSON serializer/deserializer.</div><div class="ttdef"><b>Definition</b> ser_json.h:101</div></div>
 <div class="ttc" id="aclassgaia_1_1ser_1_1ser__json_html_a22bc9bf36bff4c25f2b20470f1244bb0"><div class="ttname"><a href="classgaia_1_1ser_1_1ser__json.html#a22bc9bf36bff4c25f2b20470f1244bb0">gaia::ser::ser_json::str</a></div><div class="ttdeci">GAIA_NODISCARD const json_str &amp; str() const</div><div class="ttdoc">Returns currently emitted output text.</div><div class="ttdef"><b>Definition</b> ser_json.h:197</div></div>
 <div class="ttc" id="aclassgaia_1_1ser_1_1ser__json_html_a23ac336437abeeb34df1fc7649a4feeb"><div class="ttname"><a href="classgaia_1_1ser_1_1ser__json.html#a23ac336437abeeb34df1fc7649a4feeb">gaia::ser::ser_json::ws</a></div><div class="ttdeci">void ws()</div><div class="ttdoc">Skips whitespace in parser input.</div><div class="ttdef"><b>Definition</b> ser_json.h:213</div></div>

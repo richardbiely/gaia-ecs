@@ -14,10 +14,11 @@ var searchData=
   ['raw_5fdata_5fholder_3c_20t_2c_20allocated_5fbytes_20_3e_11',['raw_data_holder&lt; T, allocated_bytes &gt;',['../structgaia_1_1mem_1_1detail_1_1raw__data__holder.html',1,'gaia::mem::detail']]],
   ['raw_5fdata_5fholder_3c_20t_2c_20allocatedbytes_20_3e_12',['raw_data_holder&lt; T, AllocatedBytes &gt;',['../structgaia_1_1mem_1_1detail_1_1raw__data__holder.html',1,'gaia::mem::detail']]],
   ['rawmatchtoken_13',['RawMatchToken',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1RawMatchToken.html',1,'gaia::ecs::vm::detail']]],
-  ['rem_5frp_14',['rem_rp',['../structgaia_1_1core_1_1detail_1_1rem__rp.html',1,'gaia::core::detail']]],
-  ['remove_5f_15',['Remove_',['../structgaia_1_1ecs_1_1Remove__.html',1,'gaia::ecs']]],
-  ['requires_5f_16',['Requires_',['../structgaia_1_1ecs_1_1Requires__.html',1,'gaia::ecs']]],
-  ['resolvedpairtoken_17',['ResolvedPairToken',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1ResolvedPairToken.html',1,'gaia::ecs::vm::detail']]],
-  ['reverse_5fiterator_5ftag_18',['reverse_iterator_tag',['../structgaia_1_1core_1_1reverse__iterator__tag.html',1,'gaia::core']]],
-  ['runtimeitercallback_19',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]]
+  ['relationpayload_14',['RelationPayload',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
+  ['rem_5frp_15',['rem_rp',['../structgaia_1_1core_1_1detail_1_1rem__rp.html',1,'gaia::core::detail']]],
+  ['remove_5f_16',['Remove_',['../structgaia_1_1ecs_1_1Remove__.html',1,'gaia::ecs']]],
+  ['requires_5f_17',['Requires_',['../structgaia_1_1ecs_1_1Requires__.html',1,'gaia::ecs']]],
+  ['resolvedpairtoken_18',['ResolvedPairToken',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1ResolvedPairToken.html',1,'gaia::ecs::vm::detail']]],
+  ['reverse_5fiterator_5ftag_19',['reverse_iterator_tag',['../structgaia_1_1core_1_1reverse__iterator__tag.html',1,'gaia::core']]],
+  ['runtimeitercallback_20',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]]
 ];

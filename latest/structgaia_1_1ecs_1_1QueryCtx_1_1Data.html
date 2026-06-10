@@ -120,6 +120,8 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryCtx_1_1Data.
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html">Dependencies</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html">LookupIdentity</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -136,6 +138,30 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 <tr class="memitem:a79a254b1a9dbd7142710246475adb90c" id="r_a79a254b1a9dbd7142710246475adb90c"><td class="memItemLeft" align="right" valign="top"><a id="a79a254b1a9dbd7142710246475adb90c" name="a79a254b1a9dbd7142710246475adb90c"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_view</b> () const</td></tr>
 <tr class="separator:a79a254b1a9dbd7142710246475adb90c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6ecb5e19b3d226717f28d40e4c53c4fd" id="r_a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memItemLeft" align="right" valign="top"><a id="a6ecb5e19b3d226717f28d40e4c53c4fd" name="a6ecb5e19b3d226717f28d40e4c53c4fd"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_terms_view</b> () const</td></tr>
+<tr class="memdesc:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized lookup terms used by shared query deduplication. <br /></td></tr>
+<tr class="separator:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a62a3118c1768965e93020580b5cba984" id="r_a62a3118c1768965e93020580b5cba984"><td class="memItemLeft" align="right" valign="top"><a id="a62a3118c1768965e93020580b5cba984" name="a62a3118c1768965e93020580b5cba984"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_terms_view_mut</b> ()</td></tr>
+<tr class="memdesc:a62a3118c1768965e93020580b5cba984"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized lookup terms used by shared query deduplication. <br /></td></tr>
+<tr class="separator:a62a3118c1768965e93020580b5cba984"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a66fa371a055d9d2ada63ad2552b76515" id="r_a66fa371a055d9d2ada63ad2552b76515"><td class="memItemLeft" align="right" valign="top"><a id="a66fa371a055d9d2ada63ad2552b76515" name="a66fa371a055d9d2ada63ad2552b76515"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_lookup_view</b> () const</td></tr>
+<tr class="memdesc:a66fa371a055d9d2ada63ad2552b76515"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized changed-filter lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="separator:a66fa371a055d9d2ada63ad2552b76515"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab589331d49878253c40999c668a3376b" id="r_ab589331d49878253c40999c668a3376b"><td class="memItemLeft" align="right" valign="top"><a id="ab589331d49878253c40999c668a3376b" name="ab589331d49878253c40999c668a3376b"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_lookup_view_mut</b> ()</td></tr>
+<tr class="memdesc:ab589331d49878253c40999c668a3376b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="separator:ab589331d49878253c40999c668a3376b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9400247315b869311f1f3368bd28aaa3" id="r_a9400247315b869311f1f3368bd28aaa3"><td class="memItemLeft" align="right" valign="top"><a id="a9400247315b869311f1f3368bd28aaa3" name="a9400247315b869311f1f3368bd28aaa3"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_lookup_view</b> () const</td></tr>
+<tr class="memdesc:a9400247315b869311f1f3368bd28aaa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized group dependency lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="separator:a9400247315b869311f1f3368bd28aaa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa517d9e4231380aae852c324de6a0182" id="r_aa517d9e4231380aae852c324de6a0182"><td class="memItemLeft" align="right" valign="top"><a id="aa517d9e4231380aae852c324de6a0182" name="aa517d9e4231380aae852c324de6a0182"></a>
+GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_lookup_view_mut</b> ()</td></tr>
+<tr class="memdesc:aa517d9e4231380aae852c324de6a0182"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized group dependency lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="separator:aa517d9e4231380aae852c324de6a0182"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2afc29af74f608d7cf1142955c37cd38" id="r_a2afc29af74f608d7cf1142955c37cd38"><td class="memItemLeft" align="right" valign="top"><a id="a2afc29af74f608d7cf1142955c37cd38" name="a2afc29af74f608d7cf1142955c37cd38"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>add_group_dep</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
 <tr class="memdesc:a2afc29af74f608d7cf1142955c37cd38"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a declared grouping invalidation dependency. <br /></td></tr>
@@ -150,33 +176,82 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 <tr class="memitem:a8cc74e16c8768980c43c5882891d8702" id="r_a8cc74e16c8768980c43c5882891d8702"><td class="memItemLeft" align="right" valign="top"><a id="a8cc74e16c8768980c43c5882891d8702" name="a8cc74e16c8768980c43c5882891d8702"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms_view</b> () const</td></tr>
 <tr class="separator:a8cc74e16c8768980c43c5882891d8702"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b7e10d64bc136246eae27fe1044d76e" id="r_a1b7e10d64bc136246eae27fe1044d76e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">DynamicCacheKind</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1b7e10d64bc136246eae27fe1044d76e">calc_dynamic_cache_kind</a> () const</td></tr>
+<tr class="memdesc:a1b7e10d64bc136246eae27fe1044d76e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the dynamic-cache dependency shape derived from cache policy and dependencies.  <br /></td></tr>
+<tr class="separator:a1b7e10d64bc136246eae27fe1044d76e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a91dc949e73a3444f62e1f89bbe08139c" id="r_a91dc949e73a3444f62e1f89bbe08139c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a91dc949e73a3444f62e1f89bbe08139c">uses_direct_src_version_tracking</a> () const</td></tr>
+<tr class="memdesc:a91dc949e73a3444f62e1f89bbe08139c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether reusable dynamic-cache checks use direct source entity archetype versions.  <br /></td></tr>
+<tr class="separator:a91dc949e73a3444f62e1f89bbe08139c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a44fef2e67cfb4f3bc18d719c0f219686" id="r_a44fef2e67cfb4f3bc18d719c0f219686"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a44fef2e67cfb4f3bc18d719c0f219686">uses_src_trav_snapshot</a> () const</td></tr>
+<tr class="memdesc:a44fef2e67cfb4f3bc18d719c0f219686"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether reusable dynamic-cache checks use a traversed source closure snapshot.  <br /></td></tr>
+<tr class="separator:a44fef2e67cfb4f3bc18d719c0f219686"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acebac4c691c7cabde80b660199b1ba63" id="r_acebac4c691c7cabde80b660199b1ba63"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acebac4c691c7cabde80b660199b1ba63">calc_can_reuse_dynamic_cache</a> () const</td></tr>
 <tr class="memdesc:acebac4c691c7cabde80b660199b1ba63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether the current query shape can reuse dynamic-cache results.  <br /></td></tr>
 <tr class="separator:acebac4c691c7cabde80b660199b1ba63"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6c9dfb2d992ef8a655b463c3edb5d357" id="r_a6c9dfb2d992ef8a655b463c3edb5d357"><td class="memItemLeft" align="right" valign="top"><a id="a6c9dfb2d992ef8a655b463c3edb5d357" name="a6c9dfb2d992ef8a655b463c3edb5d357"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>refresh_lookup_keys</b> ()</td></tr>
+<tr class="memdesc:a6c9dfb2d992ef8a655b463c3edb5d357"><td class="mdescLeft">&#160;</td><td class="mdescRight">Refreshes canonical lookup arrays used by shared query deduplication. <br /></td></tr>
+<tr class="separator:a6c9dfb2d992ef8a655b463c3edb5d357"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad500bc2699fd7124c4074e9d10d930b9" id="r_ad500bc2699fd7124c4074e9d10d930b9"><td class="memItemLeft" align="right" valign="top"><a id="ad500bc2699fd7124c4074e9d10d930b9" name="ad500bc2699fd7124c4074e9d10d930b9"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_keys_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:ad500bc2699fd7124c4074e9d10d930b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when canonical lookup arrays match another query context payload. <br /></td></tr>
+<tr class="separator:ad500bc2699fd7124c4074e9d10d930b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4482a08870c69aaa26b6542c69645070" id="r_a4482a08870c69aaa26b6542c69645070"><td class="memItemLeft" align="right" valign="top"><a id="a4482a08870c69aaa26b6542c69645070" name="a4482a08870c69aaa26b6542c69645070"></a>
+GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_lookup_key_payload</b> () const</td></tr>
+<tr class="memdesc:a4482a08870c69aaa26b6542c69645070"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from canonical lookup-key payload arrays. <br /></td></tr>
+<tr class="separator:a4482a08870c69aaa26b6542c69645070"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad2af6b97aafb6416ac719b0b5f0f0d8e" id="r_ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="memItemLeft" align="right" valign="top"><a id="ad2af6b97aafb6416ac719b0b5f0f0d8e" name="ad2af6b97aafb6416ac719b0b5f0f0d8e"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>grouping_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when grouping identity payload matches another query context payload. <br /></td></tr>
+<tr class="separator:ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8a7085f9e5b5fc24ffe67c8dcd999e82" id="r_a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="memItemLeft" align="right" valign="top"><a id="a8a7085f9e5b5fc24ffe67c8dcd999e82" name="a8a7085f9e5b5fc24ffe67c8dcd999e82"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sort_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the sort identity payload matches another query context payload. <br /></td></tr>
+<tr class="separator:a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4a9286cba3119a5f77e6422ebc53067e" id="r_a4a9286cba3119a5f77e6422ebc53067e"><td class="memItemLeft" align="right" valign="top"><a id="a4a9286cba3119a5f77e6422ebc53067e" name="a4a9286cba3119a5f77e6422ebc53067e"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_sort_payload</b> () const</td></tr>
+<tr class="memdesc:a4a9286cba3119a5f77e6422ebc53067e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when sort identity payload is active. <br /></td></tr>
+<tr class="separator:a4a9286cba3119a5f77e6422ebc53067e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a57980e9a61a38fdce9bd4e28ef3d5fd1" id="r_a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="memItemLeft" align="right" valign="top"><a id="a57980e9a61a38fdce9bd4e28ef3d5fd1" name="a57980e9a61a38fdce9bd4e28ef3d5fd1"></a>
+GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_sort_payload</b> () const</td></tr>
+<tr class="memdesc:a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from sort identity payload. <br /></td></tr>
+<tr class="separator:a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a66d39e4bba0027eb415adb30dd9ce7d8" id="r_a66d39e4bba0027eb415adb30dd9ce7d8"><td class="memItemLeft" align="right" valign="top"><a id="a66d39e4bba0027eb415adb30dd9ce7d8" name="a66d39e4bba0027eb415adb30dd9ce7d8"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>identity_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:a66d39e4bba0027eb415adb30dd9ce7d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the shared query identity payload matches another query context payload. <br /></td></tr>
+<tr class="separator:a66d39e4bba0027eb415adb30dd9ce7d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae498f99d16b754d6f81bb626297330be" id="r_ae498f99d16b754d6f81bb626297330be"><td class="memItemLeft" align="right" valign="top"><a id="ae498f99d16b754d6f81bb626297330be" name="ae498f99d16b754d6f81bb626297330be"></a>
+GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_grouping_payload</b> () const</td></tr>
+<tr class="memdesc:ae498f99d16b754d6f81bb626297330be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from grouping identity payload. <br /></td></tr>
+<tr class="separator:ae498f99d16b754d6f81bb626297330be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adfb644ac9aae53f0e67488faa62a1ec4" id="r_adfb644ac9aae53f0e67488faa62a1ec4"><td class="memItemLeft" align="right" valign="top"><a id="adfb644ac9aae53f0e67488faa62a1ec4" name="adfb644ac9aae53f0e67488faa62a1ec4"></a>
+GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_identity_payload</b> () const</td></tr>
+<tr class="memdesc:adfb644ac9aae53f0e67488faa62a1ec4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from the full shared query identity payload. <br /></td></tr>
+<tr class="separator:adfb644ac9aae53f0e67488faa62a1ec4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8859b041a20d04841a9baff98e9b918c" id="r_a8859b041a20d04841a9baff98e9b918c"><td class="memItemLeft" align="right" valign="top"><a id="a8859b041a20d04841a9baff98e9b918c" name="a8859b041a20d04841a9baff98e9b918c"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">QueryLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>calc_lookup_hash</b> () const</td></tr>
+<tr class="memdesc:a8859b041a20d04841a9baff98e9b918c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the finalized lookup hash for shared query identity. <br /></td></tr>
+<tr class="separator:a8859b041a20d04841a9baff98e9b918c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a412e4daa73cb7862ddcd52025a00629f" id="r_a412e4daa73cb7862ddcd52025a00629f"><td class="memItemLeft" align="right" valign="top"><a id="a412e4daa73cb7862ddcd52025a00629f" name="a412e4daa73cb7862ddcd52025a00629f"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids</b></td></tr>
 <tr class="memdesc:a412e4daa73cb7862ddcd52025a00629f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of queried ids. <br /></td></tr>
 <tr class="separator:a412e4daa73cb7862ddcd52025a00629f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae445b34c3c1b01df8397383cf234ff8b" id="r_ae445b34c3c1b01df8397383cf234ff8b"><td class="memItemLeft" align="right" valign="top"><a id="ae445b34c3c1b01df8397383cf234ff8b" name="ae445b34c3c1b01df8397383cf234ff8b"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms</b></td></tr>
 <tr class="memdesc:ae445b34c3c1b01df8397383cf234ff8b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of terms. <br /></td></tr>
 <tr class="separator:ae445b34c3c1b01df8397383cf234ff8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a032a850ff27a2b99a38dcab933ea98b3" id="r_a032a850ff27a2b99a38dcab933ea98b3"><td class="memItemLeft" align="right" valign="top"><a id="a032a850ff27a2b99a38dcab933ea98b3" name="a032a850ff27a2b99a38dcab933ea98b3"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookupTerms</b></td></tr>
-<tr class="memdesc:a032a850ff27a2b99a38dcab933ea98b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized lookup terms reused by hash/equality for shared query dedup. <br /></td></tr>
-<tr class="separator:a032a850ff27a2b99a38dcab933ea98b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a44050adc01a9484c9930620df2ec0e" id="r_a7a44050adc01a9484c9930620df2ec0e"><td class="memItemLeft" align="right" valign="top"><a id="a7a44050adc01a9484c9930620df2ec0e" name="a7a44050adc01a9484c9930620df2ec0e"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_All</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_All</b></td></tr>
 <tr class="memdesc:a7a44050adc01a9484c9930620df2ec0e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Index of the last checked archetype in the component-to-archetype map. <br /></td></tr>
 <tr class="separator:a7a44050adc01a9484c9930620df2ec0e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8804432d215bd1f8d65e32a5bc9d584c" id="r_a8804432d215bd1f8d65e32a5bc9d584c"><td class="memItemLeft" align="right" valign="top"><a id="a8804432d215bd1f8d65e32a5bc9d584c" name="a8804432d215bd1f8d65e32a5bc9d584c"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Or</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Or</b></td></tr>
 <tr class="separator:a8804432d215bd1f8d65e32a5bc9d584c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af5f61c6d76bc7e471120ee78ffaf7561" id="r_af5f61c6d76bc7e471120ee78ffaf7561"><td class="memItemLeft" align="right" valign="top"><a id="af5f61c6d76bc7e471120ee78ffaf7561" name="af5f61c6d76bc7e471120ee78ffaf7561"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Not</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Not</b></td></tr>
 <tr class="separator:af5f61c6d76bc7e471120ee78ffaf7561"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a18116cf7c72b7dfd829b0f5daa9dc487" id="r_a18116cf7c72b7dfd829b0f5daa9dc487"><td class="memItemLeft" align="right" valign="top"><a id="a18116cf7c72b7dfd829b0f5daa9dc487" name="a18116cf7c72b7dfd829b0f5daa9dc487"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>idsCnt</b> = 0</td></tr>
@@ -185,25 +260,17 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>idsCnt</b> = 0</td
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>changedCnt</b> = 0</td></tr>
 <tr class="separator:a07eca82bc1999a317b4551c88cc8eb9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad39f2592985873852a48cb84548e17ee" id="r_ad39f2592985873852a48cb84548e17ee"><td class="memItemLeft" align="right" valign="top"><a id="ad39f2592985873852a48cb84548e17ee" name="ad39f2592985873852a48cb84548e17ee"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
 <tr class="memdesc:ad39f2592985873852a48cb84548e17ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of filtered components. <br /></td></tr>
 <tr class="separator:ad39f2592985873852a48cb84548e17ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1d65c5ad95b615523547fc23d0f221" id="r_a3e1d65c5ad95b615523547fc23d0f221"><td class="memItemLeft" align="right" valign="top"><a id="a3e1d65c5ad95b615523547fc23d0f221" name="a3e1d65c5ad95b615523547fc23d0f221"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::sarray</a>&lt; uint8_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changedFields</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint8_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changedFields</b></td></tr>
 <tr class="memdesc:a3e1d65c5ad95b615523547fc23d0f221"><td class="mdescLeft">&#160;</td><td class="mdescRight">Query term index for each changed-filter component after query canonicalization. <br /></td></tr>
 <tr class="separator:a3e1d65c5ad95b615523547fc23d0f221"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d2b7d7af177c7707e8ca6e0bbcf7fe0" id="r_a5d2b7d7af177c7707e8ca6e0bbcf7fe0"><td class="memItemLeft" align="right" valign="top"><a id="a5d2b7d7af177c7707e8ca6e0bbcf7fe0" name="a5d2b7d7af177c7707e8ca6e0bbcf7fe0"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changedLookup</b></td></tr>
-<tr class="memdesc:a5d2b7d7af177c7707e8ca6e0bbcf7fe0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized changed-filter ids reused by hash/equality for shared query dedup. <br /></td></tr>
-<tr class="separator:a5d2b7d7af177c7707e8ca6e0bbcf7fe0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a08cef351ec738ee2902014b56ee928a7" id="r_a08cef351ec738ee2902014b56ee928a7"><td class="memItemLeft" align="right" valign="top"><a id="a08cef351ec738ee2902014b56ee928a7" name="a08cef351ec738ee2902014b56ee928a7"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
 <tr class="memdesc:a08cef351ec738ee2902014b56ee928a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Explicit grouping invalidation dependencies for custom group_by callbacks. <br /></td></tr>
 <tr class="separator:a08cef351ec738ee2902014b56ee928a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8604f047fe9426a94e6a7523b5ec8510" id="r_a8604f047fe9426a94e6a7523b5ec8510"><td class="memItemLeft" align="right" valign="top"><a id="a8604f047fe9426a94e6a7523b5ec8510" name="a8604f047fe9426a94e6a7523b5ec8510"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDepsLookup</b></td></tr>
-<tr class="memdesc:a8604f047fe9426a94e6a7523b5ec8510"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized group dependency ids reused by hash/equality for shared query dedup. <br /></td></tr>
-<tr class="separator:a8604f047fe9426a94e6a7523b5ec8510"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a10032c2935f4d6fd750fdeadf9334d3c" id="r_a10032c2935f4d6fd750fdeadf9334d3c"><td class="memItemLeft" align="right" valign="top"><a id="a10032c2935f4d6fd750fdeadf9334d3c" name="a10032c2935f4d6fd750fdeadf9334d3c"></a>
 <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sortBy</b></td></tr>
 <tr class="memdesc:a10032c2935f4d6fd750fdeadf9334d3c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to sort the archetypes by. EntityBad for no sorting. <br /></td></tr>
@@ -284,14 +351,6 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasOnlyDirectOrTerms<
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>canReuseDynamicCache</b> = false</td></tr>
 <tr class="memdesc:af9eed790979af7c1d5a1caf3d1efe222"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when a dynamic cache can be reused by checking tracked runtime inputs. <br /></td></tr>
 <tr class="separator:af9eed790979af7c1d5a1caf3d1efe222"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a06b23f0d04ee102459c045560289d77b" id="r_a06b23f0d04ee102459c045560289d77b"><td class="memItemLeft" align="right" valign="top"><a id="a06b23f0d04ee102459c045560289d77b" name="a06b23f0d04ee102459c045560289d77b"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>usesDirectSrcVersionTracking</b> = false</td></tr>
-<tr class="memdesc:a06b23f0d04ee102459c045560289d77b"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when reusable dynamic-cache checks use direct source entity archetype versions. <br /></td></tr>
-<tr class="separator:a06b23f0d04ee102459c045560289d77b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a952d952c9d80a245e2e79ec49c0e80d0" id="r_a952d952c9d80a245e2e79ec49c0e80d0"><td class="memItemLeft" align="right" valign="top"><a id="a952d952c9d80a245e2e79ec49c0e80d0" name="a952d952c9d80a245e2e79ec49c0e80d0"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>usesSrcTravSnapshot</b> = false</td></tr>
-<tr class="memdesc:a952d952c9d80a245e2e79ec49c0e80d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when reusable dynamic-cache checks use a traversed source closure snapshot. <br /></td></tr>
-<tr class="separator:a952d952c9d80a245e2e79ec49c0e80d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a99d85161c146acc532a98ea91abe4b2a" id="r_a99d85161c146acc532a98ea91abe4b2a"><td class="memItemLeft" align="right" valign="top"><a id="a99d85161c146acc532a98ea91abe4b2a" name="a99d85161c146acc532a98ea91abe4b2a"></a>
 <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html">Dependencies</a>&#160;</td><td class="memItemRight" valign="bottom"><b>deps</b></td></tr>
 <tr class="memdesc:a99d85161c146acc532a98ea91abe4b2a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Explicit dependency metadata derived from query shape. <br /></td></tr>
@@ -304,6 +363,14 @@ CachePolicy&#160;</td><td class="memItemRight" valign="bottom"><b>cachePolicy</b
 CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>createArchetypeMatchKind</b> = CreateArchetypeMatchKind::Vm</td></tr>
 <tr class="memdesc:a7b0e1497f6112f134efaca963c2592f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create-time archetype matcher derived from query shape. <br /></td></tr>
 <tr class="separator:a7b0e1497f6112f134efaca963c2592f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94125c6fa03139fe79a66e81a31381e6" id="r_a94125c6fa03139fe79a66e81a31381e6"><td class="memItemLeft" align="right" valign="top"><a id="a94125c6fa03139fe79a66e81a31381e6" name="a94125c6fa03139fe79a66e81a31381e6"></a>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">DynamicCacheKind</a>&#160;</td><td class="memItemRight" valign="bottom"><b>dynamicCacheKind</b> = <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754">DynamicCacheKind::None</a></td></tr>
+<tr class="memdesc:a94125c6fa03139fe79a66e81a31381e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Dynamic-cache dependency shape derived from compiled query metadata. <br /></td></tr>
+<tr class="separator:a94125c6fa03139fe79a66e81a31381e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae533b8a63b2d93f56008493ebd8b5a57" id="r_ae533b8a63b2d93f56008493ebd8b5a57"><td class="memItemLeft" align="right" valign="top"><a id="ae533b8a63b2d93f56008493ebd8b5a57" name="ae533b8a63b2d93f56008493ebd8b5a57"></a>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html">LookupIdentity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lookupIdentity</b></td></tr>
+<tr class="memdesc:ae533b8a63b2d93f56008493ebd8b5a57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cold canonical shared-query identity payload. <br /></td></tr>
+<tr class="separator:ae533b8a63b2d93f56008493ebd8b5a57"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="acebac4c691c7cabde80b660199b1ba63" name="acebac4c691c7cabde80b660199b1ba63"></a>
@@ -331,6 +398,90 @@ CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>c
 
 <p>Returns whether the current query shape can reuse dynamic-cache results. </p>
 <dl class="section return"><dt>Returns</dt><dd>True when tracked runtime inputs are sufficient to validate the dynamic cache. </dd></dl>
+
+</div>
+</div>
+<a id="a1b7e10d64bc136246eae27fe1044d76e" name="a1b7e10d64bc136246eae27fe1044d76e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b7e10d64bc136246eae27fe1044d76e">&#9670;&#160;</a></span>calc_dynamic_cache_kind()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">DynamicCacheKind</a> gaia::ecs::QueryCtx::Data::calc_dynamic_cache_kind </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the dynamic-cache dependency shape derived from cache policy and dependencies. </p>
+<dl class="section return"><dt>Returns</dt><dd>Dynamic-cache shape used by storage and invalidation planning. </dd></dl>
+
+</div>
+</div>
+<a id="a91dc949e73a3444f62e1f89bbe08139c" name="a91dc949e73a3444f62e1f89bbe08139c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a91dc949e73a3444f62e1f89bbe08139c">&#9670;&#160;</a></span>uses_direct_src_version_tracking()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::uses_direct_src_version_tracking </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether reusable dynamic-cache checks use direct source entity archetype versions. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when direct source entity archetype versions validate this dynamic cache. </dd></dl>
+
+</div>
+</div>
+<a id="a44fef2e67cfb4f3bc18d719c0f219686" name="a44fef2e67cfb4f3bc18d719c0f219686"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a44fef2e67cfb4f3bc18d719c0f219686">&#9670;&#160;</a></span>uses_src_trav_snapshot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::uses_src_trav_snapshot </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether reusable dynamic-cache checks use a traversed source closure snapshot. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when a traversed-source snapshot validates this dynamic cache. </dd></dl>
 
 </div>
 </div>
