@@ -443,6 +443,14 @@ void Test_Query_SourceLookup() {
 	const auto sourceTravOnlyBytecode = qSourceTravOnly.bytecode();
 	CHECK(sourceTravOnlyBytecode.find("src_all: 1") != BadIndex);
 	CHECK(sourceTravOnlyBytecode.find("ids_all:") == BadIndex);
+	CHECK(qSourceTravOnly.count() == 0);
+	const auto sourceTravOnlyOpSignature = qSourceTravOnly.fetch().op_signature();
+	const auto sourceTravOnlyOpCount = qSourceTravOnly.fetch().op_count();
+	auto expect_source_trav_only_shape_stable = [&]() {
+		CHECK(qSourceTravOnly.bytecode() == sourceTravOnlyBytecode);
+		CHECK(qSourceTravOnly.fetch().op_signature() == sourceTravOnlyOpSignature);
+		CHECK(qSourceTravOnly.fetch().op_count() == sourceTravOnlyOpCount);
+	};
 
 	auto qSelfUp = make_query<UseCachedQuery>(wld) //
 										 .template all<Position>()
@@ -482,6 +490,7 @@ void Test_Query_SourceLookup() {
 														 .template all<Level>(ecs::QueryTermOptions{}.src(root).trav_self_down().trav_depth(1));
 
 	CHECK(qSourceTravOnly.count() == 0);
+	expect_source_trav_only_shape_stable();
 	CHECK(qSelfUp.count() == 0);
 	expect_positions(qSelfUp, false);
 	CHECK(qUpOnly.count() == 0);
@@ -507,6 +516,7 @@ void Test_Query_SourceLookup() {
 
 	wld.add<Level>(scene, {3});
 	CHECK(qSourceTravOnly.count() > N);
+	expect_source_trav_only_shape_stable();
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == 0);
@@ -533,6 +543,7 @@ void Test_Query_SourceLookup() {
 	wld.del<Level>(scene);
 	wld.add<Level>(parent, {4});
 	CHECK(qSourceTravOnly.count() > N);
+	expect_source_trav_only_shape_stable();
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
@@ -559,6 +570,7 @@ void Test_Query_SourceLookup() {
 	wld.del<Level>(parent);
 	wld.add<Level>(root, {5});
 	CHECK(qSourceTravOnly.count() > N);
+	expect_source_trav_only_shape_stable();
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);
 	CHECK(qUpOnly.count() == N);
