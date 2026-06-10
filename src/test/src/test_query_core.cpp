@@ -364,6 +364,13 @@ void Test_Query_SourceLookup() {
 	CHECK(srcOnlyBytecode.find("src_all: 1") != BadIndex);
 	CHECK(srcOnlyBytecode.find("ids_all:") == BadIndex);
 	CHECK(qSrcOnly.count() > N);
+	const auto srcOnlyOpSignature = qSrcOnly.fetch().op_signature();
+	const auto srcOnlyOpCount = qSrcOnly.fetch().op_count();
+	auto expect_src_only_shape_stable = [&]() {
+		CHECK(qSrcOnly.bytecode() == srcOnlyBytecode);
+		CHECK(qSrcOnly.fetch().op_signature() == srcOnlyOpSignature);
+		CHECK(qSrcOnly.fetch().op_count() == srcOnlyOpCount);
+	};
 
 	auto qSrcOnlyOr = make_query<UseCachedQuery>(wld)
 												.template or_<Level>(ecs::QueryTermOptions{}.src(game))
@@ -373,30 +380,58 @@ void Test_Query_SourceLookup() {
 	CHECK(srcOnlyOrBytecode.find("ids_all:") == BadIndex);
 	CHECK(srcOnlyOrBytecode.find("ids_or:") == BadIndex);
 	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+	const auto srcOnlyOrOpSignature = qSrcOnlyOr.fetch().op_signature();
+	const auto srcOnlyOrOpCount = qSrcOnlyOr.fetch().op_count();
+	auto expect_src_only_or_shape_stable = [&]() {
+		CHECK(qSrcOnlyOr.bytecode() == srcOnlyOrBytecode);
+		CHECK(qSrcOnlyOr.fetch().op_signature() == srcOnlyOrOpSignature);
+		CHECK(qSrcOnlyOr.fetch().op_count() == srcOnlyOrOpCount);
+	};
 
 	auto qSrcOnlyNot = make_query<UseCachedQuery>(wld).template no<Mode>(ecs::QueryTermOptions{}.src(game));
 	const auto srcOnlyNotBytecode = qSrcOnlyNot.bytecode();
 	CHECK(srcOnlyNotBytecode.find("src_not: 1") != BadIndex);
 	CHECK(srcOnlyNotBytecode.find("ids_all:") == BadIndex);
 	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
+	const auto srcOnlyNotOpSignature = qSrcOnlyNot.fetch().op_signature();
+	const auto srcOnlyNotOpCount = qSrcOnlyNot.fetch().op_count();
+	auto expect_src_only_not_shape_stable = [&]() {
+		CHECK(qSrcOnlyNot.bytecode() == srcOnlyNotBytecode);
+		CHECK(qSrcOnlyNot.fetch().op_signature() == srcOnlyNotOpSignature);
+		CHECK(qSrcOnlyNot.fetch().op_count() == srcOnlyNotOpCount);
+	};
 
 	wld.add<Mode>(game);
 	CHECK(qSrcOnly.count() > N);
+	expect_src_only_shape_stable();
 	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+	expect_src_only_or_shape_stable();
 	CHECK(qSrcOnlyNot.count() == 0);
+	expect_src_only_not_shape_stable();
 	wld.del<Mode>(game);
 	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
+	expect_src_only_shape_stable();
+	expect_src_only_or_shape_stable();
+	expect_src_only_not_shape_stable();
 
 	wld.del<Level>(game);
 	CHECK(qSrc.count() == 0);
 	expect_positions(qSrc, false);
 	CHECK(qSrcOnly.count() == 0);
+	expect_src_only_shape_stable();
 	CHECK(qSrcOnlyOr.count() == 0);
+	expect_src_only_or_shape_stable();
 	CHECK(qSrcOnlyNot.count() > N);
+	expect_src_only_not_shape_stable();
 
 	wld.add<Level>(game, {2});
 	CHECK(qSrc.count() == N);
 	expect_positions(qSrc, true);
+	CHECK(qSrcOnly.count() > N);
+	expect_src_only_shape_stable();
+	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+	expect_src_only_or_shape_stable();
+	expect_src_only_not_shape_stable();
 
 	const auto root = wld.add();
 	const auto parent = wld.add();
