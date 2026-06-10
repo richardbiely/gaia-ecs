@@ -8,6 +8,10 @@ namespace {
 		GAIA_LAYOUT(SoA);
 		float x, y, z;
 	};
+
+	struct ReductionVelocity {
+		float x, y, z;
+	};
 } // namespace
 
 TEST_CASE("Query - QueryResult") {
@@ -56,6 +60,59 @@ TEST_CASE("Query - QueryResult") {
 		});
 		CHECK(matches == 1);
 	}
+}
+
+TEST_CASE("Query - iterator local reduction updates visible rows") {
+	TestWorld twld;
+
+	const auto e0 = wld.add();
+	wld.add<Position>(e0, {1.0f, 2.0f, 3.0f});
+	wld.add<ReductionVelocity>(e0, {10.0f, 20.0f, 30.0f});
+
+	const auto e1 = wld.add();
+	wld.add<Position>(e1, {4.0f, 5.0f, 6.0f});
+	wld.add<ReductionVelocity>(e1, {1.0f, 2.0f, 3.0f});
+	wld.enable(e1, false);
+
+	auto q = wld.query().all<Position&>().all<ReductionVelocity>();
+	constexpr float dt = 0.5f;
+
+	auto update = [&](ecs::Constraints constraints) {
+		float total = 0.0f;
+		q.each(
+				[&](ecs::Iter& it) {
+					auto p = it.view_mut<Position>(0);
+					auto v = it.view<ReductionVelocity>(1);
+
+					float localTotal = 0.0f;
+					GAIA_EACH(it) {
+						p[i].x += v[i].x * dt;
+						p[i].y += v[i].y * dt;
+						p[i].z += v[i].z * dt;
+						localTotal += p[i].x + p[i].y + p[i].z;
+					}
+					total += localTotal;
+				},
+				constraints);
+		return total;
+	};
+
+	CHECK(update(ecs::Constraints::EnabledOnly) == doctest::Approx(36.0f));
+	const auto p0 = wld.get<Position>(e0);
+	CHECK(p0.x == doctest::Approx(6.0f));
+	CHECK(p0.y == doctest::Approx(12.0f));
+	CHECK(p0.z == doctest::Approx(18.0f));
+
+	const auto p1Before = wld.get<Position>(e1);
+	CHECK(p1Before.x == doctest::Approx(4.0f));
+	CHECK(p1Before.y == doctest::Approx(5.0f));
+	CHECK(p1Before.z == doctest::Approx(6.0f));
+
+	CHECK(update(ecs::Constraints::DisabledOnly) == doctest::Approx(18.0f));
+	const auto p1 = wld.get<Position>(e1);
+	CHECK(p1.x == doctest::Approx(4.5f));
+	CHECK(p1.y == doctest::Approx(6.0f));
+	CHECK(p1.z == doctest::Approx(7.5f));
 }
 
 TEST_CASE("Query - query plan classification") {

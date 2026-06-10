@@ -1926,6 +1926,25 @@ q.each([](ecs::Iter& it) {
 }, ecs::Constraints::AcceptAll);
 ```
 
+For update loops that also compute a reduction or checksum, keep the reduction local to the iterator callback and update captured state once at the end of the callback. This exposes a chunk-local loop to the compiler and avoids repeatedly writing captured state from every row.
+
+```cpp
+float total = 0.0f;
+q.each([&](ecs::Iter& it) {
+  auto p = it.view_mut<Position>(0);
+  auto v = it.view<Velocity>(1);
+
+  float localTotal = 0.0f;
+  GAIA_EACH(it) {
+    p[i].x += v[i].x * dt;
+    p[i].y += v[i].y * dt;
+    p[i].z += v[i].z * dt;
+    localTotal += p[i].x + p[i].y + p[i].z;
+  }
+  total += localTotal;
+});
+```
+
 Performance of views can be improved slightly by explicitly providing the index of the component in the query.
 For indexed access, plain `view(termIdx)` assumes the term maps to a chunk column. Use `view_any(termIdx)` when the indexed term may resolve through inheritance or non-direct storage.
 

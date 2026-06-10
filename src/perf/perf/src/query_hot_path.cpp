@@ -66,6 +66,126 @@ void BM_Query_ReadWrite_2Comp(picobench::state& state) {
 	}
 }
 
+void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position&>().all<Velocity>();
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		q.each([&](Position& p, const Velocity& v) {
+			p.x += v.x * DeltaTime;
+			p.y += v.y * DeltaTime;
+			p.z += v.z * DeltaTime;
+			sum += p.x + p.y + p.z;
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_ReadWrite_2Comp_IterLocalAccum(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position&>().all<Velocity>();
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		q.each([&](ecs::Iter& it) {
+			auto p = it.view_mut<Position>(0);
+			auto v = it.view<Velocity>(1);
+			float localSum = 0.0f;
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
+				p[i].x += v[i].x * DeltaTime;
+				p[i].y += v[i].y * DeltaTime;
+				p[i].z += v[i].z * DeltaTime;
+				localSum += p[i].x + p[i].y + p[i].z;
+			}
+			sum += localSum;
+		});
+		dont_optimize(sum);
+	}
+}
+
+GAIA_NOINLINE float
+query_update_position_readback_sum(Position* GAIA_RESTRICT p, const Velocity* GAIA_RESTRICT v, uint32_t cnt) {
+	float sum = 0.0f;
+	GAIA_FOR(cnt) {
+		p[i].x += v[i].x * DeltaTime;
+		p[i].y += v[i].y * DeltaTime;
+		p[i].z += v[i].z * DeltaTime;
+		sum += p[i].x + p[i].y + p[i].z;
+	}
+	return sum;
+}
+
+void BM_Query_ReadWrite_2Comp_IterHelper(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position&>().all<Velocity>();
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		q.each([&](ecs::Iter& it) {
+			auto p = it.view_mut<Position>(0);
+			auto v = it.view<Velocity>(1);
+			sum += query_update_position_readback_sum(p.data(), v.data(), (uint32_t)it.size());
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	cnt::darray<ecs::Entity> entities;
+	ecs::World w;
+	create_linear_entities<true, false, false, false, false>(w, entities, n);
+
+	auto q = w.query().all<Position&>().all<Velocity>();
+	dont_optimize(q.empty());
+	const auto posComp = w.get<Position>();
+	const auto velComp = w.get<Velocity>();
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		::gaia::ecs::update_version(w.world_version());
+		q.each_arch([&](ecs::Iter& it) {
+			const auto* pArchetype = it.archetype();
+			const auto& chunks = pArchetype->chunks();
+			for (auto* pChunk: chunks) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto posIdx = pChunk->comp_idx(posComp);
+				const auto recs = pChunk->comp_rec_view();
+				auto* p = (Position*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				sum += query_update_position_readback_sum(p, v, (uint32_t)(to - from));
+				pChunk->finish_write(posIdx, from, to);
+			}
+		});
+		dont_optimize(sum);
+	}
+}
+
 void BM_Query_ReadWrite_4Comp(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
@@ -2826,6 +2946,10 @@ void BM_Query_PrefabInherited_Read_Iter(picobench::state& state);
 void BM_Query_PrefabInherited_Write_Each(picobench::state& state);
 void BM_Query_ReadOnly_1Comp(picobench::state& state);
 void BM_Query_ReadWrite_2Comp(picobench::state& state);
+void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state);
+void BM_Query_ReadWrite_2Comp_IterLocalAccum(picobench::state& state);
+void BM_Query_ReadWrite_2Comp_IterHelper(picobench::state& state);
+void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state);
 void BM_Query_ReadWrite_4Comp(picobench::state& state);
 void BM_Query_SelectiveAll_BroadFirst(picobench::state& state);
 void BM_Query_Variable_Source_Bound(picobench::state& state);
@@ -2856,6 +2980,22 @@ void register_query_hot_path(PerfRunMode mode) {
 					.user_data(1024)
 					.label("query selective all broad-first 1K arch");
 			PICOBENCH_REG(BM_Query_ReadWrite_2Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 2 comp");
+			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_Readback)
+					.PICO_SETTINGS()
+					.user_data(NEntitiesMedium)
+					.label("rw 2 comp readback");
+			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_IterLocalAccum)
+					.PICO_SETTINGS()
+					.user_data(NEntitiesMedium)
+					.label("rw 2 comp iter local accum");
+			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_IterHelper)
+					.PICO_SETTINGS()
+					.user_data(NEntitiesMedium)
+					.label("rw 2 comp iter helper");
+			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_EachArchLocalAccum)
+					.PICO_SETTINGS()
+					.user_data(NEntitiesMedium)
+					.label("rw 2 comp each_arch local accum");
 			PICOBENCH_REG(BM_Query_ReadWrite_4Comp).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw 4 comp");
 			PICOBENCH_REG(BM_Query_Filter_NoFrozen).PICO_SETTINGS().user_data(NEntitiesMedium).label("rw + no<Frozen>");
 			PICOBENCH_REG(BM_QueryMatch_IsChain_2).PICO_SETTINGS_FOCUS().user_data(256).label("match is chain d2");
