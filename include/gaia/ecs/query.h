@@ -1884,17 +1884,31 @@ namespace gaia {
 					return true;
 				}
 
+				//! Checks whether depth-order grouping can prune disabled hierarchy subtrees.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when the query groups by depth order on a relation whose hierarchy can prune disabled subtrees.
 				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
 					return data.groupByFunc == group_by_func_depth_order &&
 								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
+				//! Checks whether the current row constraints require the depth-order hierarchy barrier cache.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \return True when enabled/disabled row iteration needs cached barrier results.
 				GAIA_NODISCARD static bool
 				needs_depth_order_hierarchy_barrier_cache(const QueryInfo& queryInfo, Constraints constraints) {
 					return constraints != Constraints::AcceptAll && has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				}
 
+				//! Calculates the row range of a chunk after applying row constraints and depth-order barrier state.
+				//! \param pChunk Chunk to inspect.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \param needsBarrierCache True when barrier state participates in row selection.
+				//! \param barrierPasses Cached barrier result for the archetype containing the chunk.
+				//! \param from Receives the first row to process.
+				//! \param to Receives the one-past-the-end row to process.
 				static void chunk_effective_range(
 						Chunk* pChunk, Constraints constraints, bool needsBarrierCache, bool barrierPasses, uint16_t& from,
 						uint16_t& to) noexcept {
@@ -1908,6 +1922,9 @@ namespace gaia {
 					to = detail::ChunkIterImpl::end_index(pChunk, constraints);
 				}
 
+				//! Checks whether cached depth-order barrier results can prune any matched archetype.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when depth-order hierarchy barriers are active and the cache can prune rows.
 				GAIA_NODISCARD static bool depth_order_hierarchy_barrier_prunes(const QueryInfo& queryInfo) {
 					return has_depth_order_hierarchy_enabled_barrier(queryInfo) && queryInfo.barrier_may_prune();
 				}
@@ -1918,6 +1935,9 @@ namespace gaia {
 				//! the archetype share the same direct parent target. That lets us prune the entire archetype when
 				//! its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent
 				//! cannot use this archetype-level check and must stay on the per-entity traversal path instead.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param archetype Matched archetype to test.
+				//! \return True when the archetype can be processed under the enabled hierarchy barrier.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
 					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
@@ -1939,6 +1959,12 @@ namespace gaia {
 					return true;
 				}
 
+				//! Checks whether a matched archetype can be processed for the current row constraints.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param archetype Matched archetype to test.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \param barrierPasses Cached barrier result, or -1 to compute the enabled hierarchy gate directly.
+				//! \return True when the archetype is eligible for callback execution.
 				GAIA_NODISCARD bool can_process_archetype_inter(
 						const QueryInfo& queryInfo, const Archetype& archetype, Constraints constraints,
 						int8_t barrierPasses = -1) const {
@@ -1996,8 +2022,20 @@ namespace gaia {
 				static void finish_typed_iter_writes_runtime(
 						Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg);
 
-				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
+				//! Runtime payload layout required by generic chunk-batch execution.
+				enum class ExecPayloadKind : uint8_t {
+					//! Plain batches without group ids, inherited data, sorted slices, or barrier metadata.
+					Plain,
+					//! Batches carry group ids but do not require sorted slices or inherited/barrier metadata.
+					Grouped,
+					//! Batches require non-trivial side payload such as sorted slices, inherited data, or barriers.
+					NonTrivial
+				};
 
+				//! Classifies the generic batch payload needed for a matched query under row constraints.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \return Payload layout required by generic chunk-batch runners.
 				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo, Constraints constraints) {
 					if (queryInfo.has_sorted_payload())
 						return ExecPayloadKind::NonTrivial;
@@ -2006,10 +2044,6 @@ namespace gaia {
 					if (needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints))
 						return ExecPayloadKind::NonTrivial;
 					return ExecPayloadKind::Grouped;
-				}
-
-				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo, Constraints constraints) {
-					return exec_payload_kind(queryInfo, constraints) == ExecPayloadKind::NonTrivial;
 				}
 
 				//! Prepared query runner mode shared by typed callbacks and public Iter callbacks.
@@ -2029,7 +2063,7 @@ namespace gaia {
 					//! Typed dense cached archetype/chunk iteration using mapped component access.
 					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
-					//! Sorted payload or depth-order barrier execution that must preserve cache-provided order.
+					//! Sorted payload execution that must preserve cache-provided chunk order.
 					Sorted,
 					//! Traversal or inherited payload execution that requires the mapped generic path.
 					Traversal
@@ -2050,8 +2084,10 @@ namespace gaia {
 					QueryPlanFlag_InheritedPayload = 1 << 2,
 					//! The query uses grouped payload/ranges or grouped cache ordering.
 					QueryPlanFlag_Grouped = 1 << 3,
-					//! The query uses sorted payload or barrier/depth-order cache data.
-					QueryPlanFlag_Sorted = 1 << 4
+					//! The plan may need sorted cache slices; runners use them only with non-trivial payload.
+					QueryPlanFlag_Sorted = 1 << 4,
+					//! The plan must use the depth-order hierarchy barrier cache when checking archetype/row ranges.
+					QueryPlanFlag_BarrierCache = 1 << 5
 				};
 
 				//! Prepared query execution metadata shared by typed callbacks and public Iter callbacks.
@@ -2060,7 +2096,7 @@ namespace gaia {
 					QueryPlanMode mode = QueryPlanMode::General;
 					//! Orthogonal plan properties such as filtering, entity filters, grouping, or payload requirements.
 					uint8_t flags = QueryPlanFlag_None;
-					//! Payload layout required by generic chunk-batch runners.
+					//! Payload layout required by generic chunk-batch runners independent of sorted-cache availability.
 					ExecPayloadKind payloadKind = ExecPayloadKind::Plain;
 					//! First cached archetype index to process.
 					uint32_t idxFrom = 0;
@@ -2068,10 +2104,28 @@ namespace gaia {
 					uint32_t idxTo = 0;
 				};
 
+				//! Cache range selected by the query's optional group id filter.
+				struct QueryCacheRange final {
+					//! First cached archetype index to process.
+					uint32_t idxFrom = 0;
+					//! One-past-the-end cached archetype index to process.
+					uint32_t idxTo = 0;
+					//! True when `m_groupIdSet` narrowed the range to one cache group.
+					bool hasSelectedGroup = false;
+					//! False when the selected group id is absent from the matched cache.
+					bool valid = true;
+				};
+
+				//! Tag selecting enabled-only row constraints for prepared query iteration.
 				struct IterModeEnabled final {};
+				//! Tag selecting disabled-only row constraints for prepared query iteration.
 				struct IterModeDisabledOnly final {};
+				//! Tag selecting unconstrained row iteration for prepared query iteration.
 				struct IterModeAcceptAll final {};
 
+				//! Maps an iteration-mode tag to the runtime row constraints used by iterators.
+				//! \tparam TMode One of the IterMode* tag types.
+				//! \return Entity-row constraints represented by the tag.
 				template <typename TMode>
 				GAIA_NODISCARD static constexpr Constraints iter_mode_constraints() {
 					if constexpr (std::is_same_v<TMode, IterModeDisabledOnly>)
@@ -2320,12 +2374,12 @@ namespace gaia {
 				void
 				collect_runtime_parallel_batches(const QueryInfo& queryInfo, const QueryPlan& plan, Constraints constraints) {
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -2412,9 +2466,8 @@ namespace gaia {
 					if (plan.mode == QueryPlanMode::EntitySeed)
 						return add_query_task_job(GAIA_MOV(func), ExecType);
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (isGroupBy && isGroupSet)
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (cacheRange.hasSelectedGroup)
 						return add_query_task_job(GAIA_MOV(func), ExecType);
 
 					::gaia::ecs::update_version(*m_worldVersion);
@@ -2438,12 +2491,13 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
-					auto sortView = queryInfo.cache_sort_view();
-					if (payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedBatchPayload =
+							payloadKind == ExecPayloadKind::NonTrivial && (queryInfo.has_sorted_payload() || needsBarrierCache);
+					const auto sortView =
+							hasSortedBatchPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -2552,12 +2606,13 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
-					auto sortView = queryInfo.cache_sort_view();
-					if (payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedBatchPayload =
+							payloadKind == ExecPayloadKind::NonTrivial && (queryInfo.has_sorted_payload() || needsBarrierCache);
+					const auto sortView =
+							hasSortedBatchPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -2664,7 +2719,8 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2745,7 +2801,8 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -2843,28 +2900,26 @@ namespace gaia {
 					if (cache_view.empty())
 						return;
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (!isGroupBy || !isGroupSet) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.hasSelectedGroup) {
 						// No group requested or group filtering is currently turned off
-						const auto idxFrom = 0;
-						const auto idxTo = (uint32_t)cache_view.size();
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_no_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id_par<HasFilters, TMode, Func, ExecType>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 						else
-							run_query_batch_no_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id<HasFilters, TMode, Func>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
+						if (!cacheRange.valid)
 							return;
 
-						const auto idxFrom = pGroupData->idxFirst;
-						const auto idxTo = pGroupData->idxLast + 1;
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_with_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id_par<HasFilters, TMode, Func, ExecType>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 						else
-							run_query_batch_with_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id<HasFilters, TMode, Func>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 					}
 				}
 
@@ -2885,7 +2940,8 @@ namespace gaia {
 						//       Make it so only valid pointers are linked together.
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
-						const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+						const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+						const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																					 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 						const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 						if (needsBarrierCache)
@@ -2991,12 +3047,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -3099,12 +3155,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -3207,9 +3263,8 @@ namespace gaia {
 
 					ChunkBatchArray chunkBatches;
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -3276,9 +3331,8 @@ namespace gaia {
 
 					ChunkBatchArray chunkBatch;
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -3350,9 +3404,8 @@ namespace gaia {
 					if (plan.mode == QueryPlanMode::Empty || plan.idxFrom >= plan.idxTo)
 						return;
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (!isGroupBy || !isGroupSet) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.hasSelectedGroup) {
 						if constexpr (ExecType != QueryExecType::Default)
 							run_query_batch_no_group_id_runtime_par<HasFilters, Func, ExecType>(queryInfo, plan, constraints, func);
 						else
@@ -3395,6 +3448,31 @@ namespace gaia {
 					const auto& data = queryInfo.ctx().data;
 					return data.sortByFunc == nullptr &&
 								 (!has_depth_order_hierarchy_enabled_barrier(queryInfo) || !queryInfo.barrier_may_prune());
+				}
+
+				//! Selects the cache range visible to this query, applying a selected group id when present.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return Cache range metadata; `valid == false` means the selected group is absent.
+				GAIA_NODISCARD QueryCacheRange selected_query_cache_range(const QueryInfo& queryInfo) const {
+					QueryCacheRange range{};
+					range.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
+
+					const auto& data = queryInfo.ctx().data;
+					if (data.groupBy == EntityBad || m_groupIdSet == 0)
+						return range;
+
+					range.hasSelectedGroup = true;
+					const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+					if (pGroupData == nullptr) {
+						range.idxFrom = 0;
+						range.idxTo = 0;
+						range.valid = false;
+						return range;
+					}
+
+					range.idxFrom = pGroupData->idxFirst;
+					range.idxTo = pGroupData->idxLast + 1;
+					return range;
 				}
 
 				//! Selects the prepared execution plan for typed callbacks.
@@ -3451,7 +3529,9 @@ namespace gaia {
 				//! \return Query execution plan shared by typed and public iterator adapters.
 				GAIA_NODISCARD QueryPlan prepare_query_plan(const QueryInfo& queryInfo, Constraints constraints) const {
 					QueryPlan plan{};
-					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					plan.idxFrom = cacheRange.idxFrom;
+					plan.idxTo = cacheRange.idxTo;
 					const bool hasFilters = queryInfo.has_filters();
 					const bool hasSortedPayload = queryInfo.has_sorted_payload();
 					const bool hasDepthOrderBarrier = has_depth_order_hierarchy_enabled_barrier(queryInfo);
@@ -3468,19 +3548,13 @@ namespace gaia {
 						plan.flags |= QueryPlanFlag_Sorted;
 					plan.payloadKind = exec_payload_kind(queryInfo, constraints);
 
-					const auto& data = queryInfo.ctx().data;
-					if (data.groupBy != EntityBad && m_groupIdSet != 0) {
+					if (cacheRange.hasSelectedGroup) {
 						plan.flags |= QueryPlanFlag_Grouped;
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
+						plan.payloadKind = ExecPayloadKind::Grouped;
+						if (!cacheRange.valid) {
 							plan.mode = QueryPlanMode::Empty;
-							plan.idxFrom = 0;
-							plan.idxTo = 0;
 							return plan;
 						}
-						plan.payloadKind = ExecPayloadKind::Grouped;
-						plan.idxFrom = pGroupData->idxFirst;
-						plan.idxTo = pGroupData->idxLast + 1;
 					}
 
 					if ((plan.flags & QueryPlanFlag_Filtered) == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -3498,6 +3572,8 @@ namespace gaia {
 						if (!hasSortedPayload && (plan.flags & QueryPlanFlag_InheritedPayload) == 0)
 							plan.payloadKind = queryInfo.has_grouped_payload() ? ExecPayloadKind::Grouped : ExecPayloadKind::Plain;
 					}
+					if (hasConstrainedDepthOrderBarrier)
+						plan.flags |= QueryPlanFlag_BarrierCache;
 
 					if (hasSortedPayload) {
 						plan.mode = QueryPlanMode::Sorted;
@@ -4488,10 +4564,10 @@ namespace gaia {
 				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
-					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
 
 					if constexpr (!UseFilters) {
-						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!cacheRange.hasSelectedGroup && can_use_direct_entity_seed_eval(queryInfo)) {
 							if (has_only_direct_or_terms(queryInfo))
 								return is_empty_direct_or_union(*queryInfo.world(), queryInfo, constraints);
 
@@ -4510,15 +4586,10 @@ namespace gaia {
 					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (hasRuntimeGroupFilter) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return true;
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
-					}
+					if (!cacheRange.valid)
+						return true;
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
@@ -4698,10 +4769,10 @@ namespace gaia {
 				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
-					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
 
 					if constexpr (!UseFilters) {
-						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!cacheRange.hasSelectedGroup && can_use_direct_entity_seed_eval(queryInfo)) {
 							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
 								return count_direct_or_union(*queryInfo.world(), queryInfo, constraints);
@@ -4730,16 +4801,10 @@ namespace gaia {
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (hasRuntimeGroupFilter) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return 0;
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
-					}
+					if (!cacheRange.valid)
+						return 0;
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
@@ -6017,18 +6082,13 @@ namespace gaia {
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
-							m_changedWorldVersion = *m_worldVersion;
-							return;
-						}
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.valid) {
+						m_changedWorldVersion = *m_worldVersion;
+						return;
 					}
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
@@ -6109,18 +6169,13 @@ namespace gaia {
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
-							m_changedWorldVersion = *m_worldVersion;
-							return;
-						}
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.valid) {
+						m_changedWorldVersion = *m_worldVersion;
+						return;
 					}
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);

@@ -3345,6 +3345,35 @@ TEST_CASE("Query - group") {
 		qq.group_id(apple);
 		checkQuery(qq, {&ents_expected[4], 2});
 	}
+
+	{
+		const auto missingFood = wld.add();
+		auto qq = wld.query().all<Position>().group_by(eats);
+		qq.group_id(missingFood);
+
+		CHECK(qq.count() == 0);
+		CHECK(qq.empty());
+
+		uint32_t iterCnt = 0;
+		qq.each([&](ecs::Iter& it) {
+			iterCnt += it.size();
+		});
+		CHECK(iterCnt == 0);
+
+		uint32_t entityCnt = 0;
+		qq.each([&](ecs::Entity) {
+			++entityCnt;
+		});
+		CHECK(entityCnt == 0);
+
+		cnt::darr<ecs::Entity> entities;
+		qq.arr(entities);
+		CHECK(entities.empty());
+
+		cnt::darr<Position> positions;
+		qq.arr(positions);
+		CHECK(positions.empty());
+	}
 }
 
 TEST_CASE("Query - sort") {

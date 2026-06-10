@@ -61,6 +61,26 @@ TEST_CASE("Query - QueryResult") {
 TEST_CASE("Query - query plan classification") {
 	using PlanMode = ecs::detail::QueryImpl::QueryPlanMode;
 	using PayloadKind = ecs::detail::QueryImpl::ExecPayloadKind;
+	auto expect_materialized_entities = [](auto& query, std::initializer_list<ecs::Entity> expected) {
+		const bool expectedEmpty = expected.size() == 0;
+		CHECK(query.empty() == expectedEmpty);
+		CHECK(query.count() == expected.size());
+		expect_exact_entities(query, expected);
+
+		cnt::darr<ecs::Entity> actual;
+		query.arr(actual);
+		CHECK(actual.size() == expected.size());
+		for (const auto exp: expected) {
+			bool found = false;
+			for (const auto got: actual) {
+				if (got != exp)
+					continue;
+				found = true;
+				break;
+			}
+			CHECK(found);
+		}
+	};
 
 	TestWorld twld;
 	const auto e = wld.add();
@@ -98,6 +118,37 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(iterDisabledPlan.mode == PlanMode::DirectDense);
 	CHECK(iterDisabledPlan.flags == ecs::detail::QueryImpl::QueryPlanFlag_None);
 	CHECK(iterDisabledPlan.idxFrom < iterDisabledPlan.idxTo);
+
+	const auto animal = wld.add();
+	const auto mammal = wld.add();
+	const auto wolf = wld.add();
+	wld.add(mammal, ecs::Pair(ecs::Is, animal));
+	wld.add(wolf, ecs::Pair(ecs::Is, mammal));
+
+	auto qEntitySeed = wld.query().is(animal);
+	const auto entitySeedTypedPlan = qEntitySeed.test_typed_plan([](ecs::Entity) {});
+	CHECK(entitySeedTypedPlan.mode == PlanMode::EntitySeed);
+	CHECK(entitySeedTypedPlan.payloadKind == PayloadKind::Plain);
+	CHECK(entitySeedTypedPlan.idxFrom == 0);
+	CHECK(entitySeedTypedPlan.idxTo == 0);
+	const auto entitySeedIterPlan = qEntitySeed.test_iter_plan();
+	CHECK(entitySeedIterPlan.mode == PlanMode::EntitySeed);
+	CHECK(entitySeedIterPlan.payloadKind == PayloadKind::Plain);
+	expect_materialized_entities(qEntitySeed, {animal, mammal, wolf});
+
+	auto qDirectDense = wld.query().is(animal, ecs::QueryTermOptions{}.direct());
+	const auto directDenseTypedPlan = qDirectDense.test_typed_plan([](ecs::Entity) {});
+	CHECK(directDenseTypedPlan.mode == PlanMode::DirectDense);
+	const auto directDenseIterPlan = qDirectDense.test_iter_plan();
+	CHECK(directDenseIterPlan.mode == PlanMode::DirectDense);
+	expect_materialized_entities(qDirectDense, {mammal});
+
+	auto qInEntitySeed = wld.query().in(animal);
+	const auto inEntitySeedPlan = qInEntitySeed.test_typed_plan([](ecs::Entity) {});
+	CHECK(inEntitySeedPlan.mode == PlanMode::EntitySeed);
+	const auto inEntitySeedIterPlan = qInEntitySeed.test_iter_plan();
+	CHECK(inEntitySeedIterPlan.mode == PlanMode::EntitySeed);
+	expect_materialized_entities(qInEntitySeed, {mammal, wolf});
 
 	uint32_t enabledRows = 0;
 	q.each([&](ecs::Iter& it) {
@@ -185,12 +236,14 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthTypedPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthTypedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) == 0);
 	CHECK(depthTypedPlan.idxFrom < depthTypedPlan.idxTo);
 
 	const auto depthIterPlan = qDepthOrder.test_iter_plan();
 	CHECK(depthIterPlan.mode == PlanMode::DirectDense);
 	CHECK(depthIterPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthIterPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) == 0);
 	CHECK(depthIterPlan.idxFrom < depthIterPlan.idxTo);
 
 	const auto depthAcceptAllPlan = qDepthOrder.test_iter_plan(ecs::Constraints::AcceptAll);
@@ -198,6 +251,7 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthAcceptAllPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthAcceptAllPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) == 0);
 	CHECK(depthAcceptAllPlan.idxFrom < depthAcceptAllPlan.idxTo);
 
 	const auto depthDisabledOnlyPlan = qDepthOrder.test_iter_plan(ecs::Constraints::DisabledOnly);
@@ -205,6 +259,7 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthDisabledOnlyPlan.payloadKind == PayloadKind::Grouped);
 	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthDisabledOnlyPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) == 0);
 	CHECK(depthDisabledOnlyPlan.idxFrom < depthDisabledOnlyPlan.idxTo);
 
 	wld.enable(e, false);
@@ -213,6 +268,7 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthTypedPrunedPlan.payloadKind == PayloadKind::NonTrivial);
 	CHECK((depthTypedPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthTypedPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthTypedPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) != 0);
 	CHECK(depthTypedPrunedPlan.idxFrom < depthTypedPrunedPlan.idxTo);
 
 	const auto depthEnabledPrunedPlan = qDepthOrder.test_iter_plan();
@@ -220,6 +276,7 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthEnabledPrunedPlan.payloadKind == PayloadKind::NonTrivial);
 	CHECK((depthEnabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthEnabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthEnabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) != 0);
 	CHECK(depthEnabledPrunedPlan.idxFrom < depthEnabledPrunedPlan.idxTo);
 
 	const auto depthDisabledPrunedPlan = qDepthOrder.test_iter_plan(ecs::Constraints::DisabledOnly);
@@ -227,6 +284,7 @@ TEST_CASE("Query - query plan classification") {
 	CHECK(depthDisabledPrunedPlan.payloadKind == PayloadKind::NonTrivial);
 	CHECK((depthDisabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Grouped) != 0);
 	CHECK((depthDisabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_Sorted) != 0);
+	CHECK((depthDisabledPrunedPlan.flags & ecs::detail::QueryImpl::QueryPlanFlag_BarrierCache) != 0);
 	CHECK(depthDisabledPrunedPlan.idxFrom < depthDisabledPrunedPlan.idxTo);
 }
 
@@ -348,6 +406,20 @@ void Test_Query_SourceLookup() {
 			CHECK(found);
 		}
 	};
+	auto expect_entity_materialization = [&](auto& query, uint32_t expectedCount) {
+		CHECK(query.empty() == (expectedCount == 0));
+		CHECK(query.count() == expectedCount);
+
+		uint32_t eachCount = 0;
+		query.each([&](ecs::Entity) {
+			++eachCount;
+		});
+		CHECK(eachCount == expectedCount);
+
+		cnt::darr<ecs::Entity> actual;
+		query.arr(actual);
+		CHECK(actual.size() == expectedCount);
+	};
 
 	(void)wld.add<Level>();
 	const auto game = wld.add();
@@ -363,7 +435,9 @@ void Test_Query_SourceLookup() {
 	const auto srcOnlyBytecode = qSrcOnly.bytecode();
 	CHECK(srcOnlyBytecode.find("src_all: 1") != BadIndex);
 	CHECK(srcOnlyBytecode.find("ids_all:") == BadIndex);
-	CHECK(qSrcOnly.count() > N);
+	const auto srcOnlyInitialCount = qSrcOnly.count();
+	CHECK(srcOnlyInitialCount > N);
+	expect_entity_materialization(qSrcOnly, srcOnlyInitialCount);
 	const auto srcOnlyOpSignature = qSrcOnly.fetch().op_signature();
 	const auto srcOnlyOpCount = qSrcOnly.fetch().op_count();
 	auto expect_src_only_shape_stable = [&]() {
@@ -379,7 +453,9 @@ void Test_Query_SourceLookup() {
 	CHECK(srcOnlyOrBytecode.find("src_or: 2") != BadIndex);
 	CHECK(srcOnlyOrBytecode.find("ids_all:") == BadIndex);
 	CHECK(srcOnlyOrBytecode.find("ids_or:") == BadIndex);
-	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
+	const auto srcOnlyOrInitialCount = qSrcOnlyOr.count();
+	CHECK(srcOnlyOrInitialCount == qSrcOnly.count());
+	expect_entity_materialization(qSrcOnlyOr, srcOnlyOrInitialCount);
 	const auto srcOnlyOrOpSignature = qSrcOnlyOr.fetch().op_signature();
 	const auto srcOnlyOrOpCount = qSrcOnlyOr.fetch().op_count();
 	auto expect_src_only_or_shape_stable = [&]() {
@@ -392,7 +468,9 @@ void Test_Query_SourceLookup() {
 	const auto srcOnlyNotBytecode = qSrcOnlyNot.bytecode();
 	CHECK(srcOnlyNotBytecode.find("src_not: 1") != BadIndex);
 	CHECK(srcOnlyNotBytecode.find("ids_all:") == BadIndex);
-	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
+	const auto srcOnlyNotInitialCount = qSrcOnlyNot.count();
+	CHECK(srcOnlyNotInitialCount == qSrcOnly.count());
+	expect_entity_materialization(qSrcOnlyNot, srcOnlyNotInitialCount);
 	const auto srcOnlyNotOpSignature = qSrcOnlyNot.fetch().op_signature();
 	const auto srcOnlyNotOpCount = qSrcOnlyNot.fetch().op_count();
 	auto expect_src_only_not_shape_stable = [&]() {
@@ -407,6 +485,7 @@ void Test_Query_SourceLookup() {
 	CHECK(qSrcOnlyOr.count() == qSrcOnly.count());
 	expect_src_only_or_shape_stable();
 	CHECK(qSrcOnlyNot.count() == 0);
+	expect_entity_materialization(qSrcOnlyNot, 0);
 	expect_src_only_not_shape_stable();
 	wld.del<Mode>(game);
 	CHECK(qSrcOnlyNot.count() == qSrcOnly.count());
@@ -418,10 +497,14 @@ void Test_Query_SourceLookup() {
 	CHECK(qSrc.count() == 0);
 	expect_positions(qSrc, false);
 	CHECK(qSrcOnly.count() == 0);
+	expect_entity_materialization(qSrcOnly, 0);
 	expect_src_only_shape_stable();
 	CHECK(qSrcOnlyOr.count() == 0);
+	expect_entity_materialization(qSrcOnlyOr, 0);
 	expect_src_only_or_shape_stable();
-	CHECK(qSrcOnlyNot.count() > N);
+	const auto srcOnlyNotWithoutLevelCount = qSrcOnlyNot.count();
+	CHECK(srcOnlyNotWithoutLevelCount > N);
+	expect_entity_materialization(qSrcOnlyNot, srcOnlyNotWithoutLevelCount);
 	expect_src_only_not_shape_stable();
 
 	wld.add<Level>(game, {2});
@@ -444,6 +527,7 @@ void Test_Query_SourceLookup() {
 	CHECK(sourceTravOnlyBytecode.find("src_all: 1") != BadIndex);
 	CHECK(sourceTravOnlyBytecode.find("ids_all:") == BadIndex);
 	CHECK(qSourceTravOnly.count() == 0);
+	expect_entity_materialization(qSourceTravOnly, 0);
 	const auto sourceTravOnlyOpSignature = qSourceTravOnly.fetch().op_signature();
 	const auto sourceTravOnlyOpCount = qSourceTravOnly.fetch().op_count();
 	auto expect_source_trav_only_shape_stable = [&]() {
@@ -515,7 +599,9 @@ void Test_Query_SourceLookup() {
 	expect_positions(qSelfDownDepth1, false);
 
 	wld.add<Level>(scene, {3});
-	CHECK(qSourceTravOnly.count() > N);
+	const auto sourceTravOnlySceneCount = qSourceTravOnly.count();
+	CHECK(sourceTravOnlySceneCount > N);
+	expect_entity_materialization(qSourceTravOnly, sourceTravOnlySceneCount);
 	expect_source_trav_only_shape_stable();
 	CHECK(qSelfUp.count() == N);
 	expect_positions(qSelfUp, true);

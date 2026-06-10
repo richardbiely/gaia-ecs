@@ -675,23 +675,21 @@ namespace gaia {
 					plan.flags |= QueryPlanFlag_Sorted;
 				if (hasDepthOrderBarrier && !depthOrderBarrierPrunes)
 					plan.payloadKind = ExecPayloadKind::Grouped;
+				if (depthOrderBarrierPrunes)
+					plan.flags |= QueryPlanFlag_BarrierCache;
 
 				const bool canDirectEntitySeed = !hasFilters && can_use_direct_entity_seed_eval(queryInfo);
 				const bool canDirectChunks = can_use_direct_chunk_iteration_fastpath(queryInfo);
 
 				auto setDenseRange = [&]() -> bool {
-					const auto& data = queryInfo.ctx().data;
-					plan.idxFrom = 0;
-					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
-					if (data.groupBy != EntityBad && m_groupIdSet != 0) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					plan.idxFrom = cacheRange.idxFrom;
+					plan.idxTo = cacheRange.idxTo;
+					if (cacheRange.hasSelectedGroup) {
 						plan.flags |= QueryPlanFlag_Grouped;
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return false;
-
 						plan.payloadKind = ExecPayloadKind::Grouped;
-						plan.idxFrom = pGroupData->idxFirst;
-						plan.idxTo = pGroupData->idxLast + 1;
+						if (!cacheRange.valid)
+							return false;
 					}
 					return plan.idxFrom < plan.idxTo;
 				};
@@ -701,11 +699,6 @@ namespace gaia {
 						plan.mode = QueryPlanMode::Empty;
 						plan.idxFrom = 0;
 						plan.idxTo = 0;
-						return plan;
-					}
-
-					if (hasFilters) {
-						plan.mode = QueryPlanMode::DirectDense;
 						return plan;
 					}
 
@@ -1297,19 +1290,17 @@ namespace gaia {
 																					 can_use_direct_chunk_term_eval_descs(world, queryInfo, &desc, 1) &&
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
 				const auto cacheView = queryInfo.cache_archetype_view();
-				const auto sortView = queryInfo.cache_sort_view();
 				const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+				const bool hasSortedArrayPayload = queryInfo.has_sorted_payload() || needsBarrierCache;
+				const auto sortView =
+						hasSortedArrayPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 				if (needsBarrierCache)
 					queryInfo.ensure_depth_order_hierarchy_barrier_cache();
-				uint32_t idxFrom = 0;
-				uint32_t idxTo = (uint32_t)cacheView.size();
-				if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-					const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-					if (pGroupData == nullptr)
-						return;
-					idxFrom = pGroupData->idxFirst;
-					idxTo = pGroupData->idxLast + 1;
-				}
+				const auto cacheRange = selected_query_cache_range(queryInfo);
+				if (!cacheRange.valid)
+					return;
+				const auto idxFrom = cacheRange.idxFrom;
+				const auto idxTo = cacheRange.idxTo;
 
 				if (!sortView.empty()) {
 					for (const auto& view: sortView) {

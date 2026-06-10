@@ -247,6 +247,53 @@ TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
 	CHECK(probe.delCalls == 2);
 }
 
+TEST_CASE("ECS - Grouped parallel query jobs use scheduler task path") {
+	TestWorld twld;
+	ExternalSchedProbe probe;
+	wld.set_sched(probe.sched());
+
+	const auto groupRel = wld.add();
+	const auto selectedGroup = wld.add();
+	const auto otherGroup = wld.add();
+
+	constexpr uint32_t SelectedCount = 7;
+	constexpr uint32_t OtherCount = 5;
+	GAIA_FOR(SelectedCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+		wld.add(e, ecs::Pair(groupRel, selectedGroup));
+	}
+	GAIA_FOR(OtherCount) {
+		auto e = wld.add();
+		wld.add<ExternalExecProbeComp>(e, {1});
+		wld.add(e, ecs::Pair(groupRel, otherGroup));
+	}
+
+	uint32_t hits = 0;
+	auto query = wld.query().all<ExternalExecProbeComp>().group_by(groupRel);
+	query.group_id(selectedGroup);
+	auto job = query.job(
+			[&](ecs::Iter& it) {
+				hits += it.entity_rows().size();
+			},
+			ecs::QueryExecType::Parallel);
+
+	CHECK(probe.addTaskCalls == 1);
+	CHECK(probe.addParallelCalls == 0);
+	CHECK(probe.submitCalls == 0);
+	CHECK(hits == 0);
+
+	job.submit();
+	CHECK(probe.submitCalls == 1);
+	CHECK(probe.invokeCalls >= 1);
+	CHECK(hits == SelectedCount);
+
+	job.wait();
+	job.del();
+	CHECK(probe.waitCalls >= 1);
+	CHECK(probe.delCalls >= 1);
+}
+
 TEST_CASE("ECS - Typed query jobs add scheduler parallel work without blocking internally") {
 	TestWorld twld;
 	ExternalSchedProbe probe;
@@ -1439,7 +1486,7 @@ TEST_CASE("Multithreading - Background wait runs without background workers") {
 
 	const auto backgroundHandle = tp.sched_background(GAIA_MOV(backgroundJob));
 	GAIA_FOR(16)
-		tp.update();
+	tp.update();
 
 	CHECK_FALSE(backgroundRan.load(std::memory_order_acquire));
 
