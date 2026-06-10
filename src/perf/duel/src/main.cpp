@@ -211,9 +211,18 @@ void BM_ECS(picobench::state& state) {
 		{
 			GAIA_PROF_SCOPE(calc_alive);
 			uint32_t aliveUnits = 0;
-			queryCHealth.each([&](const Health& h) {
-				if (h.value > 0)
-					++aliveUnits;
+			queryCHealth.each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+				auto h = it.view<Health>(0);
+#else
+				auto h = it.view<Health>();
+#endif
+				uint32_t localAliveUnits = 0;
+				GAIA_EACH(it) {
+					if (h[i].value > 0)
+						++localAliveUnits;
+				}
+				aliveUnits += localAliveUnits;
 			});
 			gaia::dont_optimize(aliveUnits);
 		}
@@ -239,8 +248,17 @@ void BM_ECS_ReadPositionOnly(picobench::state& state) {
 	for (auto _: state) {
 		(void)_;
 		float sum = 0.0f;
-		queryPos.each([&](const Position& p) {
-			sum += p.x + p.y + p.z;
+		queryPos.each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+			auto p = it.view<Position>(0);
+#else
+			auto p = it.view<Position>();
+#endif
+			float localSum = 0.0f;
+			GAIA_EACH(it) {
+				localSum += p[i].x + p[i].y + p[i].z;
+			}
+			sum += localSum;
 		});
 		gaia::dont_optimize(sum);
 	}
@@ -321,6 +339,46 @@ void BM_ECS_TouchPositionWithVelocity(picobench::state& state) {
 
 void BM_ECS_UpdatePositionFixedDeltaWithReadback(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionFixedDeltaWithReadback);
+
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryPosCVel.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		constexpr float cdt = 0.016f;
+		queryPosCVel.each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+			auto p = it.view_mut<Position>(0);
+			auto v = it.view<Velocity>(1);
+#else
+			auto p = it.view_mut<Position>();
+			auto v = it.view<Velocity>();
+#endif
+			float localSum = 0.0f;
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
+				p[i].x += v[i].x * cdt;
+				p[i].y += v[i].y * cdt;
+				p[i].z += v[i].z * cdt;
+				localSum += p[i].x + p[i].y + p[i].z;
+			}
+			sum += localSum;
+		});
+		gaia::dont_optimize(sum);
+	}
+}
+
+void BM_ECS_UpdatePositionFixedDeltaWithReadbackTypedCaptured(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionFixedDeltaWithReadbackTypedCaptured);
 
 	ecs::World w;
 	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
@@ -2360,6 +2418,10 @@ int main(int argc, char* argv[]) {
 					.PICO_SETTINGS()
 					.user_data(NMany)
 					.label("UpdatePositionFixedDeltaWithReadback Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionFixedDeltaWithReadbackTypedCaptured)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionFixedDeltaWithReadbackTypedCaptured Many");
 			PICOBENCH_REG(BM_ECS_ReadPositionVelocityChunkRaw)
 					.PICO_SETTINGS()
 					.user_data(NMany)
