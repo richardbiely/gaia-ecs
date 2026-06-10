@@ -274,20 +274,172 @@ namespace gaia {
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
 				NonTrivialPayload nonTrivial;
 
+				struct DynamicCacheState {
+					//! Relation-version payload for reusable dynamic caches with relation dependencies.
+					struct RelationPayload {
+						//! Last seen versions for tracked dynamic relation dependencies.
+						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> versions;
+
+						//! Returns true when any tracked relation version changed.
+						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> relations) const {
+							const auto cnt = (uint32_t)relations.size();
+							GAIA_FOR(cnt) {
+								if (versions[i] != world_rel_version(world, relations[i]))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures current relation versions.
+						void snapshot(const World& world, std::span<const Entity> relations) {
+							const auto cnt = (uint32_t)relations.size();
+							GAIA_FOR(cnt)
+							versions[i] = world_rel_version(world, relations[i]);
+						}
+					};
+
+					//! Direct concrete-source payload for reusable dynamic caches.
+					struct DirectSourcePayload {
+						//! Last seen archetype versions for tracked direct concrete source entities.
+						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> entityVersions;
+
+						//! Returns true when any tracked source entity changed archetype.
+						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> sourceEntities) const {
+							const auto cnt = (uint32_t)sourceEntities.size();
+							GAIA_FOR(cnt) {
+								if (entityVersions[i] != world_entity_archetype_version(world, sourceEntities[i]))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures current source entity archetype versions.
+						void snapshot(const World& world, std::span<const Entity> sourceEntities) {
+							const auto cnt = (uint32_t)sourceEntities.size();
+							GAIA_FOR(cnt)
+							entityVersions[i] = world_entity_archetype_version(world, sourceEntities[i]);
+						}
+					};
+
+					//! Traversed-source payload for reusable dynamic caches with source traversal.
+					struct TraversedSourcePayload {
+						//! Last seen traversed-source closure for reusable source queries.
+						cnt::darray<SrcTravSnapshotItem> snapshot;
+						//! True when the traversed source closure exceeded the configured snapshot cap.
+						bool overflowed = false;
+
+						//! Clears traversed-source snapshot state.
+						void clear() {
+							snapshot.clear();
+							overflowed = false;
+						}
+
+						//! Returns true when the traversed-source snapshot is unusable for reuse.
+						GAIA_NODISCARD bool is_overflowed() const {
+							return overflowed;
+						}
+
+						//! Returns true when any tracked traversed source entity changed archetype.
+						GAIA_NODISCARD bool versions_changed(const World& world) const {
+							const auto cnt = (uint32_t)snapshot.size();
+							GAIA_FOR(cnt) {
+								const auto& item = snapshot[i];
+								if (item.sourceVersion != world_entity_archetype_version(world, item.entity))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
+						GAIA_NODISCARD bool changed(const cnt::darray<SrcTravSnapshotItem>& items) const {
+							if (items.size() != snapshot.size())
+								return true;
+
+							const auto cnt = (uint32_t)snapshot.size();
+							GAIA_FOR(cnt) {
+								if (items[i] != snapshot[i])
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures a newly built traversed-source closure snapshot.
+						void capture(const cnt::darray<SrcTravSnapshotItem>& items) {
+							snapshot = items;
+							overflowed = false;
+						}
+
+						//! Marks the traversed-source snapshot as overflowed and unusable for reuse.
+						void mark_overflowed() {
+							snapshot.clear();
+							overflowed = true;
+						}
+					};
+
+					//! Variable-binding payload for reusable dynamic caches with runtime variables.
+					struct VariablePayload {
+						//! Snapshot of runtime variable bindings used to build the current dynamic cache.
+						cnt::sarray<Entity, MaxVarCnt> bindings;
+						//! Bitmask of the variable bindings captured in bindings.
+						uint8_t bindingMask = 0;
+
+						//! Clears runtime variable binding snapshot state.
+						void clear() {
+							bindingMask = 0;
+						}
+
+						//! Returns true when runtime variable bindings differ from the captured snapshot.
+						GAIA_NODISCARD bool
+						changed(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) const {
+							if (bindingMask != runtimeBindingMask)
+								return true;
+							if (runtimeBindingMask == 0)
+								return false;
+
+							GAIA_FOR(MaxVarCnt) {
+								const auto bit = (uint8_t(1) << i);
+								if ((runtimeBindingMask & bit) == 0)
+									continue;
+
+								if (bindings[i] != runtimeBindings[i])
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures runtime variable bindings.
+						void snapshot(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) {
+							bindings = runtimeBindings;
+							bindingMask = runtimeBindingMask;
+						}
+					};
+
+					//! Relation-version payload.
+					RelationPayload relation;
+					//! Direct concrete-source payload.
+					DirectSourcePayload directSource;
+					//! Traversed-source closure payload.
+					TraversedSourcePayload traversedSource;
+					//! Runtime variable-binding payload.
+					VariablePayload variable;
+
+					//! Clears transient dynamic input snapshot state while preserving fixed-size version snapshots.
+					void clear_input_snapshots() {
+						traversedSource.clear();
+						variable.clear();
+					}
+				};
+
+				//! Runtime snapshots used to validate reusable dynamic caches.
+				DynamicCacheState dynamic;
+
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
-				//! Last seen versions for tracked dynamic relation dependencies.
-				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
-				//! Last seen archetype versions for tracked direct concrete source entities.
-				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> directSrcEntityVersions;
-				//! Last seen traversed-source closure for reusable source queries.
-				cnt::darray<SrcTravSnapshotItem> srcTravSnapshot;
-				//! True when the traversed source closure exceeded the configured snapshot cap.
-				bool srcTravSnapshotOverflowed = false;
-				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
-				cnt::sarray<Entity, MaxVarCnt> varBindings;
-				//! Bitmask of the variable bindings captured in varBindings.
-				uint8_t varBindingMask = 0;
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
@@ -326,8 +478,7 @@ namespace gaia {
 				//! Resets all query cache state, dynamic snapshots, cursors, and dirty flags.
 				void reset() {
 					clear_cache();
-					srcTravSnapshot.clear();
-					srcTravSnapshotOverflowed = false;
+					dynamic.clear_input_snapshots();
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -429,60 +580,28 @@ namespace gaia {
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
-				return m_plan.ctx.data.usesDirectSrcVersionTracking;
+				return m_plan.ctx.data.uses_direct_src_version_tracking();
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
-				return m_plan.ctx.data.usesSrcTravSnapshot;
+				return m_plan.ctx.data.uses_src_trav_snapshot();
 			}
 
 			//! Checks tracked relation versions used by the dynamic cache.
 			GAIA_NODISCARD bool dyn_rel_versions_changed() const {
-				const auto relations = m_plan.ctx.data.deps.relations_view();
-				const auto cnt = (uint32_t)relations.size();
-				GAIA_FOR(cnt) {
-					if (m_state.relationVersions[i] != world_rel_version(*world(), relations[i]))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.relation.changed(*world(), m_plan.ctx.data.deps.relations_view());
 			}
 
 			//! Checks runtime variable bindings used by the dynamic cache.
 			GAIA_NODISCARD bool dyn_var_bindings_changed(
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) const {
-				if (m_state.varBindingMask != runtimeVarBindingMask)
-					return true;
-				if (runtimeVarBindingMask == 0)
-					return false;
-
-				GAIA_FOR(MaxVarCnt) {
-					const auto bit = (uint8_t(1) << i);
-					if ((runtimeVarBindingMask & bit) == 0)
-						continue;
-
-					if (m_state.varBindings[i] != runtimeVarBindings[i])
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.variable.changed(runtimeVarBindings, runtimeVarBindingMask);
 			}
 
 			//! Checks direct concrete source entities tracked through per-entity archetype versions.
 			GAIA_NODISCARD bool direct_src_versions_changed() const {
-				if (!uses_direct_src_version_tracking())
-					return false;
-
-				const auto& deps = m_plan.ctx.data.deps;
-				const auto sourceEntities = deps.src_entities_view();
-				const auto cnt = (uint32_t)sourceEntities.size();
-				GAIA_FOR(cnt) {
-					if (m_state.directSrcEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.directSource.changed(*world(), m_plan.ctx.data.deps.src_entities_view());
 			}
 
 			//! Iterates reusable source entities that participate in direct-source or traversed-source reuse.
@@ -527,26 +646,12 @@ namespace gaia {
 			//! Checks whether the previously snapshotted traversed source entities changed archetype membership.
 			//! This avoids rebuilding the full traversal closure while relation topology is unchanged.
 			GAIA_NODISCARD bool traversed_src_versions_changed() const {
-				const auto cnt = (uint32_t)m_state.srcTravSnapshot.size();
-				GAIA_FOR(cnt) {
-					const auto& item = m_state.srcTravSnapshot[i];
-					if (item.sourceVersion != world_entity_archetype_version(*world(), item.entity))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.traversedSource.versions_changed(*world());
 			}
 
-			//! Checks source-driven dynamic inputs, using direct-source versions or traversed-source snapshots as needed.
-			GAIA_NODISCARD bool dyn_src_inputs_changed(bool relationVersionsChanged) {
-				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
-					return false;
-
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
-					return direct_src_versions_changed();
-
-				if (m_state.srcTravSnapshotOverflowed)
+			//! Checks traversed-source dynamic inputs, rebuilding the source snapshot only after relation topology changes.
+			GAIA_NODISCARD bool traversed_src_inputs_changed(bool relationVersionsChanged) {
+				if (m_state.dynamic.traversedSource.is_overflowed())
 					return true;
 
 				if (!relationVersionsChanged)
@@ -556,16 +661,33 @@ namespace gaia {
 				if (!build_src_trav_snapshot(scratch))
 					return true;
 
-				if (scratch.size() != m_state.srcTravSnapshot.size())
+				return m_state.dynamic.traversedSource.changed(scratch);
+			}
+
+			//! Checks mixed-shape dynamic inputs with the pre-existing dependency-flag path.
+			GAIA_NODISCARD bool mixed_dyn_inputs_changed(
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
+						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
 					return true;
 
-				const auto cnt = (uint32_t)m_state.srcTravSnapshot.size();
-				GAIA_FOR(cnt) {
-					if (scratch[i] != m_state.srcTravSnapshot[i])
-						return true;
-				}
+				const bool relationVersionsChanged = dyn_rel_versions_changed();
+				const bool hasSourceTerms = deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms);
+				const bool hasTraversalTerms = deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms);
+				if (relationVersionsChanged && !(hasSourceTerms && hasTraversalTerms))
+					return true;
 
-				return false;
+				if (!hasSourceTerms)
+					return relationVersionsChanged;
+
+				if (m_state.dynamic.traversedSource.is_overflowed())
+					return true;
+
+				if (!hasTraversalTerms)
+					return direct_src_versions_changed();
+
+				return traversed_src_inputs_changed(relationVersionsChanged);
 			}
 
 			//! Checks whether any tracked runtime input invalidates the reusable dynamic cache.
@@ -574,22 +696,48 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return false;
 
-				const auto& deps = m_plan.ctx.data.deps;
-				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
-						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
-					return true;
+				switch (m_plan.ctx.data.dynamicCacheKind) {
+					case QueryCtx::DynamicCacheKind::None:
+						return false;
+					case QueryCtx::DynamicCacheKind::RelationOnly:
+						return dyn_rel_versions_changed();
+					case QueryCtx::DynamicCacheKind::DirectSource:
+						return direct_src_versions_changed();
+					case QueryCtx::DynamicCacheKind::TraversedSource:
+						return traversed_src_inputs_changed(dyn_rel_versions_changed());
+					case QueryCtx::DynamicCacheKind::Variable:
+						return dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask);
+					case QueryCtx::DynamicCacheKind::Mixed:
+						return mixed_dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask);
+				}
 
-				const bool relationVersionsChanged = dyn_rel_versions_changed();
-				if (relationVersionsChanged && !uses_src_trav_snapshot())
-					return true;
+				GAIA_ASSERT(false);
+				return true;
+			}
 
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
-					return relationVersionsChanged;
+			//! Captures tracked relation versions for reusable dynamic caches.
+			void snapshot_dyn_rel_inputs() {
+				m_state.dynamic.relation.snapshot(*world(), m_plan.ctx.data.deps.relations_view());
+			}
 
-				if (m_state.srcTravSnapshotOverflowed)
-					return true;
+			//! Captures tracked direct concrete source entity archetype versions.
+			void snapshot_dyn_direct_src_inputs() {
+				m_state.dynamic.directSource.snapshot(*world(), m_plan.ctx.data.deps.src_entities_view());
+			}
 
-				return dyn_src_inputs_changed(relationVersionsChanged);
+			//! Captures the traversed-source closure snapshot used by reusable dynamic caches.
+			void snapshot_dyn_traversed_src_inputs() {
+				cnt::darray<SrcTravSnapshotItem> scratch;
+				if (build_src_trav_snapshot(scratch))
+					m_state.dynamic.traversedSource.capture(scratch);
+				else
+					m_state.dynamic.traversedSource.mark_overflowed();
+			}
+
+			//! Captures runtime variable bindings for reusable dynamic caches.
+			void
+			snapshot_dyn_var_inputs(const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				m_state.dynamic.variable.snapshot(runtimeVarBindings, runtimeVarBindingMask);
 			}
 
 			//! Captures the tracked runtime inputs used by the reusable dynamic cache.
@@ -598,41 +746,41 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return;
 
-				const auto relations = m_plan.ctx.data.deps.relations_view();
-				const auto cnt = (uint32_t)relations.size();
-				GAIA_FOR(cnt)
-				m_state.relationVersions[i] = world_rel_version(*world(), relations[i]);
+				m_state.dynamic.clear_input_snapshots();
 
-				const auto& deps = m_plan.ctx.data.deps;
-				if (uses_direct_src_version_tracking()) {
-					const auto sourceEntities = deps.src_entities_view();
-					const auto sourceCnt = (uint32_t)sourceEntities.size();
-					GAIA_FOR(sourceCnt)
-					m_state.directSrcEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
-				}
-
-				if (uses_src_trav_snapshot()) {
-					cnt::darray<SrcTravSnapshotItem> scratch;
-					if (build_src_trav_snapshot(scratch)) {
-						m_state.srcTravSnapshot = scratch;
-						m_state.srcTravSnapshotOverflowed = false;
-					} else {
-						m_state.srcTravSnapshot.clear();
-						m_state.srcTravSnapshotOverflowed = true;
+				switch (m_plan.ctx.data.dynamicCacheKind) {
+					case QueryCtx::DynamicCacheKind::None:
+						return;
+					case QueryCtx::DynamicCacheKind::RelationOnly:
+						snapshot_dyn_rel_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::DirectSource:
+						snapshot_dyn_direct_src_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::TraversedSource:
+						snapshot_dyn_rel_inputs();
+						snapshot_dyn_traversed_src_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::Variable:
+						snapshot_dyn_var_inputs(runtimeVarBindings, runtimeVarBindingMask);
+						return;
+					case QueryCtx::DynamicCacheKind::Mixed: {
+						const auto& deps = m_plan.ctx.data.deps;
+						snapshot_dyn_rel_inputs();
+						if (deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms)) {
+							if (deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
+								snapshot_dyn_traversed_src_inputs();
+							else
+								snapshot_dyn_direct_src_inputs();
+						}
+						if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms))
+							snapshot_dyn_var_inputs(runtimeVarBindings, runtimeVarBindingMask);
+						return;
 					}
-				} else {
-					m_state.srcTravSnapshot.clear();
-					m_state.srcTravSnapshotOverflowed = false;
 				}
 
-				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms)) {
-					m_state.varBindings = runtimeVarBindings;
-					m_state.varBindingMask = runtimeVarBindingMask;
-				} else {
-					m_state.varBindingMask = 0;
-				}
+				GAIA_ASSERT(false);
 			}
-
 			//! Returns whether a compiled query contains a term with the requested access mode.
 			//! \tparam TType Component or Entity argument type to check.
 			//! \param op Query operation kind to match.
@@ -2172,10 +2320,54 @@ namespace gaia {
 			}
 
 #if GAIA_ECS_TEST_HOOKS
+			//! Dynamic-cache dependency shape exposed only to tests.
+			using TestDynamicCacheKind = QueryCtx::DynamicCacheKind;
+
+			//! Returns the dynamic-cache dependency shape derived from compiled query metadata.
+			//! Returns compact dynamic-cache classification for architecture/layout tests.
+			GAIA_NODISCARD TestDynamicCacheKind test_dynamic_cache_kind() const {
+				return m_plan.ctx.data.dynamicCacheKind;
+			}
+
+			//! Returns whether the compiled dynamic-cache shape tracks direct source entity versions.
+			GAIA_NODISCARD bool test_uses_direct_src_version_tracking() const {
+				return m_plan.ctx.data.uses_direct_src_version_tracking();
+			}
+
+			//! Returns whether the compiled dynamic-cache shape tracks a traversed-source snapshot.
+			GAIA_NODISCARD bool test_uses_src_trav_snapshot() const {
+				return m_plan.ctx.data.uses_src_trav_snapshot();
+			}
+
 			//! Returns the number of persistent VM match passes executed by this query info.
-			//! \return Persistent VM match-pass count for test diagnostics.
+			//! Returns persistent VM match-pass count for test diagnostics.
 			GAIA_NODISCARD uint32_t test_match_pass_count() const {
 				return m_testMatchPassCount;
+			}
+
+			//! Returns the current QueryInfo footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_info_size() {
+				return (uint32_t)sizeof(QueryInfo);
+			}
+
+			//! Returns the current compiled query plan footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_plan_size() {
+				return (uint32_t)sizeof(QueryPlan);
+			}
+
+			//! Returns the current runtime query-state footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_state_size() {
+				return (uint32_t)sizeof(QueryState);
+			}
+
+			//! Returns the current dynamic-cache state footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_dynamic_cache_state_size() {
+				return (uint32_t)sizeof(QueryState::DynamicCacheState);
+			}
+
+			//! Returns the offset of dynamic-cache state within QueryState for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_state_dynamic_offset() {
+				return (uint32_t)offsetof(QueryState, dynamic);
 			}
 
 			//! Test-only helper that seeds the transient cache with one archetype so unit tests can

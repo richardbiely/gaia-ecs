@@ -662,6 +662,177 @@ TEST_CASE("Query - dynamic direct source cache reuses warm matches") {
 	CHECK(info.test_match_pass_count() == sourceMovedMatchPassCount + 1);
 }
 
+TEST_CASE("Query - dynamic cache kind classification") {
+	using DynamicKind = ecs::QueryInfo::TestDynamicCacheKind;
+
+	struct DynamicKindPosition {};
+	struct DynamicKindLevel {};
+	struct DynamicKindLinkedTo {};
+
+	TestWorld twld;
+	const auto rel = wld.add<DynamicKindLinkedTo>().entity;
+	const auto source = wld.add();
+	const auto target = wld.add();
+	const auto entity = wld.add();
+	wld.add<DynamicKindLevel>(source);
+	wld.add<DynamicKindLevel>(target);
+	wld.add<DynamicKindPosition>(entity);
+	wld.add(entity, ecs::Pair(rel, target));
+
+	{
+		ecs::QueryCtx::Data data;
+		data.cachePolicy = ecs::QueryCtx::CachePolicy::Dynamic;
+		data.deps.set_dep_flag(ecs::QueryCtx::DependencyHasVariableTerms);
+		data.dynamicCacheKind = data.calc_dynamic_cache_kind();
+		data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
+		CHECK(data.dynamicCacheKind == DynamicKind::Variable);
+		CHECK(data.canReuseDynamicCache);
+		CHECK_FALSE(data.uses_direct_src_version_tracking());
+		CHECK_FALSE(data.uses_src_trav_snapshot());
+
+		data.deps.clear();
+		data.deps.add_rel(rel);
+		data.dynamicCacheKind = data.calc_dynamic_cache_kind();
+		data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
+		CHECK(data.dynamicCacheKind == DynamicKind::RelationOnly);
+		CHECK(data.canReuseDynamicCache);
+		CHECK_FALSE(data.uses_direct_src_version_tracking());
+		CHECK_FALSE(data.uses_src_trav_snapshot());
+	}
+
+	auto qStatic = wld.query().all<DynamicKindPosition>();
+	CHECK(qStatic.fetch().test_dynamic_cache_kind() == DynamicKind::None);
+	CHECK_FALSE(qStatic.fetch().test_uses_direct_src_version_tracking());
+	CHECK_FALSE(qStatic.fetch().test_uses_src_trav_snapshot());
+
+	auto qDirectSource = wld.query() //
+													 .all<DynamicKindPosition>()
+													 .all<DynamicKindLevel>(ecs::QueryTermOptions{}.src(source));
+	CHECK(qDirectSource.count() == 1);
+	CHECK(qDirectSource.fetch().test_dynamic_cache_kind() == DynamicKind::DirectSource);
+	CHECK(qDirectSource.fetch().test_uses_direct_src_version_tracking());
+	CHECK_FALSE(qDirectSource.fetch().test_uses_src_trav_snapshot());
+
+	auto qTraversedSource = wld.query() //
+															.cache_src_trav(ecs::MaxCacheSrcTrav)
+															.all<DynamicKindPosition>()
+															.all<DynamicKindLevel>(ecs::QueryTermOptions{}.src(source).trav(rel));
+	CHECK(qTraversedSource.count() == 1);
+	CHECK(qTraversedSource.fetch().test_dynamic_cache_kind() == DynamicKind::TraversedSource);
+	CHECK_FALSE(qTraversedSource.fetch().test_uses_direct_src_version_tracking());
+	CHECK(qTraversedSource.fetch().test_uses_src_trav_snapshot());
+
+	auto qVariableSource = wld.query().all<DynamicKindPosition>(ecs::QueryTermOptions{}.src(ecs::Var0));
+	qVariableSource.set_var(ecs::Var0, entity);
+	CHECK(qVariableSource.count() > 0);
+	CHECK(qVariableSource.fetch().test_dynamic_cache_kind() == DynamicKind::Mixed);
+	CHECK_FALSE(qVariableSource.fetch().test_uses_direct_src_version_tracking());
+	CHECK_FALSE(qVariableSource.fetch().test_uses_src_trav_snapshot());
+
+	auto qRelationVariable = wld.query().all<DynamicKindPosition>().all(ecs::Pair(rel, ecs::Var0));
+	qRelationVariable.set_var(ecs::Var0, target);
+	CHECK(qRelationVariable.count() == 1);
+	CHECK(qRelationVariable.fetch().test_dynamic_cache_kind() == DynamicKind::Mixed);
+	CHECK_FALSE(qRelationVariable.fetch().test_uses_direct_src_version_tracking());
+	CHECK_FALSE(qRelationVariable.fetch().test_uses_src_trav_snapshot());
+}
+
+TEST_CASE("Query - mixed dynamic direct source cache tracks source versions") {
+	using DynamicKind = ecs::QueryInfo::TestDynamicCacheKind;
+
+	struct MixedDynamicPosition {};
+	struct MixedDynamicLevel {};
+	struct MixedDynamicLinkedTo {};
+	struct MixedDynamicOther {};
+
+	TestWorld twld;
+	const auto rel = wld.add<MixedDynamicLinkedTo>().entity;
+	const auto source = wld.add();
+	const auto target = wld.add();
+	const auto entity = wld.add();
+	const auto existingSourceArchetype = wld.add();
+	wld.add<MixedDynamicLevel>(source);
+	wld.add<MixedDynamicLevel>(existingSourceArchetype);
+	wld.add<MixedDynamicOther>(existingSourceArchetype);
+	wld.add<MixedDynamicPosition>(entity);
+	wld.add(entity, ecs::Pair(rel, target));
+
+	auto q = wld.query() //
+							 .all<MixedDynamicPosition>()
+							 .all<MixedDynamicLevel>(ecs::QueryTermOptions{}.src(source))
+							 .all(ecs::Pair(rel, ecs::Var0));
+	q.set_var(ecs::Var0, target);
+	auto& info = q.fetch();
+
+	CHECK(q.count() == 1);
+	CHECK(info.test_dynamic_cache_kind() == DynamicKind::Mixed);
+	const auto warmMatchPassCount = info.test_match_pass_count();
+
+	CHECK(q.count() == 1);
+	CHECK(info.test_match_pass_count() == warmMatchPassCount);
+
+	wld.add<MixedDynamicOther>(source);
+	CHECK(q.count() == 1);
+	CHECK(info.test_match_pass_count() == warmMatchPassCount + 1);
+}
+
+TEST_CASE("Query - mixed dynamic traversal cache tracks source closure") {
+	using DynamicKind = ecs::QueryInfo::TestDynamicCacheKind;
+
+	struct MixedTraversalPosition {};
+	struct MixedTraversalLevel {};
+	struct MixedTraversalLinkedTo {};
+	struct MixedTraversalTaggedBy {};
+
+	TestWorld twld;
+	const auto rel = wld.add<MixedTraversalLinkedTo>().entity;
+	const auto tagRel = wld.add<MixedTraversalTaggedBy>().entity;
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto rootEmpty = wld.add();
+	const auto source = wld.add();
+	const auto tag = wld.add();
+	wld.add<MixedTraversalLevel>(rootA);
+	wld.add<MixedTraversalLevel>(rootB);
+	wld.add(source, ecs::Pair(rel, rootA));
+
+	constexpr uint32_t N = 8;
+	GAIA_FOR(N) {
+		const auto entity = wld.add();
+		wld.add<MixedTraversalPosition>(entity);
+		wld.add(entity, ecs::Pair(tagRel, tag));
+	}
+
+	auto q = wld.query() //
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<MixedTraversalPosition>()
+							 .all<MixedTraversalLevel>(ecs::QueryTermOptions{}.src(source).trav(rel))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	q.set_var(ecs::Var0, tag);
+	auto& info = q.fetch();
+
+	CHECK(q.count() == N);
+	CHECK(info.test_dynamic_cache_kind() == DynamicKind::Mixed);
+	const auto firstRevision = info.result_cache_rev();
+	const auto firstMatchPassCount = info.test_match_pass_count();
+	CHECK(firstMatchPassCount == 1);
+
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount);
+
+	wld.del(source, ecs::Pair(rel, rootA));
+	wld.add(source, ecs::Pair(rel, rootB));
+	CHECK(q.count() == N);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount + 1);
+	CHECK(info.result_cache_rev() == firstRevision);
+
+	wld.del(source, ecs::Pair(rel, rootB));
+	wld.add(source, ecs::Pair(rel, rootEmpty));
+	CHECK(q.count() == 0);
+	CHECK(info.test_match_pass_count() == firstMatchPassCount + 2);
+	CHECK(info.result_cache_rev() != firstRevision);
+}
+
 TEST_CASE("Query - dynamic traversal refresh preserves reverse index revision for same membership") {
 	struct DynamicTraversalPosition {};
 	struct DynamicTraversalLevel {};
@@ -684,11 +855,13 @@ TEST_CASE("Query - dynamic traversal refresh preserves reverse index revision fo
 	}
 
 	auto q = wld.query() //
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
 							 .all<DynamicTraversalPosition>()
 							 .all<DynamicTraversalLevel>(ecs::QueryTermOptions{}.src(source).trav(rel));
 	auto& info = q.fetch();
 
 	CHECK(q.count() == N);
+	CHECK(info.test_uses_src_trav_snapshot());
 	const auto firstRevision = info.result_cache_rev();
 	const auto firstMatchPassCount = info.test_match_pass_count();
 	CHECK(firstMatchPassCount == 1);

@@ -1188,6 +1188,53 @@ TEST_CASE("Query - cached sorted query after archetype creation") {
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
+TEST_CASE("Query - sorted query identity hash includes sort payload") {
+	TestWorld twld;
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+
+	auto sort_ascending = []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+		const auto& p0 = *static_cast<const Position*>(pData0);
+		const auto& p1 = *static_cast<const Position*>(pData1);
+		if (p0.x < p1.x)
+			return -1;
+		if (p0.x > p1.x)
+			return 1;
+		return 0;
+	};
+	auto sort_descending = []([[maybe_unused]] const ecs::World& world, const void* pData0, const void* pData1) {
+		const auto& p0 = *static_cast<const Position*>(pData0);
+		const auto& p1 = *static_cast<const Position*>(pData1);
+		if (p0.x > p1.x)
+			return -1;
+		if (p0.x < p1.x)
+			return 1;
+		return 0;
+	};
+
+	auto qAscending =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>().sort_by(wld.get<Position>(), sort_ascending);
+	auto qDescending =
+			wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>().sort_by(wld.get<Position>(), sort_descending);
+	auto qUnsorted = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>();
+
+	CHECK(qAscending.count() == 1);
+	CHECK(qDescending.count() == 1);
+	CHECK(qUnsorted.count() == 1);
+
+	const auto hashAscending = qAscending.fetch().ctx().hashLookup.hash;
+	const auto hashDescending = qDescending.fetch().ctx().hashLookup.hash;
+	const auto hashUnsorted = qUnsorted.fetch().ctx().hashLookup.hash;
+
+	CHECK(hashAscending != 0);
+	CHECK(hashDescending != 0);
+	CHECK(hashUnsorted != 0);
+	CHECK(hashAscending != hashDescending);
+	CHECK(hashAscending != hashUnsorted);
+	CHECK(hashDescending != hashUnsorted);
+}
+
 TEST_CASE("Query - cached sorted query exact sort term lookup across archetypes") {
 	TestWorld twld;
 
@@ -1369,6 +1416,39 @@ TEST_CASE("Query - cached grouped query after archetype creation") {
 	CHECK(!info.cache_archetype_view().empty());
 	q.group_id(carrot);
 	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - grouped query identity hash includes group payload") {
+	TestWorld twld;
+
+	auto eats = wld.add();
+	auto drinks = wld.add();
+	auto carrot = wld.add();
+	auto water = wld.add();
+
+	auto e = wld.add();
+	wld.add<Position>(e, {1, 0, 0});
+	wld.add(e, ecs::Pair(eats, carrot));
+	wld.add(e, ecs::Pair(drinks, water));
+
+	auto qUnGrouped = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>();
+	auto qGroupedEats = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>().group_by(eats);
+	auto qGroupedDrinks = wld.query().scope(ecs::QueryCacheScope::Shared).all<Position>().group_by(drinks);
+
+	CHECK(qUnGrouped.count() == 1);
+	CHECK(qGroupedEats.count() == 1);
+	CHECK(qGroupedDrinks.count() == 1);
+
+	const auto hashUnGrouped = qUnGrouped.fetch().ctx().hashLookup.hash;
+	const auto hashGroupedEats = qGroupedEats.fetch().ctx().hashLookup.hash;
+	const auto hashGroupedDrinks = qGroupedDrinks.fetch().ctx().hashLookup.hash;
+
+	CHECK(hashUnGrouped != 0);
+	CHECK(hashGroupedEats != 0);
+	CHECK(hashGroupedDrinks != 0);
+	CHECK(hashUnGrouped != hashGroupedEats);
+	CHECK(hashUnGrouped != hashGroupedDrinks);
+	CHECK(hashGroupedEats != hashGroupedDrinks);
 }
 
 TEST_CASE("Query - custom grouped query refreshes on multiple group deps") {

@@ -294,6 +294,79 @@ void BM_EntityBuilder_BatchAdd_4(picobench::state& state) {
 	}
 }
 
+//! Benchmarks query-context builder cost for many direct multi-term queries kept alive together.
+template <uint32_t QueryCnt, uint32_t TermsPerQuery>
+void BM_QueryContext_Build_Direct(picobench::state& state) {
+	static_assert(QueryCnt > 0);
+	static_assert(TermsPerQuery > 0);
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		cnt::darray<ecs::Entity> tags;
+		tags.reserve(QueryCnt * TermsPerQuery);
+		GAIA_FOR(QueryCnt * TermsPerQuery)
+		tags.push_back(w.add());
+
+		cnt::darray<ecs::Query> queries;
+		queries.reserve(QueryCnt);
+
+		state.start_timer();
+
+		GAIA_FOR(QueryCnt) {
+			auto q = w.query();
+			GAIA_FOR_(TermsPerQuery, j)
+			q.all(tags[i * TermsPerQuery + j]);
+			queries.push_back(GAIA_MOV(q));
+		}
+
+		state.stop_timer();
+		dont_optimize(queries.size());
+	}
+}
+
+//! Benchmarks query-context builder cost for many mixed dynamic source/variable queries kept alive together.
+template <uint32_t QueryCnt>
+void BM_QueryContext_Build_MixedDynamic(picobench::state& state) {
+	static_assert(QueryCnt > 0);
+
+	for (auto _: state) {
+		(void)_;
+		state.stop_timer();
+
+		ecs::World w;
+		const auto linkedTo = w.add<LinkedTo>().entity;
+		const auto source = w.add();
+		w.add<Acceleration>(source);
+
+		cnt::darray<ecs::Query> queries;
+		queries.reserve(QueryCnt);
+
+		state.start_timer();
+
+		GAIA_FOR(QueryCnt) {
+			auto q = w.query() //
+									 .all<Position>()
+									 .all<Acceleration>(ecs::QueryTermOptions{}.src(source))
+									 .all(ecs::Pair(linkedTo, ecs::Var0));
+			queries.push_back(GAIA_MOV(q));
+		}
+
+		state.stop_timer();
+		dont_optimize(queries.size());
+	}
+}
+
+void BM_QueryContext_Build_Direct_128q_4t(picobench::state& state) {
+	BM_QueryContext_Build_Direct<128, 4>(state);
+}
+
+void BM_QueryContext_Build_MixedDynamic_128q(picobench::state& state) {
+	BM_QueryContext_Build_MixedDynamic<128>(state);
+}
+
 //! Benchmarks immediate structural cache maintenance in worlds that already contain many unrelated archetypes.
 template <uint32_t QueryCnt>
 void BM_QueryCache_Create_Fanout_Scaled(picobench::state& state) {
@@ -2829,6 +2902,10 @@ void register_query_hot_path(PerfRunMode mode) {
 					.label("var source (unbound)");
 
 			PICOBENCH_SUITE_REG("Query cache maintenance");
+			PICOBENCH_REG(BM_QueryContext_Build_Direct_128q_4t).PICO_SETTINGS_FOCUS().label("query build direct 128q 4t");
+			PICOBENCH_REG(BM_QueryContext_Build_MixedDynamic_128q)
+					.PICO_SETTINGS_FOCUS()
+					.label("query build mixed dynamic 128q");
 			PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(16).label("create fanout 16");
 			PICOBENCH_REG(BM_QueryCache_Create_Fanout).PICO_SETTINGS().user_data(24).label("create fanout 24");
 			PICOBENCH_REG(BM_QueryCache_Create_Fanout_Scaled_31)
