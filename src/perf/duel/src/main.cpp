@@ -264,6 +264,137 @@ void BM_ECS_ReadPositionOnly(picobench::state& state) {
 	}
 }
 
+void BM_ECS_ReadHealthOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadHealthOnly);
+
+	ecs::World w;
+	auto queryHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryHealth.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t aliveUnits = 0;
+		queryHealth.each([&](const Health& h) {
+			if (h.value > 0)
+				++aliveUnits;
+		});
+		gaia::dont_optimize(aliveUnits);
+	}
+}
+
+void BM_ECS_ReadHealthIterOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadHealthIterOnly);
+
+	ecs::World w;
+	auto queryHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryHealth.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t aliveUnits = 0;
+		queryHealth.each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+			auto h = it.view<Health>(0);
+#else
+			auto h = it.view<Health>();
+#endif
+			uint32_t localAliveUnits = 0;
+			GAIA_EACH(it) {
+				if (h[i].value > 0)
+					++localAliveUnits;
+			}
+			aliveUnits += localAliveUnits;
+		});
+		gaia::dont_optimize(aliveUnits);
+	}
+}
+
+void BM_ECS_ReadHealthIterChunkRawOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadHealthIterChunkRawOnly);
+
+	ecs::World w;
+	auto queryHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryHealth.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		uint32_t aliveUnits = 0;
+		queryHealth.each([&](ecs::Iter& it) {
+			auto h = it.chunk()->view<Health>(it.row_begin(), it.row_end());
+			uint32_t localAliveUnits = 0;
+			GAIA_EACH(it) {
+				if (h[i].value > 0)
+					++localAliveUnits;
+			}
+			aliveUnits += localAliveUnits;
+		});
+		gaia::dont_optimize(aliveUnits);
+	}
+}
+
+void BM_ECS_ReadHealthArchRawOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadHealthArchRawOnly);
+
+	ecs::World w;
+	auto queryHealth = w.query().all<Health>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryHealth.fetch();
+		queryHealth.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryHealth.fetch();
+	const auto healthComp = w.get<Health>();
+	for (auto _: state) {
+		(void)_;
+		uint32_t aliveUnits = 0;
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			const auto& chunks = pArchetype->chunks();
+			for (auto* pChunk: chunks) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto recs = pChunk->comp_rec_view();
+				const auto* h = (const Health*)recs[pChunk->comp_idx(healthComp)].pData + from;
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					if (h[i].value > 0)
+						++aliveUnits;
+				}
+			}
+		}
+		gaia::dont_optimize(aliveUnits);
+	}
+}
+
 void BM_ECS_UpdatePositionOnly(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnly);
 
@@ -2405,6 +2536,13 @@ int main(int argc, char* argv[]) {
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().baseline().label("Default");
 			PICOBENCH_REG(BM_ECS).PICO_SETTINGS().user_data(NMany).label("Default Many");
 			PICOBENCH_REG(BM_ECS_ReadPositionOnly).PICO_SETTINGS().user_data(NMany).label("ReadPositionOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadHealthOnly).PICO_SETTINGS().user_data(NMany).label("ReadHealthOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadHealthIterOnly).PICO_SETTINGS().user_data(NMany).label("ReadHealthIterOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadHealthIterChunkRawOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("ReadHealthIterChunkRawOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadHealthArchRawOnly).PICO_SETTINGS().user_data(NMany).label("ReadHealthArchRawOnly Many");
 			PICOBENCH_REG(BM_ECS_UpdatePositionOnly).PICO_SETTINGS().user_data(NMany).label("UpdatePositionOnly Many");
 			PICOBENCH_REG(BM_ECS_ReadPositionVelocityOnly)
 					.PICO_SETTINGS()
