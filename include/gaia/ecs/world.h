@@ -887,6 +887,12 @@ namespace gaia {
 			GAIA_NODISCARD bool verify_query_cache() const {
 				return m_queryCache.verify_archetype_tracking();
 			}
+
+			//! Returns the live cached-query record count for tests.
+			//! \return Number of live cached-query records.
+			GAIA_NODISCARD uint32_t test_query_cache_count() const {
+				return m_queryCache.test_query_count();
+			}
 #endif
 
 			//----------------------------------------------------------------------

@@ -88,7 +88,7 @@ void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state) {
 	}
 }
 
-void BM_Query_ReadWrite_2Comp_IterLocalAccum(picobench::state& state) {
+void BM_Query_ReadWrite_2Comp_IterLocalReadback(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 	cnt::darray<ecs::Entity> entities;
 	ecs::World w;
@@ -2947,7 +2947,7 @@ void BM_Query_PrefabInherited_Write_Each(picobench::state& state);
 void BM_Query_ReadOnly_1Comp(picobench::state& state);
 void BM_Query_ReadWrite_2Comp(picobench::state& state);
 void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state);
-void BM_Query_ReadWrite_2Comp_IterLocalAccum(picobench::state& state);
+void BM_Query_ReadWrite_2Comp_IterLocalReadback(picobench::state& state);
 void BM_Query_ReadWrite_2Comp_IterHelper(picobench::state& state);
 void BM_Query_ReadWrite_2Comp_EachArchLocalAccum(picobench::state& state);
 void BM_Query_ReadWrite_4Comp(picobench::state& state);
@@ -2983,11 +2983,11 @@ void register_query_hot_path(PerfRunMode mode) {
 			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_Readback)
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)
-					.label("rw 2 comp readback");
-			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_IterLocalAccum)
+					.label("rw 2 comp typed captured readback");
+			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_IterLocalReadback)
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)
-					.label("rw 2 comp iter local accum");
+					.label("rw 2 comp iter local readback");
 			PICOBENCH_REG(BM_Query_ReadWrite_2Comp_IterHelper)
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)

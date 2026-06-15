@@ -33932,6 +33932,22 @@ namespace gaia {
 				DirectStructuralTerms,
 			};
 
+			//! Dynamic-cache dependency shape derived from compiled query metadata.
+			enum class DynamicCacheKind : uint8_t {
+				//! Query does not use dynamic-cache validation.
+				None,
+				//! Dynamic cache is invalidated by relation version dependencies only.
+				RelationOnly,
+				//! Dynamic cache tracks concrete source entity archetype versions.
+				DirectSource,
+				//! Dynamic cache tracks a traversed source closure.
+				TraversedSource,
+				//! Dynamic cache tracks runtime variable bindings only.
+				Variable,
+				//! Dynamic cache tracks more than one dependency family.
+				Mixed
+			};
+
 			enum class DirectTargetEvalKind : uint8_t {
 				Generic,
 				SingleAllDirect,
@@ -34023,12 +34039,19 @@ namespace gaia {
 					}
 				};
 
+				struct LookupIdentity {
+					//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
+					cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> lookupTerms;
+					//! Canonicalized changed-filter ids reused by hash/equality for shared query dedup.
+					QueryEntityArray changed;
+					//! Canonicalized group dependency ids reused by hash/equality for shared query dedup.
+					QueryEntityArray groupDeps;
+				};
+
 				//! Array of queried ids
 				QueryEntityArray ids;
 				//! Array of terms
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms;
-				//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
-				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> lookupTerms;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Or;
@@ -34039,12 +34062,8 @@ namespace gaia {
 				QueryEntityArray changed;
 				//! Query term index for each changed-filter component after query canonicalization.
 				cnt::sarray<uint8_t, MAX_ITEMS_IN_QUERY> changedFields;
-				//! Canonicalized changed-filter ids reused by hash/equality for shared query dedup.
-				QueryEntityArray changedLookup;
 				//! Explicit grouping invalidation dependencies for custom group_by callbacks.
 				QueryEntityArray groupDeps;
-				//! Canonicalized group dependency ids reused by hash/equality for shared query dedup.
-				QueryEntityArray groupDepsLookup;
 				//! Entity to sort the archetypes by. EntityBad for no sorting.
 				Entity sortBy;
 				//! Function to use to perform sorting
@@ -34088,16 +34107,16 @@ namespace gaia {
 				bool hasOnlyDirectOrTerms = false;
 				//! True when a dynamic cache can be reused by checking tracked runtime inputs.
 				bool canReuseDynamicCache = false;
-				//! True when reusable dynamic-cache checks use direct source entity archetype versions.
-				bool usesDirectSrcVersionTracking = false;
-				//! True when reusable dynamic-cache checks use a traversed source closure snapshot.
-				bool usesSrcTravSnapshot = false;
 				//! Explicit dependency metadata derived from query shape.
 				Dependencies deps;
 				//! Cache maintenance policy derived from query shape.
 				CachePolicy cachePolicy = CachePolicy::Lazy;
 				//! Create-time archetype matcher derived from query shape.
 				CreateArchetypeMatchKind createArchetypeMatchKind = CreateArchetypeMatchKind::Vm;
+				//! Dynamic-cache dependency shape derived from compiled query metadata.
+				DynamicCacheKind dynamicCacheKind = DynamicCacheKind::None;
+				//! Cold canonical shared-query identity payload.
+				LookupIdentity lookupIdentity;
 
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {ids.data(), idsCnt};
@@ -34114,6 +34133,36 @@ namespace gaia {
 
 				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
 					return {groupDeps.data(), groupDepCnt};
+				}
+
+				//! Returns canonicalized lookup terms used by shared query deduplication.
+				GAIA_NODISCARD std::span<const QueryTerm> lookup_terms_view() const {
+					return {lookupIdentity.lookupTerms.data(), idsCnt};
+				}
+
+				//! Returns mutable canonicalized lookup terms used by shared query deduplication.
+				GAIA_NODISCARD std::span<QueryTerm> lookup_terms_view_mut() {
+					return {lookupIdentity.lookupTerms.data(), idsCnt};
+				}
+
+				//! Returns canonicalized changed-filter lookup ids used by shared query deduplication.
+				GAIA_NODISCARD std::span<const Entity> changed_lookup_view() const {
+					return {lookupIdentity.changed.data(), changedCnt};
+				}
+
+				//! Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication.
+				GAIA_NODISCARD std::span<Entity> changed_lookup_view_mut() {
+					return {lookupIdentity.changed.data(), changedCnt};
+				}
+
+				//! Returns canonicalized group dependency lookup ids used by shared query deduplication.
+				GAIA_NODISCARD std::span<const Entity> group_deps_lookup_view() const {
+					return {lookupIdentity.groupDeps.data(), groupDepCnt};
+				}
+
+				//! Returns mutable canonicalized group dependency lookup ids used by shared query deduplication.
+				GAIA_NODISCARD std::span<Entity> group_deps_lookup_view_mut() {
+					return {lookupIdentity.groupDeps.data(), groupDepCnt};
 				}
 
 				//! Adds a declared grouping invalidation dependency.
@@ -34145,23 +34194,231 @@ namespace gaia {
 					return {terms.data(), idsCnt};
 				}
 
+				//! Returns the dynamic-cache dependency shape derived from cache policy and dependencies.
+				//! \return Dynamic-cache shape used by storage and invalidation planning.
+				GAIA_NODISCARD DynamicCacheKind calc_dynamic_cache_kind() const {
+					if (cachePolicy != CachePolicy::Dynamic)
+						return DynamicCacheKind::None;
+
+					const bool hasVariables = deps.has_dep_flag(DependencyHasVariableTerms);
+					const bool hasSources = deps.has_dep_flag(DependencyHasSourceTerms);
+					const bool hasTraversal = deps.has_dep_flag(DependencyHasTraversalTerms);
+					const bool hasRelations = deps.relationCnt != 0;
+					if (hasSources && hasTraversal && !hasVariables)
+						return DynamicCacheKind::TraversedSource;
+
+					const uint8_t depCnt = (uint8_t)hasVariables + (uint8_t)hasSources + (uint8_t)hasRelations;
+					if (depCnt > 1)
+						return DynamicCacheKind::Mixed;
+					if (hasVariables)
+						return DynamicCacheKind::Variable;
+					if (hasSources)
+						return hasTraversal ? DynamicCacheKind::TraversedSource : DynamicCacheKind::DirectSource;
+					if (hasRelations)
+						return DynamicCacheKind::RelationOnly;
+					return DynamicCacheKind::None;
+				}
+
+				//! Returns whether reusable dynamic-cache checks use direct source entity archetype versions.
+				//! \return True when direct source entity archetype versions validate this dynamic cache.
+				GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
+					return canReuseDynamicCache && dynamicCacheKind == DynamicCacheKind::DirectSource;
+				}
+
+				//! Returns whether reusable dynamic-cache checks use a traversed source closure snapshot.
+				//! \return True when a traversed-source snapshot validates this dynamic cache.
+				GAIA_NODISCARD bool uses_src_trav_snapshot() const {
+					return canReuseDynamicCache && dynamicCacheKind == DynamicCacheKind::TraversedSource;
+				}
+
 				//! Returns whether the current query shape can reuse dynamic-cache results.
 				//! \return True when tracked runtime inputs are sufficient to validate the dynamic cache.
 				GAIA_NODISCARD bool calc_can_reuse_dynamic_cache() const {
 					if (cachePolicy != CachePolicy::Dynamic)
 						return false;
 
-					if (!deps.has_dep_flag(DependencyHasSourceTerms))
-						return true;
+					switch (dynamicCacheKind) {
+						case DynamicCacheKind::None:
+							return false;
+						case DynamicCacheKind::RelationOnly:
+						case DynamicCacheKind::Variable:
+							return true;
+						case DynamicCacheKind::DirectSource:
+							return deps.can_reuse_src_cache();
+						case DynamicCacheKind::TraversedSource:
+							return deps.can_reuse_src_cache() && cacheSrcTrav != 0;
+						case DynamicCacheKind::Mixed:
+							if (!deps.has_dep_flag(DependencyHasSourceTerms))
+								return true;
+							if (!deps.can_reuse_src_cache())
+								return false;
+							return !deps.has_dep_flag(DependencyHasTraversalTerms) || cacheSrcTrav != 0;
+					}
 
-					if (!deps.can_reuse_src_cache())
+					GAIA_ASSERT(false);
+					return false;
+				}
+
+				//! Refreshes canonical lookup arrays used by shared query deduplication.
+				void refresh_lookup_keys() {
+					GAIA_FOR(idsCnt) lookupIdentity.lookupTerms[i] = terms[i];
+					canonicalize_lookup_terms(lookup_terms_view_mut());
+					GAIA_FOR(changedCnt) lookupIdentity.changed[i] = changed[i];
+					canonicalize_lookup_changed(changed_lookup_view_mut());
+					GAIA_FOR(groupDepCnt) lookupIdentity.groupDeps[i] = groupDeps[i];
+					canonicalize_lookup_changed(group_deps_lookup_view_mut());
+				}
+
+				//! Returns true when canonical lookup arrays match another query context payload.
+				GAIA_NODISCARD bool lookup_keys_equal(const Data& other) const {
+					{
+						const auto left = lookup_terms_view();
+						const auto right = other.lookup_terms_view();
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i] != right[i])
+								return false;
+						}
+					}
+
+					{
+						const auto left = changed_lookup_view();
+						const auto right = other.changed_lookup_view();
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i] != right[i])
+								return false;
+						}
+					}
+
+					{
+						const auto left = group_deps_lookup_view();
+						const auto right = other.group_deps_lookup_view();
+						GAIA_FOR((uint32_t)left.size()) {
+							if (left[i] != right[i])
+								return false;
+						}
+					}
+
+					return true;
+				}
+
+				//! Returns the hash contribution from canonical lookup-key payload arrays.
+				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
+					QueryLookupHash::Type hashLookup = 0;
+
+					// Ids & ops
+					{
+						QueryLookupHash::Type hash = 0;
+
+						for (const auto& pair: lookup_terms_view()) {
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.travKind);
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.travDepth);
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
+						}
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)idsCnt);
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)readWriteMask);
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)cacheSrcTrav);
+
+						const bool matchPrefab = (flags & QueryFlags::MatchPrefab) != 0;
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
+
+						hashLookup = hash;
+					}
+
+					// Filters
+					{
+						QueryLookupHash::Type hash = 0;
+
+						for (const auto entity: changed_lookup_view())
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)changedCnt);
+
+						hashLookup = core::hash_combine(hashLookup, hash);
+					}
+
+					// Explicit grouping dependencies
+					{
+						QueryLookupHash::Type hash = 0;
+
+						for (const auto entity: group_deps_lookup_view())
+							hash = core::hash_combine(hash, (QueryLookupHash::Type)entity.value());
+						hash = core::hash_combine(hash, (QueryLookupHash::Type)groupDepCnt);
+
+						hashLookup = core::hash_combine(hashLookup, hash);
+					}
+
+					return hashLookup;
+				}
+
+				//! Returns true when grouping identity payload matches another query context payload.
+				GAIA_NODISCARD bool grouping_payload_equal(const Data& other) const {
+					if (groupBy != other.groupBy)
 						return false;
+					if (groupByFunc != other.groupByFunc)
+						return false;
+					return (flags & QueryFlags::OrderGroups) == (other.flags & QueryFlags::OrderGroups);
+				}
 
-					// Direct concrete-source reuse is automatic. Traversed source reuse still needs explicit snapshots.
-					if (!deps.has_dep_flag(DependencyHasTraversalTerms))
-						return true;
+				//! Returns true when the sort identity payload matches another query context payload.
+				GAIA_NODISCARD bool sort_payload_equal(const Data& other) const {
+					return sortBy == other.sortBy && sortByFunc == other.sortByFunc;
+				}
 
-					return cacheSrcTrav != 0;
+				//! Returns true when sort identity payload is active.
+				GAIA_NODISCARD bool has_sort_payload() const {
+					return sortBy != EntityBad || sortByFunc != nullptr;
+				}
+
+				//! Returns the hash contribution from sort identity payload.
+				GAIA_NODISCARD QueryLookupHash::Type hash_sort_payload() const {
+					QueryLookupHash::Type hash = 0;
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)sortBy.value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)sortByFunc);
+					return hash;
+				}
+
+				//! Returns true when the shared query identity payload matches another query context payload.
+				GAIA_NODISCARD bool identity_payload_equal(const Data& other) const {
+					if (idsCnt != other.idsCnt)
+						return false;
+					if (changedCnt != other.changedCnt)
+						return false;
+					if (groupDepCnt != other.groupDepCnt)
+						return false;
+					if (readWriteMask != other.readWriteMask)
+						return false;
+					if (cacheSrcTrav != other.cacheSrcTrav)
+						return false;
+					if (!lookup_keys_equal(other))
+						return false;
+					if (!sort_payload_equal(other))
+						return false;
+					return grouping_payload_equal(other);
+				}
+
+				//! Returns the hash contribution from grouping identity payload.
+				GAIA_NODISCARD QueryLookupHash::Type hash_grouping_payload() const {
+					QueryLookupHash::Type hash = 0;
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupBy.value());
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupByFunc);
+					hash = core::hash_combine(hash, (QueryLookupHash::Type)((flags & QueryFlags::OrderGroups) != 0));
+					return hash;
+				}
+
+				//! Returns the hash contribution from the full shared query identity payload.
+				GAIA_NODISCARD QueryLookupHash::Type hash_identity_payload() const {
+					QueryLookupHash::Type hash = hash_lookup_key_payload();
+					if (has_sort_payload())
+						hash = core::hash_combine(hash, hash_sort_payload());
+					return core::hash_combine(hash, hash_grouping_payload());
+				}
+
+				//! Returns the finalized lookup hash for shared query identity.
+				GAIA_NODISCARD QueryLookupHash calc_lookup_hash() const {
+					return {core::calculate_hash64(hash_identity_payload())};
 				}
 			} data{};
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
@@ -34180,12 +34437,11 @@ namespace gaia {
 				const auto hasVariableTerms_old = data.flags & QueryFlags::HasVariableTerms;
 				const auto cachePolicy_old = data.cachePolicy;
 				const auto createArchetypeMatchKind_old = data.createArchetypeMatchKind;
+				const auto dynamicCacheKind_old = data.dynamicCacheKind;
 				const auto canDirectTargetEval_old = data.canDirectTargetEval;
 				const auto canDirectEntitySeedEvalShape_old = data.canDirectEntitySeedEvalShape;
 				const auto hasOnlyDirectOrTerms_old = data.hasOnlyDirectOrTerms;
 				const auto canReuseDynamicCache_old = data.canReuseDynamicCache;
-				const auto usesDirectSrcVersionTracking_old = data.usesDirectSrcVersionTracking;
-				const auto usesSrcTravSnapshot_old = data.usesSrcTravSnapshot;
 				const auto dependencyFlags_old = data.deps.flags;
 				const auto createSelectorCnt_old = data.deps.createSelectorCnt;
 				const auto exclusionCnt_old = data.deps.exclusionCnt;
@@ -34471,15 +34727,13 @@ namespace gaia {
 					data.createArchetypeMatchKind = data.cachePolicy == CachePolicy::Immediate && canDirectCreateArchetypeMatch
 																							? CreateArchetypeMatchKind::DirectStructuralTerms
 																							: CreateArchetypeMatchKind::Vm;
+					data.dynamicCacheKind = data.calc_dynamic_cache_kind();
 
 					// Traversed-source snapshot caching is only effective for traversed source terms.
 					if (!data.deps.has_dep_flag(DependencyHasSourceTerms) || !data.deps.has_dep_flag(DependencyHasTraversalTerms))
 						data.cacheSrcTrav = 0;
 
 					data.canReuseDynamicCache = data.calc_can_reuse_dynamic_cache();
-					data.usesDirectSrcVersionTracking =
-							data.canReuseDynamicCache && !data.deps.has_dep_flag(DependencyHasTraversalTerms);
-					data.usesSrcTravSnapshot = data.canReuseDynamicCache && data.deps.has_dep_flag(DependencyHasTraversalTerms);
 
 					// Calculate the component mask for simple queries
 					isComplex |= ((data.as_mask_0 + data.as_mask_1) != 0);
@@ -34493,12 +34747,7 @@ namespace gaia {
 				}
 
 				// Request recompilation of the query if the mask has changed
-				GAIA_FOR(data.idsCnt) data.lookupTerms[i] = data.terms[i];
-				canonicalize_lookup_terms(std::span<QueryTerm>{data.lookupTerms.data(), data.idsCnt});
-				GAIA_FOR(data.changedCnt) data.changedLookup[i] = data.changed[i];
-				canonicalize_lookup_changed(std::span<Entity>{data.changedLookup.data(), data.changedCnt});
-				GAIA_FOR(data.groupDepCnt) data.groupDepsLookup[i] = data.groupDeps[i];
-				canonicalize_lookup_changed(std::span<Entity>{data.groupDepsLookup.data(), data.groupDepCnt});
+				data.refresh_lookup_keys();
 
 				// Request recompilation of the query if the mask has changed
 				if (mask0_old != data.as_mask_0 || mask1_old != data.as_mask_1 ||
@@ -34508,10 +34757,9 @@ namespace gaia {
 						canDirectTargetEval_old != data.canDirectTargetEval ||
 						canDirectEntitySeedEvalShape_old != data.canDirectEntitySeedEvalShape ||
 						hasOnlyDirectOrTerms_old != data.hasOnlyDirectOrTerms ||
-						canReuseDynamicCache_old != data.canReuseDynamicCache ||
-						usesDirectSrcVersionTracking_old != data.usesDirectSrcVersionTracking ||
-						usesSrcTravSnapshot_old != data.usesSrcTravSnapshot || cachePolicy_old != data.cachePolicy ||
-						createArchetypeMatchKind_old != data.createArchetypeMatchKind || dependencyFlags_old != data.deps.flags ||
+						canReuseDynamicCache_old != data.canReuseDynamicCache || cachePolicy_old != data.cachePolicy ||
+						createArchetypeMatchKind_old != data.createArchetypeMatchKind ||
+						dynamicCacheKind_old != data.dynamicCacheKind || dependencyFlags_old != data.deps.flags ||
 						createSelectorCnt_old != data.deps.createSelectorCnt || exclusionCnt_old != data.deps.exclusionCnt ||
 						relationCnt_old != data.deps.relationCnt || sourceEntityCnt_old != data.deps.sourceEntityCnt ||
 						sourceTermCnt_old != data.deps.sourceTermCnt || createSelectors_old != data.deps.createSelectors ||
@@ -34528,58 +34776,7 @@ namespace gaia {
 
 				const auto& left = leftCtx.data;
 				const auto& right = rightCtx.data;
-
-				// Check array sizes first
-				if (left.idsCnt != right.idsCnt)
-					return false;
-				if (left.changedCnt != right.changedCnt)
-					return false;
-				if (left.groupDepCnt != right.groupDepCnt)
-					return false;
-				if (left.readWriteMask != right.readWriteMask)
-					return false;
-				if (left.cacheSrcTrav != right.cacheSrcTrav)
-					return false;
-
-				{
-					const auto cnt = left.idsCnt;
-					GAIA_FOR(cnt) {
-						if (left.lookupTerms[i] != right.lookupTerms[i])
-							return false;
-					}
-				}
-
-				{
-					const auto cnt = left.changedCnt;
-					GAIA_FOR(cnt) {
-						if (left.changedLookup[i] != right.changedLookup[i])
-							return false;
-					}
-				}
-
-				{
-					const auto cnt = left.groupDepCnt;
-					GAIA_FOR(cnt) {
-						if (left.groupDepsLookup[i] != right.groupDepsLookup[i])
-							return false;
-					}
-				}
-
-				// SortBy data need to match
-				if (left.sortBy != right.sortBy)
-					return false;
-				if (left.sortByFunc != right.sortByFunc)
-					return false;
-
-				// Grouping data need to match
-				if (left.groupBy != right.groupBy)
-					return false;
-				if (left.groupByFunc != right.groupByFunc)
-					return false;
-				if ((left.flags & QueryFlags::OrderGroups) != (right.flags & QueryFlags::OrderGroups))
-					return false;
-
-				return true;
+				return left.identity_payload_equal(right);
 			}
 
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
@@ -34699,69 +34896,7 @@ namespace gaia {
 			// Make sure we don't calculate the hash twice
 			GAIA_ASSERT(ctx.hashLookup.hash == 0);
 
-			QueryLookupHash::Type hashLookup = 0;
-
-			const auto& ctxData = ctx.data;
-
-			// Ids & ops
-			{
-				QueryLookupHash::Type hash = 0;
-
-				for (uint32_t i = 0; i < ctxData.idsCnt; ++i) {
-					const auto& pair = ctxData.lookupTerms[i];
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.op);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.id.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.src.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.entTrav.value());
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.travKind);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)pair.travDepth);
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)(uint8_t)pair.matchKind);
-				}
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.idsCnt);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.readWriteMask);
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.cacheSrcTrav);
-
-				const bool matchPrefab = (ctxData.flags & QueryCtx::QueryFlags::MatchPrefab) != 0;
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)matchPrefab);
-
-				hashLookup = hash;
-			}
-
-			// Filters
-			{
-				QueryLookupHash::Type hash = 0;
-
-				for (uint32_t i = 0; i < ctxData.changedCnt; ++i)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedLookup[i].value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.changedCnt);
-
-				hashLookup = core::hash_combine(hashLookup, hash);
-			}
-
-			// Explicit grouping dependencies
-			{
-				QueryLookupHash::Type hash = 0;
-
-				for (uint32_t i = 0; i < ctxData.groupDepCnt; ++i)
-					hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepsLookup[i].value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupDepCnt);
-
-				hashLookup = core::hash_combine(hashLookup, hash);
-			}
-
-			// Grouping
-			{
-				QueryLookupHash::Type hash = 0;
-
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupBy.value());
-				hash = core::hash_combine(hash, (QueryLookupHash::Type)ctxData.groupByFunc);
-				hash =
-						core::hash_combine(hash, (QueryLookupHash::Type)((ctxData.flags & QueryCtx::QueryFlags::OrderGroups) != 0));
-
-				hashLookup = core::hash_combine(hashLookup, hash);
-			}
-
-			ctx.hashLookup = {core::calculate_hash64(hashLookup)};
+			ctx.hashLookup = ctx.data.calc_lookup_hash();
 		}
 
 		//! Finds the index at which the provided component id is located in the component array
@@ -41414,20 +41549,172 @@ namespace gaia {
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
 				NonTrivialPayload nonTrivial;
 
+				struct DynamicCacheState {
+					//! Relation-version payload for reusable dynamic caches with relation dependencies.
+					struct RelationPayload {
+						//! Last seen versions for tracked dynamic relation dependencies.
+						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> versions;
+
+						//! Returns true when any tracked relation version changed.
+						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> relations) const {
+							const auto cnt = (uint32_t)relations.size();
+							GAIA_FOR(cnt) {
+								if (versions[i] != world_rel_version(world, relations[i]))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures current relation versions.
+						void snapshot(const World& world, std::span<const Entity> relations) {
+							const auto cnt = (uint32_t)relations.size();
+							GAIA_FOR(cnt)
+							versions[i] = world_rel_version(world, relations[i]);
+						}
+					};
+
+					//! Direct concrete-source payload for reusable dynamic caches.
+					struct DirectSourcePayload {
+						//! Last seen archetype versions for tracked direct concrete source entities.
+						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> entityVersions;
+
+						//! Returns true when any tracked source entity changed archetype.
+						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> sourceEntities) const {
+							const auto cnt = (uint32_t)sourceEntities.size();
+							GAIA_FOR(cnt) {
+								if (entityVersions[i] != world_entity_archetype_version(world, sourceEntities[i]))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures current source entity archetype versions.
+						void snapshot(const World& world, std::span<const Entity> sourceEntities) {
+							const auto cnt = (uint32_t)sourceEntities.size();
+							GAIA_FOR(cnt)
+							entityVersions[i] = world_entity_archetype_version(world, sourceEntities[i]);
+						}
+					};
+
+					//! Traversed-source payload for reusable dynamic caches with source traversal.
+					struct TraversedSourcePayload {
+						//! Last seen traversed-source closure for reusable source queries.
+						cnt::darray<SrcTravSnapshotItem> snapshot;
+						//! True when the traversed source closure exceeded the configured snapshot cap.
+						bool overflowed = false;
+
+						//! Clears traversed-source snapshot state.
+						void clear() {
+							snapshot.clear();
+							overflowed = false;
+						}
+
+						//! Returns true when the traversed-source snapshot is unusable for reuse.
+						GAIA_NODISCARD bool is_overflowed() const {
+							return overflowed;
+						}
+
+						//! Returns true when any tracked traversed source entity changed archetype.
+						GAIA_NODISCARD bool versions_changed(const World& world) const {
+							const auto cnt = (uint32_t)snapshot.size();
+							GAIA_FOR(cnt) {
+								const auto& item = snapshot[i];
+								if (item.sourceVersion != world_entity_archetype_version(world, item.entity))
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
+						GAIA_NODISCARD bool changed(const cnt::darray<SrcTravSnapshotItem>& items) const {
+							if (items.size() != snapshot.size())
+								return true;
+
+							const auto cnt = (uint32_t)snapshot.size();
+							GAIA_FOR(cnt) {
+								if (items[i] != snapshot[i])
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures a newly built traversed-source closure snapshot.
+						void capture(const cnt::darray<SrcTravSnapshotItem>& items) {
+							snapshot = items;
+							overflowed = false;
+						}
+
+						//! Marks the traversed-source snapshot as overflowed and unusable for reuse.
+						void mark_overflowed() {
+							snapshot.clear();
+							overflowed = true;
+						}
+					};
+
+					//! Variable-binding payload for reusable dynamic caches with runtime variables.
+					struct VariablePayload {
+						//! Snapshot of runtime variable bindings used to build the current dynamic cache.
+						cnt::sarray<Entity, MaxVarCnt> bindings;
+						//! Bitmask of the variable bindings captured in bindings.
+						uint8_t bindingMask = 0;
+
+						//! Clears runtime variable binding snapshot state.
+						void clear() {
+							bindingMask = 0;
+						}
+
+						//! Returns true when runtime variable bindings differ from the captured snapshot.
+						GAIA_NODISCARD bool
+						changed(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) const {
+							if (bindingMask != runtimeBindingMask)
+								return true;
+							if (runtimeBindingMask == 0)
+								return false;
+
+							GAIA_FOR(MaxVarCnt) {
+								const auto bit = (uint8_t(1) << i);
+								if ((runtimeBindingMask & bit) == 0)
+									continue;
+
+								if (bindings[i] != runtimeBindings[i])
+									return true;
+							}
+
+							return false;
+						}
+
+						//! Captures runtime variable bindings.
+						void snapshot(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) {
+							bindings = runtimeBindings;
+							bindingMask = runtimeBindingMask;
+						}
+					};
+
+					//! Relation-version payload.
+					RelationPayload relation;
+					//! Direct concrete-source payload.
+					DirectSourcePayload directSource;
+					//! Traversed-source closure payload.
+					TraversedSourcePayload traversedSource;
+					//! Runtime variable-binding payload.
+					VariablePayload variable;
+
+					//! Clears transient dynamic input snapshot state while preserving fixed-size version snapshots.
+					void clear_input_snapshots() {
+						traversedSource.clear();
+						variable.clear();
+					}
+				};
+
+				//! Runtime snapshots used to validate reusable dynamic caches.
+				DynamicCacheState dynamic;
+
 				//! Id of the last archetype in the world we checked
 				ArchetypeId lastArchetypeId{};
-				//! Last seen versions for tracked dynamic relation dependencies.
-				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> relationVersions;
-				//! Last seen archetype versions for tracked direct concrete source entities.
-				cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> directSrcEntityVersions;
-				//! Last seen traversed-source closure for reusable source queries.
-				cnt::darray<SrcTravSnapshotItem> srcTravSnapshot;
-				//! True when the traversed source closure exceeded the configured snapshot cap.
-				bool srcTravSnapshotOverflowed = false;
-				//! Snapshot of runtime variable bindings used to build the current dynamic cache.
-				cnt::sarray<Entity, MaxVarCnt> varBindings;
-				//! Bitmask of the variable bindings captured in varBindings.
-				uint8_t varBindingMask = 0;
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
@@ -41466,8 +41753,7 @@ namespace gaia {
 				//! Resets all query cache state, dynamic snapshots, cursors, and dirty flags.
 				void reset() {
 					clear_cache();
-					srcTravSnapshot.clear();
-					srcTravSnapshotOverflowed = false;
+					dynamic.clear_input_snapshots();
 					lastArchetypeId = 0;
 					dirtyFlags = DirtyFlags::All;
 				}
@@ -41569,60 +41855,28 @@ namespace gaia {
 
 			//! Direct concrete-source queries reuse per-source archetype versions without rebuilding a traversal closure.
 			GAIA_NODISCARD bool uses_direct_src_version_tracking() const {
-				return m_plan.ctx.data.usesDirectSrcVersionTracking;
+				return m_plan.ctx.data.uses_direct_src_version_tracking();
 			}
 
 			//! Traversed-source queries reuse an explicit source-closure snapshot when opted in.
 			GAIA_NODISCARD bool uses_src_trav_snapshot() const {
-				return m_plan.ctx.data.usesSrcTravSnapshot;
+				return m_plan.ctx.data.uses_src_trav_snapshot();
 			}
 
 			//! Checks tracked relation versions used by the dynamic cache.
 			GAIA_NODISCARD bool dyn_rel_versions_changed() const {
-				const auto relations = m_plan.ctx.data.deps.relations_view();
-				const auto cnt = (uint32_t)relations.size();
-				GAIA_FOR(cnt) {
-					if (m_state.relationVersions[i] != world_rel_version(*world(), relations[i]))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.relation.changed(*world(), m_plan.ctx.data.deps.relations_view());
 			}
 
 			//! Checks runtime variable bindings used by the dynamic cache.
 			GAIA_NODISCARD bool dyn_var_bindings_changed(
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) const {
-				if (m_state.varBindingMask != runtimeVarBindingMask)
-					return true;
-				if (runtimeVarBindingMask == 0)
-					return false;
-
-				GAIA_FOR(MaxVarCnt) {
-					const auto bit = (uint8_t(1) << i);
-					if ((runtimeVarBindingMask & bit) == 0)
-						continue;
-
-					if (m_state.varBindings[i] != runtimeVarBindings[i])
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.variable.changed(runtimeVarBindings, runtimeVarBindingMask);
 			}
 
 			//! Checks direct concrete source entities tracked through per-entity archetype versions.
 			GAIA_NODISCARD bool direct_src_versions_changed() const {
-				if (!uses_direct_src_version_tracking())
-					return false;
-
-				const auto& deps = m_plan.ctx.data.deps;
-				const auto sourceEntities = deps.src_entities_view();
-				const auto cnt = (uint32_t)sourceEntities.size();
-				GAIA_FOR(cnt) {
-					if (m_state.directSrcEntityVersions[i] != world_entity_archetype_version(*world(), sourceEntities[i]))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.directSource.changed(*world(), m_plan.ctx.data.deps.src_entities_view());
 			}
 
 			//! Iterates reusable source entities that participate in direct-source or traversed-source reuse.
@@ -41667,26 +41921,12 @@ namespace gaia {
 			//! Checks whether the previously snapshotted traversed source entities changed archetype membership.
 			//! This avoids rebuilding the full traversal closure while relation topology is unchanged.
 			GAIA_NODISCARD bool traversed_src_versions_changed() const {
-				const auto cnt = (uint32_t)m_state.srcTravSnapshot.size();
-				GAIA_FOR(cnt) {
-					const auto& item = m_state.srcTravSnapshot[i];
-					if (item.sourceVersion != world_entity_archetype_version(*world(), item.entity))
-						return true;
-				}
-
-				return false;
+				return m_state.dynamic.traversedSource.versions_changed(*world());
 			}
 
-			//! Checks source-driven dynamic inputs, using direct-source versions or traversed-source snapshots as needed.
-			GAIA_NODISCARD bool dyn_src_inputs_changed(bool relationVersionsChanged) {
-				const auto& deps = m_plan.ctx.data.deps;
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
-					return false;
-
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
-					return direct_src_versions_changed();
-
-				if (m_state.srcTravSnapshotOverflowed)
+			//! Checks traversed-source dynamic inputs, rebuilding the source snapshot only after relation topology changes.
+			GAIA_NODISCARD bool traversed_src_inputs_changed(bool relationVersionsChanged) {
+				if (m_state.dynamic.traversedSource.is_overflowed())
 					return true;
 
 				if (!relationVersionsChanged)
@@ -41696,16 +41936,33 @@ namespace gaia {
 				if (!build_src_trav_snapshot(scratch))
 					return true;
 
-				if (scratch.size() != m_state.srcTravSnapshot.size())
+				return m_state.dynamic.traversedSource.changed(scratch);
+			}
+
+			//! Checks mixed-shape dynamic inputs with the pre-existing dependency-flag path.
+			GAIA_NODISCARD bool mixed_dyn_inputs_changed(
+					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				const auto& deps = m_plan.ctx.data.deps;
+				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
+						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
 					return true;
 
-				const auto cnt = (uint32_t)m_state.srcTravSnapshot.size();
-				GAIA_FOR(cnt) {
-					if (scratch[i] != m_state.srcTravSnapshot[i])
-						return true;
-				}
+				const bool relationVersionsChanged = dyn_rel_versions_changed();
+				const bool hasSourceTerms = deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms);
+				const bool hasTraversalTerms = deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms);
+				if (relationVersionsChanged && !(hasSourceTerms && hasTraversalTerms))
+					return true;
 
-				return false;
+				if (!hasSourceTerms)
+					return relationVersionsChanged;
+
+				if (m_state.dynamic.traversedSource.is_overflowed())
+					return true;
+
+				if (!hasTraversalTerms)
+					return direct_src_versions_changed();
+
+				return traversed_src_inputs_changed(relationVersionsChanged);
 			}
 
 			//! Checks whether any tracked runtime input invalidates the reusable dynamic cache.
@@ -41714,22 +41971,48 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return false;
 
-				const auto& deps = m_plan.ctx.data.deps;
-				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms) &&
-						dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask))
-					return true;
+				switch (m_plan.ctx.data.dynamicCacheKind) {
+					case QueryCtx::DynamicCacheKind::None:
+						return false;
+					case QueryCtx::DynamicCacheKind::RelationOnly:
+						return dyn_rel_versions_changed();
+					case QueryCtx::DynamicCacheKind::DirectSource:
+						return direct_src_versions_changed();
+					case QueryCtx::DynamicCacheKind::TraversedSource:
+						return traversed_src_inputs_changed(dyn_rel_versions_changed());
+					case QueryCtx::DynamicCacheKind::Variable:
+						return dyn_var_bindings_changed(runtimeVarBindings, runtimeVarBindingMask);
+					case QueryCtx::DynamicCacheKind::Mixed:
+						return mixed_dyn_inputs_changed(runtimeVarBindings, runtimeVarBindingMask);
+				}
 
-				const bool relationVersionsChanged = dyn_rel_versions_changed();
-				if (relationVersionsChanged && !uses_src_trav_snapshot())
-					return true;
+				GAIA_ASSERT(false);
+				return true;
+			}
 
-				if (!deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms))
-					return relationVersionsChanged;
+			//! Captures tracked relation versions for reusable dynamic caches.
+			void snapshot_dyn_rel_inputs() {
+				m_state.dynamic.relation.snapshot(*world(), m_plan.ctx.data.deps.relations_view());
+			}
 
-				if (m_state.srcTravSnapshotOverflowed)
-					return true;
+			//! Captures tracked direct concrete source entity archetype versions.
+			void snapshot_dyn_direct_src_inputs() {
+				m_state.dynamic.directSource.snapshot(*world(), m_plan.ctx.data.deps.src_entities_view());
+			}
 
-				return dyn_src_inputs_changed(relationVersionsChanged);
+			//! Captures the traversed-source closure snapshot used by reusable dynamic caches.
+			void snapshot_dyn_traversed_src_inputs() {
+				cnt::darray<SrcTravSnapshotItem> scratch;
+				if (build_src_trav_snapshot(scratch))
+					m_state.dynamic.traversedSource.capture(scratch);
+				else
+					m_state.dynamic.traversedSource.mark_overflowed();
+			}
+
+			//! Captures runtime variable bindings for reusable dynamic caches.
+			void
+			snapshot_dyn_var_inputs(const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
+				m_state.dynamic.variable.snapshot(runtimeVarBindings, runtimeVarBindingMask);
 			}
 
 			//! Captures the tracked runtime inputs used by the reusable dynamic cache.
@@ -41738,41 +42021,41 @@ namespace gaia {
 				if (!can_reuse_dyn_cache())
 					return;
 
-				const auto relations = m_plan.ctx.data.deps.relations_view();
-				const auto cnt = (uint32_t)relations.size();
-				GAIA_FOR(cnt)
-				m_state.relationVersions[i] = world_rel_version(*world(), relations[i]);
+				m_state.dynamic.clear_input_snapshots();
 
-				const auto& deps = m_plan.ctx.data.deps;
-				if (uses_direct_src_version_tracking()) {
-					const auto sourceEntities = deps.src_entities_view();
-					const auto sourceCnt = (uint32_t)sourceEntities.size();
-					GAIA_FOR(sourceCnt)
-					m_state.directSrcEntityVersions[i] = world_entity_archetype_version(*world(), sourceEntities[i]);
-				}
-
-				if (uses_src_trav_snapshot()) {
-					cnt::darray<SrcTravSnapshotItem> scratch;
-					if (build_src_trav_snapshot(scratch)) {
-						m_state.srcTravSnapshot = scratch;
-						m_state.srcTravSnapshotOverflowed = false;
-					} else {
-						m_state.srcTravSnapshot.clear();
-						m_state.srcTravSnapshotOverflowed = true;
+				switch (m_plan.ctx.data.dynamicCacheKind) {
+					case QueryCtx::DynamicCacheKind::None:
+						return;
+					case QueryCtx::DynamicCacheKind::RelationOnly:
+						snapshot_dyn_rel_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::DirectSource:
+						snapshot_dyn_direct_src_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::TraversedSource:
+						snapshot_dyn_rel_inputs();
+						snapshot_dyn_traversed_src_inputs();
+						return;
+					case QueryCtx::DynamicCacheKind::Variable:
+						snapshot_dyn_var_inputs(runtimeVarBindings, runtimeVarBindingMask);
+						return;
+					case QueryCtx::DynamicCacheKind::Mixed: {
+						const auto& deps = m_plan.ctx.data.deps;
+						snapshot_dyn_rel_inputs();
+						if (deps.has_dep_flag(QueryCtx::DependencyHasSourceTerms)) {
+							if (deps.has_dep_flag(QueryCtx::DependencyHasTraversalTerms))
+								snapshot_dyn_traversed_src_inputs();
+							else
+								snapshot_dyn_direct_src_inputs();
+						}
+						if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms))
+							snapshot_dyn_var_inputs(runtimeVarBindings, runtimeVarBindingMask);
+						return;
 					}
-				} else {
-					m_state.srcTravSnapshot.clear();
-					m_state.srcTravSnapshotOverflowed = false;
 				}
 
-				if (deps.has_dep_flag(QueryCtx::DependencyHasVariableTerms)) {
-					m_state.varBindings = runtimeVarBindings;
-					m_state.varBindingMask = runtimeVarBindingMask;
-				} else {
-					m_state.varBindingMask = 0;
-				}
+				GAIA_ASSERT(false);
 			}
-
 			//! Returns whether a compiled query contains a term with the requested access mode.
 			//! \tparam TType Component or Entity argument type to check.
 			//! \param op Query operation kind to match.
@@ -43312,10 +43595,54 @@ namespace gaia {
 			}
 
 #if GAIA_ECS_TEST_HOOKS
+			//! Dynamic-cache dependency shape exposed only to tests.
+			using TestDynamicCacheKind = QueryCtx::DynamicCacheKind;
+
+			//! Returns the dynamic-cache dependency shape derived from compiled query metadata.
+			//! Returns compact dynamic-cache classification for architecture/layout tests.
+			GAIA_NODISCARD TestDynamicCacheKind test_dynamic_cache_kind() const {
+				return m_plan.ctx.data.dynamicCacheKind;
+			}
+
+			//! Returns whether the compiled dynamic-cache shape tracks direct source entity versions.
+			GAIA_NODISCARD bool test_uses_direct_src_version_tracking() const {
+				return m_plan.ctx.data.uses_direct_src_version_tracking();
+			}
+
+			//! Returns whether the compiled dynamic-cache shape tracks a traversed-source snapshot.
+			GAIA_NODISCARD bool test_uses_src_trav_snapshot() const {
+				return m_plan.ctx.data.uses_src_trav_snapshot();
+			}
+
 			//! Returns the number of persistent VM match passes executed by this query info.
-			//! \return Persistent VM match-pass count for test diagnostics.
+			//! Returns persistent VM match-pass count for test diagnostics.
 			GAIA_NODISCARD uint32_t test_match_pass_count() const {
 				return m_testMatchPassCount;
+			}
+
+			//! Returns the current QueryInfo footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_info_size() {
+				return (uint32_t)sizeof(QueryInfo);
+			}
+
+			//! Returns the current compiled query plan footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_plan_size() {
+				return (uint32_t)sizeof(QueryPlan);
+			}
+
+			//! Returns the current runtime query-state footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_state_size() {
+				return (uint32_t)sizeof(QueryState);
+			}
+
+			//! Returns the current dynamic-cache state footprint for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_dynamic_cache_state_size() {
+				return (uint32_t)sizeof(QueryState::DynamicCacheState);
+			}
+
+			//! Returns the offset of dynamic-cache state within QueryState for layout baseline tests.
+			GAIA_NODISCARD static constexpr uint32_t test_query_state_dynamic_offset() {
+				return (uint32_t)offsetof(QueryState, dynamic);
 			}
 
 			//! Test-only helper that seeds the transient cache with one archetype so unit tests can
@@ -43579,6 +43906,12 @@ namespace gaia {
 				}
 
 				return true;
+			}
+
+			//! Returns the live cached-query record count for tests.
+			//! \return Number of live cached-query records.
+			GAIA_NODISCARD uint32_t test_query_count() const {
+				return (uint32_t)m_queryArr.item_count();
 			}
 #endif
 
@@ -45071,6 +45404,7 @@ namespace gaia {
 				QueryImplStorage& operator=(QueryImplStorage&& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
+					(void)try_del_from_cache();
 					delete m_pOwnedInfo;
 
 					m_world = other.m_world;
@@ -45111,6 +45445,7 @@ namespace gaia {
 				QueryImplStorage& operator=(const QueryImplStorage& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
+					(void)try_del_from_cache();
 					delete m_pOwnedInfo;
 					m_pOwnedInfo = nullptr;
 
@@ -46637,17 +46972,31 @@ namespace gaia {
 					return true;
 				}
 
+				//! Checks whether depth-order grouping can prune disabled hierarchy subtrees.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when the query groups by depth order on a relation whose hierarchy can prune disabled subtrees.
 				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
 					return data.groupByFunc == group_by_func_depth_order &&
 								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
+				//! Checks whether the current row constraints require the depth-order hierarchy barrier cache.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \return True when enabled/disabled row iteration needs cached barrier results.
 				GAIA_NODISCARD static bool
 				needs_depth_order_hierarchy_barrier_cache(const QueryInfo& queryInfo, Constraints constraints) {
 					return constraints != Constraints::AcceptAll && has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				}
 
+				//! Calculates the row range of a chunk after applying row constraints and depth-order barrier state.
+				//! \param pChunk Chunk to inspect.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \param needsBarrierCache True when barrier state participates in row selection.
+				//! \param barrierPasses Cached barrier result for the archetype containing the chunk.
+				//! \param from Receives the first row to process.
+				//! \param to Receives the one-past-the-end row to process.
 				static void chunk_effective_range(
 						Chunk* pChunk, Constraints constraints, bool needsBarrierCache, bool barrierPasses, uint16_t& from,
 						uint16_t& to) noexcept {
@@ -46661,6 +47010,9 @@ namespace gaia {
 					to = detail::ChunkIterImpl::end_index(pChunk, constraints);
 				}
 
+				//! Checks whether cached depth-order barrier results can prune any matched archetype.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return True when depth-order hierarchy barriers are active and the cache can prune rows.
 				GAIA_NODISCARD static bool depth_order_hierarchy_barrier_prunes(const QueryInfo& queryInfo) {
 					return has_depth_order_hierarchy_enabled_barrier(queryInfo) && queryInfo.barrier_may_prune();
 				}
@@ -46671,6 +47023,9 @@ namespace gaia {
 				//! the archetype share the same direct parent target. That lets us prune the entire archetype when
 				//! its parent chain crosses a disabled entity. Non-fragmenting hierarchy relations such as Parent
 				//! cannot use this archetype-level check and must stay on the per-entity traversal path instead.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param archetype Matched archetype to test.
+				//! \return True when the archetype can be processed under the enabled hierarchy barrier.
 				GAIA_NODISCARD static bool
 				survives_cascade_hierarchy_enabled_barrier(const QueryInfo& queryInfo, const Archetype& archetype) {
 					if (!has_depth_order_hierarchy_enabled_barrier(queryInfo))
@@ -46692,6 +47047,12 @@ namespace gaia {
 					return true;
 				}
 
+				//! Checks whether a matched archetype can be processed for the current row constraints.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param archetype Matched archetype to test.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \param barrierPasses Cached barrier result, or -1 to compute the enabled hierarchy gate directly.
+				//! \return True when the archetype is eligible for callback execution.
 				GAIA_NODISCARD bool can_process_archetype_inter(
 						const QueryInfo& queryInfo, const Archetype& archetype, Constraints constraints,
 						int8_t barrierPasses = -1) const {
@@ -46749,8 +47110,20 @@ namespace gaia {
 				static void finish_typed_iter_writes_runtime(
 						Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg);
 
-				enum class ExecPayloadKind : uint8_t { Plain, Grouped, NonTrivial };
+				//! Runtime payload layout required by generic chunk-batch execution.
+				enum class ExecPayloadKind : uint8_t {
+					//! Plain batches without group ids, inherited data, sorted slices, or barrier metadata.
+					Plain,
+					//! Batches carry group ids but do not require sorted slices or inherited/barrier metadata.
+					Grouped,
+					//! Batches require non-trivial side payload such as sorted slices, inherited data, or barriers.
+					NonTrivial
+				};
 
+				//! Classifies the generic batch payload needed for a matched query under row constraints.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \param constraints Entity-row subset exposed to the callback.
+				//! \return Payload layout required by generic chunk-batch runners.
 				GAIA_NODISCARD static ExecPayloadKind exec_payload_kind(const QueryInfo& queryInfo, Constraints constraints) {
 					if (queryInfo.has_sorted_payload())
 						return ExecPayloadKind::NonTrivial;
@@ -46759,10 +47132,6 @@ namespace gaia {
 					if (needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints))
 						return ExecPayloadKind::NonTrivial;
 					return ExecPayloadKind::Grouped;
-				}
-
-				GAIA_NODISCARD static bool needs_nontrivial_payload(const QueryInfo& queryInfo, Constraints constraints) {
-					return exec_payload_kind(queryInfo, constraints) == ExecPayloadKind::NonTrivial;
 				}
 
 				//! Prepared query runner mode shared by typed callbacks and public Iter callbacks.
@@ -46782,7 +47151,7 @@ namespace gaia {
 					//! Typed dense cached archetype/chunk iteration using mapped component access.
 					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
-					//! Sorted payload or depth-order barrier execution that must preserve cache-provided order.
+					//! Sorted payload execution that must preserve cache-provided chunk order.
 					Sorted,
 					//! Traversal or inherited payload execution that requires the mapped generic path.
 					Traversal
@@ -46803,8 +47172,10 @@ namespace gaia {
 					QueryPlanFlag_InheritedPayload = 1 << 2,
 					//! The query uses grouped payload/ranges or grouped cache ordering.
 					QueryPlanFlag_Grouped = 1 << 3,
-					//! The query uses sorted payload or barrier/depth-order cache data.
-					QueryPlanFlag_Sorted = 1 << 4
+					//! The plan may need sorted cache slices; runners use them only with non-trivial payload.
+					QueryPlanFlag_Sorted = 1 << 4,
+					//! The plan must use the depth-order hierarchy barrier cache when checking archetype/row ranges.
+					QueryPlanFlag_BarrierCache = 1 << 5
 				};
 
 				//! Prepared query execution metadata shared by typed callbacks and public Iter callbacks.
@@ -46813,7 +47184,7 @@ namespace gaia {
 					QueryPlanMode mode = QueryPlanMode::General;
 					//! Orthogonal plan properties such as filtering, entity filters, grouping, or payload requirements.
 					uint8_t flags = QueryPlanFlag_None;
-					//! Payload layout required by generic chunk-batch runners.
+					//! Payload layout required by generic chunk-batch runners independent of sorted-cache availability.
 					ExecPayloadKind payloadKind = ExecPayloadKind::Plain;
 					//! First cached archetype index to process.
 					uint32_t idxFrom = 0;
@@ -46821,10 +47192,28 @@ namespace gaia {
 					uint32_t idxTo = 0;
 				};
 
+				//! Cache range selected by the query's optional group id filter.
+				struct QueryCacheRange final {
+					//! First cached archetype index to process.
+					uint32_t idxFrom = 0;
+					//! One-past-the-end cached archetype index to process.
+					uint32_t idxTo = 0;
+					//! True when `m_groupIdSet` narrowed the range to one cache group.
+					bool hasSelectedGroup = false;
+					//! False when the selected group id is absent from the matched cache.
+					bool valid = true;
+				};
+
+				//! Tag selecting enabled-only row constraints for prepared query iteration.
 				struct IterModeEnabled final {};
+				//! Tag selecting disabled-only row constraints for prepared query iteration.
 				struct IterModeDisabledOnly final {};
+				//! Tag selecting unconstrained row iteration for prepared query iteration.
 				struct IterModeAcceptAll final {};
 
+				//! Maps an iteration-mode tag to the runtime row constraints used by iterators.
+				//! \tparam TMode One of the IterMode* tag types.
+				//! \return Entity-row constraints represented by the tag.
 				template <typename TMode>
 				GAIA_NODISCARD static constexpr Constraints iter_mode_constraints() {
 					if constexpr (std::is_same_v<TMode, IterModeDisabledOnly>)
@@ -47073,12 +47462,12 @@ namespace gaia {
 				void
 				collect_runtime_parallel_batches(const QueryInfo& queryInfo, const QueryPlan& plan, Constraints constraints) {
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47165,9 +47554,8 @@ namespace gaia {
 					if (plan.mode == QueryPlanMode::EntitySeed)
 						return add_query_task_job(GAIA_MOV(func), ExecType);
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (isGroupBy && isGroupSet)
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (cacheRange.hasSelectedGroup)
 						return add_query_task_job(GAIA_MOV(func), ExecType);
 
 					::gaia::ecs::update_version(*m_worldVersion);
@@ -47191,12 +47579,13 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
-					auto sortView = queryInfo.cache_sort_view();
-					if (payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedBatchPayload =
+							payloadKind == ExecPayloadKind::NonTrivial && (queryInfo.has_sorted_payload() || needsBarrierCache);
+					const auto sortView =
+							hasSortedBatchPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47305,12 +47694,13 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
 					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
-					auto sortView = queryInfo.cache_sort_view();
-					if (payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedBatchPayload =
+							payloadKind == ExecPayloadKind::NonTrivial && (queryInfo.has_sorted_payload() || needsBarrierCache);
+					const auto sortView =
+							hasSortedBatchPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47417,7 +47807,8 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -47498,7 +47889,8 @@ namespace gaia {
 					auto cacheView = queryInfo.cache_archetype_view();
 					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 					constexpr auto constraints = iter_mode_constraints<TMode>();
-					const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+					const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+					const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
@@ -47596,28 +47988,26 @@ namespace gaia {
 					if (cache_view.empty())
 						return;
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (!isGroupBy || !isGroupSet) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.hasSelectedGroup) {
 						// No group requested or group filtering is currently turned off
-						const auto idxFrom = 0;
-						const auto idxTo = (uint32_t)cache_view.size();
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_no_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id_par<HasFilters, TMode, Func, ExecType>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 						else
-							run_query_batch_no_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_no_group_id<HasFilters, TMode, Func>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 					} else {
 						// We wish to iterate only a certain group
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
+						if (!cacheRange.valid)
 							return;
 
-						const auto idxFrom = pGroupData->idxFirst;
-						const auto idxTo = pGroupData->idxLast + 1;
 						if constexpr (ExecType != QueryExecType::Default)
-							run_query_batch_with_group_id_par<HasFilters, TMode, Func, ExecType>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id_par<HasFilters, TMode, Func, ExecType>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 						else
-							run_query_batch_with_group_id<HasFilters, TMode, Func>(queryInfo, idxFrom, idxTo, func);
+							run_query_batch_with_group_id<HasFilters, TMode, Func>(
+									queryInfo, cacheRange.idxFrom, cacheRange.idxTo, func);
 					}
 				}
 
@@ -47638,7 +48028,8 @@ namespace gaia {
 						//       Make it so only valid pointers are linked together.
 						//       This means one less indirection + we won't need to call can_process_archetype().
 						auto cache_view = queryInfo.cache_archetype_view();
-						const bool needsBarrierCache = needs_nontrivial_payload(queryInfo, constraints) &&
+						const auto payloadKind = exec_payload_kind(queryInfo, constraints);
+						const bool needsBarrierCache = payloadKind == ExecPayloadKind::NonTrivial &&
 																					 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 						const bool hasInheritedData = queryInfo.has_inherited_data_payload();
 						if (needsBarrierCache)
@@ -47744,12 +48135,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47852,12 +48243,12 @@ namespace gaia {
 					GAIA_PROF_SCOPE(query::run_query_batch_no_group_id_par);
 
 					auto cacheView = queryInfo.cache_archetype_view();
-					auto sortView = queryInfo.cache_sort_view();
-					if (plan.payloadKind != ExecPayloadKind::NonTrivial)
-						sortView = {};
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasSortedPlanPayload =
+							plan.payloadKind == ExecPayloadKind::NonTrivial && (plan.flags & QueryPlanFlag_Sorted) != 0;
+					const auto sortView =
+							hasSortedPlanPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -47960,9 +48351,8 @@ namespace gaia {
 
 					ChunkBatchArray chunkBatches;
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -48029,9 +48419,8 @@ namespace gaia {
 
 					ChunkBatchArray chunkBatch;
 					auto cacheView = queryInfo.cache_archetype_view();
-					const bool hasInheritedData = queryInfo.has_inherited_data_payload();
-					const bool needsBarrierCache = plan.payloadKind == ExecPayloadKind::NonTrivial &&
-																				 needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+					const bool hasInheritedData = (plan.flags & QueryPlanFlag_InheritedPayload) != 0;
+					const bool needsBarrierCache = (plan.flags & QueryPlanFlag_BarrierCache) != 0;
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
@@ -48103,9 +48492,8 @@ namespace gaia {
 					if (plan.mode == QueryPlanMode::Empty || plan.idxFrom >= plan.idxTo)
 						return;
 
-					const bool isGroupBy = queryInfo.ctx().data.groupBy != EntityBad;
-					const bool isGroupSet = m_groupIdSet != 0;
-					if (!isGroupBy || !isGroupSet) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.hasSelectedGroup) {
 						if constexpr (ExecType != QueryExecType::Default)
 							run_query_batch_no_group_id_runtime_par<HasFilters, Func, ExecType>(queryInfo, plan, constraints, func);
 						else
@@ -48148,6 +48536,31 @@ namespace gaia {
 					const auto& data = queryInfo.ctx().data;
 					return data.sortByFunc == nullptr &&
 								 (!has_depth_order_hierarchy_enabled_barrier(queryInfo) || !queryInfo.barrier_may_prune());
+				}
+
+				//! Selects the cache range visible to this query, applying a selected group id when present.
+				//! \param queryInfo Prepared query cache and execution metadata.
+				//! \return Cache range metadata; `valid == false` means the selected group is absent.
+				GAIA_NODISCARD QueryCacheRange selected_query_cache_range(const QueryInfo& queryInfo) const {
+					QueryCacheRange range{};
+					range.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
+
+					const auto& data = queryInfo.ctx().data;
+					if (data.groupBy == EntityBad || m_groupIdSet == 0)
+						return range;
+
+					range.hasSelectedGroup = true;
+					const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
+					if (pGroupData == nullptr) {
+						range.idxFrom = 0;
+						range.idxTo = 0;
+						range.valid = false;
+						return range;
+					}
+
+					range.idxFrom = pGroupData->idxFirst;
+					range.idxTo = pGroupData->idxLast + 1;
+					return range;
 				}
 
 				//! Selects the prepared execution plan for typed callbacks.
@@ -48204,7 +48617,9 @@ namespace gaia {
 				//! \return Query execution plan shared by typed and public iterator adapters.
 				GAIA_NODISCARD QueryPlan prepare_query_plan(const QueryInfo& queryInfo, Constraints constraints) const {
 					QueryPlan plan{};
-					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					plan.idxFrom = cacheRange.idxFrom;
+					plan.idxTo = cacheRange.idxTo;
 					const bool hasFilters = queryInfo.has_filters();
 					const bool hasSortedPayload = queryInfo.has_sorted_payload();
 					const bool hasDepthOrderBarrier = has_depth_order_hierarchy_enabled_barrier(queryInfo);
@@ -48221,19 +48636,13 @@ namespace gaia {
 						plan.flags |= QueryPlanFlag_Sorted;
 					plan.payloadKind = exec_payload_kind(queryInfo, constraints);
 
-					const auto& data = queryInfo.ctx().data;
-					if (data.groupBy != EntityBad && m_groupIdSet != 0) {
+					if (cacheRange.hasSelectedGroup) {
 						plan.flags |= QueryPlanFlag_Grouped;
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
+						plan.payloadKind = ExecPayloadKind::Grouped;
+						if (!cacheRange.valid) {
 							plan.mode = QueryPlanMode::Empty;
-							plan.idxFrom = 0;
-							plan.idxTo = 0;
 							return plan;
 						}
-						plan.payloadKind = ExecPayloadKind::Grouped;
-						plan.idxFrom = pGroupData->idxFirst;
-						plan.idxTo = pGroupData->idxLast + 1;
 					}
 
 					if ((plan.flags & QueryPlanFlag_Filtered) == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -48251,6 +48660,8 @@ namespace gaia {
 						if (!hasSortedPayload && (plan.flags & QueryPlanFlag_InheritedPayload) == 0)
 							plan.payloadKind = queryInfo.has_grouped_payload() ? ExecPayloadKind::Grouped : ExecPayloadKind::Plain;
 					}
+					if (hasConstrainedDepthOrderBarrier)
+						plan.flags |= QueryPlanFlag_BarrierCache;
 
 					if (hasSortedPayload) {
 						plan.mode = QueryPlanMode::Sorted;
@@ -49241,10 +49652,10 @@ namespace gaia {
 				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
-					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
 
 					if constexpr (!UseFilters) {
-						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!cacheRange.hasSelectedGroup && can_use_direct_entity_seed_eval(queryInfo)) {
 							if (has_only_direct_or_terms(queryInfo))
 								return is_empty_direct_or_union(*queryInfo.world(), queryInfo, constraints);
 
@@ -49263,15 +49674,10 @@ namespace gaia {
 					const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (hasRuntimeGroupFilter) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return true;
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
-					}
+					if (!cacheRange.valid)
+						return true;
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
@@ -49451,10 +49857,10 @@ namespace gaia {
 				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
-					const bool hasRuntimeGroupFilter = queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
 
 					if constexpr (!UseFilters) {
-						if (!hasRuntimeGroupFilter && can_use_direct_entity_seed_eval(queryInfo)) {
+						if (!cacheRange.hasSelectedGroup && can_use_direct_entity_seed_eval(queryInfo)) {
 							auto& scratch = direct_query_scratch();
 							if (has_only_direct_or_terms(queryInfo))
 								return count_direct_or_union(*queryInfo.world(), queryInfo, constraints);
@@ -49483,16 +49889,10 @@ namespace gaia {
 					if (needsBarrierCache)
 						const_cast<QueryInfo&>(queryInfo).ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (hasRuntimeGroupFilter) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return 0;
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
-					}
+					if (!cacheRange.valid)
+						return 0;
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					for (uint32_t qi = idxFrom; qi < idxTo; ++qi) {
 						const auto* pArchetype = cacheView[qi];
@@ -50770,18 +51170,13 @@ namespace gaia {
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
-							m_changedWorldVersion = *m_worldVersion;
-							return;
-						}
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.valid) {
+						m_changedWorldVersion = *m_worldVersion;
+						return;
 					}
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
@@ -50862,18 +51257,13 @@ namespace gaia {
 					if (needsBarrierCache)
 						queryInfo.ensure_depth_order_hierarchy_barrier_cache();
 
-					uint32_t idxFrom = 0;
-					uint32_t idxTo = (uint32_t)cacheView.size();
-					if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr) {
-							m_changedWorldVersion = *m_worldVersion;
-							return;
-						}
-
-						idxFrom = pGroupData->idxFirst;
-						idxTo = pGroupData->idxLast + 1;
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					if (!cacheRange.valid) {
+						m_changedWorldVersion = *m_worldVersion;
+						return;
 					}
+					const auto idxFrom = cacheRange.idxFrom;
+					const auto idxTo = cacheRange.idxTo;
 
 					Iter it;
 					it.init_query_state(queryInfo.world(), Constraints::EnabledOnly, false);
@@ -52255,23 +52645,21 @@ namespace gaia {
 					plan.flags |= QueryPlanFlag_Sorted;
 				if (hasDepthOrderBarrier && !depthOrderBarrierPrunes)
 					plan.payloadKind = ExecPayloadKind::Grouped;
+				if (depthOrderBarrierPrunes)
+					plan.flags |= QueryPlanFlag_BarrierCache;
 
 				const bool canDirectEntitySeed = !hasFilters && can_use_direct_entity_seed_eval(queryInfo);
 				const bool canDirectChunks = can_use_direct_chunk_iteration_fastpath(queryInfo);
 
 				auto setDenseRange = [&]() -> bool {
-					const auto& data = queryInfo.ctx().data;
-					plan.idxFrom = 0;
-					plan.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
-					if (data.groupBy != EntityBad && m_groupIdSet != 0) {
+					const auto cacheRange = selected_query_cache_range(queryInfo);
+					plan.idxFrom = cacheRange.idxFrom;
+					plan.idxTo = cacheRange.idxTo;
+					if (cacheRange.hasSelectedGroup) {
 						plan.flags |= QueryPlanFlag_Grouped;
-						const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-						if (pGroupData == nullptr)
-							return false;
-
 						plan.payloadKind = ExecPayloadKind::Grouped;
-						plan.idxFrom = pGroupData->idxFirst;
-						plan.idxTo = pGroupData->idxLast + 1;
+						if (!cacheRange.valid)
+							return false;
 					}
 					return plan.idxFrom < plan.idxTo;
 				};
@@ -52281,11 +52669,6 @@ namespace gaia {
 						plan.mode = QueryPlanMode::Empty;
 						plan.idxFrom = 0;
 						plan.idxTo = 0;
-						return plan;
-					}
-
-					if (hasFilters) {
-						plan.mode = QueryPlanMode::DirectDense;
 						return plan;
 					}
 
@@ -52877,19 +53260,17 @@ namespace gaia {
 																					 can_use_direct_chunk_term_eval_descs(world, queryInfo, &desc, 1) &&
 																					 can_use_direct_chunk_iteration_fastpath(queryInfo);
 				const auto cacheView = queryInfo.cache_archetype_view();
-				const auto sortView = queryInfo.cache_sort_view();
 				const bool needsBarrierCache = needs_depth_order_hierarchy_barrier_cache(queryInfo, constraints);
+				const bool hasSortedArrayPayload = queryInfo.has_sorted_payload() || needsBarrierCache;
+				const auto sortView =
+						hasSortedArrayPayload ? queryInfo.cache_sort_view() : decltype(queryInfo.cache_sort_view()){};
 				if (needsBarrierCache)
 					queryInfo.ensure_depth_order_hierarchy_barrier_cache();
-				uint32_t idxFrom = 0;
-				uint32_t idxTo = (uint32_t)cacheView.size();
-				if (queryInfo.ctx().data.groupBy != EntityBad && m_groupIdSet != 0) {
-					const auto* pGroupData = queryInfo.selected_group_data(m_groupIdSet);
-					if (pGroupData == nullptr)
-						return;
-					idxFrom = pGroupData->idxFirst;
-					idxTo = pGroupData->idxLast + 1;
-				}
+				const auto cacheRange = selected_query_cache_range(queryInfo);
+				if (!cacheRange.valid)
+					return;
+				const auto idxFrom = cacheRange.idxFrom;
+				const auto idxTo = cacheRange.idxTo;
 
 				if (!sortView.empty()) {
 					for (const auto& view: sortView) {
@@ -54538,6 +54919,12 @@ namespace gaia {
 			//! Verifies cached-query reverse-index consistency.
 			GAIA_NODISCARD bool verify_query_cache() const {
 				return m_queryCache.verify_archetype_tracking();
+			}
+
+			//! Returns the live cached-query record count for tests.
+			//! \return Number of live cached-query records.
+			GAIA_NODISCARD uint32_t test_query_cache_count() const {
+				return m_queryCache.test_query_count();
 			}
 #endif
 

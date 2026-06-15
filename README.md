@@ -1928,6 +1928,20 @@ q.each([](ecs::Iter& it) {
 
 For update loops that also compute a reduction or checksum, keep the reduction local to the iterator callback and update captured state once at the end of the callback. This exposes a chunk-local loop to the compiler and avoids repeatedly writing captured state from every row.
 
+Do not write a captured reduction directly from a per-row typed callback in hot update loops:
+
+```cpp
+// Avoid in hot paths: writes captured `total` once per row.
+q.each([&](Position& p, const Velocity& v) {
+  p.x += v.x * dt;
+  p.y += v.y * dt;
+  p.z += v.z * dt;
+  total += p.x + p.y + p.z;
+});
+```
+
+Use a chunk-local `Iter&` loop instead. This keeps the API surface unchanged and exposes the block-local row loop without adding another templated query entry point:
+
 ```cpp
 float total = 0.0f;
 q.each([&](ecs::Iter& it) {
@@ -1935,7 +1949,8 @@ q.each([&](ecs::Iter& it) {
   auto v = it.view<Velocity>(1);
 
   float localTotal = 0.0f;
-  GAIA_EACH(it) {
+  const auto cnt = it.size();
+  GAIA_FOR(cnt) {
     p[i].x += v[i].x * dt;
     p[i].y += v[i].y * dt;
     p[i].z += v[i].z * dt;
