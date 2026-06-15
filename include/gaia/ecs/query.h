@@ -318,6 +318,7 @@ namespace gaia {
 				QueryImplStorage& operator=(QueryImplStorage&& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
+					(void)try_del_from_cache();
 					delete m_pOwnedInfo;
 
 					m_world = other.m_world;
@@ -358,6 +359,7 @@ namespace gaia {
 				QueryImplStorage& operator=(const QueryImplStorage& other) {
 					GAIA_ASSERT(core::addressof(other) != this);
 
+					(void)try_del_from_cache();
 					delete m_pOwnedInfo;
 					m_pOwnedInfo = nullptr;
 

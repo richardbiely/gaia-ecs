@@ -14,6 +14,36 @@ namespace {
 	};
 } // namespace
 
+TEST_CASE("Query - assignment releases overwritten cached query") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+	wld.add<Acceleration>(entity, {4.0f, 5.0f, 6.0f});
+
+	CHECK(wld.test_query_cache_count() == 0);
+
+	{
+		auto retained = wld.query().all<Position>();
+		CHECK(retained.count() == 1);
+		CHECK(wld.test_query_cache_count() == 1);
+
+		retained = wld.query().all<Acceleration>();
+		CHECK(retained.count() == 1);
+		CHECK(wld.test_query_cache_count() == 1);
+
+		auto source = wld.query().all<Position>().all<Acceleration>();
+		CHECK(source.count() == 1);
+		CHECK(wld.test_query_cache_count() == 2);
+
+		retained = source;
+		CHECK(retained.count() == 1);
+		CHECK(wld.test_query_cache_count() == 1);
+	}
+
+	CHECK(wld.test_query_cache_count() == 0);
+}
+
 TEST_CASE("Query - QueryResult") {
 	SUBCASE("Cached query") {
 		Test_Query_QueryResult<ecs::Query>();

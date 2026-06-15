@@ -257,6 +257,12 @@ namespace gaia {
 
 				return true;
 			}
+
+			//! Returns the live cached-query record count for tests.
+			//! \return Number of live cached-query records.
+			GAIA_NODISCARD uint32_t test_query_count() const {
+				return (uint32_t)m_queryArr.item_count();
+			}
 #endif
 
 			//! Returns a QueryInfo object associated with @a handle.
