@@ -1712,13 +1712,23 @@ Iterating over components not present in the query is not supported and results 
 <div class="line">  }</div>
 <div class="line">}, ecs::Constraints::AcceptAll);</div>
 </div><!-- fragment --><p>For update loops that also compute a reduction or checksum, keep the reduction local to the iterator callback and update captured state once at the end of the callback. This exposes a chunk-local loop to the compiler and avoids repeatedly writing captured state from every row.</p>
+<p>Do not write a captured reduction directly from a per-row typed callback in hot update loops:</p>
+<div class="fragment"><div class="line"><span class="comment">// Avoid in hot paths: writes captured `total` once per row.</span></div>
+<div class="line">q.each([&amp;](Position&amp; p, <span class="keyword">const</span> Velocity&amp; v) {</div>
+<div class="line">  p.x += v.x * dt;</div>
+<div class="line">  p.y += v.y * dt;</div>
+<div class="line">  p.z += v.z * dt;</div>
+<div class="line">  total += p.x + p.y + p.z;</div>
+<div class="line">});</div>
+</div><!-- fragment --><p>Use a chunk-local <code>Iter&amp;</code> loop instead. This keeps the API surface unchanged and exposes the block-local row loop without adding another templated query entry point:</p>
 <div class="fragment"><div class="line"><span class="keywordtype">float</span> total = 0.0f;</div>
 <div class="line">q.each([&amp;](ecs::Iter&amp; it) {</div>
 <div class="line">  <span class="keyword">auto</span> p = it.view_mut&lt;Position&gt;(0);</div>
 <div class="line">  <span class="keyword">auto</span> v = it.view&lt;Velocity&gt;(1);</div>
 <div class="line"> </div>
 <div class="line">  <span class="keywordtype">float</span> localTotal = 0.0f;</div>
-<div class="line">  GAIA_EACH(it) {</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span> cnt = it.size();</div>
+<div class="line">  GAIA_FOR(cnt) {</div>
 <div class="line">    p[i].x += v[i].x * dt;</div>
 <div class="line">    p[i].y += v[i].y * dt;</div>
 <div class="line">    p[i].z += v[i].z * dt;</div>
