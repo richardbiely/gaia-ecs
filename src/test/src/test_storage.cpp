@@ -165,6 +165,54 @@ TEST_CASE("DontFragment table component direct query terms are evaluated as enti
 	expect_exact_entities(qOr, {eA, eC});
 }
 
+TEST_CASE("Sparse DontFragment component can change directly during serial query iteration") {
+	SparseTestWorld twld;
+
+	const auto& compItem = wld.add<PositionSparse>();
+	wld.add(compItem.entity, ecs::DontFragment);
+
+	const auto eA = wld.add();
+	const auto eB = wld.add();
+	const auto eC = wld.add();
+	wld.add<Position>(eA);
+	wld.add<Position>(eB);
+	wld.add<Position>(eC);
+	wld.add<PositionSparse>(eC, {9.0f, 10.0f, 11.0f});
+
+	const auto* pArchetypeA = wld.fetch(eA).pArchetype;
+	const auto* pArchetypeB = wld.fetch(eB).pArchetype;
+	const auto* pArchetypeC = wld.fetch(eC).pArchetype;
+
+	uint32_t hits = 0;
+	wld.query().all<Position>().each([&](ecs::Iter& it) {
+		const auto entities = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			const auto entity = entities[i];
+			if (entity == eA) {
+				wld.add<PositionSparse>(entity);
+			} else if (entity == eB) {
+				wld.add<PositionSparse>(entity, {4.0f, 5.0f, 6.0f});
+			} else if (entity == eC) {
+				wld.del<PositionSparse>(entity);
+			}
+			++hits;
+		}
+	});
+
+	CHECK(hits == 3);
+	CHECK(wld.has<PositionSparse>(eA));
+	CHECK(wld.has<PositionSparse>(eB));
+	CHECK_FALSE(wld.has<PositionSparse>(eC));
+	CHECK(wld.fetch(eA).pArchetype == pArchetypeA);
+	CHECK(wld.fetch(eB).pArchetype == pArchetypeB);
+	CHECK(wld.fetch(eC).pArchetype == pArchetypeC);
+
+	const auto& posB = wld.get<PositionSparse>(eB);
+	CHECK(posB.x == doctest::Approx(4.0f));
+	CHECK(posB.y == doctest::Approx(5.0f));
+	CHECK(posB.z == doctest::Approx(6.0f));
+}
+
 TEST_CASE("Sparse component uses out-of-line storage and still fragments") {
 	SparseTestWorld twld;
 

@@ -1242,6 +1242,7 @@ namespace gaia {
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
 #endif
 				if (mode == OutOfLineMode::Fragmenting) {
+					GAIA_ASSERT(!locked());
 					EntityBuilder eb(*this, entity);
 					eb.add_inter_init(object);
 					eb.commit();

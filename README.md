@@ -474,6 +474,11 @@ Rule of thumb:
 - use `DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
 - avoid out-of-line storage for components like `Position` or `Velocity` which benfit greatly of sequential access, unless profiling clearly justifies it
 
+Because `DontFragment` components live outside archetype identity, adding or removing an already-registered
+`DontFragment` component from an existing entity does not move that entity to another archetype. This makes direct
+add/remove safe during serial query iteration. If the active query also filters on the same component, later rows are
+matched against the current world state, not a snapshot taken before the query started.
+
 >**NOTE:<br/>** 
 SoA components do not support out-of-line storage and they stay chunk-backed. `ecs::Sparse` applies only to plain AoS generic components.<br/>
 
