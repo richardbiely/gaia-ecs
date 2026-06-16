@@ -420,6 +420,199 @@ void BM_ECS_UpdatePositionOnly(picobench::state& state) {
 	}
 }
 
+template <bool FinishWrites>
+void BM_ECS_UpdatePositionOnlyChunkRawBase(picobench::state& state) {
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryPosCVel.fetch();
+		queryPosCVel.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryPosCVel.fetch();
+	const auto posComp = w.get<Position>();
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		if constexpr (FinishWrites)
+			::gaia::ecs::update_version(w.world_version());
+
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto posIdx = pChunk->comp_idx(posComp);
+				auto p = pChunk->sview_mut<Position>(from, to);
+				auto v = pChunk->view<Velocity>(from, to);
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					p[i].x += v[i].x * cdt;
+					p[i].y += v[i].y * cdt;
+					p[i].z += v[i].z * cdt;
+				}
+				if constexpr (FinishWrites)
+					pChunk->finish_write(posIdx, from, to);
+			}
+		}
+	}
+}
+
+void BM_ECS_UpdatePositionOnlyChunkRawSilent(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyChunkRawSilent);
+	BM_ECS_UpdatePositionOnlyChunkRawBase<false>(state);
+}
+
+void BM_ECS_UpdatePositionOnlyChunkRaw(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyChunkRaw);
+	BM_ECS_UpdatePositionOnlyChunkRawBase<true>(state);
+}
+
+template <bool FinishWrites>
+void BM_ECS_UpdatePositionOnlyChunkPtrRawBase(picobench::state& state) {
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryPosCVel.fetch();
+		queryPosCVel.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryPosCVel.fetch();
+	const auto posComp = w.get<Position>();
+	const auto velComp = w.get<Velocity>();
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		if constexpr (FinishWrites)
+			::gaia::ecs::update_version(w.world_version());
+
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto posIdx = pChunk->comp_idx(posComp);
+				const auto recs = pChunk->comp_rec_view();
+				auto* p = (Position*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					p[i].x += v[i].x * cdt;
+					p[i].y += v[i].y * cdt;
+					p[i].z += v[i].z * cdt;
+				}
+				if constexpr (FinishWrites)
+					pChunk->finish_write(posIdx, from, to);
+			}
+		}
+	}
+}
+
+void BM_ECS_UpdatePositionOnlyChunkPtrRawSilent(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyChunkPtrRawSilent);
+	BM_ECS_UpdatePositionOnlyChunkPtrRawBase<false>(state);
+}
+
+void BM_ECS_UpdatePositionOnlyChunkPtrRaw(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyChunkPtrRaw);
+	BM_ECS_UpdatePositionOnlyChunkPtrRawBase<true>(state);
+}
+
+void BM_ECS_UpdatePositionOnlyIter(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyIter);
+
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryPosCVel.empty());
+	}
+
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		queryPosCVel.each([&](ecs::Iter& it) {
+#if ECS_ITER_COMPIDX_CACHING
+			auto p = it.view_mut<Position>(0);
+			auto v = it.view<Velocity>(1);
+#else
+			auto p = it.view_mut<Position>();
+			auto v = it.view<Velocity>();
+#endif
+			const auto cnt = it.size();
+			GAIA_FOR(cnt) {
+				p[i].x += v[i].x * cdt;
+				p[i].y += v[i].y * cdt;
+				p[i].z += v[i].z * cdt;
+			}
+		});
+	}
+}
+
+void BM_ECS_UpdatePositionOnlyEachArch(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_UpdatePositionOnlyEachArch);
+
+	ecs::World w;
+	auto queryPosCVel = w.query().all<Position&>().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		gaia::dont_optimize(queryPosCVel.empty());
+	}
+
+	const auto posComp = w.get<Position>();
+	const auto velComp = w.get<Velocity>();
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		::gaia::ecs::update_version(w.world_version());
+		queryPosCVel.each_arch([&](ecs::Iter& it) {
+			const auto* pArchetype = it.archetype();
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto posIdx = pChunk->comp_idx(posComp);
+				const auto recs = pChunk->comp_rec_view();
+				auto* p = (Position*)recs[posIdx].pData + from;
+				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					p[i].x += v[i].x * cdt;
+					p[i].y += v[i].y * cdt;
+					p[i].z += v[i].z * cdt;
+				}
+				pChunk->finish_write(posIdx, from, to);
+			}
+		});
+	}
+}
+
 void BM_ECS_ReadPositionVelocityOnly(picobench::state& state) {
 	GAIA_PROF_SCOPE(BM_ECS_ReadPositionVelocityOnly);
 
@@ -1082,6 +1275,135 @@ void BM_ECS_WriteVelocityOnly(picobench::state& state) {
 			v.y += 9.81f * cdt;
 		});
 	}
+}
+
+void BM_ECS_ReadVelocityChunkRawOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadVelocityChunkRawOnly);
+
+	ecs::World w;
+	auto queryVel = w.query().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryVel.fetch();
+		queryVel.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryVel.fetch();
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				auto v = pChunk->view<Velocity>(from, to);
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					sum += v[i].x + v[i].y + v[i].z;
+				}
+			}
+		}
+		gaia::dont_optimize(sum);
+	}
+}
+
+void BM_ECS_ReadVelocityChunkPtrRawOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_ReadVelocityChunkPtrRawOnly);
+
+	ecs::World w;
+	auto queryVel = w.query().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryVel.fetch();
+		queryVel.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryVel.fetch();
+	const auto velComp = w.get<Velocity>();
+	for (auto _: state) {
+		(void)_;
+		float sum = 0.0f;
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				const auto recs = pChunk->comp_rec_view();
+				const auto* v = (const Velocity*)recs[pChunk->comp_idx(velComp)].pData + from;
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					sum += v[i].x + v[i].y + v[i].z;
+				}
+			}
+		}
+		gaia::dont_optimize(sum);
+	}
+}
+
+template <bool FinishWrites>
+void BM_ECS_WriteVelocityChunkRawBase(picobench::state& state) {
+	ecs::World w;
+	auto queryVel = w.query().all<Velocity>();
+
+	{
+		GAIA_PROF_SCOPE(setup);
+		Register_ESC_Components<false>(w);
+		CreateECSEntities_Static<false>(w, (uint32_t)state.user_data() / 2);
+		CreateECSEntities_Dynamic<false>(w, (uint32_t)state.user_data() / 2);
+		auto& queryInfo = queryVel.fetch();
+		queryVel.match_all(queryInfo);
+		gaia::dont_optimize(queryInfo.cache_archetype_view().size());
+	}
+
+	auto& queryInfo = queryVel.fetch();
+	const auto velComp = w.get<Velocity>();
+	for (auto _: state) {
+		(void)_;
+		const float cdt = CalculateDelta(state);
+		if constexpr (FinishWrites)
+			::gaia::ecs::update_version(w.world_version());
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			for (auto* pChunk: pArchetype->chunks()) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				auto v = pChunk->sview_mut<Velocity>(from, to);
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt) {
+					v[i].y += 9.81f * cdt;
+				}
+				if constexpr (FinishWrites)
+					pChunk->finish_write(pChunk->comp_idx(velComp), from, to);
+			}
+		}
+	}
+}
+
+void BM_ECS_WriteVelocityChunkRawSilentOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WriteVelocityChunkRawSilentOnly);
+	BM_ECS_WriteVelocityChunkRawBase<false>(state);
+}
+
+void BM_ECS_WriteVelocityChunkRawOnly(picobench::state& state) {
+	GAIA_PROF_SCOPE(BM_ECS_WriteVelocityChunkRawOnly);
+	BM_ECS_WriteVelocityChunkRawBase<true>(state);
 }
 
 void BM_ECS_Iter(picobench::state& state) {
@@ -2544,6 +2866,30 @@ int main(int argc, char* argv[]) {
 					.label("ReadHealthIterChunkRawOnly Many");
 			PICOBENCH_REG(BM_ECS_ReadHealthArchRawOnly).PICO_SETTINGS().user_data(NMany).label("ReadHealthArchRawOnly Many");
 			PICOBENCH_REG(BM_ECS_UpdatePositionOnly).PICO_SETTINGS().user_data(NMany).label("UpdatePositionOnly Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyChunkRawSilent)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyChunkRawSilent Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyChunkRaw)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyChunkRaw Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyChunkPtrRawSilent)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyChunkPtrRawSilent Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyChunkPtrRaw)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyChunkPtrRaw Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyIter)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyIter Many");
+			PICOBENCH_REG(BM_ECS_UpdatePositionOnlyEachArch)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("UpdatePositionOnlyEachArch Many");
 			PICOBENCH_REG(BM_ECS_ReadPositionVelocityOnly)
 					.PICO_SETTINGS()
 					.user_data(NMany)
@@ -2610,6 +2956,22 @@ int main(int argc, char* argv[]) {
 					.label("UpdatePositionFixedDeltaWithReadbackIterLocalSum Many");
 			PICOBENCH_REG(BM_ECS_ReadVelocityOnly).PICO_SETTINGS().user_data(NMany).label("ReadVelocityOnly Many");
 			PICOBENCH_REG(BM_ECS_WriteVelocityOnly).PICO_SETTINGS().user_data(NMany).label("WriteVelocityOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadVelocityChunkRawOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("ReadVelocityChunkRawOnly Many");
+			PICOBENCH_REG(BM_ECS_ReadVelocityChunkPtrRawOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("ReadVelocityChunkPtrRawOnly Many");
+			PICOBENCH_REG(BM_ECS_WriteVelocityChunkRawSilentOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("WriteVelocityChunkRawSilentOnly Many");
+			PICOBENCH_REG(BM_ECS_WriteVelocityChunkRawOnly)
+					.PICO_SETTINGS()
+					.user_data(NMany)
+					.label("WriteVelocityChunkRawOnly Many");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().label("Iter");
 			PICOBENCH_REG(BM_ECS_Iter).PICO_SETTINGS().user_data(NMany).label("Iter Many");
 			PICOBENCH_REG(BM_ECS_Iter_Dir).PICO_SETTINGS().label("Iter_Dir");
