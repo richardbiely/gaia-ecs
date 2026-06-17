@@ -120,6 +120,27 @@ TEST_CASE("Component cache") {
 		CHECK(dense.comp.storage_type() == ecs::DataStorageType::Table);
 		CHECK(sparse.comp.storage_type() == ecs::DataStorageType::Sparse);
 	}
+	{
+		uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
+		const auto desc = ecs::detail::ComponentDesc<Position>::make(
+				util::str_view("Position"), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+
+		CHECK(desc.name == util::str_view("Position"));
+		CHECK(desc.size == (uint32_t)sizeof(Position));
+		CHECK(desc.alig == (uint32_t)alignof(Position));
+		CHECK(desc.storageType == ecs::DataStorageType::Table);
+		CHECK(desc.soa == 0);
+		CHECK(desc.pSoaSizes == soaSizes);
+		CHECK(desc.hashLookup == ecs::ComponentLookupHash{meta::type_info::hash<Position>()});
+		CHECK(desc.funcCtor == nullptr);
+		CHECK(desc.funcDtor == nullptr);
+		CHECK(desc.funcCopy != nullptr);
+		CHECK(desc.funcMove != nullptr);
+		CHECK(desc.funcSwap != nullptr);
+		CHECK(desc.funcCmp != nullptr);
+		CHECK(desc.funcSave != nullptr);
+		CHECK(desc.funcLoad != nullptr);
+	}
 }
 
 TEST_CASE("Component cache - runtime registration") {
@@ -148,6 +169,31 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.symbol(RuntimeCompName, nameLen) == item.entity);
 		CHECK(wld.symbol(RuntimeCompName, nameLen - 1) == ecs::EntityBad);
 		CHECK(wld.get(RuntimeCompName) == item.entity);
+	}
+
+	SUBCASE("plain descriptor registration populates runtime metadata") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		constexpr const char* RuntimeCompName = "Runtime_Component_Desc";
+		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
+		const auto entity = wld.add();
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view(RuntimeCompName, nameLen);
+		desc.size = (uint32_t)sizeof(Position);
+		desc.alig = (uint32_t)alignof(Position);
+		desc.storageType = ecs::DataStorageType::Table;
+
+		const auto& item = cc.add(entity, desc);
+		CHECK(item.entity == entity);
+		CHECK(item.comp.size() == (uint32_t)sizeof(Position));
+		CHECK(item.comp.alig() == (uint32_t)alignof(Position));
+		CHECK(item.comp.storage_type() == ecs::DataStorageType::Table);
+		CHECK(item.name.len() == nameLen);
+		CHECK(strcmp(item.name.str(), RuntimeCompName) == 0);
+		CHECK(cc.find(entity) == &item);
+		CHECK(wld.symbol(RuntimeCompName) == item.entity);
 	}
 
 	SUBCASE("duplicate runtime registration is idempotent") {

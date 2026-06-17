@@ -39,10 +39,10 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
+				//		const char* __cdecl ecs::type_info::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
 				// Clang/Clang-cl/GCC:
-				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
+				//		const ecs::type_info::name() [T = ecs::EnfEntity]
 				//   -> ecs::EnfEntity
 
 				// Note:

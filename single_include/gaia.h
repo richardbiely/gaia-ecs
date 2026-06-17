@@ -4083,10 +4083,10 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
-				//		const char* __cdecl ecs::ComponentInfo::name<struct ecs::EnfEntity>(void)
+				//		const char* __cdecl ecs::type_info::name<struct ecs::EnfEntity>(void)
 				//   -> ecs::EnfEntity
 				// Clang/Clang-cl/GCC:
-				//		const ecs::ComponentInfo::name() [T = ecs::EnfEntity]
+				//		const ecs::type_info::name() [T = ecs::EnfEntity]
 				//   -> ecs::EnfEntity
 
 				// Note:
@@ -28379,6 +28379,47 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Plain component registration descriptor shared by typed and runtime component paths.
+		//! Typed registration produces this descriptor from \ref detail::ComponentDesc, while runtime
+		//! registration can fill it from data loaded at runtime.
+		struct ComponentDesc final {
+			using FuncCtor = void(void*, uint32_t);
+			using FuncDtor = void(void*, uint32_t);
+			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncCmp = bool(const void*, const void*);
+			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
+			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
+
+			//! Registered component symbol.
+			util::str_view name{};
+			//! Component payload size in bytes.
+			uint32_t size = 0;
+			//! Component payload alignment in bytes.
+			uint32_t alig = 0;
+			//! Component storage mode.
+			DataStorageType storageType = DataStorageType::Table;
+			//! Number of SoA elements, 0 means AoS.
+			uint32_t soa = 0;
+			//! Per-element SoA sizes when \ref soa is non-zero.
+			const uint8_t* pSoaSizes = nullptr;
+			//! Optional explicit lookup hash. When empty, the symbol hash is used.
+			ComponentLookupHash hashLookup{};
+			//! Optional lifecycle and serialization callbacks.
+			FuncCtor* funcCtor = nullptr;
+			FuncMove* funcMoveCtor = nullptr;
+			FuncCopy* funcCopyCtor = nullptr;
+			FuncDtor* funcDtor = nullptr;
+			FuncCopy* funcCopy = nullptr;
+			FuncMove* funcMove = nullptr;
+			FuncSwap* funcSwap = nullptr;
+			FuncCmp* funcCmp = nullptr;
+			FuncSave* funcSave = nullptr;
+			FuncLoad* funcLoad = nullptr;
+		};
+
 		namespace detail {
 			template <typename T>
 			struct ComponentDesc final {
@@ -28550,6 +28591,34 @@ namespace gaia {
 							}
 						}
 					};
+				}
+
+				//! Builds the plain descriptor used by component cache registration.
+				//! \param descName Normalized component symbol name.
+				//! \param soaSizes Scratch/output storage for SoA element sizes. The returned descriptor keeps a
+				//! non-owning pointer to this buffer and must be consumed before the buffer expires.
+				//! \return Component descriptor for the current component type.
+				static ecs::ComponentDesc
+				make(util::str_view descName, std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
+					ecs::ComponentDesc desc{};
+					desc.name = descName;
+					desc.size = size();
+					desc.alig = alig();
+					desc.storageType = DataStorageType::Table;
+					desc.soa = soa(soaSizes);
+					desc.pSoaSizes = soaSizes.data();
+					desc.hashLookup = hash_lookup();
+					desc.funcCtor = func_ctor();
+					desc.funcMoveCtor = func_move_ctor();
+					desc.funcCopyCtor = func_copy_ctor();
+					desc.funcDtor = func_dtor();
+					desc.funcCopy = func_copy();
+					desc.funcMove = func_move();
+					desc.funcSwap = func_swap();
+					desc.funcCmp = func_cmp();
+					desc.funcSave = func_save();
+					desc.funcLoad = func_load();
+					return desc;
 				}
 			};
 		} // namespace detail
@@ -28972,60 +29041,66 @@ namespace gaia {
 				char nameTmp[MaxNameLength];
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
-				ComponentCacheItemCtx ctx{};
-				ctx.name = util::str_view(nameTmp, nameTmpLen);
-				ctx.size = componentSize;
-				ctx.alig = detail::ComponentDesc<T>::alig();
-				ctx.storageType = DataStorageType::Table;
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
-				ctx.pSoaSizes = soaSizes;
-				ctx.hashLookup = detail::ComponentDesc<T>::hash_lookup();
-				ctx.funcCtor = detail::ComponentDesc<T>::func_ctor();
-				ctx.funcMoveCtor = detail::ComponentDesc<T>::func_move_ctor();
-				ctx.funcCopyCtor = detail::ComponentDesc<T>::func_copy_ctor();
-				ctx.funcDtor = detail::ComponentDesc<T>::func_dtor();
-				ctx.funcCopy = detail::ComponentDesc<T>::func_copy();
-				ctx.funcMove = detail::ComponentDesc<T>::func_move();
-				ctx.funcSwap = detail::ComponentDesc<T>::func_swap();
-				ctx.funcCmp = detail::ComponentDesc<T>::func_cmp();
-				ctx.funcSave = detail::ComponentDesc<T>::func_save();
-				ctx.funcLoad = detail::ComponentDesc<T>::func_load();
-				return create(entity, ctx);
+				const auto desc = detail::ComponentDesc<T>::make(
+						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+				return create(entity, desc);
 			}
 
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
-				GAIA_ASSERT(!ctx.name.empty());
-				GAIA_ASSERT(ctx.name.size() < MaxNameLength);
-				GAIA_ASSERT(ctx.size < Component::MaxComponentSizeInBytes);
-				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
-				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
+				GAIA_ASSERT(!desc.name.empty());
+				GAIA_ASSERT(desc.name.size() < MaxNameLength);
+				GAIA_ASSERT(desc.size < Component::MaxComponentSizeInBytes);
+				GAIA_ASSERT((desc.size == 0 && desc.alig == 0) || (desc.alig > 0 && desc.alig < Component::MaxAlignment));
+				GAIA_ASSERT(desc.soa <= meta::StructToTupleMaxTypes);
 
 				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(entity.id(), ctx.soa, ctx.size, ctx.alig, ctx.storageType);
-				cci->hashLookup = ctx.hashLookup.hash != 0
-															? ctx.hashLookup
-															: ComponentLookupHash{core::calculate_hash64(ctx.name.data(), ctx.name.size())};
+				cci->comp = Component(entity.id(), desc.soa, desc.size, desc.alig, desc.storageType);
+				cci->hashLookup = desc.hashLookup.hash != 0
+															? desc.hashLookup
+															: ComponentLookupHash{core::calculate_hash64(desc.name.data(), desc.name.size())};
 
-				if (ctx.soa > 0 && ctx.pSoaSizes != nullptr) {
-					GAIA_FOR(ctx.soa) cci->soaSizes[i] = ctx.pSoaSizes[i];
+				if (desc.soa > 0 && desc.pSoaSizes != nullptr) {
+					GAIA_FOR(desc.soa) cci->soaSizes[i] = desc.pSoaSizes[i];
 				}
 
-				init_name(cci->name, ctx.name);
+				init_name(cci->name, desc.name);
 
-				cci->func_ctor = ctx.funcCtor;
-				cci->func_move_ctor = ctx.funcMoveCtor;
-				cci->func_copy_ctor = ctx.funcCopyCtor;
-				cci->func_dtor = ctx.funcDtor;
-				cci->func_copy = ctx.funcCopy;
-				cci->func_move = ctx.funcMove;
-				cci->func_swap = ctx.funcSwap;
-				cci->func_cmp = ctx.funcCmp;
-				cci->func_save = ctx.funcSave;
-				cci->func_load = ctx.funcLoad;
+				cci->func_ctor = desc.funcCtor;
+				cci->func_move_ctor = desc.funcMoveCtor;
+				cci->func_copy_ctor = desc.funcCopyCtor;
+				cci->func_dtor = desc.funcDtor;
+				cci->func_copy = desc.funcCopy;
+				cci->func_move = desc.funcMove;
+				cci->func_swap = desc.funcSwap;
+				cci->func_cmp = desc.funcCmp;
+				cci->func_save = desc.funcSave;
+				cci->func_load = desc.funcLoad;
 
 				return cci;
+			}
+
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
+				ecs::ComponentDesc desc{};
+				desc.name = ctx.name;
+				desc.size = ctx.size;
+				desc.alig = ctx.alig;
+				desc.storageType = ctx.storageType;
+				desc.soa = ctx.soa;
+				desc.pSoaSizes = ctx.pSoaSizes;
+				desc.hashLookup = ctx.hashLookup;
+				desc.funcCtor = ctx.funcCtor;
+				desc.funcMoveCtor = ctx.funcMoveCtor;
+				desc.funcCopyCtor = ctx.funcCopyCtor;
+				desc.funcDtor = ctx.funcDtor;
+				desc.funcCopy = ctx.funcCopy;
+				desc.funcMove = ctx.funcMove;
+				desc.funcSwap = ctx.funcSwap;
+				desc.funcCmp = ctx.funcCmp;
+				desc.funcSave = ctx.funcSave;
+				desc.funcLoad = ctx.funcLoad;
+				return create(entity, desc);
 			}
 
 			static void destroy(ComponentCacheItem* pItem) {
@@ -29343,25 +29418,53 @@ namespace gaia {
 
 			//! Registers a runtime-defined component.
 			//! \param entity Component entity to bind the cache record to.
+			//! \param desc Plain component registration descriptor.
+			//! \param scopePath Optional scoped path prefix used to derive the default component path.
+			//! \return Component info.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(Entity entity, const ecs::ComponentDesc& desc, util::str_view scopePath = {}) {
+				GAIA_ASSERT(entity != EntityBad);
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(!desc.name.empty());
+				GAIA_ASSERT(desc.name.size() < ComponentCacheItem::MaxNameLength);
+
+				{
+					const auto* pExisting = symbol(desc.name);
+					if (pExisting != nullptr)
+						return *pExisting;
+				}
+
+				const auto* pItem = ComponentCacheItem::create(entity, desc);
+				GAIA_ASSERT(entity.id() == pItem->comp.id());
+				return add_item(pItem, scopePath);
+			}
+
+			//! Registers a runtime-defined component.
+			//! \param entity Component entity to bind the cache record to.
 			//! \param item Component item registration context.
 			//! \param scopePath Optional scoped path prefix used to derive the default component path.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
 			add(Entity entity, const ComponentCacheItem::ComponentCacheItemCtx& item, util::str_view scopePath = {}) {
-				GAIA_ASSERT(entity != EntityBad);
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(!item.name.empty());
-				GAIA_ASSERT(item.name.size() < ComponentCacheItem::MaxNameLength);
-
-				{
-					const auto* pExisting = symbol(item.name);
-					if (pExisting != nullptr)
-						return *pExisting;
-				}
-
-				const auto* pItem = ComponentCacheItem::create(entity, item);
-				GAIA_ASSERT(entity.id() == pItem->comp.id());
-				return add_item(pItem, scopePath);
+				ecs::ComponentDesc desc{};
+				desc.name = item.name;
+				desc.size = item.size;
+				desc.alig = item.alig;
+				desc.storageType = item.storageType;
+				desc.soa = item.soa;
+				desc.pSoaSizes = item.pSoaSizes;
+				desc.hashLookup = item.hashLookup;
+				desc.funcCtor = item.funcCtor;
+				desc.funcMoveCtor = item.funcMoveCtor;
+				desc.funcCopyCtor = item.funcCopyCtor;
+				desc.funcDtor = item.funcDtor;
+				desc.funcCopy = item.funcCopy;
+				desc.funcMove = item.funcMove;
+				desc.funcSwap = item.funcSwap;
+				desc.funcCmp = item.funcCmp;
+				desc.funcSave = item.funcSave;
+				desc.funcLoad = item.funcLoad;
+				return add(entity, desc, scopePath);
 			}
 
 			//! Searches for the component cache item.

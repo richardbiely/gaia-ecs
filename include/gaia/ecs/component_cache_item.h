@@ -433,60 +433,66 @@ namespace gaia {
 				char nameTmp[MaxNameLength];
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
-				ComponentCacheItemCtx ctx{};
-				ctx.name = util::str_view(nameTmp, nameTmpLen);
-				ctx.size = componentSize;
-				ctx.alig = detail::ComponentDesc<T>::alig();
-				ctx.storageType = DataStorageType::Table;
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				ctx.soa = detail::ComponentDesc<T>::soa(soaSizes);
-				ctx.pSoaSizes = soaSizes;
-				ctx.hashLookup = detail::ComponentDesc<T>::hash_lookup();
-				ctx.funcCtor = detail::ComponentDesc<T>::func_ctor();
-				ctx.funcMoveCtor = detail::ComponentDesc<T>::func_move_ctor();
-				ctx.funcCopyCtor = detail::ComponentDesc<T>::func_copy_ctor();
-				ctx.funcDtor = detail::ComponentDesc<T>::func_dtor();
-				ctx.funcCopy = detail::ComponentDesc<T>::func_copy();
-				ctx.funcMove = detail::ComponentDesc<T>::func_move();
-				ctx.funcSwap = detail::ComponentDesc<T>::func_swap();
-				ctx.funcCmp = detail::ComponentDesc<T>::func_cmp();
-				ctx.funcSave = detail::ComponentDesc<T>::func_save();
-				ctx.funcLoad = detail::ComponentDesc<T>::func_load();
-				return create(entity, ctx);
+				const auto desc = detail::ComponentDesc<T>::make(
+						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+				return create(entity, desc);
 			}
 
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
-				GAIA_ASSERT(!ctx.name.empty());
-				GAIA_ASSERT(ctx.name.size() < MaxNameLength);
-				GAIA_ASSERT(ctx.size < Component::MaxComponentSizeInBytes);
-				GAIA_ASSERT((ctx.size == 0 && ctx.alig == 0) || (ctx.alig > 0 && ctx.alig < Component::MaxAlignment));
-				GAIA_ASSERT(ctx.soa <= meta::StructToTupleMaxTypes);
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
+				GAIA_ASSERT(!desc.name.empty());
+				GAIA_ASSERT(desc.name.size() < MaxNameLength);
+				GAIA_ASSERT(desc.size < Component::MaxComponentSizeInBytes);
+				GAIA_ASSERT((desc.size == 0 && desc.alig == 0) || (desc.alig > 0 && desc.alig < Component::MaxAlignment));
+				GAIA_ASSERT(desc.soa <= meta::StructToTupleMaxTypes);
 
 				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
-				cci->comp = Component(entity.id(), ctx.soa, ctx.size, ctx.alig, ctx.storageType);
-				cci->hashLookup = ctx.hashLookup.hash != 0
-															? ctx.hashLookup
-															: ComponentLookupHash{core::calculate_hash64(ctx.name.data(), ctx.name.size())};
+				cci->comp = Component(entity.id(), desc.soa, desc.size, desc.alig, desc.storageType);
+				cci->hashLookup = desc.hashLookup.hash != 0
+															? desc.hashLookup
+															: ComponentLookupHash{core::calculate_hash64(desc.name.data(), desc.name.size())};
 
-				if (ctx.soa > 0 && ctx.pSoaSizes != nullptr) {
-					GAIA_FOR(ctx.soa) cci->soaSizes[i] = ctx.pSoaSizes[i];
+				if (desc.soa > 0 && desc.pSoaSizes != nullptr) {
+					GAIA_FOR(desc.soa) cci->soaSizes[i] = desc.pSoaSizes[i];
 				}
 
-				init_name(cci->name, ctx.name);
+				init_name(cci->name, desc.name);
 
-				cci->func_ctor = ctx.funcCtor;
-				cci->func_move_ctor = ctx.funcMoveCtor;
-				cci->func_copy_ctor = ctx.funcCopyCtor;
-				cci->func_dtor = ctx.funcDtor;
-				cci->func_copy = ctx.funcCopy;
-				cci->func_move = ctx.funcMove;
-				cci->func_swap = ctx.funcSwap;
-				cci->func_cmp = ctx.funcCmp;
-				cci->func_save = ctx.funcSave;
-				cci->func_load = ctx.funcLoad;
+				cci->func_ctor = desc.funcCtor;
+				cci->func_move_ctor = desc.funcMoveCtor;
+				cci->func_copy_ctor = desc.funcCopyCtor;
+				cci->func_dtor = desc.funcDtor;
+				cci->func_copy = desc.funcCopy;
+				cci->func_move = desc.funcMove;
+				cci->func_swap = desc.funcSwap;
+				cci->func_cmp = desc.funcCmp;
+				cci->func_save = desc.funcSave;
+				cci->func_load = desc.funcLoad;
 
 				return cci;
+			}
+
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
+				ecs::ComponentDesc desc{};
+				desc.name = ctx.name;
+				desc.size = ctx.size;
+				desc.alig = ctx.alig;
+				desc.storageType = ctx.storageType;
+				desc.soa = ctx.soa;
+				desc.pSoaSizes = ctx.pSoaSizes;
+				desc.hashLookup = ctx.hashLookup;
+				desc.funcCtor = ctx.funcCtor;
+				desc.funcMoveCtor = ctx.funcMoveCtor;
+				desc.funcCopyCtor = ctx.funcCopyCtor;
+				desc.funcDtor = ctx.funcDtor;
+				desc.funcCopy = ctx.funcCopy;
+				desc.funcMove = ctx.funcMove;
+				desc.funcSwap = ctx.funcSwap;
+				desc.funcCmp = ctx.funcCmp;
+				desc.funcSave = ctx.funcSave;
+				desc.funcLoad = ctx.funcLoad;
+				return create(entity, desc);
 			}
 
 			static void destroy(ComponentCacheItem* pItem) {

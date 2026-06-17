@@ -14,9 +14,51 @@
 #include "gaia/meta/reflection.h"
 #include "gaia/meta/type_info.h"
 #include "gaia/ser/ser_rt.h"
+#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ecs {
+		//! Plain component registration descriptor shared by typed and runtime component paths.
+		//! Typed registration produces this descriptor from \ref detail::ComponentDesc, while runtime
+		//! registration can fill it from data loaded at runtime.
+		struct ComponentDesc final {
+			using FuncCtor = void(void*, uint32_t);
+			using FuncDtor = void(void*, uint32_t);
+			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			using FuncCmp = bool(const void*, const void*);
+			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
+			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
+
+			//! Registered component symbol.
+			util::str_view name{};
+			//! Component payload size in bytes.
+			uint32_t size = 0;
+			//! Component payload alignment in bytes.
+			uint32_t alig = 0;
+			//! Component storage mode.
+			DataStorageType storageType = DataStorageType::Table;
+			//! Number of SoA elements, 0 means AoS.
+			uint32_t soa = 0;
+			//! Per-element SoA sizes when \ref soa is non-zero.
+			const uint8_t* pSoaSizes = nullptr;
+			//! Optional explicit lookup hash. When empty, the symbol hash is used.
+			ComponentLookupHash hashLookup{};
+			//! Optional lifecycle and serialization callbacks.
+			FuncCtor* funcCtor = nullptr;
+			FuncMove* funcMoveCtor = nullptr;
+			FuncCopy* funcCopyCtor = nullptr;
+			FuncDtor* funcDtor = nullptr;
+			FuncCopy* funcCopy = nullptr;
+			FuncMove* funcMove = nullptr;
+			FuncSwap* funcSwap = nullptr;
+			FuncCmp* funcCmp = nullptr;
+			FuncSave* funcSave = nullptr;
+			FuncLoad* funcLoad = nullptr;
+		};
+
 		namespace detail {
 			template <typename T>
 			struct ComponentDesc final {
@@ -188,6 +230,34 @@ namespace gaia {
 							}
 						}
 					};
+				}
+
+				//! Builds the plain descriptor used by component cache registration.
+				//! \param descName Normalized component symbol name.
+				//! \param soaSizes Scratch/output storage for SoA element sizes. The returned descriptor keeps a
+				//! non-owning pointer to this buffer and must be consumed before the buffer expires.
+				//! \return Component descriptor for the current component type.
+				static ecs::ComponentDesc
+				make(util::str_view descName, std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
+					ecs::ComponentDesc desc{};
+					desc.name = descName;
+					desc.size = size();
+					desc.alig = alig();
+					desc.storageType = DataStorageType::Table;
+					desc.soa = soa(soaSizes);
+					desc.pSoaSizes = soaSizes.data();
+					desc.hashLookup = hash_lookup();
+					desc.funcCtor = func_ctor();
+					desc.funcMoveCtor = func_move_ctor();
+					desc.funcCopyCtor = func_copy_ctor();
+					desc.funcDtor = func_dtor();
+					desc.funcCopy = func_copy();
+					desc.funcMove = func_move();
+					desc.funcSwap = func_swap();
+					desc.funcCmp = func_cmp();
+					desc.funcSave = func_save();
+					desc.funcLoad = func_load();
+					return desc;
 				}
 			};
 		} // namespace detail

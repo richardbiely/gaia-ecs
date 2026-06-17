@@ -316,25 +316,53 @@ namespace gaia {
 
 			//! Registers a runtime-defined component.
 			//! \param entity Component entity to bind the cache record to.
+			//! \param desc Plain component registration descriptor.
+			//! \param scopePath Optional scoped path prefix used to derive the default component path.
+			//! \return Component info.
+			GAIA_NODISCARD const ComponentCacheItem&
+			add(Entity entity, const ecs::ComponentDesc& desc, util::str_view scopePath = {}) {
+				GAIA_ASSERT(entity != EntityBad);
+				GAIA_ASSERT(!entity.pair());
+				GAIA_ASSERT(!desc.name.empty());
+				GAIA_ASSERT(desc.name.size() < ComponentCacheItem::MaxNameLength);
+
+				{
+					const auto* pExisting = symbol(desc.name);
+					if (pExisting != nullptr)
+						return *pExisting;
+				}
+
+				const auto* pItem = ComponentCacheItem::create(entity, desc);
+				GAIA_ASSERT(entity.id() == pItem->comp.id());
+				return add_item(pItem, scopePath);
+			}
+
+			//! Registers a runtime-defined component.
+			//! \param entity Component entity to bind the cache record to.
 			//! \param item Component item registration context.
 			//! \param scopePath Optional scoped path prefix used to derive the default component path.
 			//! \return Component info.
 			GAIA_NODISCARD const ComponentCacheItem&
 			add(Entity entity, const ComponentCacheItem::ComponentCacheItemCtx& item, util::str_view scopePath = {}) {
-				GAIA_ASSERT(entity != EntityBad);
-				GAIA_ASSERT(!entity.pair());
-				GAIA_ASSERT(!item.name.empty());
-				GAIA_ASSERT(item.name.size() < ComponentCacheItem::MaxNameLength);
-
-				{
-					const auto* pExisting = symbol(item.name);
-					if (pExisting != nullptr)
-						return *pExisting;
-				}
-
-				const auto* pItem = ComponentCacheItem::create(entity, item);
-				GAIA_ASSERT(entity.id() == pItem->comp.id());
-				return add_item(pItem, scopePath);
+				ecs::ComponentDesc desc{};
+				desc.name = item.name;
+				desc.size = item.size;
+				desc.alig = item.alig;
+				desc.storageType = item.storageType;
+				desc.soa = item.soa;
+				desc.pSoaSizes = item.pSoaSizes;
+				desc.hashLookup = item.hashLookup;
+				desc.funcCtor = item.funcCtor;
+				desc.funcMoveCtor = item.funcMoveCtor;
+				desc.funcCopyCtor = item.funcCopyCtor;
+				desc.funcDtor = item.funcDtor;
+				desc.funcCopy = item.funcCopy;
+				desc.funcMove = item.funcMove;
+				desc.funcSwap = item.funcSwap;
+				desc.funcCmp = item.funcCmp;
+				desc.funcSave = item.funcSave;
+				desc.funcLoad = item.funcLoad;
+				return add(entity, desc, scopePath);
 			}
 
 			//! Searches for the component cache item.
