@@ -639,6 +639,94 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.set_raw(entity, tagComp.entity, nullptr, 0));
 	}
 
+	SUBCASE("runtime component cursor walks fields and mutates strict primitives") {
+		TestWorld twld;
+
+		const auto& runtimeComp = add_runtime_component(
+				wld, "Runtime_Component_Cursor", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+
+		const auto entity = wld.add();
+		uint8_t initial[RuntimePayloadSize]{};
+		write_xyz(initial, 1.0f, 2.0f, 3.0f);
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+
+		auto cursor = wld.cursor(entity, runtimeComp.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.type() == runtimeComp.entity);
+		CHECK(cursor.size() == RuntimePayloadSize);
+		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.ptr() != nullptr);
+		CHECK(cursor.mut_ptr() == nullptr);
+		CHECK_FALSE(cursor.get_f32(nullptr));
+		const float readOnlyWrite = 10.0f;
+		CHECK(cursor.write_bytes(&readOnlyWrite, sizeof(readOnlyWrite)) == ecs::ComponentWriteResult::ReadOnly);
+
+		CHECK(cursor.field(util::str_view("y")));
+		CHECK(cursor.valid());
+		CHECK(cursor.depth() == 1);
+		CHECK(cursor.type() == ecs::F32);
+		CHECK(cursor.size() == sizeof(float));
+		float y = 0.0f;
+		CHECK(cursor.get_f32(&y));
+		CHECK(y == doctest::Approx(2.0f));
+		const float readOnlyFieldWrite = 20.0f;
+		CHECK(cursor.write_bytes(&readOnlyFieldWrite, sizeof(readOnlyFieldWrite)) == ecs::ComponentWriteResult::ReadOnly);
+		CHECK(cursor.parent());
+		CHECK(cursor.depth() == 0);
+
+		CHECK(cursor.field(2));
+		float z = 0.0f;
+		CHECK(cursor.get_f32(&z));
+		CHECK(z == doctest::Approx(3.0f));
+
+		uint32_t setHits = 0;
+		uint8_t setSeen[RuntimePayloadSize]{};
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+														 const auto observedPayload = wld.get_raw(observed, runtimeComp.entity);
+														 CHECK(observedPayload.valid());
+														 CHECK(observedPayload.size == RuntimePayloadSize);
+														 if (observedPayload.data != nullptr)
+															 memcpy(setSeen, observedPayload.data, RuntimePayloadSize);
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto mutableCursor = wld.cursor_mut(entity, runtimeComp.entity);
+		CHECK(mutableCursor.valid());
+		CHECK(mutableCursor.field(util::str_view("x")));
+		float xWrite = 42.0f;
+		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(setHits == 1);
+		float x = 0.0f;
+		CHECK(mutableCursor.get_f32(&x));
+		CHECK(x == doctest::Approx(42.0f));
+		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(42.0f));
+
+		xWrite = 17.0f;
+		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(setHits == 2);
+		CHECK(mutableCursor.get_f32(&x));
+		CHECK(x == doctest::Approx(17.0f));
+
+		xWrite = 23.0f;
+		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(setHits == 3);
+		CHECK(mutableCursor.get_f32(&x));
+		CHECK(x == doctest::Approx(23.0f));
+
+		const uint8_t tooSmall[sizeof(float) - 1]{};
+		CHECK(mutableCursor.write_bytes(tooSmall, sizeof(tooSmall)) == ecs::ComponentWriteResult::OutOfRange);
+		CHECK(setHits == 3);
+	}
+
 	SUBCASE("runtime raw payload access rejects unsupported storage") {
 		TestWorld twld;
 

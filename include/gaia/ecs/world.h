@@ -32,6 +32,7 @@
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/component_cache.h"
 #include "gaia/ecs/component_cache_item.h"
+#include "gaia/ecs/component_cursor.h"
 #include "gaia/ecs/component_getter.h"
 #include "gaia/ecs/component_setter.h"
 #include "gaia/ecs/entity_container.h"
@@ -87,62 +88,6 @@ namespace gaia {
 			Entity entity;
 			T value{};
 		};
-
-		//! Flags describing the state of a raw component byte view.
-		//! Kept as a plain bitmask so raw views can stay compact and cheap to return by value.
-		enum ComponentRawViewFlags : uint32_t {
-			//! No payload was resolved.
-			ComponentRawViewFlag_None = 0,
-			//! The view resolved to an existing supported payload or tag.
-			ComponentRawViewFlag_Valid = 1U << 0
-		};
-
-		//! Non-owning read-only view over raw component bytes on an entity.
-		//!
-		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::get_raw(...)`; keeping it out of the view
-		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
-		//! and `ComponentRawViewFlag_Valid` set.
-		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
-		//! \note Use valid() instead of checking `data`: tags are valid views with a null pointer.
-		struct ComponentRawView {
-			//! Raw component payload bytes. Null for tags and invalid views.
-			const void* data = nullptr;
-			//! Payload size in bytes.
-			uint32_t size = 0;
-			//! Bitmask of ComponentRawViewFlags values.
-			uint32_t flags = ComponentRawViewFlag_None;
-
-			//! \return True if the view resolved to an existing supported component payload or tag.
-			GAIA_NODISCARD bool valid() const noexcept {
-				return (flags & ComponentRawViewFlag_Valid) != 0;
-			}
-		};
-		static_assert(sizeof(ComponentRawView) == 16, "ComponentRawView must stay compact");
-
-		//! Non-owning mutable view over raw component bytes on an entity.
-		//!
-		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::mut_raw(...)`; keeping it out of the view
-		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
-		//! and `ComponentRawViewFlag_Valid` set.
-		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
-		//! \note `mut_raw(...)` is a silent mutation path. Call `World::modify_raw(...)` after writing
-		//! if set hooks or `OnSet` observers should run. Tags are valid views with a null pointer.
-		struct ComponentRawMutView {
-			//! Raw component payload bytes. Null for tags and invalid views.
-			void* data = nullptr;
-			//! Payload size in bytes.
-			uint32_t size = 0;
-			//! Bitmask of ComponentRawViewFlags values.
-			uint32_t flags = ComponentRawViewFlag_None;
-
-			//! \return True if the view resolved to an existing supported component payload or tag.
-			GAIA_NODISCARD bool valid() const noexcept {
-				return (flags & ComponentRawViewFlag_Valid) != 0;
-			}
-		};
-		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
 
 		namespace detail {
 			//! Scheduling key for one enabled system entity.
@@ -5325,6 +5270,21 @@ namespace gaia {
 				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
 				return {ec.pChunk->comp_ptr_mut(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
+
+			//! Creates a read-only cursor over a chunk-backed AoS runtime component on @a entity.
+			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
+			//! \param entity Entity being read.
+			//! \param component Component entity being read.
+			//! @return Cursor positioned at the root component payload, or invalid cursor when unavailable.
+			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
+
+			//! Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on @a entity.
+			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
+			//! ComponentCursor::write_bytes() finishes the root component write automatically.
+			//! \param entity Entity being mutated.
+			//! \param component Component entity being mutated.
+			//! @return Cursor positioned at the root component payload, or invalid cursor when unavailable.
+			GAIA_NODISCARD ComponentCursor cursor_mut(Entity entity, Entity component);
 
 			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
 			//! \param entity Entity receiving the component.
@@ -11372,6 +11332,14 @@ namespace gaia {
 				}
 			}
 		};
+
+		inline ComponentCursor World::cursor(Entity entity, Entity component) const {
+			return ComponentCursor::from_raw(comp_cache(), component, get_raw(entity, component));
+		}
+
+		inline ComponentCursor World::cursor_mut(Entity entity, Entity component) {
+			return ComponentCursor::from_raw(*this, comp_cache(), entity, component, mut_raw(entity, component));
+		}
 
 		using EntityBuilder = World::EntityBuilder;
 	} // namespace ecs
