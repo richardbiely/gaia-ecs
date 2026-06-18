@@ -679,6 +679,19 @@ namespace gaia {
 		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
+		// Runtime primitive type entities
+		inline Entity Bool = Entity(35, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I8 = Entity(36, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U8 = Entity(37, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I16 = Entity(38, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U16 = Entity(39, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I32 = Entity(40, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U32 = Entity(41, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I64 = Entity(42, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U64 = Entity(43, 0, false, false, EntityKind::EK_Gen);
+		inline Entity F32 = Entity(44, 0, false, false, EntityKind::EK_Gen);
+		inline Entity F64 = Entity(45, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Char8 = Entity(46, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -691,7 +704,7 @@ namespace gaia {
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
 		// Always has to match the last internal entity.
-		inline Entity GAIA_ID(LastCoreComponent) = Var7;
+		inline Entity GAIA_ID(LastCoreComponent) = Char8;
 
 		//----------------------------------------------------------------------
 		// Helper functions

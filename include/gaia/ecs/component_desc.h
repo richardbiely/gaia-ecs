@@ -18,8 +18,53 @@
 
 namespace gaia {
 	namespace ecs {
+		//! Runtime reflection kind associated with a component/type entity.
+		enum class RuntimeTypeKind : uint8_t {
+			None,
+			Primitive,
+			Struct,
+		};
+
+		//! Runtime primitive kind associated with primitive type entities.
+		enum class RuntimePrimitiveKind : uint8_t {
+			None,
+			Bool,
+			I8,
+			U8,
+			I16,
+			U16,
+			I32,
+			U32,
+			I64,
+			U64,
+			F32,
+			F64,
+			Char8,
+		};
+
+		//! User-authored runtime field descriptor.
+		//! A count of 0 means scalar; positive values describe a fixed inline array.
+		struct RuntimeFieldDesc final {
+			//! Field symbol.
+			util::str_view name{};
+			//! Entity describing the field type.
+			Entity type = EntityBad;
+			//! Byte offset from the start of the component payload.
+			uint32_t offset = 0;
+			//! Inline array element count. 0 means scalar.
+			uint32_t count = 0;
+		};
+
+		//! Stored runtime field metadata.
+		struct RuntimeField final {
+			char name[256]{};
+			Entity type = EntityBad;
+			uint32_t offset = 0;
+			uint32_t count = 0;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
-		//! Typed registration produces this descriptor from \ref detail::ComponentDesc, while runtime
+		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
 		struct ComponentDesc final {
 			using FuncCtor = void(void*, uint32_t);
@@ -46,6 +91,10 @@ namespace gaia {
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};
+			//! Runtime reflection type kind.
+			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Runtime primitive kind. Only valid when typeKind is Primitive.
+			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;

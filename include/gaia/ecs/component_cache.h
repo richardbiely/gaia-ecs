@@ -352,6 +352,8 @@ namespace gaia {
 				desc.soa = item.soa;
 				desc.pSoaSizes = item.pSoaSizes;
 				desc.hashLookup = item.hashLookup;
+				desc.typeKind = item.typeKind;
+				desc.primitiveKind = item.primitiveKind;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;
@@ -363,6 +365,22 @@ namespace gaia {
 				desc.funcSave = item.funcSave;
 				desc.funcLoad = item.funcLoad;
 				return add(entity, desc, scopePath);
+			}
+
+			//! Adds runtime field metadata to a registered component.
+			//! \param component Component entity receiving the field.
+			//! \param field Field descriptor. A count of 0 means scalar.
+			//! Returns true when the field was added or updated, false if validation failed.
+			GAIA_NODISCARD bool add_field(Entity component, const RuntimeFieldDesc& field) {
+				auto* pItem = find(component);
+				if (pItem == nullptr)
+					return false;
+
+				const auto* pType = find(field.type);
+				if (pType == nullptr)
+					return false;
+
+				return pItem->add_field(field, pType->comp.size());
 			}
 
 			//! Searches for the component cache item.

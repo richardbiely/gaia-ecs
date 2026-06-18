@@ -10757,6 +10757,30 @@ namespace gaia {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
 
+			static ComponentDesc
+			primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+				ComponentDesc desc{};
+				desc.name = util::str_view(name, nameLen);
+				desc.size = size;
+				desc.alig = size;
+				desc.storageType = DataStorageType::Table;
+				desc.typeKind = RuntimeTypeKind::Primitive;
+				desc.primitiveKind = primitiveKind;
+				return desc;
+			}
+
+			const ComponentCacheItem& reg_core_primitive_type(
+					Entity id, const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+				auto comp = add(*m_pCompArchetype, id.entity(), id.pair(), id.kind());
+				const auto desc = primitive_type_desc(name, nameLen, size, primitiveKind);
+				const auto& ci = comp_cache_mut().add(id, desc);
+				GAIA_ASSERT(ci.entity == id);
+				GAIA_ASSERT(comp == id);
+				(void)comp;
+				finalize_component_registration(ci, false);
+				return ci;
+			}
+
 #if GAIA_ECS_AUTO_COMPONENT_SCHEMA
 			template <typename T>
 			static void auto_populate_component_schema(ComponentCacheItem& item) {
@@ -11239,6 +11263,19 @@ namespace gaia {
 				(void)reg_core_entity<_Var5>(Var5);
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
+
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
+				(void)reg_core_primitive_type(I8, "gaia::ecs::I8", 13, 1, RuntimePrimitiveKind::I8);
+				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
+				(void)reg_core_primitive_type(I16, "gaia::ecs::I16", 14, 2, RuntimePrimitiveKind::I16);
+				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
+				(void)reg_core_primitive_type(I32, "gaia::ecs::I32", 14, 4, RuntimePrimitiveKind::I32);
+				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
+				(void)reg_core_primitive_type(I64, "gaia::ecs::I64", 14, 8, RuntimePrimitiveKind::I64);
+				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
+				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
+				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 			}
 
 			// Add special properties for core components.
@@ -11373,6 +11410,43 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Var7) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+						
+				EntityBuilder(*this, Bool) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}

@@ -196,6 +196,58 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.symbol(RuntimeCompName) == item.entity);
 	}
 
+	SUBCASE("reflected primitive ids and runtime fields are available") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		const auto* f32Info = cc.find(ecs::F32);
+		CHECK(f32Info != nullptr);
+		if (f32Info != nullptr) {
+			CHECK(f32Info->typeKind == ecs::RuntimeTypeKind::Primitive);
+			CHECK(f32Info->primitiveKind == ecs::RuntimePrimitiveKind::F32);
+			CHECK(f32Info->comp.size() == 4);
+			CHECK(f32Info->comp.alig() == 4);
+		}
+
+		constexpr const char* RuntimeCompName = "Runtime_Component_Fields";
+		const auto entity = wld.add();
+
+		ecs::ComponentDesc desc{};
+		desc.name = runtime_component_name_view(RuntimeCompName);
+		desc.size = 24;
+		desc.alig = 4;
+		desc.typeKind = ecs::RuntimeTypeKind::Struct;
+
+		auto& item = const_cast<ecs::ComponentCacheItem&>(cc.add(entity, desc));
+		CHECK(item.typeKind == ecs::RuntimeTypeKind::Struct);
+		CHECK(item.primitiveKind == ecs::RuntimePrimitiveKind::None);
+		CHECK(item.field_count() == 0);
+
+		CHECK(cc.add_field(entity, {util::str_view("x"), ecs::F32, 0, 0}));
+		CHECK(cc.add_field(entity, {util::str_view("color"), ecs::F32, 8, 4}));
+		CHECK_FALSE(cc.add_field(entity, {util::str_view("bad"), ecs::EntityBad, 0, 0}));
+		CHECK_FALSE(cc.add_field(entity, {util::str_view("overflow"), ecs::F32, 24, 1}));
+		CHECK(item.field_count() == 2);
+
+		const ecs::RuntimeField* field = nullptr;
+		CHECK(item.field(util::str_view("x"), &field));
+		CHECK(field != nullptr);
+		if (field != nullptr) {
+			CHECK(field->type == ecs::F32);
+			CHECK(field->offset == 0);
+			CHECK(field->count == 0);
+			CHECK(item.field_element_count(*field) == 1);
+		}
+
+		CHECK(item.field(util::str_view("color"), &field));
+		CHECK(field != nullptr);
+		if (field != nullptr) {
+			CHECK(field->offset == 8);
+			CHECK(field->count == 4);
+			CHECK(item.field_element_count(*field) == 4);
+		}
+	}
+
 	SUBCASE("duplicate runtime registration is idempotent") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();

@@ -52,6 +52,8 @@ namespace gaia {
 				uint32_t size = 0;
 			};
 
+			using RuntimeField = ecs::RuntimeField;
+
 			//! Component item registration context.
 			struct ComponentCacheItemCtx {
 				//! Registered component symbol.
@@ -68,6 +70,10 @@ namespace gaia {
 				const uint8_t* pSoaSizes = nullptr;
 				//! Optional explicit lookup hash. When empty, the symbol hash is used.
 				ComponentLookupHash hashLookup{};
+				//! Runtime reflection type kind.
+				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+				//! Runtime primitive kind. Only valid when typeKind is Primitive.
+				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 				//! Optional lifecycle and serialization callbacks.
 				FuncCtor* funcCtor = nullptr;
 				FuncMove* funcMoveCtor = nullptr;
@@ -114,6 +120,10 @@ namespace gaia {
 			FuncSave* func_save{};
 			// !Function to call when loading component from a buffer
 			FuncLoad* func_load{};
+			//! Runtime reflection type kind.
+			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Runtime primitive kind. Only valid when typeKind is Primitive.
+			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -131,6 +141,7 @@ namespace gaia {
 			Hooks comp_hooks;
 #endif
 			cnt::darray<SchemaField> schema;
+			cnt::darray<RuntimeField> fields;
 
 		private:
 			ComponentCacheItem() = default;
@@ -316,6 +327,83 @@ namespace gaia {
 				return !schema.empty();
 			}
 
+			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
+				return field.count == 0 ? 1U : field.count;
+			}
+
+			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeField& field) noexcept {
+				return field.count == 0 ? 1U : field.count;
+			}
+
+			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
+				if (type == Bool || type == I8 || type == U8 || type == Char8)
+					return 1;
+				if (type == I16 || type == U16)
+					return 2;
+				if (type == I32 || type == U32 || type == F32)
+					return 4;
+				if (type == I64 || type == U64 || type == F64)
+					return 8;
+				return 0;
+			}
+
+			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+				if (desc.type == EntityBad)
+					return false;
+
+				const auto elemSize = typeSize != 0 ? typeSize : primitive_type_size(desc.type);
+				if (elemSize == 0)
+					return false;
+
+				const auto elemCount = field_element_count(desc);
+				const auto end = (uint64_t)desc.offset + (uint64_t)elemSize * (uint64_t)elemCount;
+				if (end > comp.size())
+					return false;
+
+				for (auto& field: fields) {
+					if (strncmp(field.name, desc.name.data(), desc.name.size()) == 0 && field.name[desc.name.size()] == 0) {
+						field.type = desc.type;
+						field.offset = desc.offset;
+						field.count = desc.count;
+						return true;
+					}
+				}
+
+				RuntimeField field{};
+				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
+				field.name[desc.name.size()] = 0;
+				field.type = desc.type;
+				field.offset = desc.offset;
+				field.count = desc.count;
+				fields.push_back(field);
+				return true;
+			}
+
+			GAIA_NODISCARD bool field(util::str_view fieldName, const RuntimeField** ppField) const {
+				GAIA_ASSERT(ppField != nullptr);
+				*ppField = nullptr;
+				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
+					return false;
+
+				for (const auto& field: fields) {
+					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0) {
+						*ppField = &field;
+						return true;
+					}
+				}
+				return false;
+			}
+
+			GAIA_NODISCARD uint32_t field_count() const noexcept {
+				return (uint32_t)fields.size();
+			}
+
+			void clear_runtime_fields() {
+				fields.clear();
+			}
+
 #if GAIA_ENABLE_HOOKS
 			Hooks& hooks() {
 				return comp_hooks;
@@ -469,6 +557,8 @@ namespace gaia {
 				cci->func_cmp = desc.funcCmp;
 				cci->func_save = desc.funcSave;
 				cci->func_load = desc.funcLoad;
+				cci->typeKind = desc.typeKind;
+				cci->primitiveKind = desc.primitiveKind;
 
 				return cci;
 			}
@@ -482,6 +572,8 @@ namespace gaia {
 				desc.soa = ctx.soa;
 				desc.pSoaSizes = ctx.pSoaSizes;
 				desc.hashLookup = ctx.hashLookup;
+				desc.typeKind = ctx.typeKind;
+				desc.primitiveKind = ctx.primitiveKind;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;

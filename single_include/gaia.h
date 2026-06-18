@@ -27093,6 +27093,19 @@ namespace gaia {
 		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
+		// Runtime primitive type entities
+		inline Entity Bool = Entity(35, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I8 = Entity(36, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U8 = Entity(37, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I16 = Entity(38, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U16 = Entity(39, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I32 = Entity(40, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U32 = Entity(41, 0, false, false, EntityKind::EK_Gen);
+		inline Entity I64 = Entity(42, 0, false, false, EntityKind::EK_Gen);
+		inline Entity U64 = Entity(43, 0, false, false, EntityKind::EK_Gen);
+		inline Entity F32 = Entity(44, 0, false, false, EntityKind::EK_Gen);
+		inline Entity F64 = Entity(45, 0, false, false, EntityKind::EK_Gen);
+		inline Entity Char8 = Entity(46, 0, false, false, EntityKind::EK_Gen);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -27105,7 +27118,7 @@ namespace gaia {
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
 		// Always has to match the last internal entity.
-		inline Entity GAIA_ID(LastCoreComponent) = Var7;
+		inline Entity GAIA_ID(LastCoreComponent) = Char8;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -28379,8 +28392,53 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Runtime reflection kind associated with a component/type entity.
+		enum class RuntimeTypeKind : uint8_t {
+			None,
+			Primitive,
+			Struct,
+		};
+
+		//! Runtime primitive kind associated with primitive type entities.
+		enum class RuntimePrimitiveKind : uint8_t {
+			None,
+			Bool,
+			I8,
+			U8,
+			I16,
+			U16,
+			I32,
+			U32,
+			I64,
+			U64,
+			F32,
+			F64,
+			Char8,
+		};
+
+		//! User-authored runtime field descriptor.
+		//! A count of 0 means scalar; positive values describe a fixed inline array.
+		struct RuntimeFieldDesc final {
+			//! Field symbol.
+			util::str_view name{};
+			//! Entity describing the field type.
+			Entity type = EntityBad;
+			//! Byte offset from the start of the component payload.
+			uint32_t offset = 0;
+			//! Inline array element count. 0 means scalar.
+			uint32_t count = 0;
+		};
+
+		//! Stored runtime field metadata.
+		struct RuntimeField final {
+			char name[256]{};
+			Entity type = EntityBad;
+			uint32_t offset = 0;
+			uint32_t count = 0;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
-		//! Typed registration produces this descriptor from \ref detail::ComponentDesc, while runtime
+		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
 		struct ComponentDesc final {
 			using FuncCtor = void(void*, uint32_t);
@@ -28407,6 +28465,10 @@ namespace gaia {
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};
+			//! Runtime reflection type kind.
+			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Runtime primitive kind. Only valid when typeKind is Primitive.
+			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;
@@ -28660,6 +28722,8 @@ namespace gaia {
 				uint32_t size = 0;
 			};
 
+			using RuntimeField = ecs::RuntimeField;
+
 			//! Component item registration context.
 			struct ComponentCacheItemCtx {
 				//! Registered component symbol.
@@ -28676,6 +28740,10 @@ namespace gaia {
 				const uint8_t* pSoaSizes = nullptr;
 				//! Optional explicit lookup hash. When empty, the symbol hash is used.
 				ComponentLookupHash hashLookup{};
+				//! Runtime reflection type kind.
+				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+				//! Runtime primitive kind. Only valid when typeKind is Primitive.
+				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 				//! Optional lifecycle and serialization callbacks.
 				FuncCtor* funcCtor = nullptr;
 				FuncMove* funcMoveCtor = nullptr;
@@ -28722,6 +28790,10 @@ namespace gaia {
 			FuncSave* func_save{};
 			// !Function to call when loading component from a buffer
 			FuncLoad* func_load{};
+			//! Runtime reflection type kind.
+			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Runtime primitive kind. Only valid when typeKind is Primitive.
+			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 
 #if GAIA_ENABLE_HOOKS
 			struct Hooks {
@@ -28739,6 +28811,7 @@ namespace gaia {
 			Hooks comp_hooks;
 #endif
 			cnt::darray<SchemaField> schema;
+			cnt::darray<RuntimeField> fields;
 
 		private:
 			ComponentCacheItem() = default;
@@ -28924,6 +28997,83 @@ namespace gaia {
 				return !schema.empty();
 			}
 
+			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
+				return field.count == 0 ? 1U : field.count;
+			}
+
+			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeField& field) noexcept {
+				return field.count == 0 ? 1U : field.count;
+			}
+
+			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
+				if (type == Bool || type == I8 || type == U8 || type == Char8)
+					return 1;
+				if (type == I16 || type == U16)
+					return 2;
+				if (type == I32 || type == U32 || type == F32)
+					return 4;
+				if (type == I64 || type == U64 || type == F64)
+					return 8;
+				return 0;
+			}
+
+			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+				if (desc.type == EntityBad)
+					return false;
+
+				const auto elemSize = typeSize != 0 ? typeSize : primitive_type_size(desc.type);
+				if (elemSize == 0)
+					return false;
+
+				const auto elemCount = field_element_count(desc);
+				const auto end = (uint64_t)desc.offset + (uint64_t)elemSize * (uint64_t)elemCount;
+				if (end > comp.size())
+					return false;
+
+				for (auto& field: fields) {
+					if (strncmp(field.name, desc.name.data(), desc.name.size()) == 0 && field.name[desc.name.size()] == 0) {
+						field.type = desc.type;
+						field.offset = desc.offset;
+						field.count = desc.count;
+						return true;
+					}
+				}
+
+				RuntimeField field{};
+				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
+				field.name[desc.name.size()] = 0;
+				field.type = desc.type;
+				field.offset = desc.offset;
+				field.count = desc.count;
+				fields.push_back(field);
+				return true;
+			}
+
+			GAIA_NODISCARD bool field(util::str_view fieldName, const RuntimeField** ppField) const {
+				GAIA_ASSERT(ppField != nullptr);
+				*ppField = nullptr;
+				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
+					return false;
+
+				for (const auto& field: fields) {
+					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0) {
+						*ppField = &field;
+						return true;
+					}
+				}
+				return false;
+			}
+
+			GAIA_NODISCARD uint32_t field_count() const noexcept {
+				return (uint32_t)fields.size();
+			}
+
+			void clear_runtime_fields() {
+				fields.clear();
+			}
+
 #if GAIA_ENABLE_HOOKS
 			Hooks& hooks() {
 				return comp_hooks;
@@ -29077,6 +29227,8 @@ namespace gaia {
 				cci->func_cmp = desc.funcCmp;
 				cci->func_save = desc.funcSave;
 				cci->func_load = desc.funcLoad;
+				cci->typeKind = desc.typeKind;
+				cci->primitiveKind = desc.primitiveKind;
 
 				return cci;
 			}
@@ -29090,6 +29242,8 @@ namespace gaia {
 				desc.soa = ctx.soa;
 				desc.pSoaSizes = ctx.pSoaSizes;
 				desc.hashLookup = ctx.hashLookup;
+				desc.typeKind = ctx.typeKind;
+				desc.primitiveKind = ctx.primitiveKind;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;
@@ -29454,6 +29608,8 @@ namespace gaia {
 				desc.soa = item.soa;
 				desc.pSoaSizes = item.pSoaSizes;
 				desc.hashLookup = item.hashLookup;
+				desc.typeKind = item.typeKind;
+				desc.primitiveKind = item.primitiveKind;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;
@@ -29465,6 +29621,22 @@ namespace gaia {
 				desc.funcSave = item.funcSave;
 				desc.funcLoad = item.funcLoad;
 				return add(entity, desc, scopePath);
+			}
+
+			//! Adds runtime field metadata to a registered component.
+			//! \param component Component entity receiving the field.
+			//! \param field Field descriptor. A count of 0 means scalar.
+			//! Returns true when the field was added or updated, false if validation failed.
+			GAIA_NODISCARD bool add_field(Entity component, const RuntimeFieldDesc& field) {
+				auto* pItem = find(component);
+				if (pItem == nullptr)
+					return false;
+
+				const auto* pType = find(field.type);
+				if (pType == nullptr)
+					return false;
+
+				return pItem->add_field(field, pType->comp.size());
 			}
 
 			//! Searches for the component cache item.
@@ -64893,6 +65065,30 @@ namespace gaia {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
 
+			static ComponentDesc
+			primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+				ComponentDesc desc{};
+				desc.name = util::str_view(name, nameLen);
+				desc.size = size;
+				desc.alig = size;
+				desc.storageType = DataStorageType::Table;
+				desc.typeKind = RuntimeTypeKind::Primitive;
+				desc.primitiveKind = primitiveKind;
+				return desc;
+			}
+
+			const ComponentCacheItem& reg_core_primitive_type(
+					Entity id, const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+				auto comp = add(*m_pCompArchetype, id.entity(), id.pair(), id.kind());
+				const auto desc = primitive_type_desc(name, nameLen, size, primitiveKind);
+				const auto& ci = comp_cache_mut().add(id, desc);
+				GAIA_ASSERT(ci.entity == id);
+				GAIA_ASSERT(comp == id);
+				(void)comp;
+				finalize_component_registration(ci, false);
+				return ci;
+			}
+
 #if GAIA_ECS_AUTO_COMPONENT_SCHEMA
 			template <typename T>
 			static void auto_populate_component_schema(ComponentCacheItem& item) {
@@ -68298,6 +68494,19 @@ namespace gaia {
 				(void)reg_core_entity<_Var5>(Var5);
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
+
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
+				(void)reg_core_primitive_type(I8, "gaia::ecs::I8", 13, 1, RuntimePrimitiveKind::I8);
+				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
+				(void)reg_core_primitive_type(I16, "gaia::ecs::I16", 14, 2, RuntimePrimitiveKind::I16);
+				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
+				(void)reg_core_primitive_type(I32, "gaia::ecs::I32", 14, 4, RuntimePrimitiveKind::I32);
+				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
+				(void)reg_core_primitive_type(I64, "gaia::ecs::I64", 14, 8, RuntimePrimitiveKind::I64);
+				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
+				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
+				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 			}
 
 			// Add special properties for core components.
@@ -68432,6 +68641,43 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Var7) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+
+				EntityBuilder(*this, Bool) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, I64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, U64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}
