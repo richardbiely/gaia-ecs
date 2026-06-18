@@ -1205,7 +1205,7 @@ namespace gaia {
 			int sort_choose_pivot(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				const int size = high - low + 1;
 				const int mid = low + (size >> 1);
-				if (size > 128) {
+				if (size > 1024) {
 					const int step = size >> 3;
 					const int lowMed = sort_median_of_three(arr, low, low + step, low + step + step, cmpFunc);
 					const int midMed = sort_median_of_three(arr, mid - step, mid, mid + step, cmpFunc);
@@ -1221,6 +1221,21 @@ namespace gaia {
 				for (int i = low + 1; i <= high; ++i) {
 					for (int j = i; j > low && cmpFunc(arr[(uint32_t)j], arr[(uint32_t)(j - 1)]); --j)
 						swapFunc((uint32_t)(j - 1), (uint32_t)j);
+				}
+			}
+
+			template <typename Container, typename TCmpFunc>
+			void insertion_sort_range(Container& arr, int low, int high, TCmpFunc cmpFunc) {
+				for (int i = low + 1; i <= high; ++i) {
+					if (cmpFunc(arr[(uint32_t)i], arr[(uint32_t)(i - 1)])) {
+						auto tmp = GAIA_MOV(arr[(uint32_t)i]);
+						int j = i;
+						do {
+							arr[(uint32_t)j] = GAIA_MOV(arr[(uint32_t)(j - 1)]);
+							--j;
+						} while (j > low && cmpFunc(tmp, arr[(uint32_t)(j - 1)]));
+						arr[(uint32_t)j] = GAIA_MOV(tmp);
+					}
 				}
 			}
 
@@ -1321,7 +1336,7 @@ namespace gaia {
 			template <typename Container, typename TCmpFunc, typename TSwapFunc>
 			void
 			quick_sort_impl(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc, uint32_t depthLimit) {
-				constexpr int InsertionSortThreshold = 32;
+				constexpr int InsertionSortThreshold = 24;
 
 				while (high - low > InsertionSortThreshold) {
 					if (depthLimit == 0) {
@@ -1345,6 +1360,37 @@ namespace gaia {
 
 				if (low < high)
 					insertion_sort_range(arr, low, high, cmpFunc, swapFunc);
+			}
+
+			template <typename Container, typename TCmpFunc>
+			void quick_sort_impl(Container& arr, int low, int high, TCmpFunc cmpFunc, uint32_t depthLimit) {
+				constexpr int InsertionSortThreshold = 24;
+				auto swapFunc = [&arr](uint32_t a, uint32_t b) {
+					core::swap(arr[a], arr[b]);
+				};
+
+				while (high - low > InsertionSortThreshold) {
+					if (depthLimit == 0) {
+						heap_sort_range(arr, low, high, cmpFunc, swapFunc);
+						return;
+					}
+					--depthLimit;
+
+					const int split = quick_sort_partition_hoare(arr, low, high, cmpFunc, swapFunc);
+					const int leftSize = split - low + 1;
+					const int rightSize = high - split;
+
+					if (leftSize < rightSize) {
+						quick_sort_impl(arr, low, split, cmpFunc, depthLimit);
+						low = split + 1;
+					} else {
+						quick_sort_impl(arr, split + 1, high, cmpFunc, depthLimit);
+						high = split;
+					}
+				}
+
+				if (low < high)
+					insertion_sort_range(arr, low, high, cmpFunc);
 			}
 
 			template <typename T, typename TCmpFunc>
@@ -2432,9 +2478,9 @@ namespace gaia {
 		//! \param cmpFunc Ordering predicate.
 		template <typename Container, typename TCmpFunc>
 		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
-			quick_sort(arr, low, high, cmpFunc, [&arr](uint32_t a, uint32_t b) {
-				core::swap(arr[a], arr[b]);
-			});
+			if (low >= high)
+				return;
+			detail::quick_sort_impl(arr, low, high, cmpFunc, detail::sort_depth_limit((uint32_t)(high - low + 1)));
 		}
 
 		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr using a custom swap callback.
