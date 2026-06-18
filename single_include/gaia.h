@@ -54396,6 +54396,62 @@ namespace gaia {
 			T value{};
 		};
 
+		//! Flags describing the state of a raw component byte view.
+		//! Kept as a plain bitmask so raw views can stay compact and cheap to return by value.
+		enum ComponentRawViewFlags : uint32_t {
+			//! No payload was resolved.
+			ComponentRawViewFlag_None = 0,
+			//! The view resolved to an existing supported payload or tag.
+			ComponentRawViewFlag_Valid = 1U << 0
+		};
+
+		//! Non-owning read-only view over raw component bytes on an entity.
+		//!
+		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
+		//! omitted because callers already pass it to `World::get_raw(...)`; keeping it out of the view
+		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
+		//! and `ComponentRawViewFlag_Valid` set.
+		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
+		//! \note Use valid() instead of checking `data`: tags are valid views with a null pointer.
+		struct ComponentRawView {
+			//! Raw component payload bytes. Null for tags and invalid views.
+			const void* data = nullptr;
+			//! Payload size in bytes.
+			uint32_t size = 0;
+			//! Bitmask of ComponentRawViewFlags values.
+			uint32_t flags = ComponentRawViewFlag_None;
+
+			//! \return True if the view resolved to an existing supported component payload or tag.
+			GAIA_NODISCARD bool valid() const noexcept {
+				return (flags & ComponentRawViewFlag_Valid) != 0;
+			}
+		};
+		static_assert(sizeof(ComponentRawView) == 16, "ComponentRawView must stay compact");
+
+		//! Non-owning mutable view over raw component bytes on an entity.
+		//!
+		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
+		//! omitted because callers already pass it to `World::mut_raw(...)`; keeping it out of the view
+		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
+		//! and `ComponentRawViewFlag_Valid` set.
+		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
+		//! \note `mut_raw(...)` is a silent mutation path. Call `World::modify_raw(...)` after writing
+		//! if set hooks or `OnSet` observers should run. Tags are valid views with a null pointer.
+		struct ComponentRawMutView {
+			//! Raw component payload bytes. Null for tags and invalid views.
+			void* data = nullptr;
+			//! Payload size in bytes.
+			uint32_t size = 0;
+			//! Bitmask of ComponentRawViewFlags values.
+			uint32_t flags = ComponentRawViewFlag_None;
+
+			//! \return True if the view resolved to an existing supported component payload or tag.
+			GAIA_NODISCARD bool valid() const noexcept {
+				return (flags & ComponentRawViewFlag_Valid) != 0;
+			}
+		};
+		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
+
 		namespace detail {
 			//! Scheduling key for one enabled system entity.
 			struct SystemScheduleItem {
@@ -54891,6 +54947,21 @@ namespace gaia {
 					return ec.pChunk->template set<T>(ec.row);
 				else
 					return ec.pChunk->template set<T>();
+			}
+
+			//! Checks whether @a item can expose a direct raw byte view in the first runtime-component slice.
+			GAIA_NODISCARD static bool raw_component_supported(const ComponentCacheItem& item) noexcept {
+				return item.comp.storage_type() == DataStorageType::Table && item.comp.soa() == 0;
+			}
+
+			//! Validates raw payload arguments against the registered component metadata.
+			GAIA_NODISCARD static bool
+			raw_component_payload_args_valid(const ComponentCacheItem& item, const void* data, uint32_t size) noexcept {
+				if (!raw_component_supported(item))
+					return false;
+				if (size != item.comp.size())
+					return false;
+				return size == 0 || data != nullptr;
 			}
 
 			template <typename T>
@@ -59502,6 +59573,134 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				return sset<T>(entity, object);
+			}
+
+			//! Returns raw read-only bytes for a chunk-backed AoS component on @a entity.
+			//! Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.
+			//! \param entity Entity being read.
+			//! \param component Component entity being read.
+			//! \return Raw payload view, or invalid view when the component cannot be resolved.
+			GAIA_NODISCARD ComponentRawView get_raw(Entity entity, Entity component) const {
+				if (component == EntityBad || component.pair() || !valid(entity))
+					return {};
+
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
+					return {};
+
+				const auto owner = id_owner_inter(entity, component);
+				if (owner == EntityBad)
+					return {};
+
+				const auto& ec = fetch(owner);
+				const auto compIdx = ec.pChunk->comp_idx(component);
+				if (compIdx == ComponentIndexBad)
+					return {};
+
+				const auto size = pItem->comp.size();
+				if (size == 0)
+					return {nullptr, 0, ComponentRawViewFlag_Valid};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				return {ec.pChunk->comp_ptr(compIdx, row), size, ComponentRawViewFlag_Valid};
+			}
+
+			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component on @a entity.
+			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
+			//! \param entity Entity being mutated.
+			//! \param component Component entity being mutated.
+			//! \return Raw mutable payload view, or invalid view when the component is absent or unsupported.
+			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity entity, Entity component) {
+				if (component == EntityBad || component.pair() || !valid(entity))
+					return {};
+
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
+					return {};
+
+				const auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return {};
+
+				const auto compIdx = ec.pChunk->comp_idx(component);
+				if (compIdx == ComponentIndexBad)
+					return {};
+
+				const auto size = pItem->comp.size();
+				if (size == 0)
+					return {nullptr, 0, ComponentRawViewFlag_Valid};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				return {ec.pChunk->comp_ptr_mut(compIdx, row), size, ComponentRawViewFlag_Valid};
+			}
+
+			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
+			//! \param entity Entity receiving the component.
+			//! \param component Runtime component entity.
+			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
+			//! \param size Payload byte count. Must match the registered component size.
+			//! \return True when the component was added and initialized.
+			bool add_raw(Entity entity, Entity component, const void* data, uint32_t size) {
+				if (component == EntityBad || component.pair() || !valid(entity))
+					return false;
+
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
+					return false;
+				if (has_direct(entity, component))
+					return false;
+
+				EntityBuilder eb(*this, entity);
+#if GAIA_OBSERVERS_ENABLED
+				auto addDiffCtx =
+						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&component, 1}, EntitySpan{&entity, 1});
+#endif
+				eb.add_inter_init(component);
+				eb.commit();
+
+				const auto payload = mut_raw(entity, component);
+				GAIA_ASSERT(payload.valid());
+				if (payload.valid() && size != 0)
+					memcpy(payload.data, data, size);
+
+				notify_add_single(entity, component);
+#if GAIA_OBSERVERS_ENABLED
+				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+#endif
+				return payload.valid();
+			}
+
+			//! Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.
+			//! \param entity Entity whose component is being replaced.
+			//! \param component Runtime component entity.
+			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
+			//! \param size Payload byte count. Must match the registered component size.
+			//! \return True when the component was updated.
+			bool set_raw(Entity entity, Entity component, const void* data, uint32_t size) {
+				if (component == EntityBad || component.pair())
+					return false;
+
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
+					return false;
+
+				const auto payload = mut_raw(entity, component);
+				if (!payload.valid())
+					return false;
+				if (size != 0)
+					memcpy(payload.data, data, size);
+
+				modify_raw(entity, component);
+				return true;
+			}
+
+			//! Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.
+			//! \param entity Entity whose raw component payload was mutated.
+			//! \param component Runtime component entity previously passed to mut_raw().
+			void modify_raw(Entity entity, Entity component) {
+				if (!mut_raw(entity, component).valid())
+					return;
+				finish_write(entity, component);
 			}
 
 			//----------------------------------------------------------------------

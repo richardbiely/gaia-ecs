@@ -144,6 +144,26 @@ TEST_CASE("Component cache") {
 }
 
 TEST_CASE("Component cache - runtime registration") {
+	constexpr uint32_t RuntimePayloadSize = 12;
+	constexpr uint32_t RuntimePayloadAlign = 4;
+	constexpr uint32_t RuntimeXOffset = 0;
+	constexpr uint32_t RuntimeYOffset = 4;
+	constexpr uint32_t RuntimeZOffset = 8;
+
+	const auto write_f32 = [](void* data, uint32_t offset, float value) {
+		memcpy((uint8_t*)data + offset, &value, sizeof(value));
+	};
+	const auto read_f32 = [](const void* data, uint32_t offset) {
+		float value{};
+		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
+		return value;
+	};
+	const auto write_xyz = [&](void* data, float x, float y, float z) {
+		write_f32(data, RuntimeXOffset, x);
+		write_f32(data, RuntimeYOffset, y);
+		write_f32(data, RuntimeZOffset, z);
+	};
+
 	SUBCASE("basic registration populates runtime metadata and lookups") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
@@ -151,14 +171,13 @@ TEST_CASE("Component cache - runtime registration") {
 		constexpr const char* RuntimeCompName = "Runtime_Component_Basic";
 		const auto entity = wld.add();
 		const auto& item = add_runtime_component(
-				cc, entity, RuntimeCompName, (uint32_t)sizeof(Position), ecs::DataStorageType::Table,
-				(uint32_t)alignof(Position));
+				cc, entity, RuntimeCompName, RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
 
 		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
 		CHECK(item.entity == entity);
 		CHECK(item.comp.id() == item.entity.id());
-		CHECK(item.comp.size() == (uint32_t)sizeof(Position));
-		CHECK(item.comp.alig() == (uint32_t)alignof(Position));
+		CHECK(item.comp.size() == RuntimePayloadSize);
+		CHECK(item.comp.alig() == RuntimePayloadAlign);
 		CHECK(item.comp.soa() == 0);
 		CHECK(item.name.len() == nameLen);
 		CHECK(strcmp(item.name.str(), RuntimeCompName) == 0);
@@ -181,14 +200,14 @@ TEST_CASE("Component cache - runtime registration") {
 
 		ecs::ComponentDesc desc{};
 		desc.name = util::str_view(RuntimeCompName, nameLen);
-		desc.size = (uint32_t)sizeof(Position);
-		desc.alig = (uint32_t)alignof(Position);
+		desc.size = RuntimePayloadSize;
+		desc.alig = RuntimePayloadAlign;
 		desc.storageType = ecs::DataStorageType::Table;
 
 		const auto& item = cc.add(entity, desc);
 		CHECK(item.entity == entity);
-		CHECK(item.comp.size() == (uint32_t)sizeof(Position));
-		CHECK(item.comp.alig() == (uint32_t)alignof(Position));
+		CHECK(item.comp.size() == RuntimePayloadSize);
+		CHECK(item.comp.alig() == RuntimePayloadAlign);
 		CHECK(item.comp.storage_type() == ecs::DataStorageType::Table);
 		CHECK(item.name.len() == nameLen);
 		CHECK(strcmp(item.name.str(), RuntimeCompName) == 0);
@@ -321,8 +340,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(typedSymbol == gaia::util::str_view(typed.name.str(), typed.name.len()));
 
 		const auto& runtime = add_runtime_component(
-				wld, "Runtime_Component_Finalize", (uint32_t)sizeof(Position), ecs::DataStorageType::Sparse,
-				(uint32_t)alignof(Position));
+				wld, "Runtime_Component_Finalize", RuntimePayloadSize, ecs::DataStorageType::Sparse, RuntimePayloadAlign);
 		CHECK(wld.get<ecs::Component>(runtime.entity) == runtime.comp);
 		const auto runtimeSymbol = wld.symbol(runtime.entity);
 		CHECK(runtimeSymbol == gaia::util::str_view("Runtime_Component_Finalize"));
@@ -513,6 +531,126 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(cc.find(item.entity) == &item);
 		CHECK(wld.symbol("Runtime_Component_Map_Path") == item.entity);
 		CHECK(wld.get("Runtime_Component_Map_Path") == item.entity);
+	}
+
+	SUBCASE("runtime raw payload access supports chunk-backed components") {
+		TestWorld twld;
+
+		const auto& runtimeComp = add_runtime_component(
+				wld, "Runtime_Component_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
+		CHECK(wld.comp_cache_mut().add_field(runtimeComp.entity, {util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+
+		uint32_t addHits = 0;
+		uint8_t addSeen[RuntimePayloadSize]{};
+		const auto onAdd = wld.observer()
+													 .event(ecs::ObserverEvent::OnAdd)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity entity) {
+														 ++addHits;
+														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
+														 CHECK(payload.valid());
+														 CHECK(payload.size == RuntimePayloadSize);
+														 if (payload.data != nullptr)
+															 memcpy(addSeen, payload.data, RuntimePayloadSize);
+													 })
+													 .entity();
+		(void)onAdd;
+
+		uint32_t setHits = 0;
+		uint8_t setSeen[RuntimePayloadSize]{};
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity entity) {
+														 ++setHits;
+														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
+														 CHECK(payload.valid());
+														 CHECK(payload.size == RuntimePayloadSize);
+														 if (payload.data != nullptr)
+															 memcpy(setSeen, payload.data, RuntimePayloadSize);
+													 })
+													 .entity();
+		(void)onSet;
+
+		const auto entity = wld.add();
+		uint8_t initial[RuntimePayloadSize]{};
+		write_xyz(initial, 1.0f, 2.0f, 3.0f);
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+		CHECK(addHits == 1);
+		CHECK(read_f32(addSeen, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(read_f32(addSeen, RuntimeYOffset) == doctest::Approx(2.0f));
+		CHECK(read_f32(addSeen, RuntimeZOffset) == doctest::Approx(3.0f));
+		CHECK(setHits == 0);
+
+		const auto payload = wld.get_raw(entity, runtimeComp.entity);
+		CHECK(payload.valid());
+		CHECK(payload.size == RuntimePayloadSize);
+		CHECK(payload.data != nullptr);
+		if (payload.data != nullptr) {
+			CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+			CHECK(read_f32(payload.data, RuntimeYOffset) == doctest::Approx(2.0f));
+			CHECK(read_f32(payload.data, RuntimeZOffset) == doctest::Approx(3.0f));
+		}
+
+		auto mutablePayload = wld.mut_raw(entity, runtimeComp.entity);
+		CHECK(mutablePayload.valid());
+		CHECK(mutablePayload.size == RuntimePayloadSize);
+		CHECK(mutablePayload.data != nullptr);
+		if (mutablePayload.data != nullptr) {
+			write_xyz(mutablePayload.data, 4.0f, 5.0f, 6.0f);
+		}
+		CHECK(setHits == 0);
+
+		wld.modify_raw(entity, runtimeComp.entity);
+		CHECK(setHits == 1);
+		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(4.0f));
+		CHECK(read_f32(setSeen, RuntimeYOffset) == doctest::Approx(5.0f));
+		CHECK(read_f32(setSeen, RuntimeZOffset) == doctest::Approx(6.0f));
+
+		uint8_t replacement[RuntimePayloadSize]{};
+		write_xyz(replacement, 7.0f, 8.0f, 9.0f);
+		CHECK(wld.set_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize));
+		CHECK(setHits == 2);
+		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(7.0f));
+		CHECK(read_f32(setSeen, RuntimeYOffset) == doctest::Approx(8.0f));
+		CHECK(read_f32(setSeen, RuntimeZOffset) == doctest::Approx(9.0f));
+
+		CHECK_FALSE(wld.add_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize - 1));
+	}
+
+	SUBCASE("runtime raw payload access supports tags") {
+		TestWorld twld;
+
+		const auto& tagComp = add_runtime_component(wld, "Runtime_Component_Raw_Tag", 0, ecs::DataStorageType::Table, 1);
+		const auto entity = wld.add();
+
+		CHECK(wld.add_raw(entity, tagComp.entity, nullptr, 0));
+		const auto payload = wld.get_raw(entity, tagComp.entity);
+		CHECK(payload.valid());
+		CHECK(payload.data == nullptr);
+		CHECK(payload.size == 0);
+
+		const auto mutablePayload = wld.mut_raw(entity, tagComp.entity);
+		CHECK(mutablePayload.valid());
+		CHECK(mutablePayload.data == nullptr);
+		CHECK(mutablePayload.size == 0);
+		CHECK(wld.set_raw(entity, tagComp.entity, nullptr, 0));
+	}
+
+	SUBCASE("runtime raw payload access rejects unsupported storage") {
+		TestWorld twld;
+
+		const auto& sparseComp =
+				add_runtime_component(wld, "Runtime_Component_Raw_Sparse", 4, ecs::DataStorageType::Sparse, 4);
+		const auto entity = wld.add();
+		uint32_t value = 42;
+
+		CHECK_FALSE(wld.add_raw(entity, sparseComp.entity, &value, sizeof(value)));
+		CHECK_FALSE(wld.get_raw(entity, sparseComp.entity).valid());
+		CHECK_FALSE(wld.mut_raw(entity, sparseComp.entity).valid());
+		CHECK_FALSE(wld.set_raw(entity, sparseComp.entity, &value, sizeof(value)));
 	}
 }
 
