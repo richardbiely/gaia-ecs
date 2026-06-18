@@ -536,6 +536,7 @@ Non-fragmenting and sparse components</h3>
 <li>use <code>DontFragment</code> for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data</li>
 <li>avoid out-of-line storage for components like <code>Position</code> or <code>Velocity</code> which benfit greatly of sequential access, unless profiling clearly justifies it</li>
 </ul>
+<p>Because <code>DontFragment</code> components live outside archetype identity, adding or removing an already-registered <code>DontFragment</code> component from an existing entity does not move that entity to another archetype. This makes direct add/remove safe during serial query iteration. If the active query also filters on the same component, later rows are matched against the current world state, not a snapshot taken before the query started.</p>
 <p>&gt;<b>NOTE:<br  />
 </b> SoA components do not support out-of-line storage and they stay chunk-backed. <code>ecs::Sparse</code> applies only to plain AoS generic components.<br  />
 </p>

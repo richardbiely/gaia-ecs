@@ -16,5 +16,7 @@ var structgaia_1_1ecs_1_1ComponentCacheItem =
     [ "hashLookup", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a7b8a13b88ee52400a3d4dbf23b864f7f", null ],
     [ "name", "structgaia_1_1ecs_1_1ComponentCacheItem.html#ac04f9453e5af2d94541f1b4b8ebcde98", null ],
     [ "path", "structgaia_1_1ecs_1_1ComponentCacheItem.html#af75b0a1165525f078ea02edaa6ab937e", null ],
-    [ "soaSizes", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a5d5d453d56956baff896cf8269ace35e", null ]
+    [ "primitiveKind", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a9926e386378fb021ef000100e4e7d7f0", null ],
+    [ "soaSizes", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a5d5d453d56956baff896cf8269ace35e", null ],
+    [ "typeKind", "structgaia_1_1ecs_1_1ComponentCacheItem.html#aadb894d80758447e1430e59639931a5f", null ]
 ];

@@ -70,11 +70,15 @@ var hierarchy =
     [ "gaia::ecs::ComponentCache", "classgaia_1_1ecs_1_1ComponentCache.html", null ],
     [ "gaia::ecs::ComponentCacheItem", "structgaia_1_1ecs_1_1ComponentCacheItem.html", null ],
     [ "gaia::ecs::ComponentCacheItem::ComponentCacheItemCtx", "structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html", null ],
+    [ "gaia::ecs::ComponentCursor", "structgaia_1_1ecs_1_1ComponentCursor.html", null ],
+    [ "gaia::ecs::ComponentDesc", "structgaia_1_1ecs_1_1ComponentDesc.html", null ],
     [ "gaia::ecs::detail::ComponentDesc< T >", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html", null ],
     [ "gaia::ecs::ComponentGetter", "structgaia_1_1ecs_1_1ComponentGetter.html", [
       [ "gaia::ecs::ComponentSetter", "structgaia_1_1ecs_1_1ComponentSetter.html", null ]
     ] ],
     [ "gaia::ecs::ComponentIndexEntry", "structgaia_1_1ecs_1_1ComponentIndexEntry.html", null ],
+    [ "gaia::ecs::ComponentRawMutView", "structgaia_1_1ecs_1_1ComponentRawMutView.html", null ],
+    [ "gaia::ecs::ComponentRawView", "structgaia_1_1ecs_1_1ComponentRawView.html", null ],
     [ "gaia::ecs::ComponentRecord", "structgaia_1_1ecs_1_1ComponentRecord.html", null ],
     [ "std::conditional_t", null, [
       [ "gaia::core::unique< std::tuple< Ts... >, U, Us... >", "structgaia_1_1core_1_1unique_3_01std_1_1tuple_3_01Ts_8_8_8_01_4_00_01U_00_01Us_8_8_8_01_4.html", null ]
@@ -118,6 +122,7 @@ var hierarchy =
     [ "gaia::cnt::darr< gaia::ecs::Entity >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::ecs::QueryHandle >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::ecs::QueryMatchScratch * >", "classgaia_1_1cnt_1_1darr.html", null ],
+    [ "gaia::cnt::darr< gaia::ecs::RuntimeField >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::ecs::vm::detail::CompiledOp >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::mt::JobHandle >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::ser::JsonDiagnostic >", "classgaia_1_1cnt_1_1darr.html", null ],
@@ -559,6 +564,8 @@ var hierarchy =
     [ "gaia::ecs::Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],
     [ "gaia::ecs::Requires_", "structgaia_1_1ecs_1_1Requires__.html", null ],
     [ "gaia::ecs::vm::detail::ResolvedPairToken", "structgaia_1_1ecs_1_1vm_1_1detail_1_1ResolvedPairToken.html", null ],
+    [ "gaia::ecs::RuntimeField", "structgaia_1_1ecs_1_1RuntimeField.html", null ],
+    [ "gaia::ecs::RuntimeFieldDesc", "structgaia_1_1ecs_1_1RuntimeFieldDesc.html", null ],
     [ "gaia::ecs::detail::QueryImpl::RuntimeIterCallback", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html", null ],
     [ "gaia::cnt::sarr< T, N >", "classgaia_1_1cnt_1_1sarr.html", null ],
     [ "gaia::cnt::sarr< Entity, MAX_ITEMS_IN_QUERY >", "classgaia_1_1cnt_1_1sarr.html", null ],

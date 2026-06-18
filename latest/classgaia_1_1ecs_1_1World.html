@@ -510,6 +510,27 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><b>mut</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable reference or proxy to the component associated with <em>object</em> on <em>entity</em>. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity, object)</code> when you need hooks or <code>OnSet</code>. <br /></td></tr>
 <tr class="separator:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6a639ee981edef57b4c783bc37dce52c" id="r_a6a639ee981edef57b4c783bc37dce52c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a6a639ee981edef57b4c783bc37dce52c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw read-only bytes for a chunk-backed AoS component on <em>entity</em>. Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.  <br /></td></tr>
+<tr class="separator:a6a639ee981edef57b4c783bc37dce52c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5846aed1543b377ffba04f97d546055" id="r_ad5846aed1543b377ffba04f97d546055"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055">mut_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:ad5846aed1543b377ffba04f97d546055"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw mutable bytes for a directly owned chunk-backed AoS component on <em>entity</em>. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:ad5846aed1543b377ffba04f97d546055"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4504bee3c0f44295d492cdb54d8a008e" id="r_a4504bee3c0f44295d492cdb54d8a008e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4504bee3c0f44295d492cdb54d8a008e">cursor</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a4504bee3c0f44295d492cdb54d8a008e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor over a chunk-backed AoS runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for a chunk-backed AoS component on entity. Inherited ids resolve to the ...">get_raw()</a>. The returned cursor is invalid when raw access is unsupported.  <br /></td></tr>
+<tr class="separator:a4504bee3c0f44295d492cdb54d8a008e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a613e6099c54153a6340c1efa389c2b8f" id="r_a613e6099c54153a6340c1efa389c2b8f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a613e6099c54153a6340c1efa389c2b8f">cursor_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:a613e6099c54153a6340c1efa389c2b8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86" title="Writes exact bytes to the current cursor position.">ComponentCursor::write_bytes()</a> finishes the root component write automatically.  <br /></td></tr>
+<tr class="separator:a613e6099c54153a6340c1efa389c2b8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a20fc4b3bad2ca1d55175c6345db01091" id="r_a20fc4b3bad2ca1d55175c6345db01091"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a20fc4b3bad2ca1d55175c6345db01091">add_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>)</td></tr>
+<tr class="memdesc:a20fc4b3bad2ca1d55175c6345db01091"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a chunk-backed AoS component and initializes its raw payload before <code>OnAdd</code> observers run.  <br /></td></tr>
+<tr class="separator:a20fc4b3bad2ca1d55175c6345db01091"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae3fd7de744b420dd6679140fa1aae5a0" id="r_ae3fd7de744b420dd6679140fa1aae5a0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae3fd7de744b420dd6679140fa1aae5a0">set_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>)</td></tr>
+<tr class="memdesc:ae3fd7de744b420dd6679140fa1aae5a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.  <br /></td></tr>
+<tr class="separator:ae3fd7de744b420dd6679140fa1aae5a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae60547230db361cd1ea1540c0fce6e63" id="r_ae60547230db361cd1ea1540c0fce6e63"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63">modify_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:ae60547230db361cd1ea1540c0fce6e63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a raw payload returned by <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a> as modified and emits normal set side effects.  <br /></td></tr>
+<tr class="separator:ae60547230db361cd1ea1540c0fce6e63"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7472812c1291e7d4478ce27e9fbad80a" id="r_a7472812c1291e7d4478ce27e9fbad80a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a7472812c1291e7d4478ce27e9fbad80a">acc</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a7472812c1291e7d4478ce27e9fbad80a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk get operation on an entity.  <br /></td></tr>
 <tr class="separator:a7472812c1291e7d4478ce27e9fbad80a"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1516,6 +1537,66 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="a20fc4b3bad2ca1d55175c6345db01091" name="a20fc4b3bad2ca1d55175c6345db01091"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a20fc4b3bad2ca1d55175c6345db01091">&#9670;&#160;</a></span>add_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::add_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>size</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds a chunk-backed AoS component and initializes its raw payload before <code>OnAdd</code> observers run. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
+    <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the component was added and initialized. </dd></dl>
 
 </div>
 </div>
@@ -2669,6 +2750,98 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Number of directly matching entities. </dd></dl>
+
+</div>
+</div>
+<a id="a4504bee3c0f44295d492cdb54d8a008e" name="a4504bee3c0f44295d492cdb54d8a008e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4504bee3c0f44295d492cdb54d8a008e">&#9670;&#160;</a></span>cursor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a> gaia::ecs::World::cursor </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a read-only cursor over a chunk-backed AoS runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for a chunk-backed AoS component on entity. Inherited ids resolve to the ...">get_raw()</a>. The returned cursor is invalid when raw access is unsupported. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being read. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Cursor positioned at the root component payload, or invalid cursor when unavailable. </dd></dl>
+
+</div>
+</div>
+<a id="a613e6099c54153a6340c1efa389c2b8f" name="a613e6099c54153a6340c1efa389c2b8f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a613e6099c54153a6340c1efa389c2b8f">&#9670;&#160;</a></span>cursor_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a> gaia::ecs::World::cursor_mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86" title="Writes exact bytes to the current cursor position.">ComponentCursor::write_bytes()</a> finishes the root component write automatically. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being mutated. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Cursor positioned at the root component payload, or invalid cursor when unavailable. </dd></dl>
 
 </div>
 </div>
@@ -3828,6 +4001,52 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 
 </div>
 </div>
+<a id="a6a639ee981edef57b4c783bc37dce52c" name="a6a639ee981edef57b4c783bc37dce52c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6a639ee981edef57b4c783bc37dce52c">&#9670;&#160;</a></span>get_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> gaia::ecs::World::get_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns raw read-only bytes for a chunk-backed AoS component on <em>entity</em>. Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being read. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Raw payload view, or invalid view when the component cannot be resolved. </dd></dl>
+
+</div>
+</div>
 <a id="a1defe7c266ece1fe15b90a88b4efe2c2" name="a1defe7c266ece1fe15b90a88b4efe2c2"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1defe7c266ece1fe15b90a88b4efe2c2">&#9670;&#160;</a></span>get_serializer()</h2>
 
@@ -4966,6 +5185,51 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="ae60547230db361cd1ea1540c0fce6e63" name="ae60547230db361cd1ea1540c0fce6e63"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae60547230db361cd1ea1540c0fce6e63">&#9670;&#160;</a></span>modify_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::modify_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks a raw payload returned by <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a> as modified and emits normal set side effects. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose raw component payload was mutated. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity previously passed to <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a8b6d609ef440f7ecc84be6c92358e8de" name="a8b6d609ef440f7ecc84be6c92358e8de"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8b6d609ef440f7ecc84be6c92358e8de">&#9670;&#160;</a></span>module()</h2>
 
@@ -5057,6 +5321,52 @@ template&lt;typename T &gt; </div>
 It is expected entity is valid. Undefined behavior otherwise. </dd>
 <dd>
 Undefined behavior if entity changes archetype after <a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a> is created. </dd></dl>
+
+</div>
+</div>
+<a id="ad5846aed1543b377ffba04f97d546055" name="ad5846aed1543b377ffba04f97d546055"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad5846aed1543b377ffba04f97d546055">&#9670;&#160;</a></span>mut_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a> gaia::ecs::World::mut_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns raw mutable bytes for a directly owned chunk-backed AoS component on <em>entity</em>. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being mutated. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Raw mutable payload view, or invalid view when the component is absent or unsupported. </dd></dl>
 
 </div>
 </div>
@@ -6437,6 +6747,66 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="ae3fd7de744b420dd6679140fa1aae5a0" name="ae3fd7de744b420dd6679140fa1aae5a0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae3fd7de744b420dd6679140fa1aae5a0">&#9670;&#160;</a></span>set_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::set_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>size</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component is being replaced. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
+    <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the component was updated. </dd></dl>
 
 </div>
 </div>

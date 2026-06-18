@@ -17,6 +17,7 @@ var dir_599ea9a25f1557c042e31aba8a9d6ced =
     [ "component.h", "component_8h_source.html", null ],
     [ "component_cache.h", "component__cache_8h_source.html", null ],
     [ "component_cache_item.h", "component__cache__item_8h_source.html", null ],
+    [ "component_cursor.h", "component__cursor_8h_source.html", null ],
     [ "component_desc.h", "component__desc_8h_source.html", null ],
     [ "component_getter.h", "component__getter_8h_source.html", null ],
     [ "component_setter.h", "component__setter_8h_source.html", null ],

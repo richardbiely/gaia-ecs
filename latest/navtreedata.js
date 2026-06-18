@@ -175,15 +175,15 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8",
-"classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a6a80dd6aa203df89360487a2f2ad88ac",
-"classgaia_1_1util_1_1delegate_3_01Ret_07Args_8_8_8_08_4.html#a0a519c887df6d73d6d229dfb62c620ff",
-"index.html#table-of-contents",
-"structgaia_1_1ecs_1_1AccessContextMT.html",
-"structgaia_1_1ecs_1_1QueryMatchScratch.html",
-"structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html",
-"structgaia_1_1util_1_1str.html#ae191cb88394b04089281c89d936f20e8"
+"classgaia_1_1ecs_1_1ComponentCache.html#a3d335eb23e50fe3c322bf300c6eec3de",
+"classgaia_1_1ecs_1_1World.html#a718e9d4f33c080d04b575c18fed3085e",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98aac81785808d7b67f189f1bddc9d08f29",
+"classgaia_1_1util_1_1SmallFunc.html#a760617c828d8afde98e99980d78a3fb5",
+"index.html#serialization",
+"structgaia_1_1core_1_1random__access__iterator__tag.html",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a6c9dfb2d992ef8a655b463c3edb5d357",
+"structgaia_1_1ecs_1_1detail_1_1SoATermRowWriteProxyPointer.html",
+"structgaia_1_1ser_1_1detail_1_1has__bytes__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1de17d36e20086ed372e222cd5cabdcf227.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

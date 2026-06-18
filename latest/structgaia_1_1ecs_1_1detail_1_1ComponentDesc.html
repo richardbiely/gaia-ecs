@@ -174,7 +174,59 @@ static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func
 <tr class="memitem:a59c77045c235200066ce3b57c5a08f89" id="r_a59c77045c235200066ce3b57c5a08f89"><td class="memItemLeft" align="right" valign="top"><a id="a59c77045c235200066ce3b57c5a08f89" name="a59c77045c235200066ce3b57c5a08f89"></a>
 static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_load</b> ()</td></tr>
 <tr class="separator:a59c77045c235200066ce3b57c5a08f89"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a95a64aba00cd3bd5fd6549b034b52584" id="r_a95a64aba00cd3bd5fd6549b034b52584"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584">make</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> descName, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
+<tr class="memdesc:a95a64aba00cd3bd5fd6549b034b52584"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the plain descriptor used by component cache registration.  <br /></td></tr>
+<tr class="separator:a95a64aba00cd3bd5fd6549b034b52584"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a95a64aba00cd3bd5fd6549b034b52584" name="a95a64aba00cd3bd5fd6549b034b52584"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a95a64aba00cd3bd5fd6549b034b52584">&#9670;&#160;</a></span>make()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::make </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a>&#160;</td>
+          <td class="paramname"><em>descName</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
+          <td class="paramname"><em>soaSizes</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the plain descriptor used by component cache registration. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">descName</td><td>Normalized component symbol name. </td></tr>
+    <tr><td class="paramname">soaSizes</td><td>Scratch/output storage for SoA element sizes. The returned descriptor keeps a non-owning pointer to this buffer and must be consumed before the buffer expires. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> descriptor for the current component type. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="component__desc_8h_source.html">component_desc.h</a></li>
 </ul>

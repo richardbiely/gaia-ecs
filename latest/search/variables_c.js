@@ -51,7 +51,8 @@ var searchData=
   ['max_5fchunk_5fentities_48',['MAX_CHUNK_ENTITIES',['../structgaia_1_1ecs_1_1ChunkHeader.html#aa28d7b6adcdfaef0ba03d53fa2449d15',1,'gaia::ecs::ChunkHeader']]],
   ['max_5fchunk_5flifespan_49',['MAX_CHUNK_LIFESPAN',['../structgaia_1_1ecs_1_1ChunkHeader.html#ab009fb18acd4d92ceb3523b10e04be7b',1,'gaia::ecs::ChunkHeader']]],
   ['max_5fcomponents_50',['MAX_COMPONENTS',['../structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb',1,'gaia::ecs::ChunkHeader']]],
-  ['mem_5ftotal_51',['mem_total',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab54bde0bf98eb5469a419c4ac214559b',1,'gaia::mem::MemoryPageStats::mem_total'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#aca70f848831bd6d403cdf801a58fcb27',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_total']]],
-  ['mem_5fused_52',['mem_used',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab407e5acc549a4eca4c96b918f5a57f3',1,'gaia::mem::MemoryPageStats::mem_used'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a87289580d420537f2e6f5b60cf53ae43',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_used']]],
-  ['mode_53',['mode',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a3f80b57a83c1923c9f6062f9d7a6a953',1,'gaia::ecs::detail::QueryImpl::QueryPlan']]]
+  ['maxdepth_51',['MaxDepth',['../structgaia_1_1ecs_1_1ComponentCursor.html#ab6359fc348e29a6b9484deeaa6a20e6d',1,'gaia::ecs::ComponentCursor']]],
+  ['mem_5ftotal_52',['mem_total',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab54bde0bf98eb5469a419c4ac214559b',1,'gaia::mem::MemoryPageStats::mem_total'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#aca70f848831bd6d403cdf801a58fcb27',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_total']]],
+  ['mem_5fused_53',['mem_used',['../structgaia_1_1mem_1_1MemoryPageStats.html#ab407e5acc549a4eca4c96b918f5a57f3',1,'gaia::mem::MemoryPageStats::mem_used'],['../structgaia_1_1mem_1_1SmallBlockAllocatorPageStats.html#a87289580d420537f2e6f5b60cf53ae43',1,'gaia::mem::SmallBlockAllocatorPageStats::mem_used']]],
+  ['mode_54',['mode',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html#a3f80b57a83c1923c9f6062f9d7a6a953',1,'gaia::ecs::detail::QueryImpl::QueryPlan']]]
 ];

@@ -168,6 +168,9 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnDel</b> = void
 <tr class="memitem:a77c61bc5a4dcbec256bd8011bd33ca9d" id="r_a77c61bc5a4dcbec256bd8011bd33ca9d"><td class="memItemLeft" align="right" valign="top"><a id="a77c61bc5a4dcbec256bd8011bd33ca9d" name="a77c61bc5a4dcbec256bd8011bd33ca9d"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnSet</b> = void(const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="structgaia_1_1ecs_1_1ComponentRecord.html">ComponentRecord</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk)</td></tr>
 <tr class="separator:a77c61bc5a4dcbec256bd8011bd33ca9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a429c12b5493e0dc134ce1d91ffcb5b57" id="r_a429c12b5493e0dc134ce1d91ffcb5b57"><td class="memItemLeft" align="right" valign="top"><a id="a429c12b5493e0dc134ce1d91ffcb5b57" name="a429c12b5493e0dc134ce1d91ffcb5b57"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>RuntimeField</b> = <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">ecs::RuntimeField</a></td></tr>
+<tr class="separator:a429c12b5493e0dc134ce1d91ffcb5b57"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -222,16 +225,40 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_fields</b> ()</
 <tr class="memitem:a5e100c5b5c09ed74c51302d7e9103d49" id="r_a5e100c5b5c09ed74c51302d7e9103d49"><td class="memItemLeft" align="right" valign="top"><a id="a5e100c5b5c09ed74c51302d7e9103d49" name="a5e100c5b5c09ed74c51302d7e9103d49"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_fields</b> () const</td></tr>
 <tr class="separator:a5e100c5b5c09ed74c51302d7e9103d49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a088bae04b97e71ebe9afb8b5d2593de6" id="r_a088bae04b97e71ebe9afb8b5d2593de6"><td class="memItemLeft" align="right" valign="top"><a id="a088bae04b97e71ebe9afb8b5d2593de6" name="a088bae04b97e71ebe9afb8b5d2593de6"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>add_field</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;desc, uint32_t typeSize=0)</td></tr>
+<tr class="separator:a088bae04b97e71ebe9afb8b5d2593de6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae2dd326c738e27878f937cf6766f208d" id="r_ae2dd326c738e27878f937cf6766f208d"><td class="memItemLeft" align="right" valign="top"><a id="ae2dd326c738e27878f937cf6766f208d" name="ae2dd326c738e27878f937cf6766f208d"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>field</b> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> fieldName, const <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> **ppField) const</td></tr>
+<tr class="separator:ae2dd326c738e27878f937cf6766f208d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a98841077a09d492e7ae1e7efe04eeabb" id="r_a98841077a09d492e7ae1e7efe04eeabb"><td class="memItemLeft" align="right" valign="top"><a id="a98841077a09d492e7ae1e7efe04eeabb" name="a98841077a09d492e7ae1e7efe04eeabb"></a>
+GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_count</b> () const noexcept</td></tr>
+<tr class="separator:a98841077a09d492e7ae1e7efe04eeabb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acf088b344d06d8be2bd921ed8daf252a" id="r_acf088b344d06d8be2bd921ed8daf252a"><td class="memItemLeft" align="right" valign="top"><a id="acf088b344d06d8be2bd921ed8daf252a" name="acf088b344d06d8be2bd921ed8daf252a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_runtime_fields</b> ()</td></tr>
+<tr class="separator:acf088b344d06d8be2bd921ed8daf252a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84990f7a21347b90edc25ffd24b35ec9" id="r_a84990f7a21347b90edc25ffd24b35ec9"><td class="memItemLeft" align="right" valign="top"><a id="a84990f7a21347b90edc25ffd24b35ec9" name="a84990f7a21347b90edc25ffd24b35ec9"></a>
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>calc_new_mem_offset</b> (uint32_t addr, size_t cnt) const noexcept</td></tr>
 <tr class="separator:a84990f7a21347b90edc25ffd24b35ec9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
+<tr class="memitem:afa959f10eb404ad6904ad0647e16ed68" id="r_afa959f10eb404ad6904ad0647e16ed68"><td class="memItemLeft" align="right" valign="top"><a id="afa959f10eb404ad6904ad0647e16ed68" name="afa959f10eb404ad6904ad0647e16ed68"></a>
+static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_element_count</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;field) noexcept</td></tr>
+<tr class="separator:afa959f10eb404ad6904ad0647e16ed68"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae51b1af33c0177de656bada7c5677a53" id="r_ae51b1af33c0177de656bada7c5677a53"><td class="memItemLeft" align="right" valign="top"><a id="ae51b1af33c0177de656bada7c5677a53" name="ae51b1af33c0177de656bada7c5677a53"></a>
+static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_element_count</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> &amp;field) noexcept</td></tr>
+<tr class="separator:ae51b1af33c0177de656bada7c5677a53"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af53f4116cb1c8c7c25c28e635fbbe606" id="r_af53f4116cb1c8c7c25c28e635fbbe606"><td class="memItemLeft" align="right" valign="top"><a id="af53f4116cb1c8c7c25c28e635fbbe606" name="af53f4116cb1c8c7c25c28e635fbbe606"></a>
+static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>primitive_type_size</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) noexcept</td></tr>
+<tr class="separator:af53f4116cb1c8c7c25c28e635fbbe606"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a656599b547bb826c777f6b506ad53124" id="r_a656599b547bb826c777f6b506ad53124"><td class="memTemplParams" colspan="2"><a id="a656599b547bb826c777f6b506ad53124" name="a656599b547bb826c777f6b506ad53124"></a>
 template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a656599b547bb826c777f6b506ad53124"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>)</td></tr>
 <tr class="separator:a656599b547bb826c777f6b506ad53124"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad15ac5fbe210e3afd3b1b7b39bf9c06d" id="r_ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memItemLeft" align="right" valign="top"><a id="ad15ac5fbe210e3afd3b1b7b39bf9c06d" name="ad15ac5fbe210e3afd3b1b7b39bf9c06d"></a>
+static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;desc)</td></tr>
+<tr class="separator:ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea8f23dd2b496951253ba3690ca6d0cb" id="r_aea8f23dd2b496951253ba3690ca6d0cb"><td class="memItemLeft" align="right" valign="top"><a id="aea8f23dd2b496951253ba3690ca6d0cb" name="aea8f23dd2b496951253ba3690ca6d0cb"></a>
 static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;ctx)</td></tr>
 <tr class="separator:aea8f23dd2b496951253ba3690ca6d0cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -304,9 +331,20 @@ FuncSave *&#160;</td><td class="memItemRight" valign="bottom"><b>func_save</b> {
 <tr class="memitem:ac90106b3351412223e1f28086dc22d2f" id="r_ac90106b3351412223e1f28086dc22d2f"><td class="memItemLeft" align="right" valign="top"><a id="ac90106b3351412223e1f28086dc22d2f" name="ac90106b3351412223e1f28086dc22d2f"></a>
 FuncLoad *&#160;</td><td class="memItemRight" valign="bottom"><b>func_load</b> {}</td></tr>
 <tr class="separator:ac90106b3351412223e1f28086dc22d2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aadb894d80758447e1430e59639931a5f" id="r_aadb894d80758447e1430e59639931a5f"><td class="memItemLeft" align="right" valign="top"><a id="aadb894d80758447e1430e59639931a5f" name="aadb894d80758447e1430e59639931a5f"></a>
+RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>typeKind</b> = RuntimeTypeKind::Struct</td></tr>
+<tr class="memdesc:aadb894d80758447e1430e59639931a5f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime reflection type kind. <br /></td></tr>
+<tr class="separator:aadb894d80758447e1430e59639931a5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9926e386378fb021ef000100e4e7d7f0" id="r_a9926e386378fb021ef000100e4e7d7f0"><td class="memItemLeft" align="right" valign="top"><a id="a9926e386378fb021ef000100e4e7d7f0" name="a9926e386378fb021ef000100e4e7d7f0"></a>
+RuntimePrimitiveKind&#160;</td><td class="memItemRight" valign="bottom"><b>primitiveKind</b> = RuntimePrimitiveKind::None</td></tr>
+<tr class="memdesc:a9926e386378fb021ef000100e4e7d7f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime primitive kind. Only valid when typeKind is Primitive. <br /></td></tr>
+<tr class="separator:a9926e386378fb021ef000100e4e7d7f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a53a4de721de8ac5f4c13e540f5dd7184" id="r_a53a4de721de8ac5f4c13e540f5dd7184"><td class="memItemLeft" align="right" valign="top"><a id="a53a4de721de8ac5f4c13e540f5dd7184" name="a53a4de721de8ac5f4c13e540f5dd7184"></a>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1SchemaField.html">SchemaField</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>schema</b></td></tr>
 <tr class="separator:a53a4de721de8ac5f4c13e540f5dd7184"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7d7a9deb71ed403e863a575db8f55f1e" id="r_a7d7a9deb71ed403e863a575db8f55f1e"><td class="memItemLeft" align="right" valign="top"><a id="a7d7a9deb71ed403e863a575db8f55f1e" name="a7d7a9deb71ed403e863a575db8f55f1e"></a>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fields</b></td></tr>
+<tr class="separator:a7d7a9deb71ed403e863a575db8f55f1e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>

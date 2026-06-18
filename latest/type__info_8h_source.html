@@ -157,10 +157,10 @@ $(document).ready(function(){initNavTree('type__info_8h_source.html',''); initRe
 <div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>      <span class="keyword">template</span> &lt;<span class="keyword">typename</span> T&gt;</div>
 <div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>      GAIA_NODISCARD <span class="keyword">static</span> <span class="keyword">constexpr</span> <span class="keyword">auto</span> name() <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>        <span class="comment">// MSVC:</span></div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>        <span class="comment">//    const char* __cdecl ecs::ComponentInfo::name&lt;struct ecs::EnfEntity&gt;(void)</span></div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>        <span class="comment">//    const char* __cdecl ecs::type_info::name&lt;struct ecs::EnfEntity&gt;(void)</span></div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>        <span class="comment">//   -&gt; ecs::EnfEntity</span></div>
 <div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        <span class="comment">// Clang/Clang-cl/GCC:</span></div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        <span class="comment">//    const ecs::ComponentInfo::name() [T = ecs::EnfEntity]</span></div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        <span class="comment">//    const ecs::type_info::name() [T = ecs::EnfEntity]</span></div>
 <div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>        <span class="comment">//   -&gt; ecs::EnfEntity</span></div>
 <div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
 <div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>        <span class="comment">// Note:</span></div>

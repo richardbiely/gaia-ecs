@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['data_0',['data',['../structgaia_1_1cnt_1_1ilist__item.html#a6f7d4e5847c48414fa3d483baf08b81e',1,'gaia::cnt::ilist_item::data'],['../structgaia_1_1cnt_1_1detail_1_1mem__page__data.html#aa552bd982a5361178bb01cc46743df4f',1,'gaia::cnt::detail::mem_page_data::data']]],
+  ['data_0',['data',['../structgaia_1_1cnt_1_1detail_1_1mem__page__data.html#aa552bd982a5361178bb01cc46743df4f',1,'gaia::cnt::detail::mem_page_data::data'],['../structgaia_1_1ecs_1_1ComponentRawView.html#ae733390f8d8d44c709d8c6f87fd7f04f',1,'gaia::ecs::ComponentRawView::data'],['../structgaia_1_1ecs_1_1ComponentRawMutView.html#a0014003a434abb4d0b00caad889e2ff5',1,'gaia::ecs::ComponentRawMutView::data'],['../structgaia_1_1cnt_1_1ilist__item.html#a6f7d4e5847c48414fa3d483baf08b81e',1,'gaia::cnt::ilist_item::data']]],
   ['datapending_1',['dataPending',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1GroupedPayload.html#af4ea892af6e0c0a6aee8c839ab6af7ac',1,'gaia::ecs::QueryInfo::QueryState::GroupedPayload']]],
   ['dead_2',['dead',['../structgaia_1_1ecs_1_1ChunkHeader.html#a1e442a2982cf431c556fa0cff5fdc42a',1,'gaia::ecs::ChunkHeader']]],
   ['del_3',['del',['../structgaia_1_1ecs_1_1Sched.html#a73d678356ef671e5ce2173198235182f',1,'gaia::ecs::Sched']]],
