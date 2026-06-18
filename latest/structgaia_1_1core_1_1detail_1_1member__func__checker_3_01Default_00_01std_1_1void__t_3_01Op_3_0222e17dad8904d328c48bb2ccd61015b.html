@@ -113,17 +113,35 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1detail_1_1member
   <div class="headertitle"><div class="title">gaia::core::detail::member_func_checker&lt; Default, std::void_t&lt; Op&lt; Args... &gt; &gt;, Op, Args... &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>True branch for member-function detection.  
+ <a href="structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="utility_8h_source.html">utility.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:ac10987d985d96ee5eb9d76008aea80aa" id="r_ac10987d985d96ee5eb9d76008aea80aa"><td class="memItemLeft" align="right" valign="top"><a id="ac10987d985d96ee5eb9d76008aea80aa" name="ac10987d985d96ee5eb9d76008aea80aa"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>value_t</b> = std::true_type</td></tr>
+<tr class="memdesc:ac10987d985d96ee5eb9d76008aea80aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Probe result type. <br /></td></tr>
 <tr class="separator:ac10987d985d96ee5eb9d76008aea80aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a841e10be3d5364725ec6ab373bb690a2" id="r_a841e10be3d5364725ec6ab373bb690a2"><td class="memItemLeft" align="right" valign="top"><a id="a841e10be3d5364725ec6ab373bb690a2" name="a841e10be3d5364725ec6ab373bb690a2"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>type</b> = Op&lt; Args... &gt;</td></tr>
+<tr class="memdesc:a841e10be3d5364725ec6ab373bb690a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Successfully formed operation type. <br /></td></tr>
 <tr class="separator:a841e10be3d5364725ec6ab373bb690a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;class Default, template&lt; class... &gt; class Op, class... Args&gt;<br />
+struct gaia::core::detail::member_func_checker&lt; Default, std::void_t&lt; Op&lt; Args... &gt; &gt;, Op, Args... &gt;</div><p>True branch for member-function detection. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Default</td><td>Fallback type, unused when the operation is available. </td></tr>
+    <tr><td class="paramname">Op</td><td>Operation alias that was successfully formed. </td></tr>
+    <tr><td class="paramname">Args</td><td>Operation argument types. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/core/<a class="el" href="utility_8h_source.html">utility.h</a></li>
 </ul>
 </div><!-- contents -->
