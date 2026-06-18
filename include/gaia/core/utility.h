@@ -1239,6 +1239,72 @@ namespace gaia {
 				}
 			}
 
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			void sort_order_three(Container& arr, int lhs, int mid, int rhs, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				if (cmpFunc(arr[(uint32_t)mid], arr[(uint32_t)lhs]))
+					swapFunc((uint32_t)lhs, (uint32_t)mid);
+				if (cmpFunc(arr[(uint32_t)rhs], arr[(uint32_t)mid])) {
+					swapFunc((uint32_t)mid, (uint32_t)rhs);
+					if (cmpFunc(arr[(uint32_t)mid], arr[(uint32_t)lhs]))
+						swapFunc((uint32_t)lhs, (uint32_t)mid);
+				}
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			void sort_prepare_pivot_first(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				constexpr int NintherThreshold = 128;
+				const int size = high - low + 1;
+				const int mid = low + (size >> 1);
+
+				if (size > NintherThreshold) {
+					sort_order_three(arr, low, mid, high, cmpFunc, swapFunc);
+					sort_order_three(arr, low + 1, mid - 1, high - 1, cmpFunc, swapFunc);
+					sort_order_three(arr, low + 2, mid + 1, high - 2, cmpFunc, swapFunc);
+					sort_order_three(arr, mid - 1, mid, mid + 1, cmpFunc, swapFunc);
+					swapFunc((uint32_t)low, (uint32_t)mid);
+				} else {
+					sort_order_three(arr, mid, low, high, cmpFunc, swapFunc);
+				}
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			int quick_sort_partition_pivot_first(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				const int begin = low;
+				int first = low;
+				int last = high + 1;
+				const int end = last;
+				auto pivot = GAIA_MOV(arr[(uint32_t)first]);
+
+				do {
+					++first;
+				} while (first != end && cmpFunc(arr[(uint32_t)first], pivot));
+
+				if (begin == first - 1) {
+					while (first < last && !cmpFunc(arr[(uint32_t)(--last)], pivot)) {
+					}
+				} else {
+					do {
+						--last;
+					} while (!cmpFunc(arr[(uint32_t)last], pivot));
+				}
+
+				while (first < last) {
+					swapFunc((uint32_t)first, (uint32_t)last);
+					do {
+						++first;
+					} while (cmpFunc(arr[(uint32_t)first], pivot));
+					do {
+						--last;
+					} while (!cmpFunc(arr[(uint32_t)last], pivot));
+				}
+
+				const int pivotPos = first - 1;
+				if (begin != pivotPos)
+					arr[(uint32_t)begin] = GAIA_MOV(arr[(uint32_t)pivotPos]);
+				arr[(uint32_t)pivotPos] = GAIA_MOV(pivot);
+				return pivotPos;
+			}
+
 			template <typename T, typename TCmpFunc, typename TSwapFunc>
 			bool try_sorted_or_reversed(T* beg, uint32_t n, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
 				if (n <= 1)
@@ -1376,16 +1442,17 @@ namespace gaia {
 					}
 					--depthLimit;
 
-					const int split = quick_sort_partition_hoare(arr, low, high, cmpFunc, swapFunc);
-					const int leftSize = split - low + 1;
-					const int rightSize = high - split;
+					sort_prepare_pivot_first(arr, low, high, cmpFunc, swapFunc);
+					const int pivot = quick_sort_partition_pivot_first(arr, low, high, cmpFunc, swapFunc);
+					const int leftSize = pivot - low;
+					const int rightSize = high - pivot;
 
 					if (leftSize < rightSize) {
-						quick_sort_impl(arr, low, split, cmpFunc, depthLimit);
-						low = split + 1;
+						quick_sort_impl(arr, low, pivot - 1, cmpFunc, depthLimit);
+						low = pivot + 1;
 					} else {
-						quick_sort_impl(arr, split + 1, high, cmpFunc, depthLimit);
-						high = split;
+						quick_sort_impl(arr, pivot + 1, high, cmpFunc, depthLimit);
+						high = pivot - 1;
 					}
 				}
 
