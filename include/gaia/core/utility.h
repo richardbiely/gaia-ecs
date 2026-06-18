@@ -1189,27 +1189,162 @@ namespace gaia {
 
 		namespace detail {
 			template <typename Container, typename TCmpFunc>
-			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc) {
-				const auto& pivot = arr[(uint32_t)high];
-				int i = low - 1;
-				for (int j = low; j <= high - 1; ++j) {
-					if (cmpFunc(arr[(uint32_t)j], pivot))
-						core::swap(arr[(uint32_t)++i], arr[(uint32_t)j]);
+			int sort_median_of_three(Container& arr, int low, int mid, int high, TCmpFunc cmpFunc) {
+				if (cmpFunc(arr[(uint32_t)low], arr[(uint32_t)mid])) {
+					if (cmpFunc(arr[(uint32_t)mid], arr[(uint32_t)high]))
+						return mid;
+					return cmpFunc(arr[(uint32_t)low], arr[(uint32_t)high]) ? high : low;
 				}
-				core::swap(arr[(uint32_t)++i], arr[(uint32_t)high]);
-				return i;
+
+				if (cmpFunc(arr[(uint32_t)low], arr[(uint32_t)high]))
+					return low;
+				return cmpFunc(arr[(uint32_t)mid], arr[(uint32_t)high]) ? high : mid;
+			}
+
+			template <typename Container, typename TCmpFunc>
+			int sort_choose_pivot(Container& arr, int low, int high, TCmpFunc cmpFunc) {
+				const int size = high - low + 1;
+				const int mid = low + (size >> 1);
+				if (size > 128) {
+					const int step = size >> 3;
+					const int lowMed = sort_median_of_three(arr, low, low + step, low + step + step, cmpFunc);
+					const int midMed = sort_median_of_three(arr, mid - step, mid, mid + step, cmpFunc);
+					const int highMed = sort_median_of_three(arr, high - step - step, high - step, high, cmpFunc);
+					return sort_median_of_three(arr, lowMed, midMed, highMed, cmpFunc);
+				}
+
+				return sort_median_of_three(arr, low, mid, high, cmpFunc);
 			}
 
 			template <typename Container, typename TCmpFunc, typename TSwapFunc>
-			int quick_sort_partition(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
-				const auto& pivot = arr[(uint32_t)high];
-				int i = low - 1;
-				for (int j = low; j <= high - 1; ++j) {
-					if (cmpFunc(arr[(uint32_t)j], pivot))
-						swapFunc((uint32_t)++i, (uint32_t)j);
+			void insertion_sort_range(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				for (int i = low + 1; i <= high; ++i) {
+					for (int j = i; j > low && cmpFunc(arr[(uint32_t)j], arr[(uint32_t)(j - 1)]); --j)
+						swapFunc((uint32_t)(j - 1), (uint32_t)j);
 				}
-				swapFunc((uint32_t)++i, (uint32_t)high);
-				return i;
+			}
+
+			template <typename T, typename TCmpFunc, typename TSwapFunc>
+			bool try_sorted_or_reversed(T* beg, uint32_t n, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				if (n <= 1)
+					return true;
+
+				bool sorted = true;
+				for (uint32_t i = 1; i < n; ++i) {
+					if (cmpFunc(beg[i], beg[i - 1])) {
+						sorted = false;
+						break;
+					}
+				}
+				if (sorted)
+					return true;
+
+				bool reversed = true;
+				for (uint32_t i = 1; i < n; ++i) {
+					if (cmpFunc(beg[i - 1], beg[i])) {
+						reversed = false;
+						break;
+					}
+				}
+				if (!reversed)
+					return false;
+
+				for (uint32_t i = 0, j = n - 1; i < j; ++i, --j)
+					swapFunc(i, j);
+				return true;
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			int quick_sort_partition_hoare(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				const int pivotIdx = sort_choose_pivot(arr, low, high, cmpFunc);
+				const auto pivot = arr[(uint32_t)pivotIdx];
+
+				int i = low - 1;
+				int j = high + 1;
+
+				while (true) {
+					do {
+						++i;
+					} while (cmpFunc(arr[(uint32_t)i], pivot));
+
+					do {
+						--j;
+					} while (cmpFunc(pivot, arr[(uint32_t)j]));
+
+					if (i >= j)
+						return j;
+
+					swapFunc((uint32_t)i, (uint32_t)j);
+				}
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			void heap_sift_down(Container& arr, int low, int root, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				while (true) {
+					const int left = low + ((root - low) << 1) + 1;
+					if (left > high)
+						return;
+
+					int child = left;
+					const int right = left + 1;
+					if (right <= high && cmpFunc(arr[(uint32_t)child], arr[(uint32_t)right]))
+						child = right;
+
+					if (!cmpFunc(arr[(uint32_t)root], arr[(uint32_t)child]))
+						return;
+
+					swapFunc((uint32_t)root, (uint32_t)child);
+					root = child;
+				}
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			void heap_sort_range(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
+				for (int start = low + ((high - low - 1) >> 1); start >= low; --start)
+					heap_sift_down(arr, low, start, high, cmpFunc, swapFunc);
+
+				for (int end = high; end > low; --end) {
+					swapFunc((uint32_t)low, (uint32_t)end);
+					heap_sift_down(arr, low, low, end - 1, cmpFunc, swapFunc);
+				}
+			}
+
+			inline uint32_t sort_depth_limit(uint32_t n) {
+				uint32_t depth = 0;
+				while (n > 1) {
+					++depth;
+					n >>= 1;
+				}
+				return depth * 2;
+			}
+
+			template <typename Container, typename TCmpFunc, typename TSwapFunc>
+			void
+			quick_sort_impl(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc, uint32_t depthLimit) {
+				constexpr int InsertionSortThreshold = 32;
+
+				while (high - low > InsertionSortThreshold) {
+					if (depthLimit == 0) {
+						heap_sort_range(arr, low, high, cmpFunc, swapFunc);
+						return;
+					}
+					--depthLimit;
+
+					const int split = quick_sort_partition_hoare(arr, low, high, cmpFunc, swapFunc);
+					const int leftSize = split - low + 1;
+					const int rightSize = high - split;
+
+					if (leftSize < rightSize) {
+						quick_sort_impl(arr, low, split, cmpFunc, swapFunc, depthLimit);
+						low = split + 1;
+					} else {
+						quick_sort_impl(arr, split + 1, high, cmpFunc, swapFunc, depthLimit);
+						high = split;
+					}
+				}
+
+				if (low < high)
+					insertion_sort_range(arr, low, high, cmpFunc, swapFunc);
 			}
 
 			template <typename T, typename TCmpFunc>
@@ -1377,9 +1512,9 @@ namespace gaia {
 					swap_if(beg, 5, 6, cmpFunc);
 					swap_if(beg, 7, 8, cmpFunc);
 				} else if (n <= 32) {
-					for (uint32_t i = 0; i < n - 1; ++i)
-						for (uint32_t j = 0; j < n - i - 1; ++j)
-							swap_if(beg, j, j + 1, cmpFunc);
+					insertion_sort_range(beg, 0, (int)n - 1, cmpFunc, [beg](uint32_t lhs, uint32_t rhs) {
+						core::swap(beg[lhs], beg[rhs]);
+					});
 				}
 
 				return n <= 32;
@@ -1550,14 +1685,15 @@ namespace gaia {
 					try_swap_if(beg, 5, 6, cmpFunc, swapFunc);
 					try_swap_if(beg, 7, 8, cmpFunc, swapFunc);
 				} else if (n <= 32) {
-					for (uint32_t i = 0; i < n - 1; ++i)
-						for (uint32_t j = 0; j < n - i - 1; ++j)
-							try_swap_if(beg, j, j + 1, cmpFunc, swapFunc);
+					insertion_sort_range(beg, 0, (int)n - 1, cmpFunc, swapFunc);
 				}
 
 				return n <= 32;
 			}
 		} // namespace detail
+
+		template <typename Container, typename TCmpFunc, typename TSwapFunc>
+		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc);
 
 		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr.
 		//! \tparam Container Container type.
@@ -1568,11 +1704,9 @@ namespace gaia {
 		//! \param cmpFunc Ordering predicate.
 		template <typename Container, typename TCmpFunc>
 		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc) {
-			if (low >= high)
-				return;
-			auto pos = detail::quick_sort_partition(arr, low, high, cmpFunc);
-			quick_sort(arr, low, pos - 1, cmpFunc);
-			quick_sort(arr, pos + 1, high, cmpFunc);
+			quick_sort(arr, low, high, cmpFunc, [&arr](uint32_t a, uint32_t b) {
+				core::swap(arr[a], arr[b]);
+			});
 		}
 
 		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr using a custom swap callback.
@@ -1588,125 +1722,12 @@ namespace gaia {
 		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
 			if (low >= high)
 				return;
-			auto pos = detail::quick_sort_partition(arr, low, high, cmpFunc, swapFunc);
-			quick_sort(arr, low, pos - 1, cmpFunc, swapFunc);
-			quick_sort(arr, pos + 1, high, cmpFunc, swapFunc);
-		}
-
-		//! A special version of the quick sort algorithm.
-		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparison function
-		//! \tparam TSwapFunc Swap function
-		//! \param arr Container to sort
-		//! \param low Low index of the array to sort
-		//! \param high High index of the array to sort
-		//! \param cmpFunc Comparison function
-		//! \param swapFunc Swap function
-		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
-		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
-		//!					 you can not easily predict the depth of the stack used by the algorithm.
-		template <typename Container, typename TCmpFunc, typename TSwapFunc>
-		void
-		quick_sort_stack(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc, uint32_t maxStackSize) {
-			GAIA_ASSERT(high < (int)arr.size() && "quick_sort_stack: 'high' has to be smaller than the container size.");
-			GAIA_ASSERT(
-					(uint32_t)arr.size() <= maxStackSize && "quick_sort_stack: used with too large input array. Stack overflow.");
-
-			struct Range {
-				int low, high;
-			};
-
-			auto* stack = (Range*)alloca(sizeof(Range) * maxStackSize);
-			GAIA_ASSERT(stack != nullptr && "quick_sort_stack: failed to allocate stack memory.");
-			uint32_t sp = 0; // stack pointer
-			stack[sp++] = {low, high};
-
-			auto median_of_three = [&](int a, int b, int c) {
-				if (cmpFunc(arr[a], arr[b])) {
-					if (cmpFunc(arr[b], arr[c]))
-						return b;
-					if (cmpFunc(arr[a], arr[c]))
-						return c;
-					return a;
-				}
-
-				if (cmpFunc(arr[a], arr[c]))
-					return a;
-				if (cmpFunc(arr[b], arr[c]))
-					return c;
-				return b;
-			};
-
-			while (sp > 0) {
-				const Range r = stack[--sp];
-				if (r.low >= r.high)
-					continue;
-
-				// Use optimized sort for small partitions
-				const auto size = r.high - r.low + 1;
-				if (size <= 32) {
-					auto* base = &arr[r.low];
-					detail::sort_nwk(base, base + size, cmpFunc, [&](uint32_t i, uint32_t j) {
-						swapFunc(r.low + i, r.low + j);
-					});
-					continue;
-				}
-
-				// Median-of-three pivot selection
-				int mid = r.low + ((r.high - r.low) >> 1);
-				int pivotIdx = median_of_three(r.low, mid, r.high);
-				swapFunc(pivotIdx, r.high);
-
-				const auto& pivot = arr[r.high];
-				int i = r.low - 1;
-				for (int j = r.low; j < r.high; ++j) {
-					if (cmpFunc(arr[j], pivot))
-						swapFunc(++i, j);
-				}
-				swapFunc(++i, r.high);
-
-				// Push smaller partition first to reduce max stack usage
-				if (i - 1 - r.low > r.high - (i + 1)) {
-					if (r.low < i - 1)
-						stack[sp++] = {r.low, i - 1};
-					if (i + 1 < r.high)
-						stack[sp++] = {i + 1, r.high};
-				} else {
-					if (i + 1 < r.high)
-						stack[sp++] = {i + 1, r.high};
-					if (r.low < i - 1)
-						stack[sp++] = {r.low, i - 1};
-				}
-			}
-		}
-
-		//! A special version of the quick sort algorithm.
-		//! Instead of relying on recursion it allocates an acceleration structure on the stack.
-		//! \tparam Container Container to sort
-		//! \tparam TCmpFunc Comparison function
-		//! \param arr Container to sort
-		//! \param low Low index of the array to sort
-		//! \param high High index of the array to sort
-		//! \param cmpFunc Comparison function
-		//! \param maxStackSize Maximum depth of the stack used for the acceleration structure.
-		//! \warning If the input container is larger than @a maxStackSize the function might end up accessing memory
-		//!          out-of-bounds. This would usually happen e.g. when sorting an already sorted array. This is because
-		//!					 you can not easily predict the depth of the stack used by the algorithm.
-		template <typename Container, typename TCmpFunc>
-		void quick_sort_stack(Container& arr, int low, int high, TCmpFunc cmpFunc, uint32_t maxStackSize) {
-			quick_sort_stack(
-					arr, low, high, cmpFunc,
-					[&arr](uint32_t a, uint32_t b) {
-						core::swap(arr[a], arr[b]);
-					},
-					maxStackSize);
+			detail::quick_sort_impl(arr, low, high, cmpFunc, swapFunc, detail::sort_depth_limit((uint32_t)(high - low + 1)));
 		}
 
 		//! Sorts a range of elements.
-		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
-		//! For anything else, quicksort is used.
+		//! Sorting networks are used up to 10 elements. Insertion sort is used up to 32 elements.
+		//! For larger ranges, introsort-style quicksort is used with heapsort fallback.
 		//! Use when it is necessary to sort multiple arrays at once.
 		//! \tparam T Element type
 		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
@@ -1716,6 +1737,10 @@ namespace gaia {
 		template <typename T, typename TCmpFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc) {
 			const auto n = (uintptr_t)(end - beg);
+			if (detail::try_sorted_or_reversed(beg, (uint32_t)n, cmpFunc, [beg](uint32_t lhs, uint32_t rhs) {
+						core::swap(beg[lhs], beg[rhs]);
+					}))
+				return;
 			if (detail::sort_nwk(beg, end, cmpFunc))
 				return;
 
@@ -1734,8 +1759,8 @@ namespace gaia {
 
 		//! Sorts a range of elements given a comparison function @a cmpFunc.
 		//! If @a cmpFunc returns true it performs @a swapFunc which can perform the sorting.
-		//! Sorting network is used up to 8 elements. Bubble-sort is used up to 32 elements.
-		//! For anything else, quicksort is used.
+		//! Sorting networks are used up to 10 elements. Insertion sort is used up to 32 elements.
+		//! For larger ranges, introsort-style quicksort is used with heapsort fallback.
 		//! Use when it is necessary to sort multiple arrays at once.
 		//! \tparam T Element type
 		//! \tparam TCmpFunc Functor type for comparison: bool cmpFunc(i, j)
@@ -1747,6 +1772,8 @@ namespace gaia {
 		template <typename T, typename TCmpFunc, typename TSwapFunc>
 		void sort(T* beg, T* end, TCmpFunc cmpFunc, TSwapFunc swapFunc) {
 			const auto n = (uintptr_t)(end - beg);
+			if (detail::try_sorted_or_reversed(beg, (uint32_t)n, cmpFunc, swapFunc))
+				return;
 			if (detail::sort_nwk(beg, end, cmpFunc, swapFunc))
 				return;
 

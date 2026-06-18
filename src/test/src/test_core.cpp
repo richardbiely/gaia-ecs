@@ -3009,14 +3009,6 @@ void sort_descending(C&& arr) {
 			CHECK(arr[i - 1] > arr[i]);
 	}
 
-	{
-		for (TValue i = 0; i < (TValue)arr.size(); ++i)
-			arr[i] = i;
-		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_greater<TValue>(), arr.size());
-		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] > arr[i]);
-	}
-
 	// Custom swap function
 
 	{
@@ -3039,18 +3031,6 @@ void sort_descending(C&& arr) {
 			CHECK(arr[i - 1] > arr[i]);
 	}
 
-	{
-		for (TValue i = 0; i < (TValue)arr.size(); ++i)
-			arr[i] = i;
-		core::quick_sort_stack(
-				arr, 0, arr.size() - 1, core::is_greater<TValue>(),
-				[&](uint32_t a, uint32_t b) {
-					core::swap(arr[a], arr[b]);
-				},
-				arr.size());
-		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] > arr[i]);
-	}
 }
 
 template <typename C>
@@ -3071,14 +3051,6 @@ void sort_ascending(C&& arr) {
 		for (TValue i = 0; i < (TValue)arr.size(); ++i)
 			arr[i] = i;
 		core::sort(arr.begin(), arr.end(), core::is_smaller<TValue>());
-		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] < arr[i]);
-	}
-
-	{
-		for (TValue i = 0; i < (TValue)arr.size(); ++i)
-			arr[i] = i;
-		core::quick_sort_stack(arr, 0, arr.size() - 1, core::is_smaller<TValue>(), arr.size());
 		for (uint32_t i = 1; i < arr.size(); ++i)
 			CHECK(arr[i - 1] < arr[i]);
 	}
@@ -3105,18 +3077,6 @@ void sort_ascending(C&& arr) {
 			CHECK(arr[i - 1] < arr[i]);
 	}
 
-	{
-		for (TValue i = 0; i < (TValue)arr.size(); ++i)
-			arr[i] = i;
-		core::quick_sort_stack(
-				arr, 0, arr.size() - 1, core::is_smaller<TValue>(),
-				[&](uint32_t a, uint32_t b) {
-					core::swap(arr[a], arr[b]);
-				},
-				arr.size());
-		for (uint32_t i = 1; i < arr.size(); ++i)
-			CHECK(arr[i - 1] < arr[i]);
-	}
 }
 
 TEST_CASE("Sort descending") {
@@ -3159,6 +3119,62 @@ TEST_CASE("Sort ascending") {
 	sort_ascending(cnt::sarray<uint32_t, 17>{});
 	sort_ascending(cnt::sarray<uint32_t, 18>{});
 	sort_ascending(cnt::sarray<uint32_t, 45>{});
+}
+
+TEST_CASE("Sort avoids quadratic ordered and duplicate-heavy inputs") {
+	{
+		cnt::sarray<uint32_t, 1024> arr;
+		GAIA_FOR(arr.size())
+		arr[i] = i;
+
+		uint32_t comparisons = 0;
+		core::sort(arr, [&](uint32_t lhs, uint32_t rhs) {
+			++comparisons;
+			return lhs < rhs;
+		});
+
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			CHECK(arr[i - 1] < arr[i]);
+		CHECK(comparisons < 50000);
+	}
+
+	{
+		cnt::sarray<uint32_t, 1024> arr;
+		GAIA_FOR(arr.size())
+		arr[i] = (uint32_t)arr.size() - i;
+
+		uint32_t comparisons = 0;
+		core::sort(arr, [&](uint32_t lhs, uint32_t rhs) {
+			++comparisons;
+			return lhs < rhs;
+		});
+
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			CHECK(arr[i - 1] < arr[i]);
+		CHECK(comparisons < 5000);
+	}
+
+	{
+		cnt::sarray<uint32_t, 4096> arr;
+		uint32_t rng = 0x12345678U;
+		GAIA_FOR(arr.size()) {
+			rng ^= rng << 13U;
+			rng ^= rng >> 17U;
+			rng ^= rng << 5U;
+			arr[i] = rng & 1023U;
+		}
+
+		uint32_t comparisons = 0;
+		core::sort(arr, [&](uint32_t lhs, uint32_t rhs) {
+			++comparisons;
+			return lhs < rhs;
+		});
+
+		for (uint32_t i = 1; i < arr.size(); ++i)
+			CHECK(arr[i - 1] <= arr[i]);
+		CHECK(comparisons < 80000);
+	}
+
 }
 
 //-----------------------------------------------------------------
