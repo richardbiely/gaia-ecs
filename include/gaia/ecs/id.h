@@ -8,6 +8,7 @@
 #include "gaia/core/hashing_policy.h"
 #include "gaia/core/utility.h"
 #include "gaia/ecs/id_fwd.h"
+#include "gaia/ser/ser_common.h"
 
 namespace gaia {
 	namespace ecs {
@@ -679,19 +680,51 @@ namespace gaia {
 		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
-		// Runtime primitive type entities
-		inline Entity Bool = Entity(35, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I8 = Entity(36, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U8 = Entity(37, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I16 = Entity(38, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U16 = Entity(39, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I32 = Entity(40, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U32 = Entity(41, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I64 = Entity(42, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U64 = Entity(43, 0, false, false, EntityKind::EK_Gen);
-		inline Entity F32 = Entity(44, 0, false, false, EntityKind::EK_Gen);
-		inline Entity F64 = Entity(45, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Char8 = Entity(46, 0, false, false, EntityKind::EK_Gen);
+		// Runtime primitive type entities. Supported entity ids are aligned with ser::serialization_type_id:
+		// runtime_primitive_type_entity(t).id() == RuntimePrimitiveTypeBaseId + (uint32_t)t.
+		inline constexpr uint32_t RuntimePrimitiveTypeBaseId = 34;
+
+		GAIA_NODISCARD inline bool is_runtime_primitive_serialization_type_id(uint32_t typeId) noexcept {
+			return typeId >= (uint32_t)ser::serialization_type_id::s8 && typeId <= (uint32_t)ser::serialization_type_id::f64;
+		}
+
+		GAIA_NODISCARD inline Entity runtime_primitive_type_entity(ser::serialization_type_id type) noexcept {
+			const auto typeId = (uint32_t)type;
+			if (!is_runtime_primitive_serialization_type_id(typeId))
+				return EntityBad;
+			return Entity((EntityId)(RuntimePrimitiveTypeBaseId + typeId), 0, false, false, EntityKind::EK_Gen);
+		}
+
+		GAIA_NODISCARD inline bool
+		runtime_primitive_serialization_type(Entity type, ser::serialization_type_id& out) noexcept {
+			if (type.pair())
+				return false;
+
+			const auto typeId = type.id() - RuntimePrimitiveTypeBaseId;
+			if (!is_runtime_primitive_serialization_type_id(typeId))
+				return false;
+
+			out = (ser::serialization_type_id)typeId;
+			return true;
+		}
+
+		inline Entity S8 = runtime_primitive_type_entity(ser::serialization_type_id::s8);
+		inline Entity U8 = runtime_primitive_type_entity(ser::serialization_type_id::u8);
+		inline Entity S16 = runtime_primitive_type_entity(ser::serialization_type_id::s16);
+		inline Entity U16 = runtime_primitive_type_entity(ser::serialization_type_id::u16);
+		inline Entity S32 = runtime_primitive_type_entity(ser::serialization_type_id::s32);
+		inline Entity U32 = runtime_primitive_type_entity(ser::serialization_type_id::u32);
+		inline Entity S64 = runtime_primitive_type_entity(ser::serialization_type_id::s64);
+		inline Entity U64 = runtime_primitive_type_entity(ser::serialization_type_id::u64);
+		inline Entity Bool = runtime_primitive_type_entity(ser::serialization_type_id::b);
+		inline Entity Char8 = runtime_primitive_type_entity(ser::serialization_type_id::c8);
+		inline Entity Char16 = runtime_primitive_type_entity(ser::serialization_type_id::c16);
+		inline Entity Char32 = runtime_primitive_type_entity(ser::serialization_type_id::c32);
+		inline Entity WChar = runtime_primitive_type_entity(ser::serialization_type_id::cw);
+		inline Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);
+		inline Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);
+		inline Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);
+		inline Entity F64 = runtime_primitive_type_entity(ser::serialization_type_id::f64);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -704,7 +737,7 @@ namespace gaia {
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
 		// Always has to match the last internal entity.
-		inline Entity GAIA_ID(LastCoreComponent) = Char8;
+		inline Entity GAIA_ID(LastCoreComponent) = F64;
 
 		//----------------------------------------------------------------------
 		// Helper functions

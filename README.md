@@ -583,17 +583,52 @@ When adding components following restrictions apply:
 or `ecs::DontFragment`, register it explicitly first and then apply the trait to the component entity. Implicit registration
 can also be disabled entirely with `GAIA_ECS_AUTO_COMPONENT_REGISTRATION`.
 
-Runtime component registration uses explicit component metadata:
+You can also register components from data you load at runtime. This is useful for editors, mods, importers, and save
+formats that define component layouts outside C++ code.
 
 ```cpp
-ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};
-ctx.name = "Cooldown";
-ctx.size = 4;
-ctx.alig = 4;
-ctx.storageType = ecs::DataStorageType::Table;
+ecs::Entity cooldownComponent = w.add();
 
-const ecs::ComponentCacheItem& cooldownCI = w.add(ctx);
+ecs::ComponentDesc desc{};
+desc.name = "Cooldown";
+desc.size = sizeof(float);
+desc.alig = alignof(float);
+desc.storageType = ecs::DataStorageType::Table;
+
+ecs::ComponentCache& cc = w.comp_cache_mut();
+const ecs::ComponentCacheItem& cooldownCI = cc.add(cooldownComponent, desc);
 ```
+
+You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
+
+```cpp
+if (!cc.add_field(cooldownCI.entity, {"seconds", ecs::F32, 0, 0})) {
+  // The field type or byte range is invalid.
+}
+```
+
+Once the component is registered, you can add and edit it without a C++ component type:
+
+```cpp
+ecs::Entity e = w.add();
+float seconds = 2.5f;
+if (!w.add_raw(e, cooldownCI.entity, &seconds, sizeof(seconds))) {
+  // The entity, component, or payload size is invalid.
+}
+
+ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);
+if (cursor.field("seconds")) {
+  seconds = 1.0f;
+  if (cursor.write_bytes(&seconds, sizeof(seconds)) != ecs::ComponentWriteResult::Ok) {
+    // The selected field cannot be written.
+  }
+}
+```
+
+`get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent
+write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)`
+copies a full payload and emits the write notification for you. `ComponentCursor::write_bytes(...)` writes the selected
+field and finishes the component write automatically.
 
 
 ### Component hooks
@@ -3338,7 +3373,8 @@ Quick overview of serializer types:
 
 Recommended JSON API surface:
 - `ser::ser_json` for low-level JSON token writing/parsing
-- `ecs::component_to_json` / `ecs::json_to_component` for runtime-schema component payloads
+- `ecs::component_to_json` / `ecs::json_to_component` for runtime component payloads with registered fields
+  registered through `ComponentCache::add_field(...)`. JSON supports scalar primitive fields and `ecs::Char8` buffers.
 - `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
 
 For structured semantic load feedback, use diagnostics overloads:
@@ -3592,8 +3628,8 @@ bool ok = false;
 const std::string json = world.save_json(ok);
 ```
 
-`save_json` emits structured JSON for components with runtime schema fields.
-Components without schema fallback to a raw byte array payload (`"$raw"`).
+`save_json` emits structured JSON for components with runtime fields.
+Components without runtime fields fall back to a raw byte array payload (`"$raw"`).
 Behavior can be adjusted with flags:
 - `ser::BinarySnapshot`
 - `ser::RawFallback`

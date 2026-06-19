@@ -45,13 +45,6 @@ namespace gaia {
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
-			struct SchemaField {
-				char name[MaxNameLength]{};
-				ser::serialization_type_id type = ser::serialization_type_id::u8;
-				uint32_t offset = 0;
-				uint32_t size = 0;
-			};
-
 			using RuntimeField = ecs::RuntimeField;
 
 			//! Component item registration context.
@@ -140,7 +133,6 @@ namespace gaia {
 			};
 			Hooks comp_hooks;
 #endif
-			cnt::darray<SchemaField> schema;
 			cnt::darray<RuntimeField> fields;
 
 		private:
@@ -290,41 +282,12 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD bool set_field(
-					const char* fieldName, uint32_t len, ser::serialization_type_id type, uint32_t fieldOffset,
-					uint32_t fieldSize) {
-				if (fieldName == nullptr || fieldName[0] == 0)
-					return false;
-
-				const auto fieldLen = len == 0 ? (uint32_t)GAIA_STRLEN(fieldName, MaxNameLength) : len;
-				if (fieldLen == 0 || fieldLen >= MaxNameLength)
-					return false;
-
-				for (auto& f: schema) {
-					if (strncmp(f.name, fieldName, fieldLen) == 0 && f.name[fieldLen] == 0) {
-						f.type = type;
-						f.offset = fieldOffset;
-						f.size = fieldSize;
-						return true;
-					}
-				}
-
-				SchemaField f{};
-				memcpy((void*)f.name, (const void*)fieldName, fieldLen);
-				f.name[fieldLen] = 0;
-				f.type = type;
-				f.offset = fieldOffset;
-				f.size = fieldSize;
-				schema.push_back(f);
-				return true;
-			}
-
 			void clear_fields() {
-				schema.clear();
+				fields.clear();
 			}
 
 			GAIA_NODISCARD bool has_fields() const {
-				return !schema.empty();
+				return !fields.empty();
 			}
 
 			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
@@ -336,15 +299,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
-				if (type == Bool || type == I8 || type == U8 || type == Char8)
-					return 1;
-				if (type == I16 || type == U16)
-					return 2;
-				if (type == I32 || type == U32 || type == F32)
-					return 4;
-				if (type == I64 || type == U64 || type == F64)
-					return 8;
-				return 0;
+				ser::serialization_type_id id = ser::serialization_type_id::ignore;
+				if (!runtime_primitive_serialization_type(type, id))
+					return 0;
+				return ser::serialization_type_size(id, 0);
 			}
 
 			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {

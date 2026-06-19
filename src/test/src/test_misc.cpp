@@ -219,6 +219,23 @@ TEST_CASE("Component cache - runtime registration") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
+		ser::serialization_type_id serType = ser::serialization_type_id::ignore;
+		CHECK(ecs::S8 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::s8));
+		CHECK(ecs::S16 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::s16));
+		CHECK(ecs::S32 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::s32));
+		CHECK(ecs::S64 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::s64));
+		CHECK(ecs::Bool == ecs::runtime_primitive_type_entity(ser::serialization_type_id::b));
+		CHECK(ecs::Char8 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c8));
+		CHECK(ecs::Char16 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c16));
+		CHECK(ecs::Char32 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c32));
+		CHECK(ecs::WChar == ecs::runtime_primitive_type_entity(ser::serialization_type_id::cw));
+		CHECK(ecs::F16 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f16));
+		CHECK(ecs::F32 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f32));
+		CHECK(ecs::F64 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f64));
+		CHECK(ecs::runtime_primitive_serialization_type(ecs::F32, serType));
+		CHECK(serType == ser::serialization_type_id::f32);
+		CHECK(ecs::runtime_primitive_type_entity(ser::serialization_type_id::trivial_wrapper) == ecs::EntityBad);
+
 		const auto* f32Info = cc.find(ecs::F32);
 		CHECK(f32Info != nullptr);
 		if (f32Info != nullptr) {
@@ -466,56 +483,56 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK((out[0] == entityB || out[1] == entityB));
 	}
 
-	SUBCASE("schema field registration supports add update and clear") {
+	SUBCASE("runtime field registration supports add update and clear") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
 		const auto entity = wld.add();
-		(void)add_runtime_component(cc, entity, "Runtime_Component_Schema", 24, ecs::DataStorageType::Table, 8);
+		(void)add_runtime_component(cc, entity, "Runtime_Component_Fields", 24, ecs::DataStorageType::Table, 8);
 		auto& item = cc.get(entity);
 
 		CHECK_FALSE(item.has_fields());
-		CHECK(item.schema.size() == 0);
+		CHECK(item.field_count() == 0);
 
-		CHECK(item.set_field("x", 0, ser::serialization_type_id::f32, 0, 4));
+		CHECK(add_runtime_field(item, "x", 0, ser::serialization_type_id::f32, 0, 4));
 		CHECK(item.has_fields());
-		CHECK(item.schema.size() == 1);
-		CHECK(strcmp(item.schema[0].name, "x") == 0);
-		CHECK(item.schema[0].type == ser::serialization_type_id::f32);
-		CHECK(item.schema[0].offset == 0);
-		CHECK(item.schema[0].size == 4);
+		CHECK(item.field_count() == 1);
+		CHECK(strcmp(item.fields[0].name, "x") == 0);
+		CHECK(item.fields[0].type == ecs::F32);
+		CHECK(item.fields[0].offset == 0);
+		CHECK(item.fields[0].count == 0);
 
 		// Re-registering an existing field updates metadata instead of adding a duplicate.
-		CHECK(item.set_field("x", 0, ser::serialization_type_id::u32, 4, 8));
-		CHECK(item.schema.size() == 1);
-		CHECK(strcmp(item.schema[0].name, "x") == 0);
-		CHECK(item.schema[0].type == ser::serialization_type_id::u32);
-		CHECK(item.schema[0].offset == 4);
-		CHECK(item.schema[0].size == 8);
+		CHECK(add_runtime_field(item, "x", 0, ser::serialization_type_id::u32, 4, 4));
+		CHECK(item.field_count() == 1);
+		CHECK(strcmp(item.fields[0].name, "x") == 0);
+		CHECK(item.fields[0].type == ecs::U32);
+		CHECK(item.fields[0].offset == 4);
+		CHECK(item.fields[0].count == 0);
 
 		// Explicit length should be honored and copied as the canonical field name.
-		CHECK(item.set_field("velocity_data", 8, ser::serialization_type_id::f64, 12, 8));
-		CHECK(item.schema.size() == 2);
-		CHECK(strcmp(item.schema[1].name, "velocity") == 0);
-		CHECK(item.schema[1].type == ser::serialization_type_id::f64);
-		CHECK(item.schema[1].offset == 12);
-		CHECK(item.schema[1].size == 8);
+		CHECK(add_runtime_field(item, "velocity_data", 8, ser::serialization_type_id::f64, 12, 8));
+		CHECK(item.field_count() == 2);
+		CHECK(strcmp(item.fields[1].name, "velocity") == 0);
+		CHECK(item.fields[1].type == ecs::F64);
+		CHECK(item.fields[1].offset == 12);
+		CHECK(item.fields[1].count == 0);
 
-		const auto schemaSizeBeforeInvalid = item.schema.size();
-		CHECK_FALSE(item.set_field(nullptr, 0, ser::serialization_type_id::u8, 0, 1));
-		CHECK_FALSE(item.set_field("", 0, ser::serialization_type_id::u8, 0, 1));
+		const auto fieldCountBeforeInvalid = item.field_count();
+		CHECK_FALSE(add_runtime_field(item, nullptr, 0, ser::serialization_type_id::u8, 0, 1));
+		CHECK_FALSE(add_runtime_field(item, "", 0, ser::serialization_type_id::u8, 0, 1));
 
 		char oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength + 1] = {};
 		GAIA_FOR(ecs::ComponentCacheItem::MaxNameLength) oversizedFieldName[i] = 'a';
 		oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength] = 0;
-		CHECK_FALSE(item.set_field(
-				oversizedFieldName, ecs::ComponentCacheItem::MaxNameLength, ser::serialization_type_id::u8, 0, 1));
+		CHECK_FALSE(add_runtime_field(
+				item, oversizedFieldName, ecs::ComponentCacheItem::MaxNameLength, ser::serialization_type_id::u8, 0, 1));
 
-		CHECK(item.schema.size() == schemaSizeBeforeInvalid);
+		CHECK(item.field_count() == fieldCountBeforeInvalid);
 
 		item.clear_fields();
 		CHECK_FALSE(item.has_fields());
-		CHECK(item.schema.size() == 0);
+		CHECK(item.field_count() == 0);
 	}
 
 	SUBCASE("runtime registration uses entity-backed lookups") {

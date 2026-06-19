@@ -7,9 +7,30 @@
 
 namespace gaia {
 	namespace ecs {
-		//! Serializes a single component instance into JSON using runtime schema data in @a item.
-		//! Field names are emitted as-is from ComponentCacheItem::schema (flat key/value JSON object).
-		//! Returns false when some field types are unsupported (those are emitted as null).
+		namespace detail {
+			inline bool runtime_field_json_layout(
+					const ComponentCacheItem& item, const RuntimeField& field, ser::serialization_type_id& type,
+					uint32_t& fieldSize) noexcept {
+				if (!runtime_primitive_serialization_type(field.type, type))
+					return false;
+
+				const auto elemCount = ComponentCacheItem::field_element_count(field);
+				if (field.type != Char8 && elemCount != 1)
+					return false;
+
+				const auto elemSize = ComponentCacheItem::primitive_type_size(field.type);
+				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
+				const auto end = (uint64_t)field.offset + fieldSize64;
+				if (elemSize == 0 || fieldSize64 > UINT32_MAX || end > item.comp.size())
+					return false;
+
+				fieldSize = (uint32_t)fieldSize64;
+				return true;
+			}
+		} // namespace detail
+
+		//! Serializes a single component instance into flat key/value JSON using runtime field metadata in @a item.
+		//! Returns false when some field types are unsupported or out of bounds (those are emitted as null).
 		inline bool component_to_json(const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
@@ -19,15 +40,17 @@ namespace gaia {
 			const auto* pBase = reinterpret_cast<const uint8_t*>(pComponentData);
 
 			writer.begin_object();
-			for (const auto& field: item.schema) {
+			for (const auto& field: item.fields) {
 				writer.key(field.name);
-				if (field.offset + field.size > item.comp.size()) {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				uint32_t fieldSize = 0;
+				if (!detail::runtime_field_json_layout(item, field, type, fieldSize)) {
 					writer.value_null();
 					ok = false;
 					continue;
 				}
 				const auto* pFieldData = pBase + field.offset;
-				ok = ser::detail::write_schema_field_json(writer, pFieldData, field.type, field.size) && ok;
+				ok = ser::detail::write_runtime_field_json(writer, pFieldData, type, fieldSize) && ok;
 			}
 			writer.end_object();
 
@@ -43,7 +66,7 @@ namespace gaia {
 
 		//! Deserializes a single component instance from a JSON object previously emitted by component_to_json()
 		//! or from a raw payload object in the form {"$raw":[...]}.
-		//! \param item Component metadata and optional runtime schema.
+		//! \param item Component metadata and optional runtime fields.
 		//! \param pComponentData Pointer to destination component memory for exactly one component instance.
 		//! \param reader JSON parser positioned at the beginning of the component JSON value.
 		//! \param diagnostics Receives structured warnings/errors for lossy or unsupported payload content.
@@ -82,15 +105,15 @@ namespace gaia {
 				return false;
 
 			bool rawFound = false;
-			bool schemaFound = false;
+			bool fieldFound = false;
 			ser::ser_buffer_binary rawPayload;
 			auto* pBase = reinterpret_cast<uint8_t*>(pComponentData);
 
 			reader.ws();
 			if (reader.consume('}')) {
 				warn(
-						ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(""),
-						"Component object is empty and contains no schema fields or $raw payload.");
+						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+						"Component object is empty and contains no runtime fields or $raw payload.");
 				return true;
 			}
 
@@ -111,9 +134,9 @@ namespace gaia {
 					rawFound = true;
 					if (!ser::detail::parse_json_byte_array(reader, rawPayload))
 						return false;
-				} else if (item.has_fields() && item.comp.soa() == 0) {
-					const ComponentCacheItem::SchemaField* pField = nullptr;
-					for (const auto& field: item.schema) {
+				} else if (item.field_count() != 0 && item.comp.soa() == 0) {
+					const RuntimeField* pField = nullptr;
+					for (const auto& field: item.fields) {
 						const auto fieldNameLen = (size_t)GAIA_STRLEN(field.name, ComponentCacheItem::MaxNameLength);
 						if (key.size() == fieldNameLen && memcmp(key.data(), field.name, key.size()) == 0) {
 							pField = &field;
@@ -122,31 +145,35 @@ namespace gaia {
 					}
 
 					if (pField == nullptr) {
-						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown schema field.");
-						if (!reader.skip_value())
-							return false;
-					} else if (pField->offset + pField->size > item.comp.size()) {
-						warn(
-								ser::JsonDiagReason::FieldOutOfBounds, make_field_path(key),
-								"Schema field points outside component size.");
+						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown runtime field.");
 						if (!reader.skip_value())
 							return false;
 					} else {
-						schemaFound = true;
-						auto* pFieldData = pBase + pField->offset;
-						bool fieldOk = true;
-						if (!ser::detail::read_schema_field_json(reader, pFieldData, pField->type, pField->size, fieldOk))
-							return false;
-						if (!fieldOk) {
+						ser::serialization_type_id type = ser::serialization_type_id::ignore;
+						uint32_t fieldSize = 0;
+						if (!detail::runtime_field_json_layout(item, *pField, type, fieldSize)) {
 							warn(
-									ser::JsonDiagReason::FieldValueAdjusted, make_field_path(key),
-									"Field value was lossy, truncated, or unsupported for the target schema type.");
+									ser::JsonDiagReason::FieldOutOfBounds, make_field_path(key),
+									"Runtime field points outside component size or uses an unsupported type.");
+							if (!reader.skip_value())
+								return false;
+						} else {
+							fieldFound = true;
+							auto* pFieldData = pBase + pField->offset;
+							bool fieldOk = true;
+							if (!ser::detail::read_runtime_field_json(reader, pFieldData, type, fieldSize, fieldOk))
+								return false;
+							if (!fieldOk) {
+								warn(
+										ser::JsonDiagReason::FieldValueAdjusted, make_field_path(key),
+										"Field value was lossy, truncated, or unsupported for the target runtime field type.");
+							}
 						}
 					}
 				} else {
 					warn(
-							ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(key),
-							"Component schema is unavailable for keyed field payloads.");
+							ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(key),
+							"Runtime field metadata is unavailable for keyed field payloads.");
 					if (!reader.skip_value())
 						return false;
 				}
@@ -172,10 +199,10 @@ namespace gaia {
 				item.load(s, pBase, 0, 1, 1);
 			}
 
-			if (!rawFound && !schemaFound)
+			if (!rawFound && !fieldFound)
 				warn(
-						ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(""),
-						"Component payload contains neither recognized schema fields nor $raw data.");
+						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+						"Component payload contains neither recognized runtime fields nor $raw data.");
 
 			return true;
 		}
@@ -190,9 +217,9 @@ namespace gaia {
 		}
 
 		//! Serializes world state into a JSON document.
-		//! Components with runtime schema are emitted as structured JSON objects.
-		//! Components with no schema fallback to raw serialized bytes.
-		//! Returns false when some schema field types are unsupported (those fields are emitted as null).
+		//! Components with runtime fields are emitted as structured JSON objects.
+		//! Components with no runtime fields fallback to raw serialized bytes.
+		//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
 		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
 			auto write_raw_component = [&](const ComponentCacheItem& item, const uint8_t* pData, uint32_t from, uint32_t to,
 																		 uint32_t cap) {
@@ -310,7 +337,7 @@ namespace gaia {
 
 										const auto row = item.entity.kind() == EntityKind::EK_Uni ? 0U : i;
 
-										if (item.has_fields() && rec.comp.soa() == 0) {
+										if (item.field_count() != 0 && rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
 											ok = ecs::component_to_json(item, pCompData, writer) && ok;
 										} else {

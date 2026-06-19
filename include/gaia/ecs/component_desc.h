@@ -29,17 +29,23 @@ namespace gaia {
 		enum class RuntimePrimitiveKind : uint8_t {
 			None,
 			Bool,
-			I8,
+			S8,
 			U8,
-			I16,
+			S16,
 			U16,
-			I32,
+			S32,
 			U32,
-			I64,
+			S64,
 			U64,
+			Char8,
+			Char16,
+			Char32,
+			WChar,
+			F8,
+			F16,
 			F32,
 			F64,
-			Char8,
+			F128,
 		};
 
 		//! User-authored runtime field descriptor.
@@ -78,7 +84,7 @@ namespace gaia {
 			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
 
 			//! Registered component symbol.
-			util::str_view name{};
+			util::str_view name;
 			//! Component payload size in bytes.
 			uint32_t size = 0;
 			//! Component payload alignment in bytes.

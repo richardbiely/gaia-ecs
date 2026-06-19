@@ -3314,8 +3314,8 @@ namespace gaia {
 
 				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
 				finalize_component_registration(item, false);
-#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
-				auto_populate_component_schema<FT>(comp_cache_mut().get(item.entity));
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+				auto_populate_component_fields<FT>(comp_cache_mut().get(item.entity));
 #endif
 
 				return item;
@@ -8019,9 +8019,9 @@ namespace gaia {
 			}
 
 			//! Serializes world state into a JSON document.
-			//! Components with runtime schema are emitted as structured JSON objects.
-			//! Components with no schema fallback to raw serialized bytes.
-			//! Returns false when some schema field types are unsupported (those fields are emitted as null).
+			//! Components with runtime fields are emitted as structured JSON objects.
+			//! Components with no runtime fields fallback to raw serialized bytes.
+			//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
 			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Convenience overload returning JSON as a string.
@@ -10940,9 +10940,22 @@ namespace gaia {
 				return ci;
 			}
 
-#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
 			template <typename T>
-			static void auto_populate_component_schema(ComponentCacheItem& item) {
+			static Entity auto_component_field_type() noexcept {
+				using U = core::raw_t<T>;
+				if constexpr (std::is_same_v<U, bool>)
+					return Bool;
+				else if constexpr (std::is_same_v<U, char>)
+					return Char8;
+				else if constexpr (std::is_arithmetic_v<U>)
+					return runtime_primitive_type_entity(ser::type_id<U>());
+				else
+					return EntityBad;
+			}
+
+			template <typename T>
+			static void auto_populate_component_fields(ComponentCacheItem& item) {
 				if (!item.fields_empty())
 					return;
 
@@ -10953,7 +10966,9 @@ namespace gaia {
 					return;
 
 				if constexpr (!std::is_class_v<U>) {
-					(void)item.set_field("value", 5, ser::type_id<U>(), 0, (uint32_t)sizeof(U));
+					const auto fieldType = auto_component_field_type<U>();
+					if (fieldType != EntityBad)
+						(void)item.add_field({util::str_view("value", 5), fieldType, 0, 0});
 					return;
 				} else if constexpr (!std::is_aggregate_v<U>) {
 					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
@@ -10970,7 +10985,9 @@ namespace gaia {
 							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
 							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
 							const auto offset = (uint32_t)(pField - pBase);
-							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
+							const auto fieldType = auto_component_field_type<F>();
+							if (fieldType != EntityBad)
+								(void)item.add_field({util::str_view(fieldName), fieldType, offset, 0});
 						};
 						(add(fields), ...);
 					});
@@ -11431,18 +11448,23 @@ namespace gaia {
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
 
-				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
-				(void)reg_core_primitive_type(I8, "gaia::ecs::I8", 13, 1, RuntimePrimitiveKind::I8);
+				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1, RuntimePrimitiveKind::S8);
 				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
-				(void)reg_core_primitive_type(I16, "gaia::ecs::I16", 14, 2, RuntimePrimitiveKind::I16);
+				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2, RuntimePrimitiveKind::S16);
 				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
-				(void)reg_core_primitive_type(I32, "gaia::ecs::I32", 14, 4, RuntimePrimitiveKind::I32);
+				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4, RuntimePrimitiveKind::S32);
 				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
-				(void)reg_core_primitive_type(I64, "gaia::ecs::I64", 14, 8, RuntimePrimitiveKind::I64);
+				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8, RuntimePrimitiveKind::S64);
 				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
+				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
+				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
+				(void)reg_core_primitive_type(WChar, "gaia::ecs::WChar", 16, 8, RuntimePrimitiveKind::WChar);
+				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
+				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
 				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
 				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
-				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 			}
 
 			// Add special properties for core components.
@@ -11580,40 +11602,55 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 
-				EntityBuilder(*this, Bool) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I8) //
+				EntityBuilder(*this, S8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I16) //
+				EntityBuilder(*this, S16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I32) //
+				EntityBuilder(*this, S32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I64) //
+				EntityBuilder(*this, S64) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Bool) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, WChar) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F64) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, Char8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}

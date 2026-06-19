@@ -36,7 +36,6 @@ namespace gaia {
 			f16 = 15,
 			f32 = 16,
 			f64 = 17,
-			f128 = 18,
 
 			// Special
 			special_begin = 19,
@@ -75,7 +74,6 @@ namespace gaia {
 					2, // f16
 					4, // f32
 					8, // f64
-					16, // f128
 
 					// Special
 					size, // trivial_wrapper
@@ -160,10 +158,8 @@ namespace gaia {
 			// } else
 			if constexpr (std::is_same_v<float, T>) {
 				return serialization_type_id::f32;
-			} else if constexpr (std::is_same_v<double, T>) {
+			} else { //if constexpr (std::is_same_v<double, T>) {
 				return serialization_type_id::f64;
-			} else { // if constexpr (std::is_same_v<long double, T>) {
-				return serialization_type_id::f128;
 			}
 		}
 

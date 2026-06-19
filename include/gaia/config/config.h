@@ -102,9 +102,9 @@
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
-//! If enabled, every registered compile-time component will have its schema registered automatically.
-#ifndef GAIA_ECS_AUTO_COMPONENT_SCHEMA
-	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
+//! If enabled, every registered compile-time component will have runtime fields registered automatically.
+#ifndef GAIA_ECS_AUTO_COMPONENT_FIELDS
+	#define GAIA_ECS_AUTO_COMPONENT_FIELDS 0
 #endif
 
 //! If enabled, typed APIs may implicitly register missing components using the default component form.

@@ -791,9 +791,9 @@ namespace gaia {
 	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
 #endif
 
-//! If enabled, every registered compile-time component will have its schema registered automatically.
-#ifndef GAIA_ECS_AUTO_COMPONENT_SCHEMA
-	#define GAIA_ECS_AUTO_COMPONENT_SCHEMA 0
+//! If enabled, every registered compile-time component will have runtime fields registered automatically.
+#ifndef GAIA_ECS_AUTO_COMPONENT_FIELDS
+	#define GAIA_ECS_AUTO_COMPONENT_FIELDS 0
 #endif
 
 //! If enabled, typed APIs may implicitly register missing components using the default component form.
@@ -13350,7 +13350,6 @@ namespace gaia {
 			f16 = 15,
 			f32 = 16,
 			f64 = 17,
-			f128 = 18,
 
 			// Special
 			special_begin = 19,
@@ -13389,7 +13388,6 @@ namespace gaia {
 					2, // f16
 					4, // f32
 					8, // f64
-					16, // f128
 
 					// Special
 					size, // trivial_wrapper
@@ -13474,10 +13472,8 @@ namespace gaia {
 			// } else
 			if constexpr (std::is_same_v<float, T>) {
 				return serialization_type_id::f32;
-			} else if constexpr (std::is_same_v<double, T>) {
+			} else { // if constexpr (std::is_same_v<double, T>) {
 				return serialization_type_id::f64;
-			} else { // if constexpr (std::is_same_v<long double, T>) {
-				return serialization_type_id::f128;
 			}
 		}
 
@@ -23297,7 +23293,7 @@ namespace gaia {
 			FieldValueAdjusted,
 			TagValueIgnored,
 			NullComponentPayload,
-			MissingSchemaOrRawPayload,
+			MissingRuntimeFieldsOrRawPayload,
 			SoaRawUnsupported,
 			UnknownComponent,
 			TagComponentUnsupported,
@@ -23805,7 +23801,7 @@ namespace gaia {
 			}
 
 			template <typename TInt>
-			inline bool read_schema_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+			inline bool read_runtime_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -23837,7 +23833,7 @@ namespace gaia {
 			}
 
 			template <typename TFloat>
-			inline bool read_schema_field_json_float(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+			inline bool read_runtime_field_json_float(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -23855,7 +23851,7 @@ namespace gaia {
 			}
 
 			inline bool
-			write_schema_field_json(ser_json& writer, const uint8_t* pFieldData, serialization_type_id type, uint32_t size) {
+			write_runtime_field_json(ser_json& writer, const uint8_t* pFieldData, serialization_type_id type, uint32_t size) {
 				switch (type) {
 					case serialization_type_id::s8: {
 						int8_t v = 0;
@@ -23934,7 +23930,7 @@ namespace gaia {
 				}
 			}
 
-			inline bool read_schema_field_json(
+			inline bool read_runtime_field_json(
 					ser_json& reader, uint8_t* pFieldData, serialization_type_id type, uint32_t size, bool& ok) {
 				if (reader.parse_null()) {
 					ok = false;
@@ -23943,34 +23939,34 @@ namespace gaia {
 
 				switch (type) {
 					case serialization_type_id::s8: {
-						return read_schema_field_json_int<int8_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int8_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u8: {
-						return read_schema_field_json_int<uint8_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint8_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s16: {
-						return read_schema_field_json_int<int16_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int16_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u16: {
-						return read_schema_field_json_int<uint16_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint16_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s32: {
-						return read_schema_field_json_int<int32_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int32_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u32: {
-						return read_schema_field_json_int<uint32_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint32_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s64: {
-						return read_schema_field_json_int<int64_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int64_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u64: {
-						return read_schema_field_json_int<uint64_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint64_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::f32: {
-						return read_schema_field_json_float<float>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_float<float>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::f64: {
-						return read_schema_field_json_float<double>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_float<double>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::b: {
 						bool v = false;
@@ -28322,19 +28318,51 @@ namespace gaia {
 		inline Entity Var5 = Entity(32, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var6 = Entity(33, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Var7 = Entity(34, 0, false, false, EntityKind::EK_Gen);
-		// Runtime primitive type entities
-		inline Entity Bool = Entity(35, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I8 = Entity(36, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U8 = Entity(37, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I16 = Entity(38, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U16 = Entity(39, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I32 = Entity(40, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U32 = Entity(41, 0, false, false, EntityKind::EK_Gen);
-		inline Entity I64 = Entity(42, 0, false, false, EntityKind::EK_Gen);
-		inline Entity U64 = Entity(43, 0, false, false, EntityKind::EK_Gen);
-		inline Entity F32 = Entity(44, 0, false, false, EntityKind::EK_Gen);
-		inline Entity F64 = Entity(45, 0, false, false, EntityKind::EK_Gen);
-		inline Entity Char8 = Entity(46, 0, false, false, EntityKind::EK_Gen);
+		// Runtime primitive type entities. Supported entity ids are aligned with ser::serialization_type_id:
+		// runtime_primitive_type_entity(t).id() == RuntimePrimitiveTypeBaseId + (uint32_t)t.
+		inline constexpr uint32_t RuntimePrimitiveTypeBaseId = 34;
+
+		GAIA_NODISCARD inline bool is_runtime_primitive_serialization_type_id(uint32_t typeId) noexcept {
+			return typeId >= (uint32_t)ser::serialization_type_id::s8 && typeId <= (uint32_t)ser::serialization_type_id::f64;
+		}
+
+		GAIA_NODISCARD inline Entity runtime_primitive_type_entity(ser::serialization_type_id type) noexcept {
+			const auto typeId = (uint32_t)type;
+			if (!is_runtime_primitive_serialization_type_id(typeId))
+				return EntityBad;
+			return Entity((EntityId)(RuntimePrimitiveTypeBaseId + typeId), 0, false, false, EntityKind::EK_Gen);
+		}
+
+		GAIA_NODISCARD inline bool
+		runtime_primitive_serialization_type(Entity type, ser::serialization_type_id& out) noexcept {
+			if (type.pair())
+				return false;
+
+			const auto typeId = type.id() - RuntimePrimitiveTypeBaseId;
+			if (!is_runtime_primitive_serialization_type_id(typeId))
+				return false;
+
+			out = (ser::serialization_type_id)typeId;
+			return true;
+		}
+
+		inline Entity S8 = runtime_primitive_type_entity(ser::serialization_type_id::s8);
+		inline Entity U8 = runtime_primitive_type_entity(ser::serialization_type_id::u8);
+		inline Entity S16 = runtime_primitive_type_entity(ser::serialization_type_id::s16);
+		inline Entity U16 = runtime_primitive_type_entity(ser::serialization_type_id::u16);
+		inline Entity S32 = runtime_primitive_type_entity(ser::serialization_type_id::s32);
+		inline Entity U32 = runtime_primitive_type_entity(ser::serialization_type_id::u32);
+		inline Entity S64 = runtime_primitive_type_entity(ser::serialization_type_id::s64);
+		inline Entity U64 = runtime_primitive_type_entity(ser::serialization_type_id::u64);
+		inline Entity Bool = runtime_primitive_type_entity(ser::serialization_type_id::b);
+		inline Entity Char8 = runtime_primitive_type_entity(ser::serialization_type_id::c8);
+		inline Entity Char16 = runtime_primitive_type_entity(ser::serialization_type_id::c16);
+		inline Entity Char32 = runtime_primitive_type_entity(ser::serialization_type_id::c32);
+		inline Entity WChar = runtime_primitive_type_entity(ser::serialization_type_id::cw);
+		inline Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);
+		inline Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);
+		inline Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);
+		inline Entity F64 = runtime_primitive_type_entity(ser::serialization_type_id::f64);
 		inline static constexpr uint32_t MaxVarCnt = 8;
 
 		// Core component ids are append-only.
@@ -28347,7 +28375,7 @@ namespace gaia {
 		//
 		// Reordering or removing core components is not supported by this compatibility path.
 		// Always has to match the last internal entity.
-		inline Entity GAIA_ID(LastCoreComponent) = Char8;
+		inline Entity GAIA_ID(LastCoreComponent) = F64;
 
 		//----------------------------------------------------------------------
 		// Helper functions
@@ -29632,17 +29660,23 @@ namespace gaia {
 		enum class RuntimePrimitiveKind : uint8_t {
 			None,
 			Bool,
-			I8,
+			S8,
 			U8,
-			I16,
+			S16,
 			U16,
-			I32,
+			S32,
 			U32,
-			I64,
+			S64,
 			U64,
+			Char8,
+			Char16,
+			Char32,
+			WChar,
+			F8,
+			F16,
 			F32,
 			F64,
-			Char8,
+			F128,
 		};
 
 		//! User-authored runtime field descriptor.
@@ -29681,7 +29715,7 @@ namespace gaia {
 			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
 
 			//! Registered component symbol.
-			util::str_view name{};
+			util::str_view name;
 			//! Component payload size in bytes.
 			uint32_t size = 0;
 			//! Component payload alignment in bytes.
@@ -29944,13 +29978,6 @@ namespace gaia {
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
 			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
-			struct SchemaField {
-				char name[MaxNameLength]{};
-				ser::serialization_type_id type = ser::serialization_type_id::u8;
-				uint32_t offset = 0;
-				uint32_t size = 0;
-			};
-
 			using RuntimeField = ecs::RuntimeField;
 
 			//! Component item registration context.
@@ -30039,7 +30066,6 @@ namespace gaia {
 			};
 			Hooks comp_hooks;
 #endif
-			cnt::darray<SchemaField> schema;
 			cnt::darray<RuntimeField> fields;
 
 		private:
@@ -30189,41 +30215,12 @@ namespace gaia {
 				}
 			}
 
-			GAIA_NODISCARD bool set_field(
-					const char* fieldName, uint32_t len, ser::serialization_type_id type, uint32_t fieldOffset,
-					uint32_t fieldSize) {
-				if (fieldName == nullptr || fieldName[0] == 0)
-					return false;
-
-				const auto fieldLen = len == 0 ? (uint32_t)GAIA_STRLEN(fieldName, MaxNameLength) : len;
-				if (fieldLen == 0 || fieldLen >= MaxNameLength)
-					return false;
-
-				for (auto& f: schema) {
-					if (strncmp(f.name, fieldName, fieldLen) == 0 && f.name[fieldLen] == 0) {
-						f.type = type;
-						f.offset = fieldOffset;
-						f.size = fieldSize;
-						return true;
-					}
-				}
-
-				SchemaField f{};
-				memcpy((void*)f.name, (const void*)fieldName, fieldLen);
-				f.name[fieldLen] = 0;
-				f.type = type;
-				f.offset = fieldOffset;
-				f.size = fieldSize;
-				schema.push_back(f);
-				return true;
-			}
-
 			void clear_fields() {
-				schema.clear();
+				fields.clear();
 			}
 
 			GAIA_NODISCARD bool has_fields() const {
-				return !schema.empty();
+				return !fields.empty();
 			}
 
 			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
@@ -30235,15 +30232,10 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
-				if (type == Bool || type == I8 || type == U8 || type == Char8)
-					return 1;
-				if (type == I16 || type == U16)
-					return 2;
-				if (type == I32 || type == U32 || type == F32)
-					return 4;
-				if (type == I64 || type == U64 || type == F64)
-					return 8;
-				return 0;
+				ser::serialization_type_id id = ser::serialization_type_id::ignore;
+				if (!runtime_primitive_serialization_type(type, id))
+					return 0;
+				return ser::serialization_type_size(id, 0);
 			}
 
 			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
@@ -55563,9 +55555,9 @@ namespace gaia {
 
 			GAIA_NODISCARD bool has_observers_for_term(Entity term) const {
 				const auto termKey = EntityLookupKey(term);
-				return m_observer_map_add.find(termKey) != m_observer_map_add.end() ||
-							 m_observer_map_del.find(termKey) != m_observer_map_del.end() ||
-							 m_observer_map_set.find(termKey) != m_observer_map_set.end();
+				return observer_map_has_observers(m_observer_map_add, termKey) ||
+							 observer_map_has_observers(m_observer_map_del, termKey) ||
+							 observer_map_has_observers(m_observer_map_set, termKey);
 			}
 
 			GAIA_NODISCARD static bool can_mark_term_observed(World& world, Entity term);
@@ -55605,6 +55597,18 @@ namespace gaia {
 					else
 						++i;
 				}
+			}
+			template <typename TObserverMap>
+			GAIA_NODISCARD bool observer_map_has_observers(const TObserverMap& map, const EntityLookupKey& termKey) const {
+				const auto it = map.find(termKey);
+				if (it == map.end())
+					return false;
+
+				for (const auto observer: it->second) {
+					if (m_observer_data.find(EntityLookupKey(observer)) != m_observer_data.end())
+						return true;
+				}
+				return false;
 			}
 
 			static void collect_traversal_descendants(
@@ -59133,8 +59137,8 @@ namespace gaia {
 
 				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
 				finalize_component_registration(item, false);
-#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
-				auto_populate_component_schema<FT>(comp_cache_mut().get(item.entity));
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+				auto_populate_component_fields<FT>(comp_cache_mut().get(item.entity));
 #endif
 
 				return item;
@@ -63838,9 +63842,9 @@ namespace gaia {
 			}
 
 			//! Serializes world state into a JSON document.
-			//! Components with runtime schema are emitted as structured JSON objects.
-			//! Components with no schema fallback to raw serialized bytes.
-			//! Returns false when some schema field types are unsupported (those fields are emitted as null).
+			//! Components with runtime fields are emitted as structured JSON objects.
+			//! Components with no runtime fields fallback to raw serialized bytes.
+			//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
 			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Convenience overload returning JSON as a string.
@@ -66759,9 +66763,22 @@ namespace gaia {
 				return ci;
 			}
 
-#if GAIA_ECS_AUTO_COMPONENT_SCHEMA
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
 			template <typename T>
-			static void auto_populate_component_schema(ComponentCacheItem& item) {
+			static Entity auto_component_field_type() noexcept {
+				using U = core::raw_t<T>;
+				if constexpr (std::is_same_v<U, bool>)
+					return Bool;
+				else if constexpr (std::is_same_v<U, char>)
+					return Char8;
+				else if constexpr (std::is_arithmetic_v<U>)
+					return runtime_primitive_type_entity(ser::type_id<U>());
+				else
+					return EntityBad;
+			}
+
+			template <typename T>
+			static void auto_populate_component_fields(ComponentCacheItem& item) {
 				if (!item.fields_empty())
 					return;
 
@@ -66772,7 +66789,9 @@ namespace gaia {
 					return;
 
 				if constexpr (!std::is_class_v<U>) {
-					(void)item.set_field("value", 5, ser::type_id<U>(), 0, (uint32_t)sizeof(U));
+					const auto fieldType = auto_component_field_type<U>();
+					if (fieldType != EntityBad)
+						(void)item.add_field({util::str_view("value", 5), fieldType, 0, 0});
 					return;
 				} else if constexpr (!std::is_aggregate_v<U>) {
 					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
@@ -66789,7 +66808,9 @@ namespace gaia {
 							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
 							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
 							const auto offset = (uint32_t)(pField - pBase);
-							(void)item.set_field(fieldName, 0, ser::type_id<F>(), offset, (uint32_t)sizeof(F));
+							const auto fieldType = auto_component_field_type<F>();
+							if (fieldType != EntityBad)
+								(void)item.add_field({util::str_view(fieldName), fieldType, offset, 0});
 						};
 						(add(fields), ...);
 					});
@@ -70173,18 +70194,23 @@ namespace gaia {
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
 
-				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
-				(void)reg_core_primitive_type(I8, "gaia::ecs::I8", 13, 1, RuntimePrimitiveKind::I8);
+				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1, RuntimePrimitiveKind::S8);
 				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
-				(void)reg_core_primitive_type(I16, "gaia::ecs::I16", 14, 2, RuntimePrimitiveKind::I16);
+				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2, RuntimePrimitiveKind::S16);
 				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
-				(void)reg_core_primitive_type(I32, "gaia::ecs::I32", 14, 4, RuntimePrimitiveKind::I32);
+				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4, RuntimePrimitiveKind::S32);
 				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
-				(void)reg_core_primitive_type(I64, "gaia::ecs::I64", 14, 8, RuntimePrimitiveKind::I64);
+				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8, RuntimePrimitiveKind::S64);
 				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
+				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
+				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
+				(void)reg_core_primitive_type(WChar, "gaia::ecs::WChar", 16, 8, RuntimePrimitiveKind::WChar);
+				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
+				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
 				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
 				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
-				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 			}
 
 			// Add special properties for core components.
@@ -70322,40 +70348,55 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 
-				EntityBuilder(*this, Bool) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I8) //
+				EntityBuilder(*this, S8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I16) //
+				EntityBuilder(*this, S16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I32) //
+				EntityBuilder(*this, S32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, I64) //
+				EntityBuilder(*this, S64) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, U64) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Bool) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char16) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, Char32) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, WChar) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F8) //
+						.add(Core)
+						.add(Pair(OnDelete, Error));
+				EntityBuilder(*this, F16) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F32) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F64) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, Char8) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 			}
@@ -70459,9 +70500,30 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
-		//! Serializes a single component instance into JSON using runtime schema data in @a item.
-		//! Field names are emitted as-is from ComponentCacheItem::schema (flat key/value JSON object).
-		//! Returns false when some field types are unsupported (those are emitted as null).
+		namespace detail {
+			inline bool runtime_field_json_layout(
+					const ComponentCacheItem& item, const RuntimeField& field, ser::serialization_type_id& type,
+					uint32_t& fieldSize) noexcept {
+				if (!runtime_primitive_serialization_type(field.type, type))
+					return false;
+
+				const auto elemCount = ComponentCacheItem::field_element_count(field);
+				if (field.type != Char8 && elemCount != 1)
+					return false;
+
+				const auto elemSize = ComponentCacheItem::primitive_type_size(field.type);
+				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
+				const auto end = (uint64_t)field.offset + fieldSize64;
+				if (elemSize == 0 || fieldSize64 > UINT32_MAX || end > item.comp.size())
+					return false;
+
+				fieldSize = (uint32_t)fieldSize64;
+				return true;
+			}
+		} // namespace detail
+
+		//! Serializes a single component instance into flat key/value JSON using runtime field metadata in @a item.
+		//! Returns false when some field types are unsupported or out of bounds (those are emitted as null).
 		inline bool component_to_json(const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
@@ -70471,15 +70533,17 @@ namespace gaia {
 			const auto* pBase = reinterpret_cast<const uint8_t*>(pComponentData);
 
 			writer.begin_object();
-			for (const auto& field: item.schema) {
+			for (const auto& field: item.fields) {
 				writer.key(field.name);
-				if (field.offset + field.size > item.comp.size()) {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				uint32_t fieldSize = 0;
+				if (!detail::runtime_field_json_layout(item, field, type, fieldSize)) {
 					writer.value_null();
 					ok = false;
 					continue;
 				}
 				const auto* pFieldData = pBase + field.offset;
-				ok = ser::detail::write_schema_field_json(writer, pFieldData, field.type, field.size) && ok;
+				ok = ser::detail::write_runtime_field_json(writer, pFieldData, type, fieldSize) && ok;
 			}
 			writer.end_object();
 
@@ -70495,7 +70559,7 @@ namespace gaia {
 
 		//! Deserializes a single component instance from a JSON object previously emitted by component_to_json()
 		//! or from a raw payload object in the form {"$raw":[...]}.
-		//! \param item Component metadata and optional runtime schema.
+		//! \param item Component metadata and optional runtime fields.
 		//! \param pComponentData Pointer to destination component memory for exactly one component instance.
 		//! \param reader JSON parser positioned at the beginning of the component JSON value.
 		//! \param diagnostics Receives structured warnings/errors for lossy or unsupported payload content.
@@ -70534,15 +70598,15 @@ namespace gaia {
 				return false;
 
 			bool rawFound = false;
-			bool schemaFound = false;
+			bool fieldFound = false;
 			ser::ser_buffer_binary rawPayload;
 			auto* pBase = reinterpret_cast<uint8_t*>(pComponentData);
 
 			reader.ws();
 			if (reader.consume('}')) {
 				warn(
-						ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(""),
-						"Component object is empty and contains no schema fields or $raw payload.");
+						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+						"Component object is empty and contains no runtime fields or $raw payload.");
 				return true;
 			}
 
@@ -70563,9 +70627,9 @@ namespace gaia {
 					rawFound = true;
 					if (!ser::detail::parse_json_byte_array(reader, rawPayload))
 						return false;
-				} else if (item.has_fields() && item.comp.soa() == 0) {
-					const ComponentCacheItem::SchemaField* pField = nullptr;
-					for (const auto& field: item.schema) {
+				} else if (item.field_count() != 0 && item.comp.soa() == 0) {
+					const RuntimeField* pField = nullptr;
+					for (const auto& field: item.fields) {
 						const auto fieldNameLen = (size_t)GAIA_STRLEN(field.name, ComponentCacheItem::MaxNameLength);
 						if (key.size() == fieldNameLen && memcmp(key.data(), field.name, key.size()) == 0) {
 							pField = &field;
@@ -70574,31 +70638,35 @@ namespace gaia {
 					}
 
 					if (pField == nullptr) {
-						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown schema field.");
-						if (!reader.skip_value())
-							return false;
-					} else if (pField->offset + pField->size > item.comp.size()) {
-						warn(
-								ser::JsonDiagReason::FieldOutOfBounds, make_field_path(key),
-								"Schema field points outside component size.");
+						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown runtime field.");
 						if (!reader.skip_value())
 							return false;
 					} else {
-						schemaFound = true;
-						auto* pFieldData = pBase + pField->offset;
-						bool fieldOk = true;
-						if (!ser::detail::read_schema_field_json(reader, pFieldData, pField->type, pField->size, fieldOk))
-							return false;
-						if (!fieldOk) {
+						ser::serialization_type_id type = ser::serialization_type_id::ignore;
+						uint32_t fieldSize = 0;
+						if (!detail::runtime_field_json_layout(item, *pField, type, fieldSize)) {
 							warn(
-									ser::JsonDiagReason::FieldValueAdjusted, make_field_path(key),
-									"Field value was lossy, truncated, or unsupported for the target schema type.");
+									ser::JsonDiagReason::FieldOutOfBounds, make_field_path(key),
+									"Runtime field points outside component size or uses an unsupported type.");
+							if (!reader.skip_value())
+								return false;
+						} else {
+							fieldFound = true;
+							auto* pFieldData = pBase + pField->offset;
+							bool fieldOk = true;
+							if (!ser::detail::read_runtime_field_json(reader, pFieldData, type, fieldSize, fieldOk))
+								return false;
+							if (!fieldOk) {
+								warn(
+										ser::JsonDiagReason::FieldValueAdjusted, make_field_path(key),
+										"Field value was lossy, truncated, or unsupported for the target runtime field type.");
+							}
 						}
 					}
 				} else {
 					warn(
-							ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(key),
-							"Component schema is unavailable for keyed field payloads.");
+							ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(key),
+							"Runtime field metadata is unavailable for keyed field payloads.");
 					if (!reader.skip_value())
 						return false;
 				}
@@ -70624,10 +70692,10 @@ namespace gaia {
 				item.load(s, pBase, 0, 1, 1);
 			}
 
-			if (!rawFound && !schemaFound)
+			if (!rawFound && !fieldFound)
 				warn(
-						ser::JsonDiagReason::MissingSchemaOrRawPayload, make_field_path(""),
-						"Component payload contains neither recognized schema fields nor $raw data.");
+						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+						"Component payload contains neither recognized runtime fields nor $raw data.");
 
 			return true;
 		}
@@ -70642,9 +70710,9 @@ namespace gaia {
 		}
 
 		//! Serializes world state into a JSON document.
-		//! Components with runtime schema are emitted as structured JSON objects.
-		//! Components with no schema fallback to raw serialized bytes.
-		//! Returns false when some schema field types are unsupported (those fields are emitted as null).
+		//! Components with runtime fields are emitted as structured JSON objects.
+		//! Components with no runtime fields fallback to raw serialized bytes.
+		//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
 		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
 			auto write_raw_component = [&](const ComponentCacheItem& item, const uint8_t* pData, uint32_t from, uint32_t to,
 																		 uint32_t cap) {
@@ -70762,7 +70830,7 @@ namespace gaia {
 
 										const auto row = item.entity.kind() == EntityKind::EK_Uni ? 0U : i;
 
-										if (item.has_fields() && rec.comp.soa() == 0) {
+										if (item.field_count() != 0 && rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
 											ok = ecs::component_to_json(item, pCompData, writer) && ok;
 										} else {

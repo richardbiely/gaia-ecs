@@ -113,6 +113,41 @@ inline const ecs::ComponentCacheItem& add_runtime_component(
 			entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), scopePath);
 }
 
+inline ecs::Entity runtime_field_type_from_json_type(ser::serialization_type_id type) {
+	return ecs::runtime_primitive_type_entity(type);
+}
+
+inline bool add_runtime_field(
+		ecs::ComponentCacheItem& item, const char* fieldName, uint32_t len, ser::serialization_type_id type,
+		uint32_t fieldOffset, uint32_t fieldSize) {
+	if (fieldName == nullptr || fieldName[0] == 0)
+		return false;
+
+	const auto fieldLen = len == 0 ? (uint32_t)GAIA_STRLEN(fieldName, ecs::ComponentCacheItem::MaxNameLength) : len;
+	if (fieldLen == 0 || fieldLen >= ecs::ComponentCacheItem::MaxNameLength)
+		return false;
+
+	const auto fieldType = runtime_field_type_from_json_type(type);
+	const auto fieldCount = fieldType == ecs::Char8 ? fieldSize : 0U;
+	for (auto& field: item.fields) {
+		if (strncmp(field.name, fieldName, fieldLen) == 0 && field.name[fieldLen] == 0) {
+			field.type = fieldType;
+			field.offset = fieldOffset;
+			field.count = fieldCount;
+			return true;
+		}
+	}
+
+	ecs::RuntimeField field{};
+	memcpy((void*)field.name, (const void*)fieldName, fieldLen);
+	field.name[fieldLen] = 0;
+	field.type = fieldType;
+	field.offset = fieldOffset;
+	field.count = fieldCount;
+	item.fields.push_back(field);
+	return true;
+}
+
 //! World wrapper for test purposes.
 //! The wrapped world handles teardown on destruction; tests can still call update()
 //! repeatedly when they want to flush regular frame maintenance explicitly.

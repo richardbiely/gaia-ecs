@@ -35,7 +35,7 @@ namespace gaia {
 			FieldValueAdjusted,
 			TagValueIgnored,
 			NullComponentPayload,
-			MissingSchemaOrRawPayload,
+			MissingRuntimeFieldsOrRawPayload,
 			SoaRawUnsupported,
 			UnknownComponent,
 			TagComponentUnsupported,
@@ -543,7 +543,7 @@ namespace gaia {
 			}
 
 			template <typename TInt>
-			inline bool read_schema_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+			inline bool read_runtime_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -575,7 +575,7 @@ namespace gaia {
 			}
 
 			template <typename TFloat>
-			inline bool read_schema_field_json_float(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+			inline bool read_runtime_field_json_float(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -593,7 +593,7 @@ namespace gaia {
 			}
 
 			inline bool
-			write_schema_field_json(ser_json& writer, const uint8_t* pFieldData, serialization_type_id type, uint32_t size) {
+			write_runtime_field_json(ser_json& writer, const uint8_t* pFieldData, serialization_type_id type, uint32_t size) {
 				switch (type) {
 					case serialization_type_id::s8: {
 						int8_t v = 0;
@@ -672,7 +672,7 @@ namespace gaia {
 				}
 			}
 
-			inline bool read_schema_field_json(
+			inline bool read_runtime_field_json(
 					ser_json& reader, uint8_t* pFieldData, serialization_type_id type, uint32_t size, bool& ok) {
 				if (reader.parse_null()) {
 					ok = false;
@@ -681,34 +681,34 @@ namespace gaia {
 
 				switch (type) {
 					case serialization_type_id::s8: {
-						return read_schema_field_json_int<int8_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int8_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u8: {
-						return read_schema_field_json_int<uint8_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint8_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s16: {
-						return read_schema_field_json_int<int16_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int16_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u16: {
-						return read_schema_field_json_int<uint16_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint16_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s32: {
-						return read_schema_field_json_int<int32_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int32_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u32: {
-						return read_schema_field_json_int<uint32_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint32_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::s64: {
-						return read_schema_field_json_int<int64_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<int64_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::u64: {
-						return read_schema_field_json_int<uint64_t>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_int<uint64_t>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::f32: {
-						return read_schema_field_json_float<float>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_float<float>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::f64: {
-						return read_schema_field_json_float<double>(reader, pFieldData, size, ok);
+						return read_runtime_field_json_float<double>(reader, pFieldData, size, ok);
 					}
 					case serialization_type_id::b: {
 						bool v = false;
