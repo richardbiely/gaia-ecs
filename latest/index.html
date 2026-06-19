@@ -617,15 +617,37 @@ Add or remove component</h3>
 <li>Components must be default-constructible (either the default constructor is present or you provide one yourself). If your component contains members that are not default-constructible (e.g. from a 3rd party library that is beyond your control), you need to work this around. You will need to store a pointer, or come up with different means of accessing this data.</li>
 <li>Implicit registration only creates the default component form. If a component needs non-default traits such as <code>ecs::Sparse</code> or <code>ecs::DontFragment</code>, register it explicitly first and then apply the trait to the component entity. Implicit registration can also be disabled entirely with <code>GAIA_ECS_AUTO_COMPONENT_REGISTRATION</code>.</li>
 </ul>
-<p>Runtime component registration uses explicit component metadata:</p>
-<div class="fragment"><div class="line">ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};</div>
-<div class="line">ctx.name = <span class="stringliteral">&quot;Cooldown&quot;</span>;</div>
-<div class="line">ctx.size = 4;</div>
-<div class="line">ctx.alig = 4;</div>
-<div class="line">ctx.storageType = ecs::DataStorageType::Table;</div>
+<p>You can also register components from data you load at runtime. This is useful for editors, mods, importers, and save formats that define component layouts outside C++ code.</p>
+<div class="fragment"><div class="line">ecs::Entity cooldownComponent = w.add();</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">const</span> ecs::ComponentCacheItem&amp; cooldownCI = w.add(ctx);</div>
-</div><!-- fragment --><h3><a class="anchor" id="component-hooks"></a>
+<div class="line">ecs::ComponentDesc desc{};</div>
+<div class="line">desc.name = <span class="stringliteral">&quot;Cooldown&quot;</span>;</div>
+<div class="line">desc.size = <span class="keyword">sizeof</span>(float);</div>
+<div class="line">desc.alig = <span class="keyword">alignof</span>(float);</div>
+<div class="line">desc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentCache&amp; cc = w.comp_cache_mut();</div>
+<div class="line"><span class="keyword">const</span> ecs::ComponentCacheItem&amp; cooldownCI = cc.add(cooldownComponent, desc);</div>
+</div><!-- fragment --><p>You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as <code>ecs::F32</code> or <code>ecs::S32</code>, a byte offset, and a count. Use count <code>0</code> for one scalar value. Use a positive count for a fixed inline array.</p>
+<div class="fragment"><div class="line"><span class="keywordflow">if</span> (!cc.add_field(cooldownCI.entity, {<span class="stringliteral">&quot;seconds&quot;</span>, ecs::F32, 0, 0})) {</div>
+<div class="line">  <span class="comment">// The field type or byte range is invalid.</span></div>
+<div class="line">}</div>
+</div><!-- fragment --><p>Once the component is registered, you can add and edit it without a C++ component type:</p>
+<div class="fragment"><div class="line">ecs::Entity e = w.add();</div>
+<div class="line"><span class="keywordtype">float</span> seconds = 2.5f;</div>
+<div class="line"><span class="keywordflow">if</span> (!w.add_raw(e, cooldownCI.entity, &amp;seconds, <span class="keyword">sizeof</span>(seconds))) {</div>
+<div class="line">  <span class="comment">// The entity, component, or payload size is invalid.</span></div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);</div>
+<div class="line"><span class="keywordflow">if</span> (cursor.field(<span class="stringliteral">&quot;seconds&quot;</span>)) {</div>
+<div class="line">  seconds = 1.0f;</div>
+<div class="line">  <span class="keywordflow">if</span> (cursor.write_bytes(&amp;seconds, <span class="keyword">sizeof</span>(seconds)) != ecs::ComponentWriteResult::Ok) {</div>
+<div class="line">    <span class="comment">// The selected field cannot be written.</span></div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> return byte views for table AoS runtime components and tags. <code>mut_raw(...)</code> is a silent write path. Call <code>modify_raw(...)</code> after direct byte writes when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies a full payload and emits the write notification for you. <code>ComponentCursor::write_bytes(...)</code> writes the selected field and finishes the component write automatically.</p>
+<h3><a class="anchor" id="component-hooks"></a>
 Component hooks</h3>
 <p>It is possible to register add/del/set hooks for components. When a given component is added to an entity, deleted from it, or the value is set the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component. Component hooks are unique. Each component can have at most one add hook, and one delete hook.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
@@ -2824,7 +2846,7 @@ Serialization</h2>
 </ul>
 <p>Recommended JSON API surface:</p><ul>
 <li><code>ser::ser_json</code> for low-level JSON token writing/parsing</li>
-<li><code>ecs::component_to_json</code> / <code>ecs::json_to_component</code> for runtime-schema component payloads</li>
+<li><code>ecs::component_to_json</code> / <code>ecs::json_to_component</code> for runtime component payloads with registered fields registered through <code>ComponentCache::add_field(...)</code>. JSON supports scalar primitive fields and <code>ecs::Char8</code> buffers.</li>
 <li><code>ecs::World::save_json</code> / <code>ecs::World::load_json</code> for full world snapshots</li>
 </ul>
 <p>For structured semantic load feedback, use diagnostics overloads:</p><ul>
@@ -3032,7 +3054,7 @@ World serialization</h3>
 </div><!-- fragment --><p>Or via convenience overload:</p>
 <div class="fragment"><div class="line"><span class="keywordtype">bool</span> ok = <span class="keyword">false</span>;</div>
 <div class="line"><span class="keyword">const</span> std::string json = world.save_json(ok);</div>
-</div><!-- fragment --><p><code>save_json</code> emits structured JSON for components with runtime schema fields. Components without schema fallback to a raw byte array payload (<code>"$raw"</code>). Behavior can be adjusted with flags:</p><ul>
+</div><!-- fragment --><p><code>save_json</code> emits structured JSON for components with runtime fields. Components without runtime fields fall back to a raw byte array payload (<code>"$raw"</code>). Behavior can be adjusted with flags:</p><ul>
 <li><code>ser::BinarySnapshot</code></li>
 <li><code>ser::RawFallback</code></li>
 </ul>

@@ -1,7 +1,6 @@
 var structgaia_1_1ecs_1_1ComponentCacheItem =
 [
     [ "ComponentCacheItemCtx", "structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html", "structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx" ],
-    [ "SchemaField", "structgaia_1_1ecs_1_1ComponentCacheItem_1_1SchemaField.html", null ],
     [ "comp", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a7bbb5854186e82296d6225db3df50130", null ],
     [ "entity", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7", null ],
     [ "func_cmp", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a5ecc46c19437b060c44582e4fa8c1c06", null ],
