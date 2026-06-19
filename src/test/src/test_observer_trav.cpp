@@ -265,6 +265,41 @@ TEST_CASE("Observer - identical traversed observers delete cleanly") {
 	CHECK_FALSE(wld.observers().has_observers(accelerationTerm));
 }
 
+TEST_CASE("Observer - duplicate traversed observer cleanup leaves no stale observed terms") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.child(child, root);
+
+	const auto makeObserver = [&] {
+		return wld.observer()
+				.event(ecs::ObserverEvent::OnAdd)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav())
+				.on_each([](ecs::Iter&) {})
+				.entity();
+	};
+
+	const auto observer0 = makeObserver();
+	const auto observer1 = makeObserver();
+	const auto positionTerm = wld.add<Position>().entity;
+	const auto accelerationTerm = wld.add<Acceleration>().entity;
+
+	CHECK(wld.observers().has_observers(positionTerm));
+	CHECK(wld.observers().has_observers(accelerationTerm));
+
+	wld.del(observer0);
+	CHECK(wld.observers().has_observers(positionTerm));
+	CHECK(wld.observers().has_observers(accelerationTerm));
+
+	wld.del(observer1);
+	CHECK_FALSE(wld.observers().has_observers(positionTerm));
+	CHECK_FALSE(wld.observers().has_observers(accelerationTerm));
+}
+
 namespace {
 	template <typename TQuery>
 	cnt::darr<ecs::Entity> collect_sorted_entities(TQuery query) {

@@ -213,9 +213,9 @@ namespace gaia {
 
 			GAIA_NODISCARD bool has_observers_for_term(Entity term) const {
 				const auto termKey = EntityLookupKey(term);
-				return m_observer_map_add.find(termKey) != m_observer_map_add.end() ||
-							 m_observer_map_del.find(termKey) != m_observer_map_del.end() ||
-							 m_observer_map_set.find(termKey) != m_observer_map_set.end();
+				return observer_map_has_observers(m_observer_map_add, termKey) ||
+							 observer_map_has_observers(m_observer_map_del, termKey) ||
+							 observer_map_has_observers(m_observer_map_set, termKey);
 			}
 
 			GAIA_NODISCARD static bool can_mark_term_observed(World& world, Entity term);
@@ -255,6 +255,18 @@ namespace gaia {
 					else
 						++i;
 				}
+			}
+			template <typename TObserverMap>
+			GAIA_NODISCARD bool observer_map_has_observers(const TObserverMap& map, const EntityLookupKey& termKey) const {
+				const auto it = map.find(termKey);
+				if (it == map.end())
+					return false;
+
+				for (const auto observer: it->second) {
+					if (m_observer_data.find(EntityLookupKey(observer)) != m_observer_data.end())
+						return true;
+				}
+				return false;
 			}
 
 			static void collect_traversal_descendants(
