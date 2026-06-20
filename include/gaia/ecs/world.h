@@ -3321,6 +3321,33 @@ namespace gaia {
 				return item;
 			}
 
+			//! Creates a new runtime component from a plain component descriptor if not found already.
+			//! \param desc Component registration descriptor.
+			//! \param kind Entity kind assigned to the new component entity.
+			//! \return Component cache item of the component.
+			GAIA_NODISCARD const ComponentCacheItem& add(const ComponentDesc& desc, EntityKind kind = EntityKind::EK_Gen) {
+				GAIA_ASSERT(!desc.name.empty());
+				GAIA_ASSERT(desc.name.size() < ComponentCacheItem::MaxNameLength);
+
+				if (const auto* pItem = comp_cache().symbol(desc.name); pItem != nullptr)
+					return *pItem;
+
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				util::str scopePath;
+				(void)current_scope_path(scopePath);
+				const auto& itemInfo = comp_cache_mut().add(entity, desc, scopePath.view());
+				finalize_component_registration(itemInfo, true);
+				return itemInfo;
+			}
+
+			//! Adds runtime field metadata to a registered component.
+			//! \param component Component entity receiving the field.
+			//! \param field Field descriptor. A count of 0 means scalar.
+			//! \return True when the field was added or updated, false if validation failed.
+			GAIA_NODISCARD bool add_field(Entity component, const RuntimeFieldDesc& field) {
+				return comp_cache_mut().add_field(component, field);
+			}
+
 			//! Creates a new runtime component if not found already.
 			//! \param item Component item registration context.
 			//! \param kind Entity kind assigned to the new component entity.

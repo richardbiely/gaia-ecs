@@ -587,22 +587,19 @@ You can also register components from data you load at runtime. This is useful f
 formats that define component layouts outside C++ code.
 
 ```cpp
-ecs::Entity cooldownComponent = w.add();
-
 ecs::ComponentDesc desc{};
 desc.name = "Cooldown";
 desc.size = sizeof(float);
 desc.alig = alignof(float);
 desc.storageType = ecs::DataStorageType::Table;
 
-ecs::ComponentCache& cc = w.comp_cache_mut();
-const ecs::ComponentCacheItem& cooldownCI = cc.add(cooldownComponent, desc);
+const ecs::ComponentCacheItem& cooldownCI = w.add(desc);
 ```
 
 You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
 
 ```cpp
-if (!cc.add_field(cooldownCI.entity, {"seconds", ecs::F32, 0, 0})) {
+if (!w.add_field(cooldownCI.entity, {"seconds", ecs::F32, 0, 0})) {
   // The field type or byte range is invalid.
 }
 ```

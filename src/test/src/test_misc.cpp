@@ -215,6 +215,53 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.symbol(RuntimeCompName) == item.entity);
 	}
 
+	SUBCASE("world descriptor registration creates a usable runtime component") {
+		TestWorld twld;
+
+		constexpr const char* RuntimeCompName = "Runtime_Component_World_Desc";
+		const auto nameLen = (uint32_t)GAIA_STRLEN(RuntimeCompName, ecs::ComponentCacheItem::MaxNameLength);
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view(RuntimeCompName, nameLen);
+		desc.size = RuntimePayloadSize;
+		desc.alig = RuntimePayloadAlign;
+		desc.storageType = ecs::DataStorageType::Table;
+
+		const auto& item = wld.add(desc);
+		CHECK(item.entity != ecs::EntityBad);
+		CHECK(item.comp.id() == item.entity.id());
+		CHECK(item.comp.size() == RuntimePayloadSize);
+		CHECK(item.comp.alig() == RuntimePayloadAlign);
+		CHECK(item.comp.storage_type() == ecs::DataStorageType::Table);
+		CHECK(item.name.len() == nameLen);
+		CHECK(strcmp(item.name.str(), RuntimeCompName) == 0);
+		CHECK(wld.comp_cache().find(item.entity) == &item);
+		CHECK(wld.symbol(RuntimeCompName) == item.entity);
+		CHECK(wld.get(RuntimeCompName) == item.entity);
+
+		CHECK(wld.add_field(item.entity, {util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+
+		const auto entity = wld.add();
+		uint8_t initial[RuntimePayloadSize]{};
+		write_f32(initial, RuntimeXOffset, 1.0f);
+		CHECK(wld.add_raw(entity, item.entity, initial, RuntimePayloadSize));
+
+		auto cursor = wld.cursor_mut(entity, item.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.field("x"));
+		const float replacement = 2.0f;
+		CHECK(cursor.write_bytes(&replacement, sizeof(replacement)) == ecs::ComponentWriteResult::Ok);
+
+		const auto payload = wld.get_raw(entity, item.entity);
+		CHECK(payload.valid());
+		if (payload.valid())
+			CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(2.0f));
+
+		const auto& duplicate = wld.add(desc);
+		CHECK(&duplicate == &item);
+		CHECK(duplicate.entity == item.entity);
+	}
+
 	SUBCASE("reflected primitive ids and runtime fields are available") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
