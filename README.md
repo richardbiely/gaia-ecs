@@ -620,17 +620,22 @@ if (!w.add_raw(e, cooldownCI.entity, &seconds, sizeof(seconds))) {
 
 ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);
 if (cursor.field("seconds")) {
-  seconds = 1.0f;
-  if (cursor.write_bytes(&seconds, sizeof(seconds)) != ecs::ComponentWriteResult::Ok) {
+  if (!cursor.f32(1.0f)) {
     // The selected field cannot be written.
+  }
+
+  auto updated = cursor.f32();
+  if (updated) {
+    // updated.value contains the current seconds value.
   }
 }
 ```
 
 `get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent
 write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)`
-copies a full payload and emits the write notification for you. `ComponentCursor::write_bytes(...)` writes the selected
-field and finishes the component write automatically.
+copies a full payload and emits the write notification for you. `ComponentCursor` primitive accessors such as `f32(...)`
+write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw
+field copies and replacement.
 
 
 ### Component hooks

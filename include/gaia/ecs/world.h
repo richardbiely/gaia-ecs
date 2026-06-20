@@ -5299,7 +5299,7 @@ namespace gaia {
 
 			//! Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on @a entity.
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
-			//! ComponentCursor::write_bytes() finishes the root component write automatically.
+			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
 			//! \param component Component entity being mutated.
 			//! @return Cursor positioned at the root component payload, or invalid cursor when unavailable.

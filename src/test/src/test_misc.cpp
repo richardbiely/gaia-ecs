@@ -267,8 +267,7 @@ TEST_CASE("Component cache - runtime registration") {
 		auto cursor = wld.cursor_mut(entity, item.entity);
 		CHECK(cursor.valid());
 		CHECK(cursor.field("x"));
-		const float replacement = 2.0f;
-		CHECK(cursor.write_bytes(&replacement, sizeof(replacement)) == ecs::ComponentWriteResult::Ok);
+		CHECK(cursor.f32(2.0f));
 
 		const auto payload = wld.get_raw(entity, item.entity);
 		CHECK(payload.valid());
@@ -724,48 +723,66 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime component cursor walks fields and mutates strict primitives") {
 		TestWorld twld;
 
+		constexpr uint32_t RuntimeCursorPayloadSize = 32;
+		constexpr uint32_t RuntimeBoolOffset = 12;
+		constexpr uint32_t RuntimeCharOffset = 13;
+		constexpr uint32_t RuntimeNameOffset = 14;
+		constexpr uint32_t RuntimeNameCount = 8;
+		constexpr uint32_t RuntimeArrayOffset = 24;
+		constexpr uint32_t RuntimeArrayCount = 2;
+
 		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Cursor", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+				wld, "Runtime_Component_Cursor", RuntimeCursorPayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
 		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
 		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
 		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("alive"), ecs::Bool, RuntimeBoolOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("initial"), ecs::Char8, RuntimeCharOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("name"), ecs::Char8, RuntimeNameOffset, RuntimeNameCount}));
+		CHECK(runtimeComp.add_field({util::str_view("samples"), ecs::F32, RuntimeArrayOffset, RuntimeArrayCount}));
 
 		const auto entity = wld.add();
-		uint8_t initial[RuntimePayloadSize]{};
+		uint8_t initial[RuntimeCursorPayloadSize]{};
 		write_xyz(initial, 1.0f, 2.0f, 3.0f);
-		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimeCursorPayloadSize));
 
 		auto cursor = wld.cursor(entity, runtimeComp.entity);
 		CHECK(cursor.valid());
 		CHECK(cursor.type() == runtimeComp.entity);
-		CHECK(cursor.size() == RuntimePayloadSize);
-		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.size() == RuntimeCursorPayloadSize);
+		CHECK(cursor.field_count() == 7);
 		CHECK(cursor.ptr() != nullptr);
 		CHECK(cursor.mut_ptr() == nullptr);
-		CHECK_FALSE(cursor.get_f32(nullptr));
+		CHECK_FALSE(cursor.f32());
 		const float readOnlyWrite = 10.0f;
-		CHECK(cursor.write_bytes(&readOnlyWrite, sizeof(readOnlyWrite)) == ecs::ComponentWriteResult::ReadOnly);
+		CHECK(cursor.set_raw(&readOnlyWrite, sizeof(readOnlyWrite)).status == ecs::CursorStatus::ReadOnly);
 
 		CHECK(cursor.field(util::str_view("y")));
 		CHECK(cursor.valid());
 		CHECK(cursor.depth() == 1);
 		CHECK(cursor.type() == ecs::F32);
 		CHECK(cursor.size() == sizeof(float));
-		float y = 0.0f;
-		CHECK(cursor.get_f32(&y));
-		CHECK(y == doctest::Approx(2.0f));
+		const auto y = cursor.f32();
+		CHECK(y);
+		CHECK(y.value == doctest::Approx(2.0f));
 		const float readOnlyFieldWrite = 20.0f;
-		CHECK(cursor.write_bytes(&readOnlyFieldWrite, sizeof(readOnlyFieldWrite)) == ecs::ComponentWriteResult::ReadOnly);
+		CHECK(cursor.set_raw(&readOnlyFieldWrite, sizeof(readOnlyFieldWrite)).status == ecs::CursorStatus::ReadOnly);
+		CHECK(cursor.s32().status == ecs::CursorStatus::TypeMismatch);
 		CHECK(cursor.parent());
 		CHECK(cursor.depth() == 0);
 
 		CHECK(cursor.field(2));
-		float z = 0.0f;
-		CHECK(cursor.get_f32(&z));
-		CHECK(z == doctest::Approx(3.0f));
+		const auto z = cursor.f32();
+		CHECK(z);
+		CHECK(z.value == doctest::Approx(3.0f));
+		float zRaw = 0.0f;
+		const auto zRawBytes = cursor.get_raw(&zRaw, sizeof(zRaw));
+		CHECK(zRawBytes);
+		CHECK(zRawBytes.value == sizeof(zRaw));
+		CHECK(zRaw == doctest::Approx(3.0f));
 
 		uint32_t setHits = 0;
-		uint8_t setSeen[RuntimePayloadSize]{};
+		uint8_t setSeen[RuntimeCursorPayloadSize]{};
 		const auto onSet = wld.observer()
 													 .event(ecs::ObserverEvent::OnSet)
 													 .all(runtimeComp.entity)
@@ -774,9 +791,9 @@ TEST_CASE("Component cache - runtime registration") {
 														 ++setHits;
 														 const auto observedPayload = wld.get_raw(observed, runtimeComp.entity);
 														 CHECK(observedPayload.valid());
-														 CHECK(observedPayload.size == RuntimePayloadSize);
+														 CHECK(observedPayload.size == RuntimeCursorPayloadSize);
 														 if (observedPayload.data != nullptr)
-															 memcpy(setSeen, observedPayload.data, RuntimePayloadSize);
+															 memcpy(setSeen, observedPayload.data, RuntimeCursorPayloadSize);
 													 })
 													 .entity();
 		(void)onSet;
@@ -784,29 +801,65 @@ TEST_CASE("Component cache - runtime registration") {
 		auto mutableCursor = wld.cursor_mut(entity, runtimeComp.entity);
 		CHECK(mutableCursor.valid());
 		CHECK(mutableCursor.field(util::str_view("x")));
-		float xWrite = 42.0f;
-		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(mutableCursor.f32(42.0f));
 		CHECK(setHits == 1);
-		float x = 0.0f;
-		CHECK(mutableCursor.get_f32(&x));
-		CHECK(x == doctest::Approx(42.0f));
+		const auto x = mutableCursor.f32();
+		CHECK(x);
+		CHECK(x.value == doctest::Approx(42.0f));
 		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(42.0f));
 
-		xWrite = 17.0f;
-		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(mutableCursor.f32(17.0f));
 		CHECK(setHits == 2);
-		CHECK(mutableCursor.get_f32(&x));
-		CHECK(x == doctest::Approx(17.0f));
+		const auto x2 = mutableCursor.f32();
+		CHECK(x2);
+		CHECK(x2.value == doctest::Approx(17.0f));
 
-		xWrite = 23.0f;
-		CHECK(mutableCursor.write_bytes(&xWrite, sizeof(xWrite)) == ecs::ComponentWriteResult::Ok);
+		CHECK(mutableCursor.f32(23.0f));
 		CHECK(setHits == 3);
-		CHECK(mutableCursor.get_f32(&x));
-		CHECK(x == doctest::Approx(23.0f));
+		const auto x3 = mutableCursor.f32();
+		CHECK(x3);
+		CHECK(x3.value == doctest::Approx(23.0f));
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("alive")));
+		CHECK(mutableCursor.b(true));
+		const auto alive = mutableCursor.b();
+		CHECK(alive);
+		CHECK(alive.value == true);
+		CHECK(mutableCursor.f32(1.0f).status == ecs::CursorStatus::TypeMismatch);
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("initial")));
+		CHECK(mutableCursor.c8('R'));
+		const auto initialChar = mutableCursor.c8();
+		CHECK(initialChar);
+		CHECK(initialChar.value == 'R');
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("name")));
+		CHECK(mutableCursor.c8("GaiaECS", 7));
+		char nameBuffer[RuntimeNameCount]{};
+		const auto nameBytes = mutableCursor.c8(nameBuffer, RuntimeNameCount);
+		CHECK(nameBytes);
+		CHECK(nameBytes.value == RuntimeNameCount);
+		CHECK(memcmp(nameBuffer, "GaiaECS", 7) == 0);
+		CHECK(nameBuffer[7] == 0);
+		CHECK(mutableCursor.c8("too-long!", 9).status == ecs::CursorStatus::OutOfRange);
+		char smallNameBuffer[RuntimeNameCount - 1]{};
+		CHECK(mutableCursor.c8(smallNameBuffer, RuntimeNameCount - 1).status == ecs::CursorStatus::OutOfRange);
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("samples")));
+		CHECK(mutableCursor.elem(1));
+		CHECK(mutableCursor.f32(99.0f));
+		const auto sample = mutableCursor.f32();
+		CHECK(sample);
+		CHECK(sample.value == doctest::Approx(99.0f));
+		CHECK_FALSE(mutableCursor.elem(RuntimeArrayCount));
 
 		const uint8_t tooSmall[sizeof(float) - 1]{};
-		CHECK(mutableCursor.write_bytes(tooSmall, sizeof(tooSmall)) == ecs::ComponentWriteResult::OutOfRange);
-		CHECK(setHits == 3);
+		CHECK(mutableCursor.set_raw(tooSmall, sizeof(tooSmall)).status == ecs::CursorStatus::OutOfRange);
+		CHECK(setHits == 7);
 	}
 
 	SUBCASE("runtime raw payload access rejects unsupported storage") {

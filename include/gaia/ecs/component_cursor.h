@@ -54,7 +54,7 @@ namespace gaia {
 		//! and `ComponentRawViewFlag_Valid` set.
 		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
 		//! \note `mut_raw(...)` is a silent mutation path. Call `World::modify_raw(...)` after writing
-		//! through `data` directly. ComponentCursor::write_bytes() finishes the root component write itself.
+		//! through `data` directly. ComponentCursor::set_raw() finishes the root component write itself.
 		struct ComponentRawMutView {
 			//! Raw component payload bytes. Null for tags and invalid views.
 			void* data = nullptr;
@@ -70,8 +70,65 @@ namespace gaia {
 		};
 		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
 
+		//! Result status for ComponentCursor operations.
+		enum class CursorStatus : uint8_t { Ok, Invalid, ReadOnly, TypeMismatch, OutOfRange };
+
+		//! Result of reading or writing through a ComponentCursor.
+		//! \tparam T Value type returned by the operation.
+		template <typename T>
+		struct CursorResult final {
+			//! Operation status.
+			CursorStatus status = CursorStatus::Invalid;
+			//! Value returned by a successful read operation.
+			T value{};
+
+			//! \return True when the operation succeeded.
+			GAIA_NODISCARD bool ok() const noexcept {
+				return status == CursorStatus::Ok;
+			}
+
+			//! \return True when the operation succeeded.
+			GAIA_NODISCARD explicit operator bool() const noexcept {
+				return ok();
+			}
+		};
+
 		//! Result of writing through a ComponentCursor.
-		enum class ComponentWriteResult : uint8_t { Ok, Invalid, ReadOnly, OutOfRange };
+		template <>
+		struct CursorResult<void> final {
+			//! Operation status.
+			CursorStatus status = CursorStatus::Invalid;
+
+			//! \return True when the operation succeeded.
+			GAIA_NODISCARD bool ok() const noexcept {
+				return status == CursorStatus::Ok;
+			}
+
+			//! \return True when the operation succeeded.
+			GAIA_NODISCARD explicit operator bool() const noexcept {
+				return ok();
+			}
+		};
+
+		//! \return True when @a result has status @a status.
+		GAIA_NODISCARD inline bool operator==(CursorResult<void> result, CursorStatus status) noexcept {
+			return result.status == status;
+		}
+
+		//! \return True when @a result has status @a status.
+		GAIA_NODISCARD inline bool operator==(CursorStatus status, CursorResult<void> result) noexcept {
+			return result.status == status;
+		}
+
+		//! \return True when @a result does not have status @a status.
+		GAIA_NODISCARD inline bool operator!=(CursorResult<void> result, CursorStatus status) noexcept {
+			return result.status != status;
+		}
+
+		//! \return True when @a result does not have status @a status.
+		GAIA_NODISCARD inline bool operator!=(CursorStatus status, CursorResult<void> result) noexcept {
+			return result.status != status;
+		}
 
 		//! Stack-only cursor over raw component bytes and runtime field metadata.
 		//!
@@ -100,6 +157,8 @@ namespace gaia {
 				cursor.m_stack[0].type = component;
 				cursor.m_stack[0].data = view.data;
 				cursor.m_stack[0].size = view.size;
+				cursor.m_stack[0].elemSize = view.size;
+				cursor.m_stack[0].elemCount = 1;
 				cursor.m_valid = true;
 				return cursor;
 			}
@@ -125,6 +184,8 @@ namespace gaia {
 				cursor.m_stack[0].data = view.data;
 				cursor.m_stack[0].mutData = view.data;
 				cursor.m_stack[0].size = view.size;
+				cursor.m_stack[0].elemSize = view.size;
+				cursor.m_stack[0].elemCount = 1;
 				cursor.m_stack[0].writable = true;
 				cursor.m_valid = true;
 				return cursor;
@@ -190,6 +251,32 @@ namespace gaia {
 				return descend(*pField);
 			}
 
+			//! Descends into element @a index of the current fixed inline array field.
+			//! \param index Element index inside the current field.
+			//! \return True when the cursor moved to the element.
+			bool elem(uint32_t index) noexcept {
+				if (!m_valid || m_depth + 1 >= MaxDepth)
+					return false;
+
+				const auto& current = m_stack[m_depth];
+				if (current.elemCount <= 1 || index >= current.elemCount || current.elemSize == 0)
+					return false;
+
+				Scope next{};
+				next.type = current.type;
+				next.size = current.elemSize;
+				next.elemSize = current.elemSize;
+				next.elemCount = 1;
+				next.writable = current.writable;
+				if (current.data != nullptr)
+					next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
+				if (current.mutData != nullptr)
+					next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
+
+				m_stack[++m_depth] = next;
+				return true;
+			}
+
 			//! Moves back to the parent cursor scope.
 			//! \return True when the cursor moved to the parent; false at root or when invalid.
 			bool parent() noexcept {
@@ -199,14 +286,216 @@ namespace gaia {
 				return true;
 			}
 
-			//! Reads the current cursor bytes as a scalar f32 convenience value.
-			//! \param value Receives the read value.
-			//! \return True when the current cursor position is exactly one f32 value.
-			GAIA_NODISCARD bool get_f32(float* value) const noexcept {
-				if (value == nullptr || !m_valid || size() != sizeof(float) || ptr() == nullptr)
-					return false;
-				memcpy(value, ptr(), sizeof(float));
-				return true;
+			//! Reads the current cursor value as a bool.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<bool> b() const noexcept {
+				return read_primitive<bool>(Bool);
+			}
+
+			//! Writes @a value to the current cursor value as a bool.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> b(bool value) noexcept {
+				return write_primitive(Bool, value);
+			}
+
+			//! Reads the current cursor value as a scalar c8.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<char> c8() const noexcept {
+				return read_primitive<char>(Char8);
+			}
+
+			//! Writes @a value to the current cursor value as a scalar c8.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c8(char value) noexcept {
+				return write_primitive(Char8, value);
+			}
+
+			//! Reads the current fixed c8 buffer.
+			//! \param dst Destination buffer receiving bytes.
+			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
+			//! @return Read result and copied byte count.
+			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) noexcept {
+				return const_cast<const ComponentCursor&>(*this).c8(dst, cap);
+			}
+
+			//! Reads the current fixed c8 buffer.
+			//! \param dst Destination buffer receiving bytes.
+			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
+			//! @return Read result and copied byte count.
+			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) const noexcept {
+				CursorResult<uint32_t> result{};
+				const auto status = validate_primitive(Char8, false, false);
+				if (status != CursorStatus::Ok) {
+					result.status = status;
+					return result;
+				}
+				if (m_stack[m_depth].elemCount <= 1) {
+					result.status = CursorStatus::TypeMismatch;
+					return result;
+				}
+				if (dst == nullptr) {
+					result.status = CursorStatus::Invalid;
+					return result;
+				}
+				if (cap < size()) {
+					result.status = CursorStatus::OutOfRange;
+					return result;
+				}
+
+				memcpy(dst, ptr(), size());
+				result.status = CursorStatus::Ok;
+				result.value = size();
+				return result;
+			}
+
+			//! Writes bytes to the current fixed c8 buffer.
+			//! \param src Source bytes to copy.
+			//! \param len Source byte count. Must fit in the reflected field count.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c8(const char* src, uint32_t len) noexcept {
+				const auto status = validate_primitive(Char8, true, false);
+				if (status != CursorStatus::Ok)
+					return {status};
+				if (m_stack[m_depth].elemCount <= 1)
+					return {CursorStatus::TypeMismatch};
+				if (len > size())
+					return {CursorStatus::OutOfRange};
+				if (len != 0 && src == nullptr)
+					return {CursorStatus::Invalid};
+				if (len != 0)
+					memcpy(mut_ptr(), src, len);
+				world_finish_write(*m_world, m_rootType, m_entity);
+				return {CursorStatus::Ok};
+			}
+
+			//! Reads the current cursor value as an s8.
+			GAIA_NODISCARD CursorResult<int8_t> s8() const noexcept {
+				return read_primitive<int8_t>(S8);
+			}
+
+			//! Writes @a value to the current cursor value as an s8.
+			GAIA_NODISCARD CursorResult<void> s8(int8_t value) noexcept {
+				return write_primitive(S8, value);
+			}
+
+			//! Reads the current cursor value as a u8.
+			GAIA_NODISCARD CursorResult<uint8_t> u8() const noexcept {
+				return read_primitive<uint8_t>(U8);
+			}
+
+			//! Writes @a value to the current cursor value as a u8.
+			GAIA_NODISCARD CursorResult<void> u8(uint8_t value) noexcept {
+				return write_primitive(U8, value);
+			}
+
+			//! Reads the current cursor value as an s16.
+			GAIA_NODISCARD CursorResult<int16_t> s16() const noexcept {
+				return read_primitive<int16_t>(S16);
+			}
+
+			//! Writes @a value to the current cursor value as an s16.
+			GAIA_NODISCARD CursorResult<void> s16(int16_t value) noexcept {
+				return write_primitive(S16, value);
+			}
+
+			//! Reads the current cursor value as a u16.
+			GAIA_NODISCARD CursorResult<uint16_t> u16() const noexcept {
+				return read_primitive<uint16_t>(U16);
+			}
+
+			//! Writes @a value to the current cursor value as a u16.
+			GAIA_NODISCARD CursorResult<void> u16(uint16_t value) noexcept {
+				return write_primitive(U16, value);
+			}
+
+			//! Reads the current cursor value as an s32.
+			GAIA_NODISCARD CursorResult<int32_t> s32() const noexcept {
+				return read_primitive<int32_t>(S32);
+			}
+
+			//! Writes @a value to the current cursor value as an s32.
+			GAIA_NODISCARD CursorResult<void> s32(int32_t value) noexcept {
+				return write_primitive(S32, value);
+			}
+
+			//! Reads the current cursor value as a u32.
+			GAIA_NODISCARD CursorResult<uint32_t> u32() const noexcept {
+				return read_primitive<uint32_t>(U32);
+			}
+
+			//! Writes @a value to the current cursor value as a u32.
+			GAIA_NODISCARD CursorResult<void> u32(uint32_t value) noexcept {
+				return write_primitive(U32, value);
+			}
+
+			//! Reads the current cursor value as an s64.
+			GAIA_NODISCARD CursorResult<int64_t> s64() const noexcept {
+				return read_primitive<int64_t>(S64);
+			}
+
+			//! Writes @a value to the current cursor value as an s64.
+			GAIA_NODISCARD CursorResult<void> s64(int64_t value) noexcept {
+				return write_primitive(S64, value);
+			}
+
+			//! Reads the current cursor value as a u64.
+			GAIA_NODISCARD CursorResult<uint64_t> u64() const noexcept {
+				return read_primitive<uint64_t>(U64);
+			}
+
+			//! Writes @a value to the current cursor value as a u64.
+			GAIA_NODISCARD CursorResult<void> u64(uint64_t value) noexcept {
+				return write_primitive(U64, value);
+			}
+
+			//! Reads the current cursor value as an f32.
+			GAIA_NODISCARD CursorResult<float> f32() const noexcept {
+				return read_primitive<float>(F32);
+			}
+
+			//! Writes @a value to the current cursor value as an f32.
+			GAIA_NODISCARD CursorResult<void> f32(float value) noexcept {
+				return write_primitive(F32, value);
+			}
+
+			//! Reads the current cursor value as an f64.
+			GAIA_NODISCARD CursorResult<double> f64() const noexcept {
+				return read_primitive<double>(F64);
+			}
+
+			//! Writes @a value to the current cursor value as an f64.
+			GAIA_NODISCARD CursorResult<void> f64(double value) noexcept {
+				return write_primitive(F64, value);
+			}
+
+			//! Copies exact bytes from the current cursor position.
+			//!
+			//! This is the cursor read path for runtime component data. It performs no type conversion and
+			//! copies the whole current cursor scope. Use field navigation to choose the address being read.
+			//! \param data Destination bytes. Must be non-null when the current scope size is non-zero.
+			//! \param byteCount Destination capacity in bytes. Must be at least the current scope size.
+			//! \return Ok and copied byte count when bytes were copied, otherwise the reason the read failed.
+			GAIA_NODISCARD CursorResult<uint32_t> get_raw(void* data, uint32_t byteCount) const noexcept {
+				CursorResult<uint32_t> result{};
+				if (!m_valid) {
+					result.status = CursorStatus::Invalid;
+					return result;
+				}
+				if (byteCount < size()) {
+					result.status = CursorStatus::OutOfRange;
+					return result;
+				}
+				if (size() != 0 && (data == nullptr || ptr() == nullptr)) {
+					result.status = CursorStatus::Invalid;
+					return result;
+				}
+				if (size() != 0)
+					memcpy(data, ptr(), size());
+				result.status = CursorStatus::Ok;
+				result.value = size();
+				return result;
 			}
 
 			//! Writes exact bytes to the current cursor position.
@@ -217,22 +506,22 @@ namespace gaia {
 			//! Successful writes finish the root component write, so normal chunk write tracking and OnSet observers run.
 			//! \param data Bytes to copy. Must be non-null when @a byteCount is non-zero.
 			//! \param byteCount Number of bytes to copy.
-			//! Returns Ok when bytes were copied, otherwise the reason the write failed.
-			ComponentWriteResult write_bytes(const void* data, uint32_t byteCount) noexcept {
+			//! \return Ok when bytes were copied, otherwise the reason the write failed.
+			CursorResult<void> set_raw(const void* data, uint32_t byteCount) noexcept {
 				if (!m_valid)
-					return ComponentWriteResult::Invalid;
+					return {CursorStatus::Invalid};
 				if (!m_stack[m_depth].writable || m_world == nullptr || m_entity == EntityBad || m_rootType == EntityBad)
-					return ComponentWriteResult::ReadOnly;
+					return {CursorStatus::ReadOnly};
 				if (byteCount != size())
-					return ComponentWriteResult::OutOfRange;
+					return {CursorStatus::OutOfRange};
 				if (byteCount == 0)
-					return ComponentWriteResult::Ok;
+					return {CursorStatus::Ok};
 				if (data == nullptr || mut_ptr() == nullptr)
-					return ComponentWriteResult::Invalid;
+					return {CursorStatus::Invalid};
 
 				memcpy(mut_ptr(), data, byteCount);
 				world_finish_write(*m_world, m_rootType, m_entity);
-				return ComponentWriteResult::Ok;
+				return {CursorStatus::Ok};
 			}
 
 		private:
@@ -241,6 +530,8 @@ namespace gaia {
 				const void* data = nullptr;
 				void* mutData = nullptr;
 				uint32_t size = 0;
+				uint32_t elemSize = 0;
+				uint32_t elemCount = 1;
 				bool writable = false;
 			};
 
@@ -256,6 +547,61 @@ namespace gaia {
 				if (!m_valid || m_components == nullptr)
 					return nullptr;
 				return m_components->find(m_stack[m_depth].type);
+			}
+
+			GAIA_NODISCARD CursorStatus
+			validate_primitive(Entity expectedType, bool requireWrite, bool requireScalar) const noexcept {
+				if (!m_valid)
+					return CursorStatus::Invalid;
+				const auto& current = m_stack[m_depth];
+				if (current.type != expectedType)
+					return CursorStatus::TypeMismatch;
+				if (requireScalar && current.elemCount != 1)
+					return CursorStatus::TypeMismatch;
+				if (current.size != current.elemSize * current.elemCount)
+					return CursorStatus::OutOfRange;
+				if (current.size == 0)
+					return CursorStatus::TypeMismatch;
+				if (ptr() == nullptr)
+					return CursorStatus::Invalid;
+				if (requireWrite) {
+					if (!current.writable || m_world == nullptr || m_entity == EntityBad || m_rootType == EntityBad)
+						return CursorStatus::ReadOnly;
+					if (mut_ptr() == nullptr)
+						return CursorStatus::Invalid;
+				}
+				return CursorStatus::Ok;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD CursorResult<T> read_primitive(Entity expectedType) const noexcept {
+				CursorResult<T> result{};
+				const auto status = validate_primitive(expectedType, false, true);
+				if (status != CursorStatus::Ok) {
+					result.status = status;
+					return result;
+				}
+				if (size() != sizeof(T)) {
+					result.status = CursorStatus::TypeMismatch;
+					return result;
+				}
+
+				memcpy(&result.value, ptr(), sizeof(T));
+				result.status = CursorStatus::Ok;
+				return result;
+			}
+
+			template <typename T>
+			GAIA_NODISCARD CursorResult<void> write_primitive(Entity expectedType, const T& value) noexcept {
+				const auto status = validate_primitive(expectedType, true, true);
+				if (status != CursorStatus::Ok)
+					return {status};
+				if (size() != sizeof(T))
+					return {CursorStatus::TypeMismatch};
+
+				memcpy(mut_ptr(), &value, sizeof(T));
+				world_finish_write(*m_world, m_rootType, m_entity);
+				return {CursorStatus::Ok};
 			}
 
 			bool descend(const RuntimeField& field) noexcept {
@@ -276,6 +622,8 @@ namespace gaia {
 				Scope next{};
 				next.type = field.type;
 				next.size = (uint32_t)fieldSize64;
+				next.elemSize = elemSize;
+				next.elemCount = elemCount;
 				next.writable = m_stack[m_depth].writable;
 				if (m_stack[m_depth].data != nullptr)
 					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
