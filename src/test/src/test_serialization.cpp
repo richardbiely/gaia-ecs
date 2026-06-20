@@ -298,12 +298,12 @@ TEST_CASE("Serialization - json runtime fields") {
 	SUBCASE("runtime fields are emitted and loaded through reflected metadata") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
-		const auto& item = add_runtime_component(
+		auto& item = add_runtime_component(
 				wld, "Runtime_Component_Json_Runtime_Fields", RuntimeJsonPayloadSize, ecs::DataStorageType::Table, 4);
 
-		CHECK(cc.add_field(item.entity, {util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}));
-		CHECK(cc.add_field(item.entity, {util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}));
-		CHECK(cc.add_field(item.entity, {util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0}));
+		CHECK(item.add_field({util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}));
+		CHECK(item.add_field({util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}));
+		CHECK(item.add_field({util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0}));
 
 		uint8_t value[RuntimeJsonPayloadSize]{};
 		write_runtime_json_xyz(value, 1.25f, -2.5f, 3.0f);

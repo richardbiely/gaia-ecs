@@ -23,28 +23,48 @@ namespace gaia {
 		class Chunk;
 		struct ComponentRecord;
 
+		//! Runtime cache metadata for one registered Gaia component entity.
+		//!
+		//! A cache item is the authoritative metadata record used by chunk storage, runtime component registration,
+		//! field reflection, lifecycle callbacks, hooks, symbol lookup, and serialization. Instances are created through
+		//! the static create helpers and released with destroy().
 		struct GAIA_API ComponentCacheItem final {
 			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
 
+			//! Maximum stored component and runtime-field symbol length, including the null terminator.
 			static constexpr uint32_t MaxNameLength = 256;
 
+			//! Interned lookup key type used for component symbols.
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
+			//! Constructs @a cnt component values in raw storage.
 			using FuncCtor = void(void*, uint32_t);
+			//! Destroys @a cnt component values in raw storage.
 			using FuncDtor = void(void*, uint32_t);
+			//! Moves or copies component values between different storage layouts.
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Copies component values from source storage to destination storage.
 			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Moves component values from source storage to destination storage.
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Swaps component values between two storage locations.
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Compares two component values for equality.
 			using FuncCmp = bool(const void*, const void*);
 
+			//! Saves a contiguous range of component values through a serializer.
 			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
+			//! Loads a contiguous range of component values through a serializer.
 			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
 
+			//! Hook called after a component is added to an entity.
 			using FuncOnAdd = void(const World& world, const ComponentCacheItem&, Entity);
+			//! Hook called before or while a component is deleted from an entity.
 			using FuncOnDel = void(const World& world, const ComponentCacheItem&, Entity);
+			//! Hook called when a component value is written in a chunk.
 			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
+			//! Stored runtime field metadata type.
 			using RuntimeField = ecs::RuntimeField;
 
 			//! Component item registration context.
@@ -67,51 +87,60 @@ namespace gaia {
 				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 				//! Runtime primitive kind. Only valid when typeKind is Primitive.
 				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
-				//! Optional lifecycle and serialization callbacks.
+				//! Optional construction callback.
 				FuncCtor* funcCtor = nullptr;
+				//! Optional move-construction callback.
 				FuncMove* funcMoveCtor = nullptr;
+				//! Optional copy-construction callback.
 				FuncCopy* funcCopyCtor = nullptr;
+				//! Optional destruction callback.
 				FuncDtor* funcDtor = nullptr;
+				//! Optional copy-assignment callback.
 				FuncCopy* funcCopy = nullptr;
+				//! Optional move-assignment callback.
 				FuncMove* funcMove = nullptr;
+				//! Optional swap callback.
 				FuncSwap* funcSwap = nullptr;
+				//! Optional equality comparison callback.
 				FuncCmp* funcCmp = nullptr;
+				//! Optional serialization save callback.
 				FuncSave* funcSave = nullptr;
+				//! Optional serialization load callback.
 				FuncLoad* funcLoad = nullptr;
 			};
 
-			//! Component entity
+			//! Component entity bound to this cache item.
 			Entity entity;
-			//! Unique component identifier
+			//! Compact component descriptor stored in archetype/chunk metadata.
 			Component comp;
-			//! Complex hash used for look-ups
+			//! Hash used for component lookup by registered symbol.
 			ComponentLookupHash hashLookup;
-			//! If component is SoA, this stores how many bytes each of the elements take
+			//! Per-element byte sizes for SoA components; unused for AoS components.
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
-			//! Component name
+			//! Registered component symbol.
 			SymbolLookupKey name;
-			//! User-facing path name, e.g. "Gameplay.Device"
+			//! User-facing scoped component path, e.g. "Gameplay.Device".
 			util::str path;
-			//! Function to call when the component needs to be constructed
+			//! Construction callback for this component type.
 			FuncCtor* func_ctor{};
-			//! Function to call when the component needs to be move constructed
+			//! Move-construction callback for this component type.
 			FuncMove* func_move_ctor{};
-			//! Function to call when the component needs to be copy constructed
+			//! Copy-construction callback for this component type.
 			FuncCopy* func_copy_ctor{};
-			//! Function to call when the component needs to be destroyed
+			//! Destruction callback for this component type.
 			FuncDtor* func_dtor{};
-			//! Function to call when the component needs to be copied
+			//! Copy callback for this component type.
 			FuncCopy* func_copy{};
-			//! Function to call when the component needs to be moved
+			//! Move callback for this component type.
 			FuncMove* func_move{};
-			//! Function to call when the component needs to swap
+			//! Swap callback for this component type.
 			FuncSwap* func_swap{};
-			//! Function to call when comparing two components of the same type for equality
+			//! Equality callback for this component type.
 			FuncCmp* func_cmp{};
-			//! Function to call when saving component to a buffer
+			//! Serialization callback for saving component values.
 			FuncSave* func_save{};
-			// !Function to call when loading component from a buffer
+			//! Serialization callback for loading component values.
 			FuncLoad* func_load{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
@@ -119,32 +148,48 @@ namespace gaia {
 			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 
 #if GAIA_ENABLE_HOOKS
+			//! Component hook callbacks associated with this cache item.
 			struct Hooks {
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				//! Function to call whenever a component is added to an entity
+				//! Callback fired when this component is added to an entity.
 				FuncOnAdd* func_add{};
-				//! Function to call whenever a component is deleted from an entity
+				//! Callback fired when this component is deleted from an entity.
 				FuncOnDel* func_del{};
 	#endif
 	#if GAIA_ENABLE_SET_HOOKS
-				//! Function to call whenever a component is accessed for modification
+				//! Callback fired when this component is written.
 				FuncOnSet* func_set{};
 	#endif
 			};
+			//! Hook callback storage for this component.
 			Hooks comp_hooks;
 #endif
+			//! Runtime field metadata registered for this component.
 			cnt::darray<RuntimeField> fields;
 
 		private:
+			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
+			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
 			~ComponentCacheItem() = default;
 
 		public:
+			//! Cache items own symbol memory and are not copyable.
 			ComponentCacheItem(const ComponentCacheItem&) = delete;
+			//! Cache items own symbol memory and are not movable.
 			ComponentCacheItem(ComponentCacheItem&&) = delete;
+			//! Cache items own symbol memory and are not copy-assignable.
 			ComponentCacheItem& operator=(const ComponentCacheItem&) = delete;
+			//! Cache items own symbol memory and are not move-assignable.
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
 
+			//! Move-constructs one component value from another value.
+			//! @param pDst Destination component storage base pointer.
+			//! @param pSrc Source component storage base pointer.
+			//! @param idxDst Destination value index.
+			//! @param idxSrc Source value index.
+			//! @param sizeDst Destination value stride in bytes.
+			//! @param sizeSrc Source value stride in bytes.
 			void
 			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -162,6 +207,13 @@ namespace gaia {
 				memmove((void*)pD, (const void*)pS, comp.size());
 			}
 
+			//! Copy-constructs one component value from another value.
+			//! @param pDst Destination component storage base pointer.
+			//! @param pSrc Source component storage base pointer.
+			//! @param idxDst Destination value index.
+			//! @param idxSrc Source value index.
+			//! @param sizeDst Destination value stride in bytes.
+			//! @param sizeSrc Source value stride in bytes.
 			void ctor_copy(
 					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -179,11 +231,20 @@ namespace gaia {
 				memcpy((void*)pD, (const void*)pS, comp.size());
 			}
 
+			//! Destroys one component value when a destructor callback is registered.
+			//! @param pSrc Component value pointer.
 			void dtor(void* pSrc) const {
 				if (func_dtor != nullptr)
 					func_dtor(pSrc, 1);
 			}
 
+			//! Copies one existing component value into another value.
+			//! @param pDst Destination component storage base pointer.
+			//! @param pSrc Source component storage base pointer.
+			//! @param idxDst Destination value index.
+			//! @param idxSrc Source value index.
+			//! @param sizeDst Destination value stride in bytes.
+			//! @param sizeSrc Source value stride in bytes.
 			void
 			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -201,6 +262,13 @@ namespace gaia {
 				memcpy((void*)pD, (const void*)pS, comp.size());
 			}
 
+			//! Moves one existing component value into another value.
+			//! @param pDst Destination component storage base pointer.
+			//! @param pSrc Source component storage base pointer.
+			//! @param idxDst Destination value index.
+			//! @param idxSrc Source value index.
+			//! @param sizeDst Destination value stride in bytes.
+			//! @param sizeSrc Source value stride in bytes.
 			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
 				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
@@ -217,6 +285,13 @@ namespace gaia {
 				memmove((void*)pD, (const void*)pS, comp.size());
 			}
 
+			//! Swaps two component values.
+			//! @param pLeft Left component storage base pointer.
+			//! @param pRight Right component storage base pointer.
+			//! @param idxLeft Left value index.
+			//! @param idxRight Right value index.
+			//! @param sizeDst Left value stride in bytes.
+			//! @param sizeSrc Right value stride in bytes.
 			void
 			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pLeft != nullptr && pRight != nullptr);
@@ -237,6 +312,10 @@ namespace gaia {
 				}
 			}
 
+			//! Compares two component values of this type.
+			//! @param pLeft Left component value pointer.
+			//! @param pRight Right component value pointer.
+			//! @return True when the values compare equal.
 			bool cmp(const void* pLeft, const void* pRight) const {
 				GAIA_ASSERT(pLeft != pRight);
 				if (func_cmp != nullptr)
@@ -248,6 +327,12 @@ namespace gaia {
 				return memcmp(pLeft, pRight, comp.size()) == 0;
 			}
 
+			//! Saves a contiguous range of component values.
+			//! @param serializer Destination serializer.
+			//! @param pSrc Source component storage base pointer.
+			//! @param from First value index to save.
+			//! @param to One-past-last value index to save.
+			//! @param cap Value capacity of the source storage.
 			void save(ser::serializer& serializer, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) const {
 				GAIA_ASSERT(serializer.valid() && pSrc != nullptr && from < to && to <= cap);
 				if (func_save != nullptr) {
@@ -265,6 +350,12 @@ namespace gaia {
 				}
 			}
 
+			//! Loads a contiguous range of component values.
+			//! @param serializer Source serializer.
+			//! @param pDst Destination component storage base pointer.
+			//! @param from First value index to load.
+			//! @param to One-past-last value index to load.
+			//! @param cap Value capacity of the destination storage.
 			void load(ser::serializer& serializer, void* pDst, uint32_t from, uint32_t to, uint32_t cap) const {
 				GAIA_ASSERT(serializer.valid() && pDst != nullptr && from < to && to <= cap);
 				if (func_load != nullptr) {
@@ -282,22 +373,33 @@ namespace gaia {
 				}
 			}
 
+			//! Clears all runtime field metadata registered on this component.
 			void clear_fields() {
 				fields.clear();
 			}
 
+			//! @return True when this component has runtime field metadata.
 			GAIA_NODISCARD bool has_fields() const {
 				return !fields.empty();
 			}
 
+			//! Gets the element count represented by a runtime field descriptor.
+			//! @param field Field descriptor to inspect.
+			//! @return 1 for scalar fields, otherwise the fixed inline array count.
 			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
 				return field.count == 0 ? 1U : field.count;
 			}
 
+			//! Gets the element count represented by stored runtime field metadata.
+			//! @param field Stored field metadata to inspect.
+			//! @return 1 for scalar fields, otherwise the fixed inline array count.
 			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeField& field) noexcept {
 				return field.count == 0 ? 1U : field.count;
 			}
 
+			//! Gets the byte size of a reflected primitive runtime type entity.
+			//! @param type Primitive type entity.
+			//! @return Primitive byte size, or 0 when @a type is not a reflected primitive type.
 			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
 				ser::serialization_type_id id = ser::serialization_type_id::ignore;
 				if (!runtime_primitive_serialization_type(type, id))
@@ -305,6 +407,10 @@ namespace gaia {
 				return ser::serialization_type_size(id, 0);
 			}
 
+			//! Adds or updates runtime field metadata.
+			//! @param desc Field descriptor. A count of 0 means one scalar value.
+			//! @param typeSize Optional pre-resolved field type size. When 0, primitive type metadata is used.
+			//! @return True when the field metadata was added or updated; false when validation failed.
 			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
 				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
 					return false;
@@ -339,6 +445,24 @@ namespace gaia {
 				return true;
 			}
 
+			//! Looks up runtime field metadata by index.
+			//! \param index Field index.
+			//! \param ppField Receives the field metadata pointer when found.
+			//! \return True when the field exists.
+			GAIA_NODISCARD bool field(uint32_t index, const RuntimeField** ppField) const {
+				GAIA_ASSERT(ppField != nullptr);
+				*ppField = nullptr;
+				if (index >= fields.size())
+					return false;
+
+				*ppField = &fields[index];
+				return true;
+			}
+
+			//! Looks up runtime field metadata by name.
+			//! \param fieldName Field name.
+			//! \param ppField Receives the field metadata pointer when found.
+			//! \return True when the field exists.
 			GAIA_NODISCARD bool field(util::str_view fieldName, const RuntimeField** ppField) const {
 				GAIA_ASSERT(ppField != nullptr);
 				*ppField = nullptr;
@@ -354,25 +478,33 @@ namespace gaia {
 				return false;
 			}
 
+			//! @return Number of runtime fields registered on this component.
 			GAIA_NODISCARD uint32_t field_count() const noexcept {
 				return (uint32_t)fields.size();
 			}
 
+			//! Clears all runtime field metadata registered on this component.
 			void clear_runtime_fields() {
 				fields.clear();
 			}
 
 #if GAIA_ENABLE_HOOKS
+			//! @return Mutable hook callback storage for this component.
 			Hooks& hooks() {
 				return comp_hooks;
 			}
 
+			//! @return Read-only hook callback storage for this component.
 			const Hooks& hooks() const {
 				return comp_hooks;
 			}
 
 #endif
 
+			//! Calculates the next aligned memory offset after storing @a cnt values of this component.
+			//! @param addr Starting byte offset.
+			//! @param cnt Number of component values to reserve.
+			//! @return Byte offset after the component storage block.
 			GAIA_NODISCARD uint32_t calc_new_mem_offset(uint32_t addr, size_t cnt) const noexcept {
 				if (comp.soa() == 0) {
 					addr = (uint32_t)mem::detail::get_aligned_byte_offset(addr, comp.alig(), comp.size(), cnt);
@@ -389,6 +521,10 @@ namespace gaia {
 			}
 
 		private:
+			//! Builds a stable component symbol from compiler type-info text.
+			//! @tparam T Component type being registered.
+			//! @param nameTmp Output buffer receiving the normalized null-terminated name.
+			//! @return Length of the normalized component name, excluding the null terminator.
 			template <typename T>
 			GAIA_NODISCARD static uint32_t init_type_name(char (&nameTmp)[MaxNameLength]) {
 				auto ct_name = detail::ComponentDesc<T>::name();
@@ -458,6 +594,9 @@ namespace gaia {
 				return nameTmpLen;
 			}
 
+			//! Initializes an owned symbol lookup key from a name view.
+			//! @param nameOut Destination lookup key receiving owned storage.
+			//! @param nameView Component name to copy.
 			static void init_name(SymbolLookupKey& nameOut, util::str_view nameView) {
 				char* name = mem::AllocHelper::alloc<char>(nameView.size() + 1);
 				memcpy((void*)name, (const void*)nameView.data(), nameView.size());
@@ -466,6 +605,10 @@ namespace gaia {
 			}
 
 		public:
+			//! Creates metadata for a compile-time C++ component type.
+			//! @tparam T Component type to register.
+			//! @param entity Component entity that owns the resulting metadata.
+			//! @return Newly allocated component cache item; release with destroy().
 			template <typename T>
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
@@ -485,6 +628,10 @@ namespace gaia {
 				return create(entity, desc);
 			}
 
+			//! Creates metadata from a plain component descriptor.
+			//! @param entity Component entity that owns the resulting metadata.
+			//! @param desc Component descriptor describing storage, lifecycle, and runtime type metadata.
+			//! @return Newly allocated component cache item; release with destroy().
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
@@ -521,6 +668,10 @@ namespace gaia {
 				return cci;
 			}
 
+			//! Creates metadata from the legacy component-cache registration context.
+			//! @param entity Component entity that owns the resulting metadata.
+			//! @param ctx Component registration context to adapt to ComponentDesc.
+			//! @return Newly allocated component cache item; release with destroy().
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
 				ecs::ComponentDesc desc{};
 				desc.name = ctx.name;
@@ -545,6 +696,8 @@ namespace gaia {
 				return create(entity, desc);
 			}
 
+			//! Releases a cache item and any owned symbol storage.
+			//! @param pItem Cache item created by create(); null is accepted.
 			static void destroy(ComponentCacheItem* pItem) {
 				if (pItem == nullptr)
 					return;

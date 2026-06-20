@@ -593,14 +593,19 @@ desc.size = sizeof(float);
 desc.alig = alignof(float);
 desc.storageType = ecs::DataStorageType::Table;
 
-const ecs::ComponentCacheItem& cooldownCI = w.add(desc);
+ecs::ComponentCacheItem& cooldownCI = w.add(desc);
 ```
 
 You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
 
 ```cpp
-if (!w.add_field(cooldownCI.entity, {"seconds", ecs::F32, 0, 0})) {
+if (!cooldownCI.add_field({"seconds", ecs::F32, 0, 0})) {
   // The field type or byte range is invalid.
+}
+
+const ecs::RuntimeField* secondsField = nullptr;
+if (cooldownCI.field("seconds", &secondsField)) {
+  // secondsField describes the registered byte range and type.
 }
 ```
 
@@ -3371,7 +3376,7 @@ Quick overview of serializer types:
 Recommended JSON API surface:
 - `ser::ser_json` for low-level JSON token writing/parsing
 - `ecs::component_to_json` / `ecs::json_to_component` for runtime component payloads with registered fields
-  registered through `ComponentCache::add_field(...)`. JSON supports scalar primitive fields and `ecs::Char8` buffers.
+  registered through `ComponentCacheItem::add_field(...)`. JSON supports scalar primitive fields and `ecs::Char8` buffers.
 - `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
 
 For structured semantic load feedback, use diagnostics overloads:

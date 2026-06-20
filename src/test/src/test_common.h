@@ -98,19 +98,19 @@ inline ecs::ComponentCacheItem::ComponentCacheItemCtx runtime_component_item_ctx
 	return ctx;
 }
 
-inline const ecs::ComponentCacheItem& add_runtime_component(
+inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::World& world, const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig = 1,
 		uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
 		ecs::EntityKind kind = ecs::EntityKind::EK_Gen) {
 	return world.add(runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), kind);
 }
 
-inline const ecs::ComponentCacheItem& add_runtime_component(
+inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::ComponentCache& cc, ecs::Entity entity, const char* name, uint32_t size, ecs::DataStorageType storageType,
 		uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
 		util::str_view scopePath = {}) {
-	return cc.add(
-			entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), scopePath);
+	return const_cast<ecs::ComponentCacheItem&>(
+			cc.add(entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), scopePath));
 }
 
 inline ecs::Entity runtime_field_type_from_json_type(ser::serialization_type_id type) {

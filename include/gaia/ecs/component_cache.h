@@ -252,13 +252,14 @@ namespace gaia {
 			//! \param pItem Component cache item to store.
 			//! \param scopePath Optional world-provided scope prefix used for default path generation.
 			//! \return Stored component item.
-			const ComponentCacheItem& add_item(const ComponentCacheItem* pItem, util::str_view scopePath) {
+			ComponentCacheItem& add_item(const ComponentCacheItem* pItem, util::str_view scopePath) {
 				GAIA_ASSERT(pItem != nullptr);
 				GAIA_ASSERT(pItem->entity.id() == pItem->comp.id());
 				m_compByEntityId.emplace(pItem->entity.id(), pItem);
 
-				add_name_mappings(*const_cast<ComponentCacheItem*>(pItem), scopePath);
-				return *pItem;
+				auto& item = *const_cast<ComponentCacheItem*>(pItem);
+				add_name_mappings(item, scopePath);
+				return item;
 			}
 
 			//! Searches for the component cache item given the compile-time metadata hash.
@@ -318,8 +319,8 @@ namespace gaia {
 			//! \param entity Component entity to bind the cache record to.
 			//! \param desc Plain component registration descriptor.
 			//! \param scopePath Optional scoped path prefix used to derive the default component path.
-			//! \return Component info.
-			GAIA_NODISCARD const ComponentCacheItem&
+			//! \return Mutable component info.
+			GAIA_NODISCARD ComponentCacheItem&
 			add(Entity entity, const ecs::ComponentDesc& desc, util::str_view scopePath = {}) {
 				GAIA_ASSERT(entity != EntityBad);
 				GAIA_ASSERT(!entity.pair());
@@ -329,7 +330,7 @@ namespace gaia {
 				{
 					const auto* pExisting = symbol(desc.name);
 					if (pExisting != nullptr)
-						return *pExisting;
+						return *find(pExisting->entity);
 				}
 
 				const auto* pItem = ComponentCacheItem::create(entity, desc);
@@ -341,8 +342,8 @@ namespace gaia {
 			//! \param entity Component entity to bind the cache record to.
 			//! \param item Component item registration context.
 			//! \param scopePath Optional scoped path prefix used to derive the default component path.
-			//! \return Component info.
-			GAIA_NODISCARD const ComponentCacheItem&
+			//! \return Mutable component info.
+			GAIA_NODISCARD ComponentCacheItem&
 			add(Entity entity, const ComponentCacheItem::ComponentCacheItemCtx& item, util::str_view scopePath = {}) {
 				ecs::ComponentDesc desc{};
 				desc.name = item.name;
@@ -365,22 +366,6 @@ namespace gaia {
 				desc.funcSave = item.funcSave;
 				desc.funcLoad = item.funcLoad;
 				return add(entity, desc, scopePath);
-			}
-
-			//! Adds runtime field metadata to a registered component.
-			//! \param component Component entity receiving the field.
-			//! \param field Field descriptor. A count of 0 means scalar.
-			//! Returns true when the field was added or updated, false if validation failed.
-			GAIA_NODISCARD bool add_field(Entity component, const RuntimeFieldDesc& field) {
-				auto* pItem = find(component);
-				if (pItem == nullptr)
-					return false;
-
-				const auto* pType = find(field.type);
-				if (pType == nullptr)
-					return false;
-
-				return pItem->add_field(field, pType->comp.size());
 			}
 
 			//! Searches for the component cache item.
