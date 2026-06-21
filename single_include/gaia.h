@@ -29650,6 +29650,8 @@ namespace gaia {
 			None,
 			Primitive,
 			Struct,
+			Enum,
+			Bitmask,
 		};
 
 		//! Runtime primitive kind associated with primitive type entities.
@@ -29695,6 +29697,20 @@ namespace gaia {
 			uint32_t count = 0;
 		};
 
+		//! User-authored symbolic runtime constant descriptor for enum and bitmask type entities.
+		struct RuntimeConstantDesc final {
+			//! Constant symbol.
+			util::str_view name{};
+			//! Constant value.
+			int64_t value = 0;
+		};
+
+		//! Stored symbolic runtime constant metadata.
+		struct RuntimeConstant final {
+			char name[256]{};
+			int64_t value = 0;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
@@ -29729,8 +29745,12 @@ namespace gaia {
 			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 			//! Runtime field descriptors copied into component metadata during registration.
 			const RuntimeFieldDesc* fields = nullptr;
-			//! Number of descriptors in \ref fields.
+			//! Number of field descriptors.
 			uint32_t fieldCount = 0;
+			//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
+			const RuntimeConstantDesc* constants = nullptr;
+			//! Number of constant descriptors.
+			uint32_t constantCount = 0;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;
@@ -30058,6 +30078,8 @@ namespace gaia {
 
 			//! Stored runtime field metadata type.
 			using RuntimeField = ecs::RuntimeField;
+			//! Stored runtime constant metadata type.
+			using RuntimeConstant = ecs::RuntimeConstant;
 
 			//! Component item registration context.
 			struct ComponentCacheItemCtx {
@@ -30081,8 +30103,12 @@ namespace gaia {
 				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 				//! Runtime field descriptors copied into component metadata during registration.
 				const RuntimeFieldDesc* fields = nullptr;
-				//! Number of descriptors in \ref fields.
+				//! Number of field descriptors.
 				uint32_t fieldCount = 0;
+				//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
+				const RuntimeConstantDesc* constants = nullptr;
+				//! Number of constant descriptors.
+				uint32_t constantCount = 0;
 				//! Optional construction callback.
 				FuncCtor* funcCtor = nullptr;
 				//! Optional move-construction callback.
@@ -30164,6 +30190,8 @@ namespace gaia {
 		private:
 			//! Runtime field metadata registered for this component.
 			cnt::darray<RuntimeField> m_fields;
+			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
+			cnt::darray<RuntimeConstant> m_constants;
 
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
@@ -30425,6 +30453,44 @@ namespace gaia {
 				return (uint32_t)m_fields.size();
 			}
 
+			//! Looks up runtime enum/bitmask constant metadata by index.
+			//! \param index Constant index.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant(uint32_t index) const noexcept {
+				return index < m_constants.size() ? &m_constants[index] : nullptr;
+			}
+
+			//! Looks up runtime enum/bitmask constant metadata by name.
+			//! \param constantName Constant name.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant(util::str_view constantName) const noexcept {
+				if (constantName.empty() || constantName.size() >= MaxNameLength)
+					return nullptr;
+
+				for (const auto& constant: m_constants) {
+					if (strncmp(constant.name, constantName.data(), constantName.size()) == 0 &&
+							constant.name[constantName.size()] == 0)
+						return &constant;
+				}
+				return nullptr;
+			}
+
+			//! Looks up runtime enum/bitmask constant metadata by exact value.
+			//! \param value Constant value.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant_by_value(int64_t value) const noexcept {
+				for (const auto& constant: m_constants) {
+					if (constant.value == value)
+						return &constant;
+				}
+				return nullptr;
+			}
+
+			//! @return Number of runtime enum/bitmask constants registered on this type.
+			GAIA_NODISCARD uint32_t constant_count() const noexcept {
+				return (uint32_t)m_constants.size();
+			}
+
 #if GAIA_ENABLE_HOOKS
 			//! @return Mutable hook callback storage for this component.
 			Hooks& hooks() {
@@ -30541,43 +30607,6 @@ namespace gaia {
 				nameOut = SymbolLookupKey(name, nameView.size(), 1);
 			}
 
-#if GAIA_ASSERT_ENABLED
-			//! Validates descriptor-time runtime field metadata before immutable copy.
-			//! \param fields Field descriptor array.
-			//! \param fieldCount Number of field descriptors.
-			//! \param compSize Component payload byte size.
-			static void
-			validate_runtime_fields(const RuntimeFieldDesc* fields, uint32_t fieldCount, uint32_t compSize) noexcept {
-				GAIA_ASSERT(fields != nullptr);
-				if (fields == nullptr)
-					return;
-
-				GAIA_FOR(fieldCount) {
-					const auto& field = fields[i];
-					GAIA_ASSERT(!field.name.empty());
-					GAIA_ASSERT(field.name.size() < MaxNameLength);
-					GAIA_ASSERT(field.type != EntityBad);
-
-					const auto elementSize = primitive_type_size(field.type);
-					GAIA_ASSERT(elementSize > 0);
-					const auto elementCount = field_element_count(field);
-					GAIA_ASSERT(elementCount > 0);
-					GAIA_ASSERT(field.offset <= compSize);
-					const auto availableSize = field.offset <= compSize ? compSize - field.offset : 0;
-					GAIA_ASSERT(elementSize <= availableSize);
-					GAIA_ASSERT(elementCount <= availableSize / elementSize);
-
-					GAIA_FOR2_(i + 1, fieldCount, otherIdx) {
-						const auto& other = fields[otherIdx];
-						const bool sameLen = field.name.size() == other.name.size();
-						const bool sameName = sameLen && field.name.data() != nullptr && other.name.data() != nullptr &&
-																	strncmp(field.name.data(), other.name.data(), field.name.size()) == 0;
-						GAIA_ASSERT(!sameName);
-					}
-				}
-			}
-#endif
-
 			//! Copies one runtime field descriptor into immutable component metadata.
 			//! @param desc Field descriptor to copy.
 			//! @return True when copied, false when the field name is invalid.
@@ -30592,6 +30621,21 @@ namespace gaia {
 				field.offset = desc.offset;
 				field.count = desc.count;
 				m_fields.push_back(field);
+				return true;
+			}
+
+			//! Copies one runtime constant descriptor into immutable component metadata.
+			//! @param desc Constant descriptor to copy.
+			//! @return True when copied, false when the constant name is invalid.
+			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantDesc& desc) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+
+				RuntimeConstant constant{};
+				memcpy((void*)constant.name, (const void*)desc.name.data(), desc.name.size());
+				constant.name[desc.name.size()] = 0;
+				constant.value = desc.value;
+				m_constants.push_back(constant);
 				return true;
 			}
 
@@ -30663,11 +30707,15 @@ namespace gaia {
 				cci->primitiveKind = desc.primitiveKind;
 
 				if (desc.fieldCount > 0) {
-#if GAIA_ASSERT_ENABLED
-					validate_runtime_fields(desc.fields, desc.fieldCount, desc.size);
-#endif
 					GAIA_FOR(desc.fieldCount) {
 						const bool copied = cci->copy_runtime_field(desc.fields[i]);
+						GAIA_ASSERT(copied);
+					}
+				}
+
+				if (desc.constantCount > 0) {
+					GAIA_FOR(desc.constantCount) {
+						const bool copied = cci->copy_runtime_constant(desc.constants[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
@@ -30692,6 +30740,8 @@ namespace gaia {
 				desc.primitiveKind = ctx.primitiveKind;
 				desc.fields = ctx.fields;
 				desc.fieldCount = ctx.fieldCount;
+				desc.constants = ctx.constants;
+				desc.constantCount = ctx.constantCount;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;
@@ -30813,6 +30863,73 @@ namespace gaia {
 				GAIA_ASSERT(l < ComponentCacheItem::MaxNameLength);
 				return util::str_view(name, l);
 			}
+
+#if GAIA_ASSERT_ENABLED
+			//! Validates descriptor-time runtime field metadata before immutable copy.
+			//! \param desc Component descriptor whose field metadata is being registered.
+			void validate_runtime_fields(const ecs::ComponentDesc& desc) const noexcept {
+				if (desc.fieldCount == 0)
+					return;
+
+				GAIA_ASSERT(desc.fields != nullptr);
+				if (desc.fields == nullptr)
+					return;
+
+				GAIA_FOR(desc.fieldCount) {
+					const auto& field = desc.fields[i];
+					GAIA_ASSERT(!field.name.empty());
+					GAIA_ASSERT(field.name.size() < ComponentCacheItem::MaxNameLength);
+					GAIA_ASSERT(field.type != EntityBad);
+
+					const auto* pType = find(field.type);
+					GAIA_ASSERT(pType != nullptr);
+					const auto elementSize = pType != nullptr ? pType->comp.size() : 0;
+					GAIA_ASSERT(elementSize > 0);
+					const auto elementCount = ComponentCacheItem::field_element_count(field);
+					GAIA_ASSERT(elementCount > 0);
+					GAIA_ASSERT(field.offset <= desc.size);
+					const auto availableSize = field.offset <= desc.size ? desc.size - field.offset : 0;
+					GAIA_ASSERT(elementSize <= availableSize);
+					GAIA_ASSERT(elementCount <= availableSize / elementSize);
+
+					GAIA_FOR2_(i + 1, desc.fieldCount, otherIdx) {
+						const auto& other = desc.fields[otherIdx];
+						const bool sameLen = field.name.size() == other.name.size();
+						const bool sameName = sameLen && field.name.data() != nullptr && other.name.data() != nullptr &&
+																	strncmp(field.name.data(), other.name.data(), field.name.size()) == 0;
+						GAIA_ASSERT(!sameName);
+					}
+				}
+			}
+
+			//! Validates descriptor-time enum/bitmask constant metadata before immutable copy.
+			//! \param desc Component descriptor whose constant metadata is being registered.
+			static void validate_runtime_constants(const ecs::ComponentDesc& desc) noexcept {
+				if (desc.constantCount == 0)
+					return;
+
+				GAIA_ASSERT(desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask);
+				GAIA_ASSERT(desc.primitiveKind != RuntimePrimitiveKind::None);
+				GAIA_ASSERT(desc.constants != nullptr);
+				if (desc.constants == nullptr)
+					return;
+
+				GAIA_FOR(desc.constantCount) {
+					const auto& constant = desc.constants[i];
+					GAIA_ASSERT(!constant.name.empty());
+					GAIA_ASSERT(constant.name.size() < ComponentCacheItem::MaxNameLength);
+
+					GAIA_FOR2_(i + 1, desc.constantCount, otherIdx) {
+						const auto& other = desc.constants[otherIdx];
+						const bool sameLen = constant.name.size() == other.name.size();
+						const bool sameName = sameLen && constant.name.data() != nullptr && other.name.data() != nullptr &&
+																	strncmp(constant.name.data(), other.name.data(), constant.name.size()) == 0;
+						GAIA_ASSERT(!sameName);
+						GAIA_ASSERT(constant.value != other.value);
+					}
+				}
+			}
+#endif
 
 			static bool build_default_path(util::str& out, util::str_view symbol) {
 				out.clear();
@@ -31039,6 +31156,11 @@ namespace gaia {
 						return *find(pExisting->entity);
 				}
 
+#if GAIA_ASSERT_ENABLED
+				validate_runtime_fields(desc);
+				validate_runtime_constants(desc);
+#endif
+
 				const auto* pItem = ComponentCacheItem::create(entity, desc);
 				GAIA_ASSERT(entity.id() == pItem->comp.id());
 				return add_item(pItem, scopePath);
@@ -31063,6 +31185,8 @@ namespace gaia {
 				desc.primitiveKind = item.primitiveKind;
 				desc.fields = item.fields;
 				desc.fieldCount = item.fieldCount;
+				desc.constants = item.constants;
+				desc.constantCount = item.constantCount;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;
@@ -35267,6 +35391,8 @@ namespace gaia {
 
 			//! \return Number of reflected fields on the current type.
 			GAIA_NODISCARD uint32_t field_count() const {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return 0;
 				const auto* pItem = current_item();
 				return pItem != nullptr ? pItem->field_count() : 0;
 			}
@@ -35275,6 +35401,8 @@ namespace gaia {
 			//! \param index Reflected field index on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return false;
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
@@ -35287,6 +35415,8 @@ namespace gaia {
 			//! \param name Reflected field name on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(util::str_view name) {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return false;
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
@@ -35624,8 +35754,16 @@ namespace gaia {
 				if (!m_valid)
 					return CursorStatus::Invalid;
 				const auto& current = m_stack[m_depth];
-				if (current.type != expectedType)
-					return CursorStatus::TypeMismatch;
+				if (current.type != expectedType) {
+					const auto* pCurrentType = m_components != nullptr ? m_components->find(current.type) : nullptr;
+					const auto* pExpectedType = m_components != nullptr ? m_components->find(expectedType) : nullptr;
+					if (pCurrentType == nullptr || pExpectedType == nullptr ||
+							pCurrentType->primitiveKind == RuntimePrimitiveKind::None ||
+							pCurrentType->primitiveKind != pExpectedType->primitiveKind ||
+							(pCurrentType->typeKind != RuntimeTypeKind::Primitive &&
+							 pCurrentType->typeKind != RuntimeTypeKind::Enum && pCurrentType->typeKind != RuntimeTypeKind::Bitmask))
+						return CursorStatus::TypeMismatch;
+				}
 				if (requireScalar && current.elemCount != 1)
 					return CursorStatus::TypeMismatch;
 				if (current.size != current.elemSize * current.elemCount)

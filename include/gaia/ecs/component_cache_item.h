@@ -66,6 +66,8 @@ namespace gaia {
 
 			//! Stored runtime field metadata type.
 			using RuntimeField = ecs::RuntimeField;
+			//! Stored runtime constant metadata type.
+			using RuntimeConstant = ecs::RuntimeConstant;
 
 			//! Component item registration context.
 			struct ComponentCacheItemCtx {
@@ -89,8 +91,12 @@ namespace gaia {
 				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 				//! Runtime field descriptors copied into component metadata during registration.
 				const RuntimeFieldDesc* fields = nullptr;
-				//! Number of descriptors in \ref fields.
+				//! Number of field descriptors.
 				uint32_t fieldCount = 0;
+				//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
+				const RuntimeConstantDesc* constants = nullptr;
+				//! Number of constant descriptors.
+				uint32_t constantCount = 0;
 				//! Optional construction callback.
 				FuncCtor* funcCtor = nullptr;
 				//! Optional move-construction callback.
@@ -172,6 +178,8 @@ namespace gaia {
 		private:
 			//! Runtime field metadata registered for this component.
 			cnt::darray<RuntimeField> m_fields;
+			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
+			cnt::darray<RuntimeConstant> m_constants;
 
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
@@ -433,6 +441,44 @@ namespace gaia {
 				return (uint32_t)m_fields.size();
 			}
 
+			//! Looks up runtime enum/bitmask constant metadata by index.
+			//! \param index Constant index.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant(uint32_t index) const noexcept {
+				return index < m_constants.size() ? &m_constants[index] : nullptr;
+			}
+
+			//! Looks up runtime enum/bitmask constant metadata by name.
+			//! \param constantName Constant name.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant(util::str_view constantName) const noexcept {
+				if (constantName.empty() || constantName.size() >= MaxNameLength)
+					return nullptr;
+
+				for (const auto& constant: m_constants) {
+					if (strncmp(constant.name, constantName.data(), constantName.size()) == 0 &&
+							constant.name[constantName.size()] == 0)
+						return &constant;
+				}
+				return nullptr;
+			}
+
+			//! Looks up runtime enum/bitmask constant metadata by exact value.
+			//! \param value Constant value.
+			//! \return Constant metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeConstant* constant_by_value(int64_t value) const noexcept {
+				for (const auto& constant: m_constants) {
+					if (constant.value == value)
+						return &constant;
+				}
+				return nullptr;
+			}
+
+			//! @return Number of runtime enum/bitmask constants registered on this type.
+			GAIA_NODISCARD uint32_t constant_count() const noexcept {
+				return (uint32_t)m_constants.size();
+			}
+
 #if GAIA_ENABLE_HOOKS
 			//! @return Mutable hook callback storage for this component.
 			Hooks& hooks() {
@@ -566,6 +612,21 @@ namespace gaia {
 				return true;
 			}
 
+			//! Copies one runtime constant descriptor into immutable component metadata.
+			//! @param desc Constant descriptor to copy.
+			//! @return True when copied, false when the constant name is invalid.
+			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantDesc& desc) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+
+				RuntimeConstant constant{};
+				memcpy((void*)constant.name, (const void*)desc.name.data(), desc.name.size());
+				constant.name[desc.name.size()] = 0;
+				constant.value = desc.value;
+				m_constants.push_back(constant);
+				return true;
+			}
+
 		public:
 			//! Creates metadata for a compile-time C++ component type.
 			//! @tparam T Component type to register.
@@ -640,6 +701,13 @@ namespace gaia {
 					}
 				}
 
+				if (desc.constantCount > 0) {
+					GAIA_FOR(desc.constantCount) {
+						const bool copied = cci->copy_runtime_constant(desc.constants[i]);
+						GAIA_ASSERT(copied);
+					}
+				}
+
 				return cci;
 			}
 
@@ -660,6 +728,8 @@ namespace gaia {
 				desc.primitiveKind = ctx.primitiveKind;
 				desc.fields = ctx.fields;
 				desc.fieldCount = ctx.fieldCount;
+				desc.constants = ctx.constants;
+				desc.constantCount = ctx.constantCount;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;

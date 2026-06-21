@@ -586,8 +586,16 @@ namespace gaia {
 				if (!m_valid)
 					return CursorStatus::Invalid;
 				const auto& current = m_stack[m_depth];
-				if (current.type != expectedType)
-					return CursorStatus::TypeMismatch;
+				if (current.type != expectedType) {
+					const auto* pCurrentType = m_components != nullptr ? m_components->find(current.type) : nullptr;
+					const auto* pExpectedType = m_components != nullptr ? m_components->find(expectedType) : nullptr;
+					if (pCurrentType == nullptr || pExpectedType == nullptr ||
+							pCurrentType->primitiveKind == RuntimePrimitiveKind::None ||
+							pCurrentType->primitiveKind != pExpectedType->primitiveKind ||
+							(pCurrentType->typeKind != RuntimeTypeKind::Primitive &&
+							 pCurrentType->typeKind != RuntimeTypeKind::Enum && pCurrentType->typeKind != RuntimeTypeKind::Bitmask))
+						return CursorStatus::TypeMismatch;
+				}
 				if (requireScalar && current.elemCount != 1)
 					return CursorStatus::TypeMismatch;
 				if (current.size != current.elemSize * current.elemCount)

@@ -103,6 +103,13 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Compile-time serialization](#compile-time-serialization)
     * [Runtime serialization](#runtime-serialization)
     * [World serialization](#world-serialization)
+  * [Runtime components](#runtime-components)
+    * [Registration](#registration)
+    * [Field metadata](#field-metadata)
+    * [Nested structs and fixed arrays](#nested-structs-and-fixed-arrays)
+    * [Enum and bitmask metadata](#enum-and-bitmask-metadata)
+    * [Raw access and cursors](#raw-access-and-cursors)
+    * [Querying runtime components](#querying-runtime-components)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
     * [Job dependencies](#job-dependencies)
@@ -583,129 +590,7 @@ When adding components following restrictions apply:
 or `ecs::DontFragment`, register it explicitly first and then apply the trait to the component entity. Implicit registration
 can also be disabled entirely with `GAIA_ECS_AUTO_COMPONENT_REGISTRATION`.
 
-You can also register components from data you load at runtime. This is useful for editors, mods, importers, and save
-formats that define component layouts outside C++ code.
-
-```cpp
-ecs::ComponentDesc desc{};
-desc.name = util::str_view("Cooldown", 8);
-desc.size = sizeof(float);
-desc.alig = alignof(float);
-desc.storageType = ecs::DataStorageType::Table;
-const ecs::RuntimeFieldDesc fields[] = {
-  {util::str_view("seconds", 7), ecs::F32, 0, 0}
-};
-desc.fields = fields;
-desc.fieldCount = 1;
-
-ecs::ComponentCacheItem& cooldownCI = w.add(desc);
-```
-
-You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array. Runtime field descriptors are copied during component registration and stay fixed for the lifetime of the component metadata.
-
-Fields can also reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to continue walking into nested fields.
-
-```cpp
-constexpr uint32_t FloatSize = sizeof(float);
-constexpr uint32_t Vec3Size = FloatSize * 3;
-constexpr uint32_t TransformSize = Vec3Size * 2;
-
-const ecs::RuntimeFieldDesc vec3Fields[] = {
-  {util::str_view("x", 1), ecs::F32, 0, 0},
-  {util::str_view("y", 1), ecs::F32, FloatSize, 0},
-  {util::str_view("z", 1), ecs::F32, FloatSize * 2, 0}
-};
-
-ecs::ComponentDesc vec3Desc{};
-vec3Desc.name = util::str_view("Vec3", 4);
-vec3Desc.size = Vec3Size;
-vec3Desc.alig = alignof(float);
-vec3Desc.storageType = ecs::DataStorageType::Table;
-vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
-vec3Desc.fields = vec3Fields;
-vec3Desc.fieldCount = 3;
-ecs::ComponentCacheItem& vec3CI = w.add(vec3Desc);
-
-const ecs::RuntimeFieldDesc transformFields[] = {
-  {util::str_view("position", 8), vec3CI.entity, 0, 0},
-  {util::str_view("velocity", 8), vec3CI.entity, Vec3Size, 0}
-};
-
-ecs::ComponentDesc transformDesc{};
-transformDesc.name = util::str_view("Transform", 9);
-transformDesc.size = TransformSize;
-transformDesc.alig = alignof(float);
-transformDesc.storageType = ecs::DataStorageType::Table;
-transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
-transformDesc.fields = transformFields;
-transformDesc.fieldCount = 2;
-ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
-
-ecs::Entity e = w.add();
-float transformPayload[] = {
-  0.0f, 1.0f, 2.0f, // position
-  3.0f, 4.0f, 5.0f  // velocity
-};
-w.add_raw(e, transformCI.entity, transformPayload, sizeof(transformPayload));
-
-ecs::ComponentCursor cursor = w.cursor_mut(e, transformCI.entity);
-if (cursor.field("position") && cursor.field("y")) {
-  cursor.f32(10.0f);
-}
-```
-
-For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a `Vec3[2]` field is addressed as `cursor.field("samples")`, then `cursor.elem(1)`, then `cursor.field("z")`. Direct field lookup on the array scope is rejected so it does not silently address element zero.
-
-```cpp
-const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
-if (secondsField != nullptr) {
-  // secondsField describes the registered byte range and type.
-}
-```
-
-Once the component is registered, you can add and edit it without a C++ component type:
-
-```cpp
-ecs::Entity e = w.add();
-float seconds = 2.5f;
-if (!w.add_raw(e, cooldownCI.entity, &seconds, sizeof(seconds))) {
-  // The entity, component, or payload size is invalid.
-}
-
-ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);
-if (cursor.field("seconds")) {
-  if (!cursor.f32(1.0f)) {
-    // The selected field cannot be written.
-  }
-
-  auto updated = cursor.f32();
-  if (updated) {
-    // updated.value contains the current seconds value.
-  }
-}
-
-auto q = w.query().all(cooldownCI.entity);
-q.each([&](ecs::Entity ent) {
-  ecs::ComponentRawView raw = w.get_raw(ent, cooldownCI.entity);
-  if (raw.valid()) {
-    // raw.data points at the component bytes for this entity.
-  }
-});
-```
-
-`get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent
-write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)`
-copies a full payload and emits the write notification for you. `ComponentCursor` primitive accessors such as `f32(...)`
-write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw
-field copies and replacement.
-
-World JSON uses runtime field metadata when it is available. Pre-register the same descriptor before loading semantic JSON;
-then `load_json(...)` can rebuild runtime-created component payloads without compile-time C++ component types.
-
-Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for
-read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)`
-to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
-
+Runtime-defined components are covered separately in [Runtime components](#runtime-components).
 
 ### Component hooks
 
@@ -3755,6 +3640,182 @@ ecs::World world1;
 world1.set_serializer(world0.get_serializer());
 world1.load();
 ```
+
+## Runtime components
+
+Runtime components are components whose payload layout is described by data instead of a C++ type. They are useful for editors, mods, importers, and save formats that define component schemas outside compiled code.
+
+The runtime API has three separate concerns:
+* registration: create a component entity from `ecs::ComponentDesc`
+* metadata: describe fields, nested structs, fixed arrays, enums, and bitmasks
+* access: add, read, write, query, and serialize payload bytes without a C++ component type
+
+For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type.
+
+### Registration
+
+Register a runtime component by filling `ecs::ComponentDesc` and passing it to `World::add(...)`. The descriptor name, size, alignment, storage type, and metadata are copied into the component cache item.
+
+```cpp
+ecs::ComponentDesc desc{};
+desc.name = util::str_view("Cooldown", 8);
+desc.size = sizeof(float);
+desc.alig = alignof(float);
+desc.storageType = ecs::DataStorageType::Table;
+const ecs::RuntimeFieldDesc fields[] = {
+  {util::str_view("seconds", 7), ecs::F32, 0, 0}
+};
+desc.fields = fields;
+desc.fieldCount = 1;
+
+ecs::ComponentCacheItem& cooldownCI = w.add(desc);
+```
+
+Register runtime schemas before loading data that references them. Duplicate registration by the same component name returns the existing component metadata.
+
+### Field metadata
+
+Runtime fields describe byte ranges inside the payload. Each field has a name, a type entity, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
+
+Primitive fields use Gaia's reflected primitive type entities such as `ecs::F32`, `ecs::S32`, or `ecs::Bool`. Runtime field descriptors are copied during registration and stay fixed for the lifetime of the component metadata.
+
+```cpp
+const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
+if (secondsField != nullptr) {
+  // secondsField describes the registered byte range and type.
+}
+```
+
+### Nested structs and fixed arrays
+
+Fields can reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to keep walking into nested fields.
+
+```cpp
+constexpr uint32_t FloatSize = sizeof(float);
+constexpr uint32_t Vec3Size = FloatSize * 3;
+constexpr uint32_t TransformSize = Vec3Size * 2;
+
+const ecs::RuntimeFieldDesc vec3Fields[] = {
+  {util::str_view("x", 1), ecs::F32, 0, 0},
+  {util::str_view("y", 1), ecs::F32, FloatSize, 0},
+  {util::str_view("z", 1), ecs::F32, FloatSize * 2, 0}
+};
+
+ecs::ComponentDesc vec3Desc{};
+vec3Desc.name = util::str_view("Vec3", 4);
+vec3Desc.size = Vec3Size;
+vec3Desc.alig = alignof(float);
+vec3Desc.storageType = ecs::DataStorageType::Table;
+vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+vec3Desc.fields = vec3Fields;
+vec3Desc.fieldCount = 3;
+ecs::ComponentCacheItem& vec3CI = w.add(vec3Desc);
+
+const ecs::RuntimeFieldDesc transformFields[] = {
+  {util::str_view("position", 8), vec3CI.entity, 0, 0},
+  {util::str_view("velocity", 8), vec3CI.entity, Vec3Size, 0}
+};
+
+ecs::ComponentDesc transformDesc{};
+transformDesc.name = util::str_view("Transform", 9);
+transformDesc.size = TransformSize;
+transformDesc.alig = alignof(float);
+transformDesc.storageType = ecs::DataStorageType::Table;
+transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+transformDesc.fields = transformFields;
+transformDesc.fieldCount = 2;
+ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
+
+ecs::Entity e = w.add();
+float transformPayload[] = {
+  0.0f, 1.0f, 2.0f, // position
+  3.0f, 4.0f, 5.0f  // velocity
+};
+w.add_raw(e, transformCI.entity, transformPayload, sizeof(transformPayload));
+
+ecs::ComponentCursor cursor = w.cursor_mut(e, transformCI.entity);
+if (cursor.field("position") && cursor.field("y")) {
+  cursor.f32(10.0f);
+}
+```
+
+For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a `Vec3[2]` field is addressed as `cursor.field("samples")`, then `cursor.elem(1)`, then `cursor.field("z")`. Direct field lookup on the array scope is rejected so it does not silently address element zero.
+
+### Enum and bitmask metadata
+
+Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. The payload is still stored as the declared primitive size, so cursor primitive helpers work on enum/bitmask fields when the underlying primitive kind matches.
+
+```cpp
+const ecs::RuntimeConstantDesc movementConstants[] = {
+  {util::str_view("Idle", 4), 0},
+  {util::str_view("Walk", 4), 1},
+  {util::str_view("Run", 3), 2}
+};
+
+ecs::ComponentDesc movementDesc{};
+movementDesc.name = util::str_view("MovementMode", 12);
+movementDesc.size = sizeof(uint32_t);
+movementDesc.alig = alignof(uint32_t);
+movementDesc.storageType = ecs::DataStorageType::Table;
+movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+movementDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+movementDesc.constants = movementConstants;
+movementDesc.constantCount = 3;
+ecs::ComponentCacheItem& movementCI = w.add(movementDesc);
+
+const ecs::RuntimeConstant* run = movementCI.constant("Run");
+if (run != nullptr) {
+  // run->value == 2
+}
+```
+
+Bitmask types use the same constant descriptor shape with `ecs::RuntimeTypeKind::Bitmask`; each constant value describes one named flag. Combining or decomposing flag sets is intentionally left to tooling policy, while Gaia-ECS owns the stable reflected names and values.
+
+### Raw access and cursors
+
+Once the component is registered, you can add and edit it without a C++ component type:
+
+```cpp
+ecs::Entity e = w.add();
+float seconds = 2.5f;
+if (!w.add_raw(e, cooldownCI.entity, &seconds, sizeof(seconds))) {
+  // The entity, component, or payload size is invalid.
+}
+
+ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);
+if (cursor.field("seconds")) {
+  if (!cursor.f32(1.0f)) {
+    // The selected field cannot be written.
+  }
+
+  auto updated = cursor.f32();
+  if (updated) {
+    // updated.value contains the current seconds value.
+  }
+}
+```
+
+`get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
+
+`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
+
+Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)` to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
+
+### Querying runtime components
+
+Runtime component entities can be used directly in queries. Read payload bytes through raw views when iterating matching entities.
+
+```cpp
+auto q = w.query().all(cooldownCI.entity);
+q.each([&](ecs::Entity ent) {
+  ecs::ComponentRawView raw = w.get_raw(ent, cooldownCI.entity);
+  if (raw.valid()) {
+    // raw.data points at the component bytes for this entity.
+  }
+});
+```
+
+Iterator callbacks can also use the runtime component name and request an erased byte view through iterator raw access; see [Iteration](#iteration).
 
 ## Multithreading
 

@@ -145,6 +145,34 @@ namespace gaia {
 					}
 				}
 			}
+
+			//! Validates descriptor-time enum/bitmask constant metadata before immutable copy.
+			//! \param desc Component descriptor whose constant metadata is being registered.
+			static void validate_runtime_constants(const ecs::ComponentDesc& desc) noexcept {
+				if (desc.constantCount == 0)
+					return;
+
+				GAIA_ASSERT(desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask);
+				GAIA_ASSERT(desc.primitiveKind != RuntimePrimitiveKind::None);
+				GAIA_ASSERT(desc.constants != nullptr);
+				if (desc.constants == nullptr)
+					return;
+
+				GAIA_FOR(desc.constantCount) {
+					const auto& constant = desc.constants[i];
+					GAIA_ASSERT(!constant.name.empty());
+					GAIA_ASSERT(constant.name.size() < ComponentCacheItem::MaxNameLength);
+
+					GAIA_FOR2_(i + 1, desc.constantCount, otherIdx) {
+						const auto& other = desc.constants[otherIdx];
+						const bool sameLen = constant.name.size() == other.name.size();
+						const bool sameName = sameLen && constant.name.data() != nullptr && other.name.data() != nullptr &&
+																	strncmp(constant.name.data(), other.name.data(), constant.name.size()) == 0;
+						GAIA_ASSERT(!sameName);
+						GAIA_ASSERT(constant.value != other.value);
+					}
+				}
+			}
 #endif
 
 			static bool build_default_path(util::str& out, util::str_view symbol) {
@@ -374,6 +402,7 @@ namespace gaia {
 
 #if GAIA_ASSERT_ENABLED
 				validate_runtime_fields(desc);
+				validate_runtime_constants(desc);
 #endif
 
 				const auto* pItem = ComponentCacheItem::create(entity, desc);
@@ -400,6 +429,8 @@ namespace gaia {
 				desc.primitiveKind = item.primitiveKind;
 				desc.fields = item.fields;
 				desc.fieldCount = item.fieldCount;
+				desc.constants = item.constants;
+				desc.constantCount = item.constantCount;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;

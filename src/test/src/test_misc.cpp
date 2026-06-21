@@ -158,6 +158,11 @@ TEST_CASE("Component cache - runtime registration") {
 		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
 		return value;
 	};
+	const auto read_u32 = [](const void* data, uint32_t offset) {
+		uint32_t value{};
+		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
+		return value;
+	};
 	const auto write_xyz = [&](void* data, float x, float y, float z) {
 		write_f32(data, RuntimeXOffset, x);
 		write_f32(data, RuntimeYOffset, y);
@@ -351,6 +356,108 @@ TEST_CASE("Component cache - runtime registration") {
 			CHECK(field->count == 4);
 			CHECK(item.field_element_count(*field) == 4);
 		}
+	}
+
+	SUBCASE("runtime enum and bitmask metadata is descriptor owned") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+
+		const ecs::RuntimeConstantDesc movementConstants[] = {
+				{util::str_view("Idle"), 0}, //
+				{util::str_view("Walk"), 1}, //
+				{util::str_view("Run"), 2} //
+		};
+
+		ecs::ComponentDesc movementDesc{};
+		movementDesc.name = runtime_component_name_view("Runtime_Type_MovementMode");
+		movementDesc.size = 4;
+		movementDesc.alig = 4;
+		movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		movementDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+		movementDesc.constants = movementConstants;
+		movementDesc.constantCount = 3;
+		auto& movementType = cc.add(wld.add(), movementDesc);
+
+		CHECK(movementType.typeKind == ecs::RuntimeTypeKind::Enum);
+		CHECK(movementType.primitiveKind == ecs::RuntimePrimitiveKind::U32);
+		CHECK(movementType.constant_count() == 3);
+		const ecs::RuntimeConstant* walk = movementType.constant(util::str_view("Walk"));
+		CHECK(walk != nullptr);
+		if (walk != nullptr) {
+			CHECK(strcmp(walk->name, "Walk") == 0);
+			CHECK(walk->value == 1);
+		}
+		const ecs::RuntimeConstant* run = movementType.constant_by_value(2);
+		CHECK(run != nullptr);
+		if (run != nullptr)
+			CHECK(strcmp(run->name, "Run") == 0);
+		CHECK(movementType.constant(util::str_view("Fly")) == nullptr);
+		CHECK(movementType.constant_by_value(3) == nullptr);
+
+		const ecs::RuntimeConstantDesc collisionConstants[] = {
+				{util::str_view("Static"), 1}, //
+				{util::str_view("Dynamic"), 2}, //
+				{util::str_view("Trigger"), 4} //
+		};
+
+		ecs::ComponentDesc collisionDesc{};
+		collisionDesc.name = runtime_component_name_view("Runtime_Type_CollisionMask");
+		collisionDesc.size = 4;
+		collisionDesc.alig = 4;
+		collisionDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		collisionDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+		collisionDesc.constants = collisionConstants;
+		collisionDesc.constantCount = 3;
+		auto& collisionType = cc.add(wld.add(), collisionDesc);
+
+		CHECK(collisionType.typeKind == ecs::RuntimeTypeKind::Bitmask);
+		CHECK(collisionType.primitiveKind == ecs::RuntimePrimitiveKind::U32);
+		CHECK(collisionType.constant_count() == 3);
+		const ecs::RuntimeConstant* trigger = collisionType.constant(util::str_view("Trigger"));
+		CHECK(trigger != nullptr);
+		if (trigger != nullptr)
+			CHECK(trigger->value == 4);
+		CHECK(collisionType.constant_by_value(2)->value == 2);
+
+		const ecs::RuntimeFieldDesc actorFields[] = {
+				{util::str_view("movement"), movementType.entity, 0, 0}, //
+				{util::str_view("collision"), collisionType.entity, 4, 0} //
+		};
+
+		ecs::ComponentDesc actorDesc{};
+		actorDesc.name = runtime_component_name_view("Runtime_Component_ActorFlags");
+		actorDesc.size = 8;
+		actorDesc.alig = 4;
+		actorDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		actorDesc.fields = actorFields;
+		actorDesc.fieldCount = 2;
+		auto& actorComp = cc.add(wld.add(), actorDesc);
+
+		uint32_t payload[] = {2, 1 | 4};
+		const auto entity = wld.add();
+		CHECK(wld.add_raw(entity, actorComp.entity, payload, sizeof(payload)));
+
+		auto cursor = wld.cursor_mut(entity, actorComp.entity);
+		CHECK(cursor.field(util::str_view("movement")));
+		CHECK(cursor.type() == movementType.entity);
+		const auto movement = cursor.u32();
+		CHECK(movement);
+		CHECK(movement.value == 2);
+		CHECK(cursor.u32(1));
+
+		CHECK(cursor.parent());
+		CHECK(cursor.field(util::str_view("collision")));
+		CHECK(cursor.type() == collisionType.entity);
+		const auto collision = cursor.u32();
+		CHECK(collision);
+		CHECK(collision.value == (1 | 4));
+		CHECK(cursor.u32(2 | 4));
+
+		const auto finalPayload = wld.get_raw(entity, actorComp.entity);
+		CHECK(finalPayload.valid());
+		CHECK(finalPayload.data != nullptr);
+		CHECK(read_u32(finalPayload.data, 0) == 1);
+		CHECK(read_u32(finalPayload.data, 4) == (2 | 4));
 	}
 
 	SUBCASE("duplicate runtime registration is idempotent") {

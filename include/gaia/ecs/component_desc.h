@@ -23,6 +23,8 @@ namespace gaia {
 			None,
 			Primitive,
 			Struct,
+			Enum,
+			Bitmask,
 		};
 
 		//! Runtime primitive kind associated with primitive type entities.
@@ -68,6 +70,20 @@ namespace gaia {
 			uint32_t count = 0;
 		};
 
+		//! User-authored symbolic runtime constant descriptor for enum and bitmask type entities.
+		struct RuntimeConstantDesc final {
+			//! Constant symbol.
+			util::str_view name{};
+			//! Constant value.
+			int64_t value = 0;
+		};
+
+		//! Stored symbolic runtime constant metadata.
+		struct RuntimeConstant final {
+			char name[256]{};
+			int64_t value = 0;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
@@ -102,8 +118,12 @@ namespace gaia {
 			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
 			//! Runtime field descriptors copied into component metadata during registration.
 			const RuntimeFieldDesc* fields = nullptr;
-			//! Number of descriptors in \ref fields.
+			//! Number of field descriptors.
 			uint32_t fieldCount = 0;
+			//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
+			const RuntimeConstantDesc* constants = nullptr;
+			//! Number of constant descriptors.
+			uint32_t constantCount = 0;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;
