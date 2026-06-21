@@ -9,6 +9,7 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		struct ComponentRawView;
 
 		//! Entity-scoped component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
@@ -42,6 +43,11 @@ namespace gaia {
 			//! \param type Entity associated with the component type
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity type) const;
+
+			//! Returns a raw byte view for a runtime component on this entity.
+			//! \param component Runtime component entity.
+			//! \return Raw payload view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw(Entity component) const;
 		};
 	} // namespace ecs
 } // namespace gaia

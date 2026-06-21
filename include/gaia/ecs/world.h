@@ -13385,6 +13385,34 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
+		inline ComponentRawView ComponentGetter::get_raw(Entity component) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return m_pWorld->get_raw(m_entity, component);
+		}
+
+		inline ComponentRawMutView ComponentSetter::mut_raw(Entity component) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return const_cast<World*>(m_pWorld)->mut_raw(m_entity, component);
+		}
+
+		inline ComponentSetter& ComponentSetter::set_raw(Entity component, const void* data, uint32_t size) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			const auto ok = const_cast<World*>(m_pWorld)->set_raw(m_entity, component, data, size);
+			GAIA_ASSERT(ok);
+			(void)ok;
+			return *this;
+		}
+
+		inline ComponentSetter& ComponentSetter::modify_raw(Entity component) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			const_cast<World*>(m_pWorld)->modify_raw(m_entity, component);
+			return *this;
+		}
+
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) ComponentGetter::get(Entity type) const {
 			GAIA_ASSERT(m_pWorld != nullptr);

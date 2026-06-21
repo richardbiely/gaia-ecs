@@ -631,8 +631,8 @@ TEST_CASE("Component cache - runtime registration") {
 														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
 														 CHECK(payload.valid());
 														 CHECK(payload.size == RuntimePayloadSize);
-														 if (payload.data != nullptr)
-															 memcpy(addSeen, payload.data, RuntimePayloadSize);
+														 CHECK(payload.data != nullptr);
+														 memcpy(addSeen, payload.data, RuntimePayloadSize);
 													 })
 													 .entity();
 		(void)onAdd;
@@ -647,8 +647,8 @@ TEST_CASE("Component cache - runtime registration") {
 														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
 														 CHECK(payload.valid());
 														 CHECK(payload.size == RuntimePayloadSize);
-														 if (payload.data != nullptr)
-															 memcpy(setSeen, payload.data, RuntimePayloadSize);
+														 CHECK(payload.data != nullptr);
+														 memcpy(setSeen, payload.data, RuntimePayloadSize);
 													 })
 													 .entity();
 		(void)onSet;
@@ -667,19 +667,15 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(payload.valid());
 		CHECK(payload.size == RuntimePayloadSize);
 		CHECK(payload.data != nullptr);
-		if (payload.data != nullptr) {
-			CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
-			CHECK(read_f32(payload.data, RuntimeYOffset) == doctest::Approx(2.0f));
-			CHECK(read_f32(payload.data, RuntimeZOffset) == doctest::Approx(3.0f));
-		}
+		CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(read_f32(payload.data, RuntimeYOffset) == doctest::Approx(2.0f));
+		CHECK(read_f32(payload.data, RuntimeZOffset) == doctest::Approx(3.0f));
 
 		auto mutablePayload = wld.mut_raw(entity, runtimeComp.entity);
 		CHECK(mutablePayload.valid());
 		CHECK(mutablePayload.size == RuntimePayloadSize);
 		CHECK(mutablePayload.data != nullptr);
-		if (mutablePayload.data != nullptr) {
-			write_xyz(mutablePayload.data, 4.0f, 5.0f, 6.0f);
-		}
+		write_xyz(mutablePayload.data, 4.0f, 5.0f, 6.0f);
 		CHECK(setHits == 0);
 
 		wld.modify_raw(entity, runtimeComp.entity);
@@ -697,6 +693,68 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(read_f32(setSeen, RuntimeZOffset) == doctest::Approx(9.0f));
 
 		CHECK_FALSE(wld.add_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize - 1));
+	}
+
+	SUBCASE("runtime component accessors expose raw payloads") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component(
+				wld, "Runtime_Component_Accessor_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+
+		const auto entity = wld.add();
+		uint8_t initial[RuntimePayloadSize]{};
+		write_xyz(initial, 1.0f, 2.0f, 3.0f);
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+
+		uint32_t setHits = 0;
+		uint8_t setSeen[RuntimePayloadSize]{};
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+														 const auto payload = wld.acc(observed).get_raw(runtimeComp.entity);
+														 CHECK(payload.valid());
+														 CHECK(payload.size == RuntimePayloadSize);
+														 CHECK(payload.data != nullptr);
+														 memcpy(setSeen, payload.data, RuntimePayloadSize);
+													 })
+													 .entity();
+		(void)onSet;
+
+		const auto payload = wld.acc(entity).get_raw(runtimeComp.entity);
+		CHECK(payload.valid());
+		CHECK(payload.size == RuntimePayloadSize);
+		CHECK(payload.data != nullptr);
+		CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(read_f32(payload.data, RuntimeYOffset) == doctest::Approx(2.0f));
+		CHECK(read_f32(payload.data, RuntimeZOffset) == doctest::Approx(3.0f));
+
+		auto setter = wld.acc_mut(entity);
+		auto mutablePayload = setter.mut_raw(runtimeComp.entity);
+		CHECK(mutablePayload.valid());
+		CHECK(mutablePayload.size == RuntimePayloadSize);
+		CHECK(mutablePayload.data != nullptr);
+		write_xyz(mutablePayload.data, 4.0f, 5.0f, 6.0f);
+		CHECK(setHits == 0);
+
+		setter.modify_raw(runtimeComp.entity);
+		CHECK(setHits == 1);
+		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(4.0f));
+		CHECK(read_f32(setSeen, RuntimeYOffset) == doctest::Approx(5.0f));
+		CHECK(read_f32(setSeen, RuntimeZOffset) == doctest::Approx(6.0f));
+
+		uint8_t replacement[RuntimePayloadSize]{};
+		write_xyz(replacement, 7.0f, 8.0f, 9.0f);
+		wld.acc_mut(entity).set_raw(runtimeComp.entity, replacement, RuntimePayloadSize);
+		CHECK(setHits == 2);
+		CHECK(read_f32(setSeen, RuntimeXOffset) == doctest::Approx(7.0f));
+		CHECK(read_f32(setSeen, RuntimeYOffset) == doctest::Approx(8.0f));
+		CHECK(read_f32(setSeen, RuntimeZOffset) == doctest::Approx(9.0f));
 	}
 
 	SUBCASE("runtime components can be queried by component entity") {
@@ -728,8 +786,7 @@ TEST_CASE("Component cache - runtime registration") {
 			CHECK(payload.valid());
 			CHECK(payload.size == RuntimePayloadSize);
 			CHECK(payload.data != nullptr);
-			if (payload.data != nullptr)
-				xSum += read_f32(payload.data, RuntimeXOffset);
+			xSum += read_f32(payload.data, RuntimeXOffset);
 
 			auto cursor = wld.cursor_mut(entity, runtimeComp.entity);
 			CHECK(cursor.valid());
@@ -745,13 +802,13 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto payloadAfterB = wld.get_raw(entityB, runtimeComp.entity);
 		CHECK(payloadAfterA.valid());
 		CHECK(payloadAfterB.valid());
-		if (payloadAfterA.data != nullptr && payloadAfterB.data != nullptr) {
-			const auto yA = read_f32(payloadAfterA.data, RuntimeYOffset);
-			const auto yB = read_f32(payloadAfterB.data, RuntimeYOffset);
-			CHECK((yA == doctest::Approx(10.0f) || yA == doctest::Approx(11.0f)));
-			CHECK((yB == doctest::Approx(10.0f) || yB == doctest::Approx(11.0f)));
-			CHECK(yA != yB);
-		}
+		CHECK(payloadAfterA.data != nullptr);
+		CHECK(payloadAfterB.data != nullptr);
+		const auto yA = read_f32(payloadAfterA.data, RuntimeYOffset);
+		const auto yB = read_f32(payloadAfterB.data, RuntimeYOffset);
+		CHECK((yA == doctest::Approx(10.0f) || yA == doctest::Approx(11.0f)));
+		CHECK((yB == doctest::Approx(10.0f) || yB == doctest::Approx(11.0f)));
+		CHECK(yA != yB);
 
 		CHECK_FALSE(wld.get_raw(entityWithoutRuntime, runtimeComp.entity).valid());
 	}
@@ -785,8 +842,8 @@ TEST_CASE("Component cache - runtime registration") {
 														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
 														 CHECK(payload.valid());
 														 CHECK(payload.size == RuntimePayloadSize);
-														 if (payload.data != nullptr)
-															 observedY += read_f32(payload.data, RuntimeYOffset);
+														 CHECK(payload.data != nullptr);
+														 observedY += read_f32(payload.data, RuntimeYOffset);
 													 })
 													 .entity();
 		(void)onSet;
@@ -801,8 +858,7 @@ TEST_CASE("Component cache - runtime registration") {
 				CHECK(payload.valid());
 				CHECK(payload.size == RuntimePayloadSize);
 				CHECK(payload.data != nullptr);
-				if (payload.data != nullptr)
-					xSum += read_f32(payload.data, RuntimeXOffset);
+				xSum += read_f32(payload.data, RuntimeXOffset);
 			}
 		});
 
@@ -816,8 +872,7 @@ TEST_CASE("Component cache - runtime registration") {
 				CHECK(payload.valid());
 				CHECK(payload.size == RuntimePayloadSize);
 				CHECK(payload.data != nullptr);
-				if (payload.data != nullptr)
-					write_f32(payload.data, RuntimeYOffset, 10.0f + (float)i);
+				write_f32(payload.data, RuntimeYOffset, 10.0f + (float)i);
 			}
 		});
 
@@ -834,8 +889,7 @@ TEST_CASE("Component cache - runtime registration") {
 				CHECK(payload.valid());
 				CHECK(payload.size == RuntimePayloadSize);
 				CHECK(payload.data != nullptr);
-				if (payload.data != nullptr)
-					write_f32(payload.data, RuntimeZOffset, 20.0f + (float)i);
+				write_f32(payload.data, RuntimeZOffset, 20.0f + (float)i);
 			}
 			CHECK(setHits == 0);
 			it.modify_raw(0);
@@ -847,13 +901,13 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto payloadAfterB = wld.get_raw(entityB, runtimeComp.entity);
 		CHECK(payloadAfterA.valid());
 		CHECK(payloadAfterB.valid());
-		if (payloadAfterA.data != nullptr && payloadAfterB.data != nullptr) {
-			const auto zA = read_f32(payloadAfterA.data, RuntimeZOffset);
-			const auto zB = read_f32(payloadAfterB.data, RuntimeZOffset);
-			CHECK((zA == doctest::Approx(20.0f) || zA == doctest::Approx(21.0f)));
-			CHECK((zB == doctest::Approx(20.0f) || zB == doctest::Approx(21.0f)));
-			CHECK(zA != zB);
-		}
+		CHECK(payloadAfterA.data != nullptr);
+		CHECK(payloadAfterB.data != nullptr);
+		const auto zA = read_f32(payloadAfterA.data, RuntimeZOffset);
+		const auto zB = read_f32(payloadAfterB.data, RuntimeZOffset);
+		CHECK((zA == doctest::Approx(20.0f) || zA == doctest::Approx(21.0f)));
+		CHECK((zB == doctest::Approx(20.0f) || zB == doctest::Approx(21.0f)));
+		CHECK(zA != zB);
 	}
 
 	SUBCASE("runtime raw payload access supports tags") {
@@ -951,8 +1005,8 @@ TEST_CASE("Component cache - runtime registration") {
 														 const auto observedPayload = wld.get_raw(observed, runtimeComp.entity);
 														 CHECK(observedPayload.valid());
 														 CHECK(observedPayload.size == RuntimeCursorPayloadSize);
-														 if (observedPayload.data != nullptr)
-															 memcpy(setSeen, observedPayload.data, RuntimeCursorPayloadSize);
+														 CHECK(observedPayload.data != nullptr);
+														 memcpy(setSeen, observedPayload.data, RuntimeCursorPayloadSize);
 													 })
 													 .entity();
 		(void)onSet;

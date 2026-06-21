@@ -637,6 +637,10 @@ copies a full payload and emits the write notification for you. `ComponentCursor
 write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw
 field copies and replacement.
 
+Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for
+read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)`
+to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
+
 
 ### Component hooks
 

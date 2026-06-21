@@ -9,6 +9,8 @@
 
 namespace gaia {
 	namespace ecs {
+		struct ComponentRawMutView;
+
 		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
@@ -95,6 +97,24 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& sset(Entity type, T&& value);
+
+			//! Returns a mutable raw byte view for a runtime component without finishing the write.
+			//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+			//! \param component Runtime component entity.
+			//! \return Mutable raw payload view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity component);
+
+			//! Replaces a runtime component payload and emits normal post-write set notifications.
+			//! \param component Runtime component entity.
+			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
+			//! \param size Payload byte count. Must match the registered component size.
+			//! \return ComponentSetter.
+			ComponentSetter& set_raw(Entity component, const void* data, uint32_t size);
+
+			//! Marks a raw payload returned by mut_raw(component) as modified.
+			//! \param component Runtime component entity.
+			//! \return ComponentSetter.
+			ComponentSetter& modify_raw(Entity component);
 		};
 	} // namespace ecs
 } // namespace gaia
