@@ -447,35 +447,23 @@ namespace gaia {
 
 			//! Looks up runtime field metadata by index.
 			//! \param index Field index.
-			//! \param ppField Receives the field metadata pointer when found.
-			//! \return True when the field exists.
-			GAIA_NODISCARD bool field(uint32_t index, const RuntimeField** ppField) const {
-				GAIA_ASSERT(ppField != nullptr);
-				*ppField = nullptr;
-				if (index >= fields.size())
-					return false;
-
-				*ppField = &fields[index];
-				return true;
+			//! \return Field metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeField* field(uint32_t index) const noexcept {
+				return index < fields.size() ? &fields[index] : nullptr;
 			}
 
 			//! Looks up runtime field metadata by name.
 			//! \param fieldName Field name.
-			//! \param ppField Receives the field metadata pointer when found.
-			//! \return True when the field exists.
-			GAIA_NODISCARD bool field(util::str_view fieldName, const RuntimeField** ppField) const {
-				GAIA_ASSERT(ppField != nullptr);
-				*ppField = nullptr;
+			//! \return Field metadata pointer when found, nullptr otherwise.
+			GAIA_NODISCARD const RuntimeField* field(util::str_view fieldName) const noexcept {
 				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
-					return false;
+					return nullptr;
 
 				for (const auto& field: fields) {
-					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0) {
-						*ppField = &field;
-						return true;
-					}
+					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0)
+						return &field;
 				}
-				return false;
+				return nullptr;
 			}
 
 			//! @return Number of runtime fields registered on this component.

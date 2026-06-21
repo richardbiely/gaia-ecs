@@ -245,10 +245,8 @@ namespace gaia {
 				if (pItem == nullptr)
 					return false;
 
-				const RuntimeField* pField = nullptr;
-				if (!pItem->field(name, &pField) || pField == nullptr)
-					return false;
-				return descend(*pField);
+				const RuntimeField* pField = pItem->field(name);
+				return pField != nullptr ? descend(*pField) : false;
 			}
 
 			//! Descends into element @a index of the current fixed inline array field.

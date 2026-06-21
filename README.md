@@ -603,8 +603,8 @@ if (!cooldownCI.add_field({"seconds", ecs::F32, 0, 0})) {
   // The field type or byte range is invalid.
 }
 
-const ecs::RuntimeField* secondsField = nullptr;
-if (cooldownCI.field("seconds", &secondsField)) {
+const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
+if (secondsField != nullptr) {
   // secondsField describes the registered byte range and type.
 }
 ```

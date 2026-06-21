@@ -135,15 +135,7 @@ namespace gaia {
 					if (!ser::detail::parse_json_byte_array(reader, rawPayload))
 						return false;
 				} else if (item.field_count() != 0 && item.comp.soa() == 0) {
-					const RuntimeField* pField = nullptr;
-					for (const auto& field: item.fields) {
-						const auto fieldNameLen = (size_t)GAIA_STRLEN(field.name, ComponentCacheItem::MaxNameLength);
-						if (key.size() == fieldNameLen && memcmp(key.data(), field.name, key.size()) == 0) {
-							pField = &field;
-							break;
-						}
-					}
-
+					const auto* pField = item.field(util::str_view(key.data(), (uint32_t)key.size()));
 					if (pField == nullptr) {
 						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown runtime field.");
 						if (!reader.skip_value())

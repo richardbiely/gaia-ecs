@@ -242,22 +242,18 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(item.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
 		CHECK(item.field_count() == 1);
 
-		const ecs::RuntimeField* field = nullptr;
-		CHECK(item.field(0, &field));
+		const ecs::RuntimeField* field = item.field(0);
 		CHECK(field != nullptr);
 		CHECK(strcmp(field->name, "x") == 0);
 		CHECK(field->type == ecs::F32);
 		CHECK(field->offset == RuntimeXOffset);
 		CHECK(field->count == 0);
 
-		field = nullptr;
-		CHECK(item.field(util::str_view("x"), &field));
+		field = item.field(util::str_view("x"));
 		CHECK(field != nullptr);
 		CHECK(field->offset == RuntimeXOffset);
 
-		field = reinterpret_cast<const ecs::RuntimeField*>(uintptr_t(1));
-		CHECK_FALSE(item.field(1, &field));
-		CHECK(field == nullptr);
+		CHECK(item.field(1) == nullptr);
 
 		const auto entity = wld.add();
 		uint8_t initial[RuntimePayloadSize]{};
@@ -332,8 +328,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(item.add_field({util::str_view("overflow"), ecs::F32, 24, 1}));
 		CHECK(item.field_count() == 2);
 
-		const ecs::RuntimeField* field = nullptr;
-		CHECK(item.field(util::str_view("x"), &field));
+		const ecs::RuntimeField* field = item.field(util::str_view("x"));
 		CHECK(field != nullptr);
 		if (field != nullptr) {
 			CHECK(field->type == ecs::F32);
@@ -342,7 +337,7 @@ TEST_CASE("Component cache - runtime registration") {
 			CHECK(item.field_element_count(*field) == 1);
 		}
 
-		CHECK(item.field(util::str_view("color"), &field));
+		field = item.field(util::str_view("color"));
 		CHECK(field != nullptr);
 		if (field != nullptr) {
 			CHECK(field->offset == 8);
