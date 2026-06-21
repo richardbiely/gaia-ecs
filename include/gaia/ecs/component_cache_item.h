@@ -71,56 +71,6 @@ namespace gaia {
 			//! Stored runtime constant metadata type.
 			using RuntimeConstant = ecs::RuntimeConstant;
 
-			//! Component item registration context.
-			struct ComponentCacheItemCtx {
-				//! Registered component symbol.
-				util::str_view name{};
-				//! Component payload size in bytes.
-				uint32_t size = 0;
-				//! Component payload alignment in bytes.
-				uint32_t alig = 0;
-				//! Component storage mode.
-				DataStorageType storageType = DataStorageType::Table;
-				//! Number of SoA elements, 0 means AoS.
-				uint32_t soa = 0;
-				//! Per-element SoA sizes when \ref soa is non-zero.
-				const uint8_t* pSoaSizes = nullptr;
-				//! Optional explicit lookup hash. When empty, the symbol hash is used.
-				ComponentLookupHash hashLookup{};
-				//! Runtime reflection type kind.
-				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-				//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
-				Entity underlyingType = EntityBad;
-				//! Runtime field descriptors copied into component metadata during registration.
-				const RuntimeFieldDesc* fields = nullptr;
-				//! Number of field descriptors.
-				uint32_t fieldCount = 0;
-				//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
-				const RuntimeConstantDesc* constants = nullptr;
-				//! Number of constant descriptors.
-				uint32_t constantCount = 0;
-				//! Optional construction callback.
-				FuncCtor* funcCtor = nullptr;
-				//! Optional move-construction callback.
-				FuncMove* funcMoveCtor = nullptr;
-				//! Optional copy-construction callback.
-				FuncCopy* funcCopyCtor = nullptr;
-				//! Optional destruction callback.
-				FuncDtor* funcDtor = nullptr;
-				//! Optional copy-assignment callback.
-				FuncCopy* funcCopy = nullptr;
-				//! Optional move-assignment callback.
-				FuncMove* funcMove = nullptr;
-				//! Optional swap callback.
-				FuncSwap* funcSwap = nullptr;
-				//! Optional equality comparison callback.
-				FuncCmp* funcCmp = nullptr;
-				//! Optional serialization save callback.
-				FuncSave* funcSave = nullptr;
-				//! Optional serialization load callback.
-				FuncLoad* funcLoad = nullptr;
-			};
-
 			//! Component entity bound to this cache item.
 			Entity entity;
 			//! Compact component descriptor stored in archetype/chunk metadata.
@@ -158,6 +108,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
+			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			Entity elementType = EntityBad;
+			//! Fixed element count for reflected array metadata. 0 otherwise.
+			uint32_t elementCount = 0;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -459,6 +413,16 @@ namespace gaia {
 				return EntityBad;
 			}
 
+			//! @return Element type entity for reflected fixed-array metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity array_element_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Array ? elementType : EntityBad;
+			}
+
+			//! @return Fixed element count for reflected fixed-array metadata, or 0 otherwise.
+			GAIA_NODISCARD uint32_t array_element_count() const noexcept {
+				return typeKind == RuntimeTypeKind::Array ? elementCount : 0;
+			}
+
 			//! Looks up runtime enum/bitmask constant metadata by index.
 			//! \param index Constant index.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
@@ -711,6 +675,8 @@ namespace gaia {
 				cci->func_load = desc.funcLoad;
 				cci->typeKind = desc.typeKind;
 				cci->underlyingType = desc.underlyingType;
+				cci->elementType = desc.elementType;
+				cci->elementCount = desc.elementCount;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {
@@ -727,38 +693,6 @@ namespace gaia {
 				}
 
 				return cci;
-			}
-
-			//! Creates metadata from the legacy component-cache registration context.
-			//! @param entity Component entity that owns the resulting metadata.
-			//! @param ctx Component registration context to adapt to ComponentDesc.
-			//! @return Newly allocated component cache item; release with destroy().
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ComponentCacheItemCtx& ctx) {
-				ecs::ComponentDesc desc{};
-				desc.name = ctx.name;
-				desc.size = ctx.size;
-				desc.alig = ctx.alig;
-				desc.storageType = ctx.storageType;
-				desc.soa = ctx.soa;
-				desc.pSoaSizes = ctx.pSoaSizes;
-				desc.hashLookup = ctx.hashLookup;
-				desc.typeKind = ctx.typeKind;
-				desc.underlyingType = ctx.underlyingType;
-				desc.fields = ctx.fields;
-				desc.fieldCount = ctx.fieldCount;
-				desc.constants = ctx.constants;
-				desc.constantCount = ctx.constantCount;
-				desc.funcCtor = ctx.funcCtor;
-				desc.funcMoveCtor = ctx.funcMoveCtor;
-				desc.funcCopyCtor = ctx.funcCopyCtor;
-				desc.funcDtor = ctx.funcDtor;
-				desc.funcCopy = ctx.funcCopy;
-				desc.funcMove = ctx.funcMove;
-				desc.funcSwap = ctx.funcSwap;
-				desc.funcCmp = ctx.funcCmp;
-				desc.funcSave = ctx.funcSave;
-				desc.funcLoad = ctx.funcLoad;
-				return create(entity, desc);
 			}
 
 			//! Releases a cache item and any owned symbol storage.

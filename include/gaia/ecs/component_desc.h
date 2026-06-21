@@ -20,11 +20,18 @@ namespace gaia {
 	namespace ecs {
 		//! Runtime reflection kind associated with a component/type entity.
 		enum class RuntimeTypeKind : uint8_t {
+			//! No runtime reflection metadata is associated with the entity.
 			None,
+			//! Built-in primitive runtime type such as Bool, S32, F32, or Char8.
 			Primitive,
+			//! Struct-like runtime type described by named byte-offset fields.
 			Struct,
+			//! Enum runtime type described by named constants and a primitive underlying type.
 			Enum,
+			//! Bitmask runtime type described by named flag constants and a primitive underlying type.
 			Bitmask,
+			//! Fixed-array runtime type described by an element type and element count.
+			Array,
 		};
 
 		//! User-authored runtime field descriptor.
@@ -42,9 +49,13 @@ namespace gaia {
 
 		//! Stored runtime field metadata.
 		struct RuntimeField final {
+			//! Null-terminated copied field symbol.
 			char name[256]{};
+			//! Entity describing the field type.
 			Entity type = EntityBad;
+			//! Byte offset from the start of the component payload.
 			uint32_t offset = 0;
+			//! Inline array element count. 0 means scalar.
 			uint32_t count = 0;
 		};
 
@@ -58,7 +69,9 @@ namespace gaia {
 
 		//! Stored symbolic runtime constant metadata.
 		struct RuntimeConstant final {
+			//! Null-terminated copied constant symbol.
 			char name[256]{};
+			//! Constant value stored in the enum/bitmask underlying integer domain.
 			int64_t value = 0;
 		};
 
@@ -66,14 +79,23 @@ namespace gaia {
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
 		struct ComponentDesc final {
+			//! Component constructor callback for a contiguous range of payload slots.
 			using FuncCtor = void(void*, uint32_t);
+			//! Component destructor callback for a contiguous range of payload slots.
 			using FuncDtor = void(void*, uint32_t);
+			//! Component migration callback used when copying or moving from one layout stride to another.
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Component copy callback used by typed registration and storage moves.
 			using FuncCopy = void(void*, const void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Component move callback used by typed registration and storage moves.
 			using FuncMove = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Component swap callback used by storage operations that exchange payload ranges.
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
+			//! Component equality callback for comparing two payload values.
 			using FuncCmp = bool(const void*, const void*);
+			//! Component serializer callback for typed component save operations.
 			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
+			//! Component serializer callback for typed component load operations.
 			using FuncLoad = void(ser::serializer&, void*, uint32_t, uint32_t, uint32_t);
 
 			//! Registered component symbol.
@@ -102,34 +124,58 @@ namespace gaia {
 			const RuntimeConstantDesc* constants = nullptr;
 			//! Number of constant descriptors.
 			uint32_t constantCount = 0;
-			//! Optional lifecycle and serialization callbacks.
+			//! Optional constructor callback. Runtime byte-only components leave this null.
 			FuncCtor* funcCtor = nullptr;
+			//! Optional move-constructor callback. Runtime byte-only components leave this null.
 			FuncMove* funcMoveCtor = nullptr;
+			//! Optional copy-constructor callback. Runtime byte-only components leave this null.
 			FuncCopy* funcCopyCtor = nullptr;
+			//! Optional destructor callback. Runtime byte-only components leave this null.
 			FuncDtor* funcDtor = nullptr;
+			//! Optional copy-assignment callback. Runtime byte-only components leave this null.
 			FuncCopy* funcCopy = nullptr;
+			//! Optional move-assignment callback. Runtime byte-only components leave this null.
 			FuncMove* funcMove = nullptr;
+			//! Optional swap callback. Runtime byte-only components leave this null.
 			FuncSwap* funcSwap = nullptr;
+			//! Optional equality callback. Runtime byte-only components leave this null.
 			FuncCmp* funcCmp = nullptr;
+			//! Optional typed serialization save callback. Semantic runtime JSON uses field metadata instead.
 			FuncSave* funcSave = nullptr;
+			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
+			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			Entity elementType = EntityBad;
+			//! Fixed element count for reflected array metadata. 0 otherwise.
+			uint32_t elementCount = 0;
 		};
 
 		namespace detail {
+			//! Compile-time adapter that converts typed component metadata into a plain ComponentDesc.
+			//! \tparam T Component type or component wrapper being registered.
 			template <typename T>
 			struct ComponentDesc final {
+				//! Reflected Gaia component type wrapper.
 				using CT = component_type_t<T>;
+				//! Stored C++ payload type.
 				using U = typename component_type_t<T>::Type;
+				//! Fully-qualified component type used for stable symbol/hash generation.
 				using DescU = typename CT::TypeFull;
 
+				//! Returns the stable lookup hash for the component type.
+				//! \return Component lookup hash derived from reflected type metadata.
 				static constexpr ComponentLookupHash hash_lookup() {
 					return {meta::type_info::hash<DescU>()};
 				}
 
+				//! Returns the reflected component symbol name.
+				//! \return Reflected type name for descriptor registration.
 				static constexpr auto name() {
 					return meta::type_info::name<DescU>();
 				}
 
+				//! Returns the payload size stored in chunks.
+				//! \return 0 for empty marker components, otherwise sizeof(payload type).
 				static constexpr uint32_t size() {
 					if constexpr (std::is_empty_v<U>)
 						return 0;
@@ -137,12 +183,17 @@ namespace gaia {
 						return (uint32_t)sizeof(U);
 				}
 
+				//! Returns the payload alignment required by the component storage policy.
+				//! \return Component payload alignment in bytes.
 				static constexpr uint32_t alig() {
 					constexpr auto alig = mem::auto_view_policy<U>::Alignment;
 					static_assert(alig < Component::MaxAlignment, "Maximum supported alignment for a component is MaxAlignment");
 					return alig;
 				}
 
+				//! Populates SoA element sizes for SoA payloads.
+				//! \param soaSizes Scratch/output storage for per-element byte sizes.
+				//! \return Number of SoA elements, or 0 for AoS payloads.
 				static uint32_t soa(std::span<uint8_t, meta::StructToTupleMaxTypes> soaSizes) {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						uint32_t i = 0;
@@ -163,6 +214,8 @@ namespace gaia {
 					}
 				}
 
+				//! Builds the optional constructor callback for typed AoS payloads.
+				//! \return Constructor callback, or nullptr when construction is trivial or SoA-managed.
 				static constexpr auto func_ctor() {
 					if constexpr (!mem::is_soa_layout_v<U> && !std::is_trivially_constructible_v<U>) {
 						return [](void* ptr, uint32_t cnt) {
@@ -173,6 +226,8 @@ namespace gaia {
 					}
 				}
 
+				//! Builds the optional destructor callback for typed AoS payloads.
+				//! \return Destructor callback, or nullptr when destruction is trivial or SoA-managed.
 				static constexpr auto func_dtor() {
 					if constexpr (!mem::is_soa_layout_v<U> && !std::is_trivially_destructible_v<U>) {
 						return [](void* ptr, uint32_t cnt) {
@@ -183,6 +238,8 @@ namespace gaia {
 					}
 				}
 
+				//! Builds the copy-constructor callback used when typed payload storage grows or migrates.
+				//! \return Copy-constructor callback for the component payload type.
 				static constexpr auto func_copy_ctor() {
 					return [](void* GAIA_RESTRICT dst, const void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 										uint32_t sizeDst, uint32_t sizeSrc) {
@@ -190,6 +247,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the move-constructor callback used when typed payload storage grows or migrates.
+				//! \return Move-constructor callback for the component payload type.
 				static constexpr auto func_move_ctor() {
 					return [](void* GAIA_RESTRICT dst, void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 										uint32_t sizeDst, uint32_t sizeSrc) {
@@ -197,6 +256,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the copy-assignment callback used for typed payload writes.
+				//! \return Copy-assignment callback for the component payload type.
 				static constexpr auto func_copy() {
 					return [](void* GAIA_RESTRICT dst, const void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 										uint32_t sizeDst, uint32_t sizeSrc) {
@@ -204,6 +265,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the move-assignment callback used for typed payload writes.
+				//! \return Move-assignment callback for the component payload type.
 				static constexpr auto func_move() {
 					return [](void* GAIA_RESTRICT dst, void* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc,
 										uint32_t sizeDst, uint32_t sizeSrc) {
@@ -211,6 +274,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the swap callback used by storage operations.
+				//! \return Swap callback for the component payload type.
 				static constexpr auto func_swap() {
 					return [](void* GAIA_RESTRICT left, void* GAIA_RESTRICT right, uint32_t idxLeft, uint32_t idxRight,
 										uint32_t sizeLeft, uint32_t sizeRight) {
@@ -218,6 +283,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the equality comparison callback for typed payload values.
+				//! \return Equality callback using operator== when available, otherwise byte comparison.
 				static constexpr auto func_cmp() {
 					if constexpr (mem::is_soa_layout_v<U>) {
 						return []([[maybe_unused]] const void* left, [[maybe_unused]] const void* right) {
@@ -244,6 +311,8 @@ namespace gaia {
 					}
 				}
 
+				//! Builds the serializer save callback for typed payload values.
+				//! \return Save callback for the component payload type.
 				static constexpr auto func_save() {
 					return [](ser::serializer& s, const void* pSrc, uint32_t from, uint32_t to, uint32_t cap) {
 						const auto* pComponent = (const U*)pSrc;
@@ -269,6 +338,8 @@ namespace gaia {
 					};
 				}
 
+				//! Builds the serializer load callback for typed payload values.
+				//! \return Load callback for the component payload type.
 				static constexpr auto func_load() {
 					return [](ser::serializer& s, void* pDst, uint32_t from, uint32_t to, uint32_t cap) {
 						if constexpr (mem::is_soa_layout_v<U>) {
@@ -291,6 +362,7 @@ namespace gaia {
 #if GAIA_ECS_AUTO_COMPONENT_FIELDS
 
 				//! Gets reflected primitive entity for a supported C++ field type.
+				//! \tparam Field C++ field type to map to a runtime primitive entity.
 				//! \return Primitive type entity, or EntityBad when unsupported.
 				template <typename Field>
 				static Entity auto_field_type() noexcept {

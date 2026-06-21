@@ -1232,10 +1232,20 @@ TEST_CASE("Component cache - runtime registration") {
 		vec3Desc.fieldCount = 3;
 		auto& vec3Type = wld.add(vec3Desc);
 
+		ecs::ComponentDesc vec3ArrayDesc{};
+		vec3ArrayDesc.name = runtime_component_name_view("Runtime_Type_Vec3_Array_2");
+		vec3ArrayDesc.size = RuntimeVec3Size * RuntimeSamplesCount;
+		vec3ArrayDesc.alig = RuntimePayloadAlign;
+		vec3ArrayDesc.storageType = ecs::DataStorageType::Table;
+		vec3ArrayDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3ArrayDesc.elementType = vec3Type.entity;
+		vec3ArrayDesc.elementCount = RuntimeSamplesCount;
+		auto& vec3ArrayType = wld.add(vec3ArrayDesc);
+
 		const ecs::RuntimeFieldDesc transformFields[] = {
 				{util::str_view("position"), vec3Type.entity, RuntimePositionOffset, 0}, //
 				{util::str_view("velocity"), vec3Type.entity, RuntimeVelocityOffset, 0}, //
-				{util::str_view("samples"), vec3Type.entity, RuntimeSamplesOffset, RuntimeSamplesCount} //
+				{util::str_view("samples"), vec3ArrayType.entity, RuntimeSamplesOffset, 0} //
 		};
 
 		constexpr const char* TransformName = "Runtime_Component_Nested_Transform";
@@ -1250,14 +1260,17 @@ TEST_CASE("Component cache - runtime registration") {
 		auto& transformComp = wld.add(transformDesc);
 
 		CHECK(vec3Type.field_count() == 3);
+		CHECK(vec3ArrayType.typeKind == ecs::RuntimeTypeKind::Array);
+		CHECK(vec3ArrayType.array_element_type() == vec3Type.entity);
+		CHECK(vec3ArrayType.array_element_count() == RuntimeSamplesCount);
 		CHECK(transformComp.field_count() == 3);
 		const auto* positionField = transformComp.field(util::str_view("position"));
 		const auto* samplesField = transformComp.field(util::str_view("samples"));
 		CHECK(positionField != nullptr);
 		CHECK(samplesField != nullptr);
 		CHECK(positionField->type == vec3Type.entity);
-		CHECK(samplesField->type == vec3Type.entity);
-		CHECK(samplesField->count == RuntimeSamplesCount);
+		CHECK(samplesField->type == vec3ArrayType.entity);
+		CHECK(samplesField->count == 0);
 
 		const auto entity = wld.add();
 		uint8_t payload[RuntimeTransformSize]{};
@@ -1368,6 +1381,31 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(read_f32(finalPayload.data, RuntimeSamplesOffset + RuntimeXOffset) == doctest::Approx(77.0f));
 		CHECK(
 				read_f32(finalPayload.data, RuntimeSamplesOffset + RuntimeVec3Size + RuntimeZOffset) == doctest::Approx(12.0f));
+
+		const ecs::RuntimeFieldDesc inlineArrayFields[] = {
+				{util::str_view("position"), vec3Type.entity, RuntimePositionOffset, 0}, //
+				{util::str_view("velocity"), vec3Type.entity, RuntimeVelocityOffset, 0}, //
+				{util::str_view("samples"), vec3Type.entity, RuntimeSamplesOffset, RuntimeSamplesCount} //
+		};
+		ecs::ComponentDesc inlineArrayDesc{};
+		inlineArrayDesc.name = runtime_component_name_view("Runtime_Component_Nested_Transform_Inline_Array");
+		inlineArrayDesc.size = RuntimeTransformSize;
+		inlineArrayDesc.alig = RuntimePayloadAlign;
+		inlineArrayDesc.storageType = ecs::DataStorageType::Table;
+		inlineArrayDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		inlineArrayDesc.fields = inlineArrayFields;
+		inlineArrayDesc.fieldCount = 3;
+		auto& inlineArrayComp = wld.add(inlineArrayDesc);
+		const auto inlineEntity = wld.add();
+		CHECK(wld.add_raw(inlineEntity, inlineArrayComp.entity, payload, RuntimeTransformSize));
+		auto inlineCursor = wld.cursor(inlineEntity, inlineArrayComp.entity);
+		CHECK(inlineCursor.field(util::str_view("samples")));
+		CHECK(inlineCursor.field_count() == 0);
+		CHECK(inlineCursor.elem(1));
+		CHECK(inlineCursor.field(util::str_view("z")));
+		const auto inlineSampleZ = inlineCursor.f32();
+		CHECK(inlineSampleZ);
+		CHECK(inlineSampleZ.value == doctest::Approx(12.0f));
 	}
 
 	SUBCASE("runtime raw payload access rejects unsupported storage") {

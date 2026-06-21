@@ -3650,7 +3650,7 @@ The runtime API has three separate concerns:
 * metadata: describe fields, nested structs, fixed arrays, enums, and bitmasks
 * access: add, read, write, query, and serialize payload bytes without a C++ component type
 
-For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed inline arrays serialize as JSON arrays, and enum/bitmask fields currently serialize as their numeric primitive value.
+For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.
 
 ### Registration
 
@@ -3675,7 +3675,7 @@ Register runtime schemas before loading data that references them. Duplicate reg
 
 ### Field metadata
 
-Runtime fields describe byte ranges inside the payload. Each field has a name, a type entity, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
+Runtime fields describe byte ranges inside the payload. Each field has a name, a type entity, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array when the element type is local to that field. Use a named array type entity when multiple schemas should refer to the same fixed array shape.
 
 Primitive fields use Gaia's reflected primitive type entities such as `ecs::F32`, `ecs::S32`, or `ecs::Bool`. Runtime field descriptors are copied during registration and stay fixed for the lifetime of the component metadata.
 
@@ -3740,6 +3740,8 @@ if (cursor.field("position") && cursor.field("y")) {
 ```
 
 For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a `Vec3[2]` field is addressed as `cursor.field("samples")`, then `cursor.elem(1)`, then `cursor.field("z")`. Direct field lookup on the array scope is rejected so it does not silently address element zero.
+
+When the array shape is itself part of the schema, register a named array type entity instead of repeating a field count. Set `typeKind = ecs::RuntimeTypeKind::Array`, `elementType` to the reflected element type entity, `elementCount` to the fixed length, and `size` to `elementSize * elementCount`. Fields then reference the array type with count `0`; cursor and JSON behavior matches the inline count form.
 
 The same metadata drives semantic world JSON. A `Vec3` field is emitted as an object such as `"position":{"x":1,"y":2,"z":3}`, and a fixed inline `Vec3[2]` field is emitted as an array of two objects. Register the same runtime type/component descriptors before `load_json(...)` so Gaia-ECS can rebuild the payload bytes deterministically.
 

@@ -111,14 +111,40 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 			//! Validates descriptor-time runtime type metadata before immutable copy.
 			//! \param desc Component descriptor whose type metadata is being registered.
-			static void validate_runtime_type(const ecs::ComponentDesc& desc) noexcept {
+			void validate_runtime_type(const ecs::ComponentDesc& desc) const noexcept {
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				if (desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask) {
 					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
+					GAIA_ASSERT(desc.elementType == EntityBad);
+					GAIA_ASSERT(desc.elementCount == 0);
+					return;
+				}
+
+				if (desc.typeKind == RuntimeTypeKind::Array) {
+					GAIA_ASSERT(desc.underlyingType == EntityBad);
+					GAIA_ASSERT(desc.elementType != EntityBad);
+					GAIA_ASSERT(desc.elementCount > 0);
+					GAIA_ASSERT(desc.fields == nullptr);
+					GAIA_ASSERT(desc.fieldCount == 0);
+					GAIA_ASSERT(desc.constants == nullptr);
+					GAIA_ASSERT(desc.constantCount == 0);
+					const auto* pElementType = find(desc.elementType);
+					GAIA_ASSERT(pElementType != nullptr);
+					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
+					const auto elementAlignment = pElementType != nullptr ? pElementType->comp.alig() : 0;
+					GAIA_ASSERT(pElementType == nullptr || pElementType->typeKind != RuntimeTypeKind::Array);
+					GAIA_ASSERT(elementSize > 0);
+					if (elementSize > 0) {
+						GAIA_ASSERT(desc.elementCount <= UINT32_MAX / elementSize);
+						GAIA_ASSERT(desc.size == elementSize * desc.elementCount);
+					}
+					GAIA_ASSERT(desc.alig == elementAlignment);
 					return;
 				}
 
 				GAIA_ASSERT(desc.underlyingType == EntityBad);
+				GAIA_ASSERT(desc.elementType == EntityBad);
+				GAIA_ASSERT(desc.elementCount == 0);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.
@@ -139,6 +165,7 @@ namespace gaia {
 
 					const auto* pType = find(field.type);
 					GAIA_ASSERT(pType != nullptr);
+					GAIA_ASSERT(pType == nullptr || pType->typeKind != RuntimeTypeKind::Array || field.count == 0);
 					const auto elementSize = pType != nullptr ? pType->comp.size() : 0;
 					GAIA_ASSERT(elementSize > 0);
 					const auto elementCount = ComponentCacheItem::field_element_count(field);
@@ -421,40 +448,6 @@ namespace gaia {
 				const auto* pItem = ComponentCacheItem::create(entity, desc);
 				GAIA_ASSERT(entity.id() == pItem->comp.id());
 				return add_item(pItem, scopePath);
-			}
-
-			//! Registers a runtime-defined component.
-			//! \param entity Component entity to bind the cache record to.
-			//! \param item Component item registration context.
-			//! \param scopePath Optional scoped path prefix used to derive the default component path.
-			//! \return Mutable component info.
-			GAIA_NODISCARD ComponentCacheItem&
-			add(Entity entity, const ComponentCacheItem::ComponentCacheItemCtx& item, util::str_view scopePath = {}) {
-				ecs::ComponentDesc desc{};
-				desc.name = item.name;
-				desc.size = item.size;
-				desc.alig = item.alig;
-				desc.storageType = item.storageType;
-				desc.soa = item.soa;
-				desc.pSoaSizes = item.pSoaSizes;
-				desc.hashLookup = item.hashLookup;
-				desc.typeKind = item.typeKind;
-				desc.underlyingType = item.underlyingType;
-				desc.fields = item.fields;
-				desc.fieldCount = item.fieldCount;
-				desc.constants = item.constants;
-				desc.constantCount = item.constantCount;
-				desc.funcCtor = item.funcCtor;
-				desc.funcMoveCtor = item.funcMoveCtor;
-				desc.funcCopyCtor = item.funcCopyCtor;
-				desc.funcDtor = item.funcDtor;
-				desc.funcCopy = item.funcCopy;
-				desc.funcMove = item.funcMove;
-				desc.funcSwap = item.funcSwap;
-				desc.funcCmp = item.funcCmp;
-				desc.funcSave = item.funcSave;
-				desc.funcLoad = item.funcLoad;
-				return add(entity, desc, scopePath);
 			}
 
 			//! Searches for the component cache item.

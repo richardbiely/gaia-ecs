@@ -647,15 +647,28 @@ namespace gaia {
 				if (pType == nullptr)
 					return false;
 
-				const auto elemSize = pType->comp.size();
-				const auto elemCount = ComponentCacheItem::field_element_count(field);
+				Entity scopeType = field.type;
+				uint32_t elemSize = pType->comp.size();
+				uint32_t elemCount = ComponentCacheItem::field_element_count(field);
+				if (pType->typeKind == RuntimeTypeKind::Array) {
+					if (field.count != 0)
+						return false;
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = m_components->find(elementType);
+					if (pElementType == nullptr || pElementType->typeKind == RuntimeTypeKind::Array ||
+							pType->array_element_count() == 0)
+						return false;
+					scopeType = elementType;
+					elemSize = pElementType->comp.size();
+					elemCount = pType->array_element_count();
+				}
 				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
 				if (fieldSize64 > UINT32_MAX || end > m_stack[m_depth].size)
 					return false;
 
 				Scope next{};
-				next.type = field.type;
+				next.type = scopeType;
 				next.size = (uint32_t)fieldSize64;
 				next.elemSize = elemSize;
 				next.elemCount = elemCount;

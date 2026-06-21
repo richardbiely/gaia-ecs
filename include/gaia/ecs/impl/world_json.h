@@ -43,6 +43,34 @@ namespace gaia {
 				return outSize != 0;
 			}
 
+			struct RuntimeJsonFieldLayout final {
+				const ComponentCacheItem* pType = nullptr;
+				Entity type = EntityBad;
+				uint32_t elemSize = 0;
+				uint32_t elemCount = 0;
+			};
+
+			GAIA_NODISCARD inline bool resolve_runtime_json_field_layout(
+					const ComponentCache* pCache, const RuntimeField& field, RuntimeJsonFieldLayout& out) noexcept {
+				out = {};
+				const auto* pFieldType = find_runtime_json_type(pCache, field.type);
+				out.type = field.type;
+				out.pType = pFieldType;
+				out.elemCount = ComponentCacheItem::field_element_count(field);
+
+				if (pFieldType != nullptr && pFieldType->typeKind == RuntimeTypeKind::Array) {
+					if (field.count != 0)
+						return false;
+					out.type = pFieldType->array_element_type();
+					out.elemCount = pFieldType->array_element_count();
+					out.pType = find_runtime_json_type(pCache, out.type);
+					if (out.pType != nullptr && out.pType->typeKind == RuntimeTypeKind::Array)
+						return false;
+				}
+
+				return out.elemCount != 0 && runtime_json_type_size(out.pType, out.type, out.elemSize);
+			}
+
 			GAIA_NODISCARD inline ser::json_str
 			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
 				if (parent.empty())
@@ -75,31 +103,31 @@ namespace gaia {
 			inline bool write_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field,
 					const uint8_t* pBase, ser::ser_json& writer, uint32_t depth) {
-				const auto* pType = find_runtime_json_type(pCache, field.type);
-				uint32_t elemSize = 0;
-				if (!runtime_json_type_size(pType, field.type, elemSize)) {
+				RuntimeJsonFieldLayout layout{};
+				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					writer.value_null();
 					return false;
 				}
 
-				const auto elemCount = ComponentCacheItem::field_element_count(field);
-				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
+				const auto fieldSize64 = (uint64_t)layout.elemSize * (uint64_t)layout.elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
-				if (elemSize == 0 || elemCount == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
+				if (layout.elemSize == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
 					writer.value_null();
 					return false;
 				}
 
 				const auto* pFieldData = pBase + field.offset;
-				if (elemCount == 1 || runtime_json_is_char8_type(pType, field.type))
+				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return write_runtime_json_value(
-							pCache, pType, field.type, pFieldData, (uint32_t)fieldSize64, writer, depth + 1);
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, depth + 1);
 
 				bool ok = true;
 				writer.begin_array();
-				GAIA_FOR(elemCount) {
-					const auto* pElemData = pFieldData + (uintptr_t)elemSize * i;
-					ok = write_runtime_json_value(pCache, pType, field.type, pElemData, elemSize, writer, depth + 1) && ok;
+				GAIA_FOR(layout.elemCount) {
+					const auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
+					ok = write_runtime_json_value(
+									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, depth + 1) &&
+							 ok;
 				}
 				writer.end_array();
 				return ok;
@@ -164,9 +192,8 @@ namespace gaia {
 			inline bool read_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field, uint8_t* pBase,
 					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
-				const auto* pType = find_runtime_json_type(pCache, field.type);
-				uint32_t elemSize = 0;
-				if (!runtime_json_type_size(pType, field.type, elemSize)) {
+				RuntimeJsonFieldLayout layout{};
+				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					ok = false;
 					warn_runtime_json(
 							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
@@ -174,10 +201,9 @@ namespace gaia {
 					return reader.skip_value();
 				}
 
-				const auto elemCount = ComponentCacheItem::field_element_count(field);
-				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
+				const auto fieldSize64 = (uint64_t)layout.elemSize * (uint64_t)layout.elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
-				if (elemSize == 0 || elemCount == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
+				if (layout.elemSize == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
 					ok = false;
 					warn_runtime_json(
 							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
@@ -186,20 +212,22 @@ namespace gaia {
 				}
 
 				auto* pFieldData = pBase + field.offset;
-				if (elemCount == 1 || runtime_json_is_char8_type(pType, field.type))
+				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return read_runtime_json_value(
-							pCache, pType, field.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, depth + 1, ok);
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path,
+							depth + 1, ok);
 
 				if (!reader.expect('['))
 					return false;
 
-				GAIA_FOR(elemCount) {
+				GAIA_FOR(layout.elemCount) {
 					if (i > 0 && !reader.expect(','))
 						return false;
 					const auto elemPath = make_runtime_json_element_path(path, i);
-					auto* pElemData = pFieldData + (uintptr_t)elemSize * i;
+					auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
 					if (!read_runtime_json_value(
-									pCache, pType, field.type, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1, ok))
+									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath,
+									depth + 1, ok))
 						return false;
 				}
 				return reader.expect(']');

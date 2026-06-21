@@ -527,6 +527,15 @@ TEST_CASE("Serialization - json runtime fields") {
 		vec3Desc.fieldCount = 3;
 		auto& vec3Type = wld.add(vec3Desc);
 
+		ecs::ComponentDesc vec3ArrayDesc{};
+		vec3ArrayDesc.name = runtime_component_name_view("Runtime_Type_Json_Vec3_Array_2");
+		vec3ArrayDesc.size = (uint32_t)sizeof(Vec3) * 2;
+		vec3ArrayDesc.alig = (uint32_t)alignof(Vec3);
+		vec3ArrayDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3ArrayDesc.elementType = vec3Type.entity;
+		vec3ArrayDesc.elementCount = 2;
+		auto& vec3ArrayType = wld.add(vec3ArrayDesc);
+
 		const ecs::RuntimeConstantDesc modeConstants[] = {
 				{util::str_view("Idle"), 0}, //
 				{util::str_view("Move"), 1}, //
@@ -545,7 +554,7 @@ TEST_CASE("Serialization - json runtime fields") {
 		const ecs::RuntimeFieldDesc fields[] = {
 				{util::str_view("id"), ecs::S32, offId, 0}, //
 				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
-				{util::str_view("samples"), vec3Type.entity, offSamples, 2}, //
+				{util::str_view("samples"), vec3ArrayType.entity, offSamples, 0}, //
 				{util::str_view("mode"), modeType.entity, offMode, 0} //
 		};
 		auto& item = add_runtime_component_with_fields(
@@ -1812,6 +1821,15 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 		vec3Desc.fieldCount = 3;
 		auto& vec3Type = world.add(vec3Desc);
 
+		ecs::ComponentDesc vec3ArrayDesc{};
+		vec3ArrayDesc.name = runtime_component_name_view("Runtime_Type_World_Json_Vec3_Array_2");
+		vec3ArrayDesc.size = (uint32_t)sizeof(Vec3) * 2;
+		vec3ArrayDesc.alig = (uint32_t)alignof(Vec3);
+		vec3ArrayDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3ArrayDesc.elementType = vec3Type.entity;
+		vec3ArrayDesc.elementCount = 2;
+		auto& vec3ArrayType = world.add(vec3ArrayDesc);
+
 		const ecs::RuntimeConstantDesc modeConstants[] = {
 				{util::str_view("Idle"), 0}, //
 				{util::str_view("Move"), 1}, //
@@ -1830,7 +1848,7 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 		const ecs::RuntimeFieldDesc fields[] = {
 				{util::str_view("id"), ecs::S32, offId, 0}, //
 				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
-				{util::str_view("samples"), vec3Type.entity, offSamples, 2}, //
+				{util::str_view("samples"), vec3ArrayType.entity, offSamples, 0}, //
 				{util::str_view("mode"), modeType.entity, offMode, 0} //
 		};
 		return add_runtime_component_with_fields(

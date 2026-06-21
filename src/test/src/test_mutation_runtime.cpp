@@ -1263,14 +1263,14 @@ TEST_CASE("SmallBlockAllocator") {
 		alloc.flush(true);
 		alloc.verify();
 
-		ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};
-		ctx.name = util::str_view("TestComponent", 13);
-		ctx.size = 4;
-		ctx.alig = 4;
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("TestComponent", 13);
+		desc.size = 4;
+		desc.alig = 4;
 
 		constexpr auto sizeType = mem::small_block_size_type((uint32_t)sizeof(ecs::ComponentCacheItem));
 
-		auto* pItem = ecs::ComponentCacheItem::create(ecs::Entity(1, 0), ctx);
+		auto* pItem = ecs::ComponentCacheItem::create(ecs::Entity(1, 0), desc);
 		CHECK(pItem != nullptr);
 
 		{

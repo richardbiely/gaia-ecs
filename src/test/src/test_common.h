@@ -84,21 +84,21 @@ inline util::str_view runtime_component_name_view(const char* name) {
 	return util::str_view(name, (uint32_t)GAIA_STRLEN(name, ecs::ComponentCacheItem::MaxNameLength));
 }
 
-inline ecs::ComponentCacheItem::ComponentCacheItemCtx runtime_component_item_ctx(
+inline ecs::ComponentDesc runtime_component_desc(
 		const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig = 1, uint32_t soa = 0,
 		const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
 		const ecs::RuntimeFieldDesc* fields = nullptr, uint32_t fieldCount = 0) {
-	auto ctx = ecs::ComponentCacheItem::ComponentCacheItemCtx{};
-	ctx.name = runtime_component_name_view(name);
-	ctx.size = size;
-	ctx.alig = alig;
-	ctx.storageType = storageType;
-	ctx.soa = soa;
-	ctx.pSoaSizes = pSoaSizes;
-	ctx.hashLookup = hashLookup;
-	ctx.fields = fields;
-	ctx.fieldCount = fieldCount;
-	return ctx;
+	auto desc = ecs::ComponentDesc{};
+	desc.name = runtime_component_name_view(name);
+	desc.size = size;
+	desc.alig = alig;
+	desc.storageType = storageType;
+	desc.soa = soa;
+	desc.pSoaSizes = pSoaSizes;
+	desc.hashLookup = hashLookup;
+	desc.fields = fields;
+	desc.fieldCount = fieldCount;
+	return desc;
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component(
@@ -107,7 +107,7 @@ inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::EntityKind kind = ecs::EntityKind::EK_Gen, const ecs::RuntimeFieldDesc* fields = nullptr,
 		uint32_t fieldCount = 0) {
 	return world.add(
-			runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount), kind);
+			runtime_component_desc(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount), kind);
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component(
@@ -115,7 +115,7 @@ inline ecs::ComponentCacheItem& add_runtime_component(
 		uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
 		util::str_view scopePath = {}, const ecs::RuntimeFieldDesc* fields = nullptr, uint32_t fieldCount = 0) {
 	return const_cast<ecs::ComponentCacheItem&>(cc.add(
-			entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount),
+			entity, runtime_component_desc(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount),
 			scopePath));
 }
 

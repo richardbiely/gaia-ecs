@@ -220,12 +220,12 @@ void setup_runtime_sparse_component_entities(
 	entities.clear();
 	entities.reserve(count);
 
-	ecs::ComponentCacheItem::ComponentCacheItemCtx ctx{};
-	ctx.name = "Runtime_Sparse_Position";
-	ctx.size = (uint32_t)sizeof(Position);
-	ctx.alig = (uint32_t)alignof(Position);
-	ctx.storageType = ecs::DataStorageType::Sparse;
-	const auto& comp = w.add(ctx);
+	ecs::ComponentDesc desc{};
+	desc.name = "Runtime_Sparse_Position";
+	desc.size = (uint32_t)sizeof(Position);
+	desc.alig = (uint32_t)alignof(Position);
+	desc.storageType = ecs::DataStorageType::Sparse;
+	const auto& comp = w.add(desc);
 	component = comp.entity;
 	if constexpr (DontFragment)
 		w.add(component, ecs::DontFragment);

@@ -3337,26 +3337,6 @@ namespace gaia {
 				return itemInfo;
 			}
 
-			//! Creates a new runtime component if not found already.
-			//! \param item Component item registration context.
-			//! \param kind Entity kind assigned to the new component entity.
-			//! @return Mutable component cache item of the component.
-			GAIA_NODISCARD ComponentCacheItem&
-			add(const ComponentCacheItem::ComponentCacheItemCtx& item, EntityKind kind = EntityKind::EK_Gen) {
-				GAIA_ASSERT(!item.name.empty());
-				GAIA_ASSERT(item.name.size() < ComponentCacheItem::MaxNameLength);
-
-				if (const auto* pItem = comp_cache().symbol(item.name); pItem != nullptr)
-					return *comp_cache_mut().find(pItem->entity);
-
-				const auto entity = add(*m_pCompArchetype, false, false, kind);
-				util::str scopePath;
-				(void)current_scope_path(scopePath);
-				auto& itemInfo = comp_cache_mut().add(entity, item, scopePath.view());
-				finalize_component_registration(itemInfo, true);
-				return itemInfo;
-			}
-
 			//! Attaches entity @a object to entity @a entity.
 			//! \param entity Source entity
 			//! \param object Added entity
