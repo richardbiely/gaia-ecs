@@ -592,17 +592,18 @@ desc.name = "Cooldown";
 desc.size = sizeof(float);
 desc.alig = alignof(float);
 desc.storageType = ecs::DataStorageType::Table;
+const ecs::RuntimeFieldDesc fields[] = {
+  {"seconds", ecs::F32, 0, 0}
+  };
+desc.fields = fields;
+desc.fieldCount = 1;
 
 ecs::ComponentCacheItem& cooldownCI = w.add(desc);
 ```
 
-You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array.
+You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array. Runtime field descriptors are copied during component registration and stay fixed for the lifetime of the component metadata.
 
 ```cpp
-if (!cooldownCI.add_field({"seconds", ecs::F32, 0, 0})) {
-  // The field type or byte range is invalid.
-}
-
 const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
 if (secondsField != nullptr) {
   // secondsField describes the registered byte range and type.
@@ -1000,7 +1001,7 @@ Use the write path that matches the behavior you want:
 * `acc_mut(entity).set<T>(...)` - writes immediately and triggers set hooks and `OnSet`
 * `acc_mut(entity).set<T>(object, value)` - immediate object-based write with set hooks and `OnSet`
 * `sset<T>(entity)` / `mut<T>(entity)` - silent write paths, no hooks, no `OnSet`
-* `sset<T>(entity, object)` / `mut<T>(entity, object)` - silent object-based write paths; pair them with `modify<T, true>(entity, object)` when you want set side effects
+* `sset<T>(entity, object)` / `mut<T>(entity, object)` - silent object-based write paths. Pair them with `modify<T, true>(entity, object)` when you want set side effects.
 
 Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.
 
@@ -3389,8 +3390,7 @@ Quick overview of serializer types:
 
 Recommended JSON API surface:
 - `ser::ser_json` for low-level JSON token writing/parsing
-- `ecs::component_to_json` / `ecs::json_to_component` for runtime component payloads with registered fields
-  registered through `ComponentCacheItem::add_field(...)`. JSON supports scalar primitive fields and `ecs::Char8` buffers.
+- `ecs::component_to_json` / `ecs::json_to_component` for runtime component payloads with fields copied from the component descriptor during registration. JSON supports scalar primitive fields and `ecs::Char8` buffers.
 - `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
 
 For structured semantic load feedback, use diagnostics overloads:

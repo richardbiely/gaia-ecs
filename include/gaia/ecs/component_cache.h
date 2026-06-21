@@ -355,6 +355,8 @@ namespace gaia {
 				desc.hashLookup = item.hashLookup;
 				desc.typeKind = item.typeKind;
 				desc.primitiveKind = item.primitiveKind;
+				desc.fields = item.fields;
+				desc.fieldCount = item.fieldCount;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;

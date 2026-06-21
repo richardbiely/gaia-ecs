@@ -232,9 +232,11 @@ namespace gaia {
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
 				const auto* pItem = current_item();
-				if (pItem == nullptr || index >= pItem->field_count())
+				if (pItem == nullptr)
 					return false;
-				return descend(pItem->fields[index]);
+
+				const RuntimeField* pField = pItem->field(index);
+				return pField != nullptr ? descend(*pField) : false;
 			}
 
 			//! Descends into the reflected field named @a name.

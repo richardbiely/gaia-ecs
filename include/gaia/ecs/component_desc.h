@@ -100,6 +100,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Runtime primitive kind. Only valid when typeKind is Primitive.
 			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Runtime field descriptors copied into component metadata during registration.
+			const RuntimeFieldDesc* fields = nullptr;
+			//! Number of descriptors in \ref fields.
+			uint32_t fieldCount = 0;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;
@@ -285,6 +289,66 @@ namespace gaia {
 						}
 					};
 				}
+
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+
+				//! Gets reflected primitive entity for a supported C++ field type.
+				//! \return Primitive type entity, or EntityBad when unsupported.
+				template <typename Field>
+				static Entity auto_field_type() noexcept {
+					using FU = core::raw_t<Field>;
+					if constexpr (std::is_same_v<FU, bool>)
+						return Bool;
+					else if constexpr (std::is_same_v<FU, char>)
+						return Char8;
+					else if constexpr (std::is_arithmetic_v<FU>)
+						return runtime_primitive_type_entity(ser::type_id<FU>());
+					else
+						return EntityBad;
+				}
+
+				//! Populates compile-time reflected fields for descriptor-time metadata registration.
+				//! \param fields Scratch/output field descriptor storage.
+				//! \return Number of valid field descriptors written.
+				static uint32_t auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes> fields) {
+					using Raw = core::raw_t<T>;
+					if constexpr (std::is_empty_v<Raw> || mem::is_soa_layout_v<Raw>) {
+						return 0;
+					} else if constexpr (!std::is_class_v<Raw>) {
+						const auto fieldType = auto_field_type<Raw>();
+						if (fieldType == EntityBad)
+							return 0;
+						fields[0] = {util::str_view("value", 5), fieldType, 0, 0};
+						return 1;
+					} else if constexpr (!std::is_aggregate_v<Raw>) {
+						return 0;
+					} else {
+						Raw tmp{};
+						const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
+						static constexpr const char* FieldNames[meta::StructToTupleMaxTypes] = {
+								"f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14"};
+						uint32_t fieldCount = 0;
+						meta::each_member(tmp, [&](auto&... members) {
+							auto add_field = [&](auto& member) {
+								using Field = core::raw_t<decltype(member)>;
+								const auto fieldType = auto_field_type<Field>();
+								if (fieldType == EntityBad)
+									return;
+								GAIA_ASSERT(fieldCount < meta::StructToTupleMaxTypes);
+								const auto* pField = reinterpret_cast<const uint8_t*>(&member);
+								const auto offset = (uint32_t)(pField - pBase);
+								const auto* fieldName = FieldNames[fieldCount];
+								const auto fieldNameLen = (uint32_t)GAIA_STRLEN(fieldName, 4);
+								fields[fieldCount] = {util::str_view(fieldName, fieldNameLen), fieldType, offset, 0};
+								++fieldCount;
+							};
+							(add_field(members), ...);
+						});
+						return fieldCount;
+					}
+				}
+
+#endif
 
 				//! Builds the plain descriptor used by component cache registration.
 				//! \param descName Normalized component symbol name.

@@ -3314,9 +3314,6 @@ namespace gaia {
 
 				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
 				finalize_component_registration(item, false);
-#if GAIA_ECS_AUTO_COMPONENT_FIELDS
-				auto_populate_component_fields<FT>(comp_cache_mut().get(item.entity));
-#endif
 
 				return item;
 			}
@@ -10958,61 +10955,6 @@ namespace gaia {
 				finalize_component_registration(ci, false);
 				return ci;
 			}
-
-#if GAIA_ECS_AUTO_COMPONENT_FIELDS
-			template <typename T>
-			static Entity auto_component_field_type() noexcept {
-				using U = core::raw_t<T>;
-				if constexpr (std::is_same_v<U, bool>)
-					return Bool;
-				else if constexpr (std::is_same_v<U, char>)
-					return Char8;
-				else if constexpr (std::is_arithmetic_v<U>)
-					return runtime_primitive_type_entity(ser::type_id<U>());
-				else
-					return EntityBad;
-			}
-
-			template <typename T>
-			static void auto_populate_component_fields(ComponentCacheItem& item) {
-				if (!item.fields_empty())
-					return;
-
-				using U = core::raw_t<T>;
-				if constexpr (std::is_empty_v<U>)
-					return;
-				if constexpr (mem::is_soa_layout_v<U>)
-					return;
-
-				if constexpr (!std::is_class_v<U>) {
-					const auto fieldType = auto_component_field_type<U>();
-					if (fieldType != EntityBad)
-						(void)item.add_field({util::str_view("value", 5), fieldType, 0, 0});
-					return;
-				} else if constexpr (!std::is_aggregate_v<U>) {
-					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
-					// Keep these components on serializer-based fallback rendering.
-					return;
-				} else {
-					U tmp{};
-					const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
-					uint32_t fieldIdx = 0;
-					meta::each_member(tmp, [&](auto&... fields) {
-						auto add_field = [&](auto& field) {
-							using F = core::raw_t<decltype(field)>;
-							char fieldName[24]{};
-							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
-							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
-							const auto offset = (uint32_t)(pField - pBase);
-							const auto fieldType = auto_component_field_type<F>();
-							if (fieldType != EntityBad)
-								(void)item.add_field({util::str_view(fieldName), fieldType, offset, 0});
-						};
-						(add(fields), ...);
-					});
-				}
-			}
-#endif
 
 			void init();
 

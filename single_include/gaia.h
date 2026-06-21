@@ -29727,6 +29727,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Runtime primitive kind. Only valid when typeKind is Primitive.
 			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Runtime field descriptors copied into component metadata during registration.
+			const RuntimeFieldDesc* fields = nullptr;
+			//! Number of descriptors in \ref fields.
+			uint32_t fieldCount = 0;
 			//! Optional lifecycle and serialization callbacks.
 			FuncCtor* funcCtor = nullptr;
 			FuncMove* funcMoveCtor = nullptr;
@@ -29913,6 +29917,66 @@ namespace gaia {
 					};
 				}
 
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+
+				//! Gets reflected primitive entity for a supported C++ field type.
+				//! \return Primitive type entity, or EntityBad when unsupported.
+				template <typename Field>
+				static Entity auto_field_type() noexcept {
+					using FU = core::raw_t<Field>;
+					if constexpr (std::is_same_v<FU, bool>)
+						return Bool;
+					else if constexpr (std::is_same_v<FU, char>)
+						return Char8;
+					else if constexpr (std::is_arithmetic_v<FU>)
+						return runtime_primitive_type_entity(ser::type_id<FU>());
+					else
+						return EntityBad;
+				}
+
+				//! Populates compile-time reflected fields for descriptor-time metadata registration.
+				//! \param fields Scratch/output field descriptor storage.
+				//! \return Number of valid field descriptors written.
+				static uint32_t auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes> fields) {
+					using Raw = core::raw_t<T>;
+					if constexpr (std::is_empty_v<Raw> || mem::is_soa_layout_v<Raw>) {
+						return 0;
+					} else if constexpr (!std::is_class_v<Raw>) {
+						const auto fieldType = auto_field_type<Raw>();
+						if (fieldType == EntityBad)
+							return 0;
+						fields[0] = {util::str_view("value", 5), fieldType, 0, 0};
+						return 1;
+					} else if constexpr (!std::is_aggregate_v<Raw>) {
+						return 0;
+					} else {
+						Raw tmp{};
+						const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
+						static constexpr const char* FieldNames[meta::StructToTupleMaxTypes] = {
+								"f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "f13", "f14"};
+						uint32_t fieldCount = 0;
+						meta::each_member(tmp, [&](auto&... members) {
+							auto add_field = [&](auto& member) {
+								using Field = core::raw_t<decltype(member)>;
+								const auto fieldType = auto_field_type<Field>();
+								if (fieldType == EntityBad)
+									return;
+								GAIA_ASSERT(fieldCount < meta::StructToTupleMaxTypes);
+								const auto* pField = reinterpret_cast<const uint8_t*>(&member);
+								const auto offset = (uint32_t)(pField - pBase);
+								const auto* fieldName = FieldNames[fieldCount];
+								const auto fieldNameLen = (uint32_t)GAIA_STRLEN(fieldName, 4);
+								fields[fieldCount] = {util::str_view(fieldName, fieldNameLen), fieldType, offset, 0};
+								++fieldCount;
+							};
+							(add_field(members), ...);
+						});
+						return fieldCount;
+					}
+				}
+
+#endif
+
 				//! Builds the plain descriptor used by component cache registration.
 				//! \param descName Normalized component symbol name.
 				//! \param soaSizes Scratch/output storage for SoA element sizes. The returned descriptor keeps a
@@ -30015,6 +30079,10 @@ namespace gaia {
 				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 				//! Runtime primitive kind. Only valid when typeKind is Primitive.
 				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+				//! Runtime field descriptors copied into component metadata during registration.
+				const RuntimeFieldDesc* fields = nullptr;
+				//! Number of descriptors in \ref fields.
+				uint32_t fieldCount = 0;
 				//! Optional construction callback.
 				FuncCtor* funcCtor = nullptr;
 				//! Optional move-construction callback.
@@ -30092,10 +30160,11 @@ namespace gaia {
 			//! Hook callback storage for this component.
 			Hooks comp_hooks;
 #endif
-			//! Runtime field metadata registered for this component.
-			cnt::darray<RuntimeField> fields;
 
 		private:
+			//! Runtime field metadata registered for this component.
+			cnt::darray<RuntimeField> m_fields;
+
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
 			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
@@ -30301,14 +30370,9 @@ namespace gaia {
 				}
 			}
 
-			//! Clears all runtime field metadata registered on this component.
-			void clear_fields() {
-				fields.clear();
-			}
-
 			//! @return True when this component has runtime field metadata.
 			GAIA_NODISCARD bool has_fields() const {
-				return !fields.empty();
+				return !m_fields.empty();
 			}
 
 			//! Gets the element count represented by a runtime field descriptor.
@@ -30335,49 +30399,11 @@ namespace gaia {
 				return ser::serialization_type_size(id, 0);
 			}
 
-			//! Adds or updates runtime field metadata.
-			//! @param desc Field descriptor. A count of 0 means one scalar value.
-			//! @param typeSize Optional pre-resolved field type size. When 0, primitive type metadata is used.
-			//! @return True when the field metadata was added or updated; false when validation failed.
-			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
-				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
-					return false;
-				if (desc.type == EntityBad)
-					return false;
-
-				const auto elemSize = typeSize != 0 ? typeSize : primitive_type_size(desc.type);
-				if (elemSize == 0)
-					return false;
-
-				const auto elemCount = field_element_count(desc);
-				const auto end = (uint64_t)desc.offset + (uint64_t)elemSize * (uint64_t)elemCount;
-				if (end > comp.size())
-					return false;
-
-				for (auto& field: fields) {
-					if (strncmp(field.name, desc.name.data(), desc.name.size()) == 0 && field.name[desc.name.size()] == 0) {
-						field.type = desc.type;
-						field.offset = desc.offset;
-						field.count = desc.count;
-						return true;
-					}
-				}
-
-				RuntimeField field{};
-				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
-				field.name[desc.name.size()] = 0;
-				field.type = desc.type;
-				field.offset = desc.offset;
-				field.count = desc.count;
-				fields.push_back(field);
-				return true;
-			}
-
 			//! Looks up runtime field metadata by index.
 			//! \param index Field index.
 			//! \return Field metadata pointer when found, nullptr otherwise.
 			GAIA_NODISCARD const RuntimeField* field(uint32_t index) const noexcept {
-				return index < fields.size() ? &fields[index] : nullptr;
+				return index < m_fields.size() ? &m_fields[index] : nullptr;
 			}
 
 			//! Looks up runtime field metadata by name.
@@ -30387,7 +30413,7 @@ namespace gaia {
 				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
 					return nullptr;
 
-				for (const auto& field: fields) {
+				for (const auto& field: m_fields) {
 					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0)
 						return &field;
 				}
@@ -30396,12 +30422,7 @@ namespace gaia {
 
 			//! @return Number of runtime fields registered on this component.
 			GAIA_NODISCARD uint32_t field_count() const noexcept {
-				return (uint32_t)fields.size();
-			}
-
-			//! Clears all runtime field metadata registered on this component.
-			void clear_runtime_fields() {
-				fields.clear();
+				return (uint32_t)m_fields.size();
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -30520,6 +30541,23 @@ namespace gaia {
 				nameOut = SymbolLookupKey(name, nameView.size(), 1);
 			}
 
+			//! Copies one runtime field descriptor into immutable component metadata.
+			//! @param desc Field descriptor to copy.
+			//! @return True when copied, false when the field name is invalid.
+			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldDesc& desc) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+
+				RuntimeField field{};
+				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
+				field.name[desc.name.size()] = 0;
+				field.type = desc.type;
+				field.offset = desc.offset;
+				field.count = desc.count;
+				m_fields.push_back(field);
+				return true;
+			}
+
 		public:
 			//! Creates metadata for a compile-time C++ component type.
 			//! @tparam T Component type to register.
@@ -30539,8 +30577,14 @@ namespace gaia {
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				const auto desc = detail::ComponentDesc<T>::make(
+				RuntimeFieldDesc fields[meta::StructToTupleMaxTypes]{};
+				auto desc = detail::ComponentDesc<T>::make(
 						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+				desc.fields = fields;
+				desc.fieldCount =
+						detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes>{fields});
+#endif
 				return create(entity, desc);
 			}
 
@@ -30581,6 +30625,14 @@ namespace gaia {
 				cci->typeKind = desc.typeKind;
 				cci->primitiveKind = desc.primitiveKind;
 
+				if (desc.fieldCount > 0) {
+					GAIA_ASSERT(desc.fields != nullptr);
+					GAIA_FOR(desc.fieldCount) {
+						const bool copied = cci->copy_runtime_field(desc.fields[i]);
+						GAIA_ASSERT(copied);
+					}
+				}
+
 				return cci;
 			}
 
@@ -30599,6 +30651,8 @@ namespace gaia {
 				desc.hashLookup = ctx.hashLookup;
 				desc.typeKind = ctx.typeKind;
 				desc.primitiveKind = ctx.primitiveKind;
+				desc.fields = ctx.fields;
+				desc.fieldCount = ctx.fieldCount;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;
@@ -30968,6 +31022,8 @@ namespace gaia {
 				desc.hashLookup = item.hashLookup;
 				desc.typeKind = item.typeKind;
 				desc.primitiveKind = item.primitiveKind;
+				desc.fields = item.fields;
+				desc.fieldCount = item.fieldCount;
 				desc.funcCtor = item.funcCtor;
 				desc.funcMoveCtor = item.funcMoveCtor;
 				desc.funcCopyCtor = item.funcCopyCtor;
@@ -35181,9 +35237,11 @@ namespace gaia {
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
 				const auto* pItem = current_item();
-				if (pItem == nullptr || index >= pItem->field_count())
+				if (pItem == nullptr)
 					return false;
-				return descend(pItem->fields[index]);
+
+				const RuntimeField* pField = pItem->field(index);
+				return pField != nullptr ? descend(*pField) : false;
 			}
 
 			//! Descends into the reflected field named @a name.
@@ -39354,6 +39412,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		struct ComponentRawView;
 
 		//! Entity-scoped component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
@@ -39387,6 +39446,11 @@ namespace gaia {
 			//! \param type Entity associated with the component type
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity type) const;
+
+			//! Returns a raw byte view for a runtime component on this entity.
+			//! \param component Runtime component entity.
+			//! \return Raw payload view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw(Entity component) const;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -39395,6 +39459,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		struct ComponentRawMutView;
+
 		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
@@ -39481,6 +39547,24 @@ namespace gaia {
 			//! \return ComponentSetter
 			template <typename T>
 			ComponentSetter& sset(Entity type, T&& value);
+
+			//! Returns a mutable raw byte view for a runtime component without finishing the write.
+			//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+			//! \param component Runtime component entity.
+			//! \return Mutable raw payload view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity component);
+
+			//! Replaces a runtime component payload and emits normal post-write set notifications.
+			//! \param component Runtime component entity.
+			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
+			//! \param size Payload byte count. Must match the registered component size.
+			//! \return ComponentSetter.
+			ComponentSetter& set_raw(Entity component, const void* data, uint32_t size);
+
+			//! Marks a raw payload returned by mut_raw(component) as modified.
+			//! \param component Runtime component entity.
+			//! \return ComponentSetter.
+			ComponentSetter& modify_raw(Entity component);
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -59765,9 +59849,6 @@ namespace gaia {
 
 				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
 				finalize_component_registration(item, false);
-#if GAIA_ECS_AUTO_COMPONENT_FIELDS
-				auto_populate_component_fields<FT>(comp_cache_mut().get(item.entity));
-#endif
 
 				return item;
 			}
@@ -67410,61 +67491,6 @@ namespace gaia {
 				return ci;
 			}
 
-#if GAIA_ECS_AUTO_COMPONENT_FIELDS
-			template <typename T>
-			static Entity auto_component_field_type() noexcept {
-				using U = core::raw_t<T>;
-				if constexpr (std::is_same_v<U, bool>)
-					return Bool;
-				else if constexpr (std::is_same_v<U, char>)
-					return Char8;
-				else if constexpr (std::is_arithmetic_v<U>)
-					return runtime_primitive_type_entity(ser::type_id<U>());
-				else
-					return EntityBad;
-			}
-
-			template <typename T>
-			static void auto_populate_component_fields(ComponentCacheItem& item) {
-				if (!item.fields_empty())
-					return;
-
-				using U = core::raw_t<T>;
-				if constexpr (std::is_empty_v<U>)
-					return;
-				if constexpr (mem::is_soa_layout_v<U>)
-					return;
-
-				if constexpr (!std::is_class_v<U>) {
-					const auto fieldType = auto_component_field_type<U>();
-					if (fieldType != EntityBad)
-						(void)item.add_field({util::str_view("value", 5), fieldType, 0, 0});
-					return;
-				} else if constexpr (!std::is_aggregate_v<U>) {
-					// Non-aggregate classes are not safe for offset extraction via meta::each_member.
-					// Keep these components on serializer-based fallback rendering.
-					return;
-				} else {
-					U tmp{};
-					const auto* pBase = reinterpret_cast<const uint8_t*>(&tmp);
-					uint32_t fieldIdx = 0;
-					meta::each_member(tmp, [&](auto&... fields) {
-						auto add_field = [&](auto& field) {
-							using F = core::raw_t<decltype(field)>;
-							char fieldName[24]{};
-							(void)GAIA_STRFMT(fieldName, sizeof(fieldName), "f%u", fieldIdx++);
-							const auto* pField = reinterpret_cast<const uint8_t*>(&field);
-							const auto offset = (uint32_t)(pField - pBase);
-							const auto fieldType = auto_component_field_type<F>();
-							if (fieldType != EntityBad)
-								(void)item.add_field({util::str_view(fieldName), fieldType, offset, 0});
-						};
-						(add(fields), ...);
-					});
-				}
-			}
-#endif
-
 			void init();
 
 			void done() {
@@ -71176,7 +71202,10 @@ namespace gaia {
 			const auto* pBase = reinterpret_cast<const uint8_t*>(pComponentData);
 
 			writer.begin_object();
-			for (const auto& field: item.fields) {
+			GAIA_FOR(item.field_count()) {
+				const auto* pField = item.field(i);
+				GAIA_ASSERT(pField != nullptr);
+				const auto& field = *pField;
 				writer.key(field.name);
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				uint32_t fieldSize = 0;
@@ -73586,6 +73615,34 @@ namespace gaia {
 		}
 
 		//----------------------------------------------------------------------
+
+		inline ComponentRawView ComponentGetter::get_raw(Entity component) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return m_pWorld->get_raw(m_entity, component);
+		}
+
+		inline ComponentRawMutView ComponentSetter::mut_raw(Entity component) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return const_cast<World*>(m_pWorld)->mut_raw(m_entity, component);
+		}
+
+		inline ComponentSetter& ComponentSetter::set_raw(Entity component, const void* data, uint32_t size) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			const auto ok = const_cast<World*>(m_pWorld)->set_raw(m_entity, component, data, size);
+			GAIA_ASSERT(ok);
+			(void)ok;
+			return *this;
+		}
+
+		inline ComponentSetter& ComponentSetter::modify_raw(Entity component) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			const_cast<World*>(m_pWorld)->modify_raw(m_entity, component);
+			return *this;
+		}
 
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) ComponentGetter::get(Entity type) const {

@@ -297,13 +297,14 @@ TEST_CASE("Serialization - json runtime fields") {
 
 	SUBCASE("runtime fields are emitted and loaded through reflected metadata") {
 		TestWorld twld;
-		auto& cc = wld.comp_cache_mut();
-		auto& item = add_runtime_component(
-				wld, "Runtime_Component_Json_Runtime_Fields", RuntimeJsonPayloadSize, ecs::DataStorageType::Table, 4);
-
-		CHECK(item.add_field({util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}));
-		CHECK(item.add_field({util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}));
-		CHECK(item.add_field({util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0}));
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}, //
+				{util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}, //
+				{util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0} //
+		};
+		auto& item = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Json_Runtime_Fields", RuntimeJsonPayloadSize, ecs::DataStorageType::Table, 4, fields,
+				3);
 
 		uint8_t value[RuntimeJsonPayloadSize]{};
 		write_runtime_json_xyz(value, 1.25f, -2.5f, 3.0f);
@@ -327,10 +328,6 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonRuntimeComp));
-		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
@@ -339,10 +336,15 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offC = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.c) - pBase);
 		const auto offName = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.name) - pBase);
 
-		CHECK(add_runtime_field(item, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
-		CHECK(add_runtime_field(item, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
-		CHECK(add_runtime_field(item, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
-		CHECK(add_runtime_field(item, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		CHECK(add_runtime_field(fields, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
+		CHECK(add_runtime_field(fields, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
+		CHECK(add_runtime_field(fields, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRuntimeComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonRuntimeComp value{};
 		value.a = 42;
@@ -374,10 +376,6 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Nested", (uint32_t)sizeof(TransformLike), ecs::DataStorageType::Table,
-				(uint32_t)alignof(TransformLike));
-		auto& item = cc.get(entity);
 
 		TransformLike layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
@@ -389,19 +387,24 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offVelY = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.velocity.y) - pBase);
 		const auto offVelZ = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.velocity.z) - pBase);
 
-		CHECK(add_runtime_field(item, "id", 0, ser::serialization_type_id::s32, offId, (uint32_t)sizeof(layout.id)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "id", 0, ser::serialization_type_id::s32, offId, (uint32_t)sizeof(layout.id)));
 		CHECK(add_runtime_field(
-				item, "position.x", 0, ser::serialization_type_id::f32, offPosX, (uint32_t)sizeof(layout.position.x)));
+				fields, "position.x", 0, ser::serialization_type_id::f32, offPosX, (uint32_t)sizeof(layout.position.x)));
 		CHECK(add_runtime_field(
-				item, "position.y", 0, ser::serialization_type_id::f32, offPosY, (uint32_t)sizeof(layout.position.y)));
+				fields, "position.y", 0, ser::serialization_type_id::f32, offPosY, (uint32_t)sizeof(layout.position.y)));
 		CHECK(add_runtime_field(
-				item, "position.z", 0, ser::serialization_type_id::f32, offPosZ, (uint32_t)sizeof(layout.position.z)));
+				fields, "position.z", 0, ser::serialization_type_id::f32, offPosZ, (uint32_t)sizeof(layout.position.z)));
 		CHECK(add_runtime_field(
-				item, "velocity.x", 0, ser::serialization_type_id::f32, offVelX, (uint32_t)sizeof(layout.velocity.x)));
+				fields, "velocity.x", 0, ser::serialization_type_id::f32, offVelX, (uint32_t)sizeof(layout.velocity.x)));
 		CHECK(add_runtime_field(
-				item, "velocity.y", 0, ser::serialization_type_id::f32, offVelY, (uint32_t)sizeof(layout.velocity.y)));
+				fields, "velocity.y", 0, ser::serialization_type_id::f32, offVelY, (uint32_t)sizeof(layout.velocity.y)));
 		CHECK(add_runtime_field(
-				item, "velocity.z", 0, ser::serialization_type_id::f32, offVelZ, (uint32_t)sizeof(layout.velocity.z)));
+				fields, "velocity.z", 0, ser::serialization_type_id::f32, offVelZ, (uint32_t)sizeof(layout.velocity.z)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Nested", (uint32_t)sizeof(TransformLike), ecs::DataStorageType::Table,
+				(uint32_t)alignof(TransformLike), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		TransformLike value{};
 		value.id = 7;
@@ -430,10 +433,6 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Arrays", (uint32_t)sizeof(RuntimeArraysComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(RuntimeArraysComp));
-		auto& item = cc.get(entity);
 
 		RuntimeArraysComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
@@ -447,28 +446,33 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offActive0 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.active[0]) - pBase);
 		const auto offActive1 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.active[1]) - pBase);
 
+		RuntimeFieldSet fields;
 		CHECK(add_runtime_field(
-				item, "weights[0]", 0, ser::serialization_type_id::f32, offW0, (uint32_t)sizeof(layout.weights[0])));
+				fields, "weights[0]", 0, ser::serialization_type_id::f32, offW0, (uint32_t)sizeof(layout.weights[0])));
 		CHECK(add_runtime_field(
-				item, "weights[1]", 0, ser::serialization_type_id::f32, offW1, (uint32_t)sizeof(layout.weights[1])));
+				fields, "weights[1]", 0, ser::serialization_type_id::f32, offW1, (uint32_t)sizeof(layout.weights[1])));
 		CHECK(add_runtime_field(
-				item, "weights[2]", 0, ser::serialization_type_id::f32, offW2, (uint32_t)sizeof(layout.weights[2])));
+				fields, "weights[2]", 0, ser::serialization_type_id::f32, offW2, (uint32_t)sizeof(layout.weights[2])));
 		CHECK(add_runtime_field(
-				item, "inventory[0].id", 0, ser::serialization_type_id::u16, offInv0Id,
+				fields, "inventory[0].id", 0, ser::serialization_type_id::u16, offInv0Id,
 				(uint32_t)sizeof(layout.inventory[0].id)));
 		CHECK(add_runtime_field(
-				item, "inventory[0].count", 0, ser::serialization_type_id::u8, offInv0Count,
+				fields, "inventory[0].count", 0, ser::serialization_type_id::u8, offInv0Count,
 				(uint32_t)sizeof(layout.inventory[0].count)));
 		CHECK(add_runtime_field(
-				item, "inventory[1].id", 0, ser::serialization_type_id::u16, offInv1Id,
+				fields, "inventory[1].id", 0, ser::serialization_type_id::u16, offInv1Id,
 				(uint32_t)sizeof(layout.inventory[1].id)));
 		CHECK(add_runtime_field(
-				item, "inventory[1].count", 0, ser::serialization_type_id::u8, offInv1Count,
+				fields, "inventory[1].count", 0, ser::serialization_type_id::u8, offInv1Count,
 				(uint32_t)sizeof(layout.inventory[1].count)));
 		CHECK(add_runtime_field(
-				item, "active[0]", 0, ser::serialization_type_id::b, offActive0, (uint32_t)sizeof(layout.active[0])));
+				fields, "active[0]", 0, ser::serialization_type_id::b, offActive0, (uint32_t)sizeof(layout.active[0])));
 		CHECK(add_runtime_field(
-				item, "active[1]", 0, ser::serialization_type_id::b, offActive1, (uint32_t)sizeof(layout.active[1])));
+				fields, "active[1]", 0, ser::serialization_type_id::b, offActive1, (uint32_t)sizeof(layout.active[1])));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Arrays", (uint32_t)sizeof(RuntimeArraysComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(RuntimeArraysComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		RuntimeArraysComp value{};
 		value.weights[0] = 0.25f;
@@ -494,10 +498,10 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(cc, entity, "Runtime_Component_Json_Unsupported", 4, ecs::DataStorageType::Table, 4);
+		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("blob"), ecs::EntityBad, 0, 0}};
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Unsupported", 4, ecs::DataStorageType::Table, 4, fields, 1);
 		auto& item = cc.get(entity);
-
-		CHECK(add_runtime_field(item, "blob", 0, ser::serialization_type_id::trivial_wrapper, 0, 4));
 		uint32_t value = 123;
 
 		ser::ser_json writer;
@@ -510,10 +514,10 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(cc, entity, "Runtime_Component_Json_Oob", 4, ecs::DataStorageType::Table, 4);
+		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("too_far"), ecs::U32, 8, 0}};
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Oob", 4, ecs::DataStorageType::Table, 4, fields, 1);
 		auto& item = cc.get(entity);
-
-		CHECK(add_runtime_field(item, "too_far", 0, ser::serialization_type_id::u32, 8, 4));
 		uint32_t value = 123;
 
 		ser::ser_json writer;
@@ -526,10 +530,6 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Read", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonRuntimeComp));
-		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
@@ -537,10 +537,15 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offB = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.b) - pBase);
 		const auto offC = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.c) - pBase);
 		const auto offName = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.name) - pBase);
-		CHECK(add_runtime_field(item, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
-		CHECK(add_runtime_field(item, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
-		CHECK(add_runtime_field(item, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
-		CHECK(add_runtime_field(item, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		CHECK(add_runtime_field(fields, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
+		CHECK(add_runtime_field(fields, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
+		CHECK(add_runtime_field(fields, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Read", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRuntimeComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonRuntimeComp in{};
 		in.a = -123;
@@ -579,7 +584,6 @@ TEST_CASE("Serialization - json runtime fields") {
 				cc, entity, "Runtime_Component_Json_Raw_Read", (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
-		item.clear_fields();
 
 		JsonRawComp in{77u, 1.75f};
 
@@ -616,10 +620,6 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Unknown_Fields", (uint32_t)sizeof(JsonRuntimeComp),
-				ecs::DataStorageType::Table, (uint32_t)alignof(JsonRuntimeComp));
-		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
@@ -627,10 +627,15 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offB = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.b) - pBase);
 		const auto offC = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.c) - pBase);
 		const auto offName = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.name) - pBase);
-		CHECK(add_runtime_field(item, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
-		CHECK(add_runtime_field(item, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
-		CHECK(add_runtime_field(item, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
-		CHECK(add_runtime_field(item, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		CHECK(add_runtime_field(fields, "b", 0, ser::serialization_type_id::f32, offB, (uint32_t)sizeof(layout.b)));
+		CHECK(add_runtime_field(fields, "c", 0, ser::serialization_type_id::b, offC, (uint32_t)sizeof(layout.c)));
+		CHECK(add_runtime_field(fields, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Unknown_Fields", (uint32_t)sizeof(JsonRuntimeComp),
+				ecs::DataStorageType::Table, (uint32_t)alignof(JsonRuntimeComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonRuntimeComp out{};
 		ser::ser_json reader("{\"a\":11,\"unknown\":{\"nested\":[1,true,\"x\"]},\"b\":2.25,\"c\":false,\"name\":\"ok\"}");
@@ -650,15 +655,16 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Bad_Type", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonRuntimeComp));
-		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offA = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.a) - pBase);
-		CHECK(add_runtime_field(item, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Bad_Type", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRuntimeComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonRuntimeComp out{};
 		ser::ser_json reader("{\"a\":\"bad\"}");
@@ -670,15 +676,16 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Null_Field", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonRuntimeComp));
-		auto& item = cc.get(entity);
 
 		JsonRuntimeComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offA = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.a) - pBase);
-		CHECK(add_runtime_field(item, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "a", 0, ser::serialization_type_id::s32, offA, (uint32_t)sizeof(layout.a)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Null_Field", (uint32_t)sizeof(JsonRuntimeComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonRuntimeComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonRuntimeComp out{};
 		out.a = 123;
@@ -699,19 +706,20 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Ints", (uint32_t)sizeof(JsonIntsComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonIntsComp));
-		auto& item = cc.get(entity);
 
 		JsonIntsComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offU8 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.u8) - pBase);
 		const auto offU16 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.u16) - pBase);
 		const auto offS8 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.s8) - pBase);
-		CHECK(add_runtime_field(item, "u8", 0, ser::serialization_type_id::u8, offU8, (uint32_t)sizeof(layout.u8)));
-		CHECK(add_runtime_field(item, "u16", 0, ser::serialization_type_id::u16, offU16, (uint32_t)sizeof(layout.u16)));
-		CHECK(add_runtime_field(item, "s8", 0, ser::serialization_type_id::s8, offS8, (uint32_t)sizeof(layout.s8)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "u8", 0, ser::serialization_type_id::u8, offU8, (uint32_t)sizeof(layout.u8)));
+		CHECK(add_runtime_field(fields, "u16", 0, ser::serialization_type_id::u16, offU16, (uint32_t)sizeof(layout.u16)));
+		CHECK(add_runtime_field(fields, "s8", 0, ser::serialization_type_id::s8, offS8, (uint32_t)sizeof(layout.s8)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Ints", (uint32_t)sizeof(JsonIntsComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonIntsComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonIntsComp out{};
 		ser::ser_json reader("{\"u8\":-3,\"u16\":70000,\"s8\":300.9}");
@@ -731,15 +739,16 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_String_Truncate", (uint32_t)sizeof(JsonNameComp),
-				ecs::DataStorageType::Table, (uint32_t)alignof(JsonNameComp));
-		auto& item = cc.get(entity);
 
 		JsonNameComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offName = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.name) - pBase);
-		CHECK(add_runtime_field(item, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(fields, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_String_Truncate", (uint32_t)sizeof(JsonNameComp),
+				ecs::DataStorageType::Table, (uint32_t)alignof(JsonNameComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonNameComp out{};
 		ser::ser_json reader("{\"name\":\"abcdef\"}");
@@ -761,7 +770,6 @@ TEST_CASE("Serialization - json runtime fields") {
 				cc, entity, "Runtime_Component_Json_Raw_Malformed", (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
-		item.clear_fields();
 
 		{
 			JsonRawComp out{};
@@ -790,7 +798,6 @@ TEST_CASE("Serialization - json runtime fields") {
 				cc, entity, "Runtime_Component_Json_No_Data", (uint32_t)sizeof(JsonRawComp), ecs::DataStorageType::Table,
 				(uint32_t)alignof(JsonRawComp));
 		auto& item = cc.get(entity);
-		item.clear_fields();
 
 		JsonRawComp out{};
 		ser::ser_json reader("{\"foo\":1}");
@@ -808,18 +815,19 @@ TEST_CASE("Serialization - json runtime fields") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 		const auto entity = wld.add();
-		(void)add_runtime_component(
-				cc, entity, "Runtime_Component_Json_Diagnostics", (uint32_t)sizeof(JsonDiagComp), ecs::DataStorageType::Table,
-				(uint32_t)alignof(JsonDiagComp));
-		auto& item = cc.get(entity);
 
 		JsonDiagComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offValue = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.value) - pBase);
 		const auto offName = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.name) - pBase);
-		CHECK(
-				add_runtime_field(item, "value", 0, ser::serialization_type_id::u8, offValue, (uint32_t)sizeof(layout.value)));
-		CHECK(add_runtime_field(item, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		RuntimeFieldSet fields;
+		CHECK(add_runtime_field(
+				fields, "value", 0, ser::serialization_type_id::u8, offValue, (uint32_t)sizeof(layout.value)));
+		CHECK(add_runtime_field(fields, "name", 0, ser::serialization_type_id::c8, offName, (uint32_t)sizeof(layout.name)));
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Json_Diagnostics", (uint32_t)sizeof(JsonDiagComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonDiagComp), fields.fields, fields.count);
+		auto& item = cc.get(entity);
 
 		JsonDiagComp out{};
 		ser::ser_json reader("{\"value\":-2,\"name\":\"abcdef\",\"unknown\":1}");
@@ -1454,19 +1462,6 @@ TEST_CASE("Serialization - world json") {
 	(void)wld.add<Position>();
 	(void)wld.add<PositionSoA>();
 
-	const auto positionEntity = wld.comp_cache().get<Position>().entity;
-	auto& posItem = wld.comp_cache_mut().get(positionEntity);
-	posItem.clear_fields();
-
-	Position layout{};
-	const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
-	const auto offX = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.x) - pBase);
-	const auto offY = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.y) - pBase);
-	const auto offZ = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.z) - pBase);
-	CHECK(add_runtime_field(posItem, "x", 0, ser::serialization_type_id::f32, offX, (uint32_t)sizeof(layout.x)));
-	CHECK(add_runtime_field(posItem, "y", 0, ser::serialization_type_id::f32, offY, (uint32_t)sizeof(layout.y)));
-	CHECK(add_runtime_field(posItem, "z", 0, ser::serialization_type_id::f32, offZ, (uint32_t)sizeof(layout.z)));
-
 	const auto e = wld.add();
 	wld.add<Position>(e, {1.0f, 2.0f, 3.0f});
 	wld.add<PositionSoA>(e, {10.0f, 20.0f, 30.0f});
@@ -1479,7 +1474,7 @@ TEST_CASE("Serialization - world json") {
 	const auto& json = writer.str();
 	CHECK(json.find("\"format\":1") != BadIndex);
 	CHECK(json.find("\"name\":\"Player\"") != BadIndex);
-	CHECK(json.find("\"Position\":{\"x\":1,\"y\":2,\"z\":3}") != BadIndex);
+	CHECK(json.find("\"Position\":{\"$raw\":[") != BadIndex);
 	CHECK(json.find("\"PositionSoA\":{\"$raw\":[") != BadIndex);
 
 	bool okStr = false;
@@ -1617,12 +1612,7 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 		char label[12];
 	};
 
-	auto register_fields = [](ecs::World& world) {
-		(void)world.add<JsonComplexComp>();
-		const auto compEntity = world.comp_cache().get<JsonComplexComp>().entity;
-		auto& item = world.comp_cache_mut().get(compEntity);
-		item.clear_fields();
-
+	auto register_component = [](ecs::World& world) -> ecs::ComponentCacheItem& {
 		JsonComplexComp layout{};
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offT0X = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.transform[0].x) - pBase);
@@ -1638,34 +1628,42 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 		const auto offActive1 = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.active[1]) - pBase);
 		const auto offLabel = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.label[0]) - pBase);
 
+		RuntimeFieldSet fields;
 		CHECK(add_runtime_field(
-				item, "transform[0].x", 0, ser::serialization_type_id::f32, offT0X, (uint32_t)sizeof(layout.transform[0].x)));
+				fields, "transform[0].x", 0, ser::serialization_type_id::f32, offT0X, (uint32_t)sizeof(layout.transform[0].x)));
 		CHECK(add_runtime_field(
-				item, "transform[0].y", 0, ser::serialization_type_id::f32, offT0Y, (uint32_t)sizeof(layout.transform[0].y)));
+				fields, "transform[0].y", 0, ser::serialization_type_id::f32, offT0Y, (uint32_t)sizeof(layout.transform[0].y)));
 		CHECK(add_runtime_field(
-				item, "transform[0].z", 0, ser::serialization_type_id::f32, offT0Z, (uint32_t)sizeof(layout.transform[0].z)));
+				fields, "transform[0].z", 0, ser::serialization_type_id::f32, offT0Z, (uint32_t)sizeof(layout.transform[0].z)));
 		CHECK(add_runtime_field(
-				item, "transform[1].x", 0, ser::serialization_type_id::f32, offT1X, (uint32_t)sizeof(layout.transform[1].x)));
+				fields, "transform[1].x", 0, ser::serialization_type_id::f32, offT1X, (uint32_t)sizeof(layout.transform[1].x)));
 		CHECK(add_runtime_field(
-				item, "transform[1].y", 0, ser::serialization_type_id::f32, offT1Y, (uint32_t)sizeof(layout.transform[1].y)));
+				fields, "transform[1].y", 0, ser::serialization_type_id::f32, offT1Y, (uint32_t)sizeof(layout.transform[1].y)));
 		CHECK(add_runtime_field(
-				item, "transform[1].z", 0, ser::serialization_type_id::f32, offT1Z, (uint32_t)sizeof(layout.transform[1].z)));
+				fields, "transform[1].z", 0, ser::serialization_type_id::f32, offT1Z, (uint32_t)sizeof(layout.transform[1].z)));
 		CHECK(add_runtime_field(
-				item, "itemCounts[0]", 0, ser::serialization_type_id::u16, offCount0, (uint32_t)sizeof(layout.itemCounts[0])));
+				fields, "itemCounts[0]", 0, ser::serialization_type_id::u16, offCount0,
+				(uint32_t)sizeof(layout.itemCounts[0])));
 		CHECK(add_runtime_field(
-				item, "itemCounts[1]", 0, ser::serialization_type_id::u16, offCount1, (uint32_t)sizeof(layout.itemCounts[1])));
+				fields, "itemCounts[1]", 0, ser::serialization_type_id::u16, offCount1,
+				(uint32_t)sizeof(layout.itemCounts[1])));
 		CHECK(add_runtime_field(
-				item, "itemCounts[2]", 0, ser::serialization_type_id::u16, offCount2, (uint32_t)sizeof(layout.itemCounts[2])));
+				fields, "itemCounts[2]", 0, ser::serialization_type_id::u16, offCount2,
+				(uint32_t)sizeof(layout.itemCounts[2])));
 		CHECK(add_runtime_field(
-				item, "active[0]", 0, ser::serialization_type_id::b, offActive0, (uint32_t)sizeof(layout.active[0])));
+				fields, "active[0]", 0, ser::serialization_type_id::b, offActive0, (uint32_t)sizeof(layout.active[0])));
 		CHECK(add_runtime_field(
-				item, "active[1]", 0, ser::serialization_type_id::b, offActive1, (uint32_t)sizeof(layout.active[1])));
-		CHECK(
-				add_runtime_field(item, "label", 0, ser::serialization_type_id::c8, offLabel, (uint32_t)sizeof(layout.label)));
+				fields, "active[1]", 0, ser::serialization_type_id::b, offActive1, (uint32_t)sizeof(layout.active[1])));
+		CHECK(add_runtime_field(
+				fields, "label", 0, ser::serialization_type_id::c8, offLabel, (uint32_t)sizeof(layout.label)));
+
+		return add_runtime_component_with_fields(
+				world, "Runtime_Component_Json_Complex", (uint32_t)sizeof(JsonComplexComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(JsonComplexComp), fields.fields, fields.count);
 	};
 
 	TestWorld twld;
-	register_fields(wld);
+	auto& comp = register_component(wld);
 
 	const auto e = wld.add();
 	JsonComplexComp value{};
@@ -1677,13 +1675,13 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 	value.active[0] = true;
 	value.active[1] = false;
 	GAIA_STRCPY(value.label, sizeof(value.label), "crate");
-	wld.add<JsonComplexComp>(e, value);
+	CHECK(wld.add_raw(e, comp.entity, &value, (uint32_t)sizeof(value)));
 	wld.name(e, "ComplexEntity");
 
 	ser::ser_json writer;
 	CHECK(wld.save_json(writer));
 	const auto& json = writer.str();
-	const auto compSymbol = wld.symbol(wld.comp_cache().get<JsonComplexComp>().entity);
+	const auto compSymbol = wld.symbol(comp.entity);
 	util::str jsonCompPrefix;
 	jsonCompPrefix.append('"');
 	jsonCompPrefix.append(compSymbol);
@@ -1695,12 +1693,17 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 	CHECK(json.find("\"label\":\"crate\"") != BadIndex);
 
 	TestWorld twldOut;
-	register_fields(twldOut.m_w);
+	auto& compOut = register_component(twldOut.m_w);
 	CHECK(twldOut.m_w.load_json(json));
 
 	const auto loaded = twldOut.m_w.get("ComplexEntity");
 	CHECK(loaded != ecs::EntityBad);
-	const auto loadedComp = twldOut.m_w.get<JsonComplexComp>(loaded);
+	const auto loadedPayload = twldOut.m_w.get_raw(loaded, compOut.entity);
+	CHECK(loadedPayload.valid());
+	CHECK(loadedPayload.size == sizeof(JsonComplexComp));
+	CHECK(loadedPayload.data != nullptr);
+	JsonComplexComp loadedComp{};
+	memcpy(&loadedComp, loadedPayload.data, sizeof(loadedComp));
 	CHECK(loadedComp.transform[0].x == 1.25f);
 	CHECK(loadedComp.transform[0].y == 2.5f);
 	CHECK(loadedComp.transform[0].z == 3.75f);
@@ -1713,30 +1716,81 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 	CHECK(loadedComp.active[0] == true);
 	CHECK(loadedComp.active[1] == false);
 	CHECK(std::string(loadedComp.label) == "crate");
+}
 
-	ser::ser_json noBinaryWriter;
-	CHECK(wld.save_json(noBinaryWriter, ser::JsonSaveFlags::RawFallback));
-	CHECK(noBinaryWriter.str().find("\"binary\":[") == BadIndex);
+TEST_CASE("Serialization - world json runtime-created components") {
+	constexpr const char* RuntimeJsonComponentName = "Runtime_Component_World_Json";
+	constexpr uint32_t RuntimeJsonPayloadSize = 12;
+	constexpr uint32_t RuntimeJsonXOffset = 0;
+	constexpr uint32_t RuntimeJsonYOffset = 4;
+	constexpr uint32_t RuntimeJsonZOffset = 8;
 
-	TestWorld twldOutNoBinary;
-	register_fields(twldOutNoBinary.m_w);
-	CHECK(twldOutNoBinary.m_w.load_json(noBinaryWriter.str()));
+	auto write_xyz = [](void* data, float x, float y, float z) {
+		auto* bytes = (uint8_t*)data;
+		memcpy(bytes + RuntimeJsonXOffset, &x, sizeof(x));
+		memcpy(bytes + RuntimeJsonYOffset, &y, sizeof(y));
+		memcpy(bytes + RuntimeJsonZOffset, &z, sizeof(z));
+	};
 
-	const auto loadedNoBinary = twldOutNoBinary.m_w.get("ComplexEntity");
-	CHECK(loadedNoBinary != ecs::EntityBad);
-	const auto loadedCompNoBinary = twldOutNoBinary.m_w.get<JsonComplexComp>(loadedNoBinary);
-	CHECK(loadedCompNoBinary.transform[0].x == 1.25f);
-	CHECK(loadedCompNoBinary.transform[0].y == 2.5f);
-	CHECK(loadedCompNoBinary.transform[0].z == 3.75f);
-	CHECK(loadedCompNoBinary.transform[1].x == 4.0f);
-	CHECK(loadedCompNoBinary.transform[1].y == 5.25f);
-	CHECK(loadedCompNoBinary.transform[1].z == 6.5f);
-	CHECK(loadedCompNoBinary.itemCounts[0] == 11);
-	CHECK(loadedCompNoBinary.itemCounts[1] == 22);
-	CHECK(loadedCompNoBinary.itemCounts[2] == 33);
-	CHECK(loadedCompNoBinary.active[0] == true);
-	CHECK(loadedCompNoBinary.active[1] == false);
-	CHECK(std::string(loadedCompNoBinary.label) == "crate");
+	auto read_f32 = [](const void* data, uint32_t offset) {
+		float value = 0.0f;
+		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
+		return value;
+	};
+
+	auto register_runtime_component = [&](ecs::World& world) -> ecs::ComponentCacheItem& {
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}, //
+				{util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}, //
+				{util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0} //
+		};
+		return add_runtime_component_with_fields(
+				world, RuntimeJsonComponentName, RuntimeJsonPayloadSize, ecs::DataStorageType::Table, 4, fields, 3);
+	};
+
+	TestWorld twld;
+	auto& runtimeComp = register_runtime_component(wld);
+	const auto entity = wld.add();
+	wld.name(entity, "RuntimeJsonEntity");
+
+	uint8_t payload[RuntimeJsonPayloadSize]{};
+	write_xyz(payload, 1.25f, -2.5f, 3.0f);
+	CHECK(wld.add_raw(entity, runtimeComp.entity, payload, RuntimeJsonPayloadSize));
+
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+	const auto& json = writer.str();
+	CHECK(json.find("\"binary\":[") == BadIndex);
+	CHECK(json.find("\"RuntimeJsonEntity\"") != BadIndex);
+	CHECK(json.find("\"Runtime_Component_World_Json\":{\"x\":1.25,\"y\":-2.5,\"z\":3}") != BadIndex);
+
+	TestWorld twldOut;
+	auto& runtimeCompOut = register_runtime_component(twldOut.m_w);
+	CHECK(twldOut.m_w.load_json(json));
+
+	const auto loaded = twldOut.m_w.get("RuntimeJsonEntity");
+	CHECK(loaded != ecs::EntityBad);
+
+	const auto loadedPayload = twldOut.m_w.get_raw(loaded, runtimeCompOut.entity);
+	CHECK(loadedPayload.valid());
+	CHECK(loadedPayload.size == RuntimeJsonPayloadSize);
+	CHECK(loadedPayload.data != nullptr);
+	CHECK(read_f32(loadedPayload.data, RuntimeJsonXOffset) == doctest::Approx(1.25f));
+	CHECK(read_f32(loadedPayload.data, RuntimeJsonYOffset) == doctest::Approx(-2.5f));
+	CHECK(read_f32(loadedPayload.data, RuntimeJsonZOffset) == doctest::Approx(3.0f));
+
+	uint32_t hits = 0;
+	auto q = twldOut.m_w.query().all(runtimeCompOut.entity);
+	q.each([&](ecs::Entity matched) {
+		CHECK(matched == loaded);
+		const auto queriedPayload = twldOut.m_w.get_raw(matched, runtimeCompOut.entity);
+		CHECK(queriedPayload.valid());
+		CHECK(queriedPayload.size == RuntimeJsonPayloadSize);
+		CHECK(queriedPayload.data != nullptr);
+		CHECK(read_f32(queriedPayload.data, RuntimeJsonXOffset) == doctest::Approx(1.25f));
+		++hits;
+	});
+	CHECK(hits == 1);
 }
 
 TEST_CASE("Serialization - world + query") {

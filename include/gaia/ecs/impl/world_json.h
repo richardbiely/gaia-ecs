@@ -40,7 +40,10 @@ namespace gaia {
 			const auto* pBase = reinterpret_cast<const uint8_t*>(pComponentData);
 
 			writer.begin_object();
-			for (const auto& field: item.fields) {
+			GAIA_FOR(item.field_count()) {
+				const auto* pField = item.field(i);
+				GAIA_ASSERT(pField != nullptr);
+				const auto& field = *pField;
 				writer.key(field.name);
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				uint32_t fieldSize = 0;

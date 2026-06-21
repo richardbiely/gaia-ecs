@@ -86,7 +86,8 @@ inline util::str_view runtime_component_name_view(const char* name) {
 
 inline ecs::ComponentCacheItem::ComponentCacheItemCtx runtime_component_item_ctx(
 		const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig = 1, uint32_t soa = 0,
-		const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {}) {
+		const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
+		const ecs::RuntimeFieldDesc* fields = nullptr, uint32_t fieldCount = 0) {
 	auto ctx = ecs::ComponentCacheItem::ComponentCacheItemCtx{};
 	ctx.name = runtime_component_name_view(name);
 	ctx.size = size;
@@ -95,30 +96,55 @@ inline ecs::ComponentCacheItem::ComponentCacheItemCtx runtime_component_item_ctx
 	ctx.soa = soa;
 	ctx.pSoaSizes = pSoaSizes;
 	ctx.hashLookup = hashLookup;
+	ctx.fields = fields;
+	ctx.fieldCount = fieldCount;
 	return ctx;
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::World& world, const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig = 1,
 		uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
-		ecs::EntityKind kind = ecs::EntityKind::EK_Gen) {
-	return world.add(runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), kind);
+		ecs::EntityKind kind = ecs::EntityKind::EK_Gen, const ecs::RuntimeFieldDesc* fields = nullptr,
+		uint32_t fieldCount = 0) {
+	return world.add(
+			runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount), kind);
 }
 
 inline ecs::ComponentCacheItem& add_runtime_component(
 		ecs::ComponentCache& cc, ecs::Entity entity, const char* name, uint32_t size, ecs::DataStorageType storageType,
 		uint32_t alig = 1, uint32_t soa = 0, const uint8_t* pSoaSizes = nullptr, ecs::ComponentLookupHash hashLookup = {},
-		util::str_view scopePath = {}) {
-	return const_cast<ecs::ComponentCacheItem&>(
-			cc.add(entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup), scopePath));
+		util::str_view scopePath = {}, const ecs::RuntimeFieldDesc* fields = nullptr, uint32_t fieldCount = 0) {
+	return const_cast<ecs::ComponentCacheItem&>(cc.add(
+			entity, runtime_component_item_ctx(name, size, storageType, alig, soa, pSoaSizes, hashLookup, fields, fieldCount),
+			scopePath));
+}
+
+inline ecs::ComponentCacheItem& add_runtime_component_with_fields(
+		ecs::World& world, const char* name, uint32_t size, ecs::DataStorageType storageType, uint32_t alig,
+		const ecs::RuntimeFieldDesc* fields, uint32_t fieldCount) {
+	return add_runtime_component(
+			world, name, size, storageType, alig, 0, nullptr, ecs::ComponentLookupHash{}, ecs::EntityKind::EK_Gen, fields,
+			fieldCount);
+}
+
+inline ecs::ComponentCacheItem& add_runtime_component_with_fields(
+		ecs::ComponentCache& cc, ecs::Entity entity, const char* name, uint32_t size, ecs::DataStorageType storageType,
+		uint32_t alig, const ecs::RuntimeFieldDesc* fields, uint32_t fieldCount) {
+	return add_runtime_component(
+			cc, entity, name, size, storageType, alig, 0, nullptr, ecs::ComponentLookupHash{}, {}, fields, fieldCount);
 }
 
 inline ecs::Entity runtime_field_type_from_json_type(ser::serialization_type_id type) {
 	return ecs::runtime_primitive_type_entity(type);
 }
 
-inline bool add_runtime_field(
-		ecs::ComponentCacheItem& item, const char* fieldName, uint32_t len, ser::serialization_type_id type,
+struct RuntimeFieldSet {
+	ecs::RuntimeFieldDesc fields[32]{};
+	uint32_t count = 0;
+};
+
+inline bool make_runtime_field(
+		ecs::RuntimeFieldDesc& field, const char* fieldName, uint32_t len, ser::serialization_type_id type,
 		uint32_t fieldOffset, uint32_t fieldSize) {
 	if (fieldName == nullptr || fieldName[0] == 0)
 		return false;
@@ -128,23 +154,24 @@ inline bool add_runtime_field(
 		return false;
 
 	const auto fieldType = runtime_field_type_from_json_type(type);
-	const auto fieldCount = fieldType == ecs::Char8 ? fieldSize : 0U;
-	for (auto& field: item.fields) {
-		if (strncmp(field.name, fieldName, fieldLen) == 0 && field.name[fieldLen] == 0) {
-			field.type = fieldType;
-			field.offset = fieldOffset;
-			field.count = fieldCount;
-			return true;
-		}
-	}
+	if (fieldType == ecs::EntityBad)
+		return false;
 
-	ecs::RuntimeField field{};
-	memcpy((void*)field.name, (const void*)fieldName, fieldLen);
-	field.name[fieldLen] = 0;
+	field.name = util::str_view(fieldName, fieldLen);
 	field.type = fieldType;
 	field.offset = fieldOffset;
-	field.count = fieldCount;
-	item.fields.push_back(field);
+	field.count = fieldType == ecs::Char8 ? fieldSize : 0U;
+	return true;
+}
+
+inline bool add_runtime_field(
+		RuntimeFieldSet& set, const char* fieldName, uint32_t len, ser::serialization_type_id type, uint32_t fieldOffset,
+		uint32_t fieldSize) {
+	if (set.count >= sizeof(set.fields) / sizeof(set.fields[0]))
+		return false;
+	if (!make_runtime_field(set.fields[set.count], fieldName, len, type, fieldOffset, fieldSize))
+		return false;
+	++set.count;
 	return true;
 }
 

@@ -87,6 +87,10 @@ namespace gaia {
 				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 				//! Runtime primitive kind. Only valid when typeKind is Primitive.
 				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+				//! Runtime field descriptors copied into component metadata during registration.
+				const RuntimeFieldDesc* fields = nullptr;
+				//! Number of descriptors in \ref fields.
+				uint32_t fieldCount = 0;
 				//! Optional construction callback.
 				FuncCtor* funcCtor = nullptr;
 				//! Optional move-construction callback.
@@ -164,10 +168,11 @@ namespace gaia {
 			//! Hook callback storage for this component.
 			Hooks comp_hooks;
 #endif
-			//! Runtime field metadata registered for this component.
-			cnt::darray<RuntimeField> fields;
 
 		private:
+			//! Runtime field metadata registered for this component.
+			cnt::darray<RuntimeField> m_fields;
+
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
 			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
@@ -373,14 +378,9 @@ namespace gaia {
 				}
 			}
 
-			//! Clears all runtime field metadata registered on this component.
-			void clear_fields() {
-				fields.clear();
-			}
-
 			//! @return True when this component has runtime field metadata.
 			GAIA_NODISCARD bool has_fields() const {
-				return !fields.empty();
+				return !m_fields.empty();
 			}
 
 			//! Gets the element count represented by a runtime field descriptor.
@@ -407,49 +407,11 @@ namespace gaia {
 				return ser::serialization_type_size(id, 0);
 			}
 
-			//! Adds or updates runtime field metadata.
-			//! @param desc Field descriptor. A count of 0 means one scalar value.
-			//! @param typeSize Optional pre-resolved field type size. When 0, primitive type metadata is used.
-			//! @return True when the field metadata was added or updated; false when validation failed.
-			GAIA_NODISCARD bool add_field(const RuntimeFieldDesc& desc, uint32_t typeSize = 0) {
-				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
-					return false;
-				if (desc.type == EntityBad)
-					return false;
-
-				const auto elemSize = typeSize != 0 ? typeSize : primitive_type_size(desc.type);
-				if (elemSize == 0)
-					return false;
-
-				const auto elemCount = field_element_count(desc);
-				const auto end = (uint64_t)desc.offset + (uint64_t)elemSize * (uint64_t)elemCount;
-				if (end > comp.size())
-					return false;
-
-				for (auto& field: fields) {
-					if (strncmp(field.name, desc.name.data(), desc.name.size()) == 0 && field.name[desc.name.size()] == 0) {
-						field.type = desc.type;
-						field.offset = desc.offset;
-						field.count = desc.count;
-						return true;
-					}
-				}
-
-				RuntimeField field{};
-				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
-				field.name[desc.name.size()] = 0;
-				field.type = desc.type;
-				field.offset = desc.offset;
-				field.count = desc.count;
-				fields.push_back(field);
-				return true;
-			}
-
 			//! Looks up runtime field metadata by index.
 			//! \param index Field index.
 			//! \return Field metadata pointer when found, nullptr otherwise.
 			GAIA_NODISCARD const RuntimeField* field(uint32_t index) const noexcept {
-				return index < fields.size() ? &fields[index] : nullptr;
+				return index < m_fields.size() ? &m_fields[index] : nullptr;
 			}
 
 			//! Looks up runtime field metadata by name.
@@ -459,7 +421,7 @@ namespace gaia {
 				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
 					return nullptr;
 
-				for (const auto& field: fields) {
+				for (const auto& field: m_fields) {
 					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0)
 						return &field;
 				}
@@ -468,12 +430,7 @@ namespace gaia {
 
 			//! @return Number of runtime fields registered on this component.
 			GAIA_NODISCARD uint32_t field_count() const noexcept {
-				return (uint32_t)fields.size();
-			}
-
-			//! Clears all runtime field metadata registered on this component.
-			void clear_runtime_fields() {
-				fields.clear();
+				return (uint32_t)m_fields.size();
 			}
 
 #if GAIA_ENABLE_HOOKS
@@ -592,6 +549,23 @@ namespace gaia {
 				nameOut = SymbolLookupKey(name, nameView.size(), 1);
 			}
 
+			//! Copies one runtime field descriptor into immutable component metadata.
+			//! @param desc Field descriptor to copy.
+			//! @return True when copied, false when the field name is invalid.
+			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldDesc& desc) {
+				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+					return false;
+
+				RuntimeField field{};
+				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
+				field.name[desc.name.size()] = 0;
+				field.type = desc.type;
+				field.offset = desc.offset;
+				field.count = desc.count;
+				m_fields.push_back(field);
+				return true;
+			}
+
 		public:
 			//! Creates metadata for a compile-time C++ component type.
 			//! @tparam T Component type to register.
@@ -611,8 +585,14 @@ namespace gaia {
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				const auto desc = detail::ComponentDesc<T>::make(
+				RuntimeFieldDesc fields[meta::StructToTupleMaxTypes]{};
+				auto desc = detail::ComponentDesc<T>::make(
 						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+#if GAIA_ECS_AUTO_COMPONENT_FIELDS
+				desc.fields = fields;
+				desc.fieldCount =
+						detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes>{fields});
+#endif
 				return create(entity, desc);
 			}
 
@@ -653,6 +633,14 @@ namespace gaia {
 				cci->typeKind = desc.typeKind;
 				cci->primitiveKind = desc.primitiveKind;
 
+				if (desc.fieldCount > 0) {
+					GAIA_ASSERT(desc.fields != nullptr);
+					GAIA_FOR(desc.fieldCount) {
+						const bool copied = cci->copy_runtime_field(desc.fields[i]);
+						GAIA_ASSERT(copied);
+					}
+				}
+
 				return cci;
 			}
 
@@ -671,6 +659,8 @@ namespace gaia {
 				desc.hashLookup = ctx.hashLookup;
 				desc.typeKind = ctx.typeKind;
 				desc.primitiveKind = ctx.primitiveKind;
+				desc.fields = ctx.fields;
+				desc.fieldCount = ctx.fieldCount;
 				desc.funcCtor = ctx.funcCtor;
 				desc.funcMoveCtor = ctx.funcMoveCtor;
 				desc.funcCopyCtor = ctx.funcCopyCtor;

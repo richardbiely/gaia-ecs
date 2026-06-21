@@ -163,6 +163,11 @@ TEST_CASE("Component cache - runtime registration") {
 		write_f32(data, RuntimeYOffset, y);
 		write_f32(data, RuntimeZOffset, z);
 	};
+	const ecs::RuntimeFieldDesc RuntimeXYZFields[] = {
+			{util::str_view("x"), ecs::F32, RuntimeXOffset, 0},
+			{util::str_view("y"), ecs::F32, RuntimeYOffset, 0},
+			{util::str_view("z"), ecs::F32, RuntimeZOffset, 0}};
+	constexpr uint32_t RuntimeXYZFieldCount = 3;
 
 	SUBCASE("basic registration populates runtime metadata and lookups") {
 		TestWorld twld;
@@ -226,6 +231,8 @@ TEST_CASE("Component cache - runtime registration") {
 		desc.size = RuntimePayloadSize;
 		desc.alig = RuntimePayloadAlign;
 		desc.storageType = ecs::DataStorageType::Table;
+		desc.fields = RuntimeXYZFields;
+		desc.fieldCount = 1;
 
 		auto& item = wld.add(desc);
 		CHECK(item.entity != ecs::EntityBad);
@@ -239,7 +246,6 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.symbol(RuntimeCompName) == item.entity);
 		CHECK(wld.get(RuntimeCompName) == item.entity);
 
-		CHECK(item.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
 		CHECK(item.field_count() == 1);
 
 		const ecs::RuntimeField* field = item.field(0);
@@ -311,21 +317,22 @@ TEST_CASE("Component cache - runtime registration") {
 		constexpr const char* RuntimeCompName = "Runtime_Component_Fields";
 		const auto entity = wld.add();
 
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("x"), ecs::F32, 0, 0}, //
+				{util::str_view("color"), ecs::F32, 8, 4} //
+		};
+
 		ecs::ComponentDesc desc{};
 		desc.name = runtime_component_name_view(RuntimeCompName);
 		desc.size = 24;
 		desc.alig = 4;
 		desc.typeKind = ecs::RuntimeTypeKind::Struct;
+		desc.fields = fields;
+		desc.fieldCount = 2;
 
 		auto& item = const_cast<ecs::ComponentCacheItem&>(cc.add(entity, desc));
 		CHECK(item.typeKind == ecs::RuntimeTypeKind::Struct);
 		CHECK(item.primitiveKind == ecs::RuntimePrimitiveKind::None);
-		CHECK(item.field_count() == 0);
-
-		CHECK(item.add_field({util::str_view("x"), ecs::F32, 0, 0}));
-		CHECK(item.add_field({util::str_view("color"), ecs::F32, 8, 4}));
-		CHECK_FALSE(item.add_field({util::str_view("bad"), ecs::EntityBad, 0, 0}));
-		CHECK_FALSE(item.add_field({util::str_view("overflow"), ecs::F32, 24, 1}));
 		CHECK(item.field_count() == 2);
 
 		const ecs::RuntimeField* field = item.field(util::str_view("x"));
@@ -545,56 +552,47 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK((out[0] == entityB || out[1] == entityB));
 	}
 
-	SUBCASE("runtime field registration supports add update and clear") {
+	SUBCASE("runtime field descriptors are copied at registration") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("x"), //
+				 ecs::F32, 0, 0}, //
+				{util::str_view("velocity"), ecs::F64, 12, 0} //
+		};
+
 		const auto entity = wld.add();
-		(void)add_runtime_component(cc, entity, "Runtime_Component_Fields", 24, ecs::DataStorageType::Table, 8);
+		(void)add_runtime_component_with_fields(
+				cc, entity, "Runtime_Component_Fields", 24, ecs::DataStorageType::Table, 8, fields, 2);
 		auto& item = cc.get(entity);
 
-		CHECK_FALSE(item.has_fields());
-		CHECK(item.field_count() == 0);
-
-		CHECK(add_runtime_field(item, "x", 0, ser::serialization_type_id::f32, 0, 4));
 		CHECK(item.has_fields());
-		CHECK(item.field_count() == 1);
-		CHECK(strcmp(item.fields[0].name, "x") == 0);
-		CHECK(item.fields[0].type == ecs::F32);
-		CHECK(item.fields[0].offset == 0);
-		CHECK(item.fields[0].count == 0);
-
-		// Re-registering an existing field updates metadata instead of adding a duplicate.
-		CHECK(add_runtime_field(item, "x", 0, ser::serialization_type_id::u32, 4, 4));
-		CHECK(item.field_count() == 1);
-		CHECK(strcmp(item.fields[0].name, "x") == 0);
-		CHECK(item.fields[0].type == ecs::U32);
-		CHECK(item.fields[0].offset == 4);
-		CHECK(item.fields[0].count == 0);
-
-		// Explicit length should be honored and copied as the canonical field name.
-		CHECK(add_runtime_field(item, "velocity_data", 8, ser::serialization_type_id::f64, 12, 8));
 		CHECK(item.field_count() == 2);
-		CHECK(strcmp(item.fields[1].name, "velocity") == 0);
-		CHECK(item.fields[1].type == ecs::F64);
-		CHECK(item.fields[1].offset == 12);
-		CHECK(item.fields[1].count == 0);
 
-		const auto fieldCountBeforeInvalid = item.field_count();
-		CHECK_FALSE(add_runtime_field(item, nullptr, 0, ser::serialization_type_id::u8, 0, 1));
-		CHECK_FALSE(add_runtime_field(item, "", 0, ser::serialization_type_id::u8, 0, 1));
+		const auto* field = item.field(0);
+		CHECK(field != nullptr);
+		CHECK(strcmp(field->name, "x") == 0);
+		CHECK(field->type == ecs::F32);
+		CHECK(field->offset == 0);
+		CHECK(field->count == 0);
+
+		field = item.field(1);
+		CHECK(field != nullptr);
+		CHECK(strcmp(field->name, "velocity") == 0);
+		CHECK(field->type == ecs::F64);
+		CHECK(field->offset == 12);
+		CHECK(field->count == 0);
+
+		ecs::RuntimeFieldDesc invalid{};
+		CHECK_FALSE(make_runtime_field(invalid, nullptr, 0, ser::serialization_type_id::u8, 0, 1));
+		CHECK_FALSE(make_runtime_field(invalid, "", 0, ser::serialization_type_id::u8, 0, 1));
 
 		char oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength + 1] = {};
 		GAIA_FOR(ecs::ComponentCacheItem::MaxNameLength) oversizedFieldName[i] = 'a';
 		oversizedFieldName[ecs::ComponentCacheItem::MaxNameLength] = 0;
-		CHECK_FALSE(add_runtime_field(
-				item, oversizedFieldName, ecs::ComponentCacheItem::MaxNameLength, ser::serialization_type_id::u8, 0, 1));
-
-		CHECK(item.field_count() == fieldCountBeforeInvalid);
-
-		item.clear_fields();
-		CHECK_FALSE(item.has_fields());
-		CHECK(item.field_count() == 0);
+		CHECK_FALSE(make_runtime_field(
+				invalid, oversizedFieldName, ecs::ComponentCacheItem::MaxNameLength, ser::serialization_type_id::u8, 0, 1));
 	}
 
 	SUBCASE("runtime registration uses entity-backed lookups") {
@@ -615,11 +613,9 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime raw payload access supports chunk-backed components") {
 		TestWorld twld;
 
-		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
-		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign,
+				RuntimeXYZFields, RuntimeXYZFieldCount);
 
 		uint32_t addHits = 0;
 		uint8_t addSeen[RuntimePayloadSize]{};
@@ -698,11 +694,9 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime component accessors expose raw payloads") {
 		TestWorld twld;
 
-		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Accessor_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
-		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Accessor_Raw", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign,
+				RuntimeXYZFields, RuntimeXYZFieldCount);
 
 		const auto entity = wld.add();
 		uint8_t initial[RuntimePayloadSize]{};
@@ -760,11 +754,9 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime components can be queried by component entity") {
 		TestWorld twld;
 
-		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Query", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
-		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign,
+				RuntimeXYZFields, RuntimeXYZFieldCount);
 
 		const auto entityA = wld.add();
 		const auto entityB = wld.add();
@@ -816,11 +808,9 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime components expose raw iterator views") {
 		TestWorld twld;
 
-		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Query_Iter_View", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
-		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_View", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign,
+				RuntimeXYZFields, RuntimeXYZFieldCount);
 
 		const auto entityA = wld.add();
 		const auto entityB = wld.add();
@@ -942,17 +932,21 @@ TEST_CASE("Component cache - runtime registration") {
 		constexpr uint32_t RuntimeChar16Offset = 32;
 		constexpr uint32_t RuntimeChar32Offset = 36;
 
-		auto& runtimeComp = add_runtime_component(
-				wld, "Runtime_Component_Cursor", RuntimeCursorPayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
-		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("alive"), ecs::Bool, RuntimeBoolOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("initial"), ecs::Char8, RuntimeCharOffset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("name"), ecs::Char8, RuntimeNameOffset, RuntimeNameCount}));
-		CHECK(runtimeComp.add_field({util::str_view("samples"), ecs::F32, RuntimeArrayOffset, RuntimeArrayCount}));
-		CHECK(runtimeComp.add_field({util::str_view("wide16"), ecs::Char16, RuntimeChar16Offset, 0}));
-		CHECK(runtimeComp.add_field({util::str_view("wide32"), ecs::Char32, RuntimeChar32Offset, 0}));
+		const ecs::RuntimeFieldDesc RuntimeCursorFields[] = {
+				{util::str_view("x"), ecs::F32, RuntimeXOffset, 0}, //
+				{util::str_view("y"), ecs::F32, RuntimeYOffset, 0}, //
+				{util::str_view("z"), ecs::F32, RuntimeZOffset, 0}, //
+				{util::str_view("alive"), ecs::Bool, RuntimeBoolOffset, 0}, //
+				{util::str_view("initial"), ecs::Char8, RuntimeCharOffset, 0}, //
+				{util::str_view("name"), ecs::Char8, RuntimeNameOffset, RuntimeNameCount}, //
+				{util::str_view("samples"), ecs::F32, RuntimeArrayOffset, RuntimeArrayCount}, //
+				{util::str_view("wide16"), ecs::Char16, RuntimeChar16Offset, 0}, //
+				{util::str_view("wide32"), ecs::Char32, RuntimeChar32Offset, 0} //
+		};
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Cursor", RuntimeCursorPayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign,
+				RuntimeCursorFields, 9);
 
 		const auto entity = wld.add();
 		uint8_t initial[RuntimeCursorPayloadSize]{};
