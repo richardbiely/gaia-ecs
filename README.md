@@ -588,13 +588,13 @@ formats that define component layouts outside C++ code.
 
 ```cpp
 ecs::ComponentDesc desc{};
-desc.name = "Cooldown";
+desc.name = util::str_view("Cooldown", 8);
 desc.size = sizeof(float);
 desc.alig = alignof(float);
 desc.storageType = ecs::DataStorageType::Table;
 const ecs::RuntimeFieldDesc fields[] = {
-  {"seconds", ecs::F32, 0, 0}
-  };
+  {util::str_view("seconds", 7), ecs::F32, 0, 0}
+};
 desc.fields = fields;
 desc.fieldCount = 1;
 
@@ -630,6 +630,14 @@ if (cursor.field("seconds")) {
     // updated.value contains the current seconds value.
   }
 }
+
+auto q = w.query().all(cooldownCI.entity);
+q.each([&](ecs::Entity ent) {
+  ecs::ComponentRawView raw = w.get_raw(ent, cooldownCI.entity);
+  if (raw.valid()) {
+    // raw.data points at the component bytes for this entity.
+  }
+});
 ```
 
 `get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent
@@ -637,6 +645,9 @@ write path. Call `modify_raw(...)` after direct byte writes when set hooks or `O
 copies a full payload and emits the write notification for you. `ComponentCursor` primitive accessors such as `f32(...)`
 write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw
 field copies and replacement.
+
+World JSON uses runtime field metadata when it is available. Pre-register the same descriptor before loading semantic JSON;
+then `load_json(...)` can rebuild runtime-created component payloads without compile-time C++ component types.
 
 Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for
 read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)`
