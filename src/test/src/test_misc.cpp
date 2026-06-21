@@ -704,6 +704,63 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.add_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize - 1));
 	}
 
+	SUBCASE("runtime components can be queried by component entity") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component(
+				wld, "Runtime_Component_Query", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		const auto entityWithoutRuntime = wld.add();
+
+		uint8_t payloadA[RuntimePayloadSize]{};
+		uint8_t payloadB[RuntimePayloadSize]{};
+		write_xyz(payloadA, 1.0f, 2.0f, 3.0f);
+		write_xyz(payloadB, 4.0f, 5.0f, 6.0f);
+		CHECK(wld.add_raw(entityA, runtimeComp.entity, payloadA, RuntimePayloadSize));
+		CHECK(wld.add_raw(entityB, runtimeComp.entity, payloadB, RuntimePayloadSize));
+
+		uint32_t hits = 0;
+		float xSum = 0.0f;
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Entity entity) {
+			CHECK(entity != entityWithoutRuntime);
+			const auto payload = wld.get_raw(entity, runtimeComp.entity);
+			CHECK(payload.valid());
+			CHECK(payload.size == RuntimePayloadSize);
+			CHECK(payload.data != nullptr);
+			if (payload.data != nullptr)
+				xSum += read_f32(payload.data, RuntimeXOffset);
+
+			auto cursor = wld.cursor_mut(entity, runtimeComp.entity);
+			CHECK(cursor.valid());
+			CHECK(cursor.field(util::str_view("y")));
+			CHECK(cursor.f32(10.0f + (float)hits));
+			++hits;
+		});
+
+		CHECK(hits == 2);
+		CHECK(xSum == doctest::Approx(5.0f));
+
+		const auto payloadAfterA = wld.get_raw(entityA, runtimeComp.entity);
+		const auto payloadAfterB = wld.get_raw(entityB, runtimeComp.entity);
+		CHECK(payloadAfterA.valid());
+		CHECK(payloadAfterB.valid());
+		if (payloadAfterA.data != nullptr && payloadAfterB.data != nullptr) {
+			const auto yA = read_f32(payloadAfterA.data, RuntimeYOffset);
+			const auto yB = read_f32(payloadAfterB.data, RuntimeYOffset);
+			CHECK((yA == doctest::Approx(10.0f) || yA == doctest::Approx(11.0f)));
+			CHECK((yB == doctest::Approx(10.0f) || yB == doctest::Approx(11.0f)));
+			CHECK(yA != yB);
+		}
+
+		CHECK_FALSE(wld.get_raw(entityWithoutRuntime, runtimeComp.entity).valid());
+	}
+
 	SUBCASE("runtime raw payload access supports tags") {
 		TestWorld twld;
 

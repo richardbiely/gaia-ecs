@@ -13343,24 +13343,23 @@ namespace gaia {
 			c8 = 10,
 			c16 = 11,
 			c32 = 12,
-			cw = 13,
 
 			// Floating point types
-			f8 = 14,
-			f16 = 15,
-			f32 = 16,
-			f64 = 17,
+			f8 = 13,
+			f16 = 14,
+			f32 = 15,
+			f64 = 16,
 
 			// Special
-			special_begin = 19,
+			special_begin = 17,
 			trivial_wrapper = special_begin,
-			data_and_size = 20,
+			data_and_size = 18,
 
 			Last = data_and_size,
 		};
 
 		inline uint32_t serialization_type_size(serialization_type_id id, uint32_t size) {
-			static const uint32_t sizes[] = {
+			static constexpr uint32_t sizes[] = {
 					// Dummy
 					0, // ignore
 
@@ -13381,7 +13380,6 @@ namespace gaia {
 					1, // c8
 					2, // c16
 					4, // c32
-					8, // cw
 
 					// Floating point types
 					1, // f8
@@ -13390,12 +13388,11 @@ namespace gaia {
 					8, // f64
 
 					// Special
-					size, // trivial_wrapper
+					(uint32_t)-1, // trivial_wrapper, resolved from the size argument
 					sizeof(uintptr_t), // data_and_size, assume natural alignment
 			};
 
-			const auto s = sizes[(uint32_t)id];
-			// Make sure we do not return an invalid value
+			const auto s = id == serialization_type_id::trivial_wrapper ? size : sizes[(uint32_t)id];
 			GAIA_ASSERT(s != (uint32_t)-1);
 			return s;
 		}
@@ -28358,7 +28355,6 @@ namespace gaia {
 		inline Entity Char8 = runtime_primitive_type_entity(ser::serialization_type_id::c8);
 		inline Entity Char16 = runtime_primitive_type_entity(ser::serialization_type_id::c16);
 		inline Entity Char32 = runtime_primitive_type_entity(ser::serialization_type_id::c32);
-		inline Entity WChar = runtime_primitive_type_entity(ser::serialization_type_id::cw);
 		inline Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);
 		inline Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);
 		inline Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);
@@ -29671,7 +29667,6 @@ namespace gaia {
 			Char8,
 			Char16,
 			Char32,
-			WChar,
 			F8,
 			F16,
 			F32,
@@ -38885,7 +38880,7 @@ namespace gaia {
 			//! Reads the current fixed c8 buffer.
 			//! \param dst Destination buffer receiving bytes.
 			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
-			//! @return Read result and copied byte count.
+			//! \return Read result and copied byte count.
 			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) noexcept {
 				return const_cast<const ComponentCursor&>(*this).c8(dst, cap);
 			}
@@ -38893,7 +38888,7 @@ namespace gaia {
 			//! Reads the current fixed c8 buffer.
 			//! \param dst Destination buffer receiving bytes.
 			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
-			//! @return Read result and copied byte count.
+			//! \return Read result and copied byte count.
 			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) const noexcept {
 				CursorResult<uint32_t> result{};
 				const auto status = validate_primitive(Char8, false, false);
@@ -38938,6 +38933,32 @@ namespace gaia {
 					memcpy(mut_ptr(), src, len);
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
+			}
+
+			//! Reads the current cursor value as a scalar c16.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<char16_t> c16() const noexcept {
+				return read_primitive<char16_t>(Char16);
+			}
+
+			//! Writes @a value to the current cursor value as a scalar c16.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c16(char16_t value) noexcept {
+				return write_primitive(Char16, value);
+			}
+
+			//! Reads the current cursor value as a scalar c32.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<char32_t> c32() const noexcept {
+				return read_primitive<char32_t>(Char32);
+			}
+
+			//! Writes @a value to the current cursor value as a scalar c32.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c32(char32_t value) noexcept {
+				return write_primitive(Char32, value);
 			}
 
 			//! Reads the current cursor value as an s8.
@@ -70711,7 +70732,6 @@ namespace gaia {
 				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
 				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
-				(void)reg_core_primitive_type(WChar, "gaia::ecs::WChar", 16, 8, RuntimePrimitiveKind::WChar);
 				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
 				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
 				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
@@ -70887,9 +70907,6 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Char32) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, WChar) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F8) //
