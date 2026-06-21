@@ -108,6 +108,45 @@ namespace gaia {
 				return util::str_view(name, l);
 			}
 
+#if GAIA_ASSERT_ENABLED
+			//! Validates descriptor-time runtime field metadata before immutable copy.
+			//! \param desc Component descriptor whose field metadata is being registered.
+			void validate_runtime_fields(const ecs::ComponentDesc& desc) const noexcept {
+				if (desc.fieldCount == 0)
+					return;
+
+				GAIA_ASSERT(desc.fields != nullptr);
+				if (desc.fields == nullptr)
+					return;
+
+				GAIA_FOR(desc.fieldCount) {
+					const auto& field = desc.fields[i];
+					GAIA_ASSERT(!field.name.empty());
+					GAIA_ASSERT(field.name.size() < ComponentCacheItem::MaxNameLength);
+					GAIA_ASSERT(field.type != EntityBad);
+
+					const auto* pType = find(field.type);
+					GAIA_ASSERT(pType != nullptr);
+					const auto elementSize = pType != nullptr ? pType->comp.size() : 0;
+					GAIA_ASSERT(elementSize > 0);
+					const auto elementCount = ComponentCacheItem::field_element_count(field);
+					GAIA_ASSERT(elementCount > 0);
+					GAIA_ASSERT(field.offset <= desc.size);
+					const auto availableSize = field.offset <= desc.size ? desc.size - field.offset : 0;
+					GAIA_ASSERT(elementSize <= availableSize);
+					GAIA_ASSERT(elementCount <= availableSize / elementSize);
+
+					GAIA_FOR2_(i + 1, desc.fieldCount, otherIdx) {
+						const auto& other = desc.fields[otherIdx];
+						const bool sameLen = field.name.size() == other.name.size();
+						const bool sameName = sameLen && field.name.data() != nullptr && other.name.data() != nullptr &&
+																	strncmp(field.name.data(), other.name.data(), field.name.size()) == 0;
+						GAIA_ASSERT(!sameName);
+					}
+				}
+			}
+#endif
+
 			static bool build_default_path(util::str& out, util::str_view symbol) {
 				out.clear();
 				bool changed = false;
@@ -332,6 +371,10 @@ namespace gaia {
 					if (pExisting != nullptr)
 						return *find(pExisting->entity);
 				}
+
+#if GAIA_ASSERT_ENABLED
+				validate_runtime_fields(desc);
+#endif
 
 				const auto* pItem = ComponentCacheItem::create(entity, desc);
 				GAIA_ASSERT(entity.id() == pItem->comp.id());

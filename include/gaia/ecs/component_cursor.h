@@ -223,6 +223,8 @@ namespace gaia {
 
 			//! \return Number of reflected fields on the current type.
 			GAIA_NODISCARD uint32_t field_count() const {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return 0;
 				const auto* pItem = current_item();
 				return pItem != nullptr ? pItem->field_count() : 0;
 			}
@@ -231,6 +233,8 @@ namespace gaia {
 			//! \param index Reflected field index on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return false;
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
@@ -243,6 +247,8 @@ namespace gaia {
 			//! \param name Reflected field name on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(util::str_view name) {
+				if (!m_valid || m_stack[m_depth].elemCount != 1)
+					return false;
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;

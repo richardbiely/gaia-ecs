@@ -603,6 +603,59 @@ ecs::ComponentCacheItem& cooldownCI = w.add(desc);
 
 You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as `ecs::F32` or `ecs::S32`, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array. Runtime field descriptors are copied during component registration and stay fixed for the lifetime of the component metadata.
 
+Fields can also reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to continue walking into nested fields.
+
+```cpp
+constexpr uint32_t FloatSize = sizeof(float);
+constexpr uint32_t Vec3Size = FloatSize * 3;
+constexpr uint32_t TransformSize = Vec3Size * 2;
+
+const ecs::RuntimeFieldDesc vec3Fields[] = {
+  {util::str_view("x", 1), ecs::F32, 0, 0},
+  {util::str_view("y", 1), ecs::F32, FloatSize, 0},
+  {util::str_view("z", 1), ecs::F32, FloatSize * 2, 0}
+};
+
+ecs::ComponentDesc vec3Desc{};
+vec3Desc.name = util::str_view("Vec3", 4);
+vec3Desc.size = Vec3Size;
+vec3Desc.alig = alignof(float);
+vec3Desc.storageType = ecs::DataStorageType::Table;
+vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+vec3Desc.fields = vec3Fields;
+vec3Desc.fieldCount = 3;
+ecs::ComponentCacheItem& vec3CI = w.add(vec3Desc);
+
+const ecs::RuntimeFieldDesc transformFields[] = {
+  {util::str_view("position", 8), vec3CI.entity, 0, 0},
+  {util::str_view("velocity", 8), vec3CI.entity, Vec3Size, 0}
+};
+
+ecs::ComponentDesc transformDesc{};
+transformDesc.name = util::str_view("Transform", 9);
+transformDesc.size = TransformSize;
+transformDesc.alig = alignof(float);
+transformDesc.storageType = ecs::DataStorageType::Table;
+transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+transformDesc.fields = transformFields;
+transformDesc.fieldCount = 2;
+ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
+
+ecs::Entity e = w.add();
+float transformPayload[] = {
+  0.0f, 1.0f, 2.0f, // position
+  3.0f, 4.0f, 5.0f  // velocity
+};
+w.add_raw(e, transformCI.entity, transformPayload, sizeof(transformPayload));
+
+ecs::ComponentCursor cursor = w.cursor_mut(e, transformCI.entity);
+if (cursor.field("position") && cursor.field("y")) {
+  cursor.f32(10.0f);
+}
+```
+
+For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a `Vec3[2]` field is addressed as `cursor.field("samples")`, then `cursor.elem(1)`, then `cursor.field("z")`. Direct field lookup on the array scope is rejected so it does not silently address element zero.
+
 ```cpp
 const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
 if (secondsField != nullptr) {

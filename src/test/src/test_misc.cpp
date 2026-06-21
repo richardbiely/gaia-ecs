@@ -1098,6 +1098,171 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(setHits == 9);
 	}
 
+	SUBCASE("runtime component cursor walks nested struct fields and arrays") {
+		TestWorld twld;
+
+		constexpr uint32_t RuntimeVec3Size = 12;
+		constexpr uint32_t RuntimeTransformSize = 48;
+		constexpr uint32_t RuntimePositionOffset = 0;
+		constexpr uint32_t RuntimeVelocityOffset = 12;
+		constexpr uint32_t RuntimeSamplesOffset = 24;
+		constexpr uint32_t RuntimeSamplesCount = 2;
+
+		const ecs::RuntimeFieldDesc vec3Fields[] = {
+				{util::str_view("x"), ecs::F32, RuntimeXOffset, 0}, //
+				{util::str_view("y"), ecs::F32, RuntimeYOffset, 0}, //
+				{util::str_view("z"), ecs::F32, RuntimeZOffset, 0} //
+		};
+
+		constexpr const char* Vec3Name = "Runtime_Type_Vec3";
+		ecs::ComponentDesc vec3Desc{};
+		vec3Desc.name = runtime_component_name_view(Vec3Name);
+		vec3Desc.size = RuntimeVec3Size;
+		vec3Desc.alig = RuntimePayloadAlign;
+		vec3Desc.storageType = ecs::DataStorageType::Table;
+		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.fields = vec3Fields;
+		vec3Desc.fieldCount = 3;
+		auto& vec3Type = wld.add(vec3Desc);
+
+		const ecs::RuntimeFieldDesc transformFields[] = {
+				{util::str_view("position"), vec3Type.entity, RuntimePositionOffset, 0}, //
+				{util::str_view("velocity"), vec3Type.entity, RuntimeVelocityOffset, 0}, //
+				{util::str_view("samples"), vec3Type.entity, RuntimeSamplesOffset, RuntimeSamplesCount} //
+		};
+
+		constexpr const char* TransformName = "Runtime_Component_Nested_Transform";
+		ecs::ComponentDesc transformDesc{};
+		transformDesc.name = runtime_component_name_view(TransformName);
+		transformDesc.size = RuntimeTransformSize;
+		transformDesc.alig = RuntimePayloadAlign;
+		transformDesc.storageType = ecs::DataStorageType::Table;
+		transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		transformDesc.fields = transformFields;
+		transformDesc.fieldCount = 3;
+		auto& transformComp = wld.add(transformDesc);
+
+		CHECK(vec3Type.field_count() == 3);
+		CHECK(transformComp.field_count() == 3);
+		const auto* positionField = transformComp.field(util::str_view("position"));
+		const auto* samplesField = transformComp.field(util::str_view("samples"));
+		CHECK(positionField != nullptr);
+		CHECK(samplesField != nullptr);
+		CHECK(positionField->type == vec3Type.entity);
+		CHECK(samplesField->type == vec3Type.entity);
+		CHECK(samplesField->count == RuntimeSamplesCount);
+
+		const auto entity = wld.add();
+		uint8_t payload[RuntimeTransformSize]{};
+		write_xyz(payload + RuntimePositionOffset, 1.0f, 2.0f, 3.0f);
+		write_xyz(payload + RuntimeVelocityOffset, 4.0f, 5.0f, 6.0f);
+		write_xyz(payload + RuntimeSamplesOffset, 7.0f, 8.0f, 9.0f);
+		write_xyz(payload + RuntimeSamplesOffset + RuntimeVec3Size, 10.0f, 11.0f, 12.0f);
+		CHECK(wld.add_raw(entity, transformComp.entity, payload, RuntimeTransformSize));
+
+		auto cursor = wld.cursor(entity, transformComp.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.type() == transformComp.entity);
+		CHECK(cursor.size() == RuntimeTransformSize);
+		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.set_raw(payload, RuntimeTransformSize).status == ecs::CursorStatus::ReadOnly);
+		CHECK_FALSE(cursor.parent());
+
+		CHECK(cursor.field(util::str_view("position")));
+		CHECK(cursor.type() == vec3Type.entity);
+		CHECK(cursor.size() == RuntimeVec3Size);
+		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.f32().status == ecs::CursorStatus::TypeMismatch);
+		uint8_t positionCopy[RuntimeVec3Size]{};
+		const auto positionBytes = cursor.get_raw(positionCopy, RuntimeVec3Size);
+		CHECK(positionBytes);
+		CHECK(positionBytes.value == RuntimeVec3Size);
+		CHECK(read_f32(positionCopy, RuntimeYOffset) == doctest::Approx(2.0f));
+
+		CHECK(cursor.field(util::str_view("y")));
+		CHECK(cursor.type() == ecs::F32);
+		const auto positionY = cursor.f32();
+		CHECK(positionY);
+		CHECK(positionY.value == doctest::Approx(2.0f));
+		CHECK_FALSE(cursor.field(util::str_view("x")));
+		CHECK(cursor.type() == ecs::F32);
+		CHECK_FALSE(cursor.elem(0));
+		CHECK(cursor.parent());
+		CHECK(cursor.type() == vec3Type.entity);
+		CHECK(cursor.parent());
+		CHECK(cursor.type() == transformComp.entity);
+
+		CHECK(cursor.field(util::str_view("samples")));
+		CHECK(cursor.type() == vec3Type.entity);
+		CHECK(cursor.size() == RuntimeVec3Size * RuntimeSamplesCount);
+		CHECK(cursor.field_count() == 0);
+		CHECK_FALSE(cursor.field(util::str_view("z")));
+		CHECK(cursor.type() == vec3Type.entity);
+		CHECK_FALSE(cursor.elem(RuntimeSamplesCount));
+		CHECK(cursor.elem(1));
+		CHECK(cursor.size() == RuntimeVec3Size);
+		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.field(util::str_view("z")));
+		const auto sampleZ = cursor.f32();
+		CHECK(sampleZ);
+		CHECK(sampleZ.value == doctest::Approx(12.0f));
+
+		uint32_t setHits = 0;
+		uint8_t observedPayload[RuntimeTransformSize]{};
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(transformComp.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+														 const auto raw = wld.get_raw(observed, transformComp.entity);
+														 CHECK(raw.valid());
+														 CHECK(raw.size == RuntimeTransformSize);
+														 CHECK(raw.data != nullptr);
+														 memcpy(observedPayload, raw.data, RuntimeTransformSize);
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto mutableCursor = wld.cursor_mut(entity, transformComp.entity);
+		CHECK(mutableCursor.valid());
+		CHECK(mutableCursor.field(util::str_view("velocity")));
+		CHECK(mutableCursor.field(util::str_view("z")));
+		CHECK(mutableCursor.f32(99.0f));
+		CHECK(setHits == 1);
+		CHECK(read_f32(observedPayload, RuntimeVelocityOffset + RuntimeZOffset) == doctest::Approx(99.0f));
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("position")));
+		uint8_t replacementPosition[RuntimeVec3Size]{};
+		write_xyz(replacementPosition, -1.0f, -2.0f, -3.0f);
+		CHECK(mutableCursor.set_raw(replacementPosition, RuntimeVec3Size));
+		CHECK(setHits == 2);
+		CHECK(read_f32(observedPayload, RuntimePositionOffset + RuntimeXOffset) == doctest::Approx(-1.0f));
+		CHECK(read_f32(observedPayload, RuntimePositionOffset + RuntimeYOffset) == doctest::Approx(-2.0f));
+		CHECK(mutableCursor.set_raw(replacementPosition, RuntimeVec3Size - 1).status == ecs::CursorStatus::OutOfRange);
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("samples")));
+		CHECK(mutableCursor.elem(0));
+		CHECK(mutableCursor.field(util::str_view("x")));
+		CHECK(mutableCursor.f32(77.0f));
+		CHECK(setHits == 3);
+
+		const auto finalPayload = wld.get_raw(entity, transformComp.entity);
+		CHECK(finalPayload.valid());
+		CHECK(finalPayload.size == RuntimeTransformSize);
+		CHECK(finalPayload.data != nullptr);
+		CHECK(read_f32(finalPayload.data, RuntimePositionOffset + RuntimeXOffset) == doctest::Approx(-1.0f));
+		CHECK(read_f32(finalPayload.data, RuntimePositionOffset + RuntimeYOffset) == doctest::Approx(-2.0f));
+		CHECK(read_f32(finalPayload.data, RuntimePositionOffset + RuntimeZOffset) == doctest::Approx(-3.0f));
+		CHECK(read_f32(finalPayload.data, RuntimeVelocityOffset + RuntimeZOffset) == doctest::Approx(99.0f));
+		CHECK(read_f32(finalPayload.data, RuntimeSamplesOffset + RuntimeXOffset) == doctest::Approx(77.0f));
+		CHECK(
+				read_f32(finalPayload.data, RuntimeSamplesOffset + RuntimeVec3Size + RuntimeZOffset) == doctest::Approx(12.0f));
+	}
+
 	SUBCASE("runtime raw payload access rejects unsupported storage") {
 		TestWorld twld;
 
