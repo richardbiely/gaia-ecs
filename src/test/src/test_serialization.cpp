@@ -494,38 +494,6 @@ TEST_CASE("Serialization - json runtime fields") {
 				"\"inventory[1].id\":202,\"inventory[1].count\":9,\"active[0]\":true,\"active[1]\":false}");
 	}
 
-	SUBCASE("unsupported field types are emitted as null and reported") {
-		TestWorld twld;
-		auto& cc = wld.comp_cache_mut();
-		const auto entity = wld.add();
-		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("blob"), ecs::EntityBad, 0, 0}};
-		(void)add_runtime_component_with_fields(
-				cc, entity, "Runtime_Component_Json_Unsupported", 4, ecs::DataStorageType::Table, 4, fields, 1);
-		auto& item = cc.get(entity);
-		uint32_t value = 123;
-
-		ser::ser_json writer;
-		const bool ok = ecs::component_to_json(item, &value, writer);
-		CHECK_FALSE(ok);
-		CHECK(writer.str() == "{\"blob\":null}");
-	}
-
-	SUBCASE("out of bounds runtime fields are emitted as null and reported") {
-		TestWorld twld;
-		auto& cc = wld.comp_cache_mut();
-		const auto entity = wld.add();
-		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("too_far"), ecs::U32, 8, 0}};
-		(void)add_runtime_component_with_fields(
-				cc, entity, "Runtime_Component_Json_Oob", 4, ecs::DataStorageType::Table, 4, fields, 1);
-		auto& item = cc.get(entity);
-		uint32_t value = 123;
-
-		ser::ser_json writer;
-		const bool ok = ecs::component_to_json(item, &value, writer);
-		CHECK_FALSE(ok);
-		CHECK(writer.str() == "{\"too_far\":null}");
-	}
-
 	SUBCASE("json_to_component loads runtime field payload") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();

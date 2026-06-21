@@ -556,7 +556,7 @@ TEST_CASE("Component cache - runtime registration") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		ecs::RuntimeFieldDesc fields[] = {
 				{util::str_view("x"), //
 				 ecs::F32, 0, 0}, //
 				{util::str_view("velocity"), ecs::F64, 12, 0} //
@@ -583,6 +583,19 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(field->type == ecs::F64);
 		CHECK(field->offset == 12);
 		CHECK(field->count == 0);
+
+		fields[0].name = util::str_view("mutated");
+		fields[0].type = ecs::U32;
+		fields[0].offset = 16;
+		fields[0].count = 3;
+
+		field = item.field(0);
+		CHECK(field != nullptr);
+		CHECK(strcmp(field->name, "x") == 0);
+		CHECK(field->type == ecs::F32);
+		CHECK(field->offset == 0);
+		CHECK(field->count == 0);
+		CHECK(item.field(util::str_view("mutated")) == nullptr);
 
 		ecs::RuntimeFieldDesc invalid{};
 		CHECK_FALSE(make_runtime_field(invalid, nullptr, 0, ser::serialization_type_id::u8, 0, 1));

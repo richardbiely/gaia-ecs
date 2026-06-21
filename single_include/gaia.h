@@ -30541,6 +30541,43 @@ namespace gaia {
 				nameOut = SymbolLookupKey(name, nameView.size(), 1);
 			}
 
+#if GAIA_ASSERT_ENABLED
+			//! Validates descriptor-time runtime field metadata before immutable copy.
+			//! \param fields Field descriptor array.
+			//! \param fieldCount Number of field descriptors.
+			//! \param compSize Component payload byte size.
+			static void
+			validate_runtime_fields(const RuntimeFieldDesc* fields, uint32_t fieldCount, uint32_t compSize) noexcept {
+				GAIA_ASSERT(fields != nullptr);
+				if (fields == nullptr)
+					return;
+
+				GAIA_FOR(fieldCount) {
+					const auto& field = fields[i];
+					GAIA_ASSERT(!field.name.empty());
+					GAIA_ASSERT(field.name.size() < MaxNameLength);
+					GAIA_ASSERT(field.type != EntityBad);
+
+					const auto elementSize = primitive_type_size(field.type);
+					GAIA_ASSERT(elementSize > 0);
+					const auto elementCount = field_element_count(field);
+					GAIA_ASSERT(elementCount > 0);
+					GAIA_ASSERT(field.offset <= compSize);
+					const auto availableSize = field.offset <= compSize ? compSize - field.offset : 0;
+					GAIA_ASSERT(elementSize <= availableSize);
+					GAIA_ASSERT(elementCount <= availableSize / elementSize);
+
+					GAIA_FOR2_(i + 1, fieldCount, otherIdx) {
+						const auto& other = fields[otherIdx];
+						const bool sameLen = field.name.size() == other.name.size();
+						const bool sameName = sameLen && field.name.data() != nullptr && other.name.data() != nullptr &&
+																	strncmp(field.name.data(), other.name.data(), field.name.size()) == 0;
+						GAIA_ASSERT(!sameName);
+					}
+				}
+			}
+#endif
+
 			//! Copies one runtime field descriptor into immutable component metadata.
 			//! @param desc Field descriptor to copy.
 			//! @return True when copied, false when the field name is invalid.
@@ -30626,7 +30663,9 @@ namespace gaia {
 				cci->primitiveKind = desc.primitiveKind;
 
 				if (desc.fieldCount > 0) {
-					GAIA_ASSERT(desc.fields != nullptr);
+#if GAIA_ASSERT_ENABLED
+					validate_runtime_fields(desc.fields, desc.fieldCount, desc.size);
+#endif
 					GAIA_FOR(desc.fieldCount) {
 						const bool copied = cci->copy_runtime_field(desc.fields[i]);
 						GAIA_ASSERT(copied);
