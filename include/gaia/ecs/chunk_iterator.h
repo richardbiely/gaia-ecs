@@ -11,6 +11,7 @@
 #include "gaia/ecs/command_buffer_fwd.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/component_cache_item.h"
+#include "gaia/ecs/component_cursor.h"
 #include "gaia/ecs/id.h"
 #include "gaia/ecs/query_common.h"
 #include "gaia/mem/data_layout_policy.h"
@@ -83,6 +84,48 @@ namespace gaia {
 				uint16_t from = 0;
 				uint16_t to = 0;
 				uint32_t offset = 0;
+			};
+
+			//! Read-only raw byte view for a directly chunk-backed AoS iterator term.
+			struct RawTermViewGet {
+				const uint8_t* pData = nullptr;
+				uint32_t elemSize = 0;
+				uint32_t cnt = 0;
+				uint32_t flags = ComponentRawViewFlag_None;
+
+				GAIA_NODISCARD ComponentRawView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if ((flags & ComponentRawViewFlag_Valid) == 0 || idx >= cnt)
+						return {};
+					if (elemSize == 0)
+						return {nullptr, 0, ComponentRawViewFlag_Valid};
+					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			//! Mutable raw byte view for a directly chunk-backed AoS iterator term.
+			struct RawTermViewSet {
+				uint8_t* pData = nullptr;
+				uint32_t elemSize = 0;
+				uint32_t cnt = 0;
+				uint32_t flags = ComponentRawViewFlag_None;
+
+				GAIA_NODISCARD ComponentRawMutView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if ((flags & ComponentRawViewFlag_Valid) == 0 || idx >= cnt)
+						return {};
+					if (elemSize == 0)
+						return {nullptr, 0, ComponentRawViewFlag_Valid};
+					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
 			};
 
 			//! Read-only term view for chunk-backed AoS data.
@@ -1155,6 +1198,99 @@ namespace gaia {
 						touch_term(desc.termId);
 					else
 						touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
+				}
+
+				GAIA_NODISCARD RawTermViewGet raw_term_view(uint32_t termIdx) const {
+					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
+						return {};
+
+					const auto compIdx = m_pCompIndices[termIdx];
+					if (compIdx == 0xFF)
+						return {};
+
+					const auto recs = m_pChunk->comp_rec_view();
+					if (compIdx >= recs.size())
+						return {};
+
+					const auto term = m_pChunk->ids_view()[compIdx];
+					const auto& rec = recs[compIdx];
+					if (term.pair() || rec.comp.soa() != 0)
+						return {};
+
+					const auto elemSize = rec.comp.size();
+					const auto row = (uint32_t)(from() * (1U - (uint32_t)term.kind()));
+					const auto* pData = elemSize != 0 ? m_pChunk->comp_ptr(compIdx, row) : nullptr;
+					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
+				}
+
+				GAIA_NODISCARD RawTermViewSet raw_term_view_mut(uint32_t termIdx, bool trackWrite) {
+					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
+						return {};
+
+					const auto compIdx = m_pCompIndices[termIdx];
+					if (compIdx == 0xFF)
+						return {};
+
+					const auto recs = m_pChunk->comp_rec_view();
+					if (compIdx >= recs.size())
+						return {};
+
+					const auto term = m_pChunk->ids_view()[compIdx];
+					const auto& rec = recs[compIdx];
+					if (term.pair() || rec.comp.soa() != 0)
+						return {};
+
+					if (trackWrite) {
+						touch_comp_idx(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
+					}
+
+					const auto elemSize = rec.comp.size();
+					const auto row = (uint32_t)(from() * (1U - (uint32_t)term.kind()));
+					auto* pData = elemSize != 0 ? m_pChunk->comp_ptr_mut(compIdx, row) : nullptr;
+					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
+				}
+
+				//! Returns a read-only raw byte view for a directly chunk-backed AoS query term.
+				//! \param termIdx Query term index.
+				//! \return Indexable raw view. Rows return invalid payloads when the term is unsupported.
+				GAIA_NODISCARD RawTermViewGet view_raw(uint32_t termIdx) const {
+					return raw_term_view(termIdx);
+				}
+
+				//! Returns a mutable raw byte view for a directly chunk-backed AoS query term.
+				//! Writes are finished after the iterator callback through normal touched-write tracking.
+				//! \param termIdx Query term index.
+				//! \return Indexable raw mutable view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSet view_raw_mut(uint32_t termIdx) {
+					return raw_term_view_mut(termIdx, true);
+				}
+
+				//! Returns a mutable raw byte view without marking the term modified.
+				//! Pair with modify_raw(termIdx) when set hooks or `OnSet` observers should run.
+				//! \param termIdx Query term index.
+				//! \return Indexable raw mutable view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSet sview_raw_mut(uint32_t termIdx) {
+					return raw_term_view_mut(termIdx, false);
+				}
+
+				//! Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.
+				//! \param termIdx Query term index.
+				void modify_raw(uint32_t termIdx) {
+					if (m_pCompIndices == nullptr || m_pChunk == nullptr)
+						return;
+
+					const auto compIdx = m_pCompIndices[termIdx];
+					if (compIdx == 0xFF || compIdx >= m_pChunk->comp_rec_view().size())
+						return;
+
+					const auto term = m_pChunk->ids_view()[compIdx];
+					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					if (term.pair() || rec.comp.soa() != 0)
+						return;
+
+					touch_comp_idx(compIdx);
 				}
 
 				//! Returns a read-only entity or component view that can resolve non-direct storage.

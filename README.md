@@ -1928,6 +1928,11 @@ The iterator exposes two families of accessors:
 * `view`, `view_mut`, `sview_mut`, `view_auto`, `sview_auto` - the fast path for terms stored directly in the current chunk
 * `view_any`, `view_any_mut`, `sview_any_mut`, `view_auto_any`, `sview_auto_any` - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity
 
+Runtime-created table AoS components use the same iterator naming with erased raw byte views:
+* `view_raw(termIdx)` - read-only raw payload rows for a directly chunk-backed term
+* `view_raw_mut(termIdx)` - mutable raw payload rows with normal post-callback set side effects
+* `sview_raw_mut(termIdx)` - silent mutable raw payload rows. Pair with `modify_raw(termIdx)` when set side effects should run.
+
 Use plain `view*` whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the `*_any` variant explicitly.
 
 Iterator behavior can be controlled via `Constraints`.

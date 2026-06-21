@@ -756,6 +756,106 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.get_raw(entityWithoutRuntime, runtimeComp.entity).valid());
 	}
 
+	SUBCASE("runtime components expose raw iterator views") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component(
+				wld, "Runtime_Component_Query_Iter_View", RuntimePayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
+		CHECK(runtimeComp.add_field({util::str_view("x"), ecs::F32, RuntimeXOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("y"), ecs::F32, RuntimeYOffset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("z"), ecs::F32, RuntimeZOffset, 0}));
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+
+		uint8_t payloadA[RuntimePayloadSize]{};
+		uint8_t payloadB[RuntimePayloadSize]{};
+		write_xyz(payloadA, 1.0f, 2.0f, 3.0f);
+		write_xyz(payloadB, 4.0f, 5.0f, 6.0f);
+		CHECK(wld.add_raw(entityA, runtimeComp.entity, payloadA, RuntimePayloadSize));
+		CHECK(wld.add_raw(entityB, runtimeComp.entity, payloadB, RuntimePayloadSize));
+
+		uint32_t setHits = 0;
+		float observedY = 0.0f;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity entity) {
+														 ++setHits;
+														 const auto payload = wld.get_raw(entity, runtimeComp.entity);
+														 CHECK(payload.valid());
+														 CHECK(payload.size == RuntimePayloadSize);
+														 if (payload.data != nullptr)
+															 observedY += read_f32(payload.data, RuntimeYOffset);
+													 })
+													 .entity();
+		(void)onSet;
+
+		float xSum = 0.0f;
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			const auto raw = it.view_raw(0);
+			CHECK(raw.size() == it.size());
+			GAIA_FOR(it.size()) {
+				const auto payload = raw[i];
+				CHECK(payload.valid());
+				CHECK(payload.size == RuntimePayloadSize);
+				CHECK(payload.data != nullptr);
+				if (payload.data != nullptr)
+					xSum += read_f32(payload.data, RuntimeXOffset);
+			}
+		});
+
+		CHECK(xSum == doctest::Approx(5.0f));
+
+		q.each([&](ecs::Iter& it) {
+			auto raw = it.view_raw_mut(0);
+			CHECK(raw.size() == it.size());
+			GAIA_FOR(it.size()) {
+				auto payload = raw[i];
+				CHECK(payload.valid());
+				CHECK(payload.size == RuntimePayloadSize);
+				CHECK(payload.data != nullptr);
+				if (payload.data != nullptr)
+					write_f32(payload.data, RuntimeYOffset, 10.0f + (float)i);
+			}
+		});
+
+		CHECK(setHits == 2);
+		CHECK(observedY == doctest::Approx(21.0f));
+
+		setHits = 0;
+		observedY = 0.0f;
+		q.each([&](ecs::Iter& it) {
+			auto raw = it.sview_raw_mut(0);
+			CHECK(raw.size() == it.size());
+			GAIA_FOR(it.size()) {
+				auto payload = raw[i];
+				CHECK(payload.valid());
+				CHECK(payload.size == RuntimePayloadSize);
+				CHECK(payload.data != nullptr);
+				if (payload.data != nullptr)
+					write_f32(payload.data, RuntimeZOffset, 20.0f + (float)i);
+			}
+			CHECK(setHits == 0);
+			it.modify_raw(0);
+		});
+
+		CHECK(setHits == 2);
+
+		const auto payloadAfterA = wld.get_raw(entityA, runtimeComp.entity);
+		const auto payloadAfterB = wld.get_raw(entityB, runtimeComp.entity);
+		CHECK(payloadAfterA.valid());
+		CHECK(payloadAfterB.valid());
+		if (payloadAfterA.data != nullptr && payloadAfterB.data != nullptr) {
+			const auto zA = read_f32(payloadAfterA.data, RuntimeZOffset);
+			const auto zB = read_f32(payloadAfterB.data, RuntimeZOffset);
+			CHECK((zA == doctest::Approx(20.0f) || zA == doctest::Approx(21.0f)));
+			CHECK((zB == doctest::Approx(20.0f) || zB == doctest::Approx(21.0f)));
+			CHECK(zA != zB);
+		}
+	}
+
 	SUBCASE("runtime raw payload access supports tags") {
 		TestWorld twld;
 
