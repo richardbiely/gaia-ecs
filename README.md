@@ -3650,7 +3650,7 @@ The runtime API has three separate concerns:
 * metadata: describe fields, nested structs, fixed arrays, enums, and bitmasks
 * access: add, read, write, query, and serialize payload bytes without a C++ component type
 
-For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type.
+For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed inline arrays serialize as JSON arrays, and enum/bitmask fields currently serialize as their numeric primitive value.
 
 ### Registration
 
@@ -3741,9 +3741,11 @@ if (cursor.field("position") && cursor.field("y")) {
 
 For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a `Vec3[2]` field is addressed as `cursor.field("samples")`, then `cursor.elem(1)`, then `cursor.field("z")`. Direct field lookup on the array scope is rejected so it does not silently address element zero.
 
+The same metadata drives semantic world JSON. A `Vec3` field is emitted as an object such as `"position":{"x":1,"y":2,"z":3}`, and a fixed inline `Vec3[2]` field is emitted as an array of two objects. Register the same runtime type/component descriptors before `load_json(...)` so Gaia-ECS can rebuild the payload bytes deterministically.
+
 ### Enum and bitmask metadata
 
-Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. The payload is still stored as the declared primitive size, so cursor primitive helpers work on enum/bitmask fields when the underlying primitive kind matches.
+Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. `underlyingType` points at the primitive type entity used for storage, so cursor primitive helpers work on enum/bitmask fields when the selected helper matches that primitive entity.
 
 ```cpp
 const ecs::RuntimeConstantDesc movementConstants[] = {
@@ -3758,7 +3760,7 @@ movementDesc.size = sizeof(uint32_t);
 movementDesc.alig = alignof(uint32_t);
 movementDesc.storageType = ecs::DataStorageType::Table;
 movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-movementDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+movementDesc.underlyingType = ecs::U32;
 movementDesc.constants = movementConstants;
 movementDesc.constantCount = 3;
 ecs::ComponentCacheItem& movementCI = w.add(movementDesc);

@@ -109,6 +109,18 @@ namespace gaia {
 			}
 
 #if GAIA_ASSERT_ENABLED
+			//! Validates descriptor-time runtime type metadata before immutable copy.
+			//! \param desc Component descriptor whose type metadata is being registered.
+			static void validate_runtime_type(const ecs::ComponentDesc& desc) noexcept {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				if (desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask) {
+					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
+					return;
+				}
+
+				GAIA_ASSERT(desc.underlyingType == EntityBad);
+			}
+
 			//! Validates descriptor-time runtime field metadata before immutable copy.
 			//! \param desc Component descriptor whose field metadata is being registered.
 			void validate_runtime_fields(const ecs::ComponentDesc& desc) const noexcept {
@@ -153,7 +165,6 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask);
-				GAIA_ASSERT(desc.primitiveKind != RuntimePrimitiveKind::None);
 				GAIA_ASSERT(desc.constants != nullptr);
 				if (desc.constants == nullptr)
 					return;
@@ -325,6 +336,7 @@ namespace gaia {
 				m_compByEntityId.emplace(pItem->entity.id(), pItem);
 
 				auto& item = *const_cast<ComponentCacheItem*>(pItem);
+				item.m_ownerCache = this;
 				add_name_mappings(item, scopePath);
 				return item;
 			}
@@ -401,6 +413,7 @@ namespace gaia {
 				}
 
 #if GAIA_ASSERT_ENABLED
+				validate_runtime_type(desc);
 				validate_runtime_fields(desc);
 				validate_runtime_constants(desc);
 #endif
@@ -426,7 +439,7 @@ namespace gaia {
 				desc.pSoaSizes = item.pSoaSizes;
 				desc.hashLookup = item.hashLookup;
 				desc.typeKind = item.typeKind;
-				desc.primitiveKind = item.primitiveKind;
+				desc.underlyingType = item.underlyingType;
 				desc.fields = item.fields;
 				desc.fieldCount = item.fieldCount;
 				desc.constants = item.constants;

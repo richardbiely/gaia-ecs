@@ -494,6 +494,99 @@ TEST_CASE("Serialization - json runtime fields") {
 				"\"inventory[1].id\":202,\"inventory[1].count\":9,\"active[0]\":true,\"active[1]\":false}");
 	}
 
+	SUBCASE("nested runtime metadata is emitted and loaded as semantic objects and arrays") {
+		struct Vec3 {
+			float x, y, z;
+		};
+		struct RuntimeTransformComp {
+			int32_t id;
+			Vec3 position;
+			Vec3 samples[2];
+			uint32_t mode;
+		};
+
+		TestWorld twld;
+		RuntimeTransformComp layout{};
+		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
+		const auto offId = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.id) - pBase);
+		const auto offPosition = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.position) - pBase);
+		const auto offSamples = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.samples) - pBase);
+		const auto offMode = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.mode) - pBase);
+
+		const ecs::RuntimeFieldDesc vec3Fields[] = {
+				{util::str_view("x"), ecs::F32, 0, 0}, //
+				{util::str_view("y"), ecs::F32, 4, 0}, //
+				{util::str_view("z"), ecs::F32, 8, 0} //
+		};
+		ecs::ComponentDesc vec3Desc{};
+		vec3Desc.name = runtime_component_name_view("Runtime_Type_Json_Vec3");
+		vec3Desc.size = (uint32_t)sizeof(Vec3);
+		vec3Desc.alig = (uint32_t)alignof(Vec3);
+		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.fields = vec3Fields;
+		vec3Desc.fieldCount = 3;
+		auto& vec3Type = wld.add(vec3Desc);
+
+		const ecs::RuntimeConstantDesc modeConstants[] = {
+				{util::str_view("Idle"), 0}, //
+				{util::str_view("Move"), 1}, //
+				{util::str_view("Jump"), 2} //
+		};
+		ecs::ComponentDesc modeDesc{};
+		modeDesc.name = runtime_component_name_view("Runtime_Type_Json_Mode");
+		modeDesc.size = (uint32_t)sizeof(uint32_t);
+		modeDesc.alig = (uint32_t)alignof(uint32_t);
+		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.underlyingType = ecs::U32;
+		modeDesc.constants = modeConstants;
+		modeDesc.constantCount = 3;
+		auto& modeType = wld.add(modeDesc);
+
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("id"), ecs::S32, offId, 0}, //
+				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
+				{util::str_view("samples"), vec3Type.entity, offSamples, 2}, //
+				{util::str_view("mode"), modeType.entity, offMode, 0} //
+		};
+		auto& item = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Json_Semantic_Nested", (uint32_t)sizeof(RuntimeTransformComp),
+				ecs::DataStorageType::Table, (uint32_t)alignof(RuntimeTransformComp), fields, 4);
+
+		RuntimeTransformComp value{};
+		value.id = 7;
+		value.position = {1.25f, -2.5f, 3.0f};
+		value.samples[0] = {4.0f, 5.5f, 6.25f};
+		value.samples[1] = {-7.0f, 8.0f, 9.5f};
+		value.mode = 2;
+
+		ser::ser_json writer;
+		const bool ok = ecs::component_to_json(item, &value, writer);
+		CHECK(ok);
+		CHECK(
+				writer.str() ==
+				"{\"id\":7,\"position\":{\"x\":1.25,\"y\":-2.5,\"z\":3},\"samples\":[{\"x\":4,\"y\":5.5,\"z\":6.25},"
+				"{\"x\":-7,\"y\":8,\"z\":9.5}],\"mode\":2}");
+
+		RuntimeTransformComp out{};
+		ser::ser_json reader(writer.str().data(), (uint32_t)writer.str().size());
+		bool okRead = false;
+		CHECK(ecs::json_to_component(item, &out, reader, okRead));
+		CHECK(okRead);
+		reader.ws();
+		CHECK(reader.eof());
+		CHECK(out.id == value.id);
+		CHECK(out.position.x == value.position.x);
+		CHECK(out.position.y == value.position.y);
+		CHECK(out.position.z == value.position.z);
+		CHECK(out.samples[0].x == value.samples[0].x);
+		CHECK(out.samples[0].y == value.samples[0].y);
+		CHECK(out.samples[0].z == value.samples[0].z);
+		CHECK(out.samples[1].x == value.samples[1].x);
+		CHECK(out.samples[1].y == value.samples[1].y);
+		CHECK(out.samples[1].z == value.samples[1].z);
+		CHECK(out.mode == value.mode);
+	}
+
 	SUBCASE("json_to_component loads runtime field payload") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();
@@ -1684,6 +1777,111 @@ TEST_CASE("Serialization - world json runtime fields nested arrays") {
 	CHECK(loadedComp.active[0] == true);
 	CHECK(loadedComp.active[1] == false);
 	CHECK(std::string(loadedComp.label) == "crate");
+}
+
+TEST_CASE("Serialization - world json runtime semantic nested metadata") {
+	struct Vec3 {
+		float x, y, z;
+	};
+	struct RuntimeTransformComp {
+		int32_t id;
+		Vec3 position;
+		Vec3 samples[2];
+		uint32_t mode;
+	};
+
+	auto register_component = [](ecs::World& world) -> ecs::ComponentCacheItem& {
+		RuntimeTransformComp layout{};
+		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
+		const auto offId = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.id) - pBase);
+		const auto offPosition = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.position) - pBase);
+		const auto offSamples = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.samples) - pBase);
+		const auto offMode = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.mode) - pBase);
+
+		const ecs::RuntimeFieldDesc vec3Fields[] = {
+				{util::str_view("x"), ecs::F32, 0, 0}, //
+				{util::str_view("y"), ecs::F32, 4, 0}, //
+				{util::str_view("z"), ecs::F32, 8, 0} //
+		};
+		ecs::ComponentDesc vec3Desc{};
+		vec3Desc.name = runtime_component_name_view("Runtime_Type_World_Json_Vec3");
+		vec3Desc.size = (uint32_t)sizeof(Vec3);
+		vec3Desc.alig = (uint32_t)alignof(Vec3);
+		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.fields = vec3Fields;
+		vec3Desc.fieldCount = 3;
+		auto& vec3Type = world.add(vec3Desc);
+
+		const ecs::RuntimeConstantDesc modeConstants[] = {
+				{util::str_view("Idle"), 0}, //
+				{util::str_view("Move"), 1}, //
+				{util::str_view("Jump"), 2} //
+		};
+		ecs::ComponentDesc modeDesc{};
+		modeDesc.name = runtime_component_name_view("Runtime_Type_World_Json_Mode");
+		modeDesc.size = (uint32_t)sizeof(uint32_t);
+		modeDesc.alig = (uint32_t)alignof(uint32_t);
+		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.underlyingType = ecs::U32;
+		modeDesc.constants = modeConstants;
+		modeDesc.constantCount = 3;
+		auto& modeType = world.add(modeDesc);
+
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("id"), ecs::S32, offId, 0}, //
+				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
+				{util::str_view("samples"), vec3Type.entity, offSamples, 2}, //
+				{util::str_view("mode"), modeType.entity, offMode, 0} //
+		};
+		return add_runtime_component_with_fields(
+				world, "Runtime_Component_World_Json_Semantic_Nested", (uint32_t)sizeof(RuntimeTransformComp),
+				ecs::DataStorageType::Table, (uint32_t)alignof(RuntimeTransformComp), fields, 4);
+	};
+
+	TestWorld twld;
+	auto& comp = register_component(wld);
+	const auto e = wld.add();
+	wld.name(e, "SemanticNestedEntity");
+	RuntimeTransformComp value{};
+	value.id = 7;
+	value.position = {1.25f, -2.5f, 3.0f};
+	value.samples[0] = {4.0f, 5.5f, 6.25f};
+	value.samples[1] = {-7.0f, 8.0f, 9.5f};
+	value.mode = 2;
+	CHECK(wld.add_raw(e, comp.entity, &value, (uint32_t)sizeof(value)));
+
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+	const auto& json = writer.str();
+	CHECK(json.find("\"binary\":[") == BadIndex);
+	CHECK(json.find("\"SemanticNestedEntity\"") != BadIndex);
+	CHECK(json.find("\"position\":{\"x\":1.25,\"y\":-2.5,\"z\":3}") != BadIndex);
+	CHECK(json.find("\"samples\":[{\"x\":4,\"y\":5.5,\"z\":6.25},{\"x\":-7,\"y\":8,\"z\":9.5}]") != BadIndex);
+	CHECK(json.find("\"mode\":2") != BadIndex);
+
+	TestWorld twldOut;
+	auto& compOut = register_component(twldOut.m_w);
+	CHECK(twldOut.m_w.load_json(json));
+
+	const auto loaded = twldOut.m_w.get("SemanticNestedEntity");
+	CHECK(loaded != ecs::EntityBad);
+	const auto loadedPayload = twldOut.m_w.get_raw(loaded, compOut.entity);
+	CHECK(loadedPayload.valid());
+	CHECK(loadedPayload.size == sizeof(RuntimeTransformComp));
+	CHECK(loadedPayload.data != nullptr);
+	RuntimeTransformComp loadedComp{};
+	memcpy(&loadedComp, loadedPayload.data, sizeof(loadedComp));
+	CHECK(loadedComp.id == value.id);
+	CHECK(loadedComp.position.x == value.position.x);
+	CHECK(loadedComp.position.y == value.position.y);
+	CHECK(loadedComp.position.z == value.position.z);
+	CHECK(loadedComp.samples[0].x == value.samples[0].x);
+	CHECK(loadedComp.samples[0].y == value.samples[0].y);
+	CHECK(loadedComp.samples[0].z == value.samples[0].z);
+	CHECK(loadedComp.samples[1].x == value.samples[1].x);
+	CHECK(loadedComp.samples[1].y == value.samples[1].y);
+	CHECK(loadedComp.samples[1].z == value.samples[1].z);
+	CHECK(loadedComp.mode == value.mode);
 }
 
 TEST_CASE("Serialization - world json runtime-created components") {

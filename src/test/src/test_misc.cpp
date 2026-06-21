@@ -314,7 +314,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(f32Info != nullptr);
 		if (f32Info != nullptr) {
 			CHECK(f32Info->typeKind == ecs::RuntimeTypeKind::Primitive);
-			CHECK(f32Info->primitiveKind == ecs::RuntimePrimitiveKind::F32);
+			CHECK(f32Info->primitive_type() == ecs::F32);
 			CHECK(f32Info->comp.size() == 4);
 			CHECK(f32Info->comp.alig() == 4);
 		}
@@ -337,7 +337,7 @@ TEST_CASE("Component cache - runtime registration") {
 
 		auto& item = const_cast<ecs::ComponentCacheItem&>(cc.add(entity, desc));
 		CHECK(item.typeKind == ecs::RuntimeTypeKind::Struct);
-		CHECK(item.primitiveKind == ecs::RuntimePrimitiveKind::None);
+		CHECK(item.primitive_type() == ecs::EntityBad);
 		CHECK(item.field_count() == 2);
 
 		const ecs::RuntimeField* field = item.field(util::str_view("x"));
@@ -373,13 +373,13 @@ TEST_CASE("Component cache - runtime registration") {
 		movementDesc.size = 4;
 		movementDesc.alig = 4;
 		movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		movementDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+		movementDesc.underlyingType = ecs::U32;
 		movementDesc.constants = movementConstants;
 		movementDesc.constantCount = 3;
 		auto& movementType = cc.add(wld.add(), movementDesc);
 
 		CHECK(movementType.typeKind == ecs::RuntimeTypeKind::Enum);
-		CHECK(movementType.primitiveKind == ecs::RuntimePrimitiveKind::U32);
+		CHECK(movementType.primitive_type() == ecs::U32);
 		CHECK(movementType.constant_count() == 3);
 		const ecs::RuntimeConstant* walk = movementType.constant(util::str_view("Walk"));
 		CHECK(walk != nullptr);
@@ -405,13 +405,13 @@ TEST_CASE("Component cache - runtime registration") {
 		collisionDesc.size = 4;
 		collisionDesc.alig = 4;
 		collisionDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
-		collisionDesc.primitiveKind = ecs::RuntimePrimitiveKind::U32;
+		collisionDesc.underlyingType = ecs::U32;
 		collisionDesc.constants = collisionConstants;
 		collisionDesc.constantCount = 3;
 		auto& collisionType = cc.add(wld.add(), collisionDesc);
 
 		CHECK(collisionType.typeKind == ecs::RuntimeTypeKind::Bitmask);
-		CHECK(collisionType.primitiveKind == ecs::RuntimePrimitiveKind::U32);
+		CHECK(collisionType.primitive_type() == ecs::U32);
 		CHECK(collisionType.constant_count() == 3);
 		const ecs::RuntimeConstant* trigger = collisionType.constant(util::str_view("Trigger"));
 		CHECK(trigger != nullptr);

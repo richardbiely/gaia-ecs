@@ -29654,28 +29654,6 @@ namespace gaia {
 			Bitmask,
 		};
 
-		//! Runtime primitive kind associated with primitive type entities.
-		enum class RuntimePrimitiveKind : uint8_t {
-			None,
-			Bool,
-			S8,
-			U8,
-			S16,
-			U16,
-			S32,
-			U32,
-			S64,
-			U64,
-			Char8,
-			Char16,
-			Char32,
-			F8,
-			F16,
-			F32,
-			F64,
-			F128,
-		};
-
 		//! User-authored runtime field descriptor.
 		//! A count of 0 means scalar; positive values describe a fixed inline array.
 		struct RuntimeFieldDesc final {
@@ -29741,8 +29719,8 @@ namespace gaia {
 			ComponentLookupHash hashLookup{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-			//! Runtime primitive kind. Only valid when typeKind is Primitive.
-			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+			Entity underlyingType = EntityBad;
 			//! Runtime field descriptors copied into component metadata during registration.
 			const RuntimeFieldDesc* fields = nullptr;
 			//! Number of field descriptors.
@@ -30033,6 +30011,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Chunk;
+		class ComponentCache;
 		struct ComponentRecord;
 
 		//! Runtime cache metadata for one registered Gaia component entity.
@@ -30042,6 +30021,7 @@ namespace gaia {
 		//! the static create helpers and released with destroy().
 		struct GAIA_API ComponentCacheItem final {
 			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+			friend class ComponentCache;
 
 			//! Maximum stored component and runtime-field symbol length, including the null terminator.
 			static constexpr uint32_t MaxNameLength = 256;
@@ -30099,8 +30079,8 @@ namespace gaia {
 				ComponentLookupHash hashLookup{};
 				//! Runtime reflection type kind.
 				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-				//! Runtime primitive kind. Only valid when typeKind is Primitive.
-				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+				//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+				Entity underlyingType = EntityBad;
 				//! Runtime field descriptors copied into component metadata during registration.
 				const RuntimeFieldDesc* fields = nullptr;
 				//! Number of field descriptors.
@@ -30166,8 +30146,8 @@ namespace gaia {
 			FuncLoad* func_load{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-			//! Runtime primitive kind. Only valid when typeKind is Primitive.
-			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+			Entity underlyingType = EntityBad;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -30188,6 +30168,8 @@ namespace gaia {
 #endif
 
 		private:
+			//! Owning component cache used to resolve reflected runtime field type entities.
+			const ComponentCache* m_ownerCache = nullptr;
 			//! Runtime field metadata registered for this component.
 			cnt::darray<RuntimeField> m_fields;
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
@@ -30453,6 +30435,20 @@ namespace gaia {
 				return (uint32_t)m_fields.size();
 			}
 
+			//! @return Owning component cache, or nullptr before the item is registered in a cache.
+			GAIA_NODISCARD const ComponentCache* owner_cache() const noexcept {
+				return m_ownerCache;
+			}
+
+			//! @return Primitive type entity represented by this metadata, or EntityBad for non-primitive metadata.
+			GAIA_NODISCARD Entity primitive_type() const noexcept {
+				if (typeKind == RuntimeTypeKind::Primitive)
+					return entity;
+				if (typeKind == RuntimeTypeKind::Enum || typeKind == RuntimeTypeKind::Bitmask)
+					return underlyingType;
+				return EntityBad;
+			}
+
 			//! Looks up runtime enum/bitmask constant metadata by index.
 			//! \param index Constant index.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
@@ -30704,7 +30700,7 @@ namespace gaia {
 				cci->func_save = desc.funcSave;
 				cci->func_load = desc.funcLoad;
 				cci->typeKind = desc.typeKind;
-				cci->primitiveKind = desc.primitiveKind;
+				cci->underlyingType = desc.underlyingType;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {
@@ -30737,7 +30733,7 @@ namespace gaia {
 				desc.pSoaSizes = ctx.pSoaSizes;
 				desc.hashLookup = ctx.hashLookup;
 				desc.typeKind = ctx.typeKind;
-				desc.primitiveKind = ctx.primitiveKind;
+				desc.underlyingType = ctx.underlyingType;
 				desc.fields = ctx.fields;
 				desc.fieldCount = ctx.fieldCount;
 				desc.constants = ctx.constants;
@@ -30865,6 +30861,18 @@ namespace gaia {
 			}
 
 #if GAIA_ASSERT_ENABLED
+			//! Validates descriptor-time runtime type metadata before immutable copy.
+			//! \param desc Component descriptor whose type metadata is being registered.
+			static void validate_runtime_type(const ecs::ComponentDesc& desc) noexcept {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				if (desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask) {
+					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
+					return;
+				}
+
+				GAIA_ASSERT(desc.underlyingType == EntityBad);
+			}
+
 			//! Validates descriptor-time runtime field metadata before immutable copy.
 			//! \param desc Component descriptor whose field metadata is being registered.
 			void validate_runtime_fields(const ecs::ComponentDesc& desc) const noexcept {
@@ -30909,7 +30917,6 @@ namespace gaia {
 					return;
 
 				GAIA_ASSERT(desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask);
-				GAIA_ASSERT(desc.primitiveKind != RuntimePrimitiveKind::None);
 				GAIA_ASSERT(desc.constants != nullptr);
 				if (desc.constants == nullptr)
 					return;
@@ -31081,6 +31088,7 @@ namespace gaia {
 				m_compByEntityId.emplace(pItem->entity.id(), pItem);
 
 				auto& item = *const_cast<ComponentCacheItem*>(pItem);
+				item.m_ownerCache = this;
 				add_name_mappings(item, scopePath);
 				return item;
 			}
@@ -31157,6 +31165,7 @@ namespace gaia {
 				}
 
 #if GAIA_ASSERT_ENABLED
+				validate_runtime_type(desc);
 				validate_runtime_fields(desc);
 				validate_runtime_constants(desc);
 #endif
@@ -31182,7 +31191,7 @@ namespace gaia {
 				desc.pSoaSizes = item.pSoaSizes;
 				desc.hashLookup = item.hashLookup;
 				desc.typeKind = item.typeKind;
-				desc.primitiveKind = item.primitiveKind;
+				desc.underlyingType = item.underlyingType;
 				desc.fields = item.fields;
 				desc.fieldCount = item.fieldCount;
 				desc.constants = item.constants;
@@ -35756,12 +35765,7 @@ namespace gaia {
 				const auto& current = m_stack[m_depth];
 				if (current.type != expectedType) {
 					const auto* pCurrentType = m_components != nullptr ? m_components->find(current.type) : nullptr;
-					const auto* pExpectedType = m_components != nullptr ? m_components->find(expectedType) : nullptr;
-					if (pCurrentType == nullptr || pExpectedType == nullptr ||
-							pCurrentType->primitiveKind == RuntimePrimitiveKind::None ||
-							pCurrentType->primitiveKind != pExpectedType->primitiveKind ||
-							(pCurrentType->typeKind != RuntimeTypeKind::Primitive &&
-							 pCurrentType->typeKind != RuntimeTypeKind::Enum && pCurrentType->typeKind != RuntimeTypeKind::Bitmask))
+					if (pCurrentType == nullptr || pCurrentType->primitive_type() != expectedType)
 						return CursorStatus::TypeMismatch;
 				}
 				if (requireScalar && current.elemCount != 1)
@@ -67644,22 +67648,19 @@ namespace gaia {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
 
-			static ComponentDesc
-			primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+			static ComponentDesc primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size) {
 				ComponentDesc desc{};
 				desc.name = util::str_view(name, nameLen);
 				desc.size = size;
 				desc.alig = size;
 				desc.storageType = DataStorageType::Table;
 				desc.typeKind = RuntimeTypeKind::Primitive;
-				desc.primitiveKind = primitiveKind;
 				return desc;
 			}
 
-			const ComponentCacheItem& reg_core_primitive_type(
-					Entity id, const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+			const ComponentCacheItem& reg_core_primitive_type(Entity id, const char* name, uint32_t nameLen, uint32_t size) {
 				auto comp = add(*m_pCompArchetype, id.entity(), id.pair(), id.kind());
-				const auto desc = primitive_type_desc(name, nameLen, size, primitiveKind);
+				const auto desc = primitive_type_desc(name, nameLen, size);
 				const auto& ci = comp_cache_mut().add(id, desc);
 				GAIA_ASSERT(ci.entity == id);
 				GAIA_ASSERT(comp == id);
@@ -71044,22 +71045,22 @@ namespace gaia {
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
 
-				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1, RuntimePrimitiveKind::S8);
-				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
-				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2, RuntimePrimitiveKind::S16);
-				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
-				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4, RuntimePrimitiveKind::S32);
-				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
-				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8, RuntimePrimitiveKind::S64);
-				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
-				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
-				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
-				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
-				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
-				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
-				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
-				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
-				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
+				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1);
+				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1);
+				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2);
+				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2);
+				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4);
+				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4);
+				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8);
+				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8);
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1);
+				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2);
+				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4);
+				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1);
+				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2);
+				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4);
+				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8);
 			}
 
 			// Add special properties for core components.
@@ -71342,61 +71343,318 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstdio>
 #include <cstring>
 
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			inline bool runtime_field_json_layout(
-					const ComponentCacheItem& item, const RuntimeField& field, ser::serialization_type_id& type,
-					uint32_t& fieldSize) noexcept {
-				if (!runtime_primitive_serialization_type(field.type, type))
+			static constexpr uint32_t RuntimeJsonMaxDepth = 32;
+
+			GAIA_NODISCARD inline bool
+			runtime_type_json_type(const ComponentCacheItem& typeItem, ser::serialization_type_id& out) noexcept {
+				const auto primitiveType = typeItem.primitive_type();
+				if (primitiveType != EntityBad)
+					return runtime_primitive_serialization_type(primitiveType, out);
+				out = ser::serialization_type_id::ignore;
+				return false;
+			}
+
+			GAIA_NODISCARD inline bool
+			runtime_json_is_char8_type(const ComponentCacheItem* pType, Entity typeEntity) noexcept {
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				if (pType != nullptr)
+					return runtime_type_json_type(*pType, type) && type == ser::serialization_type_id::c8;
+				return runtime_primitive_serialization_type(typeEntity, type) && type == ser::serialization_type_id::c8;
+			}
+
+			GAIA_NODISCARD inline const ComponentCacheItem*
+			find_runtime_json_type(const ComponentCache* pCache, Entity typeEntity) noexcept {
+				return pCache != nullptr ? pCache->find(typeEntity) : nullptr;
+			}
+
+			GAIA_NODISCARD inline bool
+			runtime_json_type_size(const ComponentCacheItem* pType, Entity typeEntity, uint32_t& outSize) noexcept {
+				if (pType != nullptr) {
+					outSize = pType->comp.size();
+					return true;
+				}
+				outSize = ComponentCacheItem::primitive_type_size(typeEntity);
+				return outSize != 0;
+			}
+
+			GAIA_NODISCARD inline ser::json_str
+			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
+				if (parent.empty())
+					return ser::json_str(child);
+				if (child.empty())
+					return ser::json_str(parent);
+
+				ser::json_str path;
+				path.reserve(parent.size() + 1 + child.size());
+				path.append(parent.data(), parent.size());
+				path.append('.');
+				path.append(child.data(), child.size());
+				return path;
+			}
+
+			GAIA_NODISCARD inline ser::json_str make_runtime_json_element_path(ser::json_str_view parent, uint32_t index) {
+				ser::json_str path(parent);
+				path.append('[');
+				char idx[16]{};
+				const auto len = (uint32_t)snprintf(idx, sizeof(idx), "%u", index);
+				path.append(idx, len);
+				path.append(']');
+				return path;
+			}
+
+			inline bool write_runtime_json_value(
+					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
+					uint32_t valueSize, ser::ser_json& writer, uint32_t depth);
+
+			inline bool write_runtime_json_field(
+					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field,
+					const uint8_t* pBase, ser::ser_json& writer, uint32_t depth) {
+				const auto* pType = find_runtime_json_type(pCache, field.type);
+				uint32_t elemSize = 0;
+				if (!runtime_json_type_size(pType, field.type, elemSize)) {
+					writer.value_null();
 					return false;
+				}
 
 				const auto elemCount = ComponentCacheItem::field_element_count(field);
-				if (field.type != Char8 && elemCount != 1)
-					return false;
-
-				const auto elemSize = ComponentCacheItem::primitive_type_size(field.type);
 				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
-				if (elemSize == 0 || fieldSize64 > UINT32_MAX || end > item.comp.size())
+				if (elemSize == 0 || elemCount == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
+					writer.value_null();
+					return false;
+				}
+
+				const auto* pFieldData = pBase + field.offset;
+				if (elemCount == 1 || runtime_json_is_char8_type(pType, field.type))
+					return write_runtime_json_value(
+							pCache, pType, field.type, pFieldData, (uint32_t)fieldSize64, writer, depth + 1);
+
+				bool ok = true;
+				writer.begin_array();
+				GAIA_FOR(elemCount) {
+					const auto* pElemData = pFieldData + (uintptr_t)elemSize * i;
+					ok = write_runtime_json_value(pCache, pType, field.type, pElemData, elemSize, writer, depth + 1) && ok;
+				}
+				writer.end_array();
+				return ok;
+			}
+
+			inline bool write_runtime_json_struct(
+					const ComponentCache* pCache, const ComponentCacheItem& item, const uint8_t* pData, ser::ser_json& writer,
+					uint32_t depth) {
+				if (depth >= RuntimeJsonMaxDepth) {
+					writer.value_null();
+					return false;
+				}
+
+				bool ok = true;
+				writer.begin_object();
+				GAIA_FOR(item.field_count()) {
+					const auto* pField = item.field(i);
+					GAIA_ASSERT(pField != nullptr);
+					const auto& field = *pField;
+					writer.key(field.name);
+					ok = write_runtime_json_field(pCache, item, field, pData, writer, depth + 1) && ok;
+				}
+				writer.end_object();
+				return ok;
+			}
+
+			inline bool write_runtime_json_value(
+					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
+					uint32_t valueSize, ser::ser_json& writer, uint32_t depth) {
+				if (depth >= RuntimeJsonMaxDepth) {
+					writer.value_null();
+					return false;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
+					return write_runtime_json_struct(pCache, *pType, pData, writer, depth + 1);
+
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				if (pType != nullptr) {
+					if (!runtime_type_json_type(*pType, type)) {
+						writer.value_null();
+						return false;
+					}
+				} else if (!runtime_primitive_serialization_type(typeEntity, type)) {
+					writer.value_null();
+					return false;
+				}
+
+				return ser::detail::write_runtime_field_json(writer, pData, type, valueSize);
+			}
+
+			inline bool read_runtime_json_value(
+					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
+					uint32_t depth, bool& ok);
+
+			inline void warn_runtime_json(
+					ser::JsonDiagnostics& diagnostics, ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
+				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
+			}
+
+			inline bool read_runtime_json_field(
+					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field, uint8_t* pBase,
+					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+				const auto* pType = find_runtime_json_type(pCache, field.type);
+				uint32_t elemSize = 0;
+				if (!runtime_json_type_size(pType, field.type, elemSize)) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime field uses an unknown reflected type.");
+					return reader.skip_value();
+				}
+
+				const auto elemCount = ComponentCacheItem::field_element_count(field);
+				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
+				const auto end = (uint64_t)field.offset + fieldSize64;
+				if (elemSize == 0 || elemCount == 0 || fieldSize64 > UINT32_MAX || end > owner.comp.size()) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+							"Runtime field points outside component size or uses an unsupported type.");
+					return reader.skip_value();
+				}
+
+				auto* pFieldData = pBase + field.offset;
+				if (elemCount == 1 || runtime_json_is_char8_type(pType, field.type))
+					return read_runtime_json_value(
+							pCache, pType, field.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, depth + 1, ok);
+
+				if (!reader.expect('['))
 					return false;
 
-				fieldSize = (uint32_t)fieldSize64;
+				GAIA_FOR(elemCount) {
+					if (i > 0 && !reader.expect(','))
+						return false;
+					const auto elemPath = make_runtime_json_element_path(path, i);
+					auto* pElemData = pFieldData + (uintptr_t)elemSize * i;
+					if (!read_runtime_json_value(
+									pCache, pType, field.type, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1, ok))
+						return false;
+				}
+				return reader.expect(']');
+			}
+
+			inline bool read_runtime_json_struct(
+					const ComponentCache* pCache, const ComponentCacheItem& item, uint8_t* pData, ser::ser_json& reader,
+					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+				if (depth >= RuntimeJsonMaxDepth) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
+					return reader.skip_value();
+				}
+
+				if (reader.parse_null()) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::NullComponentPayload, path, "Runtime object payload is null.");
+					return true;
+				}
+
+				if (!reader.expect('{'))
+					return false;
+
+				reader.ws();
+				if (reader.consume('}'))
+					return true;
+
+				while (true) {
+					ser::json_str_view key;
+					bool keyFromScratch = false;
+					if (!reader.parse_string_view(key, &keyFromScratch))
+						return false;
+					ser::json_str keyStorage;
+					if (keyFromScratch) {
+						keyStorage.assign(key.data(), key.size());
+						key = keyStorage;
+					}
+					if (!reader.expect(':'))
+						return false;
+
+					const auto* pField = item.field(util::str_view(key.data(), (uint32_t)key.size()));
+					const auto fieldPath = make_runtime_json_child_path(path, key);
+					if (pField == nullptr) {
+						ok = false;
+						warn_runtime_json(diagnostics, ser::JsonDiagReason::UnknownField, fieldPath, "Unknown runtime field.");
+						if (!reader.skip_value())
+							return false;
+					} else if (!read_runtime_json_field(
+												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, depth + 1, ok))
+						return false;
+
+					reader.ws();
+					if (reader.consume(','))
+						continue;
+					if (reader.consume('}'))
+						break;
+					return false;
+				}
+
+				return true;
+			}
+
+			inline bool read_runtime_json_value(
+					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
+					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
+					uint32_t depth, bool& ok) {
+				if (depth >= RuntimeJsonMaxDepth) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
+					return reader.skip_value();
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
+					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, depth + 1, ok);
+
+				ser::serialization_type_id type = ser::serialization_type_id::ignore;
+				if (pType != nullptr) {
+					if (!runtime_type_json_type(*pType, type)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime field uses an unsupported reflected type.");
+						return reader.skip_value();
+					}
+				} else if (!runtime_primitive_serialization_type(typeEntity, type)) {
+					ok = false;
+					warn_runtime_json(diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime field type is unknown.");
+					return reader.skip_value();
+				}
+
+				bool fieldOk = true;
+				if (!ser::detail::read_runtime_field_json(reader, pData, type, valueSize, fieldOk))
+					return false;
+				if (!fieldOk) {
+					ok = false;
+					warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::FieldValueAdjusted, path,
+							"Field value was lossy, truncated, or unsupported for the target runtime field type.");
+				}
 				return true;
 			}
 		} // namespace detail
 
-		//! Serializes a single component instance into flat key/value JSON using runtime field metadata in @a item.
+		//! Serializes a single component instance into key/value JSON using runtime field metadata in @a item.
 		//! Returns false when some field types are unsupported or out of bounds (those are emitted as null).
 		inline bool component_to_json(const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
 
-			bool ok = true;
-			const auto* pBase = reinterpret_cast<const uint8_t*>(pComponentData);
-
-			writer.begin_object();
-			GAIA_FOR(item.field_count()) {
-				const auto* pField = item.field(i);
-				GAIA_ASSERT(pField != nullptr);
-				const auto& field = *pField;
-				writer.key(field.name);
-				ser::serialization_type_id type = ser::serialization_type_id::ignore;
-				uint32_t fieldSize = 0;
-				if (!detail::runtime_field_json_layout(item, field, type, fieldSize)) {
-					writer.value_null();
-					ok = false;
-					continue;
-				}
-				const auto* pFieldData = pBase + field.offset;
-				ok = ser::detail::write_runtime_field_json(writer, pFieldData, type, fieldSize) && ok;
-			}
-			writer.end_object();
-
-			return ok;
+			return detail::write_runtime_json_struct(
+					item.owner_cache(), item, reinterpret_cast<const uint8_t*>(pComponentData), writer, 0);
 		}
 
 		//! Convenience overload returning JSON as a string.
@@ -71421,40 +71679,25 @@ namespace gaia {
 			if (pComponentData == nullptr)
 				return false;
 
-			auto make_field_path = [&](ser::json_str_view fieldName) {
-				if (componentPath.empty())
-					return ser::json_str(fieldName);
-				if (fieldName.empty())
-					return ser::json_str(componentPath);
-
-				ser::json_str path;
-				path.reserve(componentPath.size() + 1 + fieldName.size());
-				path.append(componentPath.data(), componentPath.size());
-				path.append('.');
-				path.append(fieldName.data(), fieldName.size());
-				return path;
-			};
-			auto warn = [&](ser::JsonDiagReason reason, const ser::json_str& path, const char* message) {
-				diagnostics.add(ser::JsonDiagSeverity::Warning, reason, path, message);
-			};
-
 			if (reader.parse_null()) {
-				warn(ser::JsonDiagReason::NullComponentPayload, make_field_path(""), "Component payload is null.");
+				detail::warn_runtime_json(
+						diagnostics, ser::JsonDiagReason::NullComponentPayload, componentPath, "Component payload is null.");
 				return true;
 			}
+
+			bool rawFound = false;
+			bool fieldFound = false;
+			bool ok = true;
+			ser::ser_buffer_binary rawPayload;
+			auto* pBase = reinterpret_cast<uint8_t*>(pComponentData);
 
 			if (!reader.expect('{'))
 				return false;
 
-			bool rawFound = false;
-			bool fieldFound = false;
-			ser::ser_buffer_binary rawPayload;
-			auto* pBase = reinterpret_cast<uint8_t*>(pComponentData);
-
 			reader.ws();
 			if (reader.consume('}')) {
-				warn(
-						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+				detail::warn_runtime_json(
+						diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, componentPath,
 						"Component object is empty and contains no runtime fields or $raw payload.");
 				return true;
 			}
@@ -71472,6 +71715,7 @@ namespace gaia {
 				if (!reader.expect(':'))
 					return false;
 
+				const auto fieldPath = detail::make_runtime_json_child_path(componentPath, key);
 				if (key == "$raw") {
 					rawFound = true;
 					if (!ser::detail::parse_json_byte_array(reader, rawPayload))
@@ -71479,34 +71723,21 @@ namespace gaia {
 				} else if (item.field_count() != 0 && item.comp.soa() == 0) {
 					const auto* pField = item.field(util::str_view(key.data(), (uint32_t)key.size()));
 					if (pField == nullptr) {
-						warn(ser::JsonDiagReason::UnknownField, make_field_path(key), "Unknown runtime field.");
+						ok = false;
+						detail::warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::UnknownField, fieldPath, "Unknown runtime field.");
 						if (!reader.skip_value())
 							return false;
 					} else {
-						ser::serialization_type_id type = ser::serialization_type_id::ignore;
-						uint32_t fieldSize = 0;
-						if (!detail::runtime_field_json_layout(item, *pField, type, fieldSize)) {
-							warn(
-									ser::JsonDiagReason::FieldOutOfBounds, make_field_path(key),
-									"Runtime field points outside component size or uses an unsupported type.");
-							if (!reader.skip_value())
-								return false;
-						} else {
-							fieldFound = true;
-							auto* pFieldData = pBase + pField->offset;
-							bool fieldOk = true;
-							if (!ser::detail::read_runtime_field_json(reader, pFieldData, type, fieldSize, fieldOk))
-								return false;
-							if (!fieldOk) {
-								warn(
-										ser::JsonDiagReason::FieldValueAdjusted, make_field_path(key),
-										"Field value was lossy, truncated, or unsupported for the target runtime field type.");
-							}
-						}
+						fieldFound = true;
+						if (!detail::read_runtime_json_field(
+										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, 0, ok))
+							return false;
 					}
 				} else {
-					warn(
-							ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(key),
+					ok = false;
+					detail::warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, fieldPath,
 							"Runtime field metadata is unavailable for keyed field payloads.");
 					if (!reader.skip_value())
 						return false;
@@ -71522,8 +71753,9 @@ namespace gaia {
 
 			if (rawFound) {
 				if (item.comp.soa() != 0) {
-					warn(
-							ser::JsonDiagReason::SoaRawUnsupported, make_field_path("$raw"),
+					detail::warn_runtime_json(
+							diagnostics, ser::JsonDiagReason::SoaRawUnsupported,
+							detail::make_runtime_json_child_path(componentPath, "$raw"),
 							"$raw payload is not supported for SoA components.");
 					return true;
 				}
@@ -71534,10 +71766,11 @@ namespace gaia {
 			}
 
 			if (!rawFound && !fieldFound)
-				warn(
-						ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, make_field_path(""),
+				detail::warn_runtime_json(
+						diagnostics, ser::JsonDiagReason::MissingRuntimeFieldsOrRawPayload, componentPath,
 						"Component payload contains neither recognized runtime fields nor $raw data.");
 
+			(void)ok;
 			return true;
 		}
 

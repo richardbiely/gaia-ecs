@@ -27,28 +27,6 @@ namespace gaia {
 			Bitmask,
 		};
 
-		//! Runtime primitive kind associated with primitive type entities.
-		enum class RuntimePrimitiveKind : uint8_t {
-			None,
-			Bool,
-			S8,
-			U8,
-			S16,
-			U16,
-			S32,
-			U32,
-			S64,
-			U64,
-			Char8,
-			Char16,
-			Char32,
-			F8,
-			F16,
-			F32,
-			F64,
-			F128,
-		};
-
 		//! User-authored runtime field descriptor.
 		//! A count of 0 means scalar; positive values describe a fixed inline array.
 		struct RuntimeFieldDesc final {
@@ -114,8 +92,8 @@ namespace gaia {
 			ComponentLookupHash hashLookup{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-			//! Runtime primitive kind. Only valid when typeKind is Primitive.
-			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+			Entity underlyingType = EntityBad;
 			//! Runtime field descriptors copied into component metadata during registration.
 			const RuntimeFieldDesc* fields = nullptr;
 			//! Number of field descriptors.

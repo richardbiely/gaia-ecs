@@ -21,6 +21,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Chunk;
+		class ComponentCache;
 		struct ComponentRecord;
 
 		//! Runtime cache metadata for one registered Gaia component entity.
@@ -30,6 +31,7 @@ namespace gaia {
 		//! the static create helpers and released with destroy().
 		struct GAIA_API ComponentCacheItem final {
 			GAIA_USE_SMALLBLOCK(ComponentCacheItem);
+			friend class ComponentCache;
 
 			//! Maximum stored component and runtime-field symbol length, including the null terminator.
 			static constexpr uint32_t MaxNameLength = 256;
@@ -87,8 +89,8 @@ namespace gaia {
 				ComponentLookupHash hashLookup{};
 				//! Runtime reflection type kind.
 				RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-				//! Runtime primitive kind. Only valid when typeKind is Primitive.
-				RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+				//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+				Entity underlyingType = EntityBad;
 				//! Runtime field descriptors copied into component metadata during registration.
 				const RuntimeFieldDesc* fields = nullptr;
 				//! Number of field descriptors.
@@ -154,8 +156,8 @@ namespace gaia {
 			FuncLoad* func_load{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-			//! Runtime primitive kind. Only valid when typeKind is Primitive.
-			RuntimePrimitiveKind primitiveKind = RuntimePrimitiveKind::None;
+			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+			Entity underlyingType = EntityBad;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -176,6 +178,8 @@ namespace gaia {
 #endif
 
 		private:
+			//! Owning component cache used to resolve reflected runtime field type entities.
+			const ComponentCache* m_ownerCache = nullptr;
 			//! Runtime field metadata registered for this component.
 			cnt::darray<RuntimeField> m_fields;
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
@@ -441,6 +445,20 @@ namespace gaia {
 				return (uint32_t)m_fields.size();
 			}
 
+			//! @return Owning component cache, or nullptr before the item is registered in a cache.
+			GAIA_NODISCARD const ComponentCache* owner_cache() const noexcept {
+				return m_ownerCache;
+			}
+
+			//! @return Primitive type entity represented by this metadata, or EntityBad for non-primitive metadata.
+			GAIA_NODISCARD Entity primitive_type() const noexcept {
+				if (typeKind == RuntimeTypeKind::Primitive)
+					return entity;
+				if (typeKind == RuntimeTypeKind::Enum || typeKind == RuntimeTypeKind::Bitmask)
+					return underlyingType;
+				return EntityBad;
+			}
+
 			//! Looks up runtime enum/bitmask constant metadata by index.
 			//! \param index Constant index.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
@@ -692,7 +710,7 @@ namespace gaia {
 				cci->func_save = desc.funcSave;
 				cci->func_load = desc.funcLoad;
 				cci->typeKind = desc.typeKind;
-				cci->primitiveKind = desc.primitiveKind;
+				cci->underlyingType = desc.underlyingType;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {
@@ -725,7 +743,7 @@ namespace gaia {
 				desc.pSoaSizes = ctx.pSoaSizes;
 				desc.hashLookup = ctx.hashLookup;
 				desc.typeKind = ctx.typeKind;
-				desc.primitiveKind = ctx.primitiveKind;
+				desc.underlyingType = ctx.underlyingType;
 				desc.fields = ctx.fields;
 				desc.fieldCount = ctx.fieldCount;
 				desc.constants = ctx.constants;

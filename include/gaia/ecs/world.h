@@ -10932,22 +10932,19 @@ namespace gaia {
 				return reg_core_entity<T>(id, m_pRootArchetype);
 			}
 
-			static ComponentDesc
-			primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+			static ComponentDesc primitive_type_desc(const char* name, uint32_t nameLen, uint32_t size) {
 				ComponentDesc desc{};
 				desc.name = util::str_view(name, nameLen);
 				desc.size = size;
 				desc.alig = size;
 				desc.storageType = DataStorageType::Table;
 				desc.typeKind = RuntimeTypeKind::Primitive;
-				desc.primitiveKind = primitiveKind;
 				return desc;
 			}
 
-			const ComponentCacheItem& reg_core_primitive_type(
-					Entity id, const char* name, uint32_t nameLen, uint32_t size, RuntimePrimitiveKind primitiveKind) {
+			const ComponentCacheItem& reg_core_primitive_type(Entity id, const char* name, uint32_t nameLen, uint32_t size) {
 				auto comp = add(*m_pCompArchetype, id.entity(), id.pair(), id.kind());
-				const auto desc = primitive_type_desc(name, nameLen, size, primitiveKind);
+				const auto desc = primitive_type_desc(name, nameLen, size);
 				const auto& ci = comp_cache_mut().add(id, desc);
 				GAIA_ASSERT(ci.entity == id);
 				GAIA_ASSERT(comp == id);
@@ -11409,22 +11406,22 @@ namespace gaia {
 				(void)reg_core_entity<_Var6>(Var6);
 				(void)reg_core_entity<_Var7>(Var7);
 
-				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1, RuntimePrimitiveKind::S8);
-				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1, RuntimePrimitiveKind::U8);
-				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2, RuntimePrimitiveKind::S16);
-				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2, RuntimePrimitiveKind::U16);
-				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4, RuntimePrimitiveKind::S32);
-				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4, RuntimePrimitiveKind::U32);
-				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8, RuntimePrimitiveKind::S64);
-				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8, RuntimePrimitiveKind::U64);
-				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1, RuntimePrimitiveKind::Bool);
-				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
-				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
-				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
-				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
-				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
-				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
-				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8, RuntimePrimitiveKind::F64);
+				(void)reg_core_primitive_type(S8, "gaia::ecs::S8", 13, 1);
+				(void)reg_core_primitive_type(U8, "gaia::ecs::U8", 13, 1);
+				(void)reg_core_primitive_type(S16, "gaia::ecs::S16", 14, 2);
+				(void)reg_core_primitive_type(U16, "gaia::ecs::U16", 14, 2);
+				(void)reg_core_primitive_type(S32, "gaia::ecs::S32", 14, 4);
+				(void)reg_core_primitive_type(U32, "gaia::ecs::U32", 14, 4);
+				(void)reg_core_primitive_type(S64, "gaia::ecs::S64", 14, 8);
+				(void)reg_core_primitive_type(U64, "gaia::ecs::U64", 14, 8);
+				(void)reg_core_primitive_type(Bool, "gaia::ecs::Bool", 15, 1);
+				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1);
+				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2);
+				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4);
+				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1);
+				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2);
+				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4);
+				(void)reg_core_primitive_type(F64, "gaia::ecs::F64", 14, 8);
 			}
 
 			// Add special properties for core components.
