@@ -29,24 +29,23 @@ namespace gaia {
 			c8 = 10,
 			c16 = 11,
 			c32 = 12,
-			cw = 13,
 
 			// Floating point types
-			f8 = 14,
-			f16 = 15,
-			f32 = 16,
-			f64 = 17,
+			f8 = 13,
+			f16 = 14,
+			f32 = 15,
+			f64 = 16,
 
 			// Special
-			special_begin = 19,
+			special_begin = 17,
 			trivial_wrapper = special_begin,
-			data_and_size = 20,
+			data_and_size = 18,
 
 			Last = data_and_size,
 		};
 
 		inline uint32_t serialization_type_size(serialization_type_id id, uint32_t size) {
-			static const uint32_t sizes[] = {
+			static constexpr uint32_t sizes[] = {
 					// Dummy
 					0, // ignore
 
@@ -67,7 +66,6 @@ namespace gaia {
 					1, // c8
 					2, // c16
 					4, // c32
-					8, // cw
 
 					// Floating point types
 					1, // f8
@@ -76,12 +74,11 @@ namespace gaia {
 					8, // f64
 
 					// Special
-					size, // trivial_wrapper
+					(uint32_t)-1, // trivial_wrapper, resolved from the size argument
 					sizeof(uintptr_t), // data_and_size, assume natural alignment
 			};
 
-			const auto s = sizes[(uint32_t)id];
-			// Make sure we do not return an invalid value
+			const auto s = id == serialization_type_id::trivial_wrapper ? size : sizes[(uint32_t)id];
 			GAIA_ASSERT(s != (uint32_t)-1);
 			return s;
 		}
@@ -158,7 +155,7 @@ namespace gaia {
 			// } else
 			if constexpr (std::is_same_v<float, T>) {
 				return serialization_type_id::f32;
-			} else { //if constexpr (std::is_same_v<double, T>) {
+			} else { // if constexpr (std::is_same_v<double, T>) {
 				return serialization_type_id::f64;
 			}
 		}

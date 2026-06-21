@@ -720,7 +720,6 @@ namespace gaia {
 		inline Entity Char8 = runtime_primitive_type_entity(ser::serialization_type_id::c8);
 		inline Entity Char16 = runtime_primitive_type_entity(ser::serialization_type_id::c16);
 		inline Entity Char32 = runtime_primitive_type_entity(ser::serialization_type_id::c32);
-		inline Entity WChar = runtime_primitive_type_entity(ser::serialization_type_id::cw);
 		inline Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);
 		inline Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);
 		inline Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);

@@ -40,7 +40,6 @@ namespace gaia {
 			Char8,
 			Char16,
 			Char32,
-			WChar,
 			F8,
 			F16,
 			F32,

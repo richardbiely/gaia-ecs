@@ -11479,7 +11479,6 @@ namespace gaia {
 				(void)reg_core_primitive_type(Char8, "gaia::ecs::Char8", 16, 1, RuntimePrimitiveKind::Char8);
 				(void)reg_core_primitive_type(Char16, "gaia::ecs::Char16", 17, 2, RuntimePrimitiveKind::Char16);
 				(void)reg_core_primitive_type(Char32, "gaia::ecs::Char32", 17, 4, RuntimePrimitiveKind::Char32);
-				(void)reg_core_primitive_type(WChar, "gaia::ecs::WChar", 16, 8, RuntimePrimitiveKind::WChar);
 				(void)reg_core_primitive_type(F8, "gaia::ecs::F8", 13, 1, RuntimePrimitiveKind::F8);
 				(void)reg_core_primitive_type(F16, "gaia::ecs::F16", 14, 2, RuntimePrimitiveKind::F16);
 				(void)reg_core_primitive_type(F32, "gaia::ecs::F32", 14, 4, RuntimePrimitiveKind::F32);
@@ -11655,9 +11654,6 @@ namespace gaia {
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, Char32) //
-						.add(Core)
-						.add(Pair(OnDelete, Error));
-				EntityBuilder(*this, WChar) //
 						.add(Core)
 						.add(Pair(OnDelete, Error));
 				EntityBuilder(*this, F8) //

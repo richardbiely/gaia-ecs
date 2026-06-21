@@ -292,7 +292,10 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(ecs::Char8 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c8));
 		CHECK(ecs::Char16 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c16));
 		CHECK(ecs::Char32 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::c32));
-		CHECK(ecs::WChar == ecs::runtime_primitive_type_entity(ser::serialization_type_id::cw));
+		CHECK(ser::serialization_type_size(ser::serialization_type_id::trivial_wrapper, 4) == 4);
+		CHECK(ser::serialization_type_size(ser::serialization_type_id::data_and_size, 0) == sizeof(uintptr_t));
+		CHECK(ecs::F8 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f8));
+		CHECK(ser::serialization_type_size(ser::serialization_type_id::f8, 0) == 1);
 		CHECK(ecs::F16 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f16));
 		CHECK(ecs::F32 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f32));
 		CHECK(ecs::F64 == ecs::runtime_primitive_type_entity(ser::serialization_type_id::f64));
@@ -723,13 +726,15 @@ TEST_CASE("Component cache - runtime registration") {
 	SUBCASE("runtime component cursor walks fields and mutates strict primitives") {
 		TestWorld twld;
 
-		constexpr uint32_t RuntimeCursorPayloadSize = 32;
+		constexpr uint32_t RuntimeCursorPayloadSize = 48;
 		constexpr uint32_t RuntimeBoolOffset = 12;
 		constexpr uint32_t RuntimeCharOffset = 13;
 		constexpr uint32_t RuntimeNameOffset = 14;
 		constexpr uint32_t RuntimeNameCount = 8;
 		constexpr uint32_t RuntimeArrayOffset = 24;
 		constexpr uint32_t RuntimeArrayCount = 2;
+		constexpr uint32_t RuntimeChar16Offset = 32;
+		constexpr uint32_t RuntimeChar32Offset = 36;
 
 		auto& runtimeComp = add_runtime_component(
 				wld, "Runtime_Component_Cursor", RuntimeCursorPayloadSize, ecs::DataStorageType::Table, RuntimePayloadAlign);
@@ -740,6 +745,8 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(runtimeComp.add_field({util::str_view("initial"), ecs::Char8, RuntimeCharOffset, 0}));
 		CHECK(runtimeComp.add_field({util::str_view("name"), ecs::Char8, RuntimeNameOffset, RuntimeNameCount}));
 		CHECK(runtimeComp.add_field({util::str_view("samples"), ecs::F32, RuntimeArrayOffset, RuntimeArrayCount}));
+		CHECK(runtimeComp.add_field({util::str_view("wide16"), ecs::Char16, RuntimeChar16Offset, 0}));
+		CHECK(runtimeComp.add_field({util::str_view("wide32"), ecs::Char32, RuntimeChar32Offset, 0}));
 
 		const auto entity = wld.add();
 		uint8_t initial[RuntimeCursorPayloadSize]{};
@@ -750,7 +757,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(cursor.valid());
 		CHECK(cursor.type() == runtimeComp.entity);
 		CHECK(cursor.size() == RuntimeCursorPayloadSize);
-		CHECK(cursor.field_count() == 7);
+		CHECK(cursor.field_count() == 9);
 		CHECK(cursor.ptr() != nullptr);
 		CHECK(cursor.mut_ptr() == nullptr);
 		CHECK_FALSE(cursor.f32());
@@ -857,9 +864,25 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(sample.value == doctest::Approx(99.0f));
 		CHECK_FALSE(mutableCursor.elem(RuntimeArrayCount));
 
-		const uint8_t tooSmall[sizeof(float) - 1]{};
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("wide16")));
+		CHECK(mutableCursor.c16((char16_t)0x1234));
+		const auto wide16 = mutableCursor.c16();
+		CHECK(wide16);
+		CHECK(wide16.value == (char16_t)0x1234);
+		CHECK(mutableCursor.c8('x').status == ecs::CursorStatus::TypeMismatch);
+
+		CHECK(mutableCursor.parent());
+		CHECK(mutableCursor.field(util::str_view("wide32")));
+		CHECK(mutableCursor.c32((char32_t)0x12345678));
+		const auto wide32 = mutableCursor.c32();
+		CHECK(wide32);
+		CHECK(wide32.value == (char32_t)0x12345678);
+
+		const uint8_t tooSmall[sizeof(char32_t) - 1]{};
 		CHECK(mutableCursor.set_raw(tooSmall, sizeof(tooSmall)).status == ecs::CursorStatus::OutOfRange);
-		CHECK(setHits == 7);
+		CHECK(setHits == 9);
 	}
 
 	SUBCASE("runtime raw payload access rejects unsupported storage") {

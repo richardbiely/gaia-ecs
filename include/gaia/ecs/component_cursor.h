@@ -315,7 +315,7 @@ namespace gaia {
 			//! Reads the current fixed c8 buffer.
 			//! \param dst Destination buffer receiving bytes.
 			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
-			//! @return Read result and copied byte count.
+			//! \return Read result and copied byte count.
 			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) noexcept {
 				return const_cast<const ComponentCursor&>(*this).c8(dst, cap);
 			}
@@ -323,7 +323,7 @@ namespace gaia {
 			//! Reads the current fixed c8 buffer.
 			//! \param dst Destination buffer receiving bytes.
 			//! \param cap Destination buffer size in bytes. Must be at least the reflected field count.
-			//! @return Read result and copied byte count.
+			//! \return Read result and copied byte count.
 			GAIA_NODISCARD CursorResult<uint32_t> c8(char* dst, uint32_t cap) const noexcept {
 				CursorResult<uint32_t> result{};
 				const auto status = validate_primitive(Char8, false, false);
@@ -368,6 +368,32 @@ namespace gaia {
 					memcpy(mut_ptr(), src, len);
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
+			}
+
+			//! Reads the current cursor value as a scalar c16.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<char16_t> c16() const noexcept {
+				return read_primitive<char16_t>(Char16);
+			}
+
+			//! Writes @a value to the current cursor value as a scalar c16.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c16(char16_t value) noexcept {
+				return write_primitive(Char16, value);
+			}
+
+			//! Reads the current cursor value as a scalar c32.
+			//! \return Read result and value.
+			GAIA_NODISCARD CursorResult<char32_t> c32() const noexcept {
+				return read_primitive<char32_t>(Char32);
+			}
+
+			//! Writes @a value to the current cursor value as a scalar c32.
+			//! \param value Value to write.
+			//! \return Write result.
+			GAIA_NODISCARD CursorResult<void> c32(char32_t value) noexcept {
+				return write_primitive(Char32, value);
 			}
 
 			//! Reads the current cursor value as an s8.
