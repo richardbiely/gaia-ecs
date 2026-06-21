@@ -144,7 +144,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b> = Compo
 <div class="textblock"><p>Non-owning mutable view over raw component bytes on an entity. </p>
 <p>The view intentionally stores only a pointer, byte size, and flags. The component id is omitted because callers already pass it to <code>World::mut_raw(...)</code>; keeping it out of the view keeps the return value compact. A valid tag is represented by <code>data == nullptr</code>, <code>size == 0</code>, and <code>ComponentRawViewFlag_Valid</code> set. </p><dl class="section note"><dt>Note</dt><dd>Treat the view as a short-lived borrow. Structural changes can invalidate <code>data</code>. </dd>
 <dd>
-<code>mut_raw(...)</code> is a silent mutation path. Call <code>World::modify_raw(...)</code> after writing through <code>data</code> directly. <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86" title="Writes exact bytes to the current cursor position.">ComponentCursor::write_bytes()</a> finishes the root component write itself. </dd></dl>
+<code>mut_raw(...)</code> is a silent mutation path. Call <code>World::modify_raw(...)</code> after writing through <code>data</code> directly. <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write itself. </dd></dl>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="aab4f5027b923b330cd1104a6356084c1" name="aab4f5027b923b330cd1104a6356084c1"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aab4f5027b923b330cd1104a6356084c1">&#9670;&#160;</a></span>valid()</h2>

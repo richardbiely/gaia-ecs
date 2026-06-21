@@ -830,68 +830,67 @@ $(document).ready(function(){initNavTree('id_8h_source.html',''); initResizable(
 <div class="line"><a id="l00720" name="l00720"></a><span class="lineno">  720</span>    <span class="keyword">inline</span> Entity Char8 = runtime_primitive_type_entity(ser::serialization_type_id::c8);</div>
 <div class="line"><a id="l00721" name="l00721"></a><span class="lineno">  721</span>    <span class="keyword">inline</span> Entity Char16 = runtime_primitive_type_entity(ser::serialization_type_id::c16);</div>
 <div class="line"><a id="l00722" name="l00722"></a><span class="lineno">  722</span>    <span class="keyword">inline</span> Entity Char32 = runtime_primitive_type_entity(ser::serialization_type_id::c32);</div>
-<div class="line"><a id="l00723" name="l00723"></a><span class="lineno">  723</span>    <span class="keyword">inline</span> Entity WChar = runtime_primitive_type_entity(ser::serialization_type_id::cw);</div>
-<div class="line"><a id="l00724" name="l00724"></a><span class="lineno">  724</span>    <span class="keyword">inline</span> Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);</div>
-<div class="line"><a id="l00725" name="l00725"></a><span class="lineno">  725</span>    <span class="keyword">inline</span> Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);</div>
-<div class="line"><a id="l00726" name="l00726"></a><span class="lineno">  726</span>    <span class="keyword">inline</span> Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);</div>
-<div class="line"><a id="l00727" name="l00727"></a><span class="lineno">  727</span>    <span class="keyword">inline</span> Entity F64 = runtime_primitive_type_entity(ser::serialization_type_id::f64);</div>
-<div class="line"><a id="l00728" name="l00728"></a><span class="lineno">  728</span>    <span class="keyword">inline</span> <span class="keyword">static</span> <span class="keyword">constexpr</span> uint32_t MaxVarCnt = 8;</div>
-<div class="line"><a id="l00729" name="l00729"></a><span class="lineno">  729</span> </div>
-<div class="line"><a id="l00730" name="l00730"></a><span class="lineno">  730</span>    <span class="comment">// Core component ids are append-only.</span></div>
-<div class="line"><a id="l00731" name="l00731"></a><span class="lineno">  731</span>    <span class="comment">// Existing core ids must remain stable; new core components may only be added</span></div>
-<div class="line"><a id="l00732" name="l00732"></a><span class="lineno">  732</span>    <span class="comment">// after LastCoreComponent.</span></div>
-<div class="line"><a id="l00733" name="l00733"></a><span class="lineno">  733</span>    <span class="comment">//</span></div>
-<div class="line"><a id="l00734" name="l00734"></a><span class="lineno">  734</span>    <span class="comment">// Because of that, old snapshots stay loadable without bumping the serializer</span></div>
-<div class="line"><a id="l00735" name="l00735"></a><span class="lineno">  735</span>    <span class="comment">// version: any serialized entity id greater than the saved last core id is</span></div>
-<div class="line"><a id="l00736" name="l00736"></a><span class="lineno">  736</span>    <span class="comment">// remapped by the current core-id delta during load.</span></div>
-<div class="line"><a id="l00737" name="l00737"></a><span class="lineno">  737</span>    <span class="comment">//</span></div>
-<div class="line"><a id="l00738" name="l00738"></a><span class="lineno">  738</span>    <span class="comment">// Reordering or removing core components is not supported by this compatibility path.</span></div>
-<div class="line"><a id="l00739" name="l00739"></a><span class="lineno">  739</span>    <span class="comment">// Always has to match the last internal entity.</span></div>
-<div class="line"><a id="l00740" name="l00740"></a><span class="lineno">  740</span>    <span class="keyword">inline</span> Entity GAIA_ID(LastCoreComponent) = F64;</div>
-<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span> </div>
-<div class="line"><a id="l00742" name="l00742"></a><span class="lineno">  742</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
-<div class="line"><a id="l00743" name="l00743"></a><span class="lineno">  743</span>    <span class="comment">// Helper functions</span></div>
-<div class="line"><a id="l00744" name="l00744"></a><span class="lineno">  744</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
-<div class="line"><a id="l00745" name="l00745"></a><span class="lineno">  745</span> </div>
-<div class="line"><a id="l00746" name="l00746"></a><span class="lineno">  746</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(EntityId entityId) {</div>
-<div class="line"><a id="l00747" name="l00747"></a><span class="lineno">  747</span>      <span class="keywordflow">return</span> entityId == All.id();</div>
-<div class="line"><a id="l00748" name="l00748"></a><span class="lineno">  748</span>    }</div>
-<div class="line"><a id="l00749" name="l00749"></a><span class="lineno">  749</span> </div>
-<div class="line"><a id="l00750" name="l00750"></a><span class="lineno">  750</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(Entity entity) {</div>
-<div class="line"><a id="l00751" name="l00751"></a><span class="lineno">  751</span>      <span class="keywordflow">return</span> entity.pair() &amp;&amp; (is_wildcard(entity.id()) || is_wildcard(entity.gen()));</div>
-<div class="line"><a id="l00752" name="l00752"></a><span class="lineno">  752</span>    }</div>
-<div class="line"><a id="l00753" name="l00753"></a><span class="lineno">  753</span> </div>
-<div class="line"><a id="l00754" name="l00754"></a><span class="lineno">  754</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(Pair pair) {</div>
-<div class="line"><a id="l00755" name="l00755"></a><span class="lineno">  755</span>      <span class="keywordflow">return</span> pair.first() == All || pair.second() == All;</div>
-<div class="line"><a id="l00756" name="l00756"></a><span class="lineno">  756</span>    }</div>
-<div class="line"><a id="l00757" name="l00757"></a><span class="lineno">  757</span> </div>
-<div class="line"><a id="l00758" name="l00758"></a><span class="lineno">  758</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(EntityId entityId) {</div>
-<div class="line"><a id="l00759" name="l00759"></a><span class="lineno">  759</span>      <span class="keywordflow">return</span> entityId &lt;= Var7.id() &amp;&amp; entityId &gt;= Var0.id();</div>
-<div class="line"><a id="l00760" name="l00760"></a><span class="lineno">  760</span>    }</div>
-<div class="line"><a id="l00761" name="l00761"></a><span class="lineno">  761</span> </div>
-<div class="line"><a id="l00762" name="l00762"></a><span class="lineno">  762</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(Entity entity) {</div>
-<div class="line"><a id="l00763" name="l00763"></a><span class="lineno">  763</span>      <span class="keywordflow">return</span> entity.id() &lt;= Var7.id() &amp;&amp; entity.id() &gt;= Var0.id();</div>
-<div class="line"><a id="l00764" name="l00764"></a><span class="lineno">  764</span>    }</div>
-<div class="line"><a id="l00765" name="l00765"></a><span class="lineno">  765</span> </div>
-<div class="line"><a id="l00766" name="l00766"></a><span class="lineno">  766</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(Pair pair) {</div>
-<div class="line"><a id="l00767" name="l00767"></a><span class="lineno">  767</span>      <span class="keywordflow">return</span> is_variable(pair.first()) || is_variable(pair.second());</div>
-<div class="line"><a id="l00768" name="l00768"></a><span class="lineno">  768</span>    }</div>
-<div class="line"><a id="l00769" name="l00769"></a><span class="lineno">  769</span> </div>
-<div class="line"><a id="l00770" name="l00770"></a><span class="lineno">  770</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00771" name="l00771"></a><span class="lineno">  771</span> </div>
-<div class="line"><a id="l00772" name="l00772"></a><span class="lineno">  772</span>  <span class="keyword">namespace </span>cnt {</div>
-<div class="line"><a id="l00773" name="l00773"></a><span class="lineno">  773</span>    <span class="keyword">template</span> &lt;&gt;</div>
-<div class="foldopen" id="foldopen00774" data-start="{" data-end="};">
-<div class="line"><a id="l00774" name="l00774"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html">  774</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__sparse__id.html">to_sparse_id</a>&lt;ecs::Entity&gt; {</div>
-<div class="line"><a id="l00775" name="l00775"></a><span class="lineno">  775</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">sparse_id</a> get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; item) <span class="keyword">noexcept</span> {</div>
-<div class="line"><a id="l00776" name="l00776"></a><span class="lineno">  776</span>        <span class="comment">// Cut off the flags</span></div>
-<div class="line"><a id="l00777" name="l00777"></a><span class="lineno">  777</span>        <span class="keywordflow">return</span> item.id();</div>
-<div class="line"><a id="l00778" name="l00778"></a><span class="lineno">  778</span>      }</div>
-<div class="line"><a id="l00779" name="l00779"></a><span class="lineno">  779</span>    };</div>
+<div class="line"><a id="l00723" name="l00723"></a><span class="lineno">  723</span>    <span class="keyword">inline</span> Entity F8 = runtime_primitive_type_entity(ser::serialization_type_id::f8);</div>
+<div class="line"><a id="l00724" name="l00724"></a><span class="lineno">  724</span>    <span class="keyword">inline</span> Entity F16 = runtime_primitive_type_entity(ser::serialization_type_id::f16);</div>
+<div class="line"><a id="l00725" name="l00725"></a><span class="lineno">  725</span>    <span class="keyword">inline</span> Entity F32 = runtime_primitive_type_entity(ser::serialization_type_id::f32);</div>
+<div class="line"><a id="l00726" name="l00726"></a><span class="lineno">  726</span>    <span class="keyword">inline</span> Entity F64 = runtime_primitive_type_entity(ser::serialization_type_id::f64);</div>
+<div class="line"><a id="l00727" name="l00727"></a><span class="lineno">  727</span>    <span class="keyword">inline</span> <span class="keyword">static</span> <span class="keyword">constexpr</span> uint32_t MaxVarCnt = 8;</div>
+<div class="line"><a id="l00728" name="l00728"></a><span class="lineno">  728</span> </div>
+<div class="line"><a id="l00729" name="l00729"></a><span class="lineno">  729</span>    <span class="comment">// Core component ids are append-only.</span></div>
+<div class="line"><a id="l00730" name="l00730"></a><span class="lineno">  730</span>    <span class="comment">// Existing core ids must remain stable; new core components may only be added</span></div>
+<div class="line"><a id="l00731" name="l00731"></a><span class="lineno">  731</span>    <span class="comment">// after LastCoreComponent.</span></div>
+<div class="line"><a id="l00732" name="l00732"></a><span class="lineno">  732</span>    <span class="comment">//</span></div>
+<div class="line"><a id="l00733" name="l00733"></a><span class="lineno">  733</span>    <span class="comment">// Because of that, old snapshots stay loadable without bumping the serializer</span></div>
+<div class="line"><a id="l00734" name="l00734"></a><span class="lineno">  734</span>    <span class="comment">// version: any serialized entity id greater than the saved last core id is</span></div>
+<div class="line"><a id="l00735" name="l00735"></a><span class="lineno">  735</span>    <span class="comment">// remapped by the current core-id delta during load.</span></div>
+<div class="line"><a id="l00736" name="l00736"></a><span class="lineno">  736</span>    <span class="comment">//</span></div>
+<div class="line"><a id="l00737" name="l00737"></a><span class="lineno">  737</span>    <span class="comment">// Reordering or removing core components is not supported by this compatibility path.</span></div>
+<div class="line"><a id="l00738" name="l00738"></a><span class="lineno">  738</span>    <span class="comment">// Always has to match the last internal entity.</span></div>
+<div class="line"><a id="l00739" name="l00739"></a><span class="lineno">  739</span>    <span class="keyword">inline</span> Entity GAIA_ID(LastCoreComponent) = F64;</div>
+<div class="line"><a id="l00740" name="l00740"></a><span class="lineno">  740</span> </div>
+<div class="line"><a id="l00741" name="l00741"></a><span class="lineno">  741</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00742" name="l00742"></a><span class="lineno">  742</span>    <span class="comment">// Helper functions</span></div>
+<div class="line"><a id="l00743" name="l00743"></a><span class="lineno">  743</span>    <span class="comment">//----------------------------------------------------------------------</span></div>
+<div class="line"><a id="l00744" name="l00744"></a><span class="lineno">  744</span> </div>
+<div class="line"><a id="l00745" name="l00745"></a><span class="lineno">  745</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(EntityId entityId) {</div>
+<div class="line"><a id="l00746" name="l00746"></a><span class="lineno">  746</span>      <span class="keywordflow">return</span> entityId == All.id();</div>
+<div class="line"><a id="l00747" name="l00747"></a><span class="lineno">  747</span>    }</div>
+<div class="line"><a id="l00748" name="l00748"></a><span class="lineno">  748</span> </div>
+<div class="line"><a id="l00749" name="l00749"></a><span class="lineno">  749</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(Entity entity) {</div>
+<div class="line"><a id="l00750" name="l00750"></a><span class="lineno">  750</span>      <span class="keywordflow">return</span> entity.pair() &amp;&amp; (is_wildcard(entity.id()) || is_wildcard(entity.gen()));</div>
+<div class="line"><a id="l00751" name="l00751"></a><span class="lineno">  751</span>    }</div>
+<div class="line"><a id="l00752" name="l00752"></a><span class="lineno">  752</span> </div>
+<div class="line"><a id="l00753" name="l00753"></a><span class="lineno">  753</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_wildcard(Pair pair) {</div>
+<div class="line"><a id="l00754" name="l00754"></a><span class="lineno">  754</span>      <span class="keywordflow">return</span> pair.first() == All || pair.second() == All;</div>
+<div class="line"><a id="l00755" name="l00755"></a><span class="lineno">  755</span>    }</div>
+<div class="line"><a id="l00756" name="l00756"></a><span class="lineno">  756</span> </div>
+<div class="line"><a id="l00757" name="l00757"></a><span class="lineno">  757</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(EntityId entityId) {</div>
+<div class="line"><a id="l00758" name="l00758"></a><span class="lineno">  758</span>      <span class="keywordflow">return</span> entityId &lt;= Var7.id() &amp;&amp; entityId &gt;= Var0.id();</div>
+<div class="line"><a id="l00759" name="l00759"></a><span class="lineno">  759</span>    }</div>
+<div class="line"><a id="l00760" name="l00760"></a><span class="lineno">  760</span> </div>
+<div class="line"><a id="l00761" name="l00761"></a><span class="lineno">  761</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(Entity entity) {</div>
+<div class="line"><a id="l00762" name="l00762"></a><span class="lineno">  762</span>      <span class="keywordflow">return</span> entity.id() &lt;= Var7.id() &amp;&amp; entity.id() &gt;= Var0.id();</div>
+<div class="line"><a id="l00763" name="l00763"></a><span class="lineno">  763</span>    }</div>
+<div class="line"><a id="l00764" name="l00764"></a><span class="lineno">  764</span> </div>
+<div class="line"><a id="l00765" name="l00765"></a><span class="lineno">  765</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> is_variable(Pair pair) {</div>
+<div class="line"><a id="l00766" name="l00766"></a><span class="lineno">  766</span>      <span class="keywordflow">return</span> is_variable(pair.first()) || is_variable(pair.second());</div>
+<div class="line"><a id="l00767" name="l00767"></a><span class="lineno">  767</span>    }</div>
+<div class="line"><a id="l00768" name="l00768"></a><span class="lineno">  768</span> </div>
+<div class="line"><a id="l00769" name="l00769"></a><span class="lineno">  769</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00770" name="l00770"></a><span class="lineno">  770</span> </div>
+<div class="line"><a id="l00771" name="l00771"></a><span class="lineno">  771</span>  <span class="keyword">namespace </span>cnt {</div>
+<div class="line"><a id="l00772" name="l00772"></a><span class="lineno">  772</span>    <span class="keyword">template</span> &lt;&gt;</div>
+<div class="foldopen" id="foldopen00773" data-start="{" data-end="};">
+<div class="line"><a id="l00773" name="l00773"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__sparse__id_3_01ecs_1_1Entity_01_4.html">  773</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__sparse__id.html">to_sparse_id</a>&lt;ecs::Entity&gt; {</div>
+<div class="line"><a id="l00774" name="l00774"></a><span class="lineno">  774</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr__ext.html">sparse_id</a> get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; item) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00775" name="l00775"></a><span class="lineno">  775</span>        <span class="comment">// Cut off the flags</span></div>
+<div class="line"><a id="l00776" name="l00776"></a><span class="lineno">  776</span>        <span class="keywordflow">return</span> item.id();</div>
+<div class="line"><a id="l00777" name="l00777"></a><span class="lineno">  777</span>      }</div>
+<div class="line"><a id="l00778" name="l00778"></a><span class="lineno">  778</span>    };</div>
 </div>
-<div class="line"><a id="l00780" name="l00780"></a><span class="lineno">  780</span>  } <span class="comment">// namespace cnt</span></div>
-<div class="line"><a id="l00781" name="l00781"></a><span class="lineno">  781</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
+<div class="line"><a id="l00779" name="l00779"></a><span class="lineno">  779</span>  } <span class="comment">// namespace cnt</span></div>
+<div class="line"><a id="l00780" name="l00780"></a><span class="lineno">  780</span>} <span class="comment">// namespace gaia</span></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr__ext.html">gaia::cnt::darr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> darray_ext_impl.h:28</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:529</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:224</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>

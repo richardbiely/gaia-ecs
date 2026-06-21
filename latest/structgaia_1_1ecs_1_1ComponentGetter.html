@@ -144,6 +144,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#abb919550729f83d58aa7614093183639">get</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
 <tr class="memdesc:abb919550729f83d58aa7614093183639"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the component associated with <em>type</em> on entity.  <br /></td></tr>
 <tr class="separator:abb919550729f83d58aa7614093183639"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acb7a7a99336b874300c48e10066eca09" id="r_acb7a7a99336b874300c48e10066eca09"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#acb7a7a99336b874300c48e10066eca09">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:acb7a7a99336b874300c48e10066eca09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a raw byte view for a runtime component on this entity.  <br /></td></tr>
+<tr class="separator:acb7a7a99336b874300c48e10066eca09"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639" id="r_abb919550729f83d58aa7614093183639"><td class="memTemplParams" colspan="2"><a id="abb919550729f83d58aa7614093183639" name="abb919550729f83d58aa7614093183639"></a>
 template&lt;typename T &gt; </td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><b>get</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
@@ -234,6 +237,41 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="acb7a7a99336b874300c48e10066eca09" name="acb7a7a99336b874300c48e10066eca09"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acb7a7a99336b874300c48e10066eca09">&#9670;&#160;</a></span>get_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> gaia::ecs::ComponentGetter::get_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a raw byte view for a runtime component on this entity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Raw payload view, or an invalid view when unavailable. </dd></dl>
 
 </div>
 </div>

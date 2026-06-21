@@ -618,19 +618,70 @@ Add or remove component</h3>
 <li>Implicit registration only creates the default component form. If a component needs non-default traits such as <code>ecs::Sparse</code> or <code>ecs::DontFragment</code>, register it explicitly first and then apply the trait to the component entity. Implicit registration can also be disabled entirely with <code>GAIA_ECS_AUTO_COMPONENT_REGISTRATION</code>.</li>
 </ul>
 <p>You can also register components from data you load at runtime. This is useful for editors, mods, importers, and save formats that define component layouts outside C++ code.</p>
-<div class="fragment"><div class="line">ecs::Entity cooldownComponent = w.add();</div>
-<div class="line"> </div>
-<div class="line">ecs::ComponentDesc desc{};</div>
-<div class="line">desc.name = <span class="stringliteral">&quot;Cooldown&quot;</span>;</div>
+<div class="fragment"><div class="line">ecs::ComponentDesc desc{};</div>
+<div class="line">desc.name = util::str_view(<span class="stringliteral">&quot;Cooldown&quot;</span>, 8);</div>
 <div class="line">desc.size = <span class="keyword">sizeof</span>(float);</div>
 <div class="line">desc.alig = <span class="keyword">alignof</span>(float);</div>
 <div class="line">desc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc fields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;seconds&quot;</span>, 7), ecs::F32, 0, 0}</div>
+<div class="line">};</div>
+<div class="line">desc.fields = fields;</div>
+<div class="line">desc.fieldCount = 1;</div>
 <div class="line"> </div>
-<div class="line">ecs::ComponentCache&amp; cc = w.comp_cache_mut();</div>
-<div class="line"><span class="keyword">const</span> ecs::ComponentCacheItem&amp; cooldownCI = cc.add(cooldownComponent, desc);</div>
-</div><!-- fragment --><p>You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as <code>ecs::F32</code> or <code>ecs::S32</code>, a byte offset, and a count. Use count <code>0</code> for one scalar value. Use a positive count for a fixed inline array.</p>
-<div class="fragment"><div class="line"><span class="keywordflow">if</span> (!cc.add_field(cooldownCI.entity, {<span class="stringliteral">&quot;seconds&quot;</span>, ecs::F32, 0, 0})) {</div>
-<div class="line">  <span class="comment">// The field type or byte range is invalid.</span></div>
+<div class="line">ecs::ComponentCacheItem&amp; cooldownCI = w.add(desc);</div>
+</div><!-- fragment --><p>You can give Gaia-ECS enough information to read individual fields too. Each field has a name, a primitive type such as <code>ecs::F32</code> or <code>ecs::S32</code>, a byte offset, and a count. Use count <code>0</code> for one scalar value. Use a positive count for a fixed inline array. Runtime field descriptors are copied during component registration and stay fixed for the lifetime of the component metadata.</p>
+<p>Fields can also reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to continue walking into nested fields.</p>
+<div class="fragment"><div class="line"><span class="keyword">constexpr</span> uint32_t FloatSize = <span class="keyword">sizeof</span>(float);</div>
+<div class="line"><span class="keyword">constexpr</span> uint32_t Vec3Size = FloatSize * 3;</div>
+<div class="line"><span class="keyword">constexpr</span> uint32_t TransformSize = Vec3Size * 2;</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc vec3Fields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;x&quot;</span>, 1), ecs::F32, 0, 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;y&quot;</span>, 1), ecs::F32, FloatSize, 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;z&quot;</span>, 1), ecs::F32, FloatSize * 2, 0}</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc vec3Desc{};</div>
+<div class="line">vec3Desc.name = util::str_view(<span class="stringliteral">&quot;Vec3&quot;</span>, 4);</div>
+<div class="line">vec3Desc.size = Vec3Size;</div>
+<div class="line">vec3Desc.alig = <span class="keyword">alignof</span>(float);</div>
+<div class="line">vec3Desc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">vec3Desc.fields = vec3Fields;</div>
+<div class="line">vec3Desc.fieldCount = 3;</div>
+<div class="line">ecs::ComponentCacheItem&amp; vec3CI = w.add(vec3Desc);</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc transformFields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;position&quot;</span>, 8), vec3CI.entity, 0, 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;velocity&quot;</span>, 8), vec3CI.entity, Vec3Size, 0}</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc transformDesc{};</div>
+<div class="line">transformDesc.name = util::str_view(<span class="stringliteral">&quot;Transform&quot;</span>, 9);</div>
+<div class="line">transformDesc.size = TransformSize;</div>
+<div class="line">transformDesc.alig = <span class="keyword">alignof</span>(float);</div>
+<div class="line">transformDesc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">transformDesc.fields = transformFields;</div>
+<div class="line">transformDesc.fieldCount = 2;</div>
+<div class="line">ecs::ComponentCacheItem&amp; transformCI = w.add(transformDesc);</div>
+<div class="line"> </div>
+<div class="line">ecs::Entity e = w.add();</div>
+<div class="line"><span class="keywordtype">float</span> transformPayload[] = {</div>
+<div class="line">  0.0f, 1.0f, 2.0f, <span class="comment">// position</span></div>
+<div class="line">  3.0f, 4.0f, 5.0f  <span class="comment">// velocity</span></div>
+<div class="line">};</div>
+<div class="line">w.add_raw(e, transformCI.entity, transformPayload, <span class="keyword">sizeof</span>(transformPayload));</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, transformCI.entity);</div>
+<div class="line"><span class="keywordflow">if</span> (cursor.field(<span class="stringliteral">&quot;position&quot;</span>) &amp;&amp; cursor.field(<span class="stringliteral">&quot;y&quot;</span>)) {</div>
+<div class="line">  cursor.f32(10.0f);</div>
+<div class="line">}</div>
+</div><!-- fragment --><p>For a fixed inline array of runtime structs, set the field count to the element count and select an element before walking fields. For example, a <code>Vec3[2]</code> field is addressed as <code>cursor.field("samples")</code>, then <code>cursor.elem(1)</code>, then <code>cursor.field("z")</code>. Direct field lookup on the array scope is rejected so it does not silently address element zero.</p>
+<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeField* secondsField = cooldownCI.field(<span class="stringliteral">&quot;seconds&quot;</span>);</div>
+<div class="line"><span class="keywordflow">if</span> (secondsField != <span class="keyword">nullptr</span>) {</div>
+<div class="line">  <span class="comment">// secondsField describes the registered byte range and type.</span></div>
 <div class="line">}</div>
 </div><!-- fragment --><p>Once the component is registered, you can add and edit it without a C++ component type:</p>
 <div class="fragment"><div class="line">ecs::Entity e = w.add();</div>
@@ -641,12 +692,26 @@ Add or remove component</h3>
 <div class="line"> </div>
 <div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, cooldownCI.entity);</div>
 <div class="line"><span class="keywordflow">if</span> (cursor.field(<span class="stringliteral">&quot;seconds&quot;</span>)) {</div>
-<div class="line">  seconds = 1.0f;</div>
-<div class="line">  <span class="keywordflow">if</span> (cursor.write_bytes(&amp;seconds, <span class="keyword">sizeof</span>(seconds)) != ecs::ComponentWriteResult::Ok) {</div>
+<div class="line">  <span class="keywordflow">if</span> (!cursor.f32(1.0f)) {</div>
 <div class="line">    <span class="comment">// The selected field cannot be written.</span></div>
 <div class="line">  }</div>
+<div class="line"> </div>
+<div class="line">  <span class="keyword">auto</span> updated = cursor.f32();</div>
+<div class="line">  <span class="keywordflow">if</span> (updated) {</div>
+<div class="line">    <span class="comment">// updated.value contains the current seconds value.</span></div>
+<div class="line">  }</div>
 <div class="line">}</div>
-</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> return byte views for table AoS runtime components and tags. <code>mut_raw(...)</code> is a silent write path. Call <code>modify_raw(...)</code> after direct byte writes when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies a full payload and emits the write notification for you. <code>ComponentCursor::write_bytes(...)</code> writes the selected field and finishes the component write automatically.</p>
+<div class="line"> </div>
+<div class="line"><span class="keyword">auto</span> q = w.query().all(cooldownCI.entity);</div>
+<div class="line">q.each([&amp;](ecs::Entity ent) {</div>
+<div class="line">  ecs::ComponentRawView raw = w.get_raw(ent, cooldownCI.entity);</div>
+<div class="line">  <span class="keywordflow">if</span> (raw.valid()) {</div>
+<div class="line">    <span class="comment">// raw.data points at the component bytes for this entity.</span></div>
+<div class="line">  }</div>
+<div class="line">});</div>
+</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> return byte views for table AoS runtime components and tags. <code>mut_raw(...)</code> is a silent write path. Call <code>modify_raw(...)</code> after direct byte writes when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies a full payload and emits the write notification for you. <code>ComponentCursor</code> primitive accessors such as <code>f32(...)</code> write the selected field and finish the component write automatically. <code>get_raw(...)</code> and <code>set_raw(...)</code> remain available for exact raw field copies and replacement.</p>
+<p>World JSON uses runtime field metadata when it is available. Pre-register the same descriptor before loading semantic JSON; then <code>load_json(...)</code> can rebuild runtime-created component payloads without compile-time C++ component types.</p>
+<p>Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use <code>acc(entity).get_raw(component)</code> for read-only payload access. Use <code>acc_mut(entity).mut_raw(component)</code> for silent writes, <code>acc_mut(entity).modify_raw(component)</code> to finish a silent write, and <code>acc_mut(entity).set_raw(component, data, size)</code> to replace a full payload.</p>
 <h3><a class="anchor" id="component-hooks"></a>
 Component hooks</h3>
 <p>It is possible to register add/del/set hooks for components. When a given component is added to an entity, deleted from it, or the value is set the hook triggers. This comes handy for debugging, or when specific logic is needed for a given component. Component hooks are unique. Each component can have at most one add hook, and one delete hook.</p>
@@ -913,7 +978,7 @@ Set or get component value</h3>
 <li><code>acc_mut(entity).set&lt;T&gt;(...)</code> - writes immediately and triggers set hooks and <code>OnSet</code></li>
 <li><code>acc_mut(entity).set&lt;T&gt;(object, value)</code> - immediate object-based write with set hooks and <code>OnSet</code></li>
 <li><code>sset&lt;T&gt;(entity)</code> / <code>mut&lt;T&gt;(entity)</code> - silent write paths, no hooks, no <code>OnSet</code></li>
-<li><code>sset&lt;T&gt;(entity, object)</code> / <code>mut&lt;T&gt;(entity, object)</code> - silent object-based write paths; pair them with <code>modify&lt;T, true&gt;(entity, object)</code> when you want set side effects</li>
+<li><code>sset&lt;T&gt;(entity, object)</code> / <code>mut&lt;T&gt;(entity, object)</code> - silent object-based write paths. Pair them with <code>modify&lt;T, true&gt;(entity, object)</code> when you want set side effects.</li>
 </ul>
 <p>Components up to 8 bytes (including) are returned by value. Bigger components are returned by const reference.</p>
 <div class="fragment"><div class="line"><span class="comment">// Read Velocity&#39;s value. As shown above Velocity is 12 bytes in size.</span></div>
@@ -1695,6 +1760,11 @@ Iterating over components not present in the query is not supported and results 
 <p>The iterator exposes two families of accessors:</p><ul>
 <li><code>view</code>, <code>view_mut</code>, <code>sview_mut</code>, <code>view_auto</code>, <code>sview_auto</code> - the fast path for terms stored directly in the current chunk</li>
 <li><code>view_any</code>, <code>view_any_mut</code>, <code>sview_any_mut</code>, <code>view_auto_any</code>, <code>sview_auto_any</code> - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity</li>
+</ul>
+<p>Runtime-created table AoS components use the same iterator naming with erased raw byte views:</p><ul>
+<li><code>view_raw(termIdx)</code> - read-only raw payload rows for a directly chunk-backed term</li>
+<li><code>view_raw_mut(termIdx)</code> - mutable raw payload rows with normal post-callback set side effects</li>
+<li><code>sview_raw_mut(termIdx)</code> - silent mutable raw payload rows. Pair with <code>modify_raw(termIdx)</code> when set side effects should run.</li>
 </ul>
 <p>Use plain <code>view*</code> whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the <code>*_any</code> variant explicitly.</p>
 <p>Iterator behavior can be controlled via <code>Constraints</code>.</p>
@@ -2846,7 +2916,7 @@ Serialization</h2>
 </ul>
 <p>Recommended JSON API surface:</p><ul>
 <li><code>ser::ser_json</code> for low-level JSON token writing/parsing</li>
-<li><code>ecs::component_to_json</code> / <code>ecs::json_to_component</code> for runtime component payloads with registered fields registered through <code>ComponentCache::add_field(...)</code>. JSON supports scalar primitive fields and <code>ecs::Char8</code> buffers.</li>
+<li><code>ecs::component_to_json</code> / <code>ecs::json_to_component</code> for runtime component payloads with fields copied from the component descriptor during registration. JSON supports scalar primitive fields and <code>ecs::Char8</code> buffers.</li>
 <li><code>ecs::World::save_json</code> / <code>ecs::World::load_json</code> for full world snapshots</li>
 </ul>
 <p>For structured semantic load feedback, use diagnostics overloads:</p><ul>

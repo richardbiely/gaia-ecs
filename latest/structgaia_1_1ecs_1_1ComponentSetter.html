@@ -164,6 +164,15 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a1d90e4264d7d7dca8c9534c8832debbe"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html#a1d90e4264d7d7dca8c9534c8832debbe">sset</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type, T &amp;&amp;value)</td></tr>
 <tr class="memdesc:a1d90e4264d7d7dca8c9534c8832debbe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets the value of the component without triggering a world version update.  <br /></td></tr>
 <tr class="separator:a1d90e4264d7d7dca8c9534c8832debbe"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a298ca25d1075f22d7abf6c1e65077778" id="r_a298ca25d1075f22d7abf6c1e65077778"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html#a298ca25d1075f22d7abf6c1e65077778">mut_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:a298ca25d1075f22d7abf6c1e65077778"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable raw byte view for a runtime component without finishing the write. Pair with modify_raw(component) when set hooks or <code>OnSet</code> observers should run.  <br /></td></tr>
+<tr class="separator:a298ca25d1075f22d7abf6c1e65077778"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acacc2cd2f670f4d35983fe386b2410b5" id="r_acacc2cd2f670f4d35983fe386b2410b5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html#acacc2cd2f670f4d35983fe386b2410b5">set_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t size)</td></tr>
+<tr class="memdesc:acacc2cd2f670f4d35983fe386b2410b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces a runtime component payload and emits normal post-write set notifications.  <br /></td></tr>
+<tr class="separator:acacc2cd2f670f4d35983fe386b2410b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a646565eeaa4b8301b0eb231d5262a296" id="r_a646565eeaa4b8301b0eb231d5262a296"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html#a646565eeaa4b8301b0eb231d5262a296">modify_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:a646565eeaa4b8301b0eb231d5262a296"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a raw payload returned by mut_raw(component) as modified.  <br /></td></tr>
+<tr class="separator:a646565eeaa4b8301b0eb231d5262a296"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acee5c2f8fa1bafd31a886b446e547952" id="r_acee5c2f8fa1bafd31a886b446e547952"><td class="memItemLeft" align="right" valign="top"><a id="acee5c2f8fa1bafd31a886b446e547952" name="acee5c2f8fa1bafd31a886b446e547952"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>ComponentGetter</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint16_t row)</td></tr>
 <tr class="separator:acee5c2f8fa1bafd31a886b446e547952"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -179,6 +188,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#abb919550729f83d58aa7614093183639">get</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
 <tr class="memdesc:abb919550729f83d58aa7614093183639 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value stored in the component associated with <em>type</em> on entity.  <br /></td></tr>
 <tr class="separator:abb919550729f83d58aa7614093183639 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acb7a7a99336b874300c48e10066eca09 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter" id="r_acb7a7a99336b874300c48e10066eca09"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#acb7a7a99336b874300c48e10066eca09">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:acb7a7a99336b874300c48e10066eca09 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a raw byte view for a runtime component on this entity.  <br /></td></tr>
+<tr class="separator:acb7a7a99336b874300c48e10066eca09 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter" id="r_abb919550729f83d58aa7614093183639"><td class="memTemplParams" colspan="2">
 template&lt;typename T &gt; </td></tr>
 <tr class="memitem:abb919550729f83d58aa7614093183639 inherit pub_methods_structgaia_1_1ecs_1_1ComponentGetter"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><b>get</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) const</td></tr>
@@ -203,6 +215,41 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_row</b></td></t
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Entity-scoped mutable component accessor bound to a specific world, chunk and row. It is not a standalone chunk view and expects the referenced entity to remain valid. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a646565eeaa4b8301b0eb231d5262a296" name="a646565eeaa4b8301b0eb231d5262a296"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a646565eeaa4b8301b0eb231d5262a296">&#9670;&#160;</a></span>modify_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> &amp; gaia::ecs::ComponentSetter::modify_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks a raw payload returned by mut_raw(component) as modified. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a>. </dd></dl>
+
+</div>
+</div>
 <a id="a1067a5493d60d91fd1df03acad388103" name="a1067a5493d60d91fd1df03acad388103"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a1067a5493d60d91fd1df03acad388103">&#9670;&#160;</a></span>mut() <span class="overload">[1/2]</span></h2>
 
@@ -265,6 +312,41 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Reference to data for AoS, or mutable accessor for SoA types </dd></dl>
+
+</div>
+</div>
+<a id="a298ca25d1075f22d7abf6c1e65077778" name="a298ca25d1075f22d7abf6c1e65077778"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a298ca25d1075f22d7abf6c1e65077778">&#9670;&#160;</a></span>mut_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a> gaia::ecs::ComponentSetter::mut_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable raw byte view for a runtime component without finishing the write. Pair with modify_raw(component) when set hooks or <code>OnSet</code> observers should run. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable raw payload view, or an invalid view when unavailable. </dd></dl>
 
 </div>
 </div>
@@ -355,6 +437,59 @@ template&lt;typename T , typename U  = typename actual_type_t&lt;T&gt;::Type&gt;
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a> </dd></dl>
+
+</div>
+</div>
+<a id="acacc2cd2f670f4d35983fe386b2410b5" name="acacc2cd2f670f4d35983fe386b2410b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acacc2cd2f670f4d35983fe386b2410b5">&#9670;&#160;</a></span>set_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html">ComponentSetter</a> &amp; gaia::ecs::ComponentSetter::set_raw </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>size</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Replaces a runtime component payload and emits normal post-write set notifications. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
+    <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1ComponentSetter.html" title="Entity-scoped mutable component accessor bound to a specific world, chunk and row....">ComponentSetter</a>. </dd></dl>
 
 </div>
 </div>

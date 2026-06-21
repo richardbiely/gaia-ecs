@@ -251,6 +251,24 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>touch_term</b> (<a cl
 <tr class="memitem:a340f5b27f397c130b4dc2689e789cb39" id="r_a340f5b27f397c130b4dc2689e789cb39"><td class="memItemLeft" align="right" valign="top"><a id="a340f5b27f397c130b4dc2689e789cb39" name="a340f5b27f397c130b4dc2689e789cb39"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>touch_term_desc</b> (const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html">IterTermDesc</a> &amp;desc)</td></tr>
 <tr class="separator:a340f5b27f397c130b4dc2689e789cb39"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d5c7c2cb3da69d15ec37172c8bd8d2d" id="r_a2d5c7c2cb3da69d15ec37172c8bd8d2d"><td class="memItemLeft" align="right" valign="top"><a id="a2d5c7c2cb3da69d15ec37172c8bd8d2d" name="a2d5c7c2cb3da69d15ec37172c8bd8d2d"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewGet.html">RawTermViewGet</a>&#160;</td><td class="memItemRight" valign="bottom"><b>raw_term_view</b> (uint32_t termIdx) const</td></tr>
+<tr class="separator:a2d5c7c2cb3da69d15ec37172c8bd8d2d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adefb37b2d21842eba1fc5233aa4287a0" id="r_adefb37b2d21842eba1fc5233aa4287a0"><td class="memItemLeft" align="right" valign="top"><a id="adefb37b2d21842eba1fc5233aa4287a0" name="adefb37b2d21842eba1fc5233aa4287a0"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html">RawTermViewSet</a>&#160;</td><td class="memItemRight" valign="bottom"><b>raw_term_view_mut</b> (uint32_t termIdx, bool trackWrite)</td></tr>
+<tr class="separator:adefb37b2d21842eba1fc5233aa4287a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa11ecf67317999da17acd47da1d9748f" id="r_aa11ecf67317999da17acd47da1d9748f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewGet.html">RawTermViewGet</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#aa11ecf67317999da17acd47da1d9748f">view_raw</a> (uint32_t termIdx) const</td></tr>
+<tr class="memdesc:aa11ecf67317999da17acd47da1d9748f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only raw byte view for a directly chunk-backed AoS query term.  <br /></td></tr>
+<tr class="separator:aa11ecf67317999da17acd47da1d9748f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abfeafb3c9aca4197cb2fd1bf0fb44553" id="r_abfeafb3c9aca4197cb2fd1bf0fb44553"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html">RawTermViewSet</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#abfeafb3c9aca4197cb2fd1bf0fb44553">view_raw_mut</a> (uint32_t termIdx)</td></tr>
+<tr class="memdesc:abfeafb3c9aca4197cb2fd1bf0fb44553"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable raw byte view for a directly chunk-backed AoS query term. Writes are finished after the iterator callback through normal touched-write tracking.  <br /></td></tr>
+<tr class="separator:abfeafb3c9aca4197cb2fd1bf0fb44553"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a37b677cf380cb312217f13d52475da46" id="r_a37b677cf380cb312217f13d52475da46"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html">RawTermViewSet</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37b677cf380cb312217f13d52475da46">sview_raw_mut</a> (uint32_t termIdx)</td></tr>
+<tr class="memdesc:a37b677cf380cb312217f13d52475da46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable raw byte view without marking the term modified. Pair with modify_raw(termIdx) when set hooks or <code>OnSet</code> observers should run.  <br /></td></tr>
+<tr class="separator:a37b677cf380cb312217f13d52475da46"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b74cf672fd88b59cd03982d9e357b46" id="r_a2b74cf672fd88b59cd03982d9e357b46"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a2b74cf672fd88b59cd03982d9e357b46">modify_raw</a> (uint32_t termIdx)</td></tr>
+<tr class="memdesc:a2b74cf672fd88b59cd03982d9e357b46"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.  <br /></td></tr>
+<tr class="separator:a2b74cf672fd88b59cd03982d9e357b46"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a901792f0cce6d17736199cb3b1eee809" id="r_a901792f0cce6d17736199cb3b1eee809"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a901792f0cce6d17736199cb3b1eee809"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a901792f0cce6d17736199cb3b1eee809">view_any</a> () const</td></tr>
 <tr class="memdesc:a901792f0cce6d17736199cb3b1eee809"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only entity or component view that can resolve non-direct storage. This is the fallback accessor for terms that may come from outside the chunk column, such as inherited, sparse, out-of-line, or other entity-backed storage.  <br /></td></tr>
@@ -754,6 +772,40 @@ template&lt;typename T , bool TriggerHooks&gt; </div>
 
 </div>
 </div>
+<a id="a2b74cf672fd88b59cd03982d9e357b46" name="a2b74cf672fd88b59cd03982d9e357b46"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2b74cf672fd88b59cd03982d9e357b46">&#9670;&#160;</a></span>modify_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::ChunkIterImpl::modify_raw </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>termIdx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Marks a raw iterator term written through sview_raw_mut(termIdx) as modified. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">termIdx</td><td>Query term index. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a7e29362d3bc6a41bcd1be1118b57f929" name="a7e29362d3bc6a41bcd1be1118b57f929"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7e29362d3bc6a41bcd1be1118b57f929">&#9670;&#160;</a></span>set_query_chunk()</h2>
 
@@ -1052,6 +1104,41 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Direct component view with read-write access </dd></dl>
+
+</div>
+</div>
+<a id="a37b677cf380cb312217f13d52475da46" name="a37b677cf380cb312217f13d52475da46"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a37b677cf380cb312217f13d52475da46">&#9670;&#160;</a></span>sview_raw_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html">RawTermViewSet</a> gaia::ecs::detail::ChunkIterImpl::sview_raw_mut </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>termIdx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable raw byte view without marking the term modified. Pair with modify_raw(termIdx) when set hooks or <code>OnSet</code> observers should run. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">termIdx</td><td>Query term index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Indexable raw mutable view. Rows return invalid payloads when unsupported. </dd></dl>
 
 </div>
 </div>
@@ -1449,6 +1536,76 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Direct entity or component view with read-write access </dd></dl>
+
+</div>
+</div>
+<a id="aa11ecf67317999da17acd47da1d9748f" name="aa11ecf67317999da17acd47da1d9748f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa11ecf67317999da17acd47da1d9748f">&#9670;&#160;</a></span>view_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewGet.html">RawTermViewGet</a> gaia::ecs::detail::ChunkIterImpl::view_raw </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>termIdx</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only raw byte view for a directly chunk-backed AoS query term. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">termIdx</td><td>Query term index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Indexable raw view. Rows return invalid payloads when the term is unsupported. </dd></dl>
+
+</div>
+</div>
+<a id="abfeafb3c9aca4197cb2fd1bf0fb44553" name="abfeafb3c9aca4197cb2fd1bf0fb44553"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abfeafb3c9aca4197cb2fd1bf0fb44553">&#9670;&#160;</a></span>view_raw_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html">RawTermViewSet</a> gaia::ecs::detail::ChunkIterImpl::view_raw_mut </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>termIdx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable raw byte view for a directly chunk-backed AoS query term. Writes are finished after the iterator callback through normal touched-write tracking. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">termIdx</td><td>Query term index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Indexable raw mutable view. Rows return invalid payloads when unsupported. </dd></dl>
 
 </div>
 </div>

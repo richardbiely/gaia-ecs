@@ -94,6 +94,8 @@ var hierarchy =
     [ "gaia::cnt::const_sparse_iterator< T, PageCapacity, Allocator, std::enable_if_t< std::is_empty_v< T > > >", "structgaia_1_1cnt_1_1const__sparse__iterator_3_01T_00_01PageCapacity_00_01Allocator_00_01std_1_1ac6071468172e14d5e0cd6a6d6bb0e21.html", null ],
     [ "gaia::ecs::CopyIter", "classgaia_1_1ecs_1_1CopyIter.html", null ],
     [ "gaia::ecs::Core_", "structgaia_1_1ecs_1_1Core__.html", null ],
+    [ "gaia::ecs::CursorResult< T >", "structgaia_1_1ecs_1_1CursorResult.html", null ],
+    [ "gaia::ecs::CursorResult< void >", "structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html", null ],
     [ "gaia::cnt::darr< T, Allocator >", "classgaia_1_1cnt_1_1darr.html", [
       [ "gaia::cnt::darray_ilist_storage< gaia::mt::ParallelCallbackRecord >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ],
       [ "gaia::cnt::darray_ilist_storage< TListItem >", "structgaia_1_1cnt_1_1darray__ilist__storage.html", null ]
@@ -558,6 +560,8 @@ var hierarchy =
     [ "gaia::mem::detail::raw_data_holder< T, allocated_bytes >", "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html", null ],
     [ "gaia::mem::detail::raw_data_holder< T, AllocatedBytes >", "structgaia_1_1mem_1_1detail_1_1raw__data__holder.html", null ],
     [ "gaia::ecs::vm::detail::RawMatchToken", "structgaia_1_1ecs_1_1vm_1_1detail_1_1RawMatchToken.html", null ],
+    [ "gaia::ecs::detail::RawTermViewGet", "structgaia_1_1ecs_1_1detail_1_1RawTermViewGet.html", null ],
+    [ "gaia::ecs::detail::RawTermViewSet", "structgaia_1_1ecs_1_1detail_1_1RawTermViewSet.html", null ],
     [ "gaia::ecs::QueryInfo::QueryState::DynamicCacheState::RelationPayload", "structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html", null ],
     [ "gaia::core::detail::rem_rp< T >", "structgaia_1_1core_1_1detail_1_1rem__rp.html", null ],
     [ "gaia::ecs::Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],

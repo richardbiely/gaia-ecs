@@ -1,6 +1,8 @@
 var structgaia_1_1ecs_1_1ComponentDesc =
 [
     [ "alig", "structgaia_1_1ecs_1_1ComponentDesc.html#a888e08add9827f54fec33fa555e37122", null ],
+    [ "fieldCount", "structgaia_1_1ecs_1_1ComponentDesc.html#a44d679e3d32e1d8c39ab5a780ac59c63", null ],
+    [ "fields", "structgaia_1_1ecs_1_1ComponentDesc.html#a5a5f16c172611a3fe421fb85d4f1dd90", null ],
     [ "funcCtor", "structgaia_1_1ecs_1_1ComponentDesc.html#a1d6da41ca0213c22c6c512890915186f", null ],
     [ "hashLookup", "structgaia_1_1ecs_1_1ComponentDesc.html#acb1a8c80e21d742fc7aed1ad4deeaa8f", null ],
     [ "name", "structgaia_1_1ecs_1_1ComponentDesc.html#af662463ce5b34b58d1401dd6df7da406", null ],

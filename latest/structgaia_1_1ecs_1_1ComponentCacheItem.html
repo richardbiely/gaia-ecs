@@ -118,6 +118,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentCacheIte
   <div class="headertitle"><div class="title">gaia::ecs::ComponentCacheItem Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Runtime cache metadata for one registered Gaia component entity.  
+ <a href="structgaia_1_1ecs_1_1ComponentCacheItem.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="component__cache__item_8h_source.html">component_cache_item.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
@@ -129,45 +134,59 @@ Classes</h2></td></tr>
 Public Types</h2></td></tr>
 <tr class="memitem:a14e4533df077f55b4b763e3640bd3ed4" id="r_a14e4533df077f55b4b763e3640bd3ed4"><td class="memItemLeft" align="right" valign="top"><a id="a14e4533df077f55b4b763e3640bd3ed4" name="a14e4533df077f55b4b763e3640bd3ed4"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>SymbolLookupKey</b> = <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">core::StringLookupKey</a>&lt; 512 &gt;</td></tr>
+<tr class="memdesc:a14e4533df077f55b4b763e3640bd3ed4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Interned lookup key type used for component symbols. <br /></td></tr>
 <tr class="separator:a14e4533df077f55b4b763e3640bd3ed4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0aefe3776b91214f960ba38a09e659b9" id="r_a0aefe3776b91214f960ba38a09e659b9"><td class="memItemLeft" align="right" valign="top"><a id="a0aefe3776b91214f960ba38a09e659b9" name="a0aefe3776b91214f960ba38a09e659b9"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCtor</b> = void(void *, uint32_t)</td></tr>
+<tr class="memdesc:a0aefe3776b91214f960ba38a09e659b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs <em>cnt</em> component values in raw storage. <br /></td></tr>
 <tr class="separator:a0aefe3776b91214f960ba38a09e659b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae0203322316f6c5fc5ce574bb8e77d82" id="r_ae0203322316f6c5fc5ce574bb8e77d82"><td class="memItemLeft" align="right" valign="top"><a id="ae0203322316f6c5fc5ce574bb8e77d82" name="ae0203322316f6c5fc5ce574bb8e77d82"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncDtor</b> = void(void *, uint32_t)</td></tr>
+<tr class="memdesc:ae0203322316f6c5fc5ce574bb8e77d82"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys <em>cnt</em> component values in raw storage. <br /></td></tr>
 <tr class="separator:ae0203322316f6c5fc5ce574bb8e77d82"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2df3b0e9b72010d34393eb3212dd5a50" id="r_a2df3b0e9b72010d34393eb3212dd5a50"><td class="memItemLeft" align="right" valign="top"><a id="a2df3b0e9b72010d34393eb3212dd5a50" name="a2df3b0e9b72010d34393eb3212dd5a50"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncFrom</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a2df3b0e9b72010d34393eb3212dd5a50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves or copies component values between different storage layouts. <br /></td></tr>
 <tr class="separator:a2df3b0e9b72010d34393eb3212dd5a50"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a16f995ccabd046f88dfc3e78fca49d09" id="r_a16f995ccabd046f88dfc3e78fca49d09"><td class="memItemLeft" align="right" valign="top"><a id="a16f995ccabd046f88dfc3e78fca49d09" name="a16f995ccabd046f88dfc3e78fca49d09"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCopy</b> = void(void *, const void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a16f995ccabd046f88dfc3e78fca49d09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies component values from source storage to destination storage. <br /></td></tr>
 <tr class="separator:a16f995ccabd046f88dfc3e78fca49d09"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b3ebdea13a7dc62d23b0037b7b15d7f" id="r_a1b3ebdea13a7dc62d23b0037b7b15d7f"><td class="memItemLeft" align="right" valign="top"><a id="a1b3ebdea13a7dc62d23b0037b7b15d7f" name="a1b3ebdea13a7dc62d23b0037b7b15d7f"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncMove</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a1b3ebdea13a7dc62d23b0037b7b15d7f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves component values from source storage to destination storage. <br /></td></tr>
 <tr class="separator:a1b3ebdea13a7dc62d23b0037b7b15d7f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:addcd99fac3ad136cb5899fa3d02522f6" id="r_addcd99fac3ad136cb5899fa3d02522f6"><td class="memItemLeft" align="right" valign="top"><a id="addcd99fac3ad136cb5899fa3d02522f6" name="addcd99fac3ad136cb5899fa3d02522f6"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSwap</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:addcd99fac3ad136cb5899fa3d02522f6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Swaps component values between two storage locations. <br /></td></tr>
 <tr class="separator:addcd99fac3ad136cb5899fa3d02522f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a16c845d2287f59c5221fc6815a231339" id="r_a16c845d2287f59c5221fc6815a231339"><td class="memItemLeft" align="right" valign="top"><a id="a16c845d2287f59c5221fc6815a231339" name="a16c845d2287f59c5221fc6815a231339"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCmp</b> = bool(const void *, const void *)</td></tr>
+<tr class="memdesc:a16c845d2287f59c5221fc6815a231339"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares two component values for equality. <br /></td></tr>
 <tr class="separator:a16c845d2287f59c5221fc6815a231339"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acef402b4ab2e7a141d87b927f7c6b98e" id="r_acef402b4ab2e7a141d87b927f7c6b98e"><td class="memItemLeft" align="right" valign="top"><a id="acef402b4ab2e7a141d87b927f7c6b98e" name="acef402b4ab2e7a141d87b927f7c6b98e"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSave</b> = void(<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;, const void *, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:acef402b4ab2e7a141d87b927f7c6b98e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Saves a contiguous range of component values through a serializer. <br /></td></tr>
 <tr class="separator:acef402b4ab2e7a141d87b927f7c6b98e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8bf13826e7119ad2c09da735bae97032" id="r_a8bf13826e7119ad2c09da735bae97032"><td class="memItemLeft" align="right" valign="top"><a id="a8bf13826e7119ad2c09da735bae97032" name="a8bf13826e7119ad2c09da735bae97032"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncLoad</b> = void(<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;, void *, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a8bf13826e7119ad2c09da735bae97032"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads a contiguous range of component values through a serializer. <br /></td></tr>
 <tr class="separator:a8bf13826e7119ad2c09da735bae97032"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a57d22c16c85e361069e2a3da0992875c" id="r_a57d22c16c85e361069e2a3da0992875c"><td class="memItemLeft" align="right" valign="top"><a id="a57d22c16c85e361069e2a3da0992875c" name="a57d22c16c85e361069e2a3da0992875c"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnAdd</b> = void(const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)</td></tr>
+<tr class="memdesc:a57d22c16c85e361069e2a3da0992875c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Hook called after a component is added to an entity. <br /></td></tr>
 <tr class="separator:a57d22c16c85e361069e2a3da0992875c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a64020e54486a606a158cd528dbbdd220" id="r_a64020e54486a606a158cd528dbbdd220"><td class="memItemLeft" align="right" valign="top"><a id="a64020e54486a606a158cd528dbbdd220" name="a64020e54486a606a158cd528dbbdd220"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnDel</b> = void(const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)</td></tr>
+<tr class="memdesc:a64020e54486a606a158cd528dbbdd220"><td class="mdescLeft">&#160;</td><td class="mdescRight">Hook called before or while a component is deleted from an entity. <br /></td></tr>
 <tr class="separator:a64020e54486a606a158cd528dbbdd220"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a77c61bc5a4dcbec256bd8011bd33ca9d" id="r_a77c61bc5a4dcbec256bd8011bd33ca9d"><td class="memItemLeft" align="right" valign="top"><a id="a77c61bc5a4dcbec256bd8011bd33ca9d" name="a77c61bc5a4dcbec256bd8011bd33ca9d"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnSet</b> = void(const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="structgaia_1_1ecs_1_1ComponentRecord.html">ComponentRecord</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk)</td></tr>
+<tr class="memdesc:a77c61bc5a4dcbec256bd8011bd33ca9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Hook called when a component value is written in a chunk. <br /></td></tr>
 <tr class="separator:a77c61bc5a4dcbec256bd8011bd33ca9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a429c12b5493e0dc134ce1d91ffcb5b57" id="r_a429c12b5493e0dc134ce1d91ffcb5b57"><td class="memItemLeft" align="right" valign="top"><a id="a429c12b5493e0dc134ce1d91ffcb5b57" name="a429c12b5493e0dc134ce1d91ffcb5b57"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>RuntimeField</b> = <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">ecs::RuntimeField</a></td></tr>
+<tr class="memdesc:a429c12b5493e0dc134ce1d91ffcb5b57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored runtime field metadata type. <br /></td></tr>
 <tr class="separator:a429c12b5493e0dc134ce1d91ffcb5b57"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
@@ -177,154 +196,151 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:ac7ac49491a17f224fe572753c8b3ad04"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adf8b837d0d850b24399848007a9ddb94" id="r_adf8b837d0d850b24399848007a9ddb94"><td class="memItemLeft" align="right" valign="top"><a id="adf8b837d0d850b24399848007a9ddb94" name="adf8b837d0d850b24399848007a9ddb94"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>ComponentCacheItem</b> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;)=delete</td></tr>
+<tr class="memdesc:adf8b837d0d850b24399848007a9ddb94"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cache items own symbol memory and are not copyable. <br /></td></tr>
 <tr class="separator:adf8b837d0d850b24399848007a9ddb94"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad0d6d16d084e796777aad19b0ca8f7d0" id="r_ad0d6d16d084e796777aad19b0ca8f7d0"><td class="memItemLeft" align="right" valign="top"><a id="ad0d6d16d084e796777aad19b0ca8f7d0" name="ad0d6d16d084e796777aad19b0ca8f7d0"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>ComponentCacheItem</b> (<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&amp;)=delete</td></tr>
+<tr class="memdesc:ad0d6d16d084e796777aad19b0ca8f7d0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cache items own symbol memory and are not movable. <br /></td></tr>
 <tr class="separator:ad0d6d16d084e796777aad19b0ca8f7d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9bf26afcf45e581f745226ea76558dc1" id="r_a9bf26afcf45e581f745226ea76558dc1"><td class="memItemLeft" align="right" valign="top"><a id="a9bf26afcf45e581f745226ea76558dc1" name="a9bf26afcf45e581f745226ea76558dc1"></a>
 <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;)=delete</td></tr>
+<tr class="memdesc:a9bf26afcf45e581f745226ea76558dc1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cache items own symbol memory and are not copy-assignable. <br /></td></tr>
 <tr class="separator:a9bf26afcf45e581f745226ea76558dc1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b4a1cc80d94b5503bbeecb9b8b5d71c" id="r_a1b4a1cc80d94b5503bbeecb9b8b5d71c"><td class="memItemLeft" align="right" valign="top"><a id="a1b4a1cc80d94b5503bbeecb9b8b5d71c" name="a1b4a1cc80d94b5503bbeecb9b8b5d71c"></a>
 <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&amp;)=delete</td></tr>
+<tr class="memdesc:a1b4a1cc80d94b5503bbeecb9b8b5d71c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cache items own symbol memory and are not move-assignable. <br /></td></tr>
 <tr class="separator:a1b4a1cc80d94b5503bbeecb9b8b5d71c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaed6611b743bfc5791ff006c8112c38d" id="r_aaed6611b743bfc5791ff006c8112c38d"><td class="memItemLeft" align="right" valign="top"><a id="aaed6611b743bfc5791ff006c8112c38d" name="aaed6611b743bfc5791ff006c8112c38d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>ctor_move</b> (void *pDst, void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memitem:aaed6611b743bfc5791ff006c8112c38d" id="r_aaed6611b743bfc5791ff006c8112c38d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aaed6611b743bfc5791ff006c8112c38d">ctor_move</a> (void *pDst, void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memdesc:aaed6611b743bfc5791ff006c8112c38d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move-constructs one component value from another value.  <br /></td></tr>
 <tr class="separator:aaed6611b743bfc5791ff006c8112c38d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaa295214469c4931fd9a0b0d06d459d9" id="r_aaa295214469c4931fd9a0b0d06d459d9"><td class="memItemLeft" align="right" valign="top"><a id="aaa295214469c4931fd9a0b0d06d459d9" name="aaa295214469c4931fd9a0b0d06d459d9"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>ctor_copy</b> (void *pDst, const void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memitem:aaa295214469c4931fd9a0b0d06d459d9" id="r_aaa295214469c4931fd9a0b0d06d459d9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aaa295214469c4931fd9a0b0d06d459d9">ctor_copy</a> (void *pDst, const void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memdesc:aaa295214469c4931fd9a0b0d06d459d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copy-constructs one component value from another value.  <br /></td></tr>
 <tr class="separator:aaa295214469c4931fd9a0b0d06d459d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a92bfa8d53c756a15e67cac653f0d9170" id="r_a92bfa8d53c756a15e67cac653f0d9170"><td class="memItemLeft" align="right" valign="top"><a id="a92bfa8d53c756a15e67cac653f0d9170" name="a92bfa8d53c756a15e67cac653f0d9170"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>dtor</b> (void *pSrc) const</td></tr>
+<tr class="memitem:a92bfa8d53c756a15e67cac653f0d9170" id="r_a92bfa8d53c756a15e67cac653f0d9170"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a92bfa8d53c756a15e67cac653f0d9170">dtor</a> (void *pSrc) const</td></tr>
+<tr class="memdesc:a92bfa8d53c756a15e67cac653f0d9170"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys one component value when a destructor callback is registered.  <br /></td></tr>
 <tr class="separator:a92bfa8d53c756a15e67cac653f0d9170"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af4145f308dd35d28ab28f9c845b4d8ba" id="r_af4145f308dd35d28ab28f9c845b4d8ba"><td class="memItemLeft" align="right" valign="top"><a id="af4145f308dd35d28ab28f9c845b4d8ba" name="af4145f308dd35d28ab28f9c845b4d8ba"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>copy</b> (void *pDst, const void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memitem:af4145f308dd35d28ab28f9c845b4d8ba" id="r_af4145f308dd35d28ab28f9c845b4d8ba"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#af4145f308dd35d28ab28f9c845b4d8ba">copy</a> (void *pDst, const void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memdesc:af4145f308dd35d28ab28f9c845b4d8ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies one existing component value into another value.  <br /></td></tr>
 <tr class="separator:af4145f308dd35d28ab28f9c845b4d8ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a266919fe6047bd140dd982c24759e6f0" id="r_a266919fe6047bd140dd982c24759e6f0"><td class="memItemLeft" align="right" valign="top"><a id="a266919fe6047bd140dd982c24759e6f0" name="a266919fe6047bd140dd982c24759e6f0"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>move</b> (void *pDst, void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memitem:a266919fe6047bd140dd982c24759e6f0" id="r_a266919fe6047bd140dd982c24759e6f0"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a266919fe6047bd140dd982c24759e6f0">move</a> (void *pDst, void *pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memdesc:a266919fe6047bd140dd982c24759e6f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves one existing component value into another value.  <br /></td></tr>
 <tr class="separator:a266919fe6047bd140dd982c24759e6f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ace7eb194486071642daf29a39f5e947d" id="r_ace7eb194486071642daf29a39f5e947d"><td class="memItemLeft" align="right" valign="top"><a id="ace7eb194486071642daf29a39f5e947d" name="ace7eb194486071642daf29a39f5e947d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>swap</b> (void *pLeft, void *pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memitem:ace7eb194486071642daf29a39f5e947d" id="r_ace7eb194486071642daf29a39f5e947d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ace7eb194486071642daf29a39f5e947d">swap</a> (void *pLeft, void *pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const</td></tr>
+<tr class="memdesc:ace7eb194486071642daf29a39f5e947d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Swaps two component values.  <br /></td></tr>
 <tr class="separator:ace7eb194486071642daf29a39f5e947d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a35f0568e92bbcd47f747c9c3fc9ecd40" id="r_a35f0568e92bbcd47f747c9c3fc9ecd40"><td class="memItemLeft" align="right" valign="top"><a id="a35f0568e92bbcd47f747c9c3fc9ecd40" name="a35f0568e92bbcd47f747c9c3fc9ecd40"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>cmp</b> (const void *pLeft, const void *pRight) const</td></tr>
+<tr class="memitem:a35f0568e92bbcd47f747c9c3fc9ecd40" id="r_a35f0568e92bbcd47f747c9c3fc9ecd40"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a35f0568e92bbcd47f747c9c3fc9ecd40">cmp</a> (const void *pLeft, const void *pRight) const</td></tr>
+<tr class="memdesc:a35f0568e92bbcd47f747c9c3fc9ecd40"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares two component values of this type.  <br /></td></tr>
 <tr class="separator:a35f0568e92bbcd47f747c9c3fc9ecd40"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9c1da4b451957eca621b27dad5634863" id="r_a9c1da4b451957eca621b27dad5634863"><td class="memItemLeft" align="right" valign="top"><a id="a9c1da4b451957eca621b27dad5634863" name="a9c1da4b451957eca621b27dad5634863"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>save</b> (<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;serializer, const void *pSrc, uint32_t from, uint32_t to, uint32_t cap) const</td></tr>
+<tr class="memitem:a9c1da4b451957eca621b27dad5634863" id="r_a9c1da4b451957eca621b27dad5634863"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9c1da4b451957eca621b27dad5634863">save</a> (<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;serializer, const void *pSrc, uint32_t from, uint32_t to, uint32_t cap) const</td></tr>
+<tr class="memdesc:a9c1da4b451957eca621b27dad5634863"><td class="mdescLeft">&#160;</td><td class="mdescRight">Saves a contiguous range of component values.  <br /></td></tr>
 <tr class="separator:a9c1da4b451957eca621b27dad5634863"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4d3712ccd5313708c511052bfc59cadf" id="r_a4d3712ccd5313708c511052bfc59cadf"><td class="memItemLeft" align="right" valign="top"><a id="a4d3712ccd5313708c511052bfc59cadf" name="a4d3712ccd5313708c511052bfc59cadf"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>load</b> (<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;serializer, void *pDst, uint32_t from, uint32_t to, uint32_t cap) const</td></tr>
+<tr class="memitem:a4d3712ccd5313708c511052bfc59cadf" id="r_a4d3712ccd5313708c511052bfc59cadf"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a4d3712ccd5313708c511052bfc59cadf">load</a> (<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;serializer, void *pDst, uint32_t from, uint32_t to, uint32_t cap) const</td></tr>
+<tr class="memdesc:a4d3712ccd5313708c511052bfc59cadf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads a contiguous range of component values.  <br /></td></tr>
 <tr class="separator:a4d3712ccd5313708c511052bfc59cadf"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d0ca09b54e01666ef2613f43753f044" id="r_a5d0ca09b54e01666ef2613f43753f044"><td class="memItemLeft" align="right" valign="top"><a id="a5d0ca09b54e01666ef2613f43753f044" name="a5d0ca09b54e01666ef2613f43753f044"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_fields</b> ()</td></tr>
-<tr class="separator:a5d0ca09b54e01666ef2613f43753f044"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5e100c5b5c09ed74c51302d7e9103d49" id="r_a5e100c5b5c09ed74c51302d7e9103d49"><td class="memItemLeft" align="right" valign="top"><a id="a5e100c5b5c09ed74c51302d7e9103d49" name="a5e100c5b5c09ed74c51302d7e9103d49"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_fields</b> () const</td></tr>
+<tr class="memitem:a5e100c5b5c09ed74c51302d7e9103d49" id="r_a5e100c5b5c09ed74c51302d7e9103d49"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a5e100c5b5c09ed74c51302d7e9103d49">has_fields</a> () const</td></tr>
 <tr class="separator:a5e100c5b5c09ed74c51302d7e9103d49"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a088bae04b97e71ebe9afb8b5d2593de6" id="r_a088bae04b97e71ebe9afb8b5d2593de6"><td class="memItemLeft" align="right" valign="top"><a id="a088bae04b97e71ebe9afb8b5d2593de6" name="a088bae04b97e71ebe9afb8b5d2593de6"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>add_field</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;desc, uint32_t typeSize=0)</td></tr>
-<tr class="separator:a088bae04b97e71ebe9afb8b5d2593de6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae2dd326c738e27878f937cf6766f208d" id="r_ae2dd326c738e27878f937cf6766f208d"><td class="memItemLeft" align="right" valign="top"><a id="ae2dd326c738e27878f937cf6766f208d" name="ae2dd326c738e27878f937cf6766f208d"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>field</b> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> fieldName, const <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> **ppField) const</td></tr>
-<tr class="separator:ae2dd326c738e27878f937cf6766f208d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a98841077a09d492e7ae1e7efe04eeabb" id="r_a98841077a09d492e7ae1e7efe04eeabb"><td class="memItemLeft" align="right" valign="top"><a id="a98841077a09d492e7ae1e7efe04eeabb" name="a98841077a09d492e7ae1e7efe04eeabb"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_count</b> () const noexcept</td></tr>
+<tr class="memitem:adaf218802b89f650185705856a3da74c" id="r_adaf218802b89f650185705856a3da74c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#adaf218802b89f650185705856a3da74c">field</a> (uint32_t index) const noexcept</td></tr>
+<tr class="memdesc:adaf218802b89f650185705856a3da74c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Looks up runtime field metadata by index.  <br /></td></tr>
+<tr class="separator:adaf218802b89f650185705856a3da74c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e5ceef5d945f7dd4785098ec62c2701" id="r_a0e5ceef5d945f7dd4785098ec62c2701"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a0e5ceef5d945f7dd4785098ec62c2701">field</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> fieldName) const noexcept</td></tr>
+<tr class="memdesc:a0e5ceef5d945f7dd4785098ec62c2701"><td class="mdescLeft">&#160;</td><td class="mdescRight">Looks up runtime field metadata by name.  <br /></td></tr>
+<tr class="separator:a0e5ceef5d945f7dd4785098ec62c2701"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a98841077a09d492e7ae1e7efe04eeabb" id="r_a98841077a09d492e7ae1e7efe04eeabb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a98841077a09d492e7ae1e7efe04eeabb">field_count</a> () const noexcept</td></tr>
 <tr class="separator:a98841077a09d492e7ae1e7efe04eeabb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acf088b344d06d8be2bd921ed8daf252a" id="r_acf088b344d06d8be2bd921ed8daf252a"><td class="memItemLeft" align="right" valign="top"><a id="acf088b344d06d8be2bd921ed8daf252a" name="acf088b344d06d8be2bd921ed8daf252a"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_runtime_fields</b> ()</td></tr>
-<tr class="separator:acf088b344d06d8be2bd921ed8daf252a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a84990f7a21347b90edc25ffd24b35ec9" id="r_a84990f7a21347b90edc25ffd24b35ec9"><td class="memItemLeft" align="right" valign="top"><a id="a84990f7a21347b90edc25ffd24b35ec9" name="a84990f7a21347b90edc25ffd24b35ec9"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>calc_new_mem_offset</b> (uint32_t addr, size_t cnt) const noexcept</td></tr>
+<tr class="memitem:a84990f7a21347b90edc25ffd24b35ec9" id="r_a84990f7a21347b90edc25ffd24b35ec9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a84990f7a21347b90edc25ffd24b35ec9">calc_new_mem_offset</a> (uint32_t addr, size_t cnt) const noexcept</td></tr>
+<tr class="memdesc:a84990f7a21347b90edc25ffd24b35ec9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the next aligned memory offset after storing <em>cnt</em> values of this component.  <br /></td></tr>
 <tr class="separator:a84990f7a21347b90edc25ffd24b35ec9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:afa959f10eb404ad6904ad0647e16ed68" id="r_afa959f10eb404ad6904ad0647e16ed68"><td class="memItemLeft" align="right" valign="top"><a id="afa959f10eb404ad6904ad0647e16ed68" name="afa959f10eb404ad6904ad0647e16ed68"></a>
-static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_element_count</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;field) noexcept</td></tr>
+<tr class="memitem:afa959f10eb404ad6904ad0647e16ed68" id="r_afa959f10eb404ad6904ad0647e16ed68"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#afa959f10eb404ad6904ad0647e16ed68">field_element_count</a> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#adaf218802b89f650185705856a3da74c">field</a>) noexcept</td></tr>
+<tr class="memdesc:afa959f10eb404ad6904ad0647e16ed68"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the element count represented by a runtime field descriptor.  <br /></td></tr>
 <tr class="separator:afa959f10eb404ad6904ad0647e16ed68"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae51b1af33c0177de656bada7c5677a53" id="r_ae51b1af33c0177de656bada7c5677a53"><td class="memItemLeft" align="right" valign="top"><a id="ae51b1af33c0177de656bada7c5677a53" name="ae51b1af33c0177de656bada7c5677a53"></a>
-static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>field_element_count</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> &amp;field) noexcept</td></tr>
+<tr class="memitem:ae51b1af33c0177de656bada7c5677a53" id="r_ae51b1af33c0177de656bada7c5677a53"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ae51b1af33c0177de656bada7c5677a53">field_element_count</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> &amp;<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#adaf218802b89f650185705856a3da74c">field</a>) noexcept</td></tr>
+<tr class="memdesc:ae51b1af33c0177de656bada7c5677a53"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the element count represented by stored runtime field metadata.  <br /></td></tr>
 <tr class="separator:ae51b1af33c0177de656bada7c5677a53"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af53f4116cb1c8c7c25c28e635fbbe606" id="r_af53f4116cb1c8c7c25c28e635fbbe606"><td class="memItemLeft" align="right" valign="top"><a id="af53f4116cb1c8c7c25c28e635fbbe606" name="af53f4116cb1c8c7c25c28e635fbbe606"></a>
-static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>primitive_type_size</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) noexcept</td></tr>
+<tr class="memitem:af53f4116cb1c8c7c25c28e635fbbe606" id="r_af53f4116cb1c8c7c25c28e635fbbe606"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#af53f4116cb1c8c7c25c28e635fbbe606">primitive_type_size</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> type) noexcept</td></tr>
+<tr class="memdesc:af53f4116cb1c8c7c25c28e635fbbe606"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gets the byte size of a reflected primitive runtime type entity.  <br /></td></tr>
 <tr class="separator:af53f4116cb1c8c7c25c28e635fbbe606"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a656599b547bb826c777f6b506ad53124" id="r_a656599b547bb826c777f6b506ad53124"><td class="memTemplParams" colspan="2"><a id="a656599b547bb826c777f6b506ad53124" name="a656599b547bb826c777f6b506ad53124"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a656599b547bb826c777f6b506ad53124"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>)</td></tr>
+<tr class="memitem:a656599b547bb826c777f6b506ad53124" id="r_a656599b547bb826c777f6b506ad53124"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a656599b547bb826c777f6b506ad53124"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a656599b547bb826c777f6b506ad53124">create</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>)</td></tr>
+<tr class="memdesc:a656599b547bb826c777f6b506ad53124"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates metadata for a compile-time C++ component type.  <br /></td></tr>
 <tr class="separator:a656599b547bb826c777f6b506ad53124"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad15ac5fbe210e3afd3b1b7b39bf9c06d" id="r_ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memItemLeft" align="right" valign="top"><a id="ad15ac5fbe210e3afd3b1b7b39bf9c06d" name="ad15ac5fbe210e3afd3b1b7b39bf9c06d"></a>
-static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;desc)</td></tr>
+<tr class="memitem:ad15ac5fbe210e3afd3b1b7b39bf9c06d" id="r_ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ad15ac5fbe210e3afd3b1b7b39bf9c06d">create</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;desc)</td></tr>
+<tr class="memdesc:ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates metadata from a plain component descriptor.  <br /></td></tr>
 <tr class="separator:ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aea8f23dd2b496951253ba3690ca6d0cb" id="r_aea8f23dd2b496951253ba3690ca6d0cb"><td class="memItemLeft" align="right" valign="top"><a id="aea8f23dd2b496951253ba3690ca6d0cb" name="aea8f23dd2b496951253ba3690ca6d0cb"></a>
-static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;ctx)</td></tr>
+<tr class="memitem:aea8f23dd2b496951253ba3690ca6d0cb" id="r_aea8f23dd2b496951253ba3690ca6d0cb"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aea8f23dd2b496951253ba3690ca6d0cb">create</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;ctx)</td></tr>
+<tr class="memdesc:aea8f23dd2b496951253ba3690ca6d0cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates metadata from the legacy component-cache registration context.  <br /></td></tr>
 <tr class="separator:aea8f23dd2b496951253ba3690ca6d0cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9ba3fb65170337e78aa182035b3da6ec" id="r_a9ba3fb65170337e78aa182035b3da6ec"><td class="memItemLeft" align="right" valign="top"><a id="a9ba3fb65170337e78aa182035b3da6ec" name="a9ba3fb65170337e78aa182035b3da6ec"></a>
-static void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> (<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *pItem)</td></tr>
+<tr class="memitem:a9ba3fb65170337e78aa182035b3da6ec" id="r_a9ba3fb65170337e78aa182035b3da6ec"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec">destroy</a> (<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *pItem)</td></tr>
+<tr class="memdesc:a9ba3fb65170337e78aa182035b3da6ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases a cache item and any owned symbol storage.  <br /></td></tr>
 <tr class="separator:a9ba3fb65170337e78aa182035b3da6ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a19fd1f9a422c8be4e7491d3e14d869c7" id="r_a19fd1f9a422c8be4e7491d3e14d869c7"><td class="memItemLeft" align="right" valign="top"><a id="a19fd1f9a422c8be4e7491d3e14d869c7" name="a19fd1f9a422c8be4e7491d3e14d869c7"></a>
 <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>entity</b></td></tr>
-<tr class="memdesc:a19fd1f9a422c8be4e7491d3e14d869c7"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. <br /></td></tr>
+<tr class="memdesc:a19fd1f9a422c8be4e7491d3e14d869c7"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity bound to this cache item. <br /></td></tr>
 <tr class="separator:a19fd1f9a422c8be4e7491d3e14d869c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7bbb5854186e82296d6225db3df50130" id="r_a7bbb5854186e82296d6225db3df50130"><td class="memItemLeft" align="right" valign="top"><a id="a7bbb5854186e82296d6225db3df50130" name="a7bbb5854186e82296d6225db3df50130"></a>
 <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>&#160;</td><td class="memItemRight" valign="bottom"><b>comp</b></td></tr>
-<tr class="memdesc:a7bbb5854186e82296d6225db3df50130"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unique component identifier. <br /></td></tr>
+<tr class="memdesc:a7bbb5854186e82296d6225db3df50130"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compact component descriptor stored in archetype/chunk metadata. <br /></td></tr>
 <tr class="separator:a7bbb5854186e82296d6225db3df50130"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b8a13b88ee52400a3d4dbf23b864f7f" id="r_a7b8a13b88ee52400a3d4dbf23b864f7f"><td class="memItemLeft" align="right" valign="top"><a id="a7b8a13b88ee52400a3d4dbf23b864f7f" name="a7b8a13b88ee52400a3d4dbf23b864f7f"></a>
 <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>hashLookup</b></td></tr>
-<tr class="memdesc:a7b8a13b88ee52400a3d4dbf23b864f7f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Complex hash used for look-ups. <br /></td></tr>
+<tr class="memdesc:a7b8a13b88ee52400a3d4dbf23b864f7f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Hash used for component lookup by registered symbol. <br /></td></tr>
 <tr class="separator:a7b8a13b88ee52400a3d4dbf23b864f7f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5d5d453d56956baff896cf8269ace35e" id="r_a5d5d453d56956baff896cf8269ace35e"><td class="memItemLeft" align="right" valign="top"><a id="a5d5d453d56956baff896cf8269ace35e" name="a5d5d453d56956baff896cf8269ace35e"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>soaSizes</b> [meta::StructToTupleMaxTypes]</td></tr>
-<tr class="memdesc:a5d5d453d56956baff896cf8269ace35e"><td class="mdescLeft">&#160;</td><td class="mdescRight">If component is SoA, this stores how many bytes each of the elements take. <br /></td></tr>
+<tr class="memdesc:a5d5d453d56956baff896cf8269ace35e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Per-element byte sizes for SoA components; unused for AoS components. <br /></td></tr>
 <tr class="separator:a5d5d453d56956baff896cf8269ace35e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac04f9453e5af2d94541f1b4b8ebcde98" id="r_ac04f9453e5af2d94541f1b4b8ebcde98"><td class="memItemLeft" align="right" valign="top"><a id="ac04f9453e5af2d94541f1b4b8ebcde98" name="ac04f9453e5af2d94541f1b4b8ebcde98"></a>
-<a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">SymbolLookupKey</a>&#160;</td><td class="memItemRight" valign="bottom"><b>name</b></td></tr>
-<tr class="memdesc:ac04f9453e5af2d94541f1b4b8ebcde98"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> name. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a14e4533df077f55b4b763e3640bd3ed4">SymbolLookupKey</a>&#160;</td><td class="memItemRight" valign="bottom"><b>name</b></td></tr>
+<tr class="memdesc:ac04f9453e5af2d94541f1b4b8ebcde98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registered component symbol. <br /></td></tr>
 <tr class="separator:ac04f9453e5af2d94541f1b4b8ebcde98"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af75b0a1165525f078ea02edaa6ab937e" id="r_af75b0a1165525f078ea02edaa6ab937e"><td class="memItemLeft" align="right" valign="top"><a id="af75b0a1165525f078ea02edaa6ab937e" name="af75b0a1165525f078ea02edaa6ab937e"></a>
 <a class="el" href="structgaia_1_1util_1_1str.html">util::str</a>&#160;</td><td class="memItemRight" valign="bottom"><b>path</b></td></tr>
-<tr class="memdesc:af75b0a1165525f078ea02edaa6ab937e"><td class="mdescLeft">&#160;</td><td class="mdescRight">User-facing path name, e.g. "Gameplay.Device". <br /></td></tr>
+<tr class="memdesc:af75b0a1165525f078ea02edaa6ab937e"><td class="mdescLeft">&#160;</td><td class="mdescRight">User-facing scoped component path, e.g. "Gameplay.Device". <br /></td></tr>
 <tr class="separator:af75b0a1165525f078ea02edaa6ab937e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9db9c0f427f0c1766d0e4512fd945109" id="r_a9db9c0f427f0c1766d0e4512fd945109"><td class="memItemLeft" align="right" valign="top"><a id="a9db9c0f427f0c1766d0e4512fd945109" name="a9db9c0f427f0c1766d0e4512fd945109"></a>
-FuncCtor *&#160;</td><td class="memItemRight" valign="bottom"><b>func_ctor</b> {}</td></tr>
-<tr class="memdesc:a9db9c0f427f0c1766d0e4512fd945109"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be constructed. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a0aefe3776b91214f960ba38a09e659b9">FuncCtor</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_ctor</b> {}</td></tr>
+<tr class="memdesc:a9db9c0f427f0c1766d0e4512fd945109"><td class="mdescLeft">&#160;</td><td class="mdescRight">Construction callback for this component type. <br /></td></tr>
 <tr class="separator:a9db9c0f427f0c1766d0e4512fd945109"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20c7663f2427508755f18e3386dfb6ae" id="r_a20c7663f2427508755f18e3386dfb6ae"><td class="memItemLeft" align="right" valign="top"><a id="a20c7663f2427508755f18e3386dfb6ae" name="a20c7663f2427508755f18e3386dfb6ae"></a>
-FuncMove *&#160;</td><td class="memItemRight" valign="bottom"><b>func_move_ctor</b> {}</td></tr>
-<tr class="memdesc:a20c7663f2427508755f18e3386dfb6ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be move constructed. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a1b3ebdea13a7dc62d23b0037b7b15d7f">FuncMove</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_move_ctor</b> {}</td></tr>
+<tr class="memdesc:a20c7663f2427508755f18e3386dfb6ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move-construction callback for this component type. <br /></td></tr>
 <tr class="separator:a20c7663f2427508755f18e3386dfb6ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0192ad08d3f5560eff52f93f96d46e30" id="r_a0192ad08d3f5560eff52f93f96d46e30"><td class="memItemLeft" align="right" valign="top"><a id="a0192ad08d3f5560eff52f93f96d46e30" name="a0192ad08d3f5560eff52f93f96d46e30"></a>
-FuncCopy *&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy_ctor</b> {}</td></tr>
-<tr class="memdesc:a0192ad08d3f5560eff52f93f96d46e30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be copy constructed. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a16f995ccabd046f88dfc3e78fca49d09">FuncCopy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy_ctor</b> {}</td></tr>
+<tr class="memdesc:a0192ad08d3f5560eff52f93f96d46e30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copy-construction callback for this component type. <br /></td></tr>
 <tr class="separator:a0192ad08d3f5560eff52f93f96d46e30"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adf54bf32193e73a58f1b00b3bedd68c8" id="r_adf54bf32193e73a58f1b00b3bedd68c8"><td class="memItemLeft" align="right" valign="top"><a id="adf54bf32193e73a58f1b00b3bedd68c8" name="adf54bf32193e73a58f1b00b3bedd68c8"></a>
-FuncDtor *&#160;</td><td class="memItemRight" valign="bottom"><b>func_dtor</b> {}</td></tr>
-<tr class="memdesc:adf54bf32193e73a58f1b00b3bedd68c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be destroyed. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ae0203322316f6c5fc5ce574bb8e77d82">FuncDtor</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_dtor</b> {}</td></tr>
+<tr class="memdesc:adf54bf32193e73a58f1b00b3bedd68c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destruction callback for this component type. <br /></td></tr>
 <tr class="separator:adf54bf32193e73a58f1b00b3bedd68c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab80bb997b553e6c8a828917bc045cd1d" id="r_ab80bb997b553e6c8a828917bc045cd1d"><td class="memItemLeft" align="right" valign="top"><a id="ab80bb997b553e6c8a828917bc045cd1d" name="ab80bb997b553e6c8a828917bc045cd1d"></a>
-FuncCopy *&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy</b> {}</td></tr>
-<tr class="memdesc:ab80bb997b553e6c8a828917bc045cd1d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be copied. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a16f995ccabd046f88dfc3e78fca49d09">FuncCopy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy</b> {}</td></tr>
+<tr class="memdesc:ab80bb997b553e6c8a828917bc045cd1d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copy callback for this component type. <br /></td></tr>
 <tr class="separator:ab80bb997b553e6c8a828917bc045cd1d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a348d0cc596dedeebcaa44540b3b2a26b" id="r_a348d0cc596dedeebcaa44540b3b2a26b"><td class="memItemLeft" align="right" valign="top"><a id="a348d0cc596dedeebcaa44540b3b2a26b" name="a348d0cc596dedeebcaa44540b3b2a26b"></a>
-FuncMove *&#160;</td><td class="memItemRight" valign="bottom"><b>func_move</b> {}</td></tr>
-<tr class="memdesc:a348d0cc596dedeebcaa44540b3b2a26b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to be moved. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a1b3ebdea13a7dc62d23b0037b7b15d7f">FuncMove</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_move</b> {}</td></tr>
+<tr class="memdesc:a348d0cc596dedeebcaa44540b3b2a26b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move callback for this component type. <br /></td></tr>
 <tr class="separator:a348d0cc596dedeebcaa44540b3b2a26b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acc3ebfb5b08a53099148c08467f06b29" id="r_acc3ebfb5b08a53099148c08467f06b29"><td class="memItemLeft" align="right" valign="top"><a id="acc3ebfb5b08a53099148c08467f06b29" name="acc3ebfb5b08a53099148c08467f06b29"></a>
-FuncSwap *&#160;</td><td class="memItemRight" valign="bottom"><b>func_swap</b> {}</td></tr>
-<tr class="memdesc:acc3ebfb5b08a53099148c08467f06b29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when the component needs to swap. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#addcd99fac3ad136cb5899fa3d02522f6">FuncSwap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_swap</b> {}</td></tr>
+<tr class="memdesc:acc3ebfb5b08a53099148c08467f06b29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Swap callback for this component type. <br /></td></tr>
 <tr class="separator:acc3ebfb5b08a53099148c08467f06b29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5ecc46c19437b060c44582e4fa8c1c06" id="r_a5ecc46c19437b060c44582e4fa8c1c06"><td class="memItemLeft" align="right" valign="top"><a id="a5ecc46c19437b060c44582e4fa8c1c06" name="a5ecc46c19437b060c44582e4fa8c1c06"></a>
-FuncCmp *&#160;</td><td class="memItemRight" valign="bottom"><b>func_cmp</b> {}</td></tr>
-<tr class="memdesc:a5ecc46c19437b060c44582e4fa8c1c06"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when comparing two components of the same type for equality. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a16c845d2287f59c5221fc6815a231339">FuncCmp</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_cmp</b> {}</td></tr>
+<tr class="memdesc:a5ecc46c19437b060c44582e4fa8c1c06"><td class="mdescLeft">&#160;</td><td class="mdescRight">Equality callback for this component type. <br /></td></tr>
 <tr class="separator:a5ecc46c19437b060c44582e4fa8c1c06"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad03cb09ad09432651582e021195882f0" id="r_ad03cb09ad09432651582e021195882f0"><td class="memItemLeft" align="right" valign="top"><a id="ad03cb09ad09432651582e021195882f0" name="ad03cb09ad09432651582e021195882f0"></a>
-FuncSave *&#160;</td><td class="memItemRight" valign="bottom"><b>func_save</b> {}</td></tr>
-<tr class="memdesc:ad03cb09ad09432651582e021195882f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to call when saving component to a buffer. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#acef402b4ab2e7a141d87b927f7c6b98e">FuncSave</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_save</b> {}</td></tr>
+<tr class="memdesc:ad03cb09ad09432651582e021195882f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serialization callback for saving component values. <br /></td></tr>
 <tr class="separator:ad03cb09ad09432651582e021195882f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac90106b3351412223e1f28086dc22d2f" id="r_ac90106b3351412223e1f28086dc22d2f"><td class="memItemLeft" align="right" valign="top"><a id="ac90106b3351412223e1f28086dc22d2f" name="ac90106b3351412223e1f28086dc22d2f"></a>
-FuncLoad *&#160;</td><td class="memItemRight" valign="bottom"><b>func_load</b> {}</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a8bf13826e7119ad2c09da735bae97032">FuncLoad</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_load</b> {}</td></tr>
+<tr class="memdesc:ac90106b3351412223e1f28086dc22d2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serialization callback for loading component values. <br /></td></tr>
 <tr class="separator:ac90106b3351412223e1f28086dc22d2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aadb894d80758447e1430e59639931a5f" id="r_aadb894d80758447e1430e59639931a5f"><td class="memItemLeft" align="right" valign="top"><a id="aadb894d80758447e1430e59639931a5f" name="aadb894d80758447e1430e59639931a5f"></a>
 RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>typeKind</b> = RuntimeTypeKind::Struct</td></tr>
@@ -334,16 +350,1037 @@ RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>typeKind</
 RuntimePrimitiveKind&#160;</td><td class="memItemRight" valign="bottom"><b>primitiveKind</b> = RuntimePrimitiveKind::None</td></tr>
 <tr class="memdesc:a9926e386378fb021ef000100e4e7d7f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime primitive kind. Only valid when typeKind is Primitive. <br /></td></tr>
 <tr class="separator:a9926e386378fb021ef000100e4e7d7f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7d7a9deb71ed403e863a575db8f55f1e" id="r_a7d7a9deb71ed403e863a575db8f55f1e"><td class="memItemLeft" align="right" valign="top"><a id="a7d7a9deb71ed403e863a575db8f55f1e" name="a7d7a9deb71ed403e863a575db8f55f1e"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">RuntimeField</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fields</b></td></tr>
-<tr class="separator:a7d7a9deb71ed403e863a575db8f55f1e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:ad4eb95be2d3d199b26b2ed9d5e52866e" id="r_ad4eb95be2d3d199b26b2ed9d5e52866e"><td class="memItemLeft" align="right" valign="top"><a id="ad4eb95be2d3d199b26b2ed9d5e52866e" name="ad4eb95be2d3d199b26b2ed9d5e52866e"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MaxNameLength</b> = 256</td></tr>
+<tr class="memdesc:ad4eb95be2d3d199b26b2ed9d5e52866e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum stored component and runtime-field symbol length, including the null terminator. <br /></td></tr>
 <tr class="separator:ad4eb95be2d3d199b26b2ed9d5e52866e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Runtime cache metadata for one registered Gaia component entity. </p>
+<p>A cache item is the authoritative metadata record used by chunk storage, runtime component registration, field reflection, lifecycle callbacks, hooks, symbol lookup, and serialization. Instances are created through the static create helpers and released with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a84990f7a21347b90edc25ffd24b35ec9" name="a84990f7a21347b90edc25ffd24b35ec9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a84990f7a21347b90edc25ffd24b35ec9">&#9670;&#160;</a></span>calc_new_mem_offset()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::calc_new_mem_offset </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>addr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cnt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Calculates the next aligned memory offset after storing <em>cnt</em> values of this component. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">addr</td><td>Starting byte offset. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of component values to reserve. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Byte offset after the component storage block. </dd></dl>
+
+</div>
+</div>
+<a id="a35f0568e92bbcd47f747c9c3fc9ecd40" name="a35f0568e92bbcd47f747c9c3fc9ecd40"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a35f0568e92bbcd47f747c9c3fc9ecd40">&#9670;&#160;</a></span>cmp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::ComponentCacheItem::cmp </td>
+          <td>(</td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>pLeft</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>pRight</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares two component values of this type. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pLeft</td><td>Left component value pointer. </td></tr>
+    <tr><td class="paramname">pRight</td><td>Right component value pointer. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the values compare equal. </dd></dl>
+
+</div>
+</div>
+<a id="af4145f308dd35d28ab28f9c845b4d8ba" name="af4145f308dd35d28ab28f9c845b4d8ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af4145f308dd35d28ab28f9c845b4d8ba">&#9670;&#160;</a></span>copy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::copy </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>pSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeSrc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Copies one existing component value into another value. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pDst</td><td>Destination component storage base pointer. </td></tr>
+    <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
+    <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
+    <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a656599b547bb826c777f6b506ad53124" name="a656599b547bb826c777f6b506ad53124"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a656599b547bb826c777f6b506ad53124">&#9670;&#160;</a></span>create() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> * gaia::ecs::ComponentCacheItem::create </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates metadata for a compile-time C++ component type. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to register. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity that owns the resulting metadata. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Newly allocated component cache item; release with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="aea8f23dd2b496951253ba3690ca6d0cb" name="aea8f23dd2b496951253ba3690ca6d0cb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aea8f23dd2b496951253ba3690ca6d0cb">&#9670;&#160;</a></span>create() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> * gaia::ecs::ComponentCacheItem::create </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;&#160;</td>
+          <td class="paramname"><em>ctx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates metadata from the legacy component-cache registration context. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity that owns the resulting metadata. </td></tr>
+    <tr><td class="paramname">ctx</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> registration context to adapt to <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html" title="Plain component registration descriptor shared by typed and runtime component paths....">ComponentDesc</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Newly allocated component cache item; release with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="ad15ac5fbe210e3afd3b1b7b39bf9c06d" name="ad15ac5fbe210e3afd3b1b7b39bf9c06d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad15ac5fbe210e3afd3b1b7b39bf9c06d">&#9670;&#160;</a></span>create() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> * gaia::ecs::ComponentCacheItem::create </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;&#160;</td>
+          <td class="paramname"><em>desc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates metadata from a plain component descriptor. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity that owns the resulting metadata. </td></tr>
+    <tr><td class="paramname">desc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> descriptor describing storage, lifecycle, and runtime type metadata. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Newly allocated component cache item; release with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="aaa295214469c4931fd9a0b0d06d459d9" name="aaa295214469c4931fd9a0b0d06d459d9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaa295214469c4931fd9a0b0d06d459d9">&#9670;&#160;</a></span>ctor_copy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::ctor_copy </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>pSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeSrc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Copy-constructs one component value from another value. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pDst</td><td>Destination component storage base pointer. </td></tr>
+    <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
+    <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
+    <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aaed6611b743bfc5791ff006c8112c38d" name="aaed6611b743bfc5791ff006c8112c38d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaed6611b743bfc5791ff006c8112c38d">&#9670;&#160;</a></span>ctor_move()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::ctor_move </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeSrc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Move-constructs one component value from another value. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pDst</td><td>Destination component storage base pointer. </td></tr>
+    <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
+    <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
+    <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a9ba3fb65170337e78aa182035b3da6ec" name="a9ba3fb65170337e78aa182035b3da6ec"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9ba3fb65170337e78aa182035b3da6ec">&#9670;&#160;</a></span>destroy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void gaia::ecs::ComponentCacheItem::destroy </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td>
+          <td class="paramname"><em>pItem</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Releases a cache item and any owned symbol storage. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pItem</td><td>Cache item created by <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a656599b547bb826c777f6b506ad53124" title="Creates metadata for a compile-time C++ component type.">create()</a>; null is accepted. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a92bfa8d53c756a15e67cac653f0d9170" name="a92bfa8d53c756a15e67cac653f0d9170"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a92bfa8d53c756a15e67cac653f0d9170">&#9670;&#160;</a></span>dtor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::dtor </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pSrc</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Destroys one component value when a destructor callback is registered. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pSrc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> value pointer. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="adaf218802b89f650185705856a3da74c" name="adaf218802b89f650185705856a3da74c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adaf218802b89f650185705856a3da74c">&#9670;&#160;</a></span>field() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> * gaia::ecs::ComponentCacheItem::field </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Looks up runtime field metadata by index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Field index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Field metadata pointer when found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a0e5ceef5d945f7dd4785098ec62c2701" name="a0e5ceef5d945f7dd4785098ec62c2701"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e5ceef5d945f7dd4785098ec62c2701">&#9670;&#160;</a></span>field() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> * gaia::ecs::ComponentCacheItem::field </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a>&#160;</td>
+          <td class="paramname"><em>fieldName</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Looks up runtime field metadata by name. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">fieldName</td><td>Field name. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Field metadata pointer when found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a98841077a09d492e7ae1e7efe04eeabb" name="a98841077a09d492e7ae1e7efe04eeabb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a98841077a09d492e7ae1e7efe04eeabb">&#9670;&#160;</a></span>field_count()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::field_count </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Number of runtime fields registered on this component. </dd></dl>
+
+</div>
+</div>
+<a id="ae51b1af33c0177de656bada7c5677a53" name="ae51b1af33c0177de656bada7c5677a53"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae51b1af33c0177de656bada7c5677a53">&#9670;&#160;</a></span>field_element_count() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::field_element_count </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a429c12b5493e0dc134ce1d91ffcb5b57">RuntimeField</a> &amp;&#160;</td>
+          <td class="paramname"><em>field</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Gets the element count represented by stored runtime field metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">field</td><td>Stored field metadata to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 for scalar fields, otherwise the fixed inline array count. </dd></dl>
+
+</div>
+</div>
+<a id="afa959f10eb404ad6904ad0647e16ed68" name="afa959f10eb404ad6904ad0647e16ed68"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afa959f10eb404ad6904ad0647e16ed68">&#9670;&#160;</a></span>field_element_count() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::field_element_count </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> &amp;&#160;</td>
+          <td class="paramname"><em>field</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Gets the element count represented by a runtime field descriptor. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">field</td><td>Field descriptor to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>1 for scalar fields, otherwise the fixed inline array count. </dd></dl>
+
+</div>
+</div>
+<a id="a5e100c5b5c09ed74c51302d7e9103d49" name="a5e100c5b5c09ed74c51302d7e9103d49"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5e100c5b5c09ed74c51302d7e9103d49">&#9670;&#160;</a></span>has_fields()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentCacheItem::has_fields </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>True when this component has runtime field metadata. </dd></dl>
+
+</div>
+</div>
+<a id="a4d3712ccd5313708c511052bfc59cadf" name="a4d3712ccd5313708c511052bfc59cadf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4d3712ccd5313708c511052bfc59cadf">&#9670;&#160;</a></span>load()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::load </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;&#160;</td>
+          <td class="paramname"><em>serializer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>from</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>to</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cap</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Loads a contiguous range of component values. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">serializer</td><td>Source serializer. </td></tr>
+    <tr><td class="paramname">pDst</td><td>Destination component storage base pointer. </td></tr>
+    <tr><td class="paramname">from</td><td>First value index to load. </td></tr>
+    <tr><td class="paramname">to</td><td>One-past-last value index to load. </td></tr>
+    <tr><td class="paramname">cap</td><td>Value capacity of the destination storage. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a266919fe6047bd140dd982c24759e6f0" name="a266919fe6047bd140dd982c24759e6f0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a266919fe6047bd140dd982c24759e6f0">&#9670;&#160;</a></span>move()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::move </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeSrc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Moves one existing component value into another value. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pDst</td><td>Destination component storage base pointer. </td></tr>
+    <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
+    <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
+    <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="af53f4116cb1c8c7c25c28e635fbbe606" name="af53f4116cb1c8c7c25c28e635fbbe606"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af53f4116cb1c8c7c25c28e635fbbe606">&#9670;&#160;</a></span>primitive_type_size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::primitive_type_size </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>type</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Gets the byte size of a reflected primitive runtime type entity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">type</td><td>Primitive type entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Primitive byte size, or 0 when <em>type</em> is not a reflected primitive type. </dd></dl>
+
+</div>
+</div>
+<a id="a9c1da4b451957eca621b27dad5634863" name="a9c1da4b451957eca621b27dad5634863"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9c1da4b451957eca621b27dad5634863">&#9670;&#160;</a></span>save()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::save </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;&#160;</td>
+          <td class="paramname"><em>serializer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>pSrc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>from</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>to</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cap</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Saves a contiguous range of component values. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">serializer</td><td>Destination serializer. </td></tr>
+    <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
+    <tr><td class="paramname">from</td><td>First value index to save. </td></tr>
+    <tr><td class="paramname">to</td><td>One-past-last value index to save. </td></tr>
+    <tr><td class="paramname">cap</td><td>Value capacity of the source storage. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ace7eb194486071642daf29a39f5e947d" name="ace7eb194486071642daf29a39f5e947d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ace7eb194486071642daf29a39f5e947d">&#9670;&#160;</a></span>swap()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentCacheItem::swap </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pLeft</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pRight</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxLeft</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxRight</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeDst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>sizeSrc</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Swaps two component values. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pLeft</td><td>Left component storage base pointer. </td></tr>
+    <tr><td class="paramname">pRight</td><td>Right component storage base pointer. </td></tr>
+    <tr><td class="paramname">idxLeft</td><td>Left value index. </td></tr>
+    <tr><td class="paramname">idxRight</td><td>Right value index. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Left value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Right value stride in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="component__cache__item_8h_source.html">component_cache_item.h</a></li>
 </ul>

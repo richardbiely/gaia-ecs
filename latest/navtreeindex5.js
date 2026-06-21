@@ -1,5 +1,9 @@
 var NAVTREEINDEX5 =
 {
+"index.html#repository-structure":[5],
+"index.html#requirements":[3],
+"index.html#runtime-serialization":[2,8,1],
+"index.html#safeentity":[2,1,14,0],
 "index.html#sanitizers":[4,0,1],
 "index.html#scheduler-adapters":[2,9,6],
 "index.html#serialization":[2,8],
@@ -245,9 +249,5 @@ var NAVTREEINDEX5 =
 "structgaia_1_1core_1_1forward__iterator__tag.html":[10,0,0,1,7],
 "structgaia_1_1core_1_1func__type__list.html":[10,0,0,1,8],
 "structgaia_1_1core_1_1has__data__size.html":[10,0,0,1,9],
-"structgaia_1_1core_1_1has__data__size_3_01T_00_01std_1_1void__t_3_01decltype_07detail_1_1data_0731442a81cf4e1da91ee338fd93279e3c.html":[10,0,0,1,10],
-"structgaia_1_1core_1_1has__ffunc__equals.html":[10,0,0,1,11],
-"structgaia_1_1core_1_1has__ffunc__equals.html#a64eeb7bc7e92e24a83b81fa243e3b4eb":[10,0,0,1,11,0],
-"structgaia_1_1core_1_1has__func__equals.html":[10,0,0,1,12],
-"structgaia_1_1core_1_1has__func__equals.html#a2518a629739270d39f9356dc27aeef47":[10,0,0,1,12,0]
+"structgaia_1_1core_1_1has__data__size_3_01T_00_01std_1_1void__t_3_01decltype_07detail_1_1data_0731442a81cf4e1da91ee338fd93279e3c.html":[10,0,0,1,10]
 };

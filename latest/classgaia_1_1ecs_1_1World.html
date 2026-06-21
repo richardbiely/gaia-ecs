@@ -363,9 +363,12 @@ GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3ecd256e20fc18e2a07bd190c706f3a7">add</a> ()</td></tr>
 <tr class="memdesc:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new component if not found already.  <br /></td></tr>
 <tr class="separator:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a55c781c24269ed3f2801f88c8f89f7e5" id="r_a55c781c24269ed3f2801f88c8f89f7e5"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a55c781c24269ed3f2801f88c8f89f7e5">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;item, EntityKind kind=EntityKind::EK_Gen)</td></tr>
-<tr class="memdesc:a55c781c24269ed3f2801f88c8f89f7e5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component if not found already.  <br /></td></tr>
-<tr class="separator:a55c781c24269ed3f2801f88c8f89f7e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa3ca566ba0ec0108871bd831d88d7081" id="r_aa3ca566ba0ec0108871bd831d88d7081"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa3ca566ba0ec0108871bd831d88d7081">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;desc, EntityKind kind=EntityKind::EK_Gen)</td></tr>
+<tr class="memdesc:aa3ca566ba0ec0108871bd831d88d7081"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component from a plain component descriptor if not found already.  <br /></td></tr>
+<tr class="separator:aa3ca566ba0ec0108871bd831d88d7081"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ac12c1c3991ba1778b9c15a935df52a6e" id="r_ac12c1c3991ba1778b9c15a935df52a6e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac12c1c3991ba1778b9c15a935df52a6e">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;item, EntityKind kind=EntityKind::EK_Gen)</td></tr>
+<tr class="memdesc:ac12c1c3991ba1778b9c15a935df52a6e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component if not found already.  <br /></td></tr>
+<tr class="separator:ac12c1c3991ba1778b9c15a935df52a6e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40506c3fce6bd1ae3d902d556f679e75" id="r_a40506c3fce6bd1ae3d902d556f679e75"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40506c3fce6bd1ae3d902d556f679e75">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object)</td></tr>
 <tr class="memdesc:a40506c3fce6bd1ae3d902d556f679e75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attaches entity <em>object</em> to entity <em>entity</em>.  <br /></td></tr>
 <tr class="separator:a40506c3fce6bd1ae3d902d556f679e75"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -520,7 +523,7 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memdesc:a4504bee3c0f44295d492cdb54d8a008e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor over a chunk-backed AoS runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for a chunk-backed AoS component on entity. Inherited ids resolve to the ...">get_raw()</a>. The returned cursor is invalid when raw access is unsupported.  <br /></td></tr>
 <tr class="separator:a4504bee3c0f44295d492cdb54d8a008e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a613e6099c54153a6340c1efa389c2b8f" id="r_a613e6099c54153a6340c1efa389c2b8f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a613e6099c54153a6340c1efa389c2b8f">cursor_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a613e6099c54153a6340c1efa389c2b8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86" title="Writes exact bytes to the current cursor position.">ComponentCursor::write_bytes()</a> finishes the root component write automatically.  <br /></td></tr>
+<tr class="memdesc:a613e6099c54153a6340c1efa389c2b8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically.  <br /></td></tr>
 <tr class="separator:a613e6099c54153a6340c1efa389c2b8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20fc4b3bad2ca1d55175c6345db01091" id="r_a20fc4b3bad2ca1d55175c6345db01091"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a20fc4b3bad2ca1d55175c6345db01091">add_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>)</td></tr>
 <tr class="memdesc:a20fc4b3bad2ca1d55175c6345db01091"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a chunk-backed AoS component and initializes its raw payload before <code>OnAdd</code> observers run.  <br /></td></tr>
@@ -1070,7 +1073,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </div>
 </div>
 <a id="a3ecd256e20fc18e2a07bd190c706f3a7" name="a3ecd256e20fc18e2a07bd190c706f3a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1105,8 +1108,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="a55c781c24269ed3f2801f88c8f89f7e5" name="a55c781c24269ed3f2801f88c8f89f7e5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a55c781c24269ed3f2801f88c8f89f7e5">&#9670;&#160;</a></span>add() <span class="overload">[2/8]</span></h2>
+<a id="ac12c1c3991ba1778b9c15a935df52a6e" name="ac12c1c3991ba1778b9c15a935df52a6e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac12c1c3991ba1778b9c15a935df52a6e">&#9670;&#160;</a></span>add() <span class="overload">[2/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1115,7 +1118,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp; gaia::ecs::World::add </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp; gaia::ecs::World::add </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;&#160;</td>
           <td class="paramname"><em>item</em>, </td>
@@ -1147,12 +1150,58 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache item of the component. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable component cache item of the component. </dd></dl>
+
+</div>
+</div>
+<a id="aa3ca566ba0ec0108871bd831d88d7081" name="aa3ca566ba0ec0108871bd831d88d7081"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[3/9]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp; gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;&#160;</td>
+          <td class="paramname"><em>desc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">EntityKind&#160;</td>
+          <td class="paramname"><em>kind</em> = <code>EntityKind::EK_Gen</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a new runtime component from a plain component descriptor if not found already. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">desc</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> registration descriptor. </td></tr>
+    <tr><td class="paramname">kind</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> kind assigned to the new component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable component cache item of the component. </dd></dl>
 
 </div>
 </div>
 <a id="a53f667ddfe6c1f3ec42cdb398b6024fc" name="a53f667ddfe6c1f3ec42cdb398b6024fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[3/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[4/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1197,7 +1246,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a40506c3fce6bd1ae3d902d556f679e75" name="a40506c3fce6bd1ae3d902d556f679e75"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[4/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[5/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1243,7 +1292,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a730bd1293329308354b59967bc08a19a" name="a730bd1293329308354b59967bc08a19a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[5/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[6/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1302,7 +1351,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a950a809f79f42dde23d9b82f7059a825" name="a950a809f79f42dde23d9b82f7059a825"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[6/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[7/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1348,7 +1397,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a4cc525cae8ef955e749e3e9e7796ec3d" name="a4cc525cae8ef955e749e3e9e7796ec3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[7/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[8/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1404,7 +1453,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a8e6ec95684084c20c5bb3361f74292cd" name="a8e6ec95684084c20c5bb3361f74292cd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[8/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[9/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2833,7 +2882,7 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 </table>
 </div><div class="memdoc">
 
-<p>Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86" title="Writes exact bytes to the current cursor position.">ComponentCursor::write_bytes()</a> finishes the root component write automatically. </p>
+<p>Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>

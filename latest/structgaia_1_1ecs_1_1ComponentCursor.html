@@ -148,15 +148,131 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ade35db8c4fb1718f5357ed1c9f38d173" id="r_ade35db8c4fb1718f5357ed1c9f38d173"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ade35db8c4fb1718f5357ed1c9f38d173">field</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> name)</td></tr>
 <tr class="memdesc:ade35db8c4fb1718f5357ed1c9f38d173"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into the reflected field named <em>name</em>.  <br /></td></tr>
 <tr class="separator:ade35db8c4fb1718f5357ed1c9f38d173"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa3e6779423b6ade7808f726f63153b2f" id="r_aa3e6779423b6ade7808f726f63153b2f"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa3e6779423b6ade7808f726f63153b2f">elem</a> (uint32_t index) noexcept</td></tr>
+<tr class="memdesc:aa3e6779423b6ade7808f726f63153b2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into element <em>index</em> of the current fixed inline array field.  <br /></td></tr>
+<tr class="separator:aa3e6779423b6ade7808f726f63153b2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a577e46ab0ebfeaed9c22dc2cff58dd22" id="r_a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a577e46ab0ebfeaed9c22dc2cff58dd22">parent</a> () noexcept</td></tr>
 <tr class="memdesc:a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves back to the parent cursor scope.  <br /></td></tr>
 <tr class="separator:a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a78d9aaa1b7707c8bae838c7696b128eb" id="r_a78d9aaa1b7707c8bae838c7696b128eb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a78d9aaa1b7707c8bae838c7696b128eb">get_f32</a> (float *value) const noexcept</td></tr>
-<tr class="memdesc:a78d9aaa1b7707c8bae838c7696b128eb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor bytes as a scalar f32 convenience value.  <br /></td></tr>
-<tr class="separator:a78d9aaa1b7707c8bae838c7696b128eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa8a8739b85f7759188fa09dc14498e86" id="r_aa8a8739b85f7759188fa09dc14498e86"><td class="memItemLeft" align="right" valign="top">ComponentWriteResult&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa8a8739b85f7759188fa09dc14498e86">write_bytes</a> (const void *data, uint32_t byteCount) noexcept</td></tr>
-<tr class="memdesc:aa8a8739b85f7759188fa09dc14498e86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes exact bytes to the current cursor position.  <br /></td></tr>
-<tr class="separator:aa8a8739b85f7759188fa09dc14498e86"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6abdab7ca94cab33daeaf36019b4d1a0" id="r_a6abdab7ca94cab33daeaf36019b4d1a0"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; bool &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a6abdab7ca94cab33daeaf36019b4d1a0">b</a> () const noexcept</td></tr>
+<tr class="memdesc:a6abdab7ca94cab33daeaf36019b4d1a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a bool.  <br /></td></tr>
+<tr class="separator:a6abdab7ca94cab33daeaf36019b4d1a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a60ddf4409cd6bc4ef2c6da3022331100" id="r_a60ddf4409cd6bc4ef2c6da3022331100"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a60ddf4409cd6bc4ef2c6da3022331100">b</a> (bool value) noexcept</td></tr>
+<tr class="memdesc:a60ddf4409cd6bc4ef2c6da3022331100"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a bool.  <br /></td></tr>
+<tr class="separator:a60ddf4409cd6bc4ef2c6da3022331100"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6b9b111f8ca29addde2ad88312de3378" id="r_a6b9b111f8ca29addde2ad88312de3378"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a6b9b111f8ca29addde2ad88312de3378">c8</a> () const noexcept</td></tr>
+<tr class="memdesc:a6b9b111f8ca29addde2ad88312de3378"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a scalar c8.  <br /></td></tr>
+<tr class="separator:a6b9b111f8ca29addde2ad88312de3378"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e4ddd2d4ced16eca0c89c4a25fbcc49" id="r_a5e4ddd2d4ced16eca0c89c4a25fbcc49"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5e4ddd2d4ced16eca0c89c4a25fbcc49">c8</a> (char value) noexcept</td></tr>
+<tr class="memdesc:a5e4ddd2d4ced16eca0c89c4a25fbcc49"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a scalar c8.  <br /></td></tr>
+<tr class="separator:a5e4ddd2d4ced16eca0c89c4a25fbcc49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3478e1fefecc1d80cc10fad506ff907" id="r_af3478e1fefecc1d80cc10fad506ff907"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#af3478e1fefecc1d80cc10fad506ff907">c8</a> (char *dst, uint32_t cap) noexcept</td></tr>
+<tr class="memdesc:af3478e1fefecc1d80cc10fad506ff907"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current fixed c8 buffer.  <br /></td></tr>
+<tr class="separator:af3478e1fefecc1d80cc10fad506ff907"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0e5ce32584b54180c170f0432cb21ae1" id="r_a0e5ce32584b54180c170f0432cb21ae1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a0e5ce32584b54180c170f0432cb21ae1">c8</a> (char *dst, uint32_t cap) const noexcept</td></tr>
+<tr class="memdesc:a0e5ce32584b54180c170f0432cb21ae1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current fixed c8 buffer.  <br /></td></tr>
+<tr class="separator:a0e5ce32584b54180c170f0432cb21ae1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2f0dcef07ecf7df5e362e6ec9be5cacf" id="r_a2f0dcef07ecf7df5e362e6ec9be5cacf"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a2f0dcef07ecf7df5e362e6ec9be5cacf">c8</a> (const char *src, uint32_t len) noexcept</td></tr>
+<tr class="memdesc:a2f0dcef07ecf7df5e362e6ec9be5cacf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes bytes to the current fixed c8 buffer.  <br /></td></tr>
+<tr class="separator:a2f0dcef07ecf7df5e362e6ec9be5cacf"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1cfd2c77bc05eb23282234ee230a8f52" id="r_a1cfd2c77bc05eb23282234ee230a8f52"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char16_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a1cfd2c77bc05eb23282234ee230a8f52">c16</a> () const noexcept</td></tr>
+<tr class="memdesc:a1cfd2c77bc05eb23282234ee230a8f52"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a scalar c16.  <br /></td></tr>
+<tr class="separator:a1cfd2c77bc05eb23282234ee230a8f52"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7e2bd037195885c95b40e622541841bc" id="r_a7e2bd037195885c95b40e622541841bc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a7e2bd037195885c95b40e622541841bc">c16</a> (char16_t value) noexcept</td></tr>
+<tr class="memdesc:a7e2bd037195885c95b40e622541841bc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a scalar c16.  <br /></td></tr>
+<tr class="separator:a7e2bd037195885c95b40e622541841bc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a85ae0f7444723d2483b5eddc2fe88946" id="r_a85ae0f7444723d2483b5eddc2fe88946"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a85ae0f7444723d2483b5eddc2fe88946">c32</a> () const noexcept</td></tr>
+<tr class="memdesc:a85ae0f7444723d2483b5eddc2fe88946"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a scalar c32.  <br /></td></tr>
+<tr class="separator:a85ae0f7444723d2483b5eddc2fe88946"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6a9439e5e7633380620c8f074f7f569b" id="r_a6a9439e5e7633380620c8f074f7f569b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a6a9439e5e7633380620c8f074f7f569b">c32</a> (char32_t value) noexcept</td></tr>
+<tr class="memdesc:a6a9439e5e7633380620c8f074f7f569b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a scalar c32.  <br /></td></tr>
+<tr class="separator:a6a9439e5e7633380620c8f074f7f569b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5a15f32ad8e067052bcf4ec3ecefcd5d" id="r_a5a15f32ad8e067052bcf4ec3ecefcd5d"><td class="memItemLeft" align="right" valign="top"><a id="a5a15f32ad8e067052bcf4ec3ecefcd5d" name="a5a15f32ad8e067052bcf4ec3ecefcd5d"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; int8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s8</b> () const noexcept</td></tr>
+<tr class="memdesc:a5a15f32ad8e067052bcf4ec3ecefcd5d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an s8. <br /></td></tr>
+<tr class="separator:a5a15f32ad8e067052bcf4ec3ecefcd5d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad08a858abbacad73387454d07b28d41c" id="r_ad08a858abbacad73387454d07b28d41c"><td class="memItemLeft" align="right" valign="top"><a id="ad08a858abbacad73387454d07b28d41c" name="ad08a858abbacad73387454d07b28d41c"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s8</b> (int8_t value) noexcept</td></tr>
+<tr class="memdesc:ad08a858abbacad73387454d07b28d41c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an s8. <br /></td></tr>
+<tr class="separator:ad08a858abbacad73387454d07b28d41c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a467786a0774b97570f4256fce9d7a394" id="r_a467786a0774b97570f4256fce9d7a394"><td class="memItemLeft" align="right" valign="top"><a id="a467786a0774b97570f4256fce9d7a394" name="a467786a0774b97570f4256fce9d7a394"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u8</b> () const noexcept</td></tr>
+<tr class="memdesc:a467786a0774b97570f4256fce9d7a394"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a u8. <br /></td></tr>
+<tr class="separator:a467786a0774b97570f4256fce9d7a394"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae33d715837d0b36b98ad9399f991f345" id="r_ae33d715837d0b36b98ad9399f991f345"><td class="memItemLeft" align="right" valign="top"><a id="ae33d715837d0b36b98ad9399f991f345" name="ae33d715837d0b36b98ad9399f991f345"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u8</b> (uint8_t value) noexcept</td></tr>
+<tr class="memdesc:ae33d715837d0b36b98ad9399f991f345"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a u8. <br /></td></tr>
+<tr class="separator:ae33d715837d0b36b98ad9399f991f345"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a39b0ce5116fb98f14ff9464c260f3bce" id="r_a39b0ce5116fb98f14ff9464c260f3bce"><td class="memItemLeft" align="right" valign="top"><a id="a39b0ce5116fb98f14ff9464c260f3bce" name="a39b0ce5116fb98f14ff9464c260f3bce"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; int16_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s16</b> () const noexcept</td></tr>
+<tr class="memdesc:a39b0ce5116fb98f14ff9464c260f3bce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an s16. <br /></td></tr>
+<tr class="separator:a39b0ce5116fb98f14ff9464c260f3bce"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb7678c69d346e9ba23fcb2b8550cd7e" id="r_afb7678c69d346e9ba23fcb2b8550cd7e"><td class="memItemLeft" align="right" valign="top"><a id="afb7678c69d346e9ba23fcb2b8550cd7e" name="afb7678c69d346e9ba23fcb2b8550cd7e"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s16</b> (int16_t value) noexcept</td></tr>
+<tr class="memdesc:afb7678c69d346e9ba23fcb2b8550cd7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an s16. <br /></td></tr>
+<tr class="separator:afb7678c69d346e9ba23fcb2b8550cd7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6ad334f5bfda0927c2972c1c8fb9e2af" id="r_a6ad334f5bfda0927c2972c1c8fb9e2af"><td class="memItemLeft" align="right" valign="top"><a id="a6ad334f5bfda0927c2972c1c8fb9e2af" name="a6ad334f5bfda0927c2972c1c8fb9e2af"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint16_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u16</b> () const noexcept</td></tr>
+<tr class="memdesc:a6ad334f5bfda0927c2972c1c8fb9e2af"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a u16. <br /></td></tr>
+<tr class="separator:a6ad334f5bfda0927c2972c1c8fb9e2af"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7743563df21359c8f6cb48043c4a4688" id="r_a7743563df21359c8f6cb48043c4a4688"><td class="memItemLeft" align="right" valign="top"><a id="a7743563df21359c8f6cb48043c4a4688" name="a7743563df21359c8f6cb48043c4a4688"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u16</b> (uint16_t value) noexcept</td></tr>
+<tr class="memdesc:a7743563df21359c8f6cb48043c4a4688"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a u16. <br /></td></tr>
+<tr class="separator:a7743563df21359c8f6cb48043c4a4688"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa835821b322299e0113b13bfa3a49fd8" id="r_aa835821b322299e0113b13bfa3a49fd8"><td class="memItemLeft" align="right" valign="top"><a id="aa835821b322299e0113b13bfa3a49fd8" name="aa835821b322299e0113b13bfa3a49fd8"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; int32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s32</b> () const noexcept</td></tr>
+<tr class="memdesc:aa835821b322299e0113b13bfa3a49fd8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an s32. <br /></td></tr>
+<tr class="separator:aa835821b322299e0113b13bfa3a49fd8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afe431c9f65eabaacdf3ab2bbc5856705" id="r_afe431c9f65eabaacdf3ab2bbc5856705"><td class="memItemLeft" align="right" valign="top"><a id="afe431c9f65eabaacdf3ab2bbc5856705" name="afe431c9f65eabaacdf3ab2bbc5856705"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s32</b> (int32_t value) noexcept</td></tr>
+<tr class="memdesc:afe431c9f65eabaacdf3ab2bbc5856705"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an s32. <br /></td></tr>
+<tr class="separator:afe431c9f65eabaacdf3ab2bbc5856705"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1b207f902f500b55c66cd4053b787716" id="r_a1b207f902f500b55c66cd4053b787716"><td class="memItemLeft" align="right" valign="top"><a id="a1b207f902f500b55c66cd4053b787716" name="a1b207f902f500b55c66cd4053b787716"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u32</b> () const noexcept</td></tr>
+<tr class="memdesc:a1b207f902f500b55c66cd4053b787716"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a u32. <br /></td></tr>
+<tr class="separator:a1b207f902f500b55c66cd4053b787716"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8686876bc2f03543541ca3d3a595983e" id="r_a8686876bc2f03543541ca3d3a595983e"><td class="memItemLeft" align="right" valign="top"><a id="a8686876bc2f03543541ca3d3a595983e" name="a8686876bc2f03543541ca3d3a595983e"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u32</b> (uint32_t value) noexcept</td></tr>
+<tr class="memdesc:a8686876bc2f03543541ca3d3a595983e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a u32. <br /></td></tr>
+<tr class="separator:a8686876bc2f03543541ca3d3a595983e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6d6dd428ea416485d089b7eae35a4c71" id="r_a6d6dd428ea416485d089b7eae35a4c71"><td class="memItemLeft" align="right" valign="top"><a id="a6d6dd428ea416485d089b7eae35a4c71" name="a6d6dd428ea416485d089b7eae35a4c71"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; int64_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s64</b> () const noexcept</td></tr>
+<tr class="memdesc:a6d6dd428ea416485d089b7eae35a4c71"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an s64. <br /></td></tr>
+<tr class="separator:a6d6dd428ea416485d089b7eae35a4c71"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7ebb0065bb1d401730992ee05a5e7be1" id="r_a7ebb0065bb1d401730992ee05a5e7be1"><td class="memItemLeft" align="right" valign="top"><a id="a7ebb0065bb1d401730992ee05a5e7be1" name="a7ebb0065bb1d401730992ee05a5e7be1"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>s64</b> (int64_t value) noexcept</td></tr>
+<tr class="memdesc:a7ebb0065bb1d401730992ee05a5e7be1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an s64. <br /></td></tr>
+<tr class="separator:a7ebb0065bb1d401730992ee05a5e7be1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1713ef1305159a9bb445a7c9a85c601e" id="r_a1713ef1305159a9bb445a7c9a85c601e"><td class="memItemLeft" align="right" valign="top"><a id="a1713ef1305159a9bb445a7c9a85c601e" name="a1713ef1305159a9bb445a7c9a85c601e"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint64_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u64</b> () const noexcept</td></tr>
+<tr class="memdesc:a1713ef1305159a9bb445a7c9a85c601e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as a u64. <br /></td></tr>
+<tr class="separator:a1713ef1305159a9bb445a7c9a85c601e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8bf3296f2d4ad37b8d594e32345c716a" id="r_a8bf3296f2d4ad37b8d594e32345c716a"><td class="memItemLeft" align="right" valign="top"><a id="a8bf3296f2d4ad37b8d594e32345c716a" name="a8bf3296f2d4ad37b8d594e32345c716a"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>u64</b> (uint64_t value) noexcept</td></tr>
+<tr class="memdesc:a8bf3296f2d4ad37b8d594e32345c716a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as a u64. <br /></td></tr>
+<tr class="separator:a8bf3296f2d4ad37b8d594e32345c716a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f9db726bf71e1fbc35b1b274ee87c95" id="r_a0f9db726bf71e1fbc35b1b274ee87c95"><td class="memItemLeft" align="right" valign="top"><a id="a0f9db726bf71e1fbc35b1b274ee87c95" name="a0f9db726bf71e1fbc35b1b274ee87c95"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; float &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>f32</b> () const noexcept</td></tr>
+<tr class="memdesc:a0f9db726bf71e1fbc35b1b274ee87c95"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an f32. <br /></td></tr>
+<tr class="separator:a0f9db726bf71e1fbc35b1b274ee87c95"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6a5722ff0286bdd74ab9c1542f969be3" id="r_a6a5722ff0286bdd74ab9c1542f969be3"><td class="memItemLeft" align="right" valign="top"><a id="a6a5722ff0286bdd74ab9c1542f969be3" name="a6a5722ff0286bdd74ab9c1542f969be3"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>f32</b> (float value) noexcept</td></tr>
+<tr class="memdesc:a6a5722ff0286bdd74ab9c1542f969be3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an f32. <br /></td></tr>
+<tr class="separator:a6a5722ff0286bdd74ab9c1542f969be3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a05bf5405e632e8bf1f4ed9be4d91aaf0" id="r_a05bf5405e632e8bf1f4ed9be4d91aaf0"><td class="memItemLeft" align="right" valign="top"><a id="a05bf5405e632e8bf1f4ed9be4d91aaf0" name="a05bf5405e632e8bf1f4ed9be4d91aaf0"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; double &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>f64</b> () const noexcept</td></tr>
+<tr class="memdesc:a05bf5405e632e8bf1f4ed9be4d91aaf0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads the current cursor value as an f64. <br /></td></tr>
+<tr class="separator:a05bf5405e632e8bf1f4ed9be4d91aaf0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1ffac820c5dffec2d26b971b0094ef42" id="r_a1ffac820c5dffec2d26b971b0094ef42"><td class="memItemLeft" align="right" valign="top"><a id="a1ffac820c5dffec2d26b971b0094ef42" name="a1ffac820c5dffec2d26b971b0094ef42"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>f64</b> (double value) noexcept</td></tr>
+<tr class="memdesc:a1ffac820c5dffec2d26b971b0094ef42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes <em>value</em> to the current cursor value as an f64. <br /></td></tr>
+<tr class="separator:a1ffac820c5dffec2d26b971b0094ef42"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a43cf0f37edc75e3439402870ae947e4b" id="r_a43cf0f37edc75e3439402870ae947e4b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a43cf0f37edc75e3439402870ae947e4b">get_raw</a> (void *data, uint32_t byteCount) const noexcept</td></tr>
+<tr class="memdesc:a43cf0f37edc75e3439402870ae947e4b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies exact bytes from the current cursor position.  <br /></td></tr>
+<tr class="separator:a43cf0f37edc75e3439402870ae947e4b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae5d954df5878702e0e223d2b24048772" id="r_ae5d954df5878702e0e223d2b24048772"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772">set_raw</a> (const void *data, uint32_t byteCount) noexcept</td></tr>
+<tr class="memdesc:ae5d954df5878702e0e223d2b24048772"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes exact bytes to the current cursor position.  <br /></td></tr>
+<tr class="separator:ae5d954df5878702e0e223d2b24048772"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
@@ -178,6 +294,396 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <div class="textblock"><p>Stack-only cursor over raw component bytes and runtime field metadata. </p>
 <p>The cursor is a short-lived non-owning view. It never owns component bytes or metadata and is invalidated by structural changes that can move component storage. Field navigation is strict: missing fields, unsupported type metadata, and out-of-bounds field ranges leave the cursor unchanged. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a6abdab7ca94cab33daeaf36019b4d1a0" name="a6abdab7ca94cab33daeaf36019b4d1a0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6abdab7ca94cab33daeaf36019b4d1a0">&#9670;&#160;</a></span>b() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; bool &gt; gaia::ecs::ComponentCursor::b </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current cursor value as a bool. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read result and value. </dd></dl>
+
+</div>
+</div>
+<a id="a60ddf4409cd6bc4ef2c6da3022331100" name="a60ddf4409cd6bc4ef2c6da3022331100"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a60ddf4409cd6bc4ef2c6da3022331100">&#9670;&#160;</a></span>b() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::b </td>
+          <td>(</td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes <em>value</em> to the current cursor value as a bool. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to write. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write result. </dd></dl>
+
+</div>
+</div>
+<a id="a1cfd2c77bc05eb23282234ee230a8f52" name="a1cfd2c77bc05eb23282234ee230a8f52"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1cfd2c77bc05eb23282234ee230a8f52">&#9670;&#160;</a></span>c16() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char16_t &gt; gaia::ecs::ComponentCursor::c16 </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current cursor value as a scalar c16. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read result and value. </dd></dl>
+
+</div>
+</div>
+<a id="a7e2bd037195885c95b40e622541841bc" name="a7e2bd037195885c95b40e622541841bc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7e2bd037195885c95b40e622541841bc">&#9670;&#160;</a></span>c16() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::c16 </td>
+          <td>(</td>
+          <td class="paramtype">char16_t&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes <em>value</em> to the current cursor value as a scalar c16. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to write. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write result. </dd></dl>
+
+</div>
+</div>
+<a id="a85ae0f7444723d2483b5eddc2fe88946" name="a85ae0f7444723d2483b5eddc2fe88946"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a85ae0f7444723d2483b5eddc2fe88946">&#9670;&#160;</a></span>c32() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char32_t &gt; gaia::ecs::ComponentCursor::c32 </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current cursor value as a scalar c32. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read result and value. </dd></dl>
+
+</div>
+</div>
+<a id="a6a9439e5e7633380620c8f074f7f569b" name="a6a9439e5e7633380620c8f074f7f569b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6a9439e5e7633380620c8f074f7f569b">&#9670;&#160;</a></span>c32() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::c32 </td>
+          <td>(</td>
+          <td class="paramtype">char32_t&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes <em>value</em> to the current cursor value as a scalar c32. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to write. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write result. </dd></dl>
+
+</div>
+</div>
+<a id="a6b9b111f8ca29addde2ad88312de3378" name="a6b9b111f8ca29addde2ad88312de3378"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6b9b111f8ca29addde2ad88312de3378">&#9670;&#160;</a></span>c8() <span class="overload">[1/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; char &gt; gaia::ecs::ComponentCursor::c8 </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current cursor value as a scalar c8. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read result and value. </dd></dl>
+
+</div>
+</div>
+<a id="a0e5ce32584b54180c170f0432cb21ae1" name="a0e5ce32584b54180c170f0432cb21ae1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e5ce32584b54180c170f0432cb21ae1">&#9670;&#160;</a></span>c8() <span class="overload">[2/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt; gaia::ecs::ComponentCursor::c8 </td>
+          <td>(</td>
+          <td class="paramtype">char *&#160;</td>
+          <td class="paramname"><em>dst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cap</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current fixed c8 buffer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">dst</td><td>Destination buffer receiving bytes. </td></tr>
+    <tr><td class="paramname">cap</td><td>Destination buffer size in bytes. Must be at least the reflected field count. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read result and copied byte count. </dd></dl>
+
+</div>
+</div>
+<a id="af3478e1fefecc1d80cc10fad506ff907" name="af3478e1fefecc1d80cc10fad506ff907"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af3478e1fefecc1d80cc10fad506ff907">&#9670;&#160;</a></span>c8() <span class="overload">[3/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt; gaia::ecs::ComponentCursor::c8 </td>
+          <td>(</td>
+          <td class="paramtype">char *&#160;</td>
+          <td class="paramname"><em>dst</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cap</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads the current fixed c8 buffer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">dst</td><td>Destination buffer receiving bytes. </td></tr>
+    <tr><td class="paramname">cap</td><td>Destination buffer size in bytes. Must be at least the reflected field count. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read result and copied byte count. </dd></dl>
+
+</div>
+</div>
+<a id="a5e4ddd2d4ced16eca0c89c4a25fbcc49" name="a5e4ddd2d4ced16eca0c89c4a25fbcc49"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5e4ddd2d4ced16eca0c89c4a25fbcc49">&#9670;&#160;</a></span>c8() <span class="overload">[4/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::c8 </td>
+          <td>(</td>
+          <td class="paramtype">char&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes <em>value</em> to the current cursor value as a scalar c8. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to write. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write result. </dd></dl>
+
+</div>
+</div>
+<a id="a2f0dcef07ecf7df5e362e6ec9be5cacf" name="a2f0dcef07ecf7df5e362e6ec9be5cacf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2f0dcef07ecf7df5e362e6ec9be5cacf">&#9670;&#160;</a></span>c8() <span class="overload">[5/5]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::c8 </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>src</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>len</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes bytes to the current fixed c8 buffer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">src</td><td>Source bytes to copy. </td></tr>
+    <tr><td class="paramname">len</td><td>Source byte count. Must fit in the reflected field count. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Write result. </dd></dl>
+
+</div>
+</div>
 <a id="a7011f4f5a7eee8365496b4cc1d072fd2" name="a7011f4f5a7eee8365496b4cc1d072fd2"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7011f4f5a7eee8365496b4cc1d072fd2">&#9670;&#160;</a></span>depth()</h2>
 
@@ -201,6 +707,41 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>Current nesting depth. Root payload is depth 0. </dd></dl>
+
+</div>
+</div>
+<a id="aa3e6779423b6ade7808f726f63153b2f" name="aa3e6779423b6ade7808f726f63153b2f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3e6779423b6ade7808f726f63153b2f">&#9670;&#160;</a></span>elem()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::ComponentCursor::elem </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Descends into element <em>index</em> of the current fixed inline array field. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Element index inside the current field. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the cursor moved to the element. </dd></dl>
 
 </div>
 </div>
@@ -420,8 +961,8 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 
 </div>
 </div>
-<a id="a78d9aaa1b7707c8bae838c7696b128eb" name="a78d9aaa1b7707c8bae838c7696b128eb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a78d9aaa1b7707c8bae838c7696b128eb">&#9670;&#160;</a></span>get_f32()</h2>
+<a id="a43cf0f37edc75e3439402870ae947e4b" name="a43cf0f37edc75e3439402870ae947e4b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a43cf0f37edc75e3439402870ae947e4b">&#9670;&#160;</a></span>get_raw()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -430,11 +971,21 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentCursor::get_f32 </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt; gaia::ecs::ComponentCursor::get_raw </td>
           <td>(</td>
-          <td class="paramtype">float *&#160;</td>
-          <td class="paramname"><em>value</em></td><td>)</td>
-          <td> const</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>byteCount</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
         </tr>
       </table>
   </td>
@@ -444,14 +995,15 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </table>
 </div><div class="memdoc">
 
-<p>Reads the current cursor bytes as a scalar f32 convenience value. </p>
-<dl class="params"><dt>Parameters</dt><dd>
+<p>Copies exact bytes from the current cursor position. </p>
+<p>This is the cursor read path for runtime component data. It performs no type conversion and copies the whole current cursor scope. Use field navigation to choose the address being read. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">value</td><td>Receives the read value. </td></tr>
+    <tr><td class="paramname">data</td><td>Destination bytes. Must be non-null when the current scope size is non-zero. </td></tr>
+    <tr><td class="paramname">byteCount</td><td>Destination capacity in bytes. Must be at least the current scope size. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True when the current cursor position is exactly one f32 value. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>Ok and copied byte count when bytes were copied, otherwise the reason the read failed. </dd></dl>
 
 </div>
 </div>
@@ -535,6 +1087,52 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 
 </div>
 </div>
+<a id="ae5d954df5878702e0e223d2b24048772" name="ae5d954df5878702e0e223d2b24048772"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae5d954df5878702e0e223d2b24048772">&#9670;&#160;</a></span>set_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt; gaia::ecs::ComponentCursor::set_raw </td>
+          <td>(</td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>byteCount</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes exact bytes to the current cursor position. </p>
+<p>This is the cursor write path for runtime component data. It performs no type conversion and requires <em>byteCount</em> to match the current cursor scope size. Use field navigation to choose the address being written. Successful writes finish the root component write, so normal chunk write tracking and OnSet observers run. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">data</td><td>Bytes to copy. Must be non-null when <em>byteCount</em> is non-zero. </td></tr>
+    <tr><td class="paramname">byteCount</td><td>Number of bytes to copy. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Ok when bytes were copied, otherwise the reason the write failed. </dd></dl>
+
+</div>
+</div>
 <a id="a5fa3d19307295643143bcb0486e80a08" name="a5fa3d19307295643143bcb0486e80a08"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a5fa3d19307295643143bcb0486e80a08">&#9670;&#160;</a></span>size()</h2>
 
@@ -610,51 +1208,6 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>True when the cursor points at a valid component payload, tag, or field. </dd></dl>
-
-</div>
-</div>
-<a id="aa8a8739b85f7759188fa09dc14498e86" name="aa8a8739b85f7759188fa09dc14498e86"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa8a8739b85f7759188fa09dc14498e86">&#9670;&#160;</a></span>write_bytes()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">ComponentWriteResult gaia::ecs::ComponentCursor::write_bytes </td>
-          <td>(</td>
-          <td class="paramtype">const void *&#160;</td>
-          <td class="paramname"><em>data</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>byteCount</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Writes exact bytes to the current cursor position. </p>
-<p>This is the cursor write path for runtime component data. It performs no type conversion and requires <em>byteCount</em> to match the current cursor scope size. Use field navigation to choose the address being written. Successful writes finish the root component write, so normal chunk write tracking and OnSet observers run. </p><dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">data</td><td>Bytes to copy. Must be non-null when <em>byteCount</em> is non-zero. </td></tr>
-    <tr><td class="paramname">byteCount</td><td>Number of bytes to copy. Returns Ok when bytes were copied, otherwise the reason the write failed. </td></tr>
-  </table>
-  </dd>
-</dl>
 
 </div>
 </div>
