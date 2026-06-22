@@ -206,7 +206,19 @@ namespace gaia {
 				return m_valid ? m_stack[m_depth].type : EntityBad;
 			}
 
-			//! \return Current payload or field size in bytes.
+			//! Returns the runtime type kind at the current cursor scope.
+			GAIA_NODISCARD RuntimeTypeKind type_kind() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->typeKind : RuntimeTypeKind::None;
+			}
+
+			//! Returns the semantic runtime type exposed by the current opaque scope, or EntityBad otherwise.
+			GAIA_NODISCARD Entity opaque_as_type() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->opaque_as_type() : EntityBad;
+			}
+
+			//! Returns the current payload or field size in bytes.
 			GAIA_NODISCARD uint32_t size() const noexcept {
 				return m_valid ? m_stack[m_depth].size : 0;
 			}

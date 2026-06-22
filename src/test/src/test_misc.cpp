@@ -225,6 +225,87 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.symbol(RuntimeCompName) == item.entity);
 	}
 
+	SUBCASE("opaque runtime type exposes semantic metadata and serializer capabilities") {
+		TestWorld twld;
+
+		ecs::ComponentDesc semanticDesc{};
+		semanticDesc.name = util::str_view("Runtime_Type_Opaque_XYZ");
+		semanticDesc.size = RuntimePayloadSize;
+		semanticDesc.alig = RuntimePayloadAlign;
+		semanticDesc.storageType = ecs::DataStorageType::Table;
+		semanticDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		semanticDesc.fields = RuntimeXYZFields;
+		semanticDesc.fieldCount = RuntimeXYZFieldCount;
+		auto& semanticType = wld.add(semanticDesc);
+
+		auto save_opaque = [](ser::serializer& s, const void* data, uint32_t from, uint32_t to, uint32_t cap) {
+			const auto* bytes = (const uint8_t*)data;
+			GAIA_FOR2_(from, to, row) {
+				s.save_raw(bytes + (uintptr_t)12 * (row % cap), 12, ser::serialization_type_id::trivial_wrapper);
+			}
+		};
+		auto load_opaque = [](ser::serializer& s, void* data, uint32_t from, uint32_t to, uint32_t cap) {
+			auto* bytes = (uint8_t*)data;
+			GAIA_FOR2_(from, to, row) {
+				s.load_raw(bytes + (uintptr_t)12 * (row % cap), 12, ser::serialization_type_id::trivial_wrapper);
+			}
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_Opaque_XYZ");
+		desc.size = RuntimePayloadSize;
+		desc.alig = RuntimePayloadAlign;
+		desc.storageType = ecs::DataStorageType::Table;
+		desc.typeKind = ecs::RuntimeTypeKind::Opaque;
+		desc.opaqueAsType = semanticType.entity;
+		desc.funcSave = save_opaque;
+		desc.funcLoad = load_opaque;
+		auto& item = wld.add(desc);
+
+		CHECK(item.typeKind == ecs::RuntimeTypeKind::Opaque);
+		CHECK(item.opaque_as_type() == semanticType.entity);
+		CHECK(item.field_count() == 0);
+		CHECK(item.array_element_type() == ecs::EntityBad);
+		CHECK(item.array_element_count() == 0);
+		CHECK(item.has_custom_serializer());
+		CHECK(item.has_custom_deserializer());
+
+		uint8_t payload[RuntimePayloadSize]{};
+		write_xyz(payload, 1.0f, 2.0f, 3.0f);
+		ser::ser_buffer_binary buffer;
+		auto writer = ser::make_serializer(buffer);
+		item.save(writer, payload, 0, 1, 1);
+		CHECK(buffer.bytes() == RuntimePayloadSize);
+
+		uint8_t loaded[RuntimePayloadSize]{};
+		auto reader = ser::make_serializer(buffer);
+		reader.seek(0);
+		item.load(reader, loaded, 0, 1, 1);
+		CHECK(read_f32(loaded, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(read_f32(loaded, RuntimeYOffset) == doctest::Approx(2.0f));
+		CHECK(read_f32(loaded, RuntimeZOffset) == doctest::Approx(3.0f));
+
+		const auto e = wld.add();
+		CHECK(wld.add_raw(e, item.entity, payload, RuntimePayloadSize));
+		auto cursor = wld.cursor(e, item.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.type() == item.entity);
+		CHECK(cursor.type_kind() == ecs::RuntimeTypeKind::Opaque);
+		CHECK(cursor.opaque_as_type() == semanticType.entity);
+		CHECK(cursor.field_count() == 0);
+		CHECK_FALSE(cursor.field(util::str_view("x")));
+
+		ecs::ComponentDesc noSerDesc = desc;
+		noSerDesc.name = util::str_view("Runtime_Component_Opaque_XYZ_NoSer");
+		noSerDesc.funcSave = nullptr;
+		noSerDesc.funcLoad = nullptr;
+		auto& noSerItem = wld.add(noSerDesc);
+		CHECK(noSerItem.typeKind == ecs::RuntimeTypeKind::Opaque);
+		CHECK(noSerItem.opaque_as_type() == semanticType.entity);
+		CHECK_FALSE(noSerItem.has_custom_serializer());
+		CHECK_FALSE(noSerItem.has_custom_deserializer());
+	}
+
 	SUBCASE("world descriptor registration creates a usable runtime component") {
 		TestWorld twld;
 

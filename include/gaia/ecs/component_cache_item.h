@@ -112,6 +112,8 @@ namespace gaia {
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
+			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
+			Entity opaqueAsType = EntityBad;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -423,6 +425,21 @@ namespace gaia {
 				return typeKind == RuntimeTypeKind::Array ? elementCount : 0;
 			}
 
+			//! @return Semantic runtime type exposed by opaque metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity opaque_as_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Opaque ? opaqueAsType : EntityBad;
+			}
+
+			//! @return True when this component has a custom serializer callback.
+			GAIA_NODISCARD bool has_custom_serializer() const noexcept {
+				return func_save != nullptr;
+			}
+
+			//! @return True when this component has a custom deserializer callback.
+			GAIA_NODISCARD bool has_custom_deserializer() const noexcept {
+				return func_load != nullptr;
+			}
+
 			//! Looks up runtime enum/bitmask constant metadata by index.
 			//! \param index Constant index.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
@@ -677,6 +694,7 @@ namespace gaia {
 				cci->underlyingType = desc.underlyingType;
 				cci->elementType = desc.elementType;
 				cci->elementCount = desc.elementCount;
+				cci->opaqueAsType = desc.opaqueAsType;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {

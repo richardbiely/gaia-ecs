@@ -32,6 +32,8 @@ namespace gaia {
 			Bitmask,
 			//! Fixed-array runtime type described by an element type and element count.
 			Array,
+			//! Opaque runtime type whose physical payload layout is exposed through a semantic runtime type.
+			Opaque,
 		};
 
 		//! User-authored runtime field descriptor.
@@ -148,6 +150,8 @@ namespace gaia {
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
+			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
+			Entity opaqueAsType = EntityBad;
 		};
 
 		namespace detail {

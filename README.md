@@ -3747,6 +3747,8 @@ Named array types can nest by using another array type as `elementType`. Cursor 
 
 The same metadata drives semantic world JSON. A `Vec3` field is emitted as an object such as `"position":{"x":1,"y":2,"z":3}`, and a fixed inline `Vec3[2]` field is emitted as an array of two objects. Register the same runtime type/component descriptors before `load_json(...)` so Gaia-ECS can rebuild the payload bytes deterministically.
 
+Opaque runtime types describe payloads whose physical layout is intentionally not represented by runtime fields. Set `typeKind = ecs::RuntimeTypeKind::Opaque` and `opaqueAsType` to the reflected semantic type the payload presents to tools, scripts, importers, or editors. The existing component lifecycle and `funcSave` / `funcLoad` callbacks remain the physical payload contract; JSON is only one downstream import/export consumer and does not define opaque metadata. Cursors expose opaque scopes through `type_kind()` and `opaque_as_type()`, but field traversal is rejected until an explicit projection adapter exists.
+
 ### Enum and bitmask metadata
 
 Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. `underlyingType` points at the primitive type entity used for storage, so cursor primitive helpers work on enum/bitmask fields when the selected helper matches that primitive entity.

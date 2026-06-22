@@ -117,6 +117,7 @@ namespace gaia {
 					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
 					GAIA_ASSERT(desc.elementType == EntityBad);
 					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 					return;
 				}
 
@@ -128,6 +129,7 @@ namespace gaia {
 					GAIA_ASSERT(desc.fieldCount == 0);
 					GAIA_ASSERT(desc.constants == nullptr);
 					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 					const auto* pElementType = find(desc.elementType);
 					GAIA_ASSERT(pElementType != nullptr);
 					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
@@ -141,9 +143,23 @@ namespace gaia {
 					return;
 				}
 
+				if (desc.typeKind == RuntimeTypeKind::Opaque) {
+					GAIA_ASSERT(desc.underlyingType == EntityBad);
+					GAIA_ASSERT(desc.elementType == EntityBad);
+					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.fields == nullptr);
+					GAIA_ASSERT(desc.fieldCount == 0);
+					GAIA_ASSERT(desc.constants == nullptr);
+					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType != EntityBad);
+					GAIA_ASSERT(find(desc.opaqueAsType) != nullptr);
+					return;
+				}
+
 				GAIA_ASSERT(desc.underlyingType == EntityBad);
 				GAIA_ASSERT(desc.elementType == EntityBad);
 				GAIA_ASSERT(desc.elementCount == 0);
+				GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.
