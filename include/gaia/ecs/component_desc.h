@@ -144,9 +144,9 @@ namespace gaia {
 			FuncSave* funcSave = nullptr;
 			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
-			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
 			Entity elementType = EntityBad;
-			//! Fixed element count for reflected array metadata. 0 otherwise.
+			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
 		};
 

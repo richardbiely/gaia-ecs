@@ -132,7 +132,6 @@ namespace gaia {
 					GAIA_ASSERT(pElementType != nullptr);
 					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
 					const auto elementAlignment = pElementType != nullptr ? pElementType->comp.alig() : 0;
-					GAIA_ASSERT(pElementType == nullptr || pElementType->typeKind != RuntimeTypeKind::Array);
 					GAIA_ASSERT(elementSize > 0);
 					if (elementSize > 0) {
 						GAIA_ASSERT(desc.elementCount <= UINT32_MAX / elementSize);

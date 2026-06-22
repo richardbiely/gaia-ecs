@@ -1242,6 +1242,16 @@ TEST_CASE("Component cache - runtime registration") {
 		vec3ArrayDesc.elementCount = RuntimeSamplesCount;
 		auto& vec3ArrayType = wld.add(vec3ArrayDesc);
 
+		ecs::ComponentDesc vec3GridDesc{};
+		vec3GridDesc.name = runtime_component_name_view("Runtime_Type_Vec3_Array_2x2");
+		vec3GridDesc.size = RuntimeTransformSize;
+		vec3GridDesc.alig = RuntimePayloadAlign;
+		vec3GridDesc.storageType = ecs::DataStorageType::Table;
+		vec3GridDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3GridDesc.elementType = vec3ArrayType.entity;
+		vec3GridDesc.elementCount = 2;
+		auto& vec3GridType = wld.add(vec3GridDesc);
+
 		const ecs::RuntimeFieldDesc transformFields[] = {
 				{util::str_view("position"), vec3Type.entity, RuntimePositionOffset, 0}, //
 				{util::str_view("velocity"), vec3Type.entity, RuntimeVelocityOffset, 0}, //
@@ -1263,6 +1273,9 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(vec3ArrayType.typeKind == ecs::RuntimeTypeKind::Array);
 		CHECK(vec3ArrayType.array_element_type() == vec3Type.entity);
 		CHECK(vec3ArrayType.array_element_count() == RuntimeSamplesCount);
+		CHECK(vec3GridType.typeKind == ecs::RuntimeTypeKind::Array);
+		CHECK(vec3GridType.array_element_type() == vec3ArrayType.entity);
+		CHECK(vec3GridType.array_element_count() == 2);
 		CHECK(transformComp.field_count() == 3);
 		const auto* positionField = transformComp.field(util::str_view("position"));
 		const auto* samplesField = transformComp.field(util::str_view("samples"));
@@ -1406,6 +1419,39 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto inlineSampleZ = inlineCursor.f32();
 		CHECK(inlineSampleZ);
 		CHECK(inlineSampleZ.value == doctest::Approx(12.0f));
+
+		const ecs::RuntimeFieldDesc gridFields[] = {
+				{util::str_view("rows"), vec3GridType.entity, 0, 0} //
+		};
+		ecs::ComponentDesc gridDesc{};
+		gridDesc.name = runtime_component_name_view("Runtime_Component_Nested_Array_Grid");
+		gridDesc.size = RuntimeTransformSize;
+		gridDesc.alig = RuntimePayloadAlign;
+		gridDesc.storageType = ecs::DataStorageType::Table;
+		gridDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		gridDesc.fields = gridFields;
+		gridDesc.fieldCount = 1;
+		auto& gridComp = wld.add(gridDesc);
+		const auto gridEntity = wld.add();
+		CHECK(wld.add_raw(gridEntity, gridComp.entity, payload, RuntimeTransformSize));
+		auto gridCursor = wld.cursor(gridEntity, gridComp.entity);
+		CHECK(gridCursor.field(util::str_view("rows")));
+		CHECK(gridCursor.type() == vec3ArrayType.entity);
+		CHECK(gridCursor.size() == RuntimeTransformSize);
+		CHECK(gridCursor.field_count() == 0);
+		CHECK_FALSE(gridCursor.field(util::str_view("z")));
+		CHECK(gridCursor.elem(1));
+		CHECK(gridCursor.type() == vec3ArrayType.entity);
+		CHECK(gridCursor.size() == RuntimeVec3Size * RuntimeSamplesCount);
+		CHECK(gridCursor.field_count() == 0);
+		CHECK(gridCursor.elem(0));
+		CHECK(gridCursor.type() == vec3Type.entity);
+		CHECK(gridCursor.size() == RuntimeVec3Size);
+		CHECK(gridCursor.field_count() == 3);
+		CHECK(gridCursor.field(util::str_view("y")));
+		const auto gridY = gridCursor.f32();
+		CHECK(gridY);
+		CHECK(gridY.value == doctest::Approx(8.0f));
 	}
 
 	SUBCASE("runtime raw payload access rejects unsupported storage") {

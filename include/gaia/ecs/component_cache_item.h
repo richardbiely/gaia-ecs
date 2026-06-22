@@ -108,9 +108,9 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
-			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
 			Entity elementType = EntityBad;
-			//! Fixed element count for reflected array metadata. 0 otherwise.
+			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
 
 #if GAIA_ENABLE_HOOKS

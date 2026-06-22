@@ -596,6 +596,84 @@ TEST_CASE("Serialization - json runtime fields") {
 		CHECK(out.mode == value.mode);
 	}
 
+	SUBCASE("recursive named runtime arrays are emitted and loaded as nested arrays") {
+		struct Vec3 {
+			float x, y, z;
+		};
+		struct RuntimeGridComp {
+			Vec3 grid[2][2];
+		};
+
+		TestWorld twld;
+		RuntimeGridComp layout{};
+		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
+		const auto offGrid = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.grid) - pBase);
+
+		const ecs::RuntimeFieldDesc vec3Fields[] = {
+				{util::str_view("x"), ecs::F32, 0, 0}, //
+				{util::str_view("y"), ecs::F32, 4, 0}, //
+				{util::str_view("z"), ecs::F32, 8, 0} //
+		};
+		ecs::ComponentDesc vec3Desc{};
+		vec3Desc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3");
+		vec3Desc.size = (uint32_t)sizeof(Vec3);
+		vec3Desc.alig = (uint32_t)alignof(Vec3);
+		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.fields = vec3Fields;
+		vec3Desc.fieldCount = 3;
+		auto& vec3Type = wld.add(vec3Desc);
+
+		ecs::ComponentDesc rowDesc{};
+		rowDesc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3_Row_2");
+		rowDesc.size = (uint32_t)sizeof(Vec3) * 2;
+		rowDesc.alig = (uint32_t)alignof(Vec3);
+		rowDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		rowDesc.elementType = vec3Type.entity;
+		rowDesc.elementCount = 2;
+		auto& rowType = wld.add(rowDesc);
+
+		ecs::ComponentDesc gridTypeDesc{};
+		gridTypeDesc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3_Grid_2x2");
+		gridTypeDesc.size = (uint32_t)sizeof(RuntimeGridComp);
+		gridTypeDesc.alig = (uint32_t)alignof(Vec3);
+		gridTypeDesc.typeKind = ecs::RuntimeTypeKind::Array;
+		gridTypeDesc.elementType = rowType.entity;
+		gridTypeDesc.elementCount = 2;
+		auto& gridType = wld.add(gridTypeDesc);
+
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("grid"), gridType.entity, offGrid, 0} //
+		};
+		auto& item = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Json_Recursive_Array", (uint32_t)sizeof(RuntimeGridComp), ecs::DataStorageType::Table,
+				(uint32_t)alignof(RuntimeGridComp), fields, 1);
+
+		RuntimeGridComp value{};
+		value.grid[0][0] = {1.0f, 2.0f, 3.0f};
+		value.grid[0][1] = {4.0f, 5.0f, 6.0f};
+		value.grid[1][0] = {7.0f, 8.0f, 9.0f};
+		value.grid[1][1] = {10.0f, 11.0f, 12.0f};
+
+		ser::ser_json writer;
+		const bool ok = ecs::component_to_json(item, &value, writer);
+		CHECK(ok);
+		CHECK(
+				writer.str() == "{\"grid\":[[{\"x\":1,\"y\":2,\"z\":3},{\"x\":4,\"y\":5,\"z\":6}],"
+												"[{\"x\":7,\"y\":8,\"z\":9},{\"x\":10,\"y\":11,\"z\":12}]]}");
+
+		RuntimeGridComp out{};
+		ser::ser_json reader(writer.str().data(), (uint32_t)writer.str().size());
+		bool okRead = false;
+		CHECK(ecs::json_to_component(item, &out, reader, okRead));
+		CHECK(okRead);
+		reader.ws();
+		CHECK(reader.eof());
+		CHECK(out.grid[0][0].x == value.grid[0][0].x);
+		CHECK(out.grid[0][1].z == value.grid[0][1].z);
+		CHECK(out.grid[1][0].y == value.grid[1][0].y);
+		CHECK(out.grid[1][1].z == value.grid[1][1].z);
+	}
+
 	SUBCASE("json_to_component loads runtime field payload") {
 		TestWorld twld;
 		auto& cc = wld.comp_cache_mut();

@@ -3743,6 +3743,8 @@ For a fixed inline array of runtime structs, set the field count to the element 
 
 When the array shape is itself part of the schema, register a named array type entity instead of repeating a field count. Set `typeKind = ecs::RuntimeTypeKind::Array`, `elementType` to the reflected element type entity, `elementCount` to the fixed length, and `size` to `elementSize * elementCount`. Fields then reference the array type with count `0`; cursor and JSON behavior matches the inline count form.
 
+Named array types can nest by using another array type as `elementType`. Cursor traversal selects one dimension at a time: a `Vec3[2][2]` field can be addressed as `cursor.field("grid")`, `cursor.elem(row)`, `cursor.elem(column)`, then `cursor.field("z")`. Semantic JSON emits the same shape as nested arrays, such as `"grid":[[{"x":1,"y":2,"z":3},{"x":4,"y":5,"z":6}], ...]`.
+
 The same metadata drives semantic world JSON. A `Vec3` field is emitted as an object such as `"position":{"x":1,"y":2,"z":3}`, and a fixed inline `Vec3[2]` field is emitted as an array of two objects. Register the same runtime type/component descriptors before `load_json(...)` so Gaia-ECS can rebuild the payload bytes deterministically.
 
 ### Enum and bitmask metadata

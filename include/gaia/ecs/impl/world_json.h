@@ -64,8 +64,6 @@ namespace gaia {
 					out.type = pFieldType->array_element_type();
 					out.elemCount = pFieldType->array_element_count();
 					out.pType = find_runtime_json_type(pCache, out.type);
-					if (out.pType != nullptr && out.pType->typeKind == RuntimeTypeKind::Array)
-						return false;
 				}
 
 				return out.elemCount != 0 && runtime_json_type_size(out.pType, out.type, out.elemSize);
@@ -160,6 +158,28 @@ namespace gaia {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemSize = 0;
+					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
+							(uint64_t)elemSize * elemCount != valueSize) {
+						writer.value_null();
+						return false;
+					}
+
+					bool ok = true;
+					writer.begin_array();
+					GAIA_FOR(elemCount) {
+						const auto* pElemData = pData + (uintptr_t)elemSize * i;
+						ok = write_runtime_json_value(pCache, pElementType, elementType, pElemData, elemSize, writer, depth + 1) &&
+								 ok;
+					}
+					writer.end_array();
+					return ok;
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
@@ -301,6 +321,36 @@ namespace gaia {
 					warn_runtime_json(
 							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
 					return reader.skip_value();
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemSize = 0;
+					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
+							(uint64_t)elemSize * elemCount != valueSize) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime array payload uses an invalid reflected element type.");
+						return reader.skip_value();
+					}
+
+					if (!reader.expect('['))
+						return false;
+
+					GAIA_FOR(elemCount) {
+						if (i > 0 && !reader.expect(','))
+							return false;
+						const auto elemPath = make_runtime_json_element_path(path, i);
+						auto* pElemData = pData + (uintptr_t)elemSize * i;
+						if (!read_runtime_json_value(
+										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1,
+										ok))
+							return false;
+					}
+					return reader.expect(']');
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)

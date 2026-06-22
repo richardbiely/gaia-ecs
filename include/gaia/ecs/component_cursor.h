@@ -257,7 +257,7 @@ namespace gaia {
 				return pField != nullptr ? descend(*pField) : false;
 			}
 
-			//! Descends into element @a index of the current fixed inline array field.
+			//! Descends into element @a index of the current fixed inline or named array scope.
 			//! \param index Element index inside the current field.
 			//! \return True when the cursor moved to the element.
 			bool elem(uint32_t index) noexcept {
@@ -265,19 +265,49 @@ namespace gaia {
 					return false;
 
 				const auto& current = m_stack[m_depth];
-				if (current.elemCount <= 1 || index >= current.elemCount || current.elemSize == 0)
-					return false;
-
 				Scope next{};
-				next.type = current.type;
-				next.size = current.elemSize;
-				next.elemSize = current.elemSize;
-				next.elemCount = 1;
-				next.writable = current.writable;
-				if (current.data != nullptr)
-					next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
-				if (current.mutData != nullptr)
-					next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
+				if (current.elemCount > 1) {
+					if (index >= current.elemCount || current.elemSize == 0)
+						return false;
+					if ((uint64_t)current.elemSize * ((uint64_t)index + 1) > current.size)
+						return false;
+
+					next.type = current.type;
+					next.size = current.elemSize;
+					next.elemSize = current.elemSize;
+					next.elemCount = 1;
+					next.writable = current.writable;
+					if (current.data != nullptr)
+						next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
+					if (current.mutData != nullptr)
+						next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
+				} else {
+					const auto* pType = m_components != nullptr ? m_components->find(current.type) : nullptr;
+					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
+						return false;
+
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = m_components->find(elementType);
+					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
+						return false;
+
+					const auto elemSize = pElementType->comp.size();
+					if (elemSize == 0)
+						return false;
+					if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
+						return false;
+
+					next.type = elementType;
+					next.size = elemSize;
+					next.elemSize = elemSize;
+					next.elemCount = 1;
+					next.writable = current.writable;
+					if (current.data != nullptr)
+						next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
+					if (current.mutData != nullptr)
+						next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+				}
 
 				m_stack[++m_depth] = next;
 				return true;
@@ -655,8 +685,7 @@ namespace gaia {
 						return false;
 					const auto elementType = pType->array_element_type();
 					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || pElementType->typeKind == RuntimeTypeKind::Array ||
-							pType->array_element_count() == 0)
+					if (pElementType == nullptr || pType->array_element_count() == 0)
 						return false;
 					scopeType = elementType;
 					elemSize = pElementType->comp.size();

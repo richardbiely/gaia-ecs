@@ -29771,9 +29771,9 @@ namespace gaia {
 			FuncSave* funcSave = nullptr;
 			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
-			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
 			Entity elementType = EntityBad;
-			//! Fixed element count for reflected array metadata. 0 otherwise.
+			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
 		};
 
@@ -30170,9 +30170,9 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
-			//! Element type for fixed reflected array metadata. EntityBad otherwise.
+			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
 			Entity elementType = EntityBad;
-			//! Fixed element count for reflected array metadata. 0 otherwise.
+			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
 
 #if GAIA_ENABLE_HOOKS
@@ -30890,7 +30890,6 @@ namespace gaia {
 					GAIA_ASSERT(pElementType != nullptr);
 					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
 					const auto elementAlignment = pElementType != nullptr ? pElementType->comp.alig() : 0;
-					GAIA_ASSERT(pElementType == nullptr || pElementType->typeKind != RuntimeTypeKind::Array);
 					GAIA_ASSERT(elementSize > 0);
 					if (elementSize > 0) {
 						GAIA_ASSERT(desc.elementCount <= UINT32_MAX / elementSize);
@@ -35433,7 +35432,7 @@ namespace gaia {
 				return pField != nullptr ? descend(*pField) : false;
 			}
 
-			//! Descends into element @a index of the current fixed inline array field.
+			//! Descends into element @a index of the current fixed inline or named array scope.
 			//! \param index Element index inside the current field.
 			//! \return True when the cursor moved to the element.
 			bool elem(uint32_t index) noexcept {
@@ -35441,19 +35440,49 @@ namespace gaia {
 					return false;
 
 				const auto& current = m_stack[m_depth];
-				if (current.elemCount <= 1 || index >= current.elemCount || current.elemSize == 0)
-					return false;
-
 				Scope next{};
-				next.type = current.type;
-				next.size = current.elemSize;
-				next.elemSize = current.elemSize;
-				next.elemCount = 1;
-				next.writable = current.writable;
-				if (current.data != nullptr)
-					next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
-				if (current.mutData != nullptr)
-					next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
+				if (current.elemCount > 1) {
+					if (index >= current.elemCount || current.elemSize == 0)
+						return false;
+					if ((uint64_t)current.elemSize * ((uint64_t)index + 1) > current.size)
+						return false;
+
+					next.type = current.type;
+					next.size = current.elemSize;
+					next.elemSize = current.elemSize;
+					next.elemCount = 1;
+					next.writable = current.writable;
+					if (current.data != nullptr)
+						next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
+					if (current.mutData != nullptr)
+						next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
+				} else {
+					const auto* pType = m_components != nullptr ? m_components->find(current.type) : nullptr;
+					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
+						return false;
+
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = m_components->find(elementType);
+					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
+						return false;
+
+					const auto elemSize = pElementType->comp.size();
+					if (elemSize == 0)
+						return false;
+					if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
+						return false;
+
+					next.type = elementType;
+					next.size = elemSize;
+					next.elemSize = elemSize;
+					next.elemCount = 1;
+					next.writable = current.writable;
+					if (current.data != nullptr)
+						next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
+					if (current.mutData != nullptr)
+						next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+				}
 
 				m_stack[++m_depth] = next;
 				return true;
@@ -35831,8 +35860,7 @@ namespace gaia {
 						return false;
 					const auto elementType = pType->array_element_type();
 					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || pElementType->typeKind == RuntimeTypeKind::Array ||
-							pType->array_element_count() == 0)
+					if (pElementType == nullptr || pType->array_element_count() == 0)
 						return false;
 					scopeType = elementType;
 					elemSize = pElementType->comp.size();
@@ -71396,8 +71424,6 @@ namespace gaia {
 					out.type = pFieldType->array_element_type();
 					out.elemCount = pFieldType->array_element_count();
 					out.pType = find_runtime_json_type(pCache, out.type);
-					if (out.pType != nullptr && out.pType->typeKind == RuntimeTypeKind::Array)
-						return false;
 				}
 
 				return out.elemCount != 0 && runtime_json_type_size(out.pType, out.type, out.elemSize);
@@ -71492,6 +71518,28 @@ namespace gaia {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemSize = 0;
+					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
+							(uint64_t)elemSize * elemCount != valueSize) {
+						writer.value_null();
+						return false;
+					}
+
+					bool ok = true;
+					writer.begin_array();
+					GAIA_FOR(elemCount) {
+						const auto* pElemData = pData + (uintptr_t)elemSize * i;
+						ok = write_runtime_json_value(pCache, pElementType, elementType, pElemData, elemSize, writer, depth + 1) &&
+								 ok;
+					}
+					writer.end_array();
+					return ok;
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
@@ -71633,6 +71681,36 @@ namespace gaia {
 					warn_runtime_json(
 							diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime JSON nesting is too deep.");
 					return reader.skip_value();
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
+					const auto elemCount = pType->array_element_count();
+					const auto elementType = pType->array_element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemSize = 0;
+					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
+							(uint64_t)elemSize * elemCount != valueSize) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime array payload uses an invalid reflected element type.");
+						return reader.skip_value();
+					}
+
+					if (!reader.expect('['))
+						return false;
+
+					GAIA_FOR(elemCount) {
+						if (i > 0 && !reader.expect(','))
+							return false;
+						const auto elemPath = make_runtime_json_element_path(path, i);
+						auto* pElemData = pData + (uintptr_t)elemSize * i;
+						if (!read_runtime_json_value(
+										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1,
+										ok))
+							return false;
+					}
+					return reader.expect(']');
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
