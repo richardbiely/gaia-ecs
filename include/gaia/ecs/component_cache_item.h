@@ -108,7 +108,7 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
-			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
+			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
@@ -423,6 +423,11 @@ namespace gaia {
 			//! @return Fixed element count for reflected fixed-array metadata, or 0 otherwise.
 			GAIA_NODISCARD uint32_t array_element_count() const noexcept {
 				return typeKind == RuntimeTypeKind::Array ? elementCount : 0;
+			}
+
+			//! @return Element type entity for reflected dynamic vector/list metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity vector_element_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Vector ? elementType : EntityBad;
 			}
 
 			//! @return Semantic runtime type exposed by opaque metadata, or EntityBad otherwise.

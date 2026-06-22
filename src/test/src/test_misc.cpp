@@ -306,6 +306,44 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(noSerItem.has_custom_deserializer());
 	}
 
+	SUBCASE("dynamic vector runtime type exposes element metadata without inline traversal") {
+		TestWorld twld;
+
+		ecs::ComponentDesc elementDesc{};
+		elementDesc.name = util::str_view("Runtime_Type_Vector_XYZ_Element");
+		elementDesc.size = RuntimePayloadSize;
+		elementDesc.alig = RuntimePayloadAlign;
+		elementDesc.storageType = ecs::DataStorageType::Table;
+		elementDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		elementDesc.fields = RuntimeXYZFields;
+		elementDesc.fieldCount = RuntimeXYZFieldCount;
+		auto& elementType = wld.add(elementDesc);
+
+		ecs::ComponentDesc vectorDesc{};
+		vectorDesc.name = util::str_view("Runtime_Type_Vector_XYZ");
+		vectorDesc.size = 0;
+		vectorDesc.alig = 1;
+		vectorDesc.storageType = ecs::DataStorageType::Table;
+		vectorDesc.typeKind = ecs::RuntimeTypeKind::Vector;
+		vectorDesc.elementType = elementType.entity;
+		auto& vectorType = wld.add(vectorDesc);
+
+		CHECK(vectorType.typeKind == ecs::RuntimeTypeKind::Vector);
+		CHECK(vectorType.vector_element_type() == elementType.entity);
+		CHECK(vectorType.array_element_type() == ecs::EntityBad);
+		CHECK(vectorType.array_element_count() == 0);
+		CHECK(vectorType.field_count() == 0);
+
+		const auto e = wld.add();
+		CHECK(wld.add_raw(e, vectorType.entity, nullptr, 0));
+		auto cursor = wld.cursor(e, vectorType.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.type_kind() == ecs::RuntimeTypeKind::Vector);
+		CHECK(cursor.vector_element_type() == elementType.entity);
+		CHECK_FALSE(cursor.elem(0));
+		CHECK_FALSE(cursor.field(util::str_view("x")));
+	}
+
 	SUBCASE("world descriptor registration creates a usable runtime component") {
 		TestWorld twld;
 

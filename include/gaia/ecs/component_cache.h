@@ -143,6 +143,21 @@ namespace gaia {
 					return;
 				}
 
+				if (desc.typeKind == RuntimeTypeKind::Vector) {
+					GAIA_ASSERT(desc.underlyingType == EntityBad);
+					GAIA_ASSERT(desc.elementType != EntityBad);
+					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.fields == nullptr);
+					GAIA_ASSERT(desc.fieldCount == 0);
+					GAIA_ASSERT(desc.constants == nullptr);
+					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
+					GAIA_ASSERT(desc.size == 0);
+					GAIA_ASSERT(desc.soa == 0);
+					GAIA_ASSERT(find(desc.elementType) != nullptr);
+					return;
+				}
+
 				if (desc.typeKind == RuntimeTypeKind::Opaque) {
 					GAIA_ASSERT(desc.underlyingType == EntityBad);
 					GAIA_ASSERT(desc.elementType == EntityBad);

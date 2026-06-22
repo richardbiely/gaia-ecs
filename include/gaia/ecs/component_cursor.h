@@ -218,6 +218,12 @@ namespace gaia {
 				return pItem != nullptr ? pItem->opaque_as_type() : EntityBad;
 			}
 
+			//! Returns the element type for the current dynamic vector/list scope, or EntityBad otherwise.
+			GAIA_NODISCARD Entity vector_element_type() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->vector_element_type() : EntityBad;
+			}
+
 			//! Returns the current payload or field size in bytes.
 			GAIA_NODISCARD uint32_t size() const noexcept {
 				return m_valid ? m_stack[m_depth].size : 0;

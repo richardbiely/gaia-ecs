@@ -32,6 +32,8 @@ namespace gaia {
 			Bitmask,
 			//! Fixed-array runtime type described by an element type and element count.
 			Array,
+			//! Dynamic vector/list runtime type described by an element type and adapter-owned storage.
+			Vector,
 			//! Opaque runtime type whose physical payload layout is exposed through a semantic runtime type.
 			Opaque,
 		};
@@ -146,7 +148,7 @@ namespace gaia {
 			FuncSave* funcSave = nullptr;
 			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
-			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
+			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
