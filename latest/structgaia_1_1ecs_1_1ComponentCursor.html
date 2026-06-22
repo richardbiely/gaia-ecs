@@ -134,7 +134,17 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a7011f4f5a7eee8365496b4cc1d072fd2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a80e4ec29561c51006d94633126378b3f" id="r_a80e4ec29561c51006d94633126378b3f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f">type</a> () const noexcept</td></tr>
 <tr class="separator:a80e4ec29561c51006d94633126378b3f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5fa3d19307295643143bcb0486e80a08" id="r_a5fa3d19307295643143bcb0486e80a08"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5fa3d19307295643143bcb0486e80a08">size</a> () const noexcept</td></tr>
+<tr class="memitem:a09e1ca6d2458fac980ce05139fa9a5dd" id="r_a09e1ca6d2458fac980ce05139fa9a5dd"><td class="memItemLeft" align="right" valign="top"><a id="a09e1ca6d2458fac980ce05139fa9a5dd" name="a09e1ca6d2458fac980ce05139fa9a5dd"></a>
+GAIA_NODISCARD RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>type_kind</b> () const noexcept</td></tr>
+<tr class="memdesc:a09e1ca6d2458fac980ce05139fa9a5dd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the runtime type kind at the current cursor scope. <br /></td></tr>
+<tr class="separator:a09e1ca6d2458fac980ce05139fa9a5dd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af6e5399e0b0ed3d4ebb81411d6145f49" id="r_af6e5399e0b0ed3d4ebb81411d6145f49"><td class="memItemLeft" align="right" valign="top"><a id="af6e5399e0b0ed3d4ebb81411d6145f49" name="af6e5399e0b0ed3d4ebb81411d6145f49"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>opaque_as_type</b> () const noexcept</td></tr>
+<tr class="memdesc:af6e5399e0b0ed3d4ebb81411d6145f49"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the semantic runtime type exposed by the current opaque scope, or EntityBad otherwise. <br /></td></tr>
+<tr class="separator:af6e5399e0b0ed3d4ebb81411d6145f49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5fa3d19307295643143bcb0486e80a08" id="r_a5fa3d19307295643143bcb0486e80a08"><td class="memItemLeft" align="right" valign="top"><a id="a5fa3d19307295643143bcb0486e80a08" name="a5fa3d19307295643143bcb0486e80a08"></a>
+GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> () const noexcept</td></tr>
+<tr class="memdesc:a5fa3d19307295643143bcb0486e80a08"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the current payload or field size in bytes. <br /></td></tr>
 <tr class="separator:a5fa3d19307295643143bcb0486e80a08"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8deaf093c90629126a49fc2d00c0e10b" id="r_a8deaf093c90629126a49fc2d00c0e10b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a8deaf093c90629126a49fc2d00c0e10b">ptr</a> () const noexcept</td></tr>
 <tr class="separator:a8deaf093c90629126a49fc2d00c0e10b"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -149,7 +159,7 @@ Public Member Functions</h2></td></tr>
 <tr class="memdesc:ade35db8c4fb1718f5357ed1c9f38d173"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into the reflected field named <em>name</em>.  <br /></td></tr>
 <tr class="separator:ade35db8c4fb1718f5357ed1c9f38d173"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa3e6779423b6ade7808f726f63153b2f" id="r_aa3e6779423b6ade7808f726f63153b2f"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa3e6779423b6ade7808f726f63153b2f">elem</a> (uint32_t index) noexcept</td></tr>
-<tr class="memdesc:aa3e6779423b6ade7808f726f63153b2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into element <em>index</em> of the current fixed inline array field.  <br /></td></tr>
+<tr class="memdesc:aa3e6779423b6ade7808f726f63153b2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into element <em>index</em> of the current fixed inline or named array scope.  <br /></td></tr>
 <tr class="separator:aa3e6779423b6ade7808f726f63153b2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a577e46ab0ebfeaed9c22dc2cff58dd22" id="r_a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a577e46ab0ebfeaed9c22dc2cff58dd22">parent</a> () noexcept</td></tr>
 <tr class="memdesc:a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves back to the parent cursor scope.  <br /></td></tr>
@@ -734,7 +744,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </table>
 </div><div class="memdoc">
 
-<p>Descends into element <em>index</em> of the current fixed inline array field. </p>
+<p>Descends into element <em>index</em> of the current fixed inline or named array scope. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">index</td><td>Element index inside the current field. </td></tr>
@@ -1130,32 +1140,6 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Ok when bytes were copied, otherwise the reason the write failed. </dd></dl>
-
-</div>
-</div>
-<a id="a5fa3d19307295643143bcb0486e80a08" name="a5fa3d19307295643143bcb0486e80a08"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a5fa3d19307295643143bcb0486e80a08">&#9670;&#160;</a></span>size()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::ComponentCursor::size </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-<dl class="section return"><dt>Returns</dt><dd>Current payload or field size in bytes. </dd></dl>
 
 </div>
 </div>

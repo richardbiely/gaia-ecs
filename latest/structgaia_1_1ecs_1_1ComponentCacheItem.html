@@ -108,12 +108,12 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentCacheIte
 
 <div class="header">
   <div class="summary">
-<a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#pub-attribs">Public Attributes</a> &#124;
 <a href="#pub-static-attribs">Static Public Attributes</a> &#124;
+<a href="#friends">Friends</a> &#124;
 <a href="structgaia_1_1ecs_1_1ComponentCacheItem-members.html">List of all members</a>  </div>
   <div class="headertitle"><div class="title">gaia::ecs::ComponentCacheItem Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
@@ -124,12 +124,6 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentCacheIte
 
 <p><code>#include &lt;<a class="el" href="component__cache__item_8h_source.html">component_cache_item.h</a>&gt;</code></p>
 <table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
-Classes</h2></td></tr>
-<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> item registration context.  <a href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html#details">More...</a><br /></td></tr>
-<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a14e4533df077f55b4b763e3640bd3ed4" id="r_a14e4533df077f55b4b763e3640bd3ed4"><td class="memItemLeft" align="right" valign="top"><a id="a14e4533df077f55b4b763e3640bd3ed4" name="a14e4533df077f55b4b763e3640bd3ed4"></a>
@@ -188,6 +182,10 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncOnSet</b> = void
 using&#160;</td><td class="memItemRight" valign="bottom"><b>RuntimeField</b> = <a class="el" href="structgaia_1_1ecs_1_1RuntimeField.html">ecs::RuntimeField</a></td></tr>
 <tr class="memdesc:a429c12b5493e0dc134ce1d91ffcb5b57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored runtime field metadata type. <br /></td></tr>
 <tr class="separator:a429c12b5493e0dc134ce1d91ffcb5b57"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a135048e4d2efe859f8aa60759c998382" id="r_a135048e4d2efe859f8aa60759c998382"><td class="memItemLeft" align="right" valign="top"><a id="a135048e4d2efe859f8aa60759c998382" name="a135048e4d2efe859f8aa60759c998382"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>RuntimeConstant</b> = <a class="el" href="structgaia_1_1ecs_1_1RuntimeConstant.html">ecs::RuntimeConstant</a></td></tr>
+<tr class="memdesc:a135048e4d2efe859f8aa60759c998382"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored runtime constant metadata type. <br /></td></tr>
+<tr class="separator:a135048e4d2efe859f8aa60759c998382"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -247,6 +245,31 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a0e5ceef5d945f7dd4785098ec62c2701"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a98841077a09d492e7ae1e7efe04eeabb" id="r_a98841077a09d492e7ae1e7efe04eeabb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a98841077a09d492e7ae1e7efe04eeabb">field_count</a> () const noexcept</td></tr>
 <tr class="separator:a98841077a09d492e7ae1e7efe04eeabb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8fb0beba5b1edf5221c36a9cfa8c2fcb" id="r_a8fb0beba5b1edf5221c36a9cfa8c2fcb"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a8fb0beba5b1edf5221c36a9cfa8c2fcb">owner_cache</a> () const noexcept</td></tr>
+<tr class="separator:a8fb0beba5b1edf5221c36a9cfa8c2fcb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae8cb3f0fef704f5a5b26a65ab3a033d3" id="r_ae8cb3f0fef704f5a5b26a65ab3a033d3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ae8cb3f0fef704f5a5b26a65ab3a033d3">primitive_type</a> () const noexcept</td></tr>
+<tr class="separator:ae8cb3f0fef704f5a5b26a65ab3a033d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3b173e2890499e02c38ebda6af8b9259" id="r_a3b173e2890499e02c38ebda6af8b9259"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a3b173e2890499e02c38ebda6af8b9259">array_element_type</a> () const noexcept</td></tr>
+<tr class="separator:a3b173e2890499e02c38ebda6af8b9259"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afed1d59935f1d8fd7c7ef730fc27783d" id="r_afed1d59935f1d8fd7c7ef730fc27783d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#afed1d59935f1d8fd7c7ef730fc27783d">array_element_count</a> () const noexcept</td></tr>
+<tr class="separator:afed1d59935f1d8fd7c7ef730fc27783d"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae44aa6e5631ffb765c6509d768348f2b" id="r_ae44aa6e5631ffb765c6509d768348f2b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ae44aa6e5631ffb765c6509d768348f2b">opaque_as_type</a> () const noexcept</td></tr>
+<tr class="separator:ae44aa6e5631ffb765c6509d768348f2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa933df5a0d8e1df3d431dda7da940a8e" id="r_aa933df5a0d8e1df3d431dda7da940a8e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aa933df5a0d8e1df3d431dda7da940a8e">has_custom_serializer</a> () const noexcept</td></tr>
+<tr class="separator:aa933df5a0d8e1df3d431dda7da940a8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab520d05da9166a33c2950b8ebf30de44" id="r_ab520d05da9166a33c2950b8ebf30de44"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ab520d05da9166a33c2950b8ebf30de44">has_custom_deserializer</a> () const noexcept</td></tr>
+<tr class="separator:ab520d05da9166a33c2950b8ebf30de44"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0f950f9198075ea4babc2272d7133da1" id="r_a0f950f9198075ea4babc2272d7133da1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a0f950f9198075ea4babc2272d7133da1">constant</a> (uint32_t index) const noexcept</td></tr>
+<tr class="memdesc:a0f950f9198075ea4babc2272d7133da1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Looks up runtime enum/bitmask constant metadata by index.  <br /></td></tr>
+<tr class="separator:a0f950f9198075ea4babc2272d7133da1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4b3fdeba6696665210bf2b17422fd9fa" id="r_a4b3fdeba6696665210bf2b17422fd9fa"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a4b3fdeba6696665210bf2b17422fd9fa">constant</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> constantName) const noexcept</td></tr>
+<tr class="memdesc:a4b3fdeba6696665210bf2b17422fd9fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Looks up runtime enum/bitmask constant metadata by name.  <br /></td></tr>
+<tr class="separator:a4b3fdeba6696665210bf2b17422fd9fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab345bfbe434ba6c4f4c9979e0884ce56" id="r_ab345bfbe434ba6c4f4c9979e0884ce56"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ab345bfbe434ba6c4f4c9979e0884ce56">constant_by_value</a> (int64_t value) const noexcept</td></tr>
+<tr class="memdesc:ab345bfbe434ba6c4f4c9979e0884ce56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Looks up runtime enum/bitmask constant metadata by exact value.  <br /></td></tr>
+<tr class="separator:ab345bfbe434ba6c4f4c9979e0884ce56"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aec8ee439c0a358c54386d3b7037169a1" id="r_aec8ee439c0a358c54386d3b7037169a1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aec8ee439c0a358c54386d3b7037169a1">constant_count</a> () const noexcept</td></tr>
+<tr class="separator:aec8ee439c0a358c54386d3b7037169a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84990f7a21347b90edc25ffd24b35ec9" id="r_a84990f7a21347b90edc25ffd24b35ec9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a84990f7a21347b90edc25ffd24b35ec9">calc_new_mem_offset</a> (uint32_t addr, size_t cnt) const noexcept</td></tr>
 <tr class="memdesc:a84990f7a21347b90edc25ffd24b35ec9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the next aligned memory offset after storing <em>cnt</em> values of this component.  <br /></td></tr>
 <tr class="separator:a84990f7a21347b90edc25ffd24b35ec9"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -269,9 +292,6 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:ad15ac5fbe210e3afd3b1b7b39bf9c06d" id="r_ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#ad15ac5fbe210e3afd3b1b7b39bf9c06d">create</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;desc)</td></tr>
 <tr class="memdesc:ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates metadata from a plain component descriptor.  <br /></td></tr>
 <tr class="separator:ad15ac5fbe210e3afd3b1b7b39bf9c06d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aea8f23dd2b496951253ba3690ca6d0cb" id="r_aea8f23dd2b496951253ba3690ca6d0cb"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#aea8f23dd2b496951253ba3690ca6d0cb">create</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a19fd1f9a422c8be4e7491d3e14d869c7">entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;ctx)</td></tr>
-<tr class="memdesc:aea8f23dd2b496951253ba3690ca6d0cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates metadata from the legacy component-cache registration context.  <br /></td></tr>
-<tr class="separator:aea8f23dd2b496951253ba3690ca6d0cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9ba3fb65170337e78aa182035b3da6ec" id="r_a9ba3fb65170337e78aa182035b3da6ec"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec">destroy</a> (<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *pItem)</td></tr>
 <tr class="memdesc:a9ba3fb65170337e78aa182035b3da6ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases a cache item and any owned symbol storage.  <br /></td></tr>
 <tr class="separator:a9ba3fb65170337e78aa182035b3da6ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -346,10 +366,22 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>soaSizes</b> [meta
 RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>typeKind</b> = RuntimeTypeKind::Struct</td></tr>
 <tr class="memdesc:aadb894d80758447e1430e59639931a5f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime reflection type kind. <br /></td></tr>
 <tr class="separator:aadb894d80758447e1430e59639931a5f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9926e386378fb021ef000100e4e7d7f0" id="r_a9926e386378fb021ef000100e4e7d7f0"><td class="memItemLeft" align="right" valign="top"><a id="a9926e386378fb021ef000100e4e7d7f0" name="a9926e386378fb021ef000100e4e7d7f0"></a>
-RuntimePrimitiveKind&#160;</td><td class="memItemRight" valign="bottom"><b>primitiveKind</b> = RuntimePrimitiveKind::None</td></tr>
-<tr class="memdesc:a9926e386378fb021ef000100e4e7d7f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime primitive kind. Only valid when typeKind is Primitive. <br /></td></tr>
-<tr class="separator:a9926e386378fb021ef000100e4e7d7f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68af8c425c41fa3697c5be704fd7c573" id="r_a68af8c425c41fa3697c5be704fd7c573"><td class="memItemLeft" align="right" valign="top"><a id="a68af8c425c41fa3697c5be704fd7c573" name="a68af8c425c41fa3697c5be704fd7c573"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>underlyingType</b> = EntityBad</td></tr>
+<tr class="memdesc:a68af8c425c41fa3697c5be704fd7c573"><td class="mdescLeft">&#160;</td><td class="mdescRight">Primitive storage type for enum/bitmask metadata. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a68af8c425c41fa3697c5be704fd7c573"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a377fec6aa549d1a2e528d362b1612573" id="r_a377fec6aa549d1a2e528d362b1612573"><td class="memItemLeft" align="right" valign="top"><a id="a377fec6aa549d1a2e528d362b1612573" name="a377fec6aa549d1a2e528d362b1612573"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>elementType</b> = EntityBad</td></tr>
+<tr class="memdesc:a377fec6aa549d1a2e528d362b1612573"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a377fec6aa549d1a2e528d362b1612573"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5e21f8f28d3f78d40d5fadbe26ab817b" id="r_a5e21f8f28d3f78d40d5fadbe26ab817b"><td class="memItemLeft" align="right" valign="top"><a id="a5e21f8f28d3f78d40d5fadbe26ab817b" name="a5e21f8f28d3f78d40d5fadbe26ab817b"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>elementCount</b> = 0</td></tr>
+<tr class="memdesc:a5e21f8f28d3f78d40d5fadbe26ab817b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fixed element count for reflected array metadata at this array dimension. 0 otherwise. <br /></td></tr>
+<tr class="separator:a5e21f8f28d3f78d40d5fadbe26ab817b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a66b141484a8f5b2da1db060a0b590410" id="r_a66b141484a8f5b2da1db060a0b590410"><td class="memItemLeft" align="right" valign="top"><a id="a66b141484a8f5b2da1db060a0b590410" name="a66b141484a8f5b2da1db060a0b590410"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>opaqueAsType</b> = EntityBad</td></tr>
+<tr class="memdesc:a66b141484a8f5b2da1db060a0b590410"><td class="mdescLeft">&#160;</td><td class="mdescRight">Semantic runtime type exposed by opaque metadata. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a66b141484a8f5b2da1db060a0b590410"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -357,11 +389,69 @@ Static Public Attributes</h2></td></tr>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MaxNameLength</b> = 256</td></tr>
 <tr class="memdesc:ad4eb95be2d3d199b26b2ed9d5e52866e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum stored component and runtime-field symbol length, including the null terminator. <br /></td></tr>
 <tr class="separator:ad4eb95be2d3d199b26b2ed9d5e52866e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="friends" name="friends"></a>
+Friends</h2></td></tr>
+<tr class="memitem:a0277594e45a41cec19c7595212a5ebf2" id="r_a0277594e45a41cec19c7595212a5ebf2"><td class="memItemLeft" align="right" valign="top"><a id="a0277594e45a41cec19c7595212a5ebf2" name="a0277594e45a41cec19c7595212a5ebf2"></a>
+class&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentCache</b></td></tr>
+<tr class="separator:a0277594e45a41cec19c7595212a5ebf2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Runtime cache metadata for one registered Gaia component entity. </p>
 <p>A cache item is the authoritative metadata record used by chunk storage, runtime component registration, field reflection, lifecycle callbacks, hooks, symbol lookup, and serialization. Instances are created through the static create helpers and released with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="afed1d59935f1d8fd7c7ef730fc27783d" name="afed1d59935f1d8fd7c7ef730fc27783d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afed1d59935f1d8fd7c7ef730fc27783d">&#9670;&#160;</a></span>array_element_count()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::array_element_count </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Fixed element count for reflected fixed-array metadata, or 0 otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a3b173e2890499e02c38ebda6af8b9259" name="a3b173e2890499e02c38ebda6af8b9259"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3b173e2890499e02c38ebda6af8b9259">&#9670;&#160;</a></span>array_element_type()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::ComponentCacheItem::array_element_type </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Element type entity for reflected fixed-array metadata, or EntityBad otherwise. </dd></dl>
+
+</div>
+</div>
 <a id="a84990f7a21347b90edc25ffd24b35ec9" name="a84990f7a21347b90edc25ffd24b35ec9"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a84990f7a21347b90edc25ffd24b35ec9">&#9670;&#160;</a></span>calc_new_mem_offset()</h2>
 
@@ -454,6 +544,137 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 
 </div>
 </div>
+<a id="a0f950f9198075ea4babc2272d7133da1" name="a0f950f9198075ea4babc2272d7133da1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0f950f9198075ea4babc2272d7133da1">&#9670;&#160;</a></span>constant() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> * gaia::ecs::ComponentCacheItem::constant </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Looks up runtime enum/bitmask constant metadata by index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Constant index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Constant metadata pointer when found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a4b3fdeba6696665210bf2b17422fd9fa" name="a4b3fdeba6696665210bf2b17422fd9fa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4b3fdeba6696665210bf2b17422fd9fa">&#9670;&#160;</a></span>constant() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> * gaia::ecs::ComponentCacheItem::constant </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a>&#160;</td>
+          <td class="paramname"><em>constantName</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Looks up runtime enum/bitmask constant metadata by name. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">constantName</td><td>Constant name. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Constant metadata pointer when found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="ab345bfbe434ba6c4f4c9979e0884ce56" name="ab345bfbe434ba6c4f4c9979e0884ce56"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab345bfbe434ba6c4f4c9979e0884ce56">&#9670;&#160;</a></span>constant_by_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a135048e4d2efe859f8aa60759c998382">RuntimeConstant</a> * gaia::ecs::ComponentCacheItem::constant_by_value </td>
+          <td>(</td>
+          <td class="paramtype">int64_t&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Looks up runtime enum/bitmask constant metadata by exact value. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Constant value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Constant metadata pointer when found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="aec8ee439c0a358c54386d3b7037169a1" name="aec8ee439c0a358c54386d3b7037169a1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aec8ee439c0a358c54386d3b7037169a1">&#9670;&#160;</a></span>constant_count()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::ComponentCacheItem::constant_count </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Number of runtime enum/bitmask constants registered on this type. </dd></dl>
+
+</div>
+</div>
 <a id="af4145f308dd35d28ab28f9c845b4d8ba" name="af4145f308dd35d28ab28f9c845b4d8ba"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#af4145f308dd35d28ab28f9c845b4d8ba">&#9670;&#160;</a></span>copy()</h2>
 
@@ -528,7 +749,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </div>
 </div>
 <a id="a656599b547bb826c777f6b506ad53124" name="a656599b547bb826c777f6b506ad53124"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a656599b547bb826c777f6b506ad53124">&#9670;&#160;</a></span>create() <span class="overload">[1/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a656599b547bb826c777f6b506ad53124">&#9670;&#160;</a></span>create() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -570,54 +791,8 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
-<a id="aea8f23dd2b496951253ba3690ca6d0cb" name="aea8f23dd2b496951253ba3690ca6d0cb"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aea8f23dd2b496951253ba3690ca6d0cb">&#9670;&#160;</a></span>create() <span class="overload">[2/3]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> * gaia::ecs::ComponentCacheItem::create </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>entity</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItemCtx</a> &amp;&#160;</td>
-          <td class="paramname"><em>ctx</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Creates metadata from the legacy component-cache registration context. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity that owns the resulting metadata. </td></tr>
-    <tr><td class="paramname">ctx</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> registration context to adapt to <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html" title="Plain component registration descriptor shared by typed and runtime component paths....">ComponentDesc</a>. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Newly allocated component cache item; release with <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9ba3fb65170337e78aa182035b3da6ec" title="Releases a cache item and any owned symbol storage.">destroy()</a>. </dd></dl>
-
-</div>
-</div>
 <a id="ad15ac5fbe210e3afd3b1b7b39bf9c06d" name="ad15ac5fbe210e3afd3b1b7b39bf9c06d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad15ac5fbe210e3afd3b1b7b39bf9c06d">&#9670;&#160;</a></span>create() <span class="overload">[3/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad15ac5fbe210e3afd3b1b7b39bf9c06d">&#9670;&#160;</a></span>create() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1042,6 +1217,58 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="ab520d05da9166a33c2950b8ebf30de44" name="ab520d05da9166a33c2950b8ebf30de44"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab520d05da9166a33c2950b8ebf30de44">&#9670;&#160;</a></span>has_custom_deserializer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentCacheItem::has_custom_deserializer </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>True when this component has a custom deserializer callback. </dd></dl>
+
+</div>
+</div>
+<a id="aa933df5a0d8e1df3d431dda7da940a8e" name="aa933df5a0d8e1df3d431dda7da940a8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa933df5a0d8e1df3d431dda7da940a8e">&#9670;&#160;</a></span>has_custom_serializer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentCacheItem::has_custom_serializer </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>True when this component has a custom serializer callback. </dd></dl>
+
+</div>
+</div>
 <a id="a5e100c5b5c09ed74c51302d7e9103d49" name="a5e100c5b5c09ed74c51302d7e9103d49"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a5e100c5b5c09ed74c51302d7e9103d49">&#9670;&#160;</a></span>has_fields()</h2>
 
@@ -1204,6 +1431,84 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+
+</div>
+</div>
+<a id="ae44aa6e5631ffb765c6509d768348f2b" name="ae44aa6e5631ffb765c6509d768348f2b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae44aa6e5631ffb765c6509d768348f2b">&#9670;&#160;</a></span>opaque_as_type()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::ComponentCacheItem::opaque_as_type </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Semantic runtime type exposed by opaque metadata, or EntityBad otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a8fb0beba5b1edf5221c36a9cfa8c2fcb" name="a8fb0beba5b1edf5221c36a9cfa8c2fcb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8fb0beba5b1edf5221c36a9cfa8c2fcb">&#9670;&#160;</a></span>owner_cache()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> * gaia::ecs::ComponentCacheItem::owner_cache </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Owning component cache, or nullptr before the item is registered in a cache. </dd></dl>
+
+</div>
+</div>
+<a id="ae8cb3f0fef704f5a5b26a65ab3a033d3" name="ae8cb3f0fef704f5a5b26a65ab3a033d3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae8cb3f0fef704f5a5b26a65ab3a033d3">&#9670;&#160;</a></span>primitive_type()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::ComponentCacheItem::primitive_type </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>Primitive type entity represented by this metadata, or EntityBad for non-primitive metadata. </dd></dl>
 
 </div>
 </div>

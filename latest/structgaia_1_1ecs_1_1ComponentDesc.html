@@ -115,7 +115,7 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentDesc.htm
 </div><!--header-->
 <div class="contents">
 
-<p>Plain component registration descriptor shared by typed and runtime component paths. Typed registration produces this descriptor from <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">detail::ComponentDesc</a>, while runtime registration can fill it from data loaded at runtime.  
+<p>Plain component registration descriptor shared by typed and runtime component paths. Typed registration produces this descriptor from <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html" title="Compile-time adapter that converts typed component metadata into a plain ComponentDesc.">detail::ComponentDesc</a>, while runtime registration can fill it from data loaded at runtime.  
  <a href="structgaia_1_1ecs_1_1ComponentDesc.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="component__desc_8h_source.html">component_desc.h</a>&gt;</code></p>
@@ -124,30 +124,39 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentDesc.htm
 Public Types</h2></td></tr>
 <tr class="memitem:a99f61ebde74688c84218474bad84a56c" id="r_a99f61ebde74688c84218474bad84a56c"><td class="memItemLeft" align="right" valign="top"><a id="a99f61ebde74688c84218474bad84a56c" name="a99f61ebde74688c84218474bad84a56c"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCtor</b> = void(void *, uint32_t)</td></tr>
+<tr class="memdesc:a99f61ebde74688c84218474bad84a56c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> constructor callback for a contiguous range of payload slots. <br /></td></tr>
 <tr class="separator:a99f61ebde74688c84218474bad84a56c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a06b898cff9ceba2dde3148777caa2390" id="r_a06b898cff9ceba2dde3148777caa2390"><td class="memItemLeft" align="right" valign="top"><a id="a06b898cff9ceba2dde3148777caa2390" name="a06b898cff9ceba2dde3148777caa2390"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncDtor</b> = void(void *, uint32_t)</td></tr>
+<tr class="memdesc:a06b898cff9ceba2dde3148777caa2390"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> destructor callback for a contiguous range of payload slots. <br /></td></tr>
 <tr class="separator:a06b898cff9ceba2dde3148777caa2390"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9d26104386b32f3ba31739027b8039ed" id="r_a9d26104386b32f3ba31739027b8039ed"><td class="memItemLeft" align="right" valign="top"><a id="a9d26104386b32f3ba31739027b8039ed" name="a9d26104386b32f3ba31739027b8039ed"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncFrom</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a9d26104386b32f3ba31739027b8039ed"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> migration callback used when copying or moving from one layout stride to another. <br /></td></tr>
 <tr class="separator:a9d26104386b32f3ba31739027b8039ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a538a69229efa4c1b1e37f15b016a150c" id="r_a538a69229efa4c1b1e37f15b016a150c"><td class="memItemLeft" align="right" valign="top"><a id="a538a69229efa4c1b1e37f15b016a150c" name="a538a69229efa4c1b1e37f15b016a150c"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCopy</b> = void(void *, const void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a538a69229efa4c1b1e37f15b016a150c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> copy callback used by typed registration and storage moves. <br /></td></tr>
 <tr class="separator:a538a69229efa4c1b1e37f15b016a150c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae972daf19cf457a14e4ad38bb8fa4146" id="r_ae972daf19cf457a14e4ad38bb8fa4146"><td class="memItemLeft" align="right" valign="top"><a id="ae972daf19cf457a14e4ad38bb8fa4146" name="ae972daf19cf457a14e4ad38bb8fa4146"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncMove</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:ae972daf19cf457a14e4ad38bb8fa4146"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> move callback used by typed registration and storage moves. <br /></td></tr>
 <tr class="separator:ae972daf19cf457a14e4ad38bb8fa4146"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7606f1367b1a5e8a5d0eb489d2d38a99" id="r_a7606f1367b1a5e8a5d0eb489d2d38a99"><td class="memItemLeft" align="right" valign="top"><a id="a7606f1367b1a5e8a5d0eb489d2d38a99" name="a7606f1367b1a5e8a5d0eb489d2d38a99"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSwap</b> = void(void *, void *, uint32_t, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a7606f1367b1a5e8a5d0eb489d2d38a99"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> swap callback used by storage operations that exchange payload ranges. <br /></td></tr>
 <tr class="separator:a7606f1367b1a5e8a5d0eb489d2d38a99"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2452943a3b48248a1b0144e4f3054e08" id="r_a2452943a3b48248a1b0144e4f3054e08"><td class="memItemLeft" align="right" valign="top"><a id="a2452943a3b48248a1b0144e4f3054e08" name="a2452943a3b48248a1b0144e4f3054e08"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCmp</b> = bool(const void *, const void *)</td></tr>
+<tr class="memdesc:a2452943a3b48248a1b0144e4f3054e08"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> equality callback for comparing two payload values. <br /></td></tr>
 <tr class="separator:a2452943a3b48248a1b0144e4f3054e08"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a314ea870255dc198ab80756531284f1b" id="r_a314ea870255dc198ab80756531284f1b"><td class="memItemLeft" align="right" valign="top"><a id="a314ea870255dc198ab80756531284f1b" name="a314ea870255dc198ab80756531284f1b"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSave</b> = void(<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;, const void *, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a314ea870255dc198ab80756531284f1b"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> serializer callback for typed component save operations. <br /></td></tr>
 <tr class="separator:a314ea870255dc198ab80756531284f1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7d106e07dc077f21ba173f6e1cd20386" id="r_a7d106e07dc077f21ba173f6e1cd20386"><td class="memItemLeft" align="right" valign="top"><a id="a7d106e07dc077f21ba173f6e1cd20386" name="a7d106e07dc077f21ba173f6e1cd20386"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncLoad</b> = void(<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;, void *, uint32_t, uint32_t, uint32_t)</td></tr>
+<tr class="memdesc:a7d106e07dc077f21ba173f6e1cd20386"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> serializer callback for typed component load operations. <br /></td></tr>
 <tr class="separator:a7d106e07dc077f21ba173f6e1cd20386"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -184,52 +193,81 @@ const uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>pSoaSizes<
 RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom"><b>typeKind</b> = RuntimeTypeKind::Struct</td></tr>
 <tr class="memdesc:a232a1a36cc58fcfcb73692cb3084319b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime reflection type kind. <br /></td></tr>
 <tr class="separator:a232a1a36cc58fcfcb73692cb3084319b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a82041d4fce2f870e78536232f339aa37" id="r_a82041d4fce2f870e78536232f339aa37"><td class="memItemLeft" align="right" valign="top"><a id="a82041d4fce2f870e78536232f339aa37" name="a82041d4fce2f870e78536232f339aa37"></a>
-RuntimePrimitiveKind&#160;</td><td class="memItemRight" valign="bottom"><b>primitiveKind</b> = RuntimePrimitiveKind::None</td></tr>
-<tr class="memdesc:a82041d4fce2f870e78536232f339aa37"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime primitive kind. Only valid when typeKind is Primitive. <br /></td></tr>
-<tr class="separator:a82041d4fce2f870e78536232f339aa37"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0d0c08f797b38028c281cbdc128d2979" id="r_a0d0c08f797b38028c281cbdc128d2979"><td class="memItemLeft" align="right" valign="top"><a id="a0d0c08f797b38028c281cbdc128d2979" name="a0d0c08f797b38028c281cbdc128d2979"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>underlyingType</b> = EntityBad</td></tr>
+<tr class="memdesc:a0d0c08f797b38028c281cbdc128d2979"><td class="mdescLeft">&#160;</td><td class="mdescRight">Primitive storage type for enum/bitmask metadata. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a0d0c08f797b38028c281cbdc128d2979"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5a5f16c172611a3fe421fb85d4f1dd90" id="r_a5a5f16c172611a3fe421fb85d4f1dd90"><td class="memItemLeft" align="right" valign="top"><a id="a5a5f16c172611a3fe421fb85d4f1dd90" name="a5a5f16c172611a3fe421fb85d4f1dd90"></a>
 const <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>fields</b> = nullptr</td></tr>
 <tr class="memdesc:a5a5f16c172611a3fe421fb85d4f1dd90"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime field descriptors copied into component metadata during registration. <br /></td></tr>
 <tr class="separator:a5a5f16c172611a3fe421fb85d4f1dd90"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a44d679e3d32e1d8c39ab5a780ac59c63" id="r_a44d679e3d32e1d8c39ab5a780ac59c63"><td class="memItemLeft" align="right" valign="top"><a id="a44d679e3d32e1d8c39ab5a780ac59c63" name="a44d679e3d32e1d8c39ab5a780ac59c63"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>fieldCount</b> = 0</td></tr>
-<tr class="memdesc:a44d679e3d32e1d8c39ab5a780ac59c63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of descriptors in <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a5a5f16c172611a3fe421fb85d4f1dd90">fields</a>. <br /></td></tr>
+<tr class="memdesc:a44d679e3d32e1d8c39ab5a780ac59c63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of field descriptors. <br /></td></tr>
 <tr class="separator:a44d679e3d32e1d8c39ab5a780ac59c63"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1dd9938dabd944772291ca39525963c7" id="r_a1dd9938dabd944772291ca39525963c7"><td class="memItemLeft" align="right" valign="top"><a id="a1dd9938dabd944772291ca39525963c7" name="a1dd9938dabd944772291ca39525963c7"></a>
+const <a class="el" href="structgaia_1_1ecs_1_1RuntimeConstantDesc.html">RuntimeConstantDesc</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>constants</b> = nullptr</td></tr>
+<tr class="memdesc:a1dd9938dabd944772291ca39525963c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime constant descriptors copied into enum/bitmask metadata during registration. <br /></td></tr>
+<tr class="separator:a1dd9938dabd944772291ca39525963c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a86e3ba4959b26663317764b3896e0c6b" id="r_a86e3ba4959b26663317764b3896e0c6b"><td class="memItemLeft" align="right" valign="top"><a id="a86e3ba4959b26663317764b3896e0c6b" name="a86e3ba4959b26663317764b3896e0c6b"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>constantCount</b> = 0</td></tr>
+<tr class="memdesc:a86e3ba4959b26663317764b3896e0c6b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of constant descriptors. <br /></td></tr>
+<tr class="separator:a86e3ba4959b26663317764b3896e0c6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1d6da41ca0213c22c6c512890915186f" id="r_a1d6da41ca0213c22c6c512890915186f"><td class="memItemLeft" align="right" valign="top"><a id="a1d6da41ca0213c22c6c512890915186f" name="a1d6da41ca0213c22c6c512890915186f"></a>
-FuncCtor *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCtor</b> = nullptr</td></tr>
-<tr class="memdesc:a1d6da41ca0213c22c6c512890915186f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional lifecycle and serialization callbacks. <br /></td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a99f61ebde74688c84218474bad84a56c">FuncCtor</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCtor</b> = nullptr</td></tr>
+<tr class="memdesc:a1d6da41ca0213c22c6c512890915186f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional constructor callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:a1d6da41ca0213c22c6c512890915186f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aefd2ab01117b86ca094deb9ad91ae85d" id="r_aefd2ab01117b86ca094deb9ad91ae85d"><td class="memItemLeft" align="right" valign="top"><a id="aefd2ab01117b86ca094deb9ad91ae85d" name="aefd2ab01117b86ca094deb9ad91ae85d"></a>
-FuncMove *&#160;</td><td class="memItemRight" valign="bottom"><b>funcMoveCtor</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#ae972daf19cf457a14e4ad38bb8fa4146">FuncMove</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcMoveCtor</b> = nullptr</td></tr>
+<tr class="memdesc:aefd2ab01117b86ca094deb9ad91ae85d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional move-constructor callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:aefd2ab01117b86ca094deb9ad91ae85d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07e550becfc822b332d740f962e32852" id="r_a07e550becfc822b332d740f962e32852"><td class="memItemLeft" align="right" valign="top"><a id="a07e550becfc822b332d740f962e32852" name="a07e550becfc822b332d740f962e32852"></a>
-FuncCopy *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCopyCtor</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a538a69229efa4c1b1e37f15b016a150c">FuncCopy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCopyCtor</b> = nullptr</td></tr>
+<tr class="memdesc:a07e550becfc822b332d740f962e32852"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional copy-constructor callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:a07e550becfc822b332d740f962e32852"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af3d8be3e2e5bf412c14d1598ddba238b" id="r_af3d8be3e2e5bf412c14d1598ddba238b"><td class="memItemLeft" align="right" valign="top"><a id="af3d8be3e2e5bf412c14d1598ddba238b" name="af3d8be3e2e5bf412c14d1598ddba238b"></a>
-FuncDtor *&#160;</td><td class="memItemRight" valign="bottom"><b>funcDtor</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a06b898cff9ceba2dde3148777caa2390">FuncDtor</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcDtor</b> = nullptr</td></tr>
+<tr class="memdesc:af3d8be3e2e5bf412c14d1598ddba238b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional destructor callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:af3d8be3e2e5bf412c14d1598ddba238b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b3a4f329ba13954b8f9bf844bcfb3fd" id="r_a1b3a4f329ba13954b8f9bf844bcfb3fd"><td class="memItemLeft" align="right" valign="top"><a id="a1b3a4f329ba13954b8f9bf844bcfb3fd" name="a1b3a4f329ba13954b8f9bf844bcfb3fd"></a>
-FuncCopy *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCopy</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a538a69229efa4c1b1e37f15b016a150c">FuncCopy</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCopy</b> = nullptr</td></tr>
+<tr class="memdesc:a1b3a4f329ba13954b8f9bf844bcfb3fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional copy-assignment callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:a1b3a4f329ba13954b8f9bf844bcfb3fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a27b1b9e290c7df959dc9f9161f9d6d22" id="r_a27b1b9e290c7df959dc9f9161f9d6d22"><td class="memItemLeft" align="right" valign="top"><a id="a27b1b9e290c7df959dc9f9161f9d6d22" name="a27b1b9e290c7df959dc9f9161f9d6d22"></a>
-FuncMove *&#160;</td><td class="memItemRight" valign="bottom"><b>funcMove</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#ae972daf19cf457a14e4ad38bb8fa4146">FuncMove</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcMove</b> = nullptr</td></tr>
+<tr class="memdesc:a27b1b9e290c7df959dc9f9161f9d6d22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional move-assignment callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:a27b1b9e290c7df959dc9f9161f9d6d22"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0a9d62b16d9ec009993716aa7ce5d4f1" id="r_a0a9d62b16d9ec009993716aa7ce5d4f1"><td class="memItemLeft" align="right" valign="top"><a id="a0a9d62b16d9ec009993716aa7ce5d4f1" name="a0a9d62b16d9ec009993716aa7ce5d4f1"></a>
-FuncSwap *&#160;</td><td class="memItemRight" valign="bottom"><b>funcSwap</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a7606f1367b1a5e8a5d0eb489d2d38a99">FuncSwap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcSwap</b> = nullptr</td></tr>
+<tr class="memdesc:a0a9d62b16d9ec009993716aa7ce5d4f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional swap callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:a0a9d62b16d9ec009993716aa7ce5d4f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aca8c00a59c277cea703729ef686a1784" id="r_aca8c00a59c277cea703729ef686a1784"><td class="memItemLeft" align="right" valign="top"><a id="aca8c00a59c277cea703729ef686a1784" name="aca8c00a59c277cea703729ef686a1784"></a>
-FuncCmp *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCmp</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a2452943a3b48248a1b0144e4f3054e08">FuncCmp</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcCmp</b> = nullptr</td></tr>
+<tr class="memdesc:aca8c00a59c277cea703729ef686a1784"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional equality callback. Runtime byte-only components leave this null. <br /></td></tr>
 <tr class="separator:aca8c00a59c277cea703729ef686a1784"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a25944538e7bd56ae4b09ab696192c83c" id="r_a25944538e7bd56ae4b09ab696192c83c"><td class="memItemLeft" align="right" valign="top"><a id="a25944538e7bd56ae4b09ab696192c83c" name="a25944538e7bd56ae4b09ab696192c83c"></a>
-FuncSave *&#160;</td><td class="memItemRight" valign="bottom"><b>funcSave</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a314ea870255dc198ab80756531284f1b">FuncSave</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcSave</b> = nullptr</td></tr>
+<tr class="memdesc:a25944538e7bd56ae4b09ab696192c83c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional typed serialization save callback. Semantic runtime JSON uses field metadata instead. <br /></td></tr>
 <tr class="separator:a25944538e7bd56ae4b09ab696192c83c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af2899253209ea56f645fcd5cb5f30eca" id="r_af2899253209ea56f645fcd5cb5f30eca"><td class="memItemLeft" align="right" valign="top"><a id="af2899253209ea56f645fcd5cb5f30eca" name="af2899253209ea56f645fcd5cb5f30eca"></a>
-FuncLoad *&#160;</td><td class="memItemRight" valign="bottom"><b>funcLoad</b> = nullptr</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html#a7d106e07dc077f21ba173f6e1cd20386">FuncLoad</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>funcLoad</b> = nullptr</td></tr>
+<tr class="memdesc:af2899253209ea56f645fcd5cb5f30eca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead. <br /></td></tr>
 <tr class="separator:af2899253209ea56f645fcd5cb5f30eca"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a717e7533a5d67f615588c33326dda887" id="r_a717e7533a5d67f615588c33326dda887"><td class="memItemLeft" align="right" valign="top"><a id="a717e7533a5d67f615588c33326dda887" name="a717e7533a5d67f615588c33326dda887"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>elementType</b> = EntityBad</td></tr>
+<tr class="memdesc:a717e7533a5d67f615588c33326dda887"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a717e7533a5d67f615588c33326dda887"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae4f7dbf5c05ba2089d91afb7c7c45a9b" id="r_ae4f7dbf5c05ba2089d91afb7c7c45a9b"><td class="memItemLeft" align="right" valign="top"><a id="ae4f7dbf5c05ba2089d91afb7c7c45a9b" name="ae4f7dbf5c05ba2089d91afb7c7c45a9b"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>elementCount</b> = 0</td></tr>
+<tr class="memdesc:ae4f7dbf5c05ba2089d91afb7c7c45a9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fixed element count for reflected array metadata at this array dimension. 0 otherwise. <br /></td></tr>
+<tr class="separator:ae4f7dbf5c05ba2089d91afb7c7c45a9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a61658f6117c502f42832caf40d76bdfb" id="r_a61658f6117c502f42832caf40d76bdfb"><td class="memItemLeft" align="right" valign="top"><a id="a61658f6117c502f42832caf40d76bdfb" name="a61658f6117c502f42832caf40d76bdfb"></a>
+<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>opaqueAsType</b> = EntityBad</td></tr>
+<tr class="memdesc:a61658f6117c502f42832caf40d76bdfb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Semantic runtime type exposed by opaque metadata. EntityBad otherwise. <br /></td></tr>
+<tr class="separator:a61658f6117c502f42832caf40d76bdfb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Plain component registration descriptor shared by typed and runtime component paths. Typed registration produces this descriptor from <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">detail::ComponentDesc</a>, while runtime registration can fill it from data loaded at runtime. </p>
+<div class="textblock"><p>Plain component registration descriptor shared by typed and runtime component paths. Typed registration produces this descriptor from <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html" title="Compile-time adapter that converts typed component metadata into a plain ComponentDesc.">detail::ComponentDesc</a>, while runtime registration can fill it from data loaded at runtime. </p>
 </div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="component__desc_8h_source.html">component_desc.h</a></li>
 </ul>

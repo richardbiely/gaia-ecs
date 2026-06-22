@@ -114,10 +114,13 @@ var menudata={children:[
 {text:"v",url:"functions_vars_v.html#index_v"},
 {text:"w",url:"functions_vars_w.html#index_w"}]},
 {text:"Typedefs",url:"functions_type.html",children:[
+{text:"c",url:"functions_type.html#index_c"},
+{text:"d",url:"functions_type.html#index_d"},
 {text:"f",url:"functions_type.html#index_f"},
 {text:"r",url:"functions_type.html#index_r"},
 {text:"s",url:"functions_type.html#index_s"},
 {text:"t",url:"functions_type.html#index_t"},
+{text:"u",url:"functions_type.html#index_u"},
 {text:"v",url:"functions_type.html#index_v"}]},
 {text:"Enumerations",url:"functions_enum.html"},
 {text:"Enumerator",url:"functions_eval.html"},

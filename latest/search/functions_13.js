@@ -19,5 +19,6 @@ var searchData=
   ['try_5finherited_5fdata_5fview_16',['try_inherited_data_view',['../classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc',1,'gaia::ecs::QueryInfo']]],
   ['try_5fquery_5finfo_5ffast_17',['try_query_info_fast',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a47190411c7c31d3831164ca031729215',1,'gaia::ecs::detail::QueryImplStorage']]],
   ['try_5fupdate_5ffree_5fchunk_5fidx_18',['try_update_free_chunk_idx',['../classgaia_1_1ecs_1_1Archetype.html#ac90c91f695fb7fdc57c7ce20c235d21f',1,'gaia::ecs::Archetype::try_update_free_chunk_idx()'],['../classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116',1,'gaia::ecs::Archetype::try_update_free_chunk_idx(Chunk &amp;chunkThatRemovedEntity)']]],
-  ['type_19',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]]
+  ['type_19',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]],
+  ['type_5fkind_20',['type_kind',['../structgaia_1_1ecs_1_1ComponentCursor.html#a09e1ca6d2458fac980ce05139fa9a5dd',1,'gaia::ecs::ComponentCursor']]]
 ];

@@ -16,8 +16,10 @@ var searchData=
   ['cntentities_13',['cntentities',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html#a5b08265ce76c56e69408a1366678ada5',1,'gaia::ecs::Archetype::Properties::cntEntities'],['../structgaia_1_1ecs_1_1ChunkHeader.html#a7d23406e98df44df22cf6150b941941a',1,'gaia::ecs::ChunkHeader::cntEntities']]],
   ['comp_14',['comp',['../structgaia_1_1ecs_1_1ComponentRecord.html#ad633f469284841826aebca728e400876',1,'gaia::ecs::ComponentRecord::comp'],['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a7bbb5854186e82296d6225db3df50130',1,'gaia::ecs::ComponentCacheItem::comp']]],
   ['compindicespending_15',['compIndicesPending',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#a52188d70f7b3f7c4b296974fadc998ee',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
-  ['cost_16',['cost',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1CompiledOp.html#ace0bdf0ce4c273b748627a571a2f8aeb',1,'gaia::ecs::vm::detail::CompiledOp']]],
-  ['count_17',['count',['../structgaia_1_1ecs_1_1ChunkHeader.html#af0e1e2e307a46019d17ebc385a6ab1df',1,'gaia::ecs::ChunkHeader::count'],['../structgaia_1_1ecs_1_1RuntimeFieldDesc.html#a458d6453a72f2b6bd87770c153eef0e8',1,'gaia::ecs::RuntimeFieldDesc::count']]],
-  ['countenabled_18',['countEnabled',['../structgaia_1_1ecs_1_1ChunkHeader.html#abe6c2771d8f615a473e45f4ebc4df4b3',1,'gaia::ecs::ChunkHeader']]],
-  ['createarchetypematchkind_19',['createArchetypeMatchKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7b0e1497f6112f134efaca963c2592f1',1,'gaia::ecs::QueryCtx::Data']]]
+  ['constantcount_16',['constantCount',['../structgaia_1_1ecs_1_1ComponentDesc.html#a86e3ba4959b26663317764b3896e0c6b',1,'gaia::ecs::ComponentDesc']]],
+  ['constants_17',['constants',['../structgaia_1_1ecs_1_1ComponentDesc.html#a1dd9938dabd944772291ca39525963c7',1,'gaia::ecs::ComponentDesc']]],
+  ['cost_18',['cost',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1CompiledOp.html#ace0bdf0ce4c273b748627a571a2f8aeb',1,'gaia::ecs::vm::detail::CompiledOp']]],
+  ['count_19',['count',['../structgaia_1_1ecs_1_1ChunkHeader.html#af0e1e2e307a46019d17ebc385a6ab1df',1,'gaia::ecs::ChunkHeader::count'],['../structgaia_1_1ecs_1_1RuntimeFieldDesc.html#a458d6453a72f2b6bd87770c153eef0e8',1,'gaia::ecs::RuntimeFieldDesc::count'],['../structgaia_1_1ecs_1_1RuntimeField.html#aa21d7fbca190c974bec411fdc3e148b2',1,'gaia::ecs::RuntimeField::count']]],
+  ['countenabled_20',['countEnabled',['../structgaia_1_1ecs_1_1ChunkHeader.html#abe6c2771d8f615a473e45f4ebc4df4b3',1,'gaia::ecs::ChunkHeader']]],
+  ['createarchetypematchkind_21',['createArchetypeMatchKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7b0e1497f6112f134efaca963c2592f1',1,'gaia::ecs::QueryCtx::Data']]]
 ];

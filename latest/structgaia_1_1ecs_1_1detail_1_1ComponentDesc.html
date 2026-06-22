@@ -114,71 +114,448 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1Compone
   <div class="headertitle"><div class="title">gaia::ecs::detail::ComponentDesc&lt; T &gt; Struct Template Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Compile-time adapter that converts typed component metadata into a plain <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html" title="Compile-time adapter that converts typed component metadata into a plain ComponentDesc.">ComponentDesc</a>.  
+ <a href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="component__desc_8h_source.html">component_desc.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a92d633ca26d924f01ec2a77d423617cc" id="r_a92d633ca26d924f01ec2a77d423617cc"><td class="memItemLeft" align="right" valign="top"><a id="a92d633ca26d924f01ec2a77d423617cc" name="a92d633ca26d924f01ec2a77d423617cc"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>CT</b> = component_type_t&lt; T &gt;</td></tr>
+<tr class="memdesc:a92d633ca26d924f01ec2a77d423617cc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reflected Gaia component type wrapper. <br /></td></tr>
 <tr class="separator:a92d633ca26d924f01ec2a77d423617cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a32d27414d9b17f1b0a3f2649106dca9a" id="r_a32d27414d9b17f1b0a3f2649106dca9a"><td class="memItemLeft" align="right" valign="top"><a id="a32d27414d9b17f1b0a3f2649106dca9a" name="a32d27414d9b17f1b0a3f2649106dca9a"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>U</b> = typename component_type_t&lt; T &gt;::Type</td></tr>
+<tr class="memdesc:a32d27414d9b17f1b0a3f2649106dca9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored C++ payload type. <br /></td></tr>
 <tr class="separator:a32d27414d9b17f1b0a3f2649106dca9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a110c48151380d3b11d45f259024bd047" id="r_a110c48151380d3b11d45f259024bd047"><td class="memItemLeft" align="right" valign="top"><a id="a110c48151380d3b11d45f259024bd047" name="a110c48151380d3b11d45f259024bd047"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>DescU</b> = typename CT::TypeFull</td></tr>
+<tr class="memdesc:a110c48151380d3b11d45f259024bd047"><td class="mdescLeft">&#160;</td><td class="mdescRight">Fully-qualified component type used for stable symbol/hash generation. <br /></td></tr>
 <tr class="separator:a110c48151380d3b11d45f259024bd047"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:ac7a0c9a8f56594d86e166683d1c65668" id="r_ac7a0c9a8f56594d86e166683d1c65668"><td class="memItemLeft" align="right" valign="top"><a id="ac7a0c9a8f56594d86e166683d1c65668" name="ac7a0c9a8f56594d86e166683d1c65668"></a>
-static constexpr <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>hash_lookup</b> ()</td></tr>
+<tr class="memitem:ac7a0c9a8f56594d86e166683d1c65668" id="r_ac7a0c9a8f56594d86e166683d1c65668"><td class="memItemLeft" align="right" valign="top">static constexpr <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ac7a0c9a8f56594d86e166683d1c65668">hash_lookup</a> ()</td></tr>
+<tr class="memdesc:ac7a0c9a8f56594d86e166683d1c65668"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the stable lookup hash for the component type.  <br /></td></tr>
 <tr class="separator:ac7a0c9a8f56594d86e166683d1c65668"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad89d35d4747405f171441e85fa476602" id="r_ad89d35d4747405f171441e85fa476602"><td class="memItemLeft" align="right" valign="top"><a id="ad89d35d4747405f171441e85fa476602" name="ad89d35d4747405f171441e85fa476602"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>name</b> ()</td></tr>
+<tr class="memitem:ad89d35d4747405f171441e85fa476602" id="r_ad89d35d4747405f171441e85fa476602"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad89d35d4747405f171441e85fa476602">name</a> ()</td></tr>
+<tr class="memdesc:ad89d35d4747405f171441e85fa476602"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the reflected component symbol name.  <br /></td></tr>
 <tr class="separator:ad89d35d4747405f171441e85fa476602"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6ab728f59781dcd4188a4c370cc19e5e" id="r_a6ab728f59781dcd4188a4c370cc19e5e"><td class="memItemLeft" align="right" valign="top"><a id="a6ab728f59781dcd4188a4c370cc19e5e" name="a6ab728f59781dcd4188a4c370cc19e5e"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> ()</td></tr>
+<tr class="memitem:a6ab728f59781dcd4188a4c370cc19e5e" id="r_a6ab728f59781dcd4188a4c370cc19e5e"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a6ab728f59781dcd4188a4c370cc19e5e">size</a> ()</td></tr>
+<tr class="memdesc:a6ab728f59781dcd4188a4c370cc19e5e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload size stored in chunks.  <br /></td></tr>
 <tr class="separator:a6ab728f59781dcd4188a4c370cc19e5e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a41ac5530feaef8dddb64373eb6b01e34" id="r_a41ac5530feaef8dddb64373eb6b01e34"><td class="memItemLeft" align="right" valign="top"><a id="a41ac5530feaef8dddb64373eb6b01e34" name="a41ac5530feaef8dddb64373eb6b01e34"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>alig</b> ()</td></tr>
+<tr class="memitem:a41ac5530feaef8dddb64373eb6b01e34" id="r_a41ac5530feaef8dddb64373eb6b01e34"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a41ac5530feaef8dddb64373eb6b01e34">alig</a> ()</td></tr>
+<tr class="memdesc:a41ac5530feaef8dddb64373eb6b01e34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload alignment required by the component storage policy.  <br /></td></tr>
 <tr class="separator:a41ac5530feaef8dddb64373eb6b01e34"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab04f2c89f27fd6f47c0cb948c5fe661a" id="r_ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memItemLeft" align="right" valign="top"><a id="ab04f2c89f27fd6f47c0cb948c5fe661a" name="ab04f2c89f27fd6f47c0cb948c5fe661a"></a>
-static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>soa</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
+<tr class="memitem:ab04f2c89f27fd6f47c0cb948c5fe661a" id="r_ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memItemLeft" align="right" valign="top">static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a">soa</a> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
+<tr class="memdesc:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Populates SoA element sizes for SoA payloads.  <br /></td></tr>
 <tr class="separator:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a564628951c87a87a9f504fc3b9aae34c" id="r_a564628951c87a87a9f504fc3b9aae34c"><td class="memItemLeft" align="right" valign="top"><a id="a564628951c87a87a9f504fc3b9aae34c" name="a564628951c87a87a9f504fc3b9aae34c"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_ctor</b> ()</td></tr>
+<tr class="memitem:a564628951c87a87a9f504fc3b9aae34c" id="r_a564628951c87a87a9f504fc3b9aae34c"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a564628951c87a87a9f504fc3b9aae34c">func_ctor</a> ()</td></tr>
+<tr class="memdesc:a564628951c87a87a9f504fc3b9aae34c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the optional constructor callback for typed AoS payloads.  <br /></td></tr>
 <tr class="separator:a564628951c87a87a9f504fc3b9aae34c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a06728ebf79624acf2445a8fd10247883" id="r_a06728ebf79624acf2445a8fd10247883"><td class="memItemLeft" align="right" valign="top"><a id="a06728ebf79624acf2445a8fd10247883" name="a06728ebf79624acf2445a8fd10247883"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_dtor</b> ()</td></tr>
+<tr class="memitem:a06728ebf79624acf2445a8fd10247883" id="r_a06728ebf79624acf2445a8fd10247883"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a06728ebf79624acf2445a8fd10247883">func_dtor</a> ()</td></tr>
+<tr class="memdesc:a06728ebf79624acf2445a8fd10247883"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the optional destructor callback for typed AoS payloads.  <br /></td></tr>
 <tr class="separator:a06728ebf79624acf2445a8fd10247883"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab3a9bce192f08e89ce2b551e94af03e7" id="r_ab3a9bce192f08e89ce2b551e94af03e7"><td class="memItemLeft" align="right" valign="top"><a id="ab3a9bce192f08e89ce2b551e94af03e7" name="ab3a9bce192f08e89ce2b551e94af03e7"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy_ctor</b> ()</td></tr>
+<tr class="memitem:ab3a9bce192f08e89ce2b551e94af03e7" id="r_ab3a9bce192f08e89ce2b551e94af03e7"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab3a9bce192f08e89ce2b551e94af03e7">func_copy_ctor</a> ()</td></tr>
+<tr class="memdesc:ab3a9bce192f08e89ce2b551e94af03e7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the copy-constructor callback used when typed payload storage grows or migrates.  <br /></td></tr>
 <tr class="separator:ab3a9bce192f08e89ce2b551e94af03e7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0ce09e9299ffd125a32bfe40f1dd7070" id="r_a0ce09e9299ffd125a32bfe40f1dd7070"><td class="memItemLeft" align="right" valign="top"><a id="a0ce09e9299ffd125a32bfe40f1dd7070" name="a0ce09e9299ffd125a32bfe40f1dd7070"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_move_ctor</b> ()</td></tr>
+<tr class="memitem:a0ce09e9299ffd125a32bfe40f1dd7070" id="r_a0ce09e9299ffd125a32bfe40f1dd7070"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a0ce09e9299ffd125a32bfe40f1dd7070">func_move_ctor</a> ()</td></tr>
+<tr class="memdesc:a0ce09e9299ffd125a32bfe40f1dd7070"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the move-constructor callback used when typed payload storage grows or migrates.  <br /></td></tr>
 <tr class="separator:a0ce09e9299ffd125a32bfe40f1dd7070"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a102645c036eb29830df1ff297f9d89c0" id="r_a102645c036eb29830df1ff297f9d89c0"><td class="memItemLeft" align="right" valign="top"><a id="a102645c036eb29830df1ff297f9d89c0" name="a102645c036eb29830df1ff297f9d89c0"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_copy</b> ()</td></tr>
+<tr class="memitem:a102645c036eb29830df1ff297f9d89c0" id="r_a102645c036eb29830df1ff297f9d89c0"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a102645c036eb29830df1ff297f9d89c0">func_copy</a> ()</td></tr>
+<tr class="memdesc:a102645c036eb29830df1ff297f9d89c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the copy-assignment callback used for typed payload writes.  <br /></td></tr>
 <tr class="separator:a102645c036eb29830df1ff297f9d89c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae91141b7e7f53fc8ea2e1c9cb85ec915" id="r_ae91141b7e7f53fc8ea2e1c9cb85ec915"><td class="memItemLeft" align="right" valign="top"><a id="ae91141b7e7f53fc8ea2e1c9cb85ec915" name="ae91141b7e7f53fc8ea2e1c9cb85ec915"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_move</b> ()</td></tr>
+<tr class="memitem:ae91141b7e7f53fc8ea2e1c9cb85ec915" id="r_ae91141b7e7f53fc8ea2e1c9cb85ec915"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ae91141b7e7f53fc8ea2e1c9cb85ec915">func_move</a> ()</td></tr>
+<tr class="memdesc:ae91141b7e7f53fc8ea2e1c9cb85ec915"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the move-assignment callback used for typed payload writes.  <br /></td></tr>
 <tr class="separator:ae91141b7e7f53fc8ea2e1c9cb85ec915"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ace3b5c05622e819f9c9043c6db4e93a2" id="r_ace3b5c05622e819f9c9043c6db4e93a2"><td class="memItemLeft" align="right" valign="top"><a id="ace3b5c05622e819f9c9043c6db4e93a2" name="ace3b5c05622e819f9c9043c6db4e93a2"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_swap</b> ()</td></tr>
+<tr class="memitem:ace3b5c05622e819f9c9043c6db4e93a2" id="r_ace3b5c05622e819f9c9043c6db4e93a2"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ace3b5c05622e819f9c9043c6db4e93a2">func_swap</a> ()</td></tr>
+<tr class="memdesc:ace3b5c05622e819f9c9043c6db4e93a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the swap callback used by storage operations.  <br /></td></tr>
 <tr class="separator:ace3b5c05622e819f9c9043c6db4e93a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aae14d4e6b7e315a779470803d98939f8" id="r_aae14d4e6b7e315a779470803d98939f8"><td class="memItemLeft" align="right" valign="top"><a id="aae14d4e6b7e315a779470803d98939f8" name="aae14d4e6b7e315a779470803d98939f8"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_cmp</b> ()</td></tr>
+<tr class="memitem:aae14d4e6b7e315a779470803d98939f8" id="r_aae14d4e6b7e315a779470803d98939f8"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#aae14d4e6b7e315a779470803d98939f8">func_cmp</a> ()</td></tr>
+<tr class="memdesc:aae14d4e6b7e315a779470803d98939f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the equality comparison callback for typed payload values.  <br /></td></tr>
 <tr class="separator:aae14d4e6b7e315a779470803d98939f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac0d958a6be0bca9200801b0f99356ecb" id="r_ac0d958a6be0bca9200801b0f99356ecb"><td class="memItemLeft" align="right" valign="top"><a id="ac0d958a6be0bca9200801b0f99356ecb" name="ac0d958a6be0bca9200801b0f99356ecb"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_save</b> ()</td></tr>
+<tr class="memitem:ac0d958a6be0bca9200801b0f99356ecb" id="r_ac0d958a6be0bca9200801b0f99356ecb"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ac0d958a6be0bca9200801b0f99356ecb">func_save</a> ()</td></tr>
+<tr class="memdesc:ac0d958a6be0bca9200801b0f99356ecb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the serializer save callback for typed payload values.  <br /></td></tr>
 <tr class="separator:ac0d958a6be0bca9200801b0f99356ecb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a59c77045c235200066ce3b57c5a08f89" id="r_a59c77045c235200066ce3b57c5a08f89"><td class="memItemLeft" align="right" valign="top"><a id="a59c77045c235200066ce3b57c5a08f89" name="a59c77045c235200066ce3b57c5a08f89"></a>
-static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><b>func_load</b> ()</td></tr>
+<tr class="memitem:a59c77045c235200066ce3b57c5a08f89" id="r_a59c77045c235200066ce3b57c5a08f89"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a59c77045c235200066ce3b57c5a08f89">func_load</a> ()</td></tr>
+<tr class="memdesc:a59c77045c235200066ce3b57c5a08f89"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the serializer load callback for typed payload values.  <br /></td></tr>
 <tr class="separator:a59c77045c235200066ce3b57c5a08f89"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95a64aba00cd3bd5fd6549b034b52584" id="r_a95a64aba00cd3bd5fd6549b034b52584"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584">make</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> descName, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
 <tr class="memdesc:a95a64aba00cd3bd5fd6549b034b52584"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the plain descriptor used by component cache registration.  <br /></td></tr>
 <tr class="separator:a95a64aba00cd3bd5fd6549b034b52584"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Function Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T&gt;<br />
+struct gaia::ecs::detail::ComponentDesc&lt; T &gt;</div><p>Compile-time adapter that converts typed component metadata into a plain <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html" title="Compile-time adapter that converts typed component metadata into a plain ComponentDesc.">ComponentDesc</a>. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type or component wrapper being registered. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a41ac5530feaef8dddb64373eb6b01e34" name="a41ac5530feaef8dddb64373eb6b01e34"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a41ac5530feaef8dddb64373eb6b01e34">&#9670;&#160;</a></span>alig()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr uint32_t <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::alig </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the payload alignment required by the component storage policy. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload alignment in bytes. </dd></dl>
+
+</div>
+</div>
+<a id="aae14d4e6b7e315a779470803d98939f8" name="aae14d4e6b7e315a779470803d98939f8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aae14d4e6b7e315a779470803d98939f8">&#9670;&#160;</a></span>func_cmp()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_cmp </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the equality comparison callback for typed payload values. </p>
+<dl class="section return"><dt>Returns</dt><dd>Equality callback using operator== when available, otherwise byte comparison. </dd></dl>
+
+</div>
+</div>
+<a id="a102645c036eb29830df1ff297f9d89c0" name="a102645c036eb29830df1ff297f9d89c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a102645c036eb29830df1ff297f9d89c0">&#9670;&#160;</a></span>func_copy()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_copy </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the copy-assignment callback used for typed payload writes. </p>
+<dl class="section return"><dt>Returns</dt><dd>Copy-assignment callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="ab3a9bce192f08e89ce2b551e94af03e7" name="ab3a9bce192f08e89ce2b551e94af03e7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab3a9bce192f08e89ce2b551e94af03e7">&#9670;&#160;</a></span>func_copy_ctor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_copy_ctor </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the copy-constructor callback used when typed payload storage grows or migrates. </p>
+<dl class="section return"><dt>Returns</dt><dd>Copy-constructor callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="a564628951c87a87a9f504fc3b9aae34c" name="a564628951c87a87a9f504fc3b9aae34c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a564628951c87a87a9f504fc3b9aae34c">&#9670;&#160;</a></span>func_ctor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_ctor </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the optional constructor callback for typed AoS payloads. </p>
+<dl class="section return"><dt>Returns</dt><dd>Constructor callback, or nullptr when construction is trivial or SoA-managed. </dd></dl>
+
+</div>
+</div>
+<a id="a06728ebf79624acf2445a8fd10247883" name="a06728ebf79624acf2445a8fd10247883"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a06728ebf79624acf2445a8fd10247883">&#9670;&#160;</a></span>func_dtor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_dtor </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the optional destructor callback for typed AoS payloads. </p>
+<dl class="section return"><dt>Returns</dt><dd>Destructor callback, or nullptr when destruction is trivial or SoA-managed. </dd></dl>
+
+</div>
+</div>
+<a id="a59c77045c235200066ce3b57c5a08f89" name="a59c77045c235200066ce3b57c5a08f89"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a59c77045c235200066ce3b57c5a08f89">&#9670;&#160;</a></span>func_load()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_load </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the serializer load callback for typed payload values. </p>
+<dl class="section return"><dt>Returns</dt><dd>Load callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="ae91141b7e7f53fc8ea2e1c9cb85ec915" name="ae91141b7e7f53fc8ea2e1c9cb85ec915"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae91141b7e7f53fc8ea2e1c9cb85ec915">&#9670;&#160;</a></span>func_move()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_move </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the move-assignment callback used for typed payload writes. </p>
+<dl class="section return"><dt>Returns</dt><dd>Move-assignment callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="a0ce09e9299ffd125a32bfe40f1dd7070" name="a0ce09e9299ffd125a32bfe40f1dd7070"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0ce09e9299ffd125a32bfe40f1dd7070">&#9670;&#160;</a></span>func_move_ctor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_move_ctor </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the move-constructor callback used when typed payload storage grows or migrates. </p>
+<dl class="section return"><dt>Returns</dt><dd>Move-constructor callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="ac0d958a6be0bca9200801b0f99356ecb" name="ac0d958a6be0bca9200801b0f99356ecb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac0d958a6be0bca9200801b0f99356ecb">&#9670;&#160;</a></span>func_save()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_save </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the serializer save callback for typed payload values. </p>
+<dl class="section return"><dt>Returns</dt><dd>Save callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="ace3b5c05622e819f9c9043c6db4e93a2" name="ace3b5c05622e819f9c9043c6db4e93a2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ace3b5c05622e819f9c9043c6db4e93a2">&#9670;&#160;</a></span>func_swap()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::func_swap </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Builds the swap callback used by storage operations. </p>
+<dl class="section return"><dt>Returns</dt><dd>Swap callback for the component payload type. </dd></dl>
+
+</div>
+</div>
+<a id="ac7a0c9a8f56594d86e166683d1c65668" name="ac7a0c9a8f56594d86e166683d1c65668"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac7a0c9a8f56594d86e166683d1c65668">&#9670;&#160;</a></span>hash_lookup()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ComponentLookupHash</a> <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::hash_lookup </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the stable lookup hash for the component type. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> lookup hash derived from reflected type metadata. </dd></dl>
+
+</div>
+</div>
 <a id="a95a64aba00cd3bd5fd6549b034b52584" name="a95a64aba00cd3bd5fd6549b034b52584"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a95a64aba00cd3bd5fd6549b034b52584">&#9670;&#160;</a></span>make()</h2>
 
@@ -224,6 +601,103 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> descriptor for the current component type. </dd></dl>
+
+</div>
+</div>
+<a id="ad89d35d4747405f171441e85fa476602" name="ad89d35d4747405f171441e85fa476602"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad89d35d4747405f171441e85fa476602">&#9670;&#160;</a></span>name()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr auto <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::name </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the reflected component symbol name. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reflected type name for descriptor registration. </dd></dl>
+
+</div>
+</div>
+<a id="a6ab728f59781dcd4188a4c370cc19e5e" name="a6ab728f59781dcd4188a4c370cc19e5e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6ab728f59781dcd4188a4c370cc19e5e">&#9670;&#160;</a></span>size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr uint32_t <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::size </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the payload size stored in chunks. </p>
+<dl class="section return"><dt>Returns</dt><dd>0 for empty marker components, otherwise sizeof(payload type). </dd></dl>
+
+</div>
+</div>
+<a id="ab04f2c89f27fd6f47c0cb948c5fe661a" name="ab04f2c89f27fd6f47c0cb948c5fe661a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab04f2c89f27fd6f47c0cb948c5fe661a">&#9670;&#160;</a></span>soa()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static uint32_t <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::soa </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
+          <td class="paramname"><em>soaSizes</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Populates SoA element sizes for SoA payloads. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">soaSizes</td><td>Scratch/output storage for per-element byte sizes. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Number of SoA elements, or 0 for AoS payloads. </dd></dl>
 
 </div>
 </div>

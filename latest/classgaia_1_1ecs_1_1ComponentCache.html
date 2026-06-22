@@ -142,9 +142,6 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a2bd40f741e3444bf2e1bf210b4b1aa26" id="r_a2bd40f741e3444bf2e1bf210b4b1aa26"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#a2bd40f741e3444bf2e1bf210b4b1aa26">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a> &amp;desc, <a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> scopePath={})</td></tr>
 <tr class="memdesc:a2bd40f741e3444bf2e1bf210b4b1aa26"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a runtime-defined component.  <br /></td></tr>
 <tr class="separator:a2bd40f741e3444bf2e1bf210b4b1aa26"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3c31740d1b50a68b820d0b59a94a4890" id="r_a3c31740d1b50a68b820d0b59a94a4890"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#a3c31740d1b50a68b820d0b59a94a4890">add</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;item, <a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> scopePath={})</td></tr>
-<tr class="memdesc:a3c31740d1b50a68b820d0b59a94a4890"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a runtime-defined component.  <br /></td></tr>
-<tr class="separator:a3c31740d1b50a68b820d0b59a94a4890"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8aee578057c7cfb8b70053e0d2ab8aba" id="r_a8aee578057c7cfb8b70053e0d2ab8aba"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#a8aee578057c7cfb8b70053e0d2ab8aba">find</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const noexcept</td></tr>
 <tr class="memdesc:a8aee578057c7cfb8b70053e0d2ab8aba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Searches for the component cache item.  <br /></td></tr>
 <tr class="separator:a8aee578057c7cfb8b70053e0d2ab8aba"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -178,61 +175,8 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>World</b></td></tr>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Cache for compile-time defined components. </p>
 </div><h2 class="groupheader">Member Function Documentation</h2>
-<a id="a3c31740d1b50a68b820d0b59a94a4890" name="a3c31740d1b50a68b820d0b59a94a4890"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3c31740d1b50a68b820d0b59a94a4890">&#9670;&#160;</a></span>add() <span class="overload">[1/3]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp; gaia::ecs::ComponentCache::add </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>entity</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem_1_1ComponentCacheItemCtx.html">ComponentCacheItem::ComponentCacheItemCtx</a> &amp;&#160;</td>
-          <td class="paramname"><em>item</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a>&#160;</td>
-          <td class="paramname"><em>scopePath</em> = <code>{}</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Registers a runtime-defined component. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to bind the cache record to. </td></tr>
-    <tr><td class="paramname">item</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> item registration context. </td></tr>
-    <tr><td class="paramname">scopePath</td><td>Optional scoped path prefix used to derive the default component path. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Mutable component info. </dd></dl>
-
-</div>
-</div>
 <a id="a2bd40f741e3444bf2e1bf210b4b1aa26" name="a2bd40f741e3444bf2e1bf210b4b1aa26"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2bd40f741e3444bf2e1bf210b4b1aa26">&#9670;&#160;</a></span>add() <span class="overload">[2/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a2bd40f741e3444bf2e1bf210b4b1aa26">&#9670;&#160;</a></span>add() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -285,7 +229,7 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>World</b></td></tr>
 </div>
 </div>
 <a id="ac4c8a8d94d5319bb97b2d030bac0c31c" name="ac4c8a8d94d5319bb97b2d030bac0c31c"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ac4c8a8d94d5319bb97b2d030bac0c31c">&#9670;&#160;</a></span>add() <span class="overload">[3/3]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ac4c8a8d94d5319bb97b2d030bac0c31c">&#9670;&#160;</a></span>add() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
