@@ -190,12 +190,13 @@ namespace gaia {
 						// Make sure the new data is set to zeros
 						GAIA_FOR(itemsNew) m_pData[i] = 0;
 					} else {
-						const uint32_t itemsOld2 = items();
-						// Copy the old data over
-						mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsOld2, 0, 0, 0);
+						// Copy only the storage that exists in both allocations. resize() can shrink the
+						// backing store when the requested bit count is smaller than the current size.
+						const uint32_t itemsToCopy = itemsOld < itemsNew ? itemsOld : itemsNew;
+						mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)pDataOld, itemsToCopy, 0, 0, 0);
 						// Set the old data to zeros.
 						// If resizing to a smaller size this will do nothing
-						GAIA_FOR2(itemsOld2, itemsNew) m_pData[i] = 0;
+						GAIA_FOR2(itemsToCopy, itemsNew) m_pData[i] = 0;
 
 						// Release old data
 						mem::AllocHelper::free<Allocator>((void*)pDataOld);

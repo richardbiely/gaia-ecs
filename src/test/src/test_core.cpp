@@ -2736,6 +2736,20 @@ TEST_CASE("Containers - dbitset") {
 	SUBCASE("512 bits") {
 		test_dbitset<512>();
 	}
+	SUBCASE("Shrink copies only overlapping storage") {
+		cnt::dbitset bs;
+		bs.resize(2304);
+		bs.set(0);
+		bs.set(71);
+		bs.set(2303);
+
+		bs.resize(72);
+
+		CHECK(bs.size() == 72);
+		CHECK(bs.test(0));
+		CHECK(bs.test(71));
+		CHECK(bs.count() == 2);
+	}
 	SUBCASE("Ranges 11 bits") {
 		cnt::dbitset bs;
 		bs.resize(11);
