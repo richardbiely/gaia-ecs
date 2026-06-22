@@ -61,8 +61,8 @@ namespace gaia {
 				if (pFieldType != nullptr && pFieldType->typeKind == RuntimeTypeKind::Array) {
 					if (field.count != 0)
 						return false;
-					out.type = pFieldType->array_element_type();
-					out.elemCount = pFieldType->array_element_count();
+					out.type = pFieldType->element_type();
+					out.elemCount = pFieldType->element_count();
 					out.pType = find_runtime_json_type(pCache, out.type);
 				}
 
@@ -161,8 +161,8 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = find_runtime_json_type(pCache, elementType);
 					uint32_t elemSize = 0;
 					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
@@ -324,8 +324,8 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = find_runtime_json_type(pCache, elementType);
 					uint32_t elemSize = 0;
 					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||

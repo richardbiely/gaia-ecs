@@ -3749,7 +3749,7 @@ The same metadata drives semantic world JSON. A `Vec3` field is emitted as an ob
 
 Opaque runtime types describe payloads whose physical layout is intentionally not represented by runtime fields. Set `typeKind = ecs::RuntimeTypeKind::Opaque` and `opaqueAsType` to the reflected semantic type the payload presents to tools, scripts, importers, or editors. The existing component lifecycle and `funcSave` / `funcLoad` callbacks remain the physical payload contract; JSON is only one downstream import/export consumer and does not define opaque metadata. Cursors expose opaque scopes through `type_kind()` and `opaque_as_type()`, but field traversal is rejected until an explicit projection adapter exists.
 
-Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set `typeKind = ecs::RuntimeTypeKind::Vector`, `elementType` to the reflected element type entity, `elementCount = 0`, and `size = 0`. This is semantic type metadata only: cursors expose `vector_element_type()` for introspection, but `elem(...)` is rejected until an explicit vector adapter/projection API exists.
+Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set `typeKind = ecs::RuntimeTypeKind::Vector`, `elementType` to the reflected element type entity, `elementCount = 0`, and `size = 0`. This is semantic type metadata only: cursors expose `element_type()` for introspection, but `elem(...)` is rejected until an explicit vector adapter/projection API exists.
 
 ### Enum and bitmask metadata
 

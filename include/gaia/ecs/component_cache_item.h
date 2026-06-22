@@ -415,19 +415,14 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! @return Element type entity for reflected fixed-array metadata, or EntityBad otherwise.
-			GAIA_NODISCARD Entity array_element_type() const noexcept {
-				return typeKind == RuntimeTypeKind::Array ? elementType : EntityBad;
+			//! @return Element type entity for reflected sequence metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity element_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Array || typeKind == RuntimeTypeKind::Vector ? elementType : EntityBad;
 			}
 
-			//! @return Fixed element count for reflected fixed-array metadata, or 0 otherwise.
-			GAIA_NODISCARD uint32_t array_element_count() const noexcept {
+			//! @return Fixed element count for arrays, or 0 for non-sequences and dynamic vector/list metadata.
+			GAIA_NODISCARD uint32_t element_count() const noexcept {
 				return typeKind == RuntimeTypeKind::Array ? elementCount : 0;
-			}
-
-			//! @return Element type entity for reflected dynamic vector/list metadata, or EntityBad otherwise.
-			GAIA_NODISCARD Entity vector_element_type() const noexcept {
-				return typeKind == RuntimeTypeKind::Vector ? elementType : EntityBad;
 			}
 
 			//! @return Semantic runtime type exposed by opaque metadata, or EntityBad otherwise.

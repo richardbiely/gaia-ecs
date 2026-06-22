@@ -265,8 +265,8 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(item.typeKind == ecs::RuntimeTypeKind::Opaque);
 		CHECK(item.opaque_as_type() == semanticType.entity);
 		CHECK(item.field_count() == 0);
-		CHECK(item.array_element_type() == ecs::EntityBad);
-		CHECK(item.array_element_count() == 0);
+		CHECK(item.element_type() == ecs::EntityBad);
+		CHECK(item.element_count() == 0);
 		CHECK(item.has_custom_serializer());
 		CHECK(item.has_custom_deserializer());
 
@@ -329,9 +329,8 @@ TEST_CASE("Component cache - runtime registration") {
 		auto& vectorType = wld.add(vectorDesc);
 
 		CHECK(vectorType.typeKind == ecs::RuntimeTypeKind::Vector);
-		CHECK(vectorType.vector_element_type() == elementType.entity);
-		CHECK(vectorType.array_element_type() == ecs::EntityBad);
-		CHECK(vectorType.array_element_count() == 0);
+		CHECK(vectorType.element_type() == elementType.entity);
+		CHECK(vectorType.element_count() == 0);
 		CHECK(vectorType.field_count() == 0);
 
 		const auto e = wld.add();
@@ -339,7 +338,7 @@ TEST_CASE("Component cache - runtime registration") {
 		auto cursor = wld.cursor(e, vectorType.entity);
 		CHECK(cursor.valid());
 		CHECK(cursor.type_kind() == ecs::RuntimeTypeKind::Vector);
-		CHECK(cursor.vector_element_type() == elementType.entity);
+		CHECK(cursor.element_type() == elementType.entity);
 		CHECK_FALSE(cursor.elem(0));
 		CHECK_FALSE(cursor.field(util::str_view("x")));
 	}
@@ -1390,11 +1389,11 @@ TEST_CASE("Component cache - runtime registration") {
 
 		CHECK(vec3Type.field_count() == 3);
 		CHECK(vec3ArrayType.typeKind == ecs::RuntimeTypeKind::Array);
-		CHECK(vec3ArrayType.array_element_type() == vec3Type.entity);
-		CHECK(vec3ArrayType.array_element_count() == RuntimeSamplesCount);
+		CHECK(vec3ArrayType.element_type() == vec3Type.entity);
+		CHECK(vec3ArrayType.element_count() == RuntimeSamplesCount);
 		CHECK(vec3GridType.typeKind == ecs::RuntimeTypeKind::Array);
-		CHECK(vec3GridType.array_element_type() == vec3ArrayType.entity);
-		CHECK(vec3GridType.array_element_count() == 2);
+		CHECK(vec3GridType.element_type() == vec3ArrayType.entity);
+		CHECK(vec3GridType.element_count() == 2);
 		CHECK(transformComp.field_count() == 3);
 		const auto* positionField = transformComp.field(util::str_view("position"));
 		const auto* samplesField = transformComp.field(util::str_view("samples"));

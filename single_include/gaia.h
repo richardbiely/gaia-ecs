@@ -29660,6 +29660,10 @@ namespace gaia {
 			Bitmask,
 			//! Fixed-array runtime type described by an element type and element count.
 			Array,
+			//! Dynamic vector/list runtime type described by an element type and adapter-owned storage.
+			Vector,
+			//! Opaque runtime type whose physical payload layout is exposed through a semantic runtime type.
+			Opaque,
 		};
 
 		//! User-authored runtime field descriptor.
@@ -29772,10 +29776,12 @@ namespace gaia {
 			FuncSave* funcSave = nullptr;
 			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
-			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
+			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
+			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
+			Entity opaqueAsType = EntityBad;
 		};
 
 		namespace detail {
@@ -30171,10 +30177,12 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
-			//! Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise.
+			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
 			Entity elementType = EntityBad;
 			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
 			uint32_t elementCount = 0;
+			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
+			Entity opaqueAsType = EntityBad;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -30476,14 +30484,29 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! @return Element type entity for reflected fixed-array metadata, or EntityBad otherwise.
-			GAIA_NODISCARD Entity array_element_type() const noexcept {
-				return typeKind == RuntimeTypeKind::Array ? elementType : EntityBad;
+			//! @return Element type entity for reflected sequence metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity element_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Array || typeKind == RuntimeTypeKind::Vector ? elementType : EntityBad;
 			}
 
-			//! @return Fixed element count for reflected fixed-array metadata, or 0 otherwise.
-			GAIA_NODISCARD uint32_t array_element_count() const noexcept {
+			//! @return Fixed element count for arrays, or 0 for non-sequences and dynamic vector/list metadata.
+			GAIA_NODISCARD uint32_t element_count() const noexcept {
 				return typeKind == RuntimeTypeKind::Array ? elementCount : 0;
+			}
+
+			//! @return Semantic runtime type exposed by opaque metadata, or EntityBad otherwise.
+			GAIA_NODISCARD Entity opaque_as_type() const noexcept {
+				return typeKind == RuntimeTypeKind::Opaque ? opaqueAsType : EntityBad;
+			}
+
+			//! @return True when this component has a custom serializer callback.
+			GAIA_NODISCARD bool has_custom_serializer() const noexcept {
+				return func_save != nullptr;
+			}
+
+			//! @return True when this component has a custom deserializer callback.
+			GAIA_NODISCARD bool has_custom_deserializer() const noexcept {
+				return func_load != nullptr;
 			}
 
 			//! Looks up runtime enum/bitmask constant metadata by index.
@@ -30740,6 +30763,7 @@ namespace gaia {
 				cci->underlyingType = desc.underlyingType;
 				cci->elementType = desc.elementType;
 				cci->elementCount = desc.elementCount;
+				cci->opaqueAsType = desc.opaqueAsType;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {
@@ -30876,6 +30900,7 @@ namespace gaia {
 					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
 					GAIA_ASSERT(desc.elementType == EntityBad);
 					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 					return;
 				}
 
@@ -30887,6 +30912,7 @@ namespace gaia {
 					GAIA_ASSERT(desc.fieldCount == 0);
 					GAIA_ASSERT(desc.constants == nullptr);
 					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 					const auto* pElementType = find(desc.elementType);
 					GAIA_ASSERT(pElementType != nullptr);
 					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
@@ -30900,9 +30926,38 @@ namespace gaia {
 					return;
 				}
 
+				if (desc.typeKind == RuntimeTypeKind::Vector) {
+					GAIA_ASSERT(desc.underlyingType == EntityBad);
+					GAIA_ASSERT(desc.elementType != EntityBad);
+					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.fields == nullptr);
+					GAIA_ASSERT(desc.fieldCount == 0);
+					GAIA_ASSERT(desc.constants == nullptr);
+					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
+					GAIA_ASSERT(desc.size == 0);
+					GAIA_ASSERT(desc.soa == 0);
+					GAIA_ASSERT(find(desc.elementType) != nullptr);
+					return;
+				}
+
+				if (desc.typeKind == RuntimeTypeKind::Opaque) {
+					GAIA_ASSERT(desc.underlyingType == EntityBad);
+					GAIA_ASSERT(desc.elementType == EntityBad);
+					GAIA_ASSERT(desc.elementCount == 0);
+					GAIA_ASSERT(desc.fields == nullptr);
+					GAIA_ASSERT(desc.fieldCount == 0);
+					GAIA_ASSERT(desc.constants == nullptr);
+					GAIA_ASSERT(desc.constantCount == 0);
+					GAIA_ASSERT(desc.opaqueAsType != EntityBad);
+					GAIA_ASSERT(find(desc.opaqueAsType) != nullptr);
+					return;
+				}
+
 				GAIA_ASSERT(desc.underlyingType == EntityBad);
 				GAIA_ASSERT(desc.elementType == EntityBad);
 				GAIA_ASSERT(desc.elementCount == 0);
+				GAIA_ASSERT(desc.opaqueAsType == EntityBad);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.
@@ -35382,7 +35437,25 @@ namespace gaia {
 				return m_valid ? m_stack[m_depth].type : EntityBad;
 			}
 
-			//! \return Current payload or field size in bytes.
+			//! Returns the runtime type kind at the current cursor scope.
+			GAIA_NODISCARD RuntimeTypeKind type_kind() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->typeKind : RuntimeTypeKind::None;
+			}
+
+			//! Returns the semantic runtime type exposed by the current opaque scope, or EntityBad otherwise.
+			GAIA_NODISCARD Entity opaque_as_type() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->opaque_as_type() : EntityBad;
+			}
+
+			//! Returns the element type for the current sequence scope, or EntityBad otherwise.
+			GAIA_NODISCARD Entity element_type() const noexcept {
+				const auto* pItem = current_item();
+				return pItem != nullptr ? pItem->element_type() : EntityBad;
+			}
+
+			//! Returns the current payload or field size in bytes.
 			GAIA_NODISCARD uint32_t size() const noexcept {
 				return m_valid ? m_stack[m_depth].size : 0;
 			}
@@ -35462,8 +35535,8 @@ namespace gaia {
 					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
 						return false;
 
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = m_components->find(elementType);
 					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
 						return false;
@@ -35859,13 +35932,13 @@ namespace gaia {
 				if (pType->typeKind == RuntimeTypeKind::Array) {
 					if (field.count != 0)
 						return false;
-					const auto elementType = pType->array_element_type();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || pType->array_element_count() == 0)
+					if (pElementType == nullptr || pType->element_count() == 0)
 						return false;
 					scopeType = elementType;
 					elemSize = pElementType->comp.size();
-					elemCount = pType->array_element_count();
+					elemCount = pType->element_count();
 				}
 				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
@@ -71422,8 +71495,8 @@ namespace gaia {
 				if (pFieldType != nullptr && pFieldType->typeKind == RuntimeTypeKind::Array) {
 					if (field.count != 0)
 						return false;
-					out.type = pFieldType->array_element_type();
-					out.elemCount = pFieldType->array_element_count();
+					out.type = pFieldType->element_type();
+					out.elemCount = pFieldType->element_count();
 					out.pType = find_runtime_json_type(pCache, out.type);
 				}
 
@@ -71522,8 +71595,8 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = find_runtime_json_type(pCache, elementType);
 					uint32_t elemSize = 0;
 					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||
@@ -71685,8 +71758,8 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Array) {
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = find_runtime_json_type(pCache, elementType);
 					uint32_t elemSize = 0;
 					if (elemCount == 0 || !runtime_json_type_size(pElementType, elementType, elemSize) ||

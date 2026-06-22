@@ -218,10 +218,10 @@ namespace gaia {
 				return pItem != nullptr ? pItem->opaque_as_type() : EntityBad;
 			}
 
-			//! Returns the element type for the current dynamic vector/list scope, or EntityBad otherwise.
-			GAIA_NODISCARD Entity vector_element_type() const noexcept {
+			//! Returns the element type for the current sequence scope, or EntityBad otherwise.
+			GAIA_NODISCARD Entity element_type() const noexcept {
 				const auto* pItem = current_item();
-				return pItem != nullptr ? pItem->vector_element_type() : EntityBad;
+				return pItem != nullptr ? pItem->element_type() : EntityBad;
 			}
 
 			//! Returns the current payload or field size in bytes.
@@ -304,8 +304,8 @@ namespace gaia {
 					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
 						return false;
 
-					const auto elemCount = pType->array_element_count();
-					const auto elementType = pType->array_element_type();
+					const auto elemCount = pType->element_count();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = m_components->find(elementType);
 					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
 						return false;
@@ -701,13 +701,13 @@ namespace gaia {
 				if (pType->typeKind == RuntimeTypeKind::Array) {
 					if (field.count != 0)
 						return false;
-					const auto elementType = pType->array_element_type();
+					const auto elementType = pType->element_type();
 					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || pType->array_element_count() == 0)
+					if (pElementType == nullptr || pType->element_count() == 0)
 						return false;
 					scopeType = elementType;
 					elemSize = pElementType->comp.size();
-					elemCount = pType->array_element_count();
+					elemCount = pType->element_count();
 				}
 				const auto fieldSize64 = (uint64_t)elemSize * (uint64_t)elemCount;
 				const auto end = (uint64_t)field.offset + fieldSize64;
