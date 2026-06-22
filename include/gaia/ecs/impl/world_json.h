@@ -94,6 +94,31 @@ namespace gaia {
 				return path;
 			}
 
+			GAIA_NODISCARD inline bool count_runtime_json_array_elements(ser::ser_json& reader, uint32_t& outCount) {
+				outCount = 0;
+				reader.ws();
+				const auto* start = reader.pos();
+				const auto* end = reader.end();
+				if (start == nullptr || end == nullptr || start > end)
+					return false;
+
+				ser::ser_json counter(start, (uint32_t)(end - start));
+				if (!counter.expect('['))
+					return false;
+				counter.ws();
+				if (counter.consume(']'))
+					return true;
+
+				while (true) {
+					if (!counter.skip_value())
+						return false;
+					++outCount;
+					if (counter.consume(','))
+						continue;
+					return counter.consume(']');
+				}
+			}
+
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& writer, uint32_t depth);
@@ -176,6 +201,42 @@ namespace gaia {
 					GAIA_FOR(elemCount) {
 						const auto* pElemData = pData + (uintptr_t)elemSize * i;
 						ok = write_runtime_json_value(pCache, pElementType, elementType, pElemData, elemSize, writer, depth + 1) &&
+								 ok;
+					}
+					writer.end_array();
+					return ok;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					const auto elementType = pType->element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					if (adapter == nullptr || adapter->count == nullptr || adapter->element == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					RuntimeSequenceScope sequence{typeEntity, pData, nullptr, valueSize};
+					uint32_t elemCount = 0;
+					if (!adapter->count(adapter->ctx, sequence, elemCount)) {
+						writer.value_null();
+						return false;
+					}
+
+					bool ok = true;
+					writer.begin_array();
+					GAIA_FOR(elemCount) {
+						RuntimeSequenceElement element{};
+						element.type = elementType;
+						if (!adapter->element(adapter->ctx, sequence, i, element)) {
+							writer.value_null();
+							ok = false;
+							continue;
+						}
+						if (element.type == EntityBad)
+							element.type = elementType;
+						ok = write_runtime_json_value(
+										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer,
+										 depth + 1) &&
 								 ok;
 					}
 					writer.end_array();
@@ -348,6 +409,54 @@ namespace gaia {
 						if (!read_runtime_json_value(
 										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1,
 										ok))
+							return false;
+					}
+					return reader.expect(']');
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					const auto elementType = pType->element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemCount = 0;
+					if (adapter == nullptr || adapter->resize == nullptr || adapter->element == nullptr ||
+							!count_runtime_json_array_elements(reader, elemCount)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime vector payload cannot be resized or traversed.");
+						return reader.skip_value();
+					}
+
+					RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
+					if (!adapter->resize(adapter->ctx, sequence, elemCount)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime vector adapter rejected the requested element count.");
+						return reader.skip_value();
+					}
+
+					if (!reader.expect('['))
+						return false;
+					GAIA_FOR(elemCount) {
+						if (i > 0 && !reader.expect(','))
+							return false;
+						RuntimeSequenceElement element{};
+						element.type = elementType;
+						if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+									"Runtime vector adapter rejected an element.");
+							return reader.skip_value();
+						}
+						if (element.type == EntityBad)
+							element.type = elementType;
+						const auto elemPath = make_runtime_json_element_path(path, i);
+						if (!read_runtime_json_value(
+										pCache, pElementType, element.type, (uint8_t*)element.mutData, element.size, reader, diagnostics,
+										elemPath, depth + 1, ok))
 							return false;
 					}
 					return reader.expect(']');

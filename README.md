@@ -107,6 +107,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Registration](#registration)
     * [Field metadata](#field-metadata)
     * [Nested structs and fixed arrays](#nested-structs-and-fixed-arrays)
+    * [Dynamic vectors](#dynamic-vectors)
     * [Enum and bitmask metadata](#enum-and-bitmask-metadata)
     * [Raw access and cursors](#raw-access-and-cursors)
     * [Querying runtime components](#querying-runtime-components)
@@ -3647,10 +3648,10 @@ Runtime components are components whose payload layout is described by data inst
 
 The runtime API has three separate concerns:
 * registration: create a component entity from `ecs::ComponentDesc`
-* metadata: describe fields, nested structs, fixed arrays, enums, and bitmasks
+* metadata: describe fields, nested structs, fixed arrays, dynamic vectors, enums, bitmasks, and opaque semantic types
 * access: add, read, write, query, and serialize payload bytes without a C++ component type
 
-For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.
+For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays and adapted dynamic vectors serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.
 
 ### Registration
 
@@ -3749,7 +3750,70 @@ The same metadata drives semantic world JSON. A `Vec3` field is emitted as an ob
 
 Opaque runtime types describe payloads whose physical layout is intentionally not represented by runtime fields. Set `typeKind = ecs::RuntimeTypeKind::Opaque` and `opaqueAsType` to the reflected semantic type the payload presents to tools, scripts, importers, or editors. The existing component lifecycle and `funcSave` / `funcLoad` callbacks remain the physical payload contract; JSON is only one downstream import/export consumer and does not define opaque metadata. Cursors expose opaque scopes through `type_kind()` and `opaque_as_type()`, but field traversal is rejected until an explicit projection adapter exists.
 
-Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set `typeKind = ecs::RuntimeTypeKind::Vector`, `elementType` to the reflected element type entity, `elementCount = 0`, and `size = 0`. This is semantic type metadata only: cursors expose `element_type()` for introspection, but `elem(...)` is rejected until an explicit vector adapter/projection API exists.
+### Dynamic vectors
+
+Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set `typeKind = ecs::RuntimeTypeKind::Vector`, `elementType` to the reflected element type entity, and `elementCount = 0`. If no adapter is registered, the vector is metadata-only: cursors expose `element_type()` for introspection, while `count()`, `elem(...)`, `resize(...)`, and semantic JSON traversal reject deterministically.
+
+Register an adapted vector by assigning `ComponentDesc::sequenceAdapter`. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.
+
+```cpp
+struct PointsHeader {
+  uint32_t count = 0;
+  uint32_t capacity = 0;
+  uint8_t* data = nullptr;
+};
+
+ecs::RuntimeSequenceAdapter pointsAdapter{};
+pointsAdapter.count = [](void*, const ecs::RuntimeSequenceScope& sequence, uint32_t& outCount) {
+  const auto* header = (const PointsHeader*)sequence.data;
+  if (header == nullptr || header->count > header->capacity)
+    return false;
+  outCount = header->count;
+  return true;
+};
+pointsAdapter.element = [](void*, const ecs::RuntimeSequenceScope& sequence, uint32_t index,
+                           ecs::RuntimeSequenceElement& outElement) {
+  const auto* header = (const PointsHeader*)sequence.data;
+  if (header == nullptr || header->data == nullptr || index >= header->count)
+    return false;
+
+  constexpr uint32_t Vec3Size = sizeof(float) * 3;
+  outElement.data = header->data + (uintptr_t)Vec3Size * index;
+  if (sequence.mutData != nullptr)
+    outElement.mutData = header->data + (uintptr_t)Vec3Size * index;
+  outElement.size = Vec3Size;
+  return true;
+};
+pointsAdapter.resize = [](void*, ecs::RuntimeSequenceScope& sequence, uint32_t count) {
+  auto* header = (PointsHeader*)sequence.mutData;
+  if (header == nullptr || count > header->capacity)
+    return false;
+  header->count = count;
+  return true;
+};
+
+ecs::ComponentDesc pointsDesc{};
+pointsDesc.name = util::str_view("Points", 6);
+pointsDesc.size = sizeof(PointsHeader);
+pointsDesc.alig = alignof(PointsHeader);
+pointsDesc.storageType = ecs::DataStorageType::Table;
+pointsDesc.typeKind = ecs::RuntimeTypeKind::Vector;
+pointsDesc.elementType = vec3CI.entity;
+pointsDesc.sequenceAdapter = &pointsAdapter;
+ecs::ComponentCacheItem& pointsCI = w.add(pointsDesc);
+```
+
+The cursor surface is the same vocabulary used by fixed arrays: call `count()` to read the current element count, `elem(index)` to select one element, and then use normal field or primitive accessors on the selected element.
+
+```cpp
+ecs::ComponentCursor cursor = w.cursor_mut(e, pointsCI.entity);
+auto count = cursor.count();
+if (count && count.value > 0 && cursor.elem(0) && cursor.field("x")) {
+  cursor.f32(42.0f);
+}
+```
+
+Mutable cursor writes call `commitElement` when the adapter provides it, then finish the root component write so `OnSet` observers see the owning component change. Semantic JSON uses the same adapter: save calls `count` and `element`; load requires `resize` before per-element loading. Without `resize`, vector JSON load is treated as a best-effort failure rather than guessing ownership or allocation policy.
 
 ### Enum and bitmask metadata
 
@@ -3807,7 +3871,7 @@ if (cursor.field("seconds")) {
 
 `get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
 
-`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
+`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
 
 Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)` to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
 

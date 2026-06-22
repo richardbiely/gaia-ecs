@@ -152,8 +152,13 @@ namespace gaia {
 					GAIA_ASSERT(desc.constants == nullptr);
 					GAIA_ASSERT(desc.constantCount == 0);
 					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
-					GAIA_ASSERT(desc.size == 0);
-					GAIA_ASSERT(desc.soa == 0);
+					if (desc.sequenceAdapter == nullptr) {
+						GAIA_ASSERT(desc.size == 0);
+						GAIA_ASSERT(desc.soa == 0);
+					} else {
+						GAIA_ASSERT(desc.sequenceAdapter->count != nullptr);
+						GAIA_ASSERT(desc.sequenceAdapter->element != nullptr);
+					}
 					GAIA_ASSERT(find(desc.elementType) != nullptr);
 					return;
 				}
@@ -175,6 +180,7 @@ namespace gaia {
 				GAIA_ASSERT(desc.elementType == EntityBad);
 				GAIA_ASSERT(desc.elementCount == 0);
 				GAIA_ASSERT(desc.opaqueAsType == EntityBad);
+				GAIA_ASSERT(desc.sequenceAdapter == nullptr);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.

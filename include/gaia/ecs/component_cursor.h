@@ -247,6 +247,51 @@ namespace gaia {
 				return pItem != nullptr ? pItem->field_count() : 0;
 			}
 
+			//! Returns the element count for the current fixed or adapted sequence scope.
+			GAIA_NODISCARD CursorResult<uint32_t> count() const noexcept {
+				CursorResult<uint32_t> result{};
+				if (!m_valid) {
+					result.status = CursorStatus::Invalid;
+					return result;
+				}
+
+				const auto& current = m_stack[m_depth];
+				if (current.elemCount > 1) {
+					result.status = CursorStatus::Ok;
+					result.value = current.elemCount;
+					return result;
+				}
+
+				const auto* pType = current_item();
+				if (pType == nullptr) {
+					result.status = CursorStatus::TypeMismatch;
+					return result;
+				}
+				if (pType->typeKind == RuntimeTypeKind::Array) {
+					result.status = CursorStatus::Ok;
+					result.value = pType->element_count();
+					return result;
+				}
+				if (pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					if (adapter == nullptr || adapter->count == nullptr) {
+						result.status = CursorStatus::TypeMismatch;
+						return result;
+					}
+					RuntimeSequenceScope sequence{current.type, current.data, current.mutData, current.size};
+					uint32_t value = 0;
+					if (!adapter->count(adapter->ctx, sequence, value)) {
+						result.status = CursorStatus::Invalid;
+						return result;
+					}
+					result.status = CursorStatus::Ok;
+					result.value = value;
+					return result;
+				}
+				result.status = CursorStatus::TypeMismatch;
+				return result;
+			}
+
 			//! Descends into the reflected field at @a index.
 			//! \param index Reflected field index on the current type.
 			//! \return True when the cursor moved to the field.
@@ -294,6 +339,10 @@ namespace gaia {
 					next.size = current.elemSize;
 					next.elemSize = current.elemSize;
 					next.elemCount = 1;
+					next.sequenceAdapter = current.sequenceAdapter;
+					next.sequenceDepth = current.sequenceDepth;
+					next.elementDepth = current.elementDepth;
+					next.elementToken = current.elementToken;
 					next.writable = current.writable;
 					if (current.data != nullptr)
 						next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
@@ -301,34 +350,87 @@ namespace gaia {
 						next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
 				} else {
 					const auto* pType = m_components != nullptr ? m_components->find(current.type) : nullptr;
-					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
+					if (pType == nullptr)
 						return false;
 
-					const auto elemCount = pType->element_count();
-					const auto elementType = pType->element_type();
-					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
-						return false;
+					if (pType->typeKind == RuntimeTypeKind::Vector) {
+						const auto* adapter = pType->sequence_adapter();
+						if (adapter == nullptr || adapter->count == nullptr || adapter->element == nullptr)
+							return false;
+						RuntimeSequenceScope sequence{current.type, current.data, current.mutData, current.size};
+						uint32_t elemCount = 0;
+						if (!adapter->count(adapter->ctx, sequence, elemCount) || index >= elemCount)
+							return false;
+						RuntimeSequenceElement element{};
+						element.type = pType->element_type();
+						if (!adapter->element(adapter->ctx, sequence, index, element))
+							return false;
+						if (element.type == EntityBad)
+							element.type = pType->element_type();
+						if (element.type == EntityBad || element.size == 0 || element.data == nullptr)
+							return false;
 
-					const auto elemSize = pElementType->comp.size();
-					if (elemSize == 0)
-						return false;
-					if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
-						return false;
+						next.type = element.type;
+						next.data = element.data;
+						next.mutData = element.mutData;
+						next.size = element.size;
+						next.elemSize = element.size;
+						next.elemCount = 1;
+						next.sequenceAdapter = adapter;
+						next.sequenceDepth = m_depth;
+						next.elementDepth = m_depth + 1;
+						next.elementToken = element.token;
+						next.writable = current.writable && element.mutData != nullptr;
+					} else if (pType->typeKind == RuntimeTypeKind::Array) {
 
-					next.type = elementType;
-					next.size = elemSize;
-					next.elemSize = elemSize;
-					next.elemCount = 1;
-					next.writable = current.writable;
-					if (current.data != nullptr)
-						next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
-					if (current.mutData != nullptr)
-						next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+						const auto elemCount = pType->element_count();
+						const auto elementType = pType->element_type();
+						const auto* pElementType = m_components->find(elementType);
+						if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
+							return false;
+
+						const auto elemSize = pElementType->comp.size();
+						if (elemSize == 0)
+							return false;
+						if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
+							return false;
+
+						next.type = elementType;
+						next.size = elemSize;
+						next.elemSize = elemSize;
+						next.elemCount = 1;
+						next.writable = current.writable;
+						if (current.data != nullptr)
+							next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
+						if (current.mutData != nullptr)
+							next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+					} else {
+						return false;
+					}
 				}
 
 				m_stack[++m_depth] = next;
 				return true;
+			}
+
+			//! Resizes the current adapted dynamic sequence scope.
+			CursorResult<void> resize(uint32_t count) noexcept {
+				if (!m_valid)
+					return {CursorStatus::Invalid};
+				const auto* pType = current_item();
+				if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Vector)
+					return {CursorStatus::TypeMismatch};
+				const auto* adapter = pType->sequence_adapter();
+				if (adapter == nullptr || adapter->resize == nullptr)
+					return {CursorStatus::TypeMismatch};
+				if (!m_stack[m_depth].writable || m_world == nullptr || m_entity == EntityBad || m_rootType == EntityBad)
+					return {CursorStatus::ReadOnly};
+				RuntimeSequenceScope sequence{
+						m_stack[m_depth].type, m_stack[m_depth].data, m_stack[m_depth].mutData, m_stack[m_depth].size};
+				if (!adapter->resize(adapter->ctx, sequence, count))
+					return {CursorStatus::OutOfRange};
+				world_finish_write(*m_world, m_rootType, m_entity);
+				return {CursorStatus::Ok};
 			}
 
 			//! Moves back to the parent cursor scope.
@@ -420,6 +522,8 @@ namespace gaia {
 					return {CursorStatus::Invalid};
 				if (len != 0)
 					memcpy(mut_ptr(), src, len);
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -600,6 +704,8 @@ namespace gaia {
 					return {CursorStatus::Invalid};
 
 				memcpy(mut_ptr(), data, byteCount);
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -612,6 +718,10 @@ namespace gaia {
 				uint32_t size = 0;
 				uint32_t elemSize = 0;
 				uint32_t elemCount = 1;
+				const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+				uint32_t sequenceDepth = 0;
+				uint32_t elementDepth = 0;
+				void* elementToken = nullptr;
 				bool writable = false;
 			};
 
@@ -627,6 +737,25 @@ namespace gaia {
 				if (!m_valid || m_components == nullptr)
 					return nullptr;
 				return m_components->find(m_stack[m_depth].type);
+			}
+
+			GAIA_NODISCARD static RuntimeSequenceScope make_sequence_scope(const Scope& scope) noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size};
+			}
+
+			GAIA_NODISCARD RuntimeSequenceElement make_sequence_element(const Scope& scope) const noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size, scope.elementToken};
+			}
+
+			bool commit_current_sequence_element() noexcept {
+				const auto& current = m_stack[m_depth];
+				if (current.sequenceAdapter == nullptr || current.sequenceAdapter->commitElement == nullptr)
+					return true;
+				if (current.sequenceDepth >= MaxDepth || current.elementDepth >= MaxDepth)
+					return false;
+				RuntimeSequenceScope sequence = make_sequence_scope(m_stack[current.sequenceDepth]);
+				RuntimeSequenceElement element = make_sequence_element(m_stack[current.elementDepth]);
+				return current.sequenceAdapter->commitElement(current.sequenceAdapter->ctx, sequence, element);
 			}
 
 			GAIA_NODISCARD CursorStatus
@@ -683,6 +812,8 @@ namespace gaia {
 					return {CursorStatus::TypeMismatch};
 
 				memcpy(mut_ptr(), &value, sizeof(T));
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -719,6 +850,10 @@ namespace gaia {
 				next.size = (uint32_t)fieldSize64;
 				next.elemSize = elemSize;
 				next.elemCount = elemCount;
+				next.sequenceAdapter = m_stack[m_depth].sequenceAdapter;
+				next.sequenceDepth = m_stack[m_depth].sequenceDepth;
+				next.elementDepth = m_stack[m_depth].elementDepth;
+				next.elementToken = m_stack[m_depth].elementToken;
 				next.writable = m_stack[m_depth].writable;
 				if (m_stack[m_depth].data != nullptr)
 					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;

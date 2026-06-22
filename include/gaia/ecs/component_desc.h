@@ -79,6 +79,46 @@ namespace gaia {
 			int64_t value = 0;
 		};
 
+		//! Runtime sequence adapter input scope. The byte layout is owned by the adapter.
+		struct RuntimeSequenceScope final {
+			//! Runtime type entity for the selected sequence value.
+			Entity type = EntityBad;
+			//! Read-only sequence payload or handle bytes.
+			const void* data = nullptr;
+			//! Mutable sequence payload or handle bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the selected sequence payload or handle bytes.
+			uint32_t size = 0;
+		};
+
+		//! Runtime sequence element returned by an adapter.
+		struct RuntimeSequenceElement final {
+			//! Runtime type entity for the selected element value.
+			Entity type = EntityBad;
+			//! Read-only element bytes.
+			const void* data = nullptr;
+			//! Mutable element bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the selected element bytes.
+			uint32_t size = 0;
+			//! Adapter-owned token for projected elements.
+			void* token = nullptr;
+		};
+
+		//! Callback table for adapter-owned dynamic sequence values.
+		struct RuntimeSequenceAdapter final {
+			//! User context passed to all callbacks.
+			void* ctx = nullptr;
+			//! Reads the dynamic element count. Required for traversal.
+			bool (*count)(void*, const RuntimeSequenceScope&, uint32_t&) = nullptr;
+			//! Selects one element by index. Required for traversal.
+			bool (*element)(void*, const RuntimeSequenceScope&, uint32_t, RuntimeSequenceElement&) = nullptr;
+			//! Resizes the sequence. Optional; required for JSON load into dynamic sequences.
+			bool (*resize)(void*, RuntimeSequenceScope&, uint32_t) = nullptr;
+			//! Commits a projected element after cursor writes. Optional for direct element pointers.
+			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
@@ -154,6 +194,8 @@ namespace gaia {
 			uint32_t elementCount = 0;
 			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
 			Entity opaqueAsType = EntityBad;
+			//! Optional adapter for dynamic sequence metadata.
+			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
 		};
 
 		namespace detail {

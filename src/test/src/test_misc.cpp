@@ -339,8 +339,156 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(cursor.valid());
 		CHECK(cursor.type_kind() == ecs::RuntimeTypeKind::Vector);
 		CHECK(cursor.element_type() == elementType.entity);
+		CHECK(cursor.count().status == ecs::CursorStatus::TypeMismatch);
+		CHECK(cursor.resize(1).status == ecs::CursorStatus::TypeMismatch);
 		CHECK_FALSE(cursor.elem(0));
 		CHECK_FALSE(cursor.field(util::str_view("x")));
+	}
+
+	SUBCASE("dynamic vector adapter projects cursor elements and semantic JSON") {
+		TestWorld twld;
+
+		struct RuntimeVectorHeader {
+			uint32_t count = 0;
+			uint32_t capacity = 0;
+			uint8_t* data = nullptr;
+		};
+
+		struct RuntimeVectorStats {
+			uint32_t countCalls = 0;
+			uint32_t elementCalls = 0;
+			uint32_t resizeCalls = 0;
+			uint32_t commitCalls = 0;
+		};
+
+		RuntimeVectorStats stats{};
+		ecs::RuntimeSequenceAdapter adapter{};
+		adapter.ctx = &stats;
+		adapter.count = [](void* ctx, const ecs::RuntimeSequenceScope& sequence, uint32_t& outCount) {
+			auto& adapterStats = *(RuntimeVectorStats*)ctx;
+			++adapterStats.countCalls;
+			const auto* header = (const RuntimeVectorHeader*)sequence.data;
+			if (header == nullptr || header->count > header->capacity)
+				return false;
+			outCount = header->count;
+			return true;
+		};
+		adapter.element = [](void* ctx, const ecs::RuntimeSequenceScope& sequence, uint32_t index,
+												 ecs::RuntimeSequenceElement& outElement) {
+			auto& adapterStats = *(RuntimeVectorStats*)ctx;
+			++adapterStats.elementCalls;
+			const auto* header = (const RuntimeVectorHeader*)sequence.data;
+			if (header == nullptr || header->data == nullptr || index >= header->count)
+				return false;
+			outElement.data = header->data + (uintptr_t)12U * index;
+			if (sequence.mutData != nullptr)
+				outElement.mutData = header->data + (uintptr_t)12U * index;
+			outElement.size = 12U;
+			return true;
+		};
+		adapter.resize = [](void* ctx, ecs::RuntimeSequenceScope& sequence, uint32_t count) {
+			auto& adapterStats = *(RuntimeVectorStats*)ctx;
+			++adapterStats.resizeCalls;
+			auto* header = (RuntimeVectorHeader*)sequence.mutData;
+			if (header == nullptr || count > header->capacity)
+				return false;
+			header->count = count;
+			return true;
+		};
+		adapter.commitElement = [](void* ctx, ecs::RuntimeSequenceScope&, ecs::RuntimeSequenceElement&) {
+			auto& adapterStats = *(RuntimeVectorStats*)ctx;
+			++adapterStats.commitCalls;
+			return true;
+		};
+
+		ecs::ComponentDesc elementDesc{};
+		elementDesc.name = util::str_view("Runtime_Type_Vector_Adapter_XYZ_Element");
+		elementDesc.size = RuntimePayloadSize;
+		elementDesc.alig = RuntimePayloadAlign;
+		elementDesc.storageType = ecs::DataStorageType::Table;
+		elementDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		elementDesc.fields = RuntimeXYZFields;
+		elementDesc.fieldCount = RuntimeXYZFieldCount;
+		auto& elementType = wld.add(elementDesc);
+
+		ecs::ComponentDesc vectorDesc{};
+		vectorDesc.name = util::str_view("Runtime_Type_Vector_Adapter_XYZ");
+		vectorDesc.size = sizeof(RuntimeVectorHeader);
+		vectorDesc.alig = alignof(RuntimeVectorHeader);
+		vectorDesc.storageType = ecs::DataStorageType::Table;
+		vectorDesc.typeKind = ecs::RuntimeTypeKind::Vector;
+		vectorDesc.elementType = elementType.entity;
+		vectorDesc.sequenceAdapter = &adapter;
+		auto& vectorType = wld.add(vectorDesc);
+
+		const ecs::RuntimeFieldDesc containerFields[] = {{util::str_view("points"), vectorType.entity, 0, 0}};
+		ecs::ComponentDesc containerDesc{};
+		containerDesc.name = util::str_view("Runtime_Component_Vector_Adapter_Container");
+		containerDesc.size = sizeof(RuntimeVectorHeader);
+		containerDesc.alig = alignof(RuntimeVectorHeader);
+		containerDesc.storageType = ecs::DataStorageType::Table;
+		containerDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		containerDesc.fields = containerFields;
+		containerDesc.fieldCount = 1;
+		auto& containerType = wld.add(containerDesc);
+
+		uint8_t elements[RuntimePayloadSize * 3]{};
+		write_xyz(elements, 1.0f, 2.0f, 3.0f);
+		write_xyz(elements + RuntimePayloadSize, 4.0f, 5.0f, 6.0f);
+		RuntimeVectorHeader header{2, 3, elements};
+
+		const auto entity = wld.add();
+		CHECK(wld.add_raw(entity, containerType.entity, &header, sizeof(header)));
+
+		auto cursor = wld.cursor(entity, containerType.entity);
+		CHECK(cursor.field(util::str_view("points")));
+		const auto count = cursor.count();
+		CHECK(count);
+		CHECK(count.value == 2);
+		CHECK(cursor.elem(1));
+		CHECK(cursor.type() == elementType.entity);
+		CHECK(cursor.field(util::str_view("y")));
+		const auto y = cursor.f32();
+		CHECK(y);
+		CHECK(y.value == doctest::Approx(5.0f));
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(containerType.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto mutableCursor = wld.cursor_mut(entity, containerType.entity);
+		CHECK(mutableCursor.field(util::str_view("points")));
+		CHECK(mutableCursor.elem(0));
+		CHECK(mutableCursor.field(util::str_view("x")));
+		CHECK(mutableCursor.f32(42.0f));
+		CHECK(stats.commitCalls == 1);
+		CHECK(setHits == 1);
+		CHECK(read_f32(elements, RuntimeXOffset) == doctest::Approx(42.0f));
+
+		bool jsonOk = false;
+		const auto json = ecs::component_to_json(containerType, &header, jsonOk);
+		CHECK(jsonOk);
+		CHECK(strstr(json.data(), "\"points\"") != nullptr);
+		CHECK(strstr(json.data(), "42") != nullptr);
+		CHECK(strstr(json.data(), "5") != nullptr);
+
+		uint8_t loadedElements[RuntimePayloadSize * 3]{};
+		RuntimeVectorHeader loadedHeader{0, 3, loadedElements};
+		ser::ser_json reader("{\"points\":[{\"x\":7,\"y\":8,\"z\":9},{\"x\":10,\"y\":11,\"z\":12}]}");
+		bool readOk = false;
+		CHECK(ecs::json_to_component(containerType, &loadedHeader, reader, readOk));
+		CHECK(readOk);
+		CHECK(loadedHeader.count == 2);
+		CHECK(read_f32(loadedElements, RuntimeXOffset) == doctest::Approx(7.0f));
+		CHECK(read_f32(loadedElements + RuntimePayloadSize, RuntimeZOffset) == doctest::Approx(12.0f));
+		CHECK(stats.resizeCalls >= 1);
 	}
 
 	SUBCASE("world descriptor registration creates a usable runtime component") {
