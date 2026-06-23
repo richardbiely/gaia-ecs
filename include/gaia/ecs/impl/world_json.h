@@ -243,6 +243,31 @@ namespace gaia {
 					return ok;
 				}
 
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Opaque) {
+					const auto* adapter = pType->opaque_adapter();
+					const auto semanticType = pType->opaque_as_type();
+					const auto* pSemanticType = find_runtime_json_type(pCache, semanticType);
+					if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					RuntimeOpaqueScope opaque{typeEntity, pData, nullptr, valueSize};
+					RuntimeOpaqueValue projected{};
+					projected.type = semanticType;
+					if (!adapter->project(adapter->ctx, opaque, projected)) {
+						writer.value_null();
+						return false;
+					}
+					if (projected.type == EntityBad)
+						projected.type = semanticType;
+					if (projected.type != semanticType || projected.data == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					return write_runtime_json_value(
+							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, depth + 1);
+				}
+
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
 					return write_runtime_json_struct(pCache, *pType, pData, writer, depth + 1);
 
@@ -462,6 +487,49 @@ namespace gaia {
 					return reader.expect(']');
 				}
 
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Opaque) {
+					const auto* adapter = pType->opaque_adapter();
+					const auto semanticType = pType->opaque_as_type();
+					const auto* pSemanticType = find_runtime_json_type(pCache, semanticType);
+					if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque payload cannot be projected.");
+						return reader.skip_value();
+					}
+					RuntimeOpaqueScope opaque{typeEntity, pData, pData, valueSize};
+					RuntimeOpaqueValue projected{};
+					projected.type = semanticType;
+					if (!adapter->project(adapter->ctx, opaque, projected) || projected.mutData == nullptr) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque adapter rejected projection.");
+						return reader.skip_value();
+					}
+					if (projected.type == EntityBad)
+						projected.type = semanticType;
+					if (projected.type != semanticType) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque adapter projected an unexpected semantic type.");
+						return reader.skip_value();
+					}
+					const bool parsed = read_runtime_json_value(
+							pCache, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, reader, diagnostics,
+							path, depth + 1, ok);
+					if (parsed && adapter->commit != nullptr && ok) {
+						if (!adapter->commit(adapter->ctx, opaque, projected)) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime opaque adapter rejected commit.");
+						}
+					}
+					return parsed;
+				}
+
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
 					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, depth + 1, ok);
 
@@ -500,8 +568,9 @@ namespace gaia {
 			if (pComponentData == nullptr)
 				return false;
 
-			return detail::write_runtime_json_struct(
-					item.owner_cache(), item, reinterpret_cast<const uint8_t*>(pComponentData), writer, 0);
+			return detail::write_runtime_json_value(
+					item.owner_cache(), &item, item.entity, reinterpret_cast<const uint8_t*>(pComponentData), item.comp.size(),
+					writer, 0);
 		}
 
 		//! Convenience overload returning JSON as a string.
@@ -530,6 +599,13 @@ namespace gaia {
 				detail::warn_runtime_json(
 						diagnostics, ser::JsonDiagReason::NullComponentPayload, componentPath, "Component payload is null.");
 				return true;
+			}
+
+			if (item.typeKind == RuntimeTypeKind::Opaque && item.opaque_adapter() != nullptr) {
+				bool ok = true;
+				return detail::read_runtime_json_value(
+						item.owner_cache(), &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(),
+						reader, diagnostics, componentPath, 0, ok);
 			}
 
 			bool rawFound = false;

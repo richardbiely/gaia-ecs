@@ -29707,6 +29707,82 @@ namespace gaia {
 			int64_t value = 0;
 		};
 
+		//! Runtime sequence adapter input scope. The byte layout is owned by the adapter.
+		struct RuntimeSequenceScope final {
+			//! Runtime type entity for the selected sequence value.
+			Entity type = EntityBad;
+			//! Read-only sequence payload or handle bytes.
+			const void* data = nullptr;
+			//! Mutable sequence payload or handle bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the selected sequence payload or handle bytes.
+			uint32_t size = 0;
+		};
+
+		//! Runtime sequence element returned by an adapter.
+		struct RuntimeSequenceElement final {
+			//! Runtime type entity for the selected element value.
+			Entity type = EntityBad;
+			//! Read-only element bytes.
+			const void* data = nullptr;
+			//! Mutable element bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the selected element bytes.
+			uint32_t size = 0;
+			//! Adapter-owned token for projected elements.
+			void* token = nullptr;
+		};
+
+		//! Callback table for adapter-owned dynamic sequence values.
+		struct RuntimeSequenceAdapter final {
+			//! User context passed to all callbacks.
+			void* ctx = nullptr;
+			//! Reads the dynamic element count. Required for traversal.
+			bool (*count)(void*, const RuntimeSequenceScope&, uint32_t&) = nullptr;
+			//! Selects one element by index. Required for traversal.
+			bool (*element)(void*, const RuntimeSequenceScope&, uint32_t, RuntimeSequenceElement&) = nullptr;
+			//! Resizes the sequence. Optional; required for JSON load into dynamic sequences.
+			bool (*resize)(void*, RuntimeSequenceScope&, uint32_t) = nullptr;
+			//! Commits a projected element after cursor writes. Optional for direct element pointers.
+			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
+		};
+
+		//! Runtime opaque adapter input scope. The physical byte layout is owned by the adapter.
+		struct RuntimeOpaqueScope final {
+			//! Opaque runtime type entity for the selected value.
+			Entity type = EntityBad;
+			//! Read-only opaque payload or handle bytes.
+			const void* data = nullptr;
+			//! Mutable opaque payload or handle bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the opaque payload or handle bytes.
+			uint32_t size = 0;
+		};
+
+		//! Semantic value projected from opaque runtime storage.
+		struct RuntimeOpaqueValue final {
+			//! Semantic runtime type entity for projected bytes. EntityBad uses opaqueAsType.
+			Entity type = EntityBad;
+			//! Read-only projected semantic bytes.
+			const void* data = nullptr;
+			//! Mutable projected semantic bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of projected semantic bytes.
+			uint32_t size = 0;
+			//! Adapter-owned projection token.
+			void* token = nullptr;
+		};
+
+		//! Callback table for opaque runtime values with adapter-owned physical storage.
+		struct RuntimeOpaqueAdapter final {
+			//! User context passed to all callbacks.
+			void* ctx = nullptr;
+			//! Projects an opaque value to its semantic runtime type. Required for traversal.
+			bool (*project)(void*, const RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
+			//! Commits a projected semantic value after cursor writes. Optional for direct projections.
+			bool (*commit)(void*, RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
@@ -29782,6 +29858,10 @@ namespace gaia {
 			uint32_t elementCount = 0;
 			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
 			Entity opaqueAsType = EntityBad;
+			//! Optional adapter for dynamic sequence metadata.
+			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+			//! Optional adapter for opaque semantic projections.
+			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 		};
 
 		namespace detail {
@@ -30183,6 +30263,10 @@ namespace gaia {
 			uint32_t elementCount = 0;
 			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
 			Entity opaqueAsType = EntityBad;
+			//! Optional adapter for dynamic sequence metadata.
+			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+			//! Optional adapter for opaque semantic projections.
+			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -30499,6 +30583,16 @@ namespace gaia {
 				return typeKind == RuntimeTypeKind::Opaque ? opaqueAsType : EntityBad;
 			}
 
+			//! @return Adapter for reflected dynamic sequence metadata, or nullptr otherwise.
+			GAIA_NODISCARD const RuntimeSequenceAdapter* sequence_adapter() const noexcept {
+				return typeKind == RuntimeTypeKind::Vector ? sequenceAdapter : nullptr;
+			}
+
+			//! @return Adapter for opaque semantic projections, or nullptr otherwise.
+			GAIA_NODISCARD const RuntimeOpaqueAdapter* opaque_adapter() const noexcept {
+				return typeKind == RuntimeTypeKind::Opaque ? opaqueAdapter : nullptr;
+			}
+
 			//! @return True when this component has a custom serializer callback.
 			GAIA_NODISCARD bool has_custom_serializer() const noexcept {
 				return func_save != nullptr;
@@ -30764,6 +30858,8 @@ namespace gaia {
 				cci->elementType = desc.elementType;
 				cci->elementCount = desc.elementCount;
 				cci->opaqueAsType = desc.opaqueAsType;
+				cci->sequenceAdapter = desc.sequenceAdapter;
+				cci->opaqueAdapter = desc.opaqueAdapter;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {
@@ -30935,8 +31031,13 @@ namespace gaia {
 					GAIA_ASSERT(desc.constants == nullptr);
 					GAIA_ASSERT(desc.constantCount == 0);
 					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
-					GAIA_ASSERT(desc.size == 0);
-					GAIA_ASSERT(desc.soa == 0);
+					if (desc.sequenceAdapter == nullptr) {
+						GAIA_ASSERT(desc.size == 0);
+						GAIA_ASSERT(desc.soa == 0);
+					} else {
+						GAIA_ASSERT(desc.sequenceAdapter->count != nullptr);
+						GAIA_ASSERT(desc.sequenceAdapter->element != nullptr);
+					}
 					GAIA_ASSERT(find(desc.elementType) != nullptr);
 					return;
 				}
@@ -30950,6 +31051,8 @@ namespace gaia {
 					GAIA_ASSERT(desc.constants == nullptr);
 					GAIA_ASSERT(desc.constantCount == 0);
 					GAIA_ASSERT(desc.opaqueAsType != EntityBad);
+					if (desc.opaqueAdapter != nullptr)
+						GAIA_ASSERT(desc.opaqueAdapter->project != nullptr);
 					GAIA_ASSERT(find(desc.opaqueAsType) != nullptr);
 					return;
 				}
@@ -30958,6 +31061,8 @@ namespace gaia {
 				GAIA_ASSERT(desc.elementType == EntityBad);
 				GAIA_ASSERT(desc.elementCount == 0);
 				GAIA_ASSERT(desc.opaqueAsType == EntityBad);
+				GAIA_ASSERT(desc.sequenceAdapter == nullptr);
+				GAIA_ASSERT(desc.opaqueAdapter == nullptr);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.
@@ -35475,7 +35580,58 @@ namespace gaia {
 				if (!m_valid || m_stack[m_depth].elemCount != 1)
 					return 0;
 				const auto* pItem = current_item();
-				return pItem != nullptr ? pItem->field_count() : 0;
+				if (pItem == nullptr)
+					return 0;
+				if (pItem->typeKind == RuntimeTypeKind::Opaque && pItem->opaque_adapter() != nullptr) {
+					const auto* pSemantic = opaque_semantic_item(*pItem);
+					return pSemantic != nullptr ? pSemantic->field_count() : 0;
+				}
+				return pItem->field_count();
+			}
+
+			//! Returns the element count for the current fixed or adapted sequence scope.
+			GAIA_NODISCARD CursorResult<uint32_t> count() const noexcept {
+				CursorResult<uint32_t> result{};
+				if (!m_valid) {
+					result.status = CursorStatus::Invalid;
+					return result;
+				}
+
+				const auto& current = m_stack[m_depth];
+				if (current.elemCount > 1) {
+					result.status = CursorStatus::Ok;
+					result.value = current.elemCount;
+					return result;
+				}
+
+				const auto* pType = current_item();
+				if (pType == nullptr) {
+					result.status = CursorStatus::TypeMismatch;
+					return result;
+				}
+				if (pType->typeKind == RuntimeTypeKind::Array) {
+					result.status = CursorStatus::Ok;
+					result.value = pType->element_count();
+					return result;
+				}
+				if (pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					if (adapter == nullptr || adapter->count == nullptr) {
+						result.status = CursorStatus::TypeMismatch;
+						return result;
+					}
+					RuntimeSequenceScope sequence{current.type, current.data, current.mutData, current.size};
+					uint32_t value = 0;
+					if (!adapter->count(adapter->ctx, sequence, value)) {
+						result.status = CursorStatus::Invalid;
+						return result;
+					}
+					result.status = CursorStatus::Ok;
+					result.value = value;
+					return result;
+				}
+				result.status = CursorStatus::TypeMismatch;
+				return result;
 			}
 
 			//! Descends into the reflected field at @a index.
@@ -35487,6 +35643,9 @@ namespace gaia {
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
+
+				if (pItem->typeKind == RuntimeTypeKind::Opaque)
+					return field_opaque(index);
 
 				const RuntimeField* pField = pItem->field(index);
 				return pField != nullptr ? descend(*pField) : false;
@@ -35501,6 +35660,9 @@ namespace gaia {
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
+
+				if (pItem->typeKind == RuntimeTypeKind::Opaque)
+					return field_opaque(name);
 
 				const RuntimeField* pField = pItem->field(name);
 				return pField != nullptr ? descend(*pField) : false;
@@ -35525,6 +35687,14 @@ namespace gaia {
 					next.size = current.elemSize;
 					next.elemSize = current.elemSize;
 					next.elemCount = 1;
+					next.sequenceAdapter = current.sequenceAdapter;
+					next.sequenceDepth = current.sequenceDepth;
+					next.elementDepth = current.elementDepth;
+					next.elementToken = current.elementToken;
+					next.opaqueAdapter = current.opaqueAdapter;
+					next.opaqueDepth = current.opaqueDepth;
+					next.opaqueValueDepth = current.opaqueValueDepth;
+					next.opaqueToken = current.opaqueToken;
 					next.writable = current.writable;
 					if (current.data != nullptr)
 						next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
@@ -35532,34 +35702,87 @@ namespace gaia {
 						next.mutData = (uint8_t*)current.mutData + (uint64_t)current.elemSize * index;
 				} else {
 					const auto* pType = m_components != nullptr ? m_components->find(current.type) : nullptr;
-					if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Array)
+					if (pType == nullptr)
 						return false;
 
-					const auto elemCount = pType->element_count();
-					const auto elementType = pType->element_type();
-					const auto* pElementType = m_components->find(elementType);
-					if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
-						return false;
+					if (pType->typeKind == RuntimeTypeKind::Vector) {
+						const auto* adapter = pType->sequence_adapter();
+						if (adapter == nullptr || adapter->count == nullptr || adapter->element == nullptr)
+							return false;
+						RuntimeSequenceScope sequence{current.type, current.data, current.mutData, current.size};
+						uint32_t elemCount = 0;
+						if (!adapter->count(adapter->ctx, sequence, elemCount) || index >= elemCount)
+							return false;
+						RuntimeSequenceElement element{};
+						element.type = pType->element_type();
+						if (!adapter->element(adapter->ctx, sequence, index, element))
+							return false;
+						if (element.type == EntityBad)
+							element.type = pType->element_type();
+						if (element.type == EntityBad || element.size == 0 || element.data == nullptr)
+							return false;
 
-					const auto elemSize = pElementType->comp.size();
-					if (elemSize == 0)
-						return false;
-					if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
-						return false;
+						next.type = element.type;
+						next.data = element.data;
+						next.mutData = element.mutData;
+						next.size = element.size;
+						next.elemSize = element.size;
+						next.elemCount = 1;
+						next.sequenceAdapter = adapter;
+						next.sequenceDepth = m_depth;
+						next.elementDepth = m_depth + 1;
+						next.elementToken = element.token;
+						next.writable = current.writable && element.mutData != nullptr;
+					} else if (pType->typeKind == RuntimeTypeKind::Array) {
 
-					next.type = elementType;
-					next.size = elemSize;
-					next.elemSize = elemSize;
-					next.elemCount = 1;
-					next.writable = current.writable;
-					if (current.data != nullptr)
-						next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
-					if (current.mutData != nullptr)
-						next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+						const auto elemCount = pType->element_count();
+						const auto elementType = pType->element_type();
+						const auto* pElementType = m_components->find(elementType);
+						if (pElementType == nullptr || elemCount == 0 || index >= elemCount)
+							return false;
+
+						const auto elemSize = pElementType->comp.size();
+						if (elemSize == 0)
+							return false;
+						if ((uint64_t)elemSize * ((uint64_t)index + 1) > current.size)
+							return false;
+
+						next.type = elementType;
+						next.size = elemSize;
+						next.elemSize = elemSize;
+						next.elemCount = 1;
+						next.writable = current.writable;
+						if (current.data != nullptr)
+							next.data = (const uint8_t*)current.data + (uint64_t)elemSize * index;
+						if (current.mutData != nullptr)
+							next.mutData = (uint8_t*)current.mutData + (uint64_t)elemSize * index;
+					} else {
+						return false;
+					}
 				}
 
 				m_stack[++m_depth] = next;
 				return true;
+			}
+
+			//! Resizes the current adapted dynamic sequence scope.
+			CursorResult<void> resize(uint32_t count) noexcept {
+				if (!m_valid)
+					return {CursorStatus::Invalid};
+				const auto* pType = current_item();
+				if (pType == nullptr || pType->typeKind != RuntimeTypeKind::Vector)
+					return {CursorStatus::TypeMismatch};
+				const auto* adapter = pType->sequence_adapter();
+				if (adapter == nullptr || adapter->resize == nullptr)
+					return {CursorStatus::TypeMismatch};
+				if (!m_stack[m_depth].writable || m_world == nullptr || m_entity == EntityBad || m_rootType == EntityBad)
+					return {CursorStatus::ReadOnly};
+				RuntimeSequenceScope sequence{
+						m_stack[m_depth].type, m_stack[m_depth].data, m_stack[m_depth].mutData, m_stack[m_depth].size};
+				if (!adapter->resize(adapter->ctx, sequence, count))
+					return {CursorStatus::OutOfRange};
+				world_finish_write(*m_world, m_rootType, m_entity);
+				return {CursorStatus::Ok};
 			}
 
 			//! Moves back to the parent cursor scope.
@@ -35651,6 +35874,8 @@ namespace gaia {
 					return {CursorStatus::Invalid};
 				if (len != 0)
 					memcpy(mut_ptr(), src, len);
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -35831,6 +36056,8 @@ namespace gaia {
 					return {CursorStatus::Invalid};
 
 				memcpy(mut_ptr(), data, byteCount);
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -35843,6 +36070,14 @@ namespace gaia {
 				uint32_t size = 0;
 				uint32_t elemSize = 0;
 				uint32_t elemCount = 1;
+				const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+				uint32_t sequenceDepth = 0;
+				uint32_t elementDepth = 0;
+				void* elementToken = nullptr;
+				const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
+				uint32_t opaqueDepth = 0;
+				uint32_t opaqueValueDepth = 0;
+				void* opaqueToken = nullptr;
 				bool writable = false;
 			};
 
@@ -35858,6 +36093,122 @@ namespace gaia {
 				if (!m_valid || m_components == nullptr)
 					return nullptr;
 				return m_components->find(m_stack[m_depth].type);
+			}
+
+			GAIA_NODISCARD const ComponentCacheItem* opaque_semantic_item(const ComponentCacheItem& item) const noexcept {
+				if (m_components == nullptr || item.typeKind != RuntimeTypeKind::Opaque)
+					return nullptr;
+				return m_components->find(item.opaque_as_type());
+			}
+
+			GAIA_NODISCARD static RuntimeOpaqueScope make_opaque_scope(const Scope& scope) noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size};
+			}
+
+			GAIA_NODISCARD RuntimeOpaqueValue make_opaque_value(const Scope& scope) const noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size, scope.opaqueToken};
+			}
+
+			bool project_opaque_scope(const ComponentCacheItem& item, Scope& out) const noexcept {
+				const auto* adapter = item.opaque_adapter();
+				const auto* pSemantic = opaque_semantic_item(item);
+				if (adapter == nullptr || adapter->project == nullptr || pSemantic == nullptr)
+					return false;
+				RuntimeOpaqueScope opaque = make_opaque_scope(m_stack[m_depth]);
+				RuntimeOpaqueValue value{};
+				value.type = item.opaque_as_type();
+				if (!adapter->project(adapter->ctx, opaque, value))
+					return false;
+				if (value.type == EntityBad)
+					value.type = item.opaque_as_type();
+				if (value.type != item.opaque_as_type() || value.data == nullptr || value.size != pSemantic->comp.size())
+					return false;
+
+				out = {};
+				out.type = value.type;
+				out.data = value.data;
+				out.mutData = value.mutData;
+				out.size = value.size;
+				out.elemSize = value.size;
+				out.elemCount = 1;
+				out.opaqueAdapter = adapter;
+				out.opaqueDepth = m_depth;
+				out.opaqueValueDepth = m_depth + 1;
+				out.opaqueToken = value.token;
+				out.writable = m_stack[m_depth].writable && value.mutData != nullptr;
+				return true;
+			}
+
+			bool field_opaque(uint32_t index) noexcept {
+				if (m_depth + 2 >= MaxDepth)
+					return false;
+				const auto* pItem = current_item();
+				if (pItem == nullptr)
+					return false;
+				Scope projected{};
+				if (!project_opaque_scope(*pItem, projected))
+					return false;
+				const auto* pSemantic = m_components->find(projected.type);
+				const auto* pField = pSemantic != nullptr ? pSemantic->field(index) : nullptr;
+				if (pField == nullptr)
+					return false;
+				m_stack[++m_depth] = projected;
+				if (!descend(*pField)) {
+					--m_depth;
+					return false;
+				}
+				return true;
+			}
+
+			bool field_opaque(util::str_view name) noexcept {
+				if (m_depth + 2 >= MaxDepth)
+					return false;
+				const auto* pItem = current_item();
+				if (pItem == nullptr)
+					return false;
+				Scope projected{};
+				if (!project_opaque_scope(*pItem, projected))
+					return false;
+				const auto* pSemantic = m_components->find(projected.type);
+				const auto* pField = pSemantic != nullptr ? pSemantic->field(name) : nullptr;
+				if (pField == nullptr)
+					return false;
+				m_stack[++m_depth] = projected;
+				if (!descend(*pField)) {
+					--m_depth;
+					return false;
+				}
+				return true;
+			}
+
+			GAIA_NODISCARD static RuntimeSequenceScope make_sequence_scope(const Scope& scope) noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size};
+			}
+
+			GAIA_NODISCARD RuntimeSequenceElement make_sequence_element(const Scope& scope) const noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size, scope.elementToken};
+			}
+
+			bool commit_current_sequence_element() noexcept {
+				const auto& current = m_stack[m_depth];
+				if (current.sequenceAdapter != nullptr && current.sequenceAdapter->commitElement != nullptr) {
+					if (current.sequenceDepth >= MaxDepth || current.elementDepth >= MaxDepth)
+						return false;
+					RuntimeSequenceScope sequence = make_sequence_scope(m_stack[current.sequenceDepth]);
+					RuntimeSequenceElement element = make_sequence_element(m_stack[current.elementDepth]);
+					if (!current.sequenceAdapter->commitElement(current.sequenceAdapter->ctx, sequence, element))
+						return false;
+				}
+
+				if (current.opaqueAdapter != nullptr && current.opaqueAdapter->commit != nullptr) {
+					if (current.opaqueDepth >= MaxDepth || current.opaqueValueDepth >= MaxDepth)
+						return false;
+					RuntimeOpaqueScope opaque = make_opaque_scope(m_stack[current.opaqueDepth]);
+					RuntimeOpaqueValue value = make_opaque_value(m_stack[current.opaqueValueDepth]);
+					if (!current.opaqueAdapter->commit(current.opaqueAdapter->ctx, opaque, value))
+						return false;
+				}
+				return true;
 			}
 
 			GAIA_NODISCARD CursorStatus
@@ -35914,6 +36265,8 @@ namespace gaia {
 					return {CursorStatus::TypeMismatch};
 
 				memcpy(mut_ptr(), &value, sizeof(T));
+				if (!commit_current_sequence_element())
+					return {CursorStatus::Invalid};
 				world_finish_write(*m_world, m_rootType, m_entity);
 				return {CursorStatus::Ok};
 			}
@@ -35950,6 +36303,14 @@ namespace gaia {
 				next.size = (uint32_t)fieldSize64;
 				next.elemSize = elemSize;
 				next.elemCount = elemCount;
+				next.sequenceAdapter = m_stack[m_depth].sequenceAdapter;
+				next.sequenceDepth = m_stack[m_depth].sequenceDepth;
+				next.elementDepth = m_stack[m_depth].elementDepth;
+				next.elementToken = m_stack[m_depth].elementToken;
+				next.opaqueAdapter = m_stack[m_depth].opaqueAdapter;
+				next.opaqueDepth = m_stack[m_depth].opaqueDepth;
+				next.opaqueValueDepth = m_stack[m_depth].opaqueValueDepth;
+				next.opaqueToken = m_stack[m_depth].opaqueToken;
 				next.writable = m_stack[m_depth].writable;
 				if (m_stack[m_depth].data != nullptr)
 					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
@@ -71528,6 +71889,31 @@ namespace gaia {
 				return path;
 			}
 
+			GAIA_NODISCARD inline bool count_runtime_json_array_elements(ser::ser_json& reader, uint32_t& outCount) {
+				outCount = 0;
+				reader.ws();
+				const auto* start = reader.pos();
+				const auto* end = reader.end();
+				if (start == nullptr || end == nullptr || start > end)
+					return false;
+
+				ser::ser_json counter(start, (uint32_t)(end - start));
+				if (!counter.expect('['))
+					return false;
+				counter.ws();
+				if (counter.consume(']'))
+					return true;
+
+				while (true) {
+					if (!counter.skip_value())
+						return false;
+					++outCount;
+					if (counter.consume(','))
+						continue;
+					return counter.consume(']');
+				}
+			}
+
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& writer, uint32_t depth);
@@ -71614,6 +72000,67 @@ namespace gaia {
 					}
 					writer.end_array();
 					return ok;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					const auto elementType = pType->element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					if (adapter == nullptr || adapter->count == nullptr || adapter->element == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					RuntimeSequenceScope sequence{typeEntity, pData, nullptr, valueSize};
+					uint32_t elemCount = 0;
+					if (!adapter->count(adapter->ctx, sequence, elemCount)) {
+						writer.value_null();
+						return false;
+					}
+
+					bool ok = true;
+					writer.begin_array();
+					GAIA_FOR(elemCount) {
+						RuntimeSequenceElement element{};
+						element.type = elementType;
+						if (!adapter->element(adapter->ctx, sequence, i, element)) {
+							writer.value_null();
+							ok = false;
+							continue;
+						}
+						if (element.type == EntityBad)
+							element.type = elementType;
+						ok = write_runtime_json_value(
+										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer,
+										 depth + 1) &&
+								 ok;
+					}
+					writer.end_array();
+					return ok;
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Opaque) {
+					const auto* adapter = pType->opaque_adapter();
+					const auto semanticType = pType->opaque_as_type();
+					const auto* pSemanticType = find_runtime_json_type(pCache, semanticType);
+					if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					RuntimeOpaqueScope opaque{typeEntity, pData, nullptr, valueSize};
+					RuntimeOpaqueValue projected{};
+					projected.type = semanticType;
+					if (!adapter->project(adapter->ctx, opaque, projected)) {
+						writer.value_null();
+						return false;
+					}
+					if (projected.type == EntityBad)
+						projected.type = semanticType;
+					if (projected.type != semanticType || projected.data == nullptr) {
+						writer.value_null();
+						return false;
+					}
+					return write_runtime_json_value(
+							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, depth + 1);
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
@@ -71787,6 +72234,97 @@ namespace gaia {
 					return reader.expect(']');
 				}
 
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Vector) {
+					const auto* adapter = pType->sequence_adapter();
+					const auto elementType = pType->element_type();
+					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					uint32_t elemCount = 0;
+					if (adapter == nullptr || adapter->resize == nullptr || adapter->element == nullptr ||
+							!count_runtime_json_array_elements(reader, elemCount)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime vector payload cannot be resized or traversed.");
+						return reader.skip_value();
+					}
+
+					RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
+					if (!adapter->resize(adapter->ctx, sequence, elemCount)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime vector adapter rejected the requested element count.");
+						return reader.skip_value();
+					}
+
+					if (!reader.expect('['))
+						return false;
+					GAIA_FOR(elemCount) {
+						if (i > 0 && !reader.expect(','))
+							return false;
+						RuntimeSequenceElement element{};
+						element.type = elementType;
+						if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+									"Runtime vector adapter rejected an element.");
+							return reader.skip_value();
+						}
+						if (element.type == EntityBad)
+							element.type = elementType;
+						const auto elemPath = make_runtime_json_element_path(path, i);
+						if (!read_runtime_json_value(
+										pCache, pElementType, element.type, (uint8_t*)element.mutData, element.size, reader, diagnostics,
+										elemPath, depth + 1, ok))
+							return false;
+					}
+					return reader.expect(']');
+				}
+
+				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Opaque) {
+					const auto* adapter = pType->opaque_adapter();
+					const auto semanticType = pType->opaque_as_type();
+					const auto* pSemanticType = find_runtime_json_type(pCache, semanticType);
+					if (adapter == nullptr || adapter->project == nullptr || pSemanticType == nullptr) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque payload cannot be projected.");
+						return reader.skip_value();
+					}
+					RuntimeOpaqueScope opaque{typeEntity, pData, pData, valueSize};
+					RuntimeOpaqueValue projected{};
+					projected.type = semanticType;
+					if (!adapter->project(adapter->ctx, opaque, projected) || projected.mutData == nullptr) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque adapter rejected projection.");
+						return reader.skip_value();
+					}
+					if (projected.type == EntityBad)
+						projected.type = semanticType;
+					if (projected.type != semanticType) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime opaque adapter projected an unexpected semantic type.");
+						return reader.skip_value();
+					}
+					const bool parsed = read_runtime_json_value(
+							pCache, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, reader, diagnostics,
+							path, depth + 1, ok);
+					if (parsed && adapter->commit != nullptr && ok) {
+						if (!adapter->commit(adapter->ctx, opaque, projected)) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path, "Runtime opaque adapter rejected commit.");
+						}
+					}
+					return parsed;
+				}
+
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
 					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, depth + 1, ok);
 
@@ -71825,8 +72363,9 @@ namespace gaia {
 			if (pComponentData == nullptr)
 				return false;
 
-			return detail::write_runtime_json_struct(
-					item.owner_cache(), item, reinterpret_cast<const uint8_t*>(pComponentData), writer, 0);
+			return detail::write_runtime_json_value(
+					item.owner_cache(), &item, item.entity, reinterpret_cast<const uint8_t*>(pComponentData), item.comp.size(),
+					writer, 0);
 		}
 
 		//! Convenience overload returning JSON as a string.
@@ -71855,6 +72394,13 @@ namespace gaia {
 				detail::warn_runtime_json(
 						diagnostics, ser::JsonDiagReason::NullComponentPayload, componentPath, "Component payload is null.");
 				return true;
+			}
+
+			if (item.typeKind == RuntimeTypeKind::Opaque && item.opaque_adapter() != nullptr) {
+				bool ok = true;
+				return detail::read_runtime_json_value(
+						item.owner_cache(), &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(),
+						reader, diagnostics, componentPath, 0, ok);
 			}
 
 			bool rawFound = false;

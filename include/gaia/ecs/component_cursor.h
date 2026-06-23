@@ -244,7 +244,13 @@ namespace gaia {
 				if (!m_valid || m_stack[m_depth].elemCount != 1)
 					return 0;
 				const auto* pItem = current_item();
-				return pItem != nullptr ? pItem->field_count() : 0;
+				if (pItem == nullptr)
+					return 0;
+				if (pItem->typeKind == RuntimeTypeKind::Opaque && pItem->opaque_adapter() != nullptr) {
+					const auto* pSemantic = opaque_semantic_item(*pItem);
+					return pSemantic != nullptr ? pSemantic->field_count() : 0;
+				}
+				return pItem->field_count();
 			}
 
 			//! Returns the element count for the current fixed or adapted sequence scope.
@@ -302,6 +308,9 @@ namespace gaia {
 				if (pItem == nullptr)
 					return false;
 
+				if (pItem->typeKind == RuntimeTypeKind::Opaque)
+					return field_opaque(index);
+
 				const RuntimeField* pField = pItem->field(index);
 				return pField != nullptr ? descend(*pField) : false;
 			}
@@ -315,6 +324,9 @@ namespace gaia {
 				const auto* pItem = current_item();
 				if (pItem == nullptr)
 					return false;
+
+				if (pItem->typeKind == RuntimeTypeKind::Opaque)
+					return field_opaque(name);
 
 				const RuntimeField* pField = pItem->field(name);
 				return pField != nullptr ? descend(*pField) : false;
@@ -343,6 +355,10 @@ namespace gaia {
 					next.sequenceDepth = current.sequenceDepth;
 					next.elementDepth = current.elementDepth;
 					next.elementToken = current.elementToken;
+					next.opaqueAdapter = current.opaqueAdapter;
+					next.opaqueDepth = current.opaqueDepth;
+					next.opaqueValueDepth = current.opaqueValueDepth;
+					next.opaqueToken = current.opaqueToken;
 					next.writable = current.writable;
 					if (current.data != nullptr)
 						next.data = (const uint8_t*)current.data + (uint64_t)current.elemSize * index;
@@ -722,6 +738,10 @@ namespace gaia {
 				uint32_t sequenceDepth = 0;
 				uint32_t elementDepth = 0;
 				void* elementToken = nullptr;
+				const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
+				uint32_t opaqueDepth = 0;
+				uint32_t opaqueValueDepth = 0;
+				void* opaqueToken = nullptr;
 				bool writable = false;
 			};
 
@@ -739,6 +759,92 @@ namespace gaia {
 				return m_components->find(m_stack[m_depth].type);
 			}
 
+			GAIA_NODISCARD const ComponentCacheItem* opaque_semantic_item(const ComponentCacheItem& item) const noexcept {
+				if (m_components == nullptr || item.typeKind != RuntimeTypeKind::Opaque)
+					return nullptr;
+				return m_components->find(item.opaque_as_type());
+			}
+
+			GAIA_NODISCARD static RuntimeOpaqueScope make_opaque_scope(const Scope& scope) noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size};
+			}
+
+			GAIA_NODISCARD RuntimeOpaqueValue make_opaque_value(const Scope& scope) const noexcept {
+				return {scope.type, scope.data, scope.mutData, scope.size, scope.opaqueToken};
+			}
+
+			bool project_opaque_scope(const ComponentCacheItem& item, Scope& out) const noexcept {
+				const auto* adapter = item.opaque_adapter();
+				const auto* pSemantic = opaque_semantic_item(item);
+				if (adapter == nullptr || adapter->project == nullptr || pSemantic == nullptr)
+					return false;
+				RuntimeOpaqueScope opaque = make_opaque_scope(m_stack[m_depth]);
+				RuntimeOpaqueValue value{};
+				value.type = item.opaque_as_type();
+				if (!adapter->project(adapter->ctx, opaque, value))
+					return false;
+				if (value.type == EntityBad)
+					value.type = item.opaque_as_type();
+				if (value.type != item.opaque_as_type() || value.data == nullptr || value.size != pSemantic->comp.size())
+					return false;
+
+				out = {};
+				out.type = value.type;
+				out.data = value.data;
+				out.mutData = value.mutData;
+				out.size = value.size;
+				out.elemSize = value.size;
+				out.elemCount = 1;
+				out.opaqueAdapter = adapter;
+				out.opaqueDepth = m_depth;
+				out.opaqueValueDepth = m_depth + 1;
+				out.opaqueToken = value.token;
+				out.writable = m_stack[m_depth].writable && value.mutData != nullptr;
+				return true;
+			}
+
+			bool field_opaque(uint32_t index) noexcept {
+				if (m_depth + 2 >= MaxDepth)
+					return false;
+				const auto* pItem = current_item();
+				if (pItem == nullptr)
+					return false;
+				Scope projected{};
+				if (!project_opaque_scope(*pItem, projected))
+					return false;
+				const auto* pSemantic = m_components->find(projected.type);
+				const auto* pField = pSemantic != nullptr ? pSemantic->field(index) : nullptr;
+				if (pField == nullptr)
+					return false;
+				m_stack[++m_depth] = projected;
+				if (!descend(*pField)) {
+					--m_depth;
+					return false;
+				}
+				return true;
+			}
+
+			bool field_opaque(util::str_view name) noexcept {
+				if (m_depth + 2 >= MaxDepth)
+					return false;
+				const auto* pItem = current_item();
+				if (pItem == nullptr)
+					return false;
+				Scope projected{};
+				if (!project_opaque_scope(*pItem, projected))
+					return false;
+				const auto* pSemantic = m_components->find(projected.type);
+				const auto* pField = pSemantic != nullptr ? pSemantic->field(name) : nullptr;
+				if (pField == nullptr)
+					return false;
+				m_stack[++m_depth] = projected;
+				if (!descend(*pField)) {
+					--m_depth;
+					return false;
+				}
+				return true;
+			}
+
 			GAIA_NODISCARD static RuntimeSequenceScope make_sequence_scope(const Scope& scope) noexcept {
 				return {scope.type, scope.data, scope.mutData, scope.size};
 			}
@@ -749,13 +855,24 @@ namespace gaia {
 
 			bool commit_current_sequence_element() noexcept {
 				const auto& current = m_stack[m_depth];
-				if (current.sequenceAdapter == nullptr || current.sequenceAdapter->commitElement == nullptr)
-					return true;
-				if (current.sequenceDepth >= MaxDepth || current.elementDepth >= MaxDepth)
-					return false;
-				RuntimeSequenceScope sequence = make_sequence_scope(m_stack[current.sequenceDepth]);
-				RuntimeSequenceElement element = make_sequence_element(m_stack[current.elementDepth]);
-				return current.sequenceAdapter->commitElement(current.sequenceAdapter->ctx, sequence, element);
+				if (current.sequenceAdapter != nullptr && current.sequenceAdapter->commitElement != nullptr) {
+					if (current.sequenceDepth >= MaxDepth || current.elementDepth >= MaxDepth)
+						return false;
+					RuntimeSequenceScope sequence = make_sequence_scope(m_stack[current.sequenceDepth]);
+					RuntimeSequenceElement element = make_sequence_element(m_stack[current.elementDepth]);
+					if (!current.sequenceAdapter->commitElement(current.sequenceAdapter->ctx, sequence, element))
+						return false;
+				}
+
+				if (current.opaqueAdapter != nullptr && current.opaqueAdapter->commit != nullptr) {
+					if (current.opaqueDepth >= MaxDepth || current.opaqueValueDepth >= MaxDepth)
+						return false;
+					RuntimeOpaqueScope opaque = make_opaque_scope(m_stack[current.opaqueDepth]);
+					RuntimeOpaqueValue value = make_opaque_value(m_stack[current.opaqueValueDepth]);
+					if (!current.opaqueAdapter->commit(current.opaqueAdapter->ctx, opaque, value))
+						return false;
+				}
+				return true;
 			}
 
 			GAIA_NODISCARD CursorStatus
@@ -854,6 +971,10 @@ namespace gaia {
 				next.sequenceDepth = m_stack[m_depth].sequenceDepth;
 				next.elementDepth = m_stack[m_depth].elementDepth;
 				next.elementToken = m_stack[m_depth].elementToken;
+				next.opaqueAdapter = m_stack[m_depth].opaqueAdapter;
+				next.opaqueDepth = m_stack[m_depth].opaqueDepth;
+				next.opaqueValueDepth = m_stack[m_depth].opaqueValueDepth;
+				next.opaqueToken = m_stack[m_depth].opaqueToken;
 				next.writable = m_stack[m_depth].writable;
 				if (m_stack[m_depth].data != nullptr)
 					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;

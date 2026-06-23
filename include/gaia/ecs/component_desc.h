@@ -119,6 +119,42 @@ namespace gaia {
 			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
 		};
 
+		//! Runtime opaque adapter input scope. The physical byte layout is owned by the adapter.
+		struct RuntimeOpaqueScope final {
+			//! Opaque runtime type entity for the selected value.
+			Entity type = EntityBad;
+			//! Read-only opaque payload or handle bytes.
+			const void* data = nullptr;
+			//! Mutable opaque payload or handle bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of the opaque payload or handle bytes.
+			uint32_t size = 0;
+		};
+
+		//! Semantic value projected from opaque runtime storage.
+		struct RuntimeOpaqueValue final {
+			//! Semantic runtime type entity for projected bytes. EntityBad uses opaqueAsType.
+			Entity type = EntityBad;
+			//! Read-only projected semantic bytes.
+			const void* data = nullptr;
+			//! Mutable projected semantic bytes. Null for read-only traversal.
+			void* mutData = nullptr;
+			//! Size of projected semantic bytes.
+			uint32_t size = 0;
+			//! Adapter-owned projection token.
+			void* token = nullptr;
+		};
+
+		//! Callback table for opaque runtime values with adapter-owned physical storage.
+		struct RuntimeOpaqueAdapter final {
+			//! User context passed to all callbacks.
+			void* ctx = nullptr;
+			//! Projects an opaque value to its semantic runtime type. Required for traversal.
+			bool (*project)(void*, const RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
+			//! Commits a projected semantic value after cursor writes. Optional for direct projections.
+			bool (*commit)(void*, RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
+		};
+
 		//! Plain component registration descriptor shared by typed and runtime component paths.
 		//! Typed registration produces this descriptor from detail::ComponentDesc, while runtime
 		//! registration can fill it from data loaded at runtime.
@@ -196,6 +232,8 @@ namespace gaia {
 			Entity opaqueAsType = EntityBad;
 			//! Optional adapter for dynamic sequence metadata.
 			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+			//! Optional adapter for opaque semantic projections.
+			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 		};
 
 		namespace detail {

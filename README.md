@@ -107,6 +107,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Registration](#registration)
     * [Field metadata](#field-metadata)
     * [Nested structs and fixed arrays](#nested-structs-and-fixed-arrays)
+    * [Opaque adapters](#opaque-adapters)
     * [Dynamic vectors](#dynamic-vectors)
     * [Enum and bitmask metadata](#enum-and-bitmask-metadata)
     * [Raw access and cursors](#raw-access-and-cursors)
@@ -3748,7 +3749,87 @@ Named array types can nest by using another array type as `elementType`. Cursor 
 
 The same metadata drives semantic world JSON. A `Vec3` field is emitted as an object such as `"position":{"x":1,"y":2,"z":3}`, and a fixed inline `Vec3[2]` field is emitted as an array of two objects. Register the same runtime type/component descriptors before `load_json(...)` so Gaia-ECS can rebuild the payload bytes deterministically.
 
-Opaque runtime types describe payloads whose physical layout is intentionally not represented by runtime fields. Set `typeKind = ecs::RuntimeTypeKind::Opaque` and `opaqueAsType` to the reflected semantic type the payload presents to tools, scripts, importers, or editors. The existing component lifecycle and `funcSave` / `funcLoad` callbacks remain the physical payload contract; JSON is only one downstream import/export consumer and does not define opaque metadata. Cursors expose opaque scopes through `type_kind()` and `opaque_as_type()`, but field traversal is rejected until an explicit projection adapter exists.
+### Opaque adapters
+
+Most runtime-created components do not need opaque adapters. If the component bytes already contain the fields you want tools and cursors to see, register a normal runtime `Struct` with field metadata and stop there.
+
+```cpp
+const ecs::RuntimeFieldDesc transformFields[] = {
+  {util::str_view("x", 1), ecs::F32, 0, 0},
+  {util::str_view("y", 1), ecs::F32, 4, 0},
+  {util::str_view("z", 1), ecs::F32, 8, 0}
+};
+
+ecs::ComponentDesc transformDesc{};
+transformDesc.name = util::str_view("Transform", 9);
+transformDesc.size = sizeof(float) * 3;
+transformDesc.alig = alignof(float);
+transformDesc.storageType = ecs::DataStorageType::Table;
+transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+transformDesc.fields = transformFields;
+transformDesc.fieldCount = 3;
+ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
+```
+
+Opaque adapters are only for components whose physical bytes are not the semantic value: for example a handle, compressed blob, VM object id, or external asset id. In that case the component stores the physical payload, `opaqueAsType` names the semantic runtime type, and `opaqueAdapter` projects the physical payload into semantic bytes.
+
+Without `ComponentDesc::opaqueAdapter`, cursors expose opaque scopes through `type_kind()` and `opaque_as_type()` but reject field traversal.
+
+```cpp
+constexpr uint32_t TransformSize = sizeof(float) * 3;
+
+struct TransformHandle {
+  uint32_t index = 0;
+};
+
+struct TransformAdapterCtx {
+  uint32_t count = 0;
+  uint8_t payloads[4][TransformSize]{};
+};
+
+TransformAdapterCtx transformCtx{};
+transformCtx.count = 1;
+
+ecs::RuntimeOpaqueAdapter transformAdapter{};
+transformAdapter.ctx = &transformCtx;
+transformAdapter.project = [](void* ctx, const ecs::RuntimeOpaqueScope& opaque,
+                              ecs::RuntimeOpaqueValue& outValue) {
+  auto& transforms = *(TransformAdapterCtx*)ctx;
+  const auto* handle = (const TransformHandle*)opaque.data;
+  if (handle == nullptr || handle->index >= transforms.count)
+    return false;
+
+  outValue.data = transforms.payloads[handle->index];
+  if (opaque.mutData != nullptr)
+    outValue.mutData = transforms.payloads[handle->index];
+  outValue.size = TransformSize;
+  return true;
+};
+transformAdapter.commit = [](void*, ecs::RuntimeOpaqueScope&, ecs::RuntimeOpaqueValue& value) {
+  return value.data != nullptr && value.size == TransformSize;
+};
+
+ecs::ComponentDesc transformHandleDesc{};
+transformHandleDesc.name = util::str_view("TransformHandle", 15);
+transformHandleDesc.size = sizeof(TransformHandle);
+transformHandleDesc.alig = alignof(TransformHandle);
+transformHandleDesc.storageType = ecs::DataStorageType::Table;
+transformHandleDesc.typeKind = ecs::RuntimeTypeKind::Opaque;
+transformHandleDesc.opaqueAsType = transformCI.entity;
+transformHandleDesc.opaqueAdapter = &transformAdapter;
+ecs::ComponentCacheItem& transformHandleCI = w.add(transformHandleDesc);
+```
+
+The cursor walks the projected semantic type as if it were normal reflected runtime data:
+
+```cpp
+ecs::ComponentCursor cursor = w.cursor_mut(e, transformHandleCI.entity);
+if (cursor.field("x")) {
+  cursor.f32(42.0f);
+}
+```
+
+Mutable cursor writes call `commit` when the adapter provides it, then finish the root component write so `OnSet` observers see the owning opaque component change. Semantic JSON uses the same adapter: save projects the semantic value and writes it through reflected metadata; load projects a mutable semantic value, fills it from JSON, and commits the projection.
 
 ### Dynamic vectors
 
@@ -3871,7 +3952,7 @@ if (cursor.field("seconds")) {
 
 `get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
 
-`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
+`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
 
 Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)` to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
 

@@ -116,6 +116,8 @@ namespace gaia {
 			Entity opaqueAsType = EntityBad;
 			//! Optional adapter for dynamic sequence metadata.
 			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+			//! Optional adapter for opaque semantic projections.
+			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 
 #if GAIA_ENABLE_HOOKS
 			//! Component hook callbacks associated with this cache item.
@@ -437,6 +439,11 @@ namespace gaia {
 				return typeKind == RuntimeTypeKind::Vector ? sequenceAdapter : nullptr;
 			}
 
+			//! @return Adapter for opaque semantic projections, or nullptr otherwise.
+			GAIA_NODISCARD const RuntimeOpaqueAdapter* opaque_adapter() const noexcept {
+				return typeKind == RuntimeTypeKind::Opaque ? opaqueAdapter : nullptr;
+			}
+
 			//! @return True when this component has a custom serializer callback.
 			GAIA_NODISCARD bool has_custom_serializer() const noexcept {
 				return func_save != nullptr;
@@ -703,6 +710,7 @@ namespace gaia {
 				cci->elementCount = desc.elementCount;
 				cci->opaqueAsType = desc.opaqueAsType;
 				cci->sequenceAdapter = desc.sequenceAdapter;
+				cci->opaqueAdapter = desc.opaqueAdapter;
 
 				if (desc.fieldCount > 0) {
 					GAIA_FOR(desc.fieldCount) {

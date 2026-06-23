@@ -306,6 +306,111 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(noSerItem.has_custom_deserializer());
 	}
 
+	SUBCASE("opaque adapter projects semantic fields through cursor writes") {
+		TestWorld twld;
+
+		struct RuntimeOpaqueHandle {
+			uint32_t index = 0;
+		};
+
+		struct RuntimeOpaqueStore {
+			uint8_t payloads[2][RuntimePayloadSize]{};
+			uint32_t projectCalls = 0;
+			uint32_t commitCalls = 0;
+		};
+
+		RuntimeOpaqueStore store{};
+		write_xyz(store.payloads[0], 1.0f, 2.0f, 3.0f);
+
+		ecs::RuntimeOpaqueAdapter adapter{};
+		adapter.ctx = &store;
+		adapter.project = [](void* ctx, const ecs::RuntimeOpaqueScope& opaque, ecs::RuntimeOpaqueValue& outValue) {
+			auto& opaqueStore = *(RuntimeOpaqueStore*)ctx;
+			++opaqueStore.projectCalls;
+			const auto* handle = (const RuntimeOpaqueHandle*)opaque.data;
+			if (handle == nullptr || handle->index >= 2)
+				return false;
+			outValue.data = opaqueStore.payloads[handle->index];
+			if (opaque.mutData != nullptr)
+				outValue.mutData = opaqueStore.payloads[handle->index];
+			outValue.size = 12U;
+			return true;
+		};
+		adapter.commit = [](void* ctx, ecs::RuntimeOpaqueScope&, ecs::RuntimeOpaqueValue&) {
+			auto& opaqueStore = *(RuntimeOpaqueStore*)ctx;
+			++opaqueStore.commitCalls;
+			return true;
+		};
+
+		ecs::ComponentDesc semanticDesc{};
+		semanticDesc.name = util::str_view("Runtime_Type_Opaque_Adapter_XYZ");
+		semanticDesc.size = RuntimePayloadSize;
+		semanticDesc.alig = RuntimePayloadAlign;
+		semanticDesc.storageType = ecs::DataStorageType::Table;
+		semanticDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		semanticDesc.fields = RuntimeXYZFields;
+		semanticDesc.fieldCount = RuntimeXYZFieldCount;
+		auto& semanticType = wld.add(semanticDesc);
+
+		ecs::ComponentDesc opaqueDesc{};
+		opaqueDesc.name = util::str_view("Runtime_Component_Opaque_Adapter_Handle");
+		opaqueDesc.size = sizeof(RuntimeOpaqueHandle);
+		opaqueDesc.alig = alignof(RuntimeOpaqueHandle);
+		opaqueDesc.storageType = ecs::DataStorageType::Table;
+		opaqueDesc.typeKind = ecs::RuntimeTypeKind::Opaque;
+		opaqueDesc.opaqueAsType = semanticType.entity;
+		opaqueDesc.opaqueAdapter = &adapter;
+		auto& opaqueType = wld.add(opaqueDesc);
+
+		CHECK(opaqueType.opaque_adapter() == &adapter);
+
+		const auto entity = wld.add();
+		RuntimeOpaqueHandle handle{0};
+		CHECK(wld.add_raw(entity, opaqueType.entity, &handle, sizeof(handle)));
+
+		auto cursor = wld.cursor(entity, opaqueType.entity);
+		CHECK(cursor.valid());
+		CHECK(cursor.type_kind() == ecs::RuntimeTypeKind::Opaque);
+		CHECK(cursor.opaque_as_type() == semanticType.entity);
+		CHECK(cursor.field_count() == 3);
+		CHECK(cursor.field(util::str_view("y")));
+		const auto y = cursor.f32();
+		CHECK(y);
+		CHECK(y.value == doctest::Approx(2.0f));
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(opaqueType.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto mutableCursor = wld.cursor_mut(entity, opaqueType.entity);
+		CHECK(mutableCursor.field(util::str_view("z")));
+		CHECK(mutableCursor.f32(42.0f));
+		CHECK(store.commitCalls == 1);
+		CHECK(setHits == 1);
+		CHECK(read_f32(store.payloads[0], RuntimeZOffset) == doctest::Approx(42.0f));
+
+		bool jsonOk = false;
+		const auto json = ecs::component_to_json(opaqueType, &handle, jsonOk);
+		CHECK(jsonOk);
+		CHECK(strstr(json.data(), "\"x\":1") != nullptr);
+		CHECK(strstr(json.data(), "\"z\":42") != nullptr);
+
+		RuntimeOpaqueHandle loadedHandle{1};
+		ser::ser_json reader("{\"x\":7,\"y\":8,\"z\":9}");
+		bool readOk = false;
+		CHECK(ecs::json_to_component(opaqueType, &loadedHandle, reader, readOk));
+		CHECK(readOk);
+		CHECK(read_f32(store.payloads[1], RuntimeXOffset) == doctest::Approx(7.0f));
+		CHECK(read_f32(store.payloads[1], RuntimeZOffset) == doctest::Approx(9.0f));
+	}
+
 	SUBCASE("dynamic vector runtime type exposes element metadata without inline traversal") {
 		TestWorld twld;
 
