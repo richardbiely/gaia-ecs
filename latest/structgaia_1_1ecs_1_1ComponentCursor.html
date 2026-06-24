@@ -142,6 +142,10 @@ GAIA_NODISCARD RuntimeTypeKind&#160;</td><td class="memItemRight" valign="bottom
 GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>opaque_as_type</b> () const noexcept</td></tr>
 <tr class="memdesc:af6e5399e0b0ed3d4ebb81411d6145f49"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the semantic runtime type exposed by the current opaque scope, or EntityBad otherwise. <br /></td></tr>
 <tr class="separator:af6e5399e0b0ed3d4ebb81411d6145f49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaa8c83bb6adf2371b8c894306a6aa7b2" id="r_aaa8c83bb6adf2371b8c894306a6aa7b2"><td class="memItemLeft" align="right" valign="top"><a id="aaa8c83bb6adf2371b8c894306a6aa7b2" name="aaa8c83bb6adf2371b8c894306a6aa7b2"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>element_type</b> () const noexcept</td></tr>
+<tr class="memdesc:aaa8c83bb6adf2371b8c894306a6aa7b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the element type for the current sequence scope, or EntityBad otherwise. <br /></td></tr>
+<tr class="separator:aaa8c83bb6adf2371b8c894306a6aa7b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5fa3d19307295643143bcb0486e80a08" id="r_a5fa3d19307295643143bcb0486e80a08"><td class="memItemLeft" align="right" valign="top"><a id="a5fa3d19307295643143bcb0486e80a08" name="a5fa3d19307295643143bcb0486e80a08"></a>
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> () const noexcept</td></tr>
 <tr class="memdesc:a5fa3d19307295643143bcb0486e80a08"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the current payload or field size in bytes. <br /></td></tr>
@@ -152,6 +156,10 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>si
 <tr class="separator:a172398e9dce973ec7c5bdfa397a6b90d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4ada4b547b5e93bdd155960293e4fd48" id="r_a4ada4b547b5e93bdd155960293e4fd48"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a4ada4b547b5e93bdd155960293e4fd48">field_count</a> () const</td></tr>
 <tr class="separator:a4ada4b547b5e93bdd155960293e4fd48"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a983d311dd4d99a3b3a32444ed43ee277" id="r_a983d311dd4d99a3b3a32444ed43ee277"><td class="memItemLeft" align="right" valign="top"><a id="a983d311dd4d99a3b3a32444ed43ee277" name="a983d311dd4d99a3b3a32444ed43ee277"></a>
+GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>count</b> () const noexcept</td></tr>
+<tr class="memdesc:a983d311dd4d99a3b3a32444ed43ee277"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the element count for the current fixed or adapted sequence scope. <br /></td></tr>
+<tr class="separator:a983d311dd4d99a3b3a32444ed43ee277"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a109cdd10e0962428964ca95e381166ea" id="r_a109cdd10e0962428964ca95e381166ea"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a109cdd10e0962428964ca95e381166ea">field</a> (uint32_t index)</td></tr>
 <tr class="memdesc:a109cdd10e0962428964ca95e381166ea"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into the reflected field at <em>index</em>.  <br /></td></tr>
 <tr class="separator:a109cdd10e0962428964ca95e381166ea"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -161,6 +169,10 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>si
 <tr class="memitem:aa3e6779423b6ade7808f726f63153b2f" id="r_aa3e6779423b6ade7808f726f63153b2f"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#aa3e6779423b6ade7808f726f63153b2f">elem</a> (uint32_t index) noexcept</td></tr>
 <tr class="memdesc:aa3e6779423b6ade7808f726f63153b2f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Descends into element <em>index</em> of the current fixed inline or named array scope.  <br /></td></tr>
 <tr class="separator:aa3e6779423b6ade7808f726f63153b2f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a24b50f8e474f1ab8c040fc419e0cdaf7" id="r_a24b50f8e474f1ab8c040fc419e0cdaf7"><td class="memItemLeft" align="right" valign="top"><a id="a24b50f8e474f1ab8c040fc419e0cdaf7" name="a24b50f8e474f1ab8c040fc419e0cdaf7"></a>
+<a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">CursorResult</a>&lt; void &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>resize</b> (uint32_t <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a983d311dd4d99a3b3a32444ed43ee277">count</a>) noexcept</td></tr>
+<tr class="memdesc:a24b50f8e474f1ab8c040fc419e0cdaf7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resizes the current adapted dynamic sequence scope. <br /></td></tr>
+<tr class="separator:a24b50f8e474f1ab8c040fc419e0cdaf7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a577e46ab0ebfeaed9c22dc2cff58dd22" id="r_a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a577e46ab0ebfeaed9c22dc2cff58dd22">parent</a> () noexcept</td></tr>
 <tr class="memdesc:a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves back to the parent cursor scope.  <br /></td></tr>
 <tr class="separator:a577e46ab0ebfeaed9c22dc2cff58dd22"><td class="memSeparator" colspan="2">&#160;</td></tr>

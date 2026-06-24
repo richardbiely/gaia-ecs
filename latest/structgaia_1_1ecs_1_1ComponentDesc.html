@@ -255,7 +255,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>constantCount</b>
 <tr class="separator:af2899253209ea56f645fcd5cb5f30eca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a717e7533a5d67f615588c33326dda887" id="r_a717e7533a5d67f615588c33326dda887"><td class="memItemLeft" align="right" valign="top"><a id="a717e7533a5d67f615588c33326dda887" name="a717e7533a5d67f615588c33326dda887"></a>
 <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>elementType</b> = EntityBad</td></tr>
-<tr class="memdesc:a717e7533a5d67f615588c33326dda887"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type for fixed reflected array metadata. May reference another array type. EntityBad otherwise. <br /></td></tr>
+<tr class="memdesc:a717e7533a5d67f615588c33326dda887"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type for fixed array or dynamic vector metadata. May reference another array/vector type. <br /></td></tr>
 <tr class="separator:a717e7533a5d67f615588c33326dda887"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae4f7dbf5c05ba2089d91afb7c7c45a9b" id="r_ae4f7dbf5c05ba2089d91afb7c7c45a9b"><td class="memItemLeft" align="right" valign="top"><a id="ae4f7dbf5c05ba2089d91afb7c7c45a9b" name="ae4f7dbf5c05ba2089d91afb7c7c45a9b"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>elementCount</b> = 0</td></tr>
@@ -265,6 +265,14 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>elementCount</b> 
 <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>opaqueAsType</b> = EntityBad</td></tr>
 <tr class="memdesc:a61658f6117c502f42832caf40d76bdfb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Semantic runtime type exposed by opaque metadata. EntityBad otherwise. <br /></td></tr>
 <tr class="separator:a61658f6117c502f42832caf40d76bdfb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afd2ab664057f2844aa200ef0bfd7a70c" id="r_afd2ab664057f2844aa200ef0bfd7a70c"><td class="memItemLeft" align="right" valign="top"><a id="afd2ab664057f2844aa200ef0bfd7a70c" name="afd2ab664057f2844aa200ef0bfd7a70c"></a>
+const <a class="el" href="structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html">RuntimeSequenceAdapter</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>sequenceAdapter</b> = nullptr</td></tr>
+<tr class="memdesc:afd2ab664057f2844aa200ef0bfd7a70c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional adapter for dynamic sequence metadata. <br /></td></tr>
+<tr class="separator:afd2ab664057f2844aa200ef0bfd7a70c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9ef75ef704006efd529b992ac27a4387" id="r_a9ef75ef704006efd529b992ac27a4387"><td class="memItemLeft" align="right" valign="top"><a id="a9ef75ef704006efd529b992ac27a4387" name="a9ef75ef704006efd529b992ac27a4387"></a>
+const <a class="el" href="structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html">RuntimeOpaqueAdapter</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>opaqueAdapter</b> = nullptr</td></tr>
+<tr class="memdesc:a9ef75ef704006efd529b992ac27a4387"><td class="mdescLeft">&#160;</td><td class="mdescRight">Optional adapter for opaque semantic projections. <br /></td></tr>
+<tr class="separator:a9ef75ef704006efd529b992ac27a4387"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Plain component registration descriptor shared by typed and runtime component paths. Typed registration produces this descriptor from <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html" title="Compile-time adapter that converts typed component metadata into a plain ComponentDesc.">detail::ComponentDesc</a>, while runtime registration can fill it from data loaded at runtime. </p>

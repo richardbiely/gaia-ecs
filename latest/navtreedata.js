@@ -111,6 +111,8 @@ var NAVTREE =
         [ "Registration", "index.html#registration", null ],
         [ "Field metadata", "index.html#field-metadata", null ],
         [ "Nested structs and fixed arrays", "index.html#nested-structs-and-fixed-arrays", null ],
+        [ "Opaque adapters", "index.html#opaque-adapters", null ],
+        [ "Dynamic vectors", "index.html#dynamic-vectors", null ],
         [ "Enum and bitmask metadata", "index.html#enum-and-bitmask-metadata", null ],
         [ "Raw access and cursors", "index.html#raw-access-and-cursors", null ],
         [ "Querying runtime components", "index.html#querying-runtime-components", null ]
@@ -187,12 +189,12 @@ var NAVTREEINDEX =
 "classgaia_1_1ecs_1_1World.html#a75533062ef41a0449199fb6db99e7ea5",
 "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a52ab4322e901642b8b1ce4bce51fac98a6812cd22335a080d4c9769982fe4053d",
 "classgaia_1_1util_1_1SmallFunc.html#a61f97467ea3b8a07018cc59508e73154",
-"index.html#registration",
-"structgaia_1_1core_1_1equal__to.html#aed2455b8e1b986f01d5f76d3f01d805e",
-"structgaia_1_1ecs_1_1ComponentDesc.html#ae972daf19cf457a14e4ad38bb8fa4146",
-"structgaia_1_1ecs_1_1Sched.html#aa828e335a50b75d1b09f5722f26f8251",
-"structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a75697565bf1cc212c5c170b1e337a4a1",
-"structgaia_1_1util_1_1str__view.html#a60df959f1a4f5fcfdae3b741b46b1e67"
+"index.html#querying-runtime-components",
+"structgaia_1_1core_1_1direct__hash__key.html",
+"structgaia_1_1ecs_1_1ComponentDesc.html#a7d106e07dc077f21ba173f6e1cd20386",
+"structgaia_1_1ecs_1_1RuntimeFieldDesc.html#a458d6453a72f2b6bd87770c153eef0e8",
+"structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#a777c8e0e4d99f1b586183d60ac20b716",
+"structgaia_1_1util_1_1str.html#a283c387e3348a40f3f5172c59f688a0c"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

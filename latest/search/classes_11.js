@@ -27,5 +27,11 @@ var searchData=
   ['runtimefield_24',['RuntimeField',['../structgaia_1_1ecs_1_1RuntimeField.html',1,'gaia::ecs']]],
   ['runtimefielddesc_25',['RuntimeFieldDesc',['../structgaia_1_1ecs_1_1RuntimeFieldDesc.html',1,'gaia::ecs']]],
   ['runtimeitercallback_26',['RuntimeIterCallback',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1RuntimeIterCallback.html',1,'gaia::ecs::detail::QueryImpl']]],
-  ['runtimejsonfieldlayout_27',['RuntimeJsonFieldLayout',['../structgaia_1_1ecs_1_1detail_1_1RuntimeJsonFieldLayout.html',1,'gaia::ecs::detail']]]
+  ['runtimejsonfieldlayout_27',['RuntimeJsonFieldLayout',['../structgaia_1_1ecs_1_1detail_1_1RuntimeJsonFieldLayout.html',1,'gaia::ecs::detail']]],
+  ['runtimeopaqueadapter_28',['RuntimeOpaqueAdapter',['../structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html',1,'gaia::ecs']]],
+  ['runtimeopaquescope_29',['RuntimeOpaqueScope',['../structgaia_1_1ecs_1_1RuntimeOpaqueScope.html',1,'gaia::ecs']]],
+  ['runtimeopaquevalue_30',['RuntimeOpaqueValue',['../structgaia_1_1ecs_1_1RuntimeOpaqueValue.html',1,'gaia::ecs']]],
+  ['runtimesequenceadapter_31',['RuntimeSequenceAdapter',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html',1,'gaia::ecs']]],
+  ['runtimesequenceelement_32',['RuntimeSequenceElement',['../structgaia_1_1ecs_1_1RuntimeSequenceElement.html',1,'gaia::ecs']]],
+  ['runtimesequencescope_33',['RuntimeSequenceScope',['../structgaia_1_1ecs_1_1RuntimeSequenceScope.html',1,'gaia::ecs']]]
 ];

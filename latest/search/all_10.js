@@ -77,13 +77,14 @@ var searchData=
   ['processing_74',['processing',['../index.html#data-processing',1,'Data processing'],['../classgaia_1_1mt_1_1JobManager.html#a4909939e35fe036264e09f180b52d4ac',1,'gaia::mt::JobManager::processing(JobContainer &amp;jobData)'],['../classgaia_1_1mt_1_1JobManager.html#ac5e58a6886918bcd047b32b8c185d6dd',1,'gaia::mt::JobManager::processing(const JobContainer &amp;jobData)']]],
   ['profiling_75',['Profiling',['../index.html#profiling',1,'']]],
   ['progress_5fdeath_76',['progress_death',['../classgaia_1_1ecs_1_1Chunk.html#a24a0d4552f65ce59af691ed489b24013',1,'gaia::ecs::Chunk::progress_death()'],['../classgaia_1_1ecs_1_1Archetype.html#a7b43837562c9afac99a400be37f00756',1,'gaia::ecs::Archetype::progress_death()']]],
-  ['project_20settings_77',['Project settings',['../index.html#project-settings',1,'']]],
-  ['project_20structure_78',['Project structure',['../index.html#project-structure',1,'']]],
-  ['properties_79',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]],
-  ['pself_80',['pself',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html#aca3b957d52b523446762f60bfc71b974',1,'gaia::ecs::detail::QueryImpl::TypedJobCallback::pSelf'],['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html#a890bdfa66fa07ee22f2d4889c71f7e86',1,'gaia::ecs::detail::QueryImpl::IterJobCallback::pSelf']]],
-  ['psingleallterm_81',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
-  ['psoasizes_82',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentDesc.html#a22092296096d34e1f45c0925aced78b8',1,'gaia::ecs::ComponentDesc']]],
-  ['ptr_83',['ptr',['../structgaia_1_1ecs_1_1ComponentCursor.html#a8deaf093c90629126a49fc2d00c0e10b',1,'gaia::ecs::ComponentCursor']]],
-  ['pversions_84',['pversions',['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#ae589ff7f137aadb1f593c2f8a6d5967c',1,'gaia::ecs::vm::ArchetypeLookupView::pVersions'],['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords::pVersions']]],
-  ['pworld_85',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
+  ['project_77',['project',['../structgaia_1_1ecs_1_1RuntimeOpaqueAdapter.html#ab3b67518f7fccfc84c5f1472a3207519',1,'gaia::ecs::RuntimeOpaqueAdapter']]],
+  ['project_20settings_78',['Project settings',['../index.html#project-settings',1,'']]],
+  ['project_20structure_79',['Project structure',['../index.html#project-structure',1,'']]],
+  ['properties_80',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]],
+  ['pself_81',['pself',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html#aca3b957d52b523446762f60bfc71b974',1,'gaia::ecs::detail::QueryImpl::TypedJobCallback::pSelf'],['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1IterJobCallback.html#a890bdfa66fa07ee22f2d4889c71f7e86',1,'gaia::ecs::detail::QueryImpl::IterJobCallback::pSelf']]],
+  ['psingleallterm_82',['pSingleAllTerm',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectEntitySeedEvalPlan.html#addb2ca973faa2202e74229aeba5c4ebe',1,'gaia::ecs::detail::QueryImpl::DirectEntitySeedEvalPlan']]],
+  ['psoasizes_83',['pSoaSizes',['../structgaia_1_1ecs_1_1ComponentDesc.html#a22092296096d34e1f45c0925aced78b8',1,'gaia::ecs::ComponentDesc']]],
+  ['ptr_84',['ptr',['../structgaia_1_1ecs_1_1ComponentCursor.html#a8deaf093c90629126a49fc2d00c0e10b',1,'gaia::ecs::ComponentCursor']]],
+  ['pversions_85',['pversions',['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#ae589ff7f137aadb1f593c2f8a6d5967c',1,'gaia::ecs::vm::ArchetypeLookupView::pVersions'],['../structgaia_1_1ecs_1_1ChunkRecords.html#aab4d26e606753d73a00028ae2a24a7fc',1,'gaia::ecs::ChunkRecords::pVersions']]],
+  ['pworld_86',['pWorld',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a8697ce34bdb46f11245ef43f45a29359',1,'gaia::ecs::vm::MatchingCtx']]]
 ];

@@ -1,5 +1,7 @@
 var NAVTREEINDEX5 =
 {
+"index.html#querying-runtime-components":[2,9,7],
+"index.html#raw-access-and-cursors":[2,9,6],
 "index.html#registration":[2,9,0],
 "index.html#relations":[2,3,2],
 "index.html#relationship-basics":[2,3,0],
@@ -247,7 +249,5 @@ var NAVTREEINDEX5 =
 "structgaia_1_1core_1_1detail_1_1span__storage.html":[10,0,0,1,0,22],
 "structgaia_1_1core_1_1detail_1_1span__storage_3_01T_00_01DynamicSpanExtent_01_4.html":[10,0,0,1,0,23],
 "structgaia_1_1core_1_1detail_1_1type__identity.html":[10,0,0,1,0,24],
-"structgaia_1_1core_1_1detail_1_1type__identity.html#aafd3d097cc8628dbd0bea902f8e7c18f":[10,0,0,1,0,24,0],
-"structgaia_1_1core_1_1direct__hash__key.html":[10,0,0,1,4],
-"structgaia_1_1core_1_1equal__to.html":[10,0,0,1,6]
+"structgaia_1_1core_1_1detail_1_1type__identity.html#aafd3d097cc8628dbd0bea902f8e7c18f":[10,0,0,1,0,24,0]
 };

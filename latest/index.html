@@ -213,6 +213,8 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#registration">Registration</a></li>
 <li><a class="el" href="index.html#field-metadata">Field metadata</a></li>
 <li><a class="el" href="index.html#nested-structs-and-fixed-arrays">Nested structs and fixed arrays</a></li>
+<li><a class="el" href="index.html#opaque-adapters">Opaque adapters</a></li>
+<li><a class="el" href="index.html#dynamic-vectors">Dynamic vectors</a></li>
 <li><a class="el" href="index.html#enum-and-bitmask-metadata">Enum and bitmask metadata</a></li>
 <li><a class="el" href="index.html#raw-access-and-cursors">Raw access and cursors</a></li>
 <li><a class="el" href="index.html#querying-runtime-components">Querying runtime components</a></li>
@@ -3075,10 +3077,10 @@ Runtime components</h2>
 <p>Runtime components are components whose payload layout is described by data instead of a C++ type. They are useful for editors, mods, importers, and save formats that define component schemas outside compiled code.</p>
 <p>The runtime API has three separate concerns:</p><ul>
 <li>registration: create a component entity from <code>ecs::ComponentDesc</code></li>
-<li>metadata: describe fields, nested structs, fixed arrays, enums, and bitmasks</li>
+<li>metadata: describe fields, nested structs, fixed arrays, dynamic vectors, enums, bitmasks, and opaque semantic types</li>
 <li>access: add, read, write, query, and serialize payload bytes without a C++ component type</li>
 </ul>
-<p>For JSON, the <a class="el" href="index.html#serialization">Serialization</a> section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting <code>load_json(...)</code> rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.</p>
+<p>For JSON, the <a class="el" href="index.html#serialization">Serialization</a> section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting <code>load_json(...)</code> rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays and adapted dynamic vectors serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.</p>
 <h3><a class="anchor" id="registration"></a>
 Registration</h3>
 <p>Register a runtime component by filling <code>ecs::ComponentDesc</code> and passing it to <code>World::add(...)</code>. The descriptor name, size, alignment, storage type, and metadata are copied into the component cache item.</p>
@@ -3156,7 +3158,129 @@ Nested structs and fixed arrays</h3>
 <p>When the array shape is itself part of the schema, register a named array type entity instead of repeating a field count. Set <code>typeKind = ecs::RuntimeTypeKind::Array</code>, <code>elementType</code> to the reflected element type entity, <code>elementCount</code> to the fixed length, and <code>size</code> to <code>elementSize * elementCount</code>. Fields then reference the array type with count <code>0</code>; cursor and JSON behavior matches the inline count form.</p>
 <p>Named array types can nest by using another array type as <code>elementType</code>. Cursor traversal selects one dimension at a time: a <code>Vec3[2][2]</code> field can be addressed as <code>cursor.field("grid")</code>, <code>cursor.elem(row)</code>, <code>cursor.elem(column)</code>, then <code>cursor.field("z")</code>. Semantic JSON emits the same shape as nested arrays, such as <code>"grid":[[{"x":1,"y":2,"z":3},{"x":4,"y":5,"z":6}], ...]</code>.</p>
 <p>The same metadata drives semantic world JSON. A <code>Vec3</code> field is emitted as an object such as <code>"position":{"x":1,"y":2,"z":3}</code>, and a fixed inline <code>Vec3[2]</code> field is emitted as an array of two objects. Register the same runtime type/component descriptors before <code>load_json(...)</code> so Gaia-ECS can rebuild the payload bytes deterministically.</p>
-<p>Opaque runtime types describe payloads whose physical layout is intentionally not represented by runtime fields. Set <code>typeKind = ecs::RuntimeTypeKind::Opaque</code> and <code>opaqueAsType</code> to the reflected semantic type the payload presents to tools, scripts, importers, or editors. The existing component lifecycle and <code>funcSave</code> / <code>funcLoad</code> callbacks remain the physical payload contract; JSON is only one downstream import/export consumer and does not define opaque metadata. Cursors expose opaque scopes through <code>type_kind()</code> and <code>opaque_as_type()</code>, but field traversal is rejected until an explicit projection adapter exists.</p>
+<h3><a class="anchor" id="opaque-adapters"></a>
+Opaque adapters</h3>
+<p>Most runtime-created components do not need opaque adapters. If the component bytes already contain the fields you want tools and cursors to see, register a normal runtime <code>Struct</code> with field metadata and stop there.</p>
+<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc transformFields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;x&quot;</span>, 1), ecs::F32, 0, 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;y&quot;</span>, 1), ecs::F32, 4, 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;z&quot;</span>, 1), ecs::F32, 8, 0}</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc transformDesc{};</div>
+<div class="line">transformDesc.name = util::str_view(<span class="stringliteral">&quot;Transform&quot;</span>, 9);</div>
+<div class="line">transformDesc.size = <span class="keyword">sizeof</span>(float) * 3;</div>
+<div class="line">transformDesc.alig = <span class="keyword">alignof</span>(float);</div>
+<div class="line">transformDesc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">transformDesc.fields = transformFields;</div>
+<div class="line">transformDesc.fieldCount = 3;</div>
+<div class="line">ecs::ComponentCacheItem&amp; transformCI = w.add(transformDesc);</div>
+</div><!-- fragment --><p>Opaque adapters are only for components whose physical bytes are not the semantic value: for example a handle, compressed blob, VM object id, or external asset id. In that case the component stores the physical payload, <code>opaqueAsType</code> names the semantic runtime type, and <code>opaqueAdapter</code> projects the physical payload into semantic bytes.</p>
+<p>Without <code>ComponentDesc::opaqueAdapter</code>, cursors expose opaque scopes through <code>type_kind()</code> and <code>opaque_as_type()</code> but reject field traversal.</p>
+<div class="fragment"><div class="line"><span class="keyword">constexpr</span> uint32_t TransformSize = <span class="keyword">sizeof</span>(float) * 3;</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">struct </span>TransformHandle {</div>
+<div class="line">  uint32_t index = 0;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">struct </span>TransformAdapterCtx {</div>
+<div class="line">  uint32_t count = 0;</div>
+<div class="line">  uint8_t payloads[4][TransformSize]{};</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">TransformAdapterCtx transformCtx{};</div>
+<div class="line">transformCtx.count = 1;</div>
+<div class="line"> </div>
+<div class="line">ecs::RuntimeOpaqueAdapter transformAdapter{};</div>
+<div class="line">transformAdapter.ctx = &amp;transformCtx;</div>
+<div class="line">transformAdapter.project = [](<span class="keywordtype">void</span>* ctx, <span class="keyword">const</span> ecs::RuntimeOpaqueScope&amp; opaque,</div>
+<div class="line">                              ecs::RuntimeOpaqueValue&amp; outValue) {</div>
+<div class="line">  <span class="keyword">auto</span>&amp; transforms = *(TransformAdapterCtx*)ctx;</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span>* handle = (<span class="keyword">const</span> TransformHandle*)opaque.data;</div>
+<div class="line">  <span class="keywordflow">if</span> (handle == <span class="keyword">nullptr</span> || handle-&gt;index &gt;= transforms.count)</div>
+<div class="line">    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"> </div>
+<div class="line">  outValue.data = transforms.payloads[handle-&gt;index];</div>
+<div class="line">  <span class="keywordflow">if</span> (opaque.mutData != <span class="keyword">nullptr</span>)</div>
+<div class="line">    outValue.mutData = transforms.payloads[handle-&gt;index];</div>
+<div class="line">  outValue.size = TransformSize;</div>
+<div class="line">  <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line">};</div>
+<div class="line">transformAdapter.commit = [](<span class="keywordtype">void</span>*, ecs::RuntimeOpaqueScope&amp;, ecs::RuntimeOpaqueValue&amp; value) {</div>
+<div class="line">  <span class="keywordflow">return</span> value.data != <span class="keyword">nullptr</span> &amp;&amp; value.size == TransformSize;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc transformHandleDesc{};</div>
+<div class="line">transformHandleDesc.name = util::str_view(<span class="stringliteral">&quot;TransformHandle&quot;</span>, 15);</div>
+<div class="line">transformHandleDesc.size = <span class="keyword">sizeof</span>(TransformHandle);</div>
+<div class="line">transformHandleDesc.alig = <span class="keyword">alignof</span>(TransformHandle);</div>
+<div class="line">transformHandleDesc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">transformHandleDesc.typeKind = ecs::RuntimeTypeKind::Opaque;</div>
+<div class="line">transformHandleDesc.opaqueAsType = transformCI.entity;</div>
+<div class="line">transformHandleDesc.opaqueAdapter = &amp;transformAdapter;</div>
+<div class="line">ecs::ComponentCacheItem&amp; transformHandleCI = w.add(transformHandleDesc);</div>
+</div><!-- fragment --><p>The cursor walks the projected semantic type as if it were normal reflected runtime data:</p>
+<div class="fragment"><div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, transformHandleCI.entity);</div>
+<div class="line"><span class="keywordflow">if</span> (cursor.field(<span class="stringliteral">&quot;x&quot;</span>)) {</div>
+<div class="line">  cursor.f32(42.0f);</div>
+<div class="line">}</div>
+</div><!-- fragment --><p>Mutable cursor writes call <code>commit</code> when the adapter provides it, then finish the root component write so <code>OnSet</code> observers see the owning opaque component change. Semantic JSON uses the same adapter: save projects the semantic value and writes it through reflected metadata; load projects a mutable semantic value, fills it from JSON, and commits the projection.</p>
+<h3><a class="anchor" id="dynamic-vectors"></a>
+Dynamic vectors</h3>
+<p>Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set <code>typeKind = ecs::RuntimeTypeKind::Vector</code>, <code>elementType</code> to the reflected element type entity, and <code>elementCount = 0</code>. If no adapter is registered, the vector is metadata-only: cursors expose <code>element_type()</code> for introspection, while <code>count()</code>, <code>elem(...)</code>, <code>resize(...)</code>, and semantic JSON traversal reject deterministically.</p>
+<p>Register an adapted vector by assigning <code>ComponentDesc::sequenceAdapter</code>. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>PointsHeader {</div>
+<div class="line">  uint32_t count = 0;</div>
+<div class="line">  uint32_t capacity = 0;</div>
+<div class="line">  uint8_t* data = <span class="keyword">nullptr</span>;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::RuntimeSequenceAdapter pointsAdapter{};</div>
+<div class="line">pointsAdapter.count = [](<span class="keywordtype">void</span>*, <span class="keyword">const</span> ecs::RuntimeSequenceScope&amp; sequence, uint32_t&amp; outCount) {</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span>* header = (<span class="keyword">const</span> PointsHeader*)sequence.data;</div>
+<div class="line">  <span class="keywordflow">if</span> (header == <span class="keyword">nullptr</span> || header-&gt;count &gt; header-&gt;capacity)</div>
+<div class="line">    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line">  outCount = header-&gt;count;</div>
+<div class="line">  <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line">};</div>
+<div class="line">pointsAdapter.element = [](<span class="keywordtype">void</span>*, <span class="keyword">const</span> ecs::RuntimeSequenceScope&amp; sequence, uint32_t index,</div>
+<div class="line">                           ecs::RuntimeSequenceElement&amp; outElement) {</div>
+<div class="line">  <span class="keyword">const</span> <span class="keyword">auto</span>* header = (<span class="keyword">const</span> PointsHeader*)sequence.data;</div>
+<div class="line">  <span class="keywordflow">if</span> (header == <span class="keyword">nullptr</span> || header-&gt;data == <span class="keyword">nullptr</span> || index &gt;= header-&gt;count)</div>
+<div class="line">    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"> </div>
+<div class="line">  <span class="keyword">constexpr</span> uint32_t Vec3Size = <span class="keyword">sizeof</span>(float) * 3;</div>
+<div class="line">  outElement.data = header-&gt;data + (uintptr_t)Vec3Size * index;</div>
+<div class="line">  <span class="keywordflow">if</span> (sequence.mutData != <span class="keyword">nullptr</span>)</div>
+<div class="line">    outElement.mutData = header-&gt;data + (uintptr_t)Vec3Size * index;</div>
+<div class="line">  outElement.size = Vec3Size;</div>
+<div class="line">  <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line">};</div>
+<div class="line">pointsAdapter.resize = [](<span class="keywordtype">void</span>*, ecs::RuntimeSequenceScope&amp; sequence, uint32_t count) {</div>
+<div class="line">  <span class="keyword">auto</span>* header = (PointsHeader*)sequence.mutData;</div>
+<div class="line">  <span class="keywordflow">if</span> (header == <span class="keyword">nullptr</span> || count &gt; header-&gt;capacity)</div>
+<div class="line">    <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line">  header-&gt;count = count;</div>
+<div class="line">  <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc pointsDesc{};</div>
+<div class="line">pointsDesc.name = util::str_view(<span class="stringliteral">&quot;Points&quot;</span>, 6);</div>
+<div class="line">pointsDesc.size = <span class="keyword">sizeof</span>(PointsHeader);</div>
+<div class="line">pointsDesc.alig = <span class="keyword">alignof</span>(PointsHeader);</div>
+<div class="line">pointsDesc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">pointsDesc.typeKind = ecs::RuntimeTypeKind::Vector;</div>
+<div class="line">pointsDesc.elementType = vec3CI.entity;</div>
+<div class="line">pointsDesc.sequenceAdapter = &amp;pointsAdapter;</div>
+<div class="line">ecs::ComponentCacheItem&amp; pointsCI = w.add(pointsDesc);</div>
+</div><!-- fragment --><p>The cursor surface is the same vocabulary used by fixed arrays: call <code>count()</code> to read the current element count, <code>elem(index)</code> to select one element, and then use normal field or primitive accessors on the selected element.</p>
+<div class="fragment"><div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, pointsCI.entity);</div>
+<div class="line"><span class="keyword">auto</span> count = cursor.count();</div>
+<div class="line"><span class="keywordflow">if</span> (count &amp;&amp; count.value &gt; 0 &amp;&amp; cursor.elem(0) &amp;&amp; cursor.field(<span class="stringliteral">&quot;x&quot;</span>)) {</div>
+<div class="line">  cursor.f32(42.0f);</div>
+<div class="line">}</div>
+</div><!-- fragment --><p>Mutable cursor writes call <code>commitElement</code> when the adapter provides it, then finish the root component write so <code>OnSet</code> observers see the owning component change. Semantic JSON uses the same adapter: save calls <code>count</code> and <code>element</code>; load requires <code>resize</code> before per-element loading. Without <code>resize</code>, vector JSON load is treated as a best-effort failure rather than guessing ownership or allocation policy.</p>
 <h3><a class="anchor" id="enum-and-bitmask-metadata"></a>
 Enum and bitmask metadata</h3>
 <p>Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. <code>underlyingType</code> points at the primitive type entity used for storage, so cursor primitive helpers work on enum/bitmask fields when the selected helper matches that primitive entity.</p>
@@ -3203,7 +3327,7 @@ Raw access and cursors</h3>
 <div class="line">  }</div>
 <div class="line">}</div>
 </div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> return byte views for table AoS runtime components and tags. <code>mut_raw(...)</code> is a silent write path. Call <code>modify_raw(...)</code> after direct byte writes when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies a full payload and emits the write notification for you.</p>
-<p><code>ComponentCursor</code> primitive accessors such as <code>f32(...)</code> write the selected field and finish the component write automatically. <code>get_raw(...)</code> and <code>set_raw(...)</code> remain available for exact raw field copies and replacement.</p>
+<p><code>ComponentCursor</code> primitive accessors such as <code>f32(...)</code> write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use <code>count()</code> and <code>elem(index)</code> to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. <code>get_raw(...)</code> and <code>set_raw(...)</code> remain available for exact raw field copies and replacement.</p>
 <p>Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use <code>acc(entity).get_raw(component)</code> for read-only payload access. Use <code>acc_mut(entity).mut_raw(component)</code> for silent writes, <code>acc_mut(entity).modify_raw(component)</code> to finish a silent write, and <code>acc_mut(entity).set_raw(component, data, size)</code> to replace a full payload.</p>
 <h3><a class="anchor" id="querying-runtime-components"></a>
 Querying runtime components</h3>
