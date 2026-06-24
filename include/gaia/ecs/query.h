@@ -5870,6 +5870,18 @@ namespace gaia {
 				template <typename T>
 				QueryImpl& group_id();
 
+				//! Collects active non-zero group ids for a grouped query.
+				//! The ids can be fed back to group_id(...) to process each group without knowing group ids ahead of time.
+				//! \tparam Container Container with GroupId elements.
+				//! \param out Output array overwritten with unique group ids.
+				//! \param sortGroups True to sort grouped cache ranges by group id before collecting ids.
+				template <typename Container>
+				void groups(Container& out, bool sortGroups) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					queryInfo.group_ids(out, sortGroups);
+				}
+
 				//------------------------------------------------
 
 				//! Adds a query execution job without submitting it.

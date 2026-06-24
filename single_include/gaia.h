@@ -45392,6 +45392,24 @@ namespace gaia {
 				return m_plan.ctx.data.groupBy != EntityBad;
 			}
 
+			//! Collects the query's active non-zero group ids.
+			//! \tparam Container Container with GroupId elements.
+			//! \param out Output array overwritten with unique group ids.
+			//! \param sortGroups True to sort grouped cache ranges by group id before collecting ids.
+			template <typename Container>
+			void group_ids(Container& out, bool sortGroups) {
+				out.clear();
+				ensure_group_data(sortGroups);
+
+				const auto cnt = (uint32_t)m_state.grouped.archetypeGroupData.size();
+				out.reserve(cnt);
+				GAIA_FOR(cnt) {
+					const auto groupId = m_state.grouped.archetypeGroupData[i].groupId;
+					if (groupId != 0)
+						out.push_back(groupId);
+				}
+			}
+
 			//! Returns true when sorted-query payloads are active for this query.
 			GAIA_NODISCARD bool has_sorted_payload() const {
 				return m_plan.ctx.data.sortByFunc != nullptr;
@@ -54102,6 +54120,18 @@ namespace gaia {
 				//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
 				template <typename T>
 				QueryImpl& group_id();
+
+				//! Collects active non-zero group ids for a grouped query.
+				//! The ids can be fed back to group_id(...) to process each group without knowing group ids ahead of time.
+				//! \tparam Container Container with GroupId elements.
+				//! \param out Output array overwritten with unique group ids.
+				//! \param sortGroups True to sort grouped cache ranges by group id before collecting ids.
+				template <typename Container>
+				void groups(Container& out, bool sortGroups) {
+					auto& queryInfo = fetch();
+					match_all(queryInfo);
+					queryInfo.group_ids(out, sortGroups);
+				}
 
 				//------------------------------------------------
 

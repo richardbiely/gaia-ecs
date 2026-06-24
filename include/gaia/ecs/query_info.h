@@ -970,6 +970,24 @@ namespace gaia {
 				return m_plan.ctx.data.groupBy != EntityBad;
 			}
 
+			//! Collects the query's active non-zero group ids.
+			//! \tparam Container Container with GroupId elements.
+			//! \param out Output array overwritten with unique group ids.
+			//! \param sortGroups True to sort grouped cache ranges by group id before collecting ids.
+			template <typename Container>
+			void group_ids(Container& out, bool sortGroups) {
+				out.clear();
+				ensure_group_data(sortGroups);
+
+				const auto cnt = (uint32_t)m_state.grouped.archetypeGroupData.size();
+				out.reserve(cnt);
+				GAIA_FOR(cnt) {
+					const auto groupId = m_state.grouped.archetypeGroupData[i].groupId;
+					if (groupId != 0)
+						out.push_back(groupId);
+				}
+			}
+
 			//! Returns true when sorted-query payloads are active for this query.
 			GAIA_NODISCARD bool has_sorted_payload() const {
 				return m_plan.ctx.data.sortByFunc != nullptr;

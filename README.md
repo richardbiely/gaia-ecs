@@ -2177,6 +2177,21 @@ q.group_id(carrot).each([&](ecs::Iter& it) {
 });
 ```
 
+When group ids are not known ahead of time, collect them with `groups(...)` and feed each id back into `group_id(...)`.
+
+Pass `true` to sort the collected ids by group id.
+
+```cpp
+cnt::darr<ecs::GroupId> groups;
+q.groups(groups, true);
+
+for (auto groupId: groups) {
+  q.group_id(groupId).each([&](ecs::Iter& it) {
+    ...
+  });
+}
+```
+
 Custom grouping function can be provided if needed. If a custom `group_by(...)` callback depends on hierarchy or relation topology, declare that explicitly with `group_dep(...)` so cached grouping is refreshed when that relation changes.
 
 ```cpp

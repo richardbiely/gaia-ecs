@@ -3268,6 +3268,8 @@ TEST_CASE("Query - group") {
 
 	ecs::Entity ents[6];
 	GAIA_FOR(6) ents[i] = wld.add(); // 20, 21, 22, 23, 24, 25
+	(void)wld.add<Position>();
+	(void)wld.add<Healthy>();
 	{
 		// 26 - Position
 		// 27 - Healthy
@@ -3374,6 +3376,54 @@ TEST_CASE("Query - group") {
 		qq.arr(positions);
 		CHECK(positions.empty());
 	}
+}
+
+TEST_CASE("Query - groups") {
+	TestWorld twld;
+
+	const auto eats = wld.add();
+	const auto carrot = wld.add();
+	const auto salad = wld.add();
+	const auto apple = wld.add();
+	(void)wld.add<Position>();
+	(void)wld.add<Healthy>();
+
+	const auto eNoGroup = wld.add();
+	const auto eSalad = wld.add();
+	const auto eCarrotA = wld.add();
+	const auto eApple = wld.add();
+	const auto eCarrotB = wld.add();
+
+	wld.add<Position>(eNoGroup);
+	wld.build(eSalad).add<Position>().add({eats, salad});
+	wld.build(eCarrotA).add<Position>().add({eats, carrot});
+	wld.build(eApple).add<Position>().add({eats, apple});
+	wld.build(eCarrotB).add<Position>().add({eats, carrot}).add<Healthy>();
+
+	auto qq = wld.query().all<Position>().group_by(eats);
+	cnt::darr<ecs::GroupId> groups;
+	qq.groups(groups, true);
+
+	CHECK(groups.size() == 3);
+	CHECK(groups[0] == carrot.id());
+	CHECK(groups[1] == salad.id());
+	CHECK(groups[2] == apple.id());
+
+	uint32_t total = 0;
+	GAIA_FOR((uint32_t)groups.size()) {
+		qq.group_id(groups[i]);
+		total += qq.count();
+	}
+	CHECK(total == 4);
+
+	const auto banana = wld.add();
+	const auto eBanana = wld.add();
+	wld.build(eBanana).add<Position>().add({eats, banana});
+
+	qq.groups(groups, true);
+	CHECK(groups.size() == 4);
+	CHECK(groups[3] == banana.id());
+	CHECK(qq.group_id(banana).count() == 1);
 }
 
 TEST_CASE("Query - sort") {
