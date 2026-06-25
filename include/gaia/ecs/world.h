@@ -751,6 +751,10 @@ namespace gaia {
 			//! Lazily built deduped targets for wildcard target traversal on a source entity.
 			//! Keyed by `source` and cleared whenever a pair edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_targetsAllCache;
+			//! True when any relation traversal cache above has entries and pair changes must clear them.
+			mutable bool m_relationCachesPopulated = false;
+			//! True once any relation has an OnDeleteTarget policy and pair adds/removes must inspect target flags.
+			bool m_hasOnDeleteTargetPolicy = false;
 			//! Map of relation -> targets
 			PairMap m_relToTgt;
 			//! Map of target -> relations
@@ -1418,13 +1422,7 @@ namespace gaia {
 				store.srcToTgtIdx[source.id()] = (uint32_t)sources.size();
 				sources.push_back(source);
 
-				touch_rel_version(relation);
-				invalidate_queries_for_rel(relation);
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				invalidate_relation_caches(relation);
 			}
 
 			bool exclusive_adjunct_del(Entity source, Entity relation, Entity target) {
@@ -1449,13 +1447,7 @@ namespace gaia {
 				if (store.srcToTgtCnt == 0)
 					m_exclusiveAdjunctByRel.erase(itStore);
 
-				touch_rel_version(relation);
-				invalidate_queries_for_rel(relation);
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				invalidate_relation_caches(relation);
 
 				return true;
 			}
@@ -1518,11 +1510,7 @@ namespace gaia {
 					invalidate_queries_for_rel(relation);
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
 				}
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				clear_relation_caches();
 			}
 
 			void del_exclusive_adjunct_relation(Entity relation) {
@@ -1543,11 +1531,7 @@ namespace gaia {
 				invalidate_queries_for_rel(relation);
 				for (auto source: sources)
 					(void)exclusive_adjunct_del(source, relation, EntityBad);
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				clear_relation_caches();
 			}
 
 			//! Checks whether any non-fragmenting exclusive relation targeting @a target uses the given OnDeleteTarget rule.
@@ -2196,7 +2180,8 @@ namespace gaia {
 							try_set_OnDeleteTargetPolicy(ecMain, entity, enable);
 						}
 
-						try_set_OnDeleteTarget(entity, enable);
+						if (m_world.m_hasOnDeleteTargetPolicy)
+							try_set_OnDeleteTarget(entity, enable);
 						return;
 					}
 
@@ -2211,7 +2196,6 @@ namespace gaia {
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
 					try_set_OnDeleteTargetPolicy(ecMain, entity, enable);
-					try_set_OnDeleteTarget(entity, enable);
 				}
 
 				void try_set_Is(EntityContainer& ec, Entity entity, bool enable) {
@@ -2344,6 +2328,11 @@ namespace gaia {
 						set_flag(ec.flags, EntityContainerFlags::OnDeleteTarget_Remove, enable);
 					else if (entity == Pair(OnDeleteTarget, Error))
 						set_flag(ec.flags, EntityContainerFlags::OnDeleteTarget_Error, enable);
+					else
+						return;
+
+					if (enable)
+						m_world.m_hasOnDeleteTargetPolicy = true;
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -3783,13 +3772,7 @@ namespace gaia {
 				const auto parentPair = Pair(Parent, parentEntity);
 				assign_pair(parentPair, *m_pEntityArchetype);
 
-				touch_rel_version(Parent);
-				invalidate_queries_for_rel(Parent);
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				invalidate_relation_caches(Parent);
 
 				auto& ecParent = fetch(parentEntity);
 				EntityBuilder::set_flag(ecParent.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
@@ -4465,13 +4448,7 @@ namespace gaia {
 				m_observers.add_diff_targets(*this, addDiffCtx, EntitySpan{&instance, 1});
 #endif
 
-				touch_rel_version(Is);
-				invalidate_queries_for_rel(Is);
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				invalidate_relation_caches(Is);
 
 				const auto instanceKey = EntityLookupKey(instance);
 				const auto prefabKey = EntityLookupKey(prefabEntity);
@@ -4572,13 +4549,7 @@ namespace gaia {
 					Chunk::copy_foreign_entity_data_n(pSrcChunk, srcRow, pDstChunk, originalChunkSize, toCreate);
 					pDstChunk->update_versions();
 
-					touch_rel_version(Is);
-					invalidate_queries_for_rel(Is);
-					m_targetsTravCache = {};
-					m_srcBfsTravCache = {};
-					m_depthOrderCache = {};
-					m_sourcesAllCache = {};
-					m_targetsAllCache = {};
+					invalidate_relation_caches(Is);
 
 					auto entities = pDstChunk->entity_view();
 					auto& asRelations = m_entityToAsRelations[prefabKey];
@@ -6212,6 +6183,7 @@ namespace gaia {
 					return itCache->second;
 
 				auto& cache = m_targetsTravCache[key];
+				m_relationCachesPopulated = true;
 				if (!valid(relation) || !valid(source))
 					return cache;
 
@@ -6237,6 +6209,7 @@ namespace gaia {
 					return itCache->second;
 
 				auto& cache = m_targetsAllCache[key];
+				m_relationCachesPopulated = true;
 				if (!valid(source))
 					return cache;
 
@@ -6282,6 +6255,7 @@ namespace gaia {
 					return itCache->second;
 
 				auto& cache = m_sourcesAllCache[key];
+				m_relationCachesPopulated = true;
 				if (!valid(target))
 					return cache;
 
@@ -6377,6 +6351,7 @@ namespace gaia {
 					return itCache->second;
 
 				auto& cache = m_srcBfsTravCache[key];
+				m_relationCachesPopulated = true;
 				if (!valid(relation) || !valid(rootTarget))
 					return cache;
 
@@ -6427,6 +6402,7 @@ namespace gaia {
 					return 0;
 
 				// Mark this node as in-flight so cycles trip a debug assert instead of recursing forever.
+				m_relationCachesPopulated = true;
 				m_depthOrderCache[key] = GroupIdMax;
 
 				uint32_t depth = 1;
@@ -7701,6 +7677,8 @@ namespace gaia {
 					m_depthOrderCache = {};
 					m_sourcesAllCache = {};
 					m_targetsAllCache = {};
+					m_relationCachesPopulated = false;
+					m_hasOnDeleteTargetPolicy = false;
 					m_tgtToRel = {};
 					m_relToTgt = {};
 					m_exclusiveAdjunctByRel = {};
@@ -8135,6 +8113,10 @@ namespace gaia {
 						s.load(ec.dataRaw);
 						s.load(ec.row);
 						s.load(ec.flags);
+						if ((ec.flags & (EntityContainerFlags::OnDeleteTarget_Delete | EntityContainerFlags::OnDeleteTarget_Remove |
+														 EntityContainerFlags::OnDeleteTarget_Error)) != 0) {
+							m_hasOnDeleteTargetPolicy = true;
+						}
 						ec.flags |= EntityContainerFlags::Load;
 
 						ec.idx = remapLoadedEntityId(ec.idx);
@@ -9828,11 +9810,7 @@ namespace gaia {
 						invalidate_relation(relationKey.entity());
 				}
 
-				m_targetsTravCache = {};
-				m_srcBfsTravCache = {};
-				m_depthOrderCache = {};
-				m_sourcesAllCache = {};
-				m_targetsAllCache = {};
+				clear_relation_caches();
 			}
 
 			void unlink_live_is_relation(Entity source, Entity target) {
@@ -10652,16 +10630,15 @@ namespace gaia {
 			}
 
 			void clear_relation_caches() {
-				if (!m_targetsTravCache.empty())
-					m_targetsTravCache = {};
-				if (!m_srcBfsTravCache.empty())
-					m_srcBfsTravCache = {};
-				if (!m_depthOrderCache.empty())
-					m_depthOrderCache = {};
-				if (!m_sourcesAllCache.empty())
-					m_sourcesAllCache = {};
-				if (!m_targetsAllCache.empty())
-					m_targetsAllCache = {};
+				if (!m_relationCachesPopulated)
+					return;
+				m_relationCachesPopulated = false;
+
+				m_targetsTravCache = {};
+				m_srcBfsTravCache = {};
+				m_depthOrderCache = {};
+				m_sourcesAllCache = {};
+				m_targetsAllCache = {};
 			}
 
 			void invalidate_relation_caches(Entity relation) {
