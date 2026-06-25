@@ -61153,8 +61153,6 @@ namespace gaia {
 				const auto parentPair = Pair(Parent, parentEntity);
 				assign_pair(parentPair, *m_pEntityArchetype);
 
-				invalidate_relation_caches(Parent);
-
 				auto& ecParent = fetch(parentEntity);
 				EntityBuilder::set_flag(ecParent.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
 			}
@@ -61188,17 +61186,20 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(parentEntity));
 
-				prepare_parent_batch(parentEntity);
 #if GAIA_OBSERVERS_ENABLED
-				const Entity parentPair = Pair(Parent, parentEntity);
 				if (m_observers.has_on_add_observers()) {
 					const auto* pStore = exclusive_adjunct_store(Parent);
 					if (pStore != nullptr && exclusive_adjunct_target(*pStore, entity) == parentEntity)
 						return;
 				}
 
+				const Entity parentPair = Pair(Parent, parentEntity);
+				prepare_parent_batch(parentEntity);
+
 				auto addDiffCtx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
+#else
+				prepare_parent_batch(parentEntity);
 #endif
 				exclusive_adjunct_set(entity, Parent, parentEntity);
 
