@@ -4006,6 +4006,42 @@ TEST_CASE("Exclusive dontfragment relation rebinding updates wildcard membership
 	CHECK(visited == 1);
 }
 
+TEST_CASE("Pair wildcard relation maps preserve shared entries after relation deletion") {
+	TestWorld twld;
+
+	const auto relA = wld.add();
+	const auto relB = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+	const auto sourceC = wld.add();
+
+	wld.add(sourceA, ecs::Pair(relA, targetA));
+	wld.add(sourceB, ecs::Pair(relA, targetB));
+	wld.add(sourceC, ecs::Pair(relB, targetA));
+
+	auto contains = [](const cnt::set<ecs::EntityLookupKey>* set, ecs::Entity entity) {
+		return set != nullptr && set->find(ecs::EntityLookupKey(entity)) != set->end();
+	};
+
+	CHECK(contains(wld.targets(relA), targetA));
+	CHECK(contains(wld.targets(relA), targetB));
+	CHECK(contains(wld.targets(ecs::All), targetA));
+	CHECK(contains(wld.targets(ecs::All), targetB));
+	CHECK(contains(wld.relations(targetA), relA));
+	CHECK(contains(wld.relations(targetA), relB));
+	CHECK(contains(wld.relations(ecs::All), relA));
+	CHECK(contains(wld.relations(ecs::All), relB));
+
+	wld.del(relA);
+	wld.update();
+
+	CHECK(contains(wld.targets(ecs::All), targetA));
+	CHECK(contains(wld.relations(targetA), relB));
+	CHECK(contains(wld.relations(ecs::All), relB));
+}
+
 TEST_CASE("Deleting exclusive dontfragment relation entity clears adjunct bindings") {
 	TestWorld twld;
 

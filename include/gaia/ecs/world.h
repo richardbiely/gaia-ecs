@@ -1379,10 +1379,9 @@ namespace gaia {
 				sources.pop_back();
 			}
 
-			void exclusive_adjunct_set(Entity source, Entity relation, Entity target) {
+			void exclusive_adjunct_set(ExclusiveAdjunctStore& store, Entity source, Entity relation, Entity target) {
 				GAIA_ASSERT(is_exclusive_dont_fragment_relation(relation));
 
-				auto& store = exclusive_adjunct_store_mut(relation);
 				ensure_exclusive_adjunct_src_capacity(store, source);
 				const auto oldTarget = store.srcToTgt[source.id()];
 				if (oldTarget != EntityBad) {
@@ -1401,6 +1400,11 @@ namespace gaia {
 				sources.push_back(source);
 
 				invalidate_relation_caches(relation);
+			}
+
+			void exclusive_adjunct_set(Entity source, Entity relation, Entity target) {
+				auto& store = exclusive_adjunct_store_mut(relation);
+				exclusive_adjunct_set(store, source, relation, target);
 			}
 
 			bool exclusive_adjunct_del(Entity source, Entity relation, Entity target) {
@@ -3740,9 +3744,26 @@ namespace gaia {
 				group.count = 1;
 			}
 
-			void prepare_parent_batch(Entity parentEntity) {
+			void prepare_parent_batch(Entity parentEntity, const ExclusiveAdjunctStore& parentStore) {
 				GAIA_ASSERT(valid(parentEntity));
+				if (exclusive_adjunct_sources(parentStore, parentEntity) != nullptr)
+					return;
 
+				const auto parentPair = Pair(Parent, parentEntity);
+				assign_pair(parentPair, *m_pEntityArchetype);
+
+				auto& ecParent = fetch(parentEntity);
+				EntityBuilder::set_flag(ecParent.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
+			}
+
+			void prepare_parent_batch(Entity parentEntity) {
+				const auto* pStore = exclusive_adjunct_store(Parent);
+				if (pStore != nullptr) {
+					prepare_parent_batch(parentEntity, *pStore);
+					return;
+				}
+
+				GAIA_ASSERT(valid(parentEntity));
 				const auto parentPair = Pair(Parent, parentEntity);
 				assign_pair(parentPair, *m_pEntityArchetype);
 
@@ -3757,6 +3778,9 @@ namespace gaia {
 				if (toCreate == 0)
 					return;
 
+				auto& parentStore = exclusive_adjunct_store_mut(Parent);
+				prepare_parent_batch(parentEntity, parentStore);
+
 				auto entities = chunk.entity_view();
 #if GAIA_OBSERVERS_ENABLED
 				const Entity parentPair = Pair(Parent, parentEntity);
@@ -3765,7 +3789,7 @@ namespace gaia {
 						EntitySpan{entities.data() + originalChunkSize, toCreate});
 #endif
 				GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
-					exclusive_adjunct_set(entities[rowIdx], Parent, parentEntity);
+					exclusive_adjunct_set(parentStore, entities[rowIdx], Parent, parentEntity);
 				}
 
 #if GAIA_OBSERVERS_ENABLED
@@ -3778,23 +3802,23 @@ namespace gaia {
 			void parent_direct(Entity entity, Entity parentEntity) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(parentEntity));
+				auto& parentStore = exclusive_adjunct_store_mut(Parent);
 
 #if GAIA_OBSERVERS_ENABLED
 				if (m_observers.has_on_add_observers()) {
-					const auto* pStore = exclusive_adjunct_store(Parent);
-					if (pStore != nullptr && exclusive_adjunct_target(*pStore, entity) == parentEntity)
+					if (exclusive_adjunct_target(parentStore, entity) == parentEntity)
 						return;
 				}
 
 				const Entity parentPair = Pair(Parent, parentEntity);
-				prepare_parent_batch(parentEntity);
+				prepare_parent_batch(parentEntity, parentStore);
 
 				auto addDiffCtx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
 #else
-				prepare_parent_batch(parentEntity);
+				prepare_parent_batch(parentEntity, parentStore);
 #endif
-				exclusive_adjunct_set(entity, Parent, parentEntity);
+				exclusive_adjunct_set(parentStore, entity, Parent, parentEntity);
 
 #if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
@@ -10598,12 +10622,14 @@ namespace gaia {
 			}
 
 			void del_reltgt_tgtrel_pairs(Entity entity) {
-				auto delPair = [](PairMap& map, Entity source, Entity remove) {
-					auto itTargets = map.find(EntityLookupKey(source));
-					if (itTargets != map.end()) {
-						auto& targets = itTargets->second;
-						targets.erase(EntityLookupKey(remove));
-					}
+				auto delPair = [](PairMap& map, EntityLookupKey source, EntityLookupKey remove) {
+					auto itTargets = map.find(source);
+					if (itTargets == map.end())
+						return false;
+
+					auto& targets = itTargets->second;
+					targets.erase(remove);
+					return targets.empty();
 				};
 
 				Archetype* pArchetype = nullptr;
@@ -10623,10 +10649,16 @@ namespace gaia {
 						auto rel = m_recs.entities.handle(entity.id());
 						auto tgt = m_recs.entities.handle(entity.gen());
 
-						delPair(m_relToTgt, rel, tgt);
-						delPair(m_relToTgt, All, tgt);
-						delPair(m_tgtToRel, tgt, rel);
-						delPair(m_tgtToRel, All, rel);
+						const auto relKey = EntityLookupKey(rel);
+						const auto tgtKey = EntityLookupKey(tgt);
+						const auto allKey = EntityLookupKey(All);
+
+						const bool relEmpty = delPair(m_relToTgt, relKey, tgtKey);
+						const bool tgtEmpty = delPair(m_tgtToRel, tgtKey, relKey);
+						if (tgtEmpty)
+							(void)delPair(m_relToTgt, allKey, tgtKey);
+						if (relEmpty)
+							(void)delPair(m_tgtToRel, allKey, relKey);
 					}
 				} else {
 					// Update the container record
@@ -10652,8 +10684,8 @@ namespace gaia {
 					EntityBuilder::set_flag(ec.flags, EntityContainerFlags::DeleteRequested, false);
 
 					// Update pairs
-					delPair(m_relToTgt, All, entity);
-					delPair(m_tgtToRel, All, entity);
+					delPair(m_relToTgt, EntityLookupKey(All), EntityLookupKey(entity));
+					delPair(m_tgtToRel, EntityLookupKey(All), EntityLookupKey(entity));
 					m_relToTgt.erase(EntityLookupKey(entity));
 					m_tgtToRel.erase(EntityLookupKey(entity));
 				}
@@ -11035,16 +11067,22 @@ namespace gaia {
 				// Update pair mappings
 				const auto rel = get(entity.id());
 				const auto tgt = get(entity.gen());
+				const auto relKey = EntityLookupKey(rel);
+				const auto tgtKey = EntityLookupKey(tgt);
+				const auto allKey = EntityLookupKey(All);
 
-				auto addPair = [](PairMap& map, Entity source, Entity add) {
-					auto& ents = map[EntityLookupKey(source)];
-					ents.insert(EntityLookupKey(add));
-				};
+				auto& relTargets = m_relToTgt[relKey];
+				const bool relHadTargets = !relTargets.empty();
+				relTargets.insert(tgtKey);
 
-				addPair(m_relToTgt, rel, tgt);
-				addPair(m_relToTgt, All, tgt);
-				addPair(m_tgtToRel, tgt, rel);
-				addPair(m_tgtToRel, All, rel);
+				auto& tgtRelations = m_tgtToRel[tgtKey];
+				const bool tgtHadRelations = !tgtRelations.empty();
+				tgtRelations.insert(relKey);
+
+				if (!tgtHadRelations)
+					m_relToTgt[allKey].insert(tgtKey);
+				if (!relHadTargets)
+					m_tgtToRel[allKey].insert(relKey);
 
 #if GAIA_OBSERVERS_ENABLED
 				m_observers.try_mark_term_observed(*this, entity);
