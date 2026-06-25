@@ -3628,9 +3628,17 @@ namespace gaia {
 					Iter it;
 					it.init_query_state(queryInfo.world(), constraints, false);
 
+					//! Direct dense plans already encode expensive process gates. When no cached archetype can require
+					//! prefab filtering and no depth-order barrier cache can prune, only deletion state remains dynamic.
+					const bool canSkipProcessCheck =
+							!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
+
 					for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 						auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints))
+						if (canSkipProcessCheck) {
+							if GAIA_UNLIKELY (pArchetype->is_req_del())
+								continue;
+						} else if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);

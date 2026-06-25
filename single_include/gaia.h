@@ -51899,9 +51899,17 @@ namespace gaia {
 					Iter it;
 					it.init_query_state(queryInfo.world(), constraints, false);
 
+					//! Direct dense plans already encode expensive process gates. When no cached archetype can require
+					//! prefab filtering and no depth-order barrier cache can prune, only deletion state remains dynamic.
+					const bool canSkipProcessCheck =
+							!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
+
 					for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 						auto* pArchetype = const_cast<Archetype*>(cacheView[i]);
-						if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints))
+						if (canSkipProcessCheck) {
+							if GAIA_UNLIKELY (pArchetype->is_req_del())
+								continue;
+						} else if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, constraints))
 							continue;
 
 						auto indicesView = queryInfo.indices_mapping_view(i);
@@ -55876,7 +55884,7 @@ namespace gaia {
 					plan.flags |= QueryPlanFlag_BarrierCache;
 
 				const bool canDirectEntitySeed = !hasFilters && can_use_direct_entity_seed_eval(queryInfo);
-				const bool canDirectChunks = can_use_direct_chunk_iteration_fastpath(queryInfo);
+				const bool canDirectChunks = !hasSortedPayload && (!hasDepthOrderBarrier || !depthOrderBarrierPrunes);
 
 				auto setDenseRange = [&]() -> bool {
 					const auto cacheRange = selected_query_cache_range(queryInfo);
@@ -55981,7 +55989,7 @@ namespace gaia {
 					::gaia::ecs::update_version(*m_worldVersion);
 
 				const bool canSkipProcessCheck =
-						!queryInfo.result_cache_may_need_prefab_filter() && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+						!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
 				lock(*m_storage.world());
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];

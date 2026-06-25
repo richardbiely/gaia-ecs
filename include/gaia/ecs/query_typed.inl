@@ -709,7 +709,7 @@ namespace gaia {
 					plan.flags |= QueryPlanFlag_BarrierCache;
 
 				const bool canDirectEntitySeed = !hasFilters && can_use_direct_entity_seed_eval(queryInfo);
-				const bool canDirectChunks = can_use_direct_chunk_iteration_fastpath(queryInfo);
+				const bool canDirectChunks = !hasSortedPayload && (!hasDepthOrderBarrier || !depthOrderBarrierPrunes);
 
 				auto setDenseRange = [&]() -> bool {
 					const auto cacheRange = selected_query_cache_range(queryInfo);
@@ -814,7 +814,7 @@ namespace gaia {
 					::gaia::ecs::update_version(*m_worldVersion);
 
 				const bool canSkipProcessCheck =
-						!queryInfo.result_cache_may_need_prefab_filter() && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
+						!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
 				lock(*m_storage.world());
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
