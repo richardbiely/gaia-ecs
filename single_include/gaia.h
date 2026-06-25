@@ -58977,9 +58977,9 @@ namespace gaia {
 						// graph. Recreate the cached edge only for the single-step case.
 						if (m_graphEdgeOpCount == 1 && m_graphEdgeEntity != EntityBad) {
 							if (m_graphEdgeIsAdd)
-								rebuild_graph_edge(m_pArchetypeSrc, m_pArchetype, m_graphEdgeEntity);
+								ensure_graph_edge(m_pArchetypeSrc, m_pArchetype, m_graphEdgeEntity);
 							else
-								rebuild_graph_edge(m_pArchetype, m_pArchetypeSrc, m_graphEdgeEntity);
+								ensure_graph_edge(m_pArchetype, m_pArchetypeSrc, m_graphEdgeEntity);
 						}
 
 						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
@@ -59845,6 +59845,18 @@ namespace gaia {
 					pArchetypeLeft->del_graph_edge_right_local(entity);
 					pArchetypeRight->del_graph_edge_left_local(entity);
 					pArchetypeLeft->build_graph_edges(pArchetypeRight, entity);
+				}
+
+				//! Ensures a single cached archetype-graph edge exists after a one-step builder commit.
+				//! The no-graph resolver reaches existing target archetypes by hash. If a previous entity already
+				//! built the same one-step edge, keep it instead of deleting and rebuilding both edge maps.
+				static void ensure_graph_edge(Archetype* pArchetypeLeft, Archetype* pArchetypeRight, Entity entity) {
+					const auto right = pArchetypeLeft->find_edge_right(entity);
+					const auto left = pArchetypeRight->find_edge_left(entity);
+					if (right.id == pArchetypeRight->id() && left.id == pArchetypeLeft->id())
+						return;
+
+					rebuild_graph_edge(pArchetypeLeft, pArchetypeRight, entity);
 				}
 
 				void add_inter_init(Entity entity) {
@@ -66087,6 +66099,37 @@ namespace gaia {
 					record.compIdx = compIdx;
 			}
 
+			//! Adds a newly-created archetype to the reverse lookup without scanning the whole bucket.
+			//! The archetype cannot already be present globally. Wildcard pair keys can still hit the same
+			//! bucket multiple times while creating one archetype, so only the tail record needs merging.
+			void add_new_entity_archetype_pair(
+					Entity entity, Archetype* pArchetype, uint16_t compIdx = ComponentIndexBad, uint16_t matchCount = 1) {
+				GAIA_ASSERT(pArchetype != nullptr);
+				GAIA_ASSERT(matchCount > 0);
+
+				EntityLookupKey entityKey(entity);
+				const auto it = m_entityToArchetypeMap.find(entityKey);
+				if (it == m_entityToArchetypeMap.end()) {
+					ComponentIndexEntryArray records;
+					records.push_back(ComponentIndexEntry{pArchetype, compIdx, matchCount});
+					m_entityToArchetypeMap.try_emplace(entityKey, GAIA_MOV(records));
+					return;
+				}
+
+				auto& records = it->second;
+				if (!records.empty()) {
+					auto& record = records.back();
+					if (record.matches(pArchetype)) {
+						record.matchCount = (uint16_t)(record.matchCount + matchCount);
+						if (compIdx != ComponentIndexBad)
+							record.compIdx = compIdx;
+						return;
+					}
+				}
+
+				records.push_back(ComponentIndexEntry{pArchetype, compIdx, matchCount});
+			}
+
 			void add_pair_archetype_query_pairs(Entity pair, Archetype* pArchetype, uint16_t matchCount = 1) {
 				GAIA_ASSERT(pair.pair());
 				GAIA_ASSERT(pArchetype != nullptr);
@@ -66098,6 +66141,19 @@ namespace gaia {
 				add_entity_archetype_pair(Pair(All, second), pArchetype, ComponentIndexBad, matchCount);
 				add_entity_archetype_pair(Pair(first, All), pArchetype, ComponentIndexBad, matchCount);
 				add_entity_archetype_pair(Pair(All, All), pArchetype, ComponentIndexBad, matchCount);
+			}
+
+			void add_new_pair_archetype_query_pairs(Entity pair, Archetype* pArchetype, uint16_t matchCount = 1) {
+				GAIA_ASSERT(pair.pair());
+				GAIA_ASSERT(pArchetype != nullptr);
+				GAIA_ASSERT(matchCount > 0);
+
+				const auto first = get(pair.id());
+				const auto second = get(pair.gen());
+
+				add_new_entity_archetype_pair(Pair(All, second), pArchetype, ComponentIndexBad, matchCount);
+				add_new_entity_archetype_pair(Pair(first, All), pArchetype, ComponentIndexBad, matchCount);
+				add_new_entity_archetype_pair(Pair(All, All), pArchetype, ComponentIndexBad, matchCount);
 			}
 
 			//! Deletes an archetype from the <pairEntity, archetype> map
@@ -66251,7 +66307,7 @@ namespace gaia {
 				const auto entityCnt = (uint32_t)entities.size();
 				GAIA_FOR(entityCnt) {
 					auto entity = entities[i];
-					add_entity_archetype_pair(entity, pArchetype, (uint16_t)i);
+					add_new_entity_archetype_pair(entity, pArchetype, (uint16_t)i);
 
 #if GAIA_OBSERVERS_ENABLED
 					auto& ec = fetch(entity);
@@ -66264,7 +66320,7 @@ namespace gaia {
 					// If the entity is a pair, make sure to create special wildcard records for it
 					// as well so wildcard queries can find the archetype.
 					if (entity.pair()) {
-						add_pair_archetype_query_pairs(entity, pArchetype);
+						add_new_pair_archetype_query_pairs(entity, pArchetype);
 					}
 				}
 
