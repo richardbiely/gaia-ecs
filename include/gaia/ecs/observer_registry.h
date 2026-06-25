@@ -316,6 +316,12 @@ namespace gaia {
 				return has_observers_for_term(term);
 			}
 
+			//! Returns whether any OnAdd observer can be dispatched.
+			//! \return True if at least one OnAdd observer is registered.
+			GAIA_NODISCARD bool has_on_add_observers() const {
+				return !m_observer_map_add.empty() || !m_observer_map_add_is.empty() || !m_diff_index_add.empty();
+			}
+
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;

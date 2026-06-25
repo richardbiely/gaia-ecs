@@ -57230,6 +57230,12 @@ namespace gaia {
 				return has_observers_for_term(term);
 			}
 
+			//! Returns whether any OnAdd observer can be dispatched.
+			//! \return True if at least one OnAdd observer is registered.
+			GAIA_NODISCARD bool has_on_add_observers() const {
+				return !m_observer_map_add.empty() || !m_observer_map_add_is.empty() || !m_diff_index_add.empty();
+			}
+
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;
@@ -58162,8 +58168,6 @@ namespace gaia {
 			PairMap m_tgtToRel;
 			//! Non-fragmenting exclusive relation stores keyed by the relation entity.
 			cnt::map<EntityLookupKey, ExclusiveAdjunctStore> m_exclusiveAdjunctByRel;
-			//! Source entity -> non-fragmenting exclusive relations present on that source.
-			EntityArrayMap m_srcToExclusiveAdjunctRel;
 			//! Non-fragmenting sparse component stores keyed by the component entity.
 			cnt::map<EntityLookupKey, SparseComponentStoreErased> m_sparseComponentsByComp;
 			//! Relation-local structural version used for dependency ordering caches.
@@ -58782,25 +58786,6 @@ namespace gaia {
 				sources.pop_back();
 			}
 
-			void exclusive_adjunct_track_src_relation(Entity source, Entity relation) {
-				auto& rels = m_srcToExclusiveAdjunctRel[EntityLookupKey(source)];
-				if (!core::has(rels, relation))
-					rels.push_back(relation);
-			}
-
-			void exclusive_adjunct_untrack_src_relation(Entity source, Entity relation) {
-				const auto it = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(source));
-				if (it == m_srcToExclusiveAdjunctRel.end())
-					return;
-
-				auto& rels = it->second;
-				const auto idx = core::get_index(rels, relation);
-				if (idx != BadIndex)
-					core::swap_erase_unsafe(rels, idx);
-				if (rels.empty())
-					m_srcToExclusiveAdjunctRel.erase(it);
-			}
-
 			void exclusive_adjunct_set(Entity source, Entity relation, Entity target) {
 				GAIA_ASSERT(is_exclusive_dont_fragment_relation(relation));
 
@@ -58814,7 +58799,6 @@ namespace gaia {
 					del_exclusive_adjunct_target_source(store, oldTarget, source);
 				} else {
 					++store.srcToTgtCnt;
-					exclusive_adjunct_track_src_relation(source, relation);
 				}
 
 				ensure_exclusive_adjunct_tgt_capacity(store, target);
@@ -58844,7 +58828,6 @@ namespace gaia {
 				GAIA_ASSERT(store.srcToTgtCnt > 0);
 				--store.srcToTgtCnt;
 
-				exclusive_adjunct_untrack_src_relation(source, relation);
 				if (store.srcToTgtCnt == 0)
 					m_exclusiveAdjunctByRel.erase(itStore);
 
@@ -58855,10 +58838,6 @@ namespace gaia {
 
 			GAIA_NODISCARD bool has_exclusive_adjunct_pair(Entity source, Entity object) const {
 				if (!object.pair())
-					return false;
-
-				const auto srcRelsIt = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(source));
-				if (srcRelsIt == m_srcToExclusiveAdjunctRel.end())
 					return false;
 
 				const auto relId = object.id();
@@ -58880,17 +58859,17 @@ namespace gaia {
 					return tgtId == All.id() || target.id() == tgtId;
 				}
 
-				if (tgtId == All.id())
-					return !srcRelsIt->second.empty();
+				if (tgtId == All.id()) {
+					for (const auto& it: m_exclusiveAdjunctByRel) {
+						if (exclusive_adjunct_target(it.second, source) != EntityBad)
+							return true;
+					}
+					return false;
+				}
 
 				const auto target = get(tgtId);
-				for (auto relKey: srcRelsIt->second) {
-					const auto relation = relKey;
-					const auto* pStore = exclusive_adjunct_store(relation);
-					if (pStore == nullptr)
-						continue;
-
-					if (exclusive_adjunct_target(*pStore, source) == target)
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					if (exclusive_adjunct_target(it.second, source) == target)
 						return true;
 				}
 
@@ -58898,13 +58877,14 @@ namespace gaia {
 			}
 
 			void del_exclusive_adjunct_source(Entity source) {
-				const auto it = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(source));
-				if (it == m_srcToExclusiveAdjunctRel.end())
-					return;
-
 				cnt::darray<Entity> relations;
-				for (auto relKey: it->second)
-					relations.push_back(relKey);
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					const auto relation = it.first.entity();
+					if (exclusive_adjunct_target(it.second, source) != EntityBad)
+						relations.push_back(relation);
+				}
+				if (relations.empty())
+					return;
 
 				for (auto relation: relations) {
 					touch_rel_version(relation);
@@ -61211,6 +61191,12 @@ namespace gaia {
 				prepare_parent_batch(parentEntity);
 #if GAIA_OBSERVERS_ENABLED
 				const Entity parentPair = Pair(Parent, parentEntity);
+				if (m_observers.has_on_add_observers()) {
+					const auto* pStore = exclusive_adjunct_store(Parent);
+					if (pStore != nullptr && exclusive_adjunct_target(*pStore, entity) == parentEntity)
+						return;
+				}
+
 				auto addDiffCtx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
 #endif
@@ -62394,6 +62380,8 @@ namespace gaia {
 
 			//! Adds a direct non-fragmenting `Parent` relationship to @a parentEntity.
 			//! The relationship is stored out of archetype identity.
+			//! \param entity Entity to inspect.
+			//! \param parentEntity Candidate parent entity.
 			void parent(Entity entity, Entity parentEntity) {
 				parent_direct(entity, parentEntity);
 			}
@@ -63386,17 +63374,9 @@ namespace gaia {
 				if (!valid(target))
 					return EntityBad;
 
-				const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-				if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-					for (auto relKey: itAdjunctRels->second) {
-						const auto relation = relKey;
-						const auto* pStore = exclusive_adjunct_store(relation);
-						if (pStore == nullptr)
-							continue;
-
-						if (exclusive_adjunct_target(*pStore, entity) == target)
-							return relation;
-					}
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					if (exclusive_adjunct_target(it.second, entity) == target)
+						return it.first.entity();
 				}
 
 				const auto& ec = fetch(entity);
@@ -63427,17 +63407,9 @@ namespace gaia {
 				if (!valid(target))
 					return;
 
-				const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-				if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-					for (auto relKey: itAdjunctRels->second) {
-						const auto relation = relKey;
-						const auto* pStore = exclusive_adjunct_store(relation);
-						if (pStore == nullptr)
-							continue;
-
-						if (exclusive_adjunct_target(*pStore, entity) == target)
-							func(relation);
-					}
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					if (exclusive_adjunct_target(it.second, entity) == target)
+						func(it.first.entity());
 				}
 
 				const auto& ec = fetch(entity);
@@ -63469,19 +63441,9 @@ namespace gaia {
 				if (!valid(target))
 					return;
 
-				const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(EntityLookupKey(entity));
-				if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-					for (auto relKey: itAdjunctRels->second) {
-						const auto relation = relKey;
-						const auto* pStore = exclusive_adjunct_store(relation);
-						if (pStore == nullptr)
-							continue;
-
-						if (exclusive_adjunct_target(*pStore, entity) == target) {
-							if (!func(relation))
-								return;
-						}
-					}
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					if (exclusive_adjunct_target(it.second, entity) == target && !func(it.first.entity()))
+						return;
 				}
 
 				const auto& ec = fetch(entity);
@@ -63617,17 +63579,10 @@ namespace gaia {
 
 				const auto visitStamp = next_entity_visit_stamp();
 
-				const auto itAdjunctRels = m_srcToExclusiveAdjunctRel.find(key);
-				if (itAdjunctRels != m_srcToExclusiveAdjunctRel.end()) {
-					for (auto rel: itAdjunctRels->second) {
-						const auto* pStore = exclusive_adjunct_store(rel);
-						if (pStore == nullptr)
-							continue;
-
-						const auto target = exclusive_adjunct_target(*pStore, source);
-						if (target != EntityBad && try_mark_entity_visited(target, visitStamp))
-							cache.push_back(target);
-					}
+				for (const auto& it: m_exclusiveAdjunctByRel) {
+					const auto target = exclusive_adjunct_target(it.second, source);
+					if (target != EntityBad && try_mark_entity_visited(target, visitStamp))
+						cache.push_back(target);
 				}
 
 				const auto& ec = fetch(source);
@@ -65084,7 +65039,6 @@ namespace gaia {
 					m_tgtToRel = {};
 					m_relToTgt = {};
 					m_exclusiveAdjunctByRel = {};
-					m_srcToExclusiveAdjunctRel = {};
 					for (auto& [compKey, store]: m_sparseComponentsByComp) {
 						(void)compKey;
 						store.func_clear_store(store.pStore);

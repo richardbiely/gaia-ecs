@@ -34,7 +34,11 @@ TEST_CASE("Parent - targets and sources use adjunct storage") {
 	wld.parent(child, root);
 
 	CHECK(wld.has(child, ecs::Pair(ecs::Parent, root)));
+	CHECK(wld.has(child, ecs::Pair(ecs::Parent, ecs::All)));
+	CHECK(wld.has(child, ecs::Pair(ecs::All, root)));
+	CHECK(wld.has(child, ecs::Pair(ecs::All, ecs::All)));
 	CHECK(wld.target(child, ecs::Parent) == root);
+	CHECK(wld.relation(child, root) == ecs::Parent);
 
 	cnt::darray<ecs::Entity> targets;
 	wld.targets(child, ecs::Parent, [&](ecs::Entity target) {
@@ -116,4 +120,26 @@ TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
 	auto qOr = wld.query().or_(ecs::Pair(ecs::Parent, rootA)).or_<Scale>();
 	CHECK(qOr.count() == 2);
 	expect_exact_entities(qOr, {eA, eC});
+}
+
+TEST_CASE("Parent - duplicate direct set does not dispatch OnAdd again") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+
+	uint32_t hits = 0;
+	const auto observer = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all(ecs::Pair(ecs::Parent, root))
+											 .on_each([&](ecs::Iter& it) {
+												 hits += it.size();
+											 })
+											 .entity();
+	(void)observer;
+
+	wld.parent(child, root);
+	wld.parent(child, root);
+
+	CHECK(hits == 1);
 }
