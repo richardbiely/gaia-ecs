@@ -62392,17 +62392,18 @@ namespace gaia {
 				return has(entity, Pair(ChildOf, parent));
 			}
 
-			//! Shortcut for add(entity, Pair(Parent, parent))
+			//! Adds a direct non-fragmenting `Parent` relationship to @a parentEntity.
+			//! The relationship is stored out of archetype identity.
 			void parent(Entity entity, Entity parentEntity) {
-				add(entity, Pair(Parent, parentEntity));
+				parent_direct(entity, parentEntity);
 			}
 
-			//! Checks whether @a entity has a non-fragmenting `Parent` relationship to @a parentEntity.
+			//! Checks whether @a entity has a direct non-fragmenting `Parent` relationship to @a parentEntity.
 			//! \param entity Entity to inspect.
 			//! \param parentEntity Candidate parent entity.
 			//! \return True if @a entity references @a parentEntity through `Parent`. False otherwise.
 			GAIA_NODISCARD bool parent(Entity entity, Entity parentEntity) const {
-				return has(entity, Pair(Parent, parentEntity));
+				return has_direct(entity, Pair(Parent, parentEntity));
 			}
 
 			//----------------------------------------------------------------------
