@@ -44865,6 +44865,8 @@ namespace gaia {
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
+				//! True when cached result archetypes may be rejected by the default prefab filter.
+				uint8_t resultCacheMayNeedPrefabFilter = 0;
 				//! Dirty flags
 				uint8_t dirtyFlags = DirtyFlags::All;
 
@@ -44878,6 +44880,7 @@ namespace gaia {
 				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
+					resultCacheMayNeedPrefabFilter = 0;
 					exec.clear();
 					grouped.clear();
 					nonTrivial.clear();
@@ -44886,6 +44889,7 @@ namespace gaia {
 				//! Clears transient final result matches while preserving reusable payload allocation.
 				void clear_transient_result_cache() {
 					archetypeCache.clear();
+					resultCacheMayNeedPrefabFilter = 0;
 					exec.clear_transient();
 					grouped.clear_transient();
 					nonTrivial.clear_transient();
@@ -45418,6 +45422,11 @@ namespace gaia {
 			//! Returns the result membership revision used by reverse-index cache users.
 			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
+			}
+
+			//! Returns true when the result cache contains archetypes that need default prefab filtering.
+			GAIA_NODISCARD bool result_cache_may_need_prefab_filter() const {
+				return m_state.resultCacheMayNeedPrefabFilter != 0;
 			}
 
 			//! Returns true when a new archetype can be propagated into the current cache incrementally.
@@ -46260,6 +46269,13 @@ namespace gaia {
 				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
+			//! Records whether @a pArchetype requires the default prefab filter during result-cache iteration.
+			//! \param pArchetype Matched archetype added to the result cache.
+			void update_result_cache_prefab_filter_state(const Archetype* pArchetype) {
+				if (!matches_prefab_entities() && pArchetype->has(Prefab))
+					m_state.resultCacheMayNeedPrefabFilter = 1;
+			}
+
 			//! Adds an archetype to the final result cache for ungrouped queries.
 			//! \param pArchetype Matched archetype to cache.
 			//! \param trackMembershipChange True to bump result membership revision after insertion.
@@ -46274,6 +46290,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
@@ -46308,6 +46325,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				if (trackMembershipChange)
@@ -46332,6 +46350,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.grouped.archetypeGroupIds.push_back(groupId);
 				m_state.grouped.dataPending = true;
 				m_state.exec.compIndicesPending = true;
@@ -46361,6 +46380,7 @@ namespace gaia {
 			//! \param pArchetype Matched archetype to cache for this transient result.
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				if (m_plan.ctx.data.groupBy != EntityBad) {
@@ -55746,7 +55766,8 @@ namespace gaia {
 			//! \param row Row relative to the currently processed chunk range.
 			//! \param from Absolute row offset of the current chunk range.
 			//! \return Reference or value selected from @a view for the current row.
-			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, core::func_type_list<T...>)
+			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, const TypedQueryExecState&,
+			//! core::func_type_list<T...>)
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_direct_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
@@ -55780,11 +55801,40 @@ namespace gaia {
 			//! \param from First absolute row to process.
 			//! \param to One-past-the-end absolute row to process.
 			//! \param func Callback invoked for each matching row.
+			//! \param state Typed callback metadata, including component ids for direct chunk access.
 			//! \note This fast path intentionally bypasses Iter construction and therefore does not expose Iter::ctx().
+			//! \note Single-argument callbacks are common in fragmented hierarchy queries. They avoid tuple/view
+			//! construction and per-row index-sequence expansion here because many tiny chunks make that adapter cost
+			//! visible.
 			template <typename Func, typename... T>
-			inline void
-			run_typed_direct_chunk_rows(Chunk* pChunk, uint16_t from, uint16_t to, Func& func, core::func_type_list<T...>) {
-				if constexpr (sizeof...(T) > 0) {
+			inline void run_typed_direct_chunk_rows(
+					Chunk* pChunk, uint16_t from, uint16_t to, Func& func, const TypedQueryExecState& state,
+					core::func_type_list<T...>) {
+				if constexpr (sizeof...(T) == 1) {
+					//! Keep the one-arg path explicit. The multi-arg path below still needs the generic view tuple because
+					//! each field can have different Entity/AoS/SoA access rules.
+					using T0 = std::tuple_element_t<0, std::tuple<T...>>;
+					using U = typename actual_type_t<T0>::Type;
+					const auto cnt = (uint32_t)(to - from);
+					if constexpr (std::is_same_v<U, Entity>) {
+						const auto data = pChunk->entity_view();
+						GAIA_FOR(cnt)
+						func(data[from + i]);
+					} else if constexpr (!mem::is_soa_layout_v<U>) {
+						//! Use the chunk-local component lookup. QueryInfo owns query-specific field-to-column caches;
+						//! doing world/archetype-level lookup here is not equivalent and is expensive on many-archetype
+						//! ChildOf-style workloads where there is usually no per-archetype-to-many-chunk amortization.
+						const auto compIdx = pChunk->comp_idx(state.argIds[0]);
+						const auto recs = pChunk->comp_rec_view();
+						auto* data = (U*)recs[compIdx].pData + from;
+						GAIA_FOR(cnt)
+						func(data[i]);
+					} else {
+						auto view = pChunk->template sview_auto<T0>(from, to);
+						GAIA_FOR(cnt)
+						func(view[from + i]);
+					}
+				} else if constexpr (sizeof...(T) > 0) {
 					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					const auto cnt = (uint32_t)(to - from);
 					GAIA_FOR(cnt)
@@ -55930,10 +55980,15 @@ namespace gaia {
 				if (state.hasWriteArgs)
 					::gaia::ecs::update_version(*m_worldVersion);
 
+				const bool canSkipProcessCheck =
+						!queryInfo.result_cache_may_need_prefab_filter() && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				lock(*m_storage.world());
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
-					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
+					if (canSkipProcessCheck) {
+						if GAIA_UNLIKELY (pArchetype->is_req_del())
+							continue;
+					} else if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
 					std::span<const uint8_t> indicesView;
@@ -55953,8 +56008,9 @@ namespace gaia {
 						}
 
 						GAIA_PROF_SCOPE(query_func);
-						run_typed_direct_chunk_rows(pChunk, from, to, func, types);
-						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
+						run_typed_direct_chunk_rows(pChunk, from, to, func, state, types);
+						if (state.hasWriteArgs)
+							finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
 				}
 

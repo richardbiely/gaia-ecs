@@ -599,7 +599,8 @@ namespace gaia {
 			//! \param row Row relative to the currently processed chunk range.
 			//! \param from Absolute row offset of the current chunk range.
 			//! \return Reference or value selected from @a view for the current row.
-			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, core::func_type_list<T...>)
+			//! \see run_typed_direct_chunk_rows(Chunk*, uint16_t, uint16_t, Func&, const TypedQueryExecState&,
+			//! core::func_type_list<T...>)
 			template <typename T, typename View>
 			GAIA_NODISCARD inline decltype(auto) typed_direct_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
 				using U = typename actual_type_t<T>::Type;
@@ -633,11 +634,40 @@ namespace gaia {
 			//! \param from First absolute row to process.
 			//! \param to One-past-the-end absolute row to process.
 			//! \param func Callback invoked for each matching row.
+			//! \param state Typed callback metadata, including component ids for direct chunk access.
 			//! \note This fast path intentionally bypasses Iter construction and therefore does not expose Iter::ctx().
+			//! \note Single-argument callbacks are common in fragmented hierarchy queries. They avoid tuple/view
+			//! construction and per-row index-sequence expansion here because many tiny chunks make that adapter cost
+			//! visible.
 			template <typename Func, typename... T>
-			inline void
-			run_typed_direct_chunk_rows(Chunk* pChunk, uint16_t from, uint16_t to, Func& func, core::func_type_list<T...>) {
-				if constexpr (sizeof...(T) > 0) {
+			inline void run_typed_direct_chunk_rows(
+					Chunk* pChunk, uint16_t from, uint16_t to, Func& func, const TypedQueryExecState& state,
+					core::func_type_list<T...>) {
+				if constexpr (sizeof...(T) == 1) {
+					//! Keep the one-arg path explicit. The multi-arg path below still needs the generic view tuple because
+					//! each field can have different Entity/AoS/SoA access rules.
+					using T0 = std::tuple_element_t<0, std::tuple<T...>>;
+					using U = typename actual_type_t<T0>::Type;
+					const auto cnt = (uint32_t)(to - from);
+					if constexpr (std::is_same_v<U, Entity>) {
+						const auto data = pChunk->entity_view();
+						GAIA_FOR(cnt)
+						func(data[from + i]);
+					} else if constexpr (!mem::is_soa_layout_v<U>) {
+						//! Use the chunk-local component lookup. QueryInfo owns query-specific field-to-column caches;
+						//! doing world/archetype-level lookup here is not equivalent and is expensive on many-archetype
+						//! ChildOf-style workloads where there is usually no per-archetype-to-many-chunk amortization.
+						const auto compIdx = pChunk->comp_idx(state.argIds[0]);
+						const auto recs = pChunk->comp_rec_view();
+						auto* data = (U*)recs[compIdx].pData + from;
+						GAIA_FOR(cnt)
+						func(data[i]);
+					} else {
+						auto view = pChunk->template sview_auto<T0>(from, to);
+						GAIA_FOR(cnt)
+						func(view[from + i]);
+					}
+				} else if constexpr (sizeof...(T) > 0) {
 					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					const auto cnt = (uint32_t)(to - from);
 					GAIA_FOR(cnt)
@@ -783,10 +813,15 @@ namespace gaia {
 				if (state.hasWriteArgs)
 					::gaia::ecs::update_version(*m_worldVersion);
 
+				const bool canSkipProcessCheck =
+						!queryInfo.result_cache_may_need_prefab_filter() && !has_depth_order_hierarchy_enabled_barrier(queryInfo);
 				lock(*m_storage.world());
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
-					if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
+					if (canSkipProcessCheck) {
+						if GAIA_UNLIKELY (pArchetype->is_req_del())
+							continue;
+					} else if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
 						continue;
 
 					std::span<const uint8_t> indicesView;
@@ -806,8 +841,9 @@ namespace gaia {
 						}
 
 						GAIA_PROF_SCOPE(query_func);
-						run_typed_direct_chunk_rows(pChunk, from, to, func, types);
-						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
+						run_typed_direct_chunk_rows(pChunk, from, to, func, state, types);
+						if (state.hasWriteArgs)
+							finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}
 				}
 

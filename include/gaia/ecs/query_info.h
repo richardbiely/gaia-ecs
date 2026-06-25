@@ -443,6 +443,8 @@ namespace gaia {
 				//! Bumped when the result archetype membership changes.
 				//! QueryCache uses this to skip reverse-index resync on warm cached reads.
 				uint32_t resultCacheRevision = 1;
+				//! True when cached result archetypes may be rejected by the default prefab filter.
+				uint8_t resultCacheMayNeedPrefabFilter = 0;
 				//! Dirty flags
 				uint8_t dirtyFlags = DirtyFlags::All;
 
@@ -456,6 +458,7 @@ namespace gaia {
 				void clear_result_cache() {
 					archetypeSet = {};
 					archetypeCache = {};
+					resultCacheMayNeedPrefabFilter = 0;
 					exec.clear();
 					grouped.clear();
 					nonTrivial.clear();
@@ -464,6 +467,7 @@ namespace gaia {
 				//! Clears transient final result matches while preserving reusable payload allocation.
 				void clear_transient_result_cache() {
 					archetypeCache.clear();
+					resultCacheMayNeedPrefabFilter = 0;
 					exec.clear_transient();
 					grouped.clear_transient();
 					nonTrivial.clear_transient();
@@ -996,6 +1000,11 @@ namespace gaia {
 			//! Returns the result membership revision used by reverse-index cache users.
 			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
+			}
+
+			//! Returns true when the result cache contains archetypes that need default prefab filtering.
+			GAIA_NODISCARD bool result_cache_may_need_prefab_filter() const {
+				return m_state.resultCacheMayNeedPrefabFilter != 0;
 			}
 
 			//! Returns true when a new archetype can be propagated into the current cache incrementally.
@@ -1838,6 +1847,13 @@ namespace gaia {
 				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
+			//! Records whether @a pArchetype requires the default prefab filter during result-cache iteration.
+			//! \param pArchetype Matched archetype added to the result cache.
+			void update_result_cache_prefab_filter_state(const Archetype* pArchetype) {
+				if (!matches_prefab_entities() && pArchetype->has(Prefab))
+					m_state.resultCacheMayNeedPrefabFilter = 1;
+			}
+
 			//! Adds an archetype to the final result cache for ungrouped queries.
 			//! \param pArchetype Matched archetype to cache.
 			//! \param trackMembershipChange True to bump result membership revision after insertion.
@@ -1852,6 +1868,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				m_state.nonTrivial.barrierRelVersion = UINT32_MAX;
@@ -1886,6 +1903,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				if (trackMembershipChange)
@@ -1910,6 +1928,7 @@ namespace gaia {
 
 				m_state.archetypeSet.emplace(pArchetype);
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.grouped.archetypeGroupIds.push_back(groupId);
 				m_state.grouped.dataPending = true;
 				m_state.exec.compIndicesPending = true;
@@ -1939,6 +1958,7 @@ namespace gaia {
 			//! \param pArchetype Matched archetype to cache for this transient result.
 			void add_archetype_to_transient_cache(const Archetype* pArchetype) {
 				m_state.archetypeCache.push_back(pArchetype);
+				update_result_cache_prefab_filter_state(pArchetype);
 				m_state.exec.compIndicesPending = true;
 				m_state.exec.inheritedDataPending = true;
 				if (m_plan.ctx.data.groupBy != EntityBad) {
