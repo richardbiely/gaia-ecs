@@ -141,6 +141,30 @@ TEST_CASE("Query - cached query reverse-index revision changes only on membershi
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
+TEST_CASE("Query - cached direct typed query excludes prefab archetypes") {
+	TestWorld twld;
+
+	const auto entity = wld.add();
+	wld.add<Position>(entity, {1, 0, 0});
+
+	const auto prefab = wld.prefab();
+	wld.add<Position>(prefab, {10, 0, 0});
+
+	auto q = wld.query().all<Position>();
+	auto& info = q.fetch();
+
+	uint32_t count = 0;
+	float sum = 0.0f;
+	q.each([&](const Position& pos) {
+		++count;
+		sum += pos.x;
+	});
+
+	CHECK(info.result_cache_may_need_prefab_filter());
+	CHECK(count == 1);
+	CHECK(sum == doctest::Approx(1.0f));
+}
+
 TEST_CASE("Query - cached dynamic query after input changes") {
 	TestWorld twld;
 
