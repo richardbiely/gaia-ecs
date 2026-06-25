@@ -29,6 +29,12 @@ namespace gaia {
 				cnt::darray<Entity> all;
 				//! Broad fallback list for diff observers that cannot be narrowed by changed terms.
 				cnt::darray<Entity> global;
+
+				//! Returns true when no observer can be matched for this event.
+				GAIA_NODISCARD bool empty() const {
+					return direct.empty() && sourceTerm.empty() && traversalRelation.empty() && pairRelation.empty() &&
+								 pairTarget.empty() && all.empty() && global.empty();
+				}
 			};
 
 			struct PropagatedTargetCacheKey {

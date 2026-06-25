@@ -153,8 +153,7 @@ namespace gaia {
 			Context ctx{};
 			ctx.event = event;
 			const auto& index = registry.diff_index(event);
-
-			if (terms.empty() && index.all.empty() && index.global.empty())
+			if (index.empty())
 				return ctx;
 
 			bool hasEntityLifecycleTerm = false;
@@ -294,8 +293,7 @@ namespace gaia {
 			Context ctx{};
 			ctx.event = ObserverEvent::OnAdd;
 			const auto& index = registry.diff_index(ObserverEvent::OnAdd);
-
-			if (terms.empty() && index.all.empty() && index.global.empty())
+			if (index.empty())
 				return ctx;
 
 			if (terms.empty() || SharedDispatch::has_terms(index.sourceTerm, terms) ||
@@ -444,6 +442,10 @@ namespace gaia {
 			if GAIA_UNLIKELY (world.tearing_down())
 				return;
 
+			if (!archetype.has_observed_terms() && registry.m_observer_map_add.empty() &&
+					registry.m_observer_map_add_is.empty())
+				return;
+
 			if (!archetype.has_observed_terms() && !SharedDispatch::has_terms(registry.m_observer_map_add, entsAdded) &&
 					!SharedDispatch::has_semantic_is_terms(world, registry.m_observer_map_add_is, entsAdded) &&
 					!SharedDispatch::has_inherited_terms(world, registry.m_observer_map_add, entsAdded))
@@ -489,6 +491,10 @@ namespace gaia {
 				ObserverRegistry& registry, World& world, const Archetype& archetype, EntitySpan entsRemoved,
 				EntitySpan targets) {
 			if GAIA_UNLIKELY (world.tearing_down())
+				return;
+
+			if (!archetype.has_observed_terms() && registry.m_observer_map_del.empty() &&
+					registry.m_observer_map_del_is.empty())
 				return;
 
 			const bool archetypeIsPrefab = archetype.has(Prefab);

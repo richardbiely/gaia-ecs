@@ -124,7 +124,115 @@ namespace gaia {
 			}
 		};
 
-		using ComponentIndexEntryArray = cnt::darray<ComponentIndexEntry>;
+		//! Small reverse-lookup bucket for entity-to-archetype matches.
+		//! Most buckets contain one archetype, so keep that record inline and spill only when needed.
+		class ComponentIndexEntryArray {
+		public:
+			using value_type = ComponentIndexEntry;
+			using size_type = uint32_t;
+
+		private:
+			ComponentIndexEntry m_inline{};
+			cnt::darray<ComponentIndexEntry> m_items;
+			size_type m_size = 0;
+
+			void collapse_to_inline_if_needed() {
+				if (m_size != 1 || m_items.empty())
+					return;
+
+				m_inline = m_items[0];
+				m_items.clear();
+			}
+
+		public:
+			ComponentIndexEntryArray() = default;
+			ComponentIndexEntryArray(ComponentIndexEntryArray&&) noexcept = default;
+			ComponentIndexEntryArray(const ComponentIndexEntryArray&) = default;
+			ComponentIndexEntryArray& operator=(ComponentIndexEntryArray&&) noexcept = default;
+			ComponentIndexEntryArray& operator=(const ComponentIndexEntryArray&) = default;
+
+			GAIA_NODISCARD bool empty() const noexcept {
+				return m_size == 0;
+			}
+
+			GAIA_NODISCARD size_type size() const noexcept {
+				return m_size;
+			}
+
+			GAIA_NODISCARD ComponentIndexEntry* data() noexcept {
+				return m_size <= 1 ? &m_inline : m_items.data();
+			}
+
+			GAIA_NODISCARD const ComponentIndexEntry* data() const noexcept {
+				return m_size <= 1 ? &m_inline : m_items.data();
+			}
+
+			GAIA_NODISCARD ComponentIndexEntry* begin() noexcept {
+				return data();
+			}
+
+			GAIA_NODISCARD const ComponentIndexEntry* begin() const noexcept {
+				return data();
+			}
+
+			GAIA_NODISCARD ComponentIndexEntry* end() noexcept {
+				return data() + m_size;
+			}
+
+			GAIA_NODISCARD const ComponentIndexEntry* end() const noexcept {
+				return data() + m_size;
+			}
+
+			GAIA_NODISCARD ComponentIndexEntry& operator[](size_type idx) noexcept {
+				GAIA_ASSERT(idx < m_size);
+				return data()[idx];
+			}
+
+			GAIA_NODISCARD const ComponentIndexEntry& operator[](size_type idx) const noexcept {
+				GAIA_ASSERT(idx < m_size);
+				return data()[idx];
+			}
+
+			GAIA_NODISCARD ComponentIndexEntry& back() noexcept {
+				GAIA_ASSERT(m_size > 0);
+				return (*this)[m_size - 1];
+			}
+
+			GAIA_NODISCARD const ComponentIndexEntry& back() const noexcept {
+				GAIA_ASSERT(m_size > 0);
+				return (*this)[m_size - 1];
+			}
+
+			void push_back(ComponentIndexEntry entry) {
+				if (m_size == 0) {
+					m_inline = entry;
+					m_size = 1;
+					return;
+				}
+
+				if (m_size == 1) {
+					m_items.push_back(m_inline);
+					m_items.push_back(entry);
+					m_size = 2;
+					return;
+				}
+
+				m_items.push_back(entry);
+				++m_size;
+			}
+
+			void pop_back() {
+				GAIA_ASSERT(m_size > 0);
+				if (m_size == 1) {
+					m_size = 0;
+					return;
+				}
+
+				m_items.pop_back();
+				--m_size;
+				collapse_to_inline_if_needed();
+			}
+		};
 
 		struct SingleArchetypeLookupItem {
 			EntityLookupKey key = EntityBadLookupKey;

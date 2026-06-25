@@ -160,10 +160,12 @@ namespace gaia {
 
 			struct PairIndexData {
 				struct PairCountBucket {
-					EntityId id = IdentifierIdBad;
-					uint8_t start = 0;
-					uint8_t count = 0;
+					EntityId id;
+					uint8_t start;
+					uint8_t count;
 				};
+
+				PairIndexData() noexcept {}
 
 				//! Array of indices to all relationship pairs in ids, preserving archetype id order.
 				uint8_t pairIndexBuffer[ChunkHeader::MAX_COMPONENTS];

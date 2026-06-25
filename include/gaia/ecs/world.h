@@ -790,7 +790,6 @@ namespace gaia {
 
 			//! Entity records
 			EntityContainers m_recs;
-
 			//! Name to entity mapping
 			cnt::map<EntityNameLookupKey, Entity> m_nameToEntity;
 			//! Alias to entity mapping. Ambiguous aliases are stored with EntityBad and treated as lookup misses.
@@ -1608,13 +1607,6 @@ namespace gaia {
 				EntityNameLookupKey m_targetAliasKey;
 				//! Source entity
 				Entity m_entity;
-				//! Entity describing a single-step graph transition recorded during builder use.
-				Entity m_graphEdgeEntity = EntityBad;
-				//! Number of archetype-changing builder operations since the last commit.
-				uint8_t m_graphEdgeOpCount = 0;
-				//! Whether the recorded single-step transition is an add or delete move.
-				bool m_graphEdgeIsAdd = false;
-
 				//! Classifies how a builder operation treats an id.
 				enum class IdMode : uint8_t {
 					//! Normal ids change archetype membership.
@@ -1663,7 +1655,6 @@ namespace gaia {
 				void commit() {
 					// No requests to change the archetype were made
 					if (m_pArchetype == nullptr) {
-						reset_graph_edge_tracking();
 						return;
 					}
 
@@ -1687,15 +1678,6 @@ namespace gaia {
 
 						// Now that we have the final archetype move the entity to it
 						m_world.move_entity_raw(m_entity, ec, *m_pArchetype);
-
-						// Batched builder operations resolve intermediate archetypes without touching the
-						// graph. Recreate the cached edge only for the single-step case.
-						if (m_graphEdgeOpCount == 1 && m_graphEdgeEntity != EntityBad) {
-							if (m_graphEdgeIsAdd)
-								ensure_graph_edge(m_pArchetypeSrc, m_pArchetype, m_graphEdgeEntity);
-							else
-								ensure_graph_edge(m_pArchetype, m_pArchetypeSrc, m_graphEdgeEntity);
-						}
 
 						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
 							const auto compIdx = ec.pChunk->comp_idx(GAIA_ID(EntityDesc));
@@ -1775,7 +1757,6 @@ namespace gaia {
 					m_pArchetype = nullptr;
 					m_targetNameKey = {};
 					m_targetAliasKey = {};
-					reset_graph_edge_tracking();
 				}
 
 				//! Assigns a @a name to entity. Ignored if used with pair.
@@ -2114,18 +2095,8 @@ namespace gaia {
 							if (tgt == EntityBad)
 								return false;
 
-							// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
-							// However, before that we need to make sure there only exists one target at most.
-							targets.clear();
-							m_world.targets_if(m_entity, rel, [&targets](Entity target) {
-								targets.push_back(target);
-								// Stop the moment we have more than 1 target. This kind of scenario is not supported
-								// and can happen only if Exclusive is added after multiple relationships already exist.
-								return targets.size() < 2;
-							});
-
-							const auto targetsCnt = targets.size();
-							if (targetsCnt > 1) {
+							const auto targetsCntMax = m_pArchetype->pair_matches(Pair(rel, All));
+							if (targetsCntMax > 1) {
 #if GAIA_ASSERT_ENABLED
 								GAIA_ASSERT2(
 										false, "Trying to add a pair with exclusive relationship but there are multiple targets present. "
@@ -2135,25 +2106,33 @@ namespace gaia {
 								return false;
 							}
 
-							// Remove the previous relationship if possible.
-							// We avoid self-removal.
-							const auto tgtNew = *targets.begin();
-							if (targetsCnt == 1 && tgt != tgtNew) {
-								// Exclusive relationship replaces the previous one.
-								// We need to check if the old one can be removed.
-								// This is what del_inter does on the inside.
-								// It first checks if entity can be deleted and calls handle_del afterwards.
-								if (!can_del(entity)) {
-#if GAIA_ASSERT_ENABLED
-									GAIA_ASSERT2(
-											false, "Trying to replace an exclusive relationship but the entity which is getting removed has "
-														 "dependencies.");
-									print_archetype_entities(m_world, *m_pArchetype, entity, true);
-#endif
+							if (targetsCntMax == 1) {
+								// Make sure to remove the (rel, tgt0) so only the new (rel, tgt1) remains.
+								targets.clear();
+								m_world.targets_if(m_entity, rel, [&targets](Entity target) {
+									targets.push_back(target);
 									return false;
-								}
+								});
 
-								handle_del(ecs::Pair(rel, tgtNew));
+								GAIA_ASSERT(targets.size() <= 1);
+								if (!targets.empty() && tgt != targets[0]) {
+									// Exclusive relationship replaces the previous one.
+									// We need to check if the old one can be removed.
+									// This is what del_inter does on the inside.
+									// It first checks if entity can be deleted and calls handle_del afterwards.
+									if (!can_del(entity)) {
+#if GAIA_ASSERT_ENABLED
+										GAIA_ASSERT2(
+												false,
+												"Trying to replace an exclusive relationship but the entity which is getting removed has "
+												"dependencies.");
+										print_archetype_entities(m_world, *m_pArchetype, entity, true);
+#endif
+										return false;
+									}
+
+									handle_del(ecs::Pair(rel, targets[0]));
+								}
 							}
 						}
 					}
@@ -2210,6 +2189,7 @@ namespace gaia {
 						try_set_sticky_component_traits(ecMain, entity);
 					try_set_IsSingleton(ecMain, entity, enable);
 					try_set_OnDelete(ecMain, entity, enable);
+					try_set_OnDeleteTargetPolicy(ecMain, entity, enable);
 					try_set_OnDeleteTarget(entity, enable);
 				}
 
@@ -2303,7 +2283,6 @@ namespace gaia {
 					}
 
 					m_pArchetype = m_world.foc_archetype_add_no_graph(m_pArchetype, entity);
-					note_graph_edge(entity, true);
 					return true;
 				}
 
@@ -2320,7 +2299,15 @@ namespace gaia {
 					}
 
 					m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
-					note_graph_edge(entity, false);
+				}
+
+				void try_set_OnDeleteTargetPolicy(EntityContainer& ec, Entity entity, bool enable) {
+					if (entity == Pair(OnDeleteTarget, Delete))
+						set_flag(ec.flags, EntityContainerFlags::OnDeleteTarget_Delete, enable);
+					else if (entity == Pair(OnDeleteTarget, Remove))
+						set_flag(ec.flags, EntityContainerFlags::OnDeleteTarget_Remove, enable);
+					else if (entity == Pair(OnDeleteTarget, Error))
+						set_flag(ec.flags, EntityContainerFlags::OnDeleteTarget_Error, enable);
 				}
 
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
@@ -2328,17 +2315,27 @@ namespace gaia {
 						return;
 
 					const auto rel = m_world.try_get(entity.id());
+					if (rel == EntityBad)
+						return;
+
+					const auto& ecRel = m_world.fetch(rel);
+					const auto policyFlags =
+							ecRel.flags & (EntityContainerFlags::OnDeleteTarget_Delete | EntityContainerFlags::OnDeleteTarget_Remove |
+														 EntityContainerFlags::OnDeleteTarget_Error);
+					if (policyFlags == 0)
+						return;
+
 					const auto tgt = m_world.try_get(entity.gen());
-					if (rel == EntityBad || tgt == EntityBad)
+					if (tgt == EntityBad)
 						return;
 
 					// Adding a pair to an entity with OnDeleteTarget relationship.
 					// We need to update the target entity's flags.
-					if (m_world.has(rel, Pair(OnDeleteTarget, Delete)))
+					if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Delete) != 0)
 						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Delete, enable);
-					else if (m_world.has(rel, Pair(OnDeleteTarget, Remove)))
+					else if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Remove) != 0)
 						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Remove, enable);
-					else if (m_world.has(rel, Pair(OnDeleteTarget, Error)))
+					else if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Error) != 0)
 						set_flag(tgt, EntityContainerFlags::OnDeleteTarget_Error, enable);
 				}
 
@@ -2481,7 +2478,6 @@ namespace gaia {
 								m_world.unlink_stale_is_relations_by_target_id(m_entity, entity.gen());
 
 							m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
-							note_graph_edge(entity, false);
 						}
 						return;
 					}
@@ -2540,18 +2536,6 @@ namespace gaia {
 						return;
 
 					handle_add<false>(entity);
-				}
-
-				void note_graph_edge(Entity entity, bool isAdd) {
-					++m_graphEdgeOpCount;
-					m_graphEdgeEntity = entity;
-					m_graphEdgeIsAdd = isAdd;
-				}
-
-				void reset_graph_edge_tracking() {
-					m_graphEdgeEntity = EntityBad;
-					m_graphEdgeOpCount = 0;
-					m_graphEdgeIsAdd = false;
 				}
 
 				//! Rebuilds a single cached archetype-graph edge after a builder commit.
@@ -3371,7 +3355,10 @@ namespace gaia {
 			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
-				EntityBuilder(*this, entity).add(pair);
+				auto& ec = m_recs.entities[entity.id()];
+				EntityBuilder builder(*this, entity, ec);
+				builder.add(pair);
+				builder.commit();
 			}
 
 			//! Attaches a new component @a T to @a entity.
