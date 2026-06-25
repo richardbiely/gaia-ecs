@@ -763,6 +763,10 @@ namespace gaia {
 			cnt::map<EntityLookupKey, SparseComponentStoreErased> m_sparseComponentsByComp;
 			//! Relation-local structural version used for dependency ordering caches.
 			cnt::map<EntityLookupKey, uint32_t> m_relationVersions;
+			//! Last relation version entry touched by pair add/remove hot paths.
+			Entity m_lastRelationVersionRelation = EntityBad;
+			//! Cached value pointer for m_lastRelationVersionRelation.
+			uint32_t* m_pLastRelationVersion = nullptr;
 			//! Sparse archetype-membership versions tracked only for entities used by source-cached queries.
 			//! Entries are created lazily on first snapshot to avoid any global per-entity tax.
 			mutable cnt::map<EntityLookupKey, uint32_t> m_srcEntityVersions;
@@ -2179,6 +2183,23 @@ namespace gaia {
 				}
 
 				void try_set_flags(Entity entity, bool enable) {
+					if (entity.pair()) {
+						if (entity.id() == Is.id()) {
+							auto& ec = m_world.fetch(entity);
+							try_set_Is(ec, entity, enable);
+						}
+
+						if (entity.id() == CantCombine.id() || entity.id() == OnDelete.id() || entity.id() == OnDeleteTarget.id()) {
+							auto& ecMain = m_world.fetch(m_entity);
+							try_set_CantCombine(ecMain, entity, enable);
+							try_set_OnDelete(ecMain, entity, enable);
+							try_set_OnDeleteTargetPolicy(ecMain, entity, enable);
+						}
+
+						try_set_OnDeleteTarget(entity, enable);
+						return;
+					}
+
 					auto& ecMain = m_world.fetch(m_entity);
 					try_set_CantCombine(ecMain, entity, enable);
 
@@ -2259,6 +2280,21 @@ namespace gaia {
 																																											 : IdMode::Normal;
 				}
 
+				//! Classifies @a entity for add handling where pair endpoints are already valid.
+				//! Returns how the builder should treat the id.
+				GAIA_NODISCARD IdMode id_mode_add(Entity entity) const noexcept {
+					if (!entity.pair()) {
+						if (m_entity.comp() && (entity.id() == DontFragment.id() || entity.id() == Sparse.id()))
+							return IdMode::Sticky;
+
+						return IdMode::Normal;
+					}
+
+					const auto& ecRel = m_world.m_recs.entities[entity.id()];
+					const auto flags = EntityContainerFlags::IsExclusive | EntityContainerFlags::IsDontFragment;
+					return (ecRel.flags & flags) == flags ? IdMode::Adjunct : IdMode::Normal;
+				}
+
 				//! Checks whether @a entity is already present under the given builder mode.
 				//! \param mode Id handling mode.
 				//! \param entity Id being queried.
@@ -2313,6 +2349,27 @@ namespace gaia {
 				void try_set_OnDeleteTarget(Entity entity, bool enable) {
 					if (!entity.pair())
 						return;
+
+					if (enable) {
+						GAIA_ASSERT(m_world.valid(m_world.get(entity.id())));
+						GAIA_ASSERT(m_world.valid(m_world.get(entity.gen())));
+
+						const auto& ecRel = m_world.m_recs.entities[entity.id()];
+						const auto policyFlags = ecRel.flags & (EntityContainerFlags::OnDeleteTarget_Delete |
+																										EntityContainerFlags::OnDeleteTarget_Remove |
+																										EntityContainerFlags::OnDeleteTarget_Error);
+						if (policyFlags == 0)
+							return;
+
+						auto& ecTgt = m_world.m_recs.entities[entity.gen()];
+						if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Delete) != 0)
+							set_flag(ecTgt.flags, EntityContainerFlags::OnDeleteTarget_Delete, true);
+						else if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Remove) != 0)
+							set_flag(ecTgt.flags, EntityContainerFlags::OnDeleteTarget_Remove, true);
+						else if ((policyFlags & EntityContainerFlags::OnDeleteTarget_Error) != 0)
+							set_flag(ecTgt.flags, EntityContainerFlags::OnDeleteTarget_Error, true);
+						return;
+					}
 
 					const auto rel = m_world.try_get(entity.id());
 					if (rel == EntityBad)
@@ -2397,7 +2454,7 @@ namespace gaia {
 
 				template <bool IsBootstrap>
 				bool handle_add(Entity entity) {
-					const auto mode = id_mode(entity);
+					const auto mode = id_mode_add(entity);
 #if GAIA_ASSERT_ENABLED
 					if (mode != IdMode::Adjunct)
 						World::verify_add(m_world, *m_pArchetype, m_entity, entity);
@@ -2409,13 +2466,7 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_rel_version(relation);
-						m_world.invalidate_queries_for_rel(relation);
-						m_world.m_targetsTravCache = {};
-						m_world.m_srcBfsTravCache = {};
-						m_world.m_depthOrderCache = {};
-						m_world.m_sourcesAllCache = {};
-						m_world.m_targetsAllCache = {};
+						m_world.invalidate_relation_caches(relation);
 					}
 
 					try_set_flags(entity, true);
@@ -2465,13 +2516,7 @@ namespace gaia {
 						if (m_pArchetype->has(entity)) {
 							const auto relation = m_world.try_get(entity.id());
 							if (relation != EntityBad) {
-								m_world.touch_rel_version(relation);
-								m_world.invalidate_queries_for_rel(relation);
-								m_world.m_targetsTravCache = {};
-								m_world.m_srcBfsTravCache = {};
-								m_world.m_depthOrderCache = {};
-								m_world.m_sourcesAllCache = {};
-								m_world.m_targetsAllCache = {};
+								m_world.invalidate_relation_caches(relation);
 							}
 
 							if (entity.id() == Is.id())
@@ -2497,13 +2542,7 @@ namespace gaia {
 
 					if (entity.pair()) {
 						auto relation = m_world.get(entity.id());
-						m_world.touch_rel_version(relation);
-						m_world.invalidate_queries_for_rel(relation);
-						m_world.m_targetsTravCache = {};
-						m_world.m_srcBfsTravCache = {};
-						m_world.m_depthOrderCache = {};
-						m_world.m_sourcesAllCache = {};
-						m_world.m_targetsAllCache = {};
+						m_world.invalidate_relation_caches(relation);
 					}
 
 					try_set_flags(entity, false);
@@ -7673,6 +7712,8 @@ namespace gaia {
 					}
 					m_sparseComponentsByComp = {};
 					m_relationVersions = {};
+					m_lastRelationVersionRelation = EntityBad;
+					m_pLastRelationVersion = nullptr;
 					m_srcEntityVersions = {};
 
 					m_archetypes = {};
@@ -10590,15 +10631,43 @@ namespace gaia {
 			}
 
 			void touch_rel_version(Entity relation) {
+				if (m_pLastRelationVersion != nullptr && m_lastRelationVersionRelation == relation) {
+					++*m_pLastRelationVersion;
+					if (*m_pLastRelationVersion == 0)
+						*m_pLastRelationVersion = 1;
+					return;
+				}
+
 				const EntityLookupKey key(relation);
-				auto it = m_relationVersions.find(key);
-				if (it == m_relationVersions.end())
-					m_relationVersions.emplace(key, 1);
-				else {
+				const auto ret = m_relationVersions.try_emplace(key, 1);
+				auto it = ret.first;
+				if (!ret.second) {
 					++it->second;
 					if (it->second == 0)
 						it->second = 1;
 				}
+
+				m_lastRelationVersionRelation = relation;
+				m_pLastRelationVersion = &it->second;
+			}
+
+			void clear_relation_caches() {
+				if (!m_targetsTravCache.empty())
+					m_targetsTravCache = {};
+				if (!m_srcBfsTravCache.empty())
+					m_srcBfsTravCache = {};
+				if (!m_depthOrderCache.empty())
+					m_depthOrderCache = {};
+				if (!m_sourcesAllCache.empty())
+					m_sourcesAllCache = {};
+				if (!m_targetsAllCache.empty())
+					m_targetsAllCache = {};
+			}
+
+			void invalidate_relation_caches(Entity relation) {
+				touch_rel_version(relation);
+				invalidate_queries_for_rel(relation);
+				clear_relation_caches();
 			}
 
 			void del_reltgt_tgtrel_pairs(Entity entity) {
