@@ -47314,6 +47314,12 @@ namespace gaia {
 				return m_queryArr.end();
 			}
 
+			//! Returns whether any cached query depends on relation-version invalidation.
+			//! \return True if relation changes may need to invalidate query results.
+			GAIA_NODISCARD bool has_relation_query_dependencies() const {
+				return !m_relationToQuery.empty();
+			}
+
 			//! Invalidates all cached queries that work with the given entity
 			//! This covers the following kinds of query terms:
 			//! 1) X
@@ -61201,6 +61207,13 @@ namespace gaia {
 
 				auto entities = chunk.entity_view();
 #if GAIA_OBSERVERS_ENABLED
+				if (!m_observers.has_on_add_observers()) {
+					GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
+						exclusive_adjunct_set(parentStore, entities[rowIdx], Parent, parentEntity);
+					}
+					return;
+				}
+
 				const Entity parentPair = Pair(Parent, parentEntity);
 				auto addDiffCtx = m_observers.prepare_diff(
 						*this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1},
@@ -61223,10 +61236,14 @@ namespace gaia {
 				auto& parentStore = exclusive_adjunct_store_mut(Parent);
 
 #if GAIA_OBSERVERS_ENABLED
-				if (m_observers.has_on_add_observers()) {
-					if (exclusive_adjunct_target(parentStore, entity) == parentEntity)
-						return;
+				if (!m_observers.has_on_add_observers()) {
+					prepare_parent_batch(parentEntity, parentStore);
+					exclusive_adjunct_set(parentStore, entity, Parent, parentEntity);
+					return;
 				}
+
+				if (exclusive_adjunct_target(parentStore, entity) == parentEntity)
+					return;
 
 				const Entity parentPair = Pair(Parent, parentEntity);
 				prepare_parent_batch(parentEntity, parentStore);
@@ -68672,6 +68689,9 @@ namespace gaia {
 			//! Invalidates cached queries whose dynamic result depends on @a relation.
 			//! \param relation Relation entity
 			void invalidate_queries_for_rel(Entity relation) {
+				if (!m_queryCache.has_relation_query_dependencies())
+					return;
+
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 

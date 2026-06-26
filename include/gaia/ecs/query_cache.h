@@ -369,6 +369,12 @@ namespace gaia {
 				return m_queryArr.end();
 			}
 
+			//! Returns whether any cached query depends on relation-version invalidation.
+			//! \return True if relation changes may need to invalidate query results.
+			GAIA_NODISCARD bool has_relation_query_dependencies() const {
+				return !m_relationToQuery.empty();
+			}
+
 			//! Invalidates all cached queries that work with the given entity
 			//! This covers the following kinds of query terms:
 			//! 1) X
