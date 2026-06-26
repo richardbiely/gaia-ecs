@@ -1859,12 +1859,12 @@ $(document).ready(function(){initNavTree('query__info_8h_source.html',''); initR
 <div class="line"><a id="l01805" name="l01805"></a><span class="lineno"> 1805</span>          <span class="keyword">auto</span> compIdx = world_component_index_comp_idx(*<a class="code hl_function" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>(), *pArchetype, queryId);</div>
 <div class="line"><a id="l01806" name="l01806"></a><span class="lineno"> 1806</span>          <span class="keywordflow">if</span> (compIdx == <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>) {</div>
 <div class="line"><a id="l01807" name="l01807"></a><span class="lineno"> 1807</span>            <span class="comment">// Wildcard/semantic terms are not represented by an exact component index entry.</span></div>
-<div class="line"><a id="l01808" name="l01808"></a><span class="lineno"> 1808</span>            <span class="comment">// Fall back to the archetype-local scan in those cases.</span></div>
-<div class="line"><a id="l01809" name="l01809"></a><span class="lineno"> 1809</span>            compIdx = core::get_index_unsafe(pArchetype-&gt;ids_view(), queryId);</div>
-<div class="line"><a id="l01810" name="l01810"></a><span class="lineno"> 1810</span>          }</div>
-<div class="line"><a id="l01811" name="l01811"></a><span class="lineno"> 1811</span>          GAIA_ASSERT(compIdx != <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>);</div>
+<div class="line"><a id="l01808" name="l01808"></a><span class="lineno"> 1808</span>            <span class="comment">// OR terms may also be absent from this matching archetype. Use a safe lookup so</span></div>
+<div class="line"><a id="l01809" name="l01809"></a><span class="lineno"> 1809</span>            <span class="comment">// absent terms stay unmapped instead of becoming a past-the-end chunk column.</span></div>
+<div class="line"><a id="l01810" name="l01810"></a><span class="lineno"> 1810</span>            compIdx = core::get_index(pArchetype-&gt;ids_view(), queryId);</div>
+<div class="line"><a id="l01811" name="l01811"></a><span class="lineno"> 1811</span>          }</div>
 <div class="line"><a id="l01812" name="l01812"></a><span class="lineno"> 1812</span> </div>
-<div class="line"><a id="l01813" name="l01813"></a><span class="lineno"> 1813</span>          cacheData.indices[fieldIdx] = (uint8_t)compIdx;</div>
+<div class="line"><a id="l01813" name="l01813"></a><span class="lineno"> 1813</span>          cacheData.indices[fieldIdx] = compIdx != <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a> ? (uint8_t)compIdx : (uint8_t)0xFF;</div>
 <div class="line"><a id="l01814" name="l01814"></a><span class="lineno"> 1814</span>        }</div>
 <div class="line"><a id="l01815" name="l01815"></a><span class="lineno"> 1815</span>        <span class="keywordflow">return</span> cacheData;</div>
 <div class="line"><a id="l01816" name="l01816"></a><span class="lineno"> 1816</span>      }</div>
