@@ -2953,12 +2953,12 @@ $(document).ready(function(){initNavTree('vm_8h_source.html',''); initResizable(
 <div class="line"><a id="l02872" name="l02872"></a><span class="lineno"> 2872</span>          <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
 <div class="line"><a id="l02873" name="l02873"></a><span class="lineno"> 2873</span>        }</div>
 <div class="line"><a id="l02874" name="l02874"></a><span class="lineno"> 2874</span> </div>
-<div class="line"><a id="l02875" name="l02875"></a><span class="lineno"> 2875</span>        GAIA_NODISCARD <span class="keywordtype">bool</span> match_search_program_on_archetype(</div>
-<div class="line"><a id="l02876" name="l02876"></a><span class="lineno"> 2876</span>            <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a>&amp; ctx, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>&amp; archetype,</div>
-<div class="line"><a id="l02877" name="l02877"></a><span class="lineno"> 2877</span>            <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarProgramStep.html">detail::QueryCompileCtx::VarProgramStep</a>&amp; programStep, <span class="keywordtype">bool</span> orAlreadySatisfied)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l02878" name="l02878"></a><span class="lineno"> 2878</span>          <span class="keyword">using namespace </span>detail;</div>
-<div class="line"><a id="l02879" name="l02879"></a><span class="lineno"> 2879</span> </div>
-<div class="line"><a id="l02880" name="l02880"></a><span class="lineno"> 2880</span>          <span class="keyword">static</span> <span class="keyword">constexpr</span> uint16_t BacktrackPC = (uint16_t)-1;</div>
+<div class="line"><a id="l02875" name="l02875"></a><span class="lineno"> 2875</span>        <span class="keyword">static</span> <span class="keyword">inline</span> <span class="keyword">constexpr</span> uint16_t BacktrackPC = (uint16_t)-1;</div>
+<div class="line"><a id="l02876" name="l02876"></a><span class="lineno"> 2876</span> </div>
+<div class="line"><a id="l02877" name="l02877"></a><span class="lineno"> 2877</span>        GAIA_NODISCARD <span class="keywordtype">bool</span> match_search_program_on_archetype(</div>
+<div class="line"><a id="l02878" name="l02878"></a><span class="lineno"> 2878</span>            <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a>&amp; ctx, <span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a>&amp; archetype,</div>
+<div class="line"><a id="l02879" name="l02879"></a><span class="lineno"> 2879</span>            <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx_1_1VarProgramStep.html">detail::QueryCompileCtx::VarProgramStep</a>&amp; programStep, <span class="keywordtype">bool</span> orAlreadySatisfied)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l02880" name="l02880"></a><span class="lineno"> 2880</span>          <span class="keyword">using namespace </span>detail;</div>
 <div class="line"><a id="l02881" name="l02881"></a><span class="lineno"> 2881</span> </div>
 <div class="line"><a id="l02882" name="l02882"></a><span class="lineno"> 2882</span>          <span class="keyword">struct </span>SearchProgramState {</div>
 <div class="line"><a id="l02883" name="l02883"></a><span class="lineno"> 2883</span>            VarBindings vars{};</div>
