@@ -42,6 +42,7 @@ namespace gaia {
 		struct DirectChunkEntry {
 			const Archetype* pArchetype = nullptr;
 			Chunk* pChunk = nullptr;
+			const uint8_t* pCompIndices = nullptr;
 			uint16_t rowFrom = 0;
 			uint16_t rowTo = 0;
 		};
@@ -231,6 +232,8 @@ namespace gaia {
 					uint32_t directChunksIdxFrom = UINT32_MAX;
 					//! One-past-the-end result-cache archetype index captured when directChunks was built.
 					uint32_t directChunksIdxTo = UINT32_MAX;
+					//! Component-index mapping storage captured by DirectChunkEntry::pCompIndices pointers.
+					const void* directChunksCompIndicesData = nullptr;
 					//! True when archetype membership is populated but component-index metadata
 					//! still needs to be built on demand.
 					bool compIndicesPending = false;
@@ -249,6 +252,7 @@ namespace gaia {
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
+						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
 					}
@@ -264,6 +268,7 @@ namespace gaia {
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
+						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
 					}
@@ -1716,6 +1721,9 @@ namespace gaia {
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			void ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo) {
+				ensure_comp_indices();
+				const auto* pCompIndicesData = m_state.exec.archetypeCompIndices.data();
+
 				const auto currWorldVersion = ::gaia::ecs::world_version(*world());
 				const auto currEnabledVersion = world_enabled_hierarchy_version(*world());
 				const auto currDeleteVersion = world_archetype_delete_version(*world());
@@ -1723,7 +1731,8 @@ namespace gaia {
 						m_state.exec.directChunksEnabledVersion == currEnabledVersion &&
 						m_state.exec.directChunksDeleteVersion == currDeleteVersion &&
 						m_state.exec.directChunksResultRevision == m_state.resultCacheRevision &&
-						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo)
+						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo &&
+						m_state.exec.directChunksCompIndicesData == pCompIndicesData)
 					return;
 
 				m_state.exec.directChunks.clear();
@@ -1733,6 +1742,7 @@ namespace gaia {
 				m_state.exec.directChunksWorldVersion = currWorldVersion;
 				m_state.exec.directChunksEnabledVersion = currEnabledVersion;
 				m_state.exec.directChunksDeleteVersion = currDeleteVersion;
+				m_state.exec.directChunksCompIndicesData = pCompIndicesData;
 
 				uint32_t chunkCnt = 0;
 				for (uint32_t i = idxFrom; i < idxTo; ++i)
@@ -1743,11 +1753,12 @@ namespace gaia {
 					const auto* pArchetype = m_state.archetypeCache[i];
 					if (pArchetype->is_req_del())
 						continue;
+					const auto* pCompIndices = m_state.exec.archetypeCompIndices[i].indices;
 					for (auto* pChunk: pArchetype->chunks()) {
 						const auto from = detail::ChunkIterImpl::start_index(pChunk, Constraints::EnabledOnly);
 						const auto to = detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
 						if (from != to)
-							m_state.exec.directChunks.push_back({pArchetype, pChunk, from, to});
+							m_state.exec.directChunks.push_back({pArchetype, pChunk, pCompIndices, from, to});
 					}
 				}
 			}
@@ -2315,7 +2326,7 @@ namespace gaia {
 			std::span<const uint8_t> indices_mapping_view(uint32_t archetypeIdx) const {
 				const_cast<QueryInfo*>(this)->ensure_comp_indices();
 				const auto& ctxData = m_state.exec.archetypeCompIndices[archetypeIdx];
-				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
+				return {ctxData.indices, ChunkHeader::MAX_COMPONENTS};
 			}
 
 			//! Returns a flattened chunk view for a direct-dense result-cache range.
