@@ -9,6 +9,7 @@
 #include "gaia/ecs/api.h"
 #include "gaia/ecs/archetype.h"
 #include "gaia/ecs/archetype_common.h"
+#include "gaia/ecs/chunk_iterator.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/component_cache.h"
 #include "gaia/ecs/id.h"
@@ -24,6 +25,7 @@ namespace gaia {
 		class World;
 
 		uint32_t world_version(const World& world);
+		uint32_t world_archetype_delete_version(const World& world);
 		Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term);
 		const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id);
 
@@ -34,6 +36,14 @@ namespace gaia {
 
 		struct ArchetypeInheritedData {
 			const void* data[ChunkHeader::MAX_COMPONENTS];
+		};
+
+		//! Cached archetype/chunk pair used by repeated direct-dense scans over highly fragmented result caches.
+		struct DirectChunkEntry {
+			const Archetype* pArchetype = nullptr;
+			Chunk* pChunk = nullptr;
+			uint16_t rowFrom = 0;
+			uint16_t rowTo = 0;
 		};
 
 		//! Temporary VM matching buffer meant to be owned by an ECS World.
@@ -207,6 +217,20 @@ namespace gaia {
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
 					//! Cached inherited component data pointer per query field for exact self-source semantic terms.
 					cnt::darray<ArchetypeInheritedData> archetypeInheritedData;
+					//! Flattened chunk cache for read-only direct dense iteration over highly fragmented result caches.
+					cnt::darray<DirectChunkEntry> directChunks;
+					//! World version captured when directChunks was built.
+					uint32_t directChunksWorldVersion = UINT32_MAX;
+					//! Enabled hierarchy version captured when directChunks was built.
+					uint32_t directChunksEnabledVersion = UINT32_MAX;
+					//! Archetype deletion-request version captured when directChunks was built.
+					uint32_t directChunksDeleteVersion = UINT32_MAX;
+					//! Result membership revision captured when directChunks was built.
+					uint32_t directChunksResultRevision = 0;
+					//! First result-cache archetype index captured when directChunks was built.
+					uint32_t directChunksIdxFrom = UINT32_MAX;
+					//! One-past-the-end result-cache archetype index captured when directChunks was built.
+					uint32_t directChunksIdxTo = UINT32_MAX;
 					//! True when archetype membership is populated but component-index metadata
 					//! still needs to be built on demand.
 					bool compIndicesPending = false;
@@ -218,6 +242,13 @@ namespace gaia {
 					void clear() {
 						archetypeCompIndices = {};
 						archetypeInheritedData = {};
+						directChunks = {};
+						directChunksWorldVersion = UINT32_MAX;
+						directChunksEnabledVersion = UINT32_MAX;
+						directChunksDeleteVersion = UINT32_MAX;
+						directChunksResultRevision = 0;
+						directChunksIdxFrom = UINT32_MAX;
+						directChunksIdxTo = UINT32_MAX;
 						compIndicesPending = false;
 						inheritedDataPending = false;
 					}
@@ -226,6 +257,13 @@ namespace gaia {
 					void clear_transient() {
 						archetypeCompIndices.clear();
 						archetypeInheritedData.clear();
+						directChunks.clear();
+						directChunksWorldVersion = UINT32_MAX;
+						directChunksEnabledVersion = UINT32_MAX;
+						directChunksDeleteVersion = UINT32_MAX;
+						directChunksResultRevision = 0;
+						directChunksIdxFrom = UINT32_MAX;
+						directChunksIdxTo = UINT32_MAX;
 						compIndicesPending = false;
 						inheritedDataPending = false;
 					}
@@ -1674,6 +1712,46 @@ namespace gaia {
 				m_state.exec.compIndicesPending = false;
 			}
 
+			//! Rebuilds flattened direct chunk cache when result membership or world structure changed.
+			//! \param idxFrom First result-cache archetype index to include.
+			//! \param idxTo One-past-the-end result-cache archetype index to include.
+			void ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo) {
+				const auto currWorldVersion = ::gaia::ecs::world_version(*world());
+				const auto currEnabledVersion = world_enabled_hierarchy_version(*world());
+				const auto currDeleteVersion = world_archetype_delete_version(*world());
+				if (m_state.exec.directChunksWorldVersion == currWorldVersion &&
+						m_state.exec.directChunksEnabledVersion == currEnabledVersion &&
+						m_state.exec.directChunksDeleteVersion == currDeleteVersion &&
+						m_state.exec.directChunksResultRevision == m_state.resultCacheRevision &&
+						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo)
+					return;
+
+				m_state.exec.directChunks.clear();
+				m_state.exec.directChunksIdxFrom = idxFrom;
+				m_state.exec.directChunksIdxTo = idxTo;
+				m_state.exec.directChunksResultRevision = m_state.resultCacheRevision;
+				m_state.exec.directChunksWorldVersion = currWorldVersion;
+				m_state.exec.directChunksEnabledVersion = currEnabledVersion;
+				m_state.exec.directChunksDeleteVersion = currDeleteVersion;
+
+				uint32_t chunkCnt = 0;
+				for (uint32_t i = idxFrom; i < idxTo; ++i)
+					chunkCnt += (uint32_t)m_state.archetypeCache[i]->chunks().size();
+				m_state.exec.directChunks.reserve(chunkCnt);
+
+				for (uint32_t i = idxFrom; i < idxTo; ++i) {
+					const auto* pArchetype = m_state.archetypeCache[i];
+					if (pArchetype->is_req_del())
+						continue;
+					for (auto* pChunk: pArchetype->chunks()) {
+						const auto from = detail::ChunkIterImpl::start_index(pChunk, Constraints::EnabledOnly);
+						const auto to = detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
+						if (from != to)
+							m_state.exec.directChunks.push_back({pArchetype, pChunk, from, to});
+					}
+				}
+			}
+
 			//! Returns true when query iteration needs cached inherited data payloads.
 			GAIA_NODISCARD bool has_inherited_data_payload() const {
 				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedDataTerms);
@@ -2238,6 +2316,14 @@ namespace gaia {
 				const_cast<QueryInfo*>(this)->ensure_comp_indices();
 				const auto& ctxData = m_state.exec.archetypeCompIndices[archetypeIdx];
 				return {(const uint8_t*)&ctxData.indices[0], ChunkHeader::MAX_COMPONENTS};
+			}
+
+			//! Returns a flattened chunk view for a direct-dense result-cache range.
+			//! \param idxFrom First result-cache archetype index to include.
+			//! \param idxTo One-past-the-end result-cache archetype index to include.
+			std::span<const DirectChunkEntry> direct_chunk_view(uint32_t idxFrom, uint32_t idxTo) const {
+				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo);
+				return {m_state.exec.directChunks.data(), m_state.exec.directChunks.size()};
 			}
 
 			//! Returns cached inherited-term data for a matched archetype index.

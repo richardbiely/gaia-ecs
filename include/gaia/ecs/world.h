@@ -858,6 +858,8 @@ namespace gaia {
 			uint32_t m_worldVersion = 0;
 			//! Increments whenever an entity enable bit changes.
 			uint32_t m_enabledHierarchyVersion = 0;
+			//! Increments whenever an archetype enters or leaves the deletion-request set.
+			uint32_t m_archetypeDeleteVersion = 0;
 
 			uint32_t m_structuralChangesLocked = 0;
 
@@ -7452,8 +7454,15 @@ namespace gaia {
 				return m_enabledHierarchyVersion;
 			}
 
+			//! Returns the version that changes when archetype deletion visibility changes.
+			//! \return Archetype deletion-request version.
+			GAIA_NODISCARD uint32_t archetype_delete_version() const {
+				return m_archetypeDeleteVersion;
+			}
+
 			friend uint32_t world_rel_version(const World& world, Entity relation);
 			friend uint32_t world_version(const World& world);
+			friend uint32_t world_archetype_delete_version(const World& world);
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
@@ -7592,6 +7601,7 @@ namespace gaia {
 				m_defragLastArchetypeIdx = 0;
 				m_worldVersion = 0;
 				m_enabledHierarchyVersion = 0;
+				m_archetypeDeleteVersion = 0;
 				init();
 			}
 
@@ -8547,7 +8557,10 @@ namespace gaia {
 			}
 
 			void revive_archetype(Archetype& archetype) {
+				const bool wasReqDel = archetype.is_req_del();
 				archetype.revive();
+				if (wasReqDel)
+					update_version(m_archetypeDeleteVersion);
 				m_reqArchetypesToDel.erase(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
 			}
 
@@ -9769,6 +9782,7 @@ namespace gaia {
 					return;
 
 				archetype.req_del();
+				update_version(m_archetypeDeleteVersion);
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
 			}
 
@@ -12748,6 +12762,10 @@ namespace gaia {
 	namespace ecs {
 		inline uint32_t world_version(const World& world) {
 			return world.m_worldVersion;
+		}
+
+		inline uint32_t world_archetype_delete_version(const World& world) {
+			return world.m_archetypeDeleteVersion;
 		}
 
 		//! Returns the resolved scheduler bound to @a world.

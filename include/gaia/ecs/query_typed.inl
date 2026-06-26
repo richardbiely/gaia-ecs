@@ -816,6 +816,25 @@ namespace gaia {
 				const bool canSkipProcessCheck =
 						!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
 				lock(*m_storage.world());
+				if constexpr (!HasFilters) {
+					if (!state.hasWriteArgs && canSkipProcessCheck && plan.idxTo - plan.idxFrom >= 1024) {
+						for (const auto& entry: queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo)) {
+							auto* pChunk = entry.pChunk;
+							const auto from = entry.rowFrom;
+							const auto to = entry.rowTo;
+
+							GAIA_PROF_SCOPE(query_func);
+							run_typed_direct_chunk_rows(pChunk, from, to, func, state, types);
+						}
+
+						unlock(*m_storage.world());
+						commit_cmd_buffer_st(*m_storage.world());
+						commit_cmd_buffer_mt(*m_storage.world());
+						m_changedWorldVersion = *m_worldVersion;
+						return;
+					}
+				}
+
 				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
 					const auto* pArchetype = cacheView[i];
 					if (canSkipProcessCheck) {

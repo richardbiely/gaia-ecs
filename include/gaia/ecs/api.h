@@ -55,6 +55,8 @@ namespace gaia {
 		bool world_entity_enabled(const World& world, Entity entity);
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
+		//! Returns the version that changes when an archetype enters or leaves the deletion-request set.
+		uint32_t world_archetype_delete_version(const World& world);
 		//! Returns the current world structural version.
 		uint32_t world_version(const World& world);
 		//! Returns the current version of @a relation-specific traversal metadata.
