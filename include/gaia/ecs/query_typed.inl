@@ -634,6 +634,8 @@ namespace gaia {
 				Chunk* pChunk = nullptr;
 				//! Prepared query-field to chunk-column mapping for pChunk's archetype, or null for uncached direct scans.
 				const uint8_t* pCompIndices = nullptr;
+				//! Base data pointer for the selected query field, or null when unavailable.
+				const void* pData = nullptr;
 				//! First absolute row to process.
 				uint16_t from = 0;
 				//! One-past-the-end absolute row to process.
@@ -646,8 +648,8 @@ namespace gaia {
 			//! \param chunkRun Chunk, row range, and optional prepared term mapping.
 			//! \param func Callback invoked for each matching row.
 			//! \param state Typed callback metadata, including fallback component ids for uncached direct scans.
-			//! \note pCompIndices maps query field 0 to the matched archetype's chunk column. When unavailable or unmapped,
-			//! the chunk-local component lookup preserves correctness for ordinary direct scans.
+			//! \note pData is selected for the sole callback argument when available. Otherwise the chunk-local
+			//! component lookup preserves correctness for ordinary direct scans.
 			template <typename Func, typename T>
 			inline void run_typed_direct_chunk_row_arg(
 					const TypedDirectChunkRun& chunkRun, Func& func, const TypedQueryExecState& state,
@@ -661,13 +663,10 @@ namespace gaia {
 					GAIA_FOR(cnt)
 					func(data[from + i]);
 				} else if constexpr (!mem::is_soa_layout_v<U>) {
-					uint8_t compIdx = 0xFF;
-					if (chunkRun.pCompIndices != nullptr)
-						compIdx = chunkRun.pCompIndices[0];
-					if (compIdx == 0xFF)
-						compIdx = (uint8_t)pChunk->comp_idx(state.argIds[0]);
-					const auto recs = pChunk->comp_rec_view();
-					auto* data = (U*)recs[compIdx].pData + from;
+					const auto* pData = chunkRun.pData;
+					if (pData == nullptr)
+						pData = pChunk->comp_rec_view()[pChunk->comp_idx(state.argIds[0])].pData;
+					auto* data = (U*)pData + from;
 					GAIA_FOR(cnt)
 					func(data[i]);
 				} else {
@@ -847,8 +846,20 @@ namespace gaia {
 				lock(*m_storage.world());
 				if constexpr (!HasFilters) {
 					if (!state.hasWriteArgs && canSkipProcessCheck && plan.idxTo - plan.idxFrom >= 1024) {
-						for (const auto& entry: queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo)) {
-							const TypedDirectChunkRun chunkRun{entry.pChunk, entry.pCompIndices, entry.rowFrom, entry.rowTo};
+						const auto terms = queryInfo.ctx().data.terms_view();
+						uint32_t dataFieldIdx = UINT32_MAX;
+						if (state.argCount == 1) {
+							const auto argId = state.argIds[0];
+							GAIA_EACH(terms) {
+								if (terms[i].id == argId) {
+									dataFieldIdx = (uint32_t)i;
+									break;
+								}
+							}
+						}
+						for (const auto& entry: queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFieldIdx)) {
+							const TypedDirectChunkRun chunkRun{
+									entry.pChunk, entry.pCompIndices, entry.pData, entry.rowFrom, entry.rowTo};
 
 							GAIA_PROF_SCOPE(query_func);
 							run_typed_direct_chunk_rows(chunkRun, func, state, types);
@@ -887,7 +898,7 @@ namespace gaia {
 						}
 
 						GAIA_PROF_SCOPE(query_func);
-						run_typed_direct_chunk_rows({pChunk, nullptr, from, to}, func, state, types);
+						run_typed_direct_chunk_rows({pChunk, nullptr, nullptr, from, to}, func, state, types);
 						if (state.hasWriteArgs)
 							finish_typed_chunk_state(*this, world, pChunk, from, to, state);
 					}

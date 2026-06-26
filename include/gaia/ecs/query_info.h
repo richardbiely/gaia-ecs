@@ -46,6 +46,8 @@ namespace gaia {
 			Chunk* pChunk = nullptr;
 			//! Prepared query-field to chunk-column mapping for pArchetype, or null when not available.
 			const uint8_t* pCompIndices = nullptr;
+			//! Base data pointer for the selected query field in pChunk, or null when unavailable.
+			const void* pData = nullptr;
 			//! First enabled row in pChunk processed by direct-dense iteration.
 			uint16_t rowFrom = 0;
 			//! One-past-the-end enabled row in pChunk processed by direct-dense iteration.
@@ -237,6 +239,8 @@ namespace gaia {
 					uint32_t directChunksIdxFrom = UINT32_MAX;
 					//! One-past-the-end result-cache archetype index captured when directChunks was built.
 					uint32_t directChunksIdxTo = UINT32_MAX;
+					//! Query field whose component data pointer was captured in DirectChunkEntry::pData.
+					uint32_t directChunksDataFieldIdx = UINT32_MAX;
 					//! Component-index mapping storage captured by DirectChunkEntry::pCompIndices pointers.
 					const void* directChunksCompIndicesData = nullptr;
 					//! True when archetype membership is populated but component-index metadata
@@ -257,6 +261,7 @@ namespace gaia {
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
+						directChunksDataFieldIdx = UINT32_MAX;
 						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
@@ -273,6 +278,7 @@ namespace gaia {
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
+						directChunksDataFieldIdx = UINT32_MAX;
 						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
@@ -1725,7 +1731,7 @@ namespace gaia {
 			//! Rebuilds flattened direct chunk cache when result membership or world structure changed.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
-			void ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo) {
+			void ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, uint32_t dataFieldIdx) {
 				ensure_comp_indices();
 				const auto* pCompIndicesData = m_state.exec.archetypeCompIndices.data();
 
@@ -1737,12 +1743,14 @@ namespace gaia {
 						m_state.exec.directChunksDeleteVersion == currDeleteVersion &&
 						m_state.exec.directChunksResultRevision == m_state.resultCacheRevision &&
 						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo &&
+						m_state.exec.directChunksDataFieldIdx == dataFieldIdx &&
 						m_state.exec.directChunksCompIndicesData == pCompIndicesData)
 					return;
 
 				m_state.exec.directChunks.clear();
 				m_state.exec.directChunksIdxFrom = idxFrom;
 				m_state.exec.directChunksIdxTo = idxTo;
+				m_state.exec.directChunksDataFieldIdx = dataFieldIdx;
 				m_state.exec.directChunksResultRevision = m_state.resultCacheRevision;
 				m_state.exec.directChunksWorldVersion = currWorldVersion;
 				m_state.exec.directChunksEnabledVersion = currEnabledVersion;
@@ -1762,8 +1770,15 @@ namespace gaia {
 					for (auto* pChunk: pArchetype->chunks()) {
 						const auto from = detail::ChunkIterImpl::start_index(pChunk, Constraints::EnabledOnly);
 						const auto to = detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
-						if (from != to)
-							m_state.exec.directChunks.push_back({pArchetype, pChunk, pCompIndices, from, to});
+						if (from != to) {
+							const void* pData = nullptr;
+							if (dataFieldIdx < ChunkHeader::MAX_COMPONENTS) {
+								const auto compIdx = pCompIndices[dataFieldIdx];
+								if (compIdx != 0xFF)
+									pData = pChunk->comp_rec_view()[compIdx].pData;
+							}
+							m_state.exec.directChunks.push_back({pArchetype, pChunk, pCompIndices, pData, from, to});
+						}
 					}
 				}
 			}
@@ -2337,8 +2352,9 @@ namespace gaia {
 			//! Returns a flattened chunk view for a direct-dense result-cache range.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
-			std::span<const DirectChunkEntry> direct_chunk_view(uint32_t idxFrom, uint32_t idxTo) const {
-				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo);
+			std::span<const DirectChunkEntry>
+			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, uint32_t dataFieldIdx = UINT32_MAX) const {
+				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo, dataFieldIdx);
 				return {m_state.exec.directChunks.data(), m_state.exec.directChunks.size()};
 			}
 

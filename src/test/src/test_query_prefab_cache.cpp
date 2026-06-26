@@ -165,6 +165,30 @@ TEST_CASE("Query - cached direct typed query excludes prefab archetypes") {
 	CHECK(sum == doctest::Approx(1.0f));
 }
 
+TEST_CASE("Query - cached flattened direct typed query maps single callback arg") {
+	TestWorld twld;
+
+	constexpr uint32_t EntityCount = 1100;
+	GAIA_FOR(EntityCount) {
+		const auto parent = wld.add();
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {1.0f, 0.0f, 0.0f});
+		wld.add<Acceleration>(entity, {7.0f, 0.0f, 0.0f});
+		wld.add(entity, ecs::Pair(ecs::ChildOf, parent));
+	}
+
+	auto q = wld.query().all<Position>().all<Acceleration>();
+	uint32_t count = 0;
+	float sum = 0.0f;
+	q.each([&](const Acceleration& accel) {
+		++count;
+		sum += accel.x;
+	});
+
+	CHECK(count == EntityCount);
+	CHECK(sum == doctest::Approx((float)EntityCount * 7.0f));
+}
+
 TEST_CASE("Query - cached dynamic query after input changes") {
 	TestWorld twld;
 
