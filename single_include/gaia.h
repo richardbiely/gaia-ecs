@@ -49051,6 +49051,8 @@ namespace gaia {
 					uint32_t cachedRelationVersion = 0;
 					//! World version snapshot used for chunk-structural change checks.
 					uint32_t cachedEntityVersion = 0;
+					//! Query result-cache revision when each_walk cache was produced.
+					uint32_t cachedResultCacheRevision = 0;
 					//! Cached matched chunk pointers used by each_walk fast-path.
 					cnt::darray<const Chunk*> cachedChunks;
 					//! True if each_walk cache is valid.
@@ -54699,6 +54701,7 @@ namespace gaia {
 					auto& world = *m_storage.world();
 					const uint32_t relationVersion = world_rel_version(world, relation);
 					const uint32_t worldVersion = ::gaia::ecs::world_version(world);
+					const uint32_t resultCacheRevision = queryInfo.result_cache_rev();
 
 					const bool needsTraversalBarrierState =
 							constraints == Constraints::EnabledOnly && ::gaia::ecs::valid(world, relation);
@@ -54718,6 +54721,13 @@ namespace gaia {
 
 						return true;
 					};
+
+					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedOrder == order &&
+							walkData.cachedConstraints == constraints && walkData.cachedRelationVersion == relationVersion &&
+							walkData.cachedEntityVersion == worldVersion &&
+							walkData.cachedResultCacheRevision == resultCacheRevision && !queryInfo.has_filters()) {
+						return std::span<const Entity>(walkData.cachedOutput.data(), walkData.cachedOutput.size());
+					}
 
 					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedOrder == order &&
 							walkData.cachedConstraints == constraints && walkData.cachedRelationVersion == relationVersion &&
@@ -54926,6 +54936,7 @@ namespace gaia {
 					walkData.cachedConstraints = constraints;
 					walkData.cachedRelationVersion = relationVersion;
 					walkData.cachedEntityVersion = ::gaia::ecs::world_version(world);
+					walkData.cachedResultCacheRevision = resultCacheRevision;
 					walkData.cachedRuns.clear();
 
 					{

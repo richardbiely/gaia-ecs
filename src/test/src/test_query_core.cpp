@@ -4140,6 +4140,33 @@ TEST_CASE("Child hierarchy traversal") {
 	}
 }
 
+TEST_CASE("Query - repeated order_by traversal reuses cache without dropping rows") {
+	TestWorld twld;
+
+	struct OrderByCachedPosition {};
+
+	const auto root = wld.add();
+	const auto childA = wld.add();
+	const auto childB = wld.add();
+	wld.add<OrderByCachedPosition>(root);
+	wld.add<OrderByCachedPosition>(childA);
+	wld.add<OrderByCachedPosition>(childB);
+	wld.add(childA, ecs::Pair(ecs::ChildOf, root));
+	wld.add(childB, ecs::Pair(ecs::ChildOf, root));
+
+	auto q = wld.query().all<OrderByCachedPosition>();
+	auto count_ordered = [&]() {
+		uint32_t visited = 0;
+		q.order_by(ecs::ChildOf, ecs::TravOrder::Down).each([&](ecs::Entity) {
+			++visited;
+		});
+		return visited;
+	};
+
+	CHECK(count_ordered() == 3);
+	CHECK(count_ordered() == 3);
+}
+
 TEST_CASE("Upward traversal with disabled ancestors") {
 	TestWorld twld;
 
