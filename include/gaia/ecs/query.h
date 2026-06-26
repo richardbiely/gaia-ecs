@@ -4836,7 +4836,7 @@ namespace gaia {
 								uint16_t from = 0;
 								uint16_t to = 0;
 								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
-								const auto entityCnt = to - from;
+								const uint16_t entityCnt = to - from;
 								if (entityCnt == 0)
 									continue;
 								it.set_chunk(pChunk, from, to);
@@ -4854,7 +4854,7 @@ namespace gaia {
 							uint16_t from = 0;
 							uint16_t to = 0;
 							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
-							const auto entityCnt = to - from;
+							const uint16_t entityCnt = to - from;
 							if (entityCnt == 0)
 								continue;
 							it.set_chunk(pChunk, from, to);
@@ -6350,7 +6350,8 @@ namespace gaia {
 
 					if (walkData.cacheValid && walkData.cachedRelation == relation && walkData.cachedOrder == order &&
 							walkData.cachedConstraints == constraints && walkData.cachedRelationVersion == relationVersion &&
-							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) && !queryInfo.has_filters()) {
+							(!needsTraversalBarrierState || walkData.cachedEntityVersion == worldVersion) &&
+							!queryInfo.has_filters()) {
 						auto& chunks = walkData.scratchChunks;
 						chunks.clear();
 

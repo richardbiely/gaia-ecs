@@ -22,5 +22,5 @@ add_executable(${PROJ_NAME}
 target_include_directories(${PROJ_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 if(MSVC)
-	enable_cxx_compiler_flag_if_supported("/bigobj")
+	target_compile_options(${PROJ_NAME} PRIVATE /bigobj)
 endif()

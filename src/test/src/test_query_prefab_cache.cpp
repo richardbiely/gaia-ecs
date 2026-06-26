@@ -885,7 +885,7 @@ TEST_CASE("Query - shared cache for identical traversed queries") {
 	wld.add<Position>(cable);
 	wld.add(cable, ecs::Pair(connectedTo, child));
 
-	const auto buildQuery = [&] {
+	const auto buildQuery = [&twld, connectedTo] {
 		return wld.query()
 				.scope(ecs::QueryCacheScope::Shared)
 				.template all<Position>()

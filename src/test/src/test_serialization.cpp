@@ -283,7 +283,7 @@ TEST_CASE("Serialization - json runtime fields") {
 	constexpr uint32_t RuntimeJsonXOffset = 0;
 	constexpr uint32_t RuntimeJsonYOffset = 4;
 	constexpr uint32_t RuntimeJsonZOffset = 8;
-	auto write_runtime_json_xyz = [](void* data, float x, float y, float z) {
+	auto write_runtime_json_xyz = [&](void* data, float x, float y, float z) {
 		auto* bytes = (uint8_t*)data;
 		memcpy(bytes + RuntimeJsonXOffset, &x, sizeof(x));
 		memcpy(bytes + RuntimeJsonYOffset, &y, sizeof(y));
@@ -1987,7 +1987,7 @@ TEST_CASE("Serialization - world json runtime-created components") {
 	constexpr uint32_t RuntimeJsonYOffset = 4;
 	constexpr uint32_t RuntimeJsonZOffset = 8;
 
-	auto write_xyz = [](void* data, float x, float y, float z) {
+	auto write_xyz = [&](void* data, float x, float y, float z) {
 		auto* bytes = (uint8_t*)data;
 		memcpy(bytes + RuntimeJsonXOffset, &x, sizeof(x));
 		memcpy(bytes + RuntimeJsonYOffset, &y, sizeof(y));

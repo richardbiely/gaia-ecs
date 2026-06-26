@@ -2071,7 +2071,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableBad, {connectedTo, devA});
 		wld.add(cableBad, {poweredBy, devB});
 
-		auto q = make_query<UseCachedQuery>(wld) //
+		auto q = make_query<TQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(poweredBy, ecs::Var0))
@@ -2131,7 +2131,7 @@ void Test_Query_Variable_Opcode_Paths() {
 		wld.add(cableWrongB, {linkedTo, devA});
 		wld.add(cableWrongB, {routedVia, devC});
 
-		auto q = make_query<UseCachedQuery>(wld) //
+		auto q = make_query<TQuery>(wld) //
 								 .template all<Cable>()
 								 .all(ecs::Pair(connectedTo, ecs::Var0))
 								 .all(ecs::Pair(linkedTo, ecs::Var0))
@@ -2836,7 +2836,7 @@ void Test_Query_Variable_Opcode_Selection_IsStructural() {
 		wld.add(cableB, {linkedTo, devA});
 		wld.add(cableB, {routedVia, devB});
 
-		auto q = make_query<UseCachedQuery>(wld) //
+		auto q = make_query<TQuery>(wld) //
 								 .template all<Cable>()
 								 .template all<Marker>(ecs::QueryTermOptions{}.src(ecs::Var0))
 								 .or_(ecs::Pair(connectedTo, ecs::Var0))

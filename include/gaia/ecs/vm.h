@@ -2872,12 +2872,12 @@ namespace gaia {
 					return true;
 				}
 
+				static inline constexpr uint16_t BacktrackPC = (uint16_t)-1;
+
 				GAIA_NODISCARD bool match_search_program_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype,
 						const detail::QueryCompileCtx::VarProgramStep& programStep, bool orAlreadySatisfied) const {
 					using namespace detail;
-
-					static constexpr uint16_t BacktrackPC = (uint16_t)-1;
 
 					struct SearchProgramState {
 						VarBindings vars{};

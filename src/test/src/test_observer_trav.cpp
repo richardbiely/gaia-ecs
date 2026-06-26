@@ -201,7 +201,7 @@ TEST_CASE("Observer - identical traversed observers keep local cached query stat
 	cnt::darray<ecs::Entity> observers;
 	observers.reserve(200);
 
-	const auto makeObserver = [&] {
+	const auto makeObserver = [&twld, connectedTo] {
 		return wld.observer()
 				.event(ecs::ObserverEvent::OnAdd)
 				.template all<Position>()
@@ -234,7 +234,7 @@ TEST_CASE("Observer - identical traversed observers delete cleanly") {
 	wld.child(child, root);
 
 	cnt::darr<ecs::Entity> observers;
-	const auto makeObserver = [&](ecs::ObserverEvent event) {
+	const auto makeObserver = [&twld, connectedTo](ecs::ObserverEvent event) {
 		return wld.observer()
 				.event(event)
 				.template all<Position>()
@@ -273,7 +273,7 @@ TEST_CASE("Observer - duplicate traversed observer cleanup leaves no stale obser
 	const auto child = wld.add();
 	wld.child(child, root);
 
-	const auto makeObserver = [&] {
+	const auto makeObserver = [&twld, connectedTo] {
 		return wld.observer()
 				.event(ecs::ObserverEvent::OnAdd)
 				.template all<Position>()
@@ -358,7 +358,7 @@ namespace {
 		auto termOptions = traversalOptions;
 		termOptions.src(ecs::Var0);
 
-		auto buildQuery = [&]() {
+		auto buildQuery = [&world, bindingRelation, termOptions]() {
 			return world.uquery()
 					.template all<Position>()
 					.all(ecs::Pair(bindingRelation, ecs::Var0))
@@ -447,7 +447,7 @@ TEST_CASE("Observer - traversed source propagation on ancestor term changes") {
 	cnt::darr<ecs::Entity> added;
 	cnt::darr<ecs::Entity> removed;
 
-	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+	const auto makeObserver = [&twld, connectedTo](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
 		return wld.observer()
 				.event(event)
 				.template all<Position>()
@@ -575,7 +575,7 @@ TEST_CASE("Observer - traversed source propagation on source binding pair change
 	cnt::darr<ecs::Entity> added;
 	cnt::darr<ecs::Entity> removed;
 
-	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+	const auto makeObserver = [&twld, connectedTo](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
 		return wld.observer()
 				.event(event)
 				.template all<Position>()
@@ -685,7 +685,7 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 	cnt::darr<ecs::Entity> added;
 	cnt::darr<ecs::Entity> removed;
 
-	const auto makeObserver = [&](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+	const auto makeObserver = [&twld, connectedTo](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
 		return wld.observer()
 				.event(event)
 				.template all<Position>()
@@ -700,7 +700,7 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 				})
 				.entity();
 	};
-	const auto buildQuery = [&] {
+	const auto buildQuery = [&twld, connectedTo] {
 		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -1195,7 +1195,7 @@ TEST_CASE("Observer - unsupported traversal diff shape") {
 	wld.add(cable, ecs::Pair(connectedTo, child));
 	wld.add(cable, ecs::Pair(guardedBy, guardian));
 
-	auto buildQuery = [&]() {
+	auto buildQuery = [&twld, connectedTo, guardedBy]() {
 		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -1283,7 +1283,7 @@ TEST_CASE("Observer - traversed source copy_ext_n fires for all new entities") {
 	wld.add<Position>(src);
 	wld.add(src, ecs::Pair(connectedTo, child));
 
-	auto buildQuery = [&]() {
+	auto buildQuery = [&twld, connectedTo]() {
 		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -1390,7 +1390,7 @@ TEST_CASE("Observer - traversed source add_n fires for all new entities") {
 	wld.add<Position>(archetypeSeed);
 	wld.add(archetypeSeed, ecs::Pair(connectedTo, child));
 
-	auto buildQuery = [&]() {
+	auto buildQuery = [&twld, connectedTo]() {
 		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(connectedTo, ecs::Var0))
@@ -1493,7 +1493,7 @@ TEST_CASE("Observer - parented instantiate_n traversed source fires for all new 
 	const auto animal = wld.add();
 	wld.add<Position>(animal);
 
-	auto buildQuery = [&]() {
+	auto buildQuery = [&twld]() {
 		return wld.uquery()
 				.template all<Position>()
 				.all(ecs::Pair(ecs::Parent, ecs::Var0))

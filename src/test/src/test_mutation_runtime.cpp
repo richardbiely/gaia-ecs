@@ -2969,7 +2969,7 @@ TEST_CASE("Query Filter - cached changed queries with instance-local var binding
 	wld.add<Status>(shipMars, {2});
 	wld.add(shipMars, ecs::Pair(dockedTo, mars));
 
-	auto makeQuery = [&] {
+	auto makeQuery = [&twld, dockedTo] {
 		return wld.query()
 				.template all<Ship>()
 				.template all<Status>()

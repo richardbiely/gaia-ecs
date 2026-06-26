@@ -162,12 +162,12 @@ TEST_CASE("ECS - Query jobs use external scheduler wrappers") {
 
 	auto jobA = queryA.job(
 			[&](ecs::Iter& it) {
-				hitsA += it.entity_rows().size();
+				hitsA += (uint32_t)it.entity_rows().size();
 			},
 			ecs::QueryExecType::Default);
 	auto jobB = queryB.job(
 			[&](ecs::Iter& it) {
-				hitsB += it.entity_rows().size();
+				hitsB += (uint32_t)it.entity_rows().size();
 			},
 			ecs::QueryExecType::Default);
 
@@ -212,12 +212,12 @@ TEST_CASE("ECS - Parallel query jobs add scheduler work without running it") {
 
 	auto jobA = queryA.job(
 			[&](ecs::Iter& it) {
-				hitsA += it.entity_rows().size();
+				hitsA += (uint32_t)it.entity_rows().size();
 			},
 			ecs::QueryExecType::Parallel);
 	auto jobB = queryB.job(
 			[&](ecs::Iter& it) {
-				hitsB += it.entity_rows().size();
+				hitsB += (uint32_t)it.entity_rows().size();
 			},
 			ecs::QueryExecType::Parallel);
 
@@ -274,7 +274,7 @@ TEST_CASE("ECS - Grouped parallel query jobs use scheduler task path") {
 	query.group_id(selectedGroup);
 	auto job = query.job(
 			[&](ecs::Iter& it) {
-				hits += it.entity_rows().size();
+				hits += (uint32_t)it.entity_rows().size();
 			},
 			ecs::QueryExecType::Parallel);
 
@@ -351,7 +351,7 @@ TEST_CASE("ECS - System jobs use external scheduler wrappers") {
 
 	uint32_t hits = 0;
 	auto sys = wld.system().all<ExternalExecProbeComp>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		hits += it.entity_rows().size();
+		hits += (uint32_t)it.entity_rows().size();
 	});
 
 	auto job = sys.job();
@@ -673,13 +673,13 @@ TEST_CASE("ECS - System update wires parallel job dependencies from query access
 	uint32_t posWritesB = 0;
 	uint32_t accelReads = 0;
 	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		posWritesA += it.entity_rows().size();
+		posWritesA += (uint32_t)it.entity_rows().size();
 	});
 	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		posWritesB += it.entity_rows().size();
+		posWritesB += (uint32_t)it.entity_rows().size();
 	});
 	wld.system().all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		accelReads += it.entity_rows().size();
+		accelReads += (uint32_t)it.entity_rows().size();
 	});
 
 	wld.update();
@@ -715,17 +715,17 @@ TEST_CASE("ECS - System update wires custom access dependencies") {
 			.writes<Acceleration>()
 			.mode(ecs::QueryExecType::Parallel)
 			.on_each([&](ecs::Iter& it) {
-				writerHits += it.entity_rows().size();
+				writerHits += (uint32_t)it.entity_rows().size();
 			});
 	wld.system()
 			.all<const Position>()
 			.reads<Acceleration>()
 			.mode(ecs::QueryExecType::Parallel)
 			.on_each([&](ecs::Iter& it) {
-				readerHits += it.entity_rows().size();
+				readerHits += (uint32_t)it.entity_rows().size();
 			});
 	wld.system().all<const Position>().reads<Scale>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		independentHits += it.entity_rows().size();
+		independentHits += (uint32_t)it.entity_rows().size();
 	});
 
 	wld.update();
@@ -760,14 +760,14 @@ TEST_CASE("ECS - System update treats phase boundaries as depth-first job barrie
 	uint32_t phaseBHits = 0;
 	wld.system().phase(phaseA).all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
 		CHECK(phaseBHits == EntityCount);
-		phaseAHits += it.entity_rows().size();
+		phaseAHits += (uint32_t)it.entity_rows().size();
 	});
 	wld.system().phase(phaseB).all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
 		CHECK(probe.submitCalls == 1);
 		CHECK(probe.waitCalls == 0);
 		CHECK(probe.delCalls == 0);
 		CHECK(phaseAHits == 0);
-		phaseBHits += it.entity_rows().size();
+		phaseBHits += (uint32_t)it.entity_rows().size();
 	});
 
 	wld.update();
@@ -797,16 +797,16 @@ TEST_CASE("ECS - System update treats main-thread systems as job barriers") {
 	uint32_t mainHits = 0;
 	uint32_t afterHits = 0;
 	wld.system().all<Position&>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		beforeHits += it.entity_rows().size();
+		beforeHits += (uint32_t)it.entity_rows().size();
 	});
 	wld.system().all<const Position>().main_thread().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		mainHits += it.entity_rows().size();
+		mainHits += (uint32_t)it.entity_rows().size();
 		CHECK(probe.submitCalls == 1);
 		CHECK(probe.waitCalls == 1);
 		CHECK(probe.delCalls == 1);
 	});
 	wld.system().all<const Acceleration>().mode(ecs::QueryExecType::Parallel).on_each([&](ecs::Iter& it) {
-		afterHits += it.entity_rows().size();
+		afterHits += (uint32_t)it.entity_rows().size();
 	});
 
 	wld.update();

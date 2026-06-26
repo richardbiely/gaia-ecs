@@ -43289,12 +43289,12 @@ namespace gaia {
 					return true;
 				}
 
+				static inline constexpr uint16_t BacktrackPC = (uint16_t)-1;
+
 				GAIA_NODISCARD bool match_search_program_on_archetype(
 						const MatchingCtx& ctx, const Archetype& archetype,
 						const detail::QueryCompileCtx::VarProgramStep& programStep, bool orAlreadySatisfied) const {
 					using namespace detail;
-
-					static constexpr uint16_t BacktrackPC = (uint16_t)-1;
 
 					struct SearchProgramState {
 						VarBindings vars{};
@@ -53223,7 +53223,7 @@ namespace gaia {
 								uint16_t from = 0;
 								uint16_t to = 0;
 								chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
-								const auto entityCnt = to - from;
+								const uint16_t entityCnt = to - from;
 								if (entityCnt == 0)
 									continue;
 								it.set_chunk(pChunk, from, to);
@@ -53241,7 +53241,7 @@ namespace gaia {
 							uint16_t from = 0;
 							uint16_t to = 0;
 							chunk_effective_range(pChunk, constraints, needsBarrierCache, barrierPasses, from, to);
-							const auto entityCnt = to - from;
+							const uint16_t entityCnt = to - from;
 							if (entityCnt == 0)
 								continue;
 							it.set_chunk(pChunk, from, to);
