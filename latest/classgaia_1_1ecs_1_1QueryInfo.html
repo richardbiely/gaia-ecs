@@ -264,6 +264,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>sort_cache_groups</b>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_comp_indices</b> ()</td></tr>
 <tr class="memdesc:a72b267e26d67bcc0d37370d3913143f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds cached component-index payloads for matched archetypes when marked pending. <br /></td></tr>
 <tr class="separator:a72b267e26d67bcc0d37370d3913143f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9ec532a9b8906e7aeff081f4c791e4d8" id="r_a9ec532a9b8906e7aeff081f4c791e4d8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9ec532a9b8906e7aeff081f4c791e4d8">ensure_direct_chunks</a> (uint32_t idxFrom, uint32_t idxTo)</td></tr>
+<tr class="memdesc:a9ec532a9b8906e7aeff081f4c791e4d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds flattened direct chunk cache when result membership or world structure changed.  <br /></td></tr>
+<tr class="separator:a9ec532a9b8906e7aeff081f4c791e4d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a35ba68bbab5f46f5983a14c7f4d3751c" id="r_a35ba68bbab5f46f5983a14c7f4d3751c"><td class="memItemLeft" align="right" valign="top"><a id="a35ba68bbab5f46f5983a14c7f4d3751c" name="a35ba68bbab5f46f5983a14c7f4d3751c"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_inherited_data_payload</b> () const</td></tr>
 <tr class="memdesc:a35ba68bbab5f46f5983a14c7f4d3751c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when query iteration needs cached inherited data payloads. <br /></td></tr>
@@ -424,6 +427,9 @@ template&lt;typename... T&gt; </td></tr>
 <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>indices_mapping_view</b> (uint32_t archetypeIdx) const</td></tr>
 <tr class="memdesc:ac0af18432dfc4cba22908421d94fe9e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a view of indices mapping for component entities in a given archetype. <br /></td></tr>
 <tr class="separator:ac0af18432dfc4cba22908421d94fe9e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6d67ed48590c517510dc79617f9b7c22" id="r_a6d67ed48590c517510dc79617f9b7c22"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html">DirectChunkEntry</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a6d67ed48590c517510dc79617f9b7c22">direct_chunk_view</a> (uint32_t idxFrom, uint32_t idxTo) const</td></tr>
+<tr class="memdesc:a6d67ed48590c517510dc79617f9b7c22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a flattened chunk view for a direct-dense result-cache range.  <br /></td></tr>
+<tr class="separator:a6d67ed48590c517510dc79617f9b7c22"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a68cfbbf149046aa0e699ca46be84d778" id="r_a68cfbbf149046aa0e699ca46be84d778"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a68cfbbf149046aa0e699ca46be84d778">inherited_data_view</a> (uint32_t archetypeIdx) const</td></tr>
 <tr class="memdesc:a68cfbbf149046aa0e699ca46be84d778"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns cached inherited-term data for a matched archetype index.  <br /></td></tr>
 <tr class="separator:a68cfbbf149046aa0e699ca46be84d778"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1105,6 +1111,96 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if the archetype was present or its set entry was removed. </dd></dl>
+
+</div>
+</div>
+<a id="a6d67ed48590c517510dc79617f9b7c22" name="a6d67ed48590c517510dc79617f9b7c22"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6d67ed48590c517510dc79617f9b7c22">&#9670;&#160;</a></span>direct_chunk_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html">DirectChunkEntry</a> &gt; gaia::ecs::QueryInfo::direct_chunk_view </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxFrom</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxTo</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a flattened chunk view for a direct-dense result-cache range. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idxFrom</td><td>First result-cache archetype index to include. </td></tr>
+    <tr><td class="paramname">idxTo</td><td>One-past-the-end result-cache archetype index to include. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a9ec532a9b8906e7aeff081f4c791e4d8" name="a9ec532a9b8906e7aeff081f4c791e4d8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9ec532a9b8906e7aeff081f4c791e4d8">&#9670;&#160;</a></span>ensure_direct_chunks()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::ensure_direct_chunks </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxFrom</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>idxTo</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Rebuilds flattened direct chunk cache when result membership or world structure changed. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idxFrom</td><td>First result-cache archetype index to include. </td></tr>
+    <tr><td class="paramname">idxTo</td><td>One-past-the-end result-cache archetype index to include. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

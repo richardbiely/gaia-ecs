@@ -208,7 +208,8 @@ var annotated_dup =
           [ "SystemPhaseScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html", "structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem" ],
           [ "SystemScheduleEdge", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge" ],
           [ "SystemScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem" ],
-          [ "SystemScheduleScratch", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch" ]
+          [ "SystemScheduleScratch", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch" ],
+          [ "TypedDirectChunkRun", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun" ]
         ] ],
         [ "vm", null, [
           [ "detail", null, [
@@ -276,6 +277,7 @@ var annotated_dup =
         [ "CursorResult< void >", "structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html", "structgaia_1_1ecs_1_1CursorResult_3_01void_01_4" ],
         [ "Delete_", "structgaia_1_1ecs_1_1Delete__.html", null ],
         [ "DependsOn_", "structgaia_1_1ecs_1_1DependsOn__.html", null ],
+        [ "DirectChunkEntry", "structgaia_1_1ecs_1_1DirectChunkEntry.html", "structgaia_1_1ecs_1_1DirectChunkEntry" ],
         [ "DontFragment_", "structgaia_1_1ecs_1_1DontFragment__.html", null ],
         [ "DontInherit_", "structgaia_1_1ecs_1_1DontInherit__.html", null ],
         [ "Entity", "structgaia_1_1ecs_1_1Entity.html", "structgaia_1_1ecs_1_1Entity" ],

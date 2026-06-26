@@ -777,6 +777,9 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>re
 <tr class="memitem:a9a204b62da6a116b2f52fc677a4bfc0c" id="r_a9a204b62da6a116b2f52fc677a4bfc0c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9a204b62da6a116b2f52fc677a4bfc0c">enabled_hierarchy_version</a> () const</td></tr>
 <tr class="memdesc:a9a204b62da6a116b2f52fc677a4bfc0c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the version that changes when entity enabled state changes. Hierarchy-aware cached traversals use this to invalidate ancestor gating state.  <br /></td></tr>
 <tr class="separator:a9a204b62da6a116b2f52fc677a4bfc0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad999f37cc72a20db29afac9a390b8710" id="r_ad999f37cc72a20db29afac9a390b8710"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad999f37cc72a20db29afac9a390b8710">archetype_delete_version</a> () const</td></tr>
+<tr class="memdesc:ad999f37cc72a20db29afac9a390b8710"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the version that changes when archetype deletion visibility changes.  <br /></td></tr>
+<tr class="separator:ad999f37cc72a20db29afac9a390b8710"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1725e4fc7320b68956c1253d44f684aa" id="r_a1725e4fc7320b68956c1253d44f684aa"><td class="memItemLeft" align="right" valign="top"><a id="a1725e4fc7320b68956c1253d44f684aa" name="a1725e4fc7320b68956c1253d44f684aa"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>update_src_entity_version</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a1725e4fc7320b68956c1253d44f684aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates a tracked source-entity version after the entity changes archetype membership. <br /></td></tr>
@@ -983,6 +986,10 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_rel_version
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world)</td></tr>
 <tr class="memdesc:a045e0362d6201da20e31118491e11386"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the current world structural version. <br /></td></tr>
 <tr class="separator:a045e0362d6201da20e31118491e11386"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a604f2f6b57a16b579f703c89a762089d" id="r_a604f2f6b57a16b579f703c89a762089d"><td class="memItemLeft" align="right" valign="top"><a id="a604f2f6b57a16b579f703c89a762089d" name="a604f2f6b57a16b579f703c89a762089d"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_archetype_delete_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world)</td></tr>
+<tr class="memdesc:a604f2f6b57a16b579f703c89a762089d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the version that changes when an archetype enters or leaves the deletion-request set. <br /></td></tr>
+<tr class="separator:a604f2f6b57a16b579f703c89a762089d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5f5117bfe6572aef53b3862b66d8bf8c" id="r_a5f5117bfe6572aef53b3862b66d8bf8c"><td class="memItemLeft" align="right" valign="top"><a id="a5f5117bfe6572aef53b3862b66d8bf8c" name="a5f5117bfe6572aef53b3862b66d8bf8c"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_entity_archetype_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a5f5117bfe6572aef53b3862b66d8bf8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the per-entity archetype version used for targeted source-query freshness checks. <br /></td></tr>
@@ -1780,6 +1787,34 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True when the alias metadata changed, false otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="ad999f37cc72a20db29afac9a390b8710" name="ad999f37cc72a20db29afac9a390b8710"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad999f37cc72a20db29afac9a390b8710">&#9670;&#160;</a></span>archetype_delete_version()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::World::archetype_delete_version </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the version that changes when archetype deletion visibility changes. </p>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> deletion-request version. </dd></dl>
 
 </div>
 </div>

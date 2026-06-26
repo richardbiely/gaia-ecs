@@ -1,5 +1,9 @@
 var NAVTREEINDEX5 =
 {
+"index.html#profiling":[5,2],
+"index.html#project-settings":[4,0,0],
+"index.html#project-structure":[1,2],
+"index.html#query":[2,2,0],
 "index.html#query-cache-behavior":[2,2,9,0],
 "index.html#query-low-level-api":[2,2,6],
 "index.html#query-remarks":[2,2,9],
@@ -245,9 +249,5 @@ var NAVTREEINDEX5 =
 "structgaia_1_1core_1_1detail_1_1iterator__traits__pointer__base_3_01T_00_01false_01_4.html":[10,0,0,1,0,17],
 "structgaia_1_1core_1_1detail_1_1member__func__checker.html":[10,0,0,1,0,18],
 "structgaia_1_1core_1_1detail_1_1member__func__checker.html#aa6a197a4995db881bb552cbdadcf4eee":[10,0,0,1,0,18,1],
-"structgaia_1_1core_1_1detail_1_1member__func__checker.html#ab6ec50296da8d62fde9520fb600ae7c6":[10,0,0,1,0,18,0],
-"structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html":[10,0,0,1,0,19],
-"structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#a841e10be3d5364725ec6ab373bb690a2":[10,0,0,1,0,19,0],
-"structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#ac10987d985d96ee5eb9d76008aea80aa":[10,0,0,1,0,19,1],
-"structgaia_1_1core_1_1detail_1_1member__func__none.html":[10,0,0,1,0,20]
+"structgaia_1_1core_1_1detail_1_1member__func__checker.html#ab6ec50296da8d62fde9520fb600ae7c6":[10,0,0,1,0,18,0]
 };

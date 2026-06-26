@@ -9,9 +9,17 @@ var searchData=
   ['depcnt_6',['depCnt',['../structgaia_1_1mt_1_1JobEdges.html#a6b72bca3bb8cbe1bd313b9095c201d4c',1,'gaia::mt::JobEdges']]],
   ['deps_7',['deps',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a99d85161c146acc532a98ea91abe4b2a',1,'gaia::ecs::QueryCtx::Data']]],
   ['depth_8',['depth',['../structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html#ac7ca0dbcb239d3ef1518ba17b92d6ebb',1,'gaia::ecs::detail::SystemPhaseScheduleItem']]],
-  ['directsource_9',['directSource',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#a82715a027c638a3cb1de96140edadfe8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
-  ['directtargetevalid_10',['directTargetEvalId',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a800578f5f5ed8406b7406ef2fe777a26',1,'gaia::ecs::QueryCtx::Data']]],
-  ['directtargetevalkind_11',['directTargetEvalKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aea3f2b2c059943001fecc4b7a890995d',1,'gaia::ecs::QueryCtx::Data']]],
-  ['dis_12',['dis',['../structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html#aad9c3d7386c4831ea5e2f5df9e2b9879',1,'gaia::ecs::EntityContainer::EntityData']]],
-  ['dynamiccachekind_13',['dynamicCacheKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data']]]
+  ['directchunks_9',['directChunks',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#a2925994e13ceb3eae8a12a0dfd8a3383',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunkscompindicesdata_10',['directChunksCompIndicesData',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#aa8a66dc05138a0b51320c13e4d05fe28',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksdeleteversion_11',['directChunksDeleteVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#aa772333a242d507ee5b7f5f43958d866',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksenabledversion_12',['directChunksEnabledVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#abdc8e57d681888f64e6d78c11dcd7e68',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksidxfrom_13',['directChunksIdxFrom',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#acb8053dced8f4656c6d216c94d4c1ff1',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksidxto_14',['directChunksIdxTo',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#a5e221a0f3de4ff3e59e0ec631ed9cba5',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksresultrevision_15',['directChunksResultRevision',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#a7e4df63be8db823eb13e1cd7e81fa0a7',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directchunksworldversion_16',['directChunksWorldVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1ExecPayload.html#ac4c0e32f88e4bd8cdb2edc8deb178db7',1,'gaia::ecs::QueryInfo::QueryState::ExecPayload']]],
+  ['directsource_17',['directSource',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#a82715a027c638a3cb1de96140edadfe8',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
+  ['directtargetevalid_18',['directTargetEvalId',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a800578f5f5ed8406b7406ef2fe777a26',1,'gaia::ecs::QueryCtx::Data']]],
+  ['directtargetevalkind_19',['directTargetEvalKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aea3f2b2c059943001fecc4b7a890995d',1,'gaia::ecs::QueryCtx::Data']]],
+  ['dis_20',['dis',['../structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html#aad9c3d7386c4831ea5e2f5df9e2b9879',1,'gaia::ecs::EntityContainer::EntityData']]],
+  ['dynamiccachekind_21',['dynamicCacheKind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data']]]
 ];

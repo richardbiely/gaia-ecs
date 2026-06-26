@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: Class Members - Variables</title>
+<title>Gaia-ECS: gaia::ecs::detail::TypedDirectChunkRun Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('functions_vars_r.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -106,27 +106,47 @@ $(document).ready(function(){initNavTree('functions_vars_r.html',''); initResiza
 </div>
 </div>
 
+<div class="header">
+  <div class="summary">
+<a href="#pub-attribs">Public Attributes</a> &#124;
+<a href="structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">gaia::ecs::detail::TypedDirectChunkRun Struct Reference</div></div>
+</div><!--header-->
 <div class="contents">
-<div class="textblock">Here is a list of all documented variables with links to the class documentation for each member:</div>
 
-<h3><a id="index_r" name="index_r"></a>- r -</h3><ul>
-<li>readCnt&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryAccessSet.html#a4ef94b5dd47a1809342daa6bb905a357">gaia::ecs::QueryAccessSet</a></li>
-<li>reads&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryAccessSet.html#a84127b9c8f64c9fc47f38ca46107c0f6">gaia::ecs::QueryAccessSet</a></li>
-<li>readWriteMask&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a07c516a894aeb993f403a90d15d044f4">gaia::ecs::QueryCtx::Data</a></li>
-<li>readyNext&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#a7267ef9836cbfb6569682d641d261d3c">gaia::ecs::detail::SystemScheduleScratch</a></li>
-<li>relation&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#abcd8e30131de740f8360baca84c35eb8">gaia::ecs::QueryInfo::QueryState::DynamicCacheState</a></li>
-<li>resize&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477">gaia::ecs::RuntimeSequenceAdapter</a></li>
-<li>revision&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc">gaia::ecs::QueryArchetypeCacheCursor</a></li>
-<li>row&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1EntityContainer.html#a76ddc06ce392dbee3d335895a6903170">gaia::ecs::EntityContainer</a></li>
-<li>rowFirstEnabledEntity&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1ChunkHeader.html#aeea18be0d95eb20cfc93e8751bc429fa">gaia::ecs::ChunkHeader</a></li>
-<li>rowFrom&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45">gaia::ecs::DirectChunkEntry</a></li>
-<li>rowTo&#160;:&#160;<a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b">gaia::ecs::DirectChunkEntry</a></li>
+<p>Direct typed chunk execution input. Carries the chunk range plus optional prepared term-to-column mapping for the matched archetype.  
+ <a href="structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html#details">More...</a></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
+Public Attributes</h2></td></tr>
+<tr class="memitem:aaa1174d6bdce65a68e3706ab30333420" id="r_aaa1174d6bdce65a68e3706ab30333420"><td class="memItemLeft" align="right" valign="top"><a id="aaa1174d6bdce65a68e3706ab30333420" name="aaa1174d6bdce65a68e3706ab30333420"></a>
+<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pChunk</b> = nullptr</td></tr>
+<tr class="memdesc:aaa1174d6bdce65a68e3706ab30333420"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> supplying entity and component rows. <br /></td></tr>
+<tr class="separator:aaa1174d6bdce65a68e3706ab30333420"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a84a1b31e718646e859ab9ffa8c66283b" id="r_a84a1b31e718646e859ab9ffa8c66283b"><td class="memItemLeft" align="right" valign="top"><a id="a84a1b31e718646e859ab9ffa8c66283b" name="a84a1b31e718646e859ab9ffa8c66283b"></a>
+const uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>pCompIndices</b> = nullptr</td></tr>
+<tr class="memdesc:a84a1b31e718646e859ab9ffa8c66283b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prepared query-field to chunk-column mapping for pChunk's archetype, or null for uncached direct scans. <br /></td></tr>
+<tr class="separator:a84a1b31e718646e859ab9ffa8c66283b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7e28845631a9ecfa0d9a3151f2b7740e" id="r_a7e28845631a9ecfa0d9a3151f2b7740e"><td class="memItemLeft" align="right" valign="top"><a id="a7e28845631a9ecfa0d9a3151f2b7740e" name="a7e28845631a9ecfa0d9a3151f2b7740e"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>from</b> = 0</td></tr>
+<tr class="memdesc:a7e28845631a9ecfa0d9a3151f2b7740e"><td class="mdescLeft">&#160;</td><td class="mdescRight">First absolute row to process. <br /></td></tr>
+<tr class="separator:a7e28845631a9ecfa0d9a3151f2b7740e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af557d4cb2174e322d20787440d244385" id="r_af557d4cb2174e322d20787440d244385"><td class="memItemLeft" align="right" valign="top"><a id="af557d4cb2174e322d20787440d244385" name="af557d4cb2174e322d20787440d244385"></a>
+uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>to</b> = 0</td></tr>
+<tr class="memdesc:af557d4cb2174e322d20787440d244385"><td class="mdescLeft">&#160;</td><td class="mdescRight">One-past-the-end absolute row to process. <br /></td></tr>
+<tr class="separator:af557d4cb2174e322d20787440d244385"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Direct typed chunk execution input. Carries the chunk range plus optional prepared term-to-column mapping for the matched archetype. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__typed_8inl_source.html">query_typed.inl</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
+    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html">TypedDirectChunkRun</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>
