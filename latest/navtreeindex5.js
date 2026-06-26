@@ -1,5 +1,11 @@
 var NAVTREEINDEX5 =
 {
+"index.html#query-cache-behavior":[2,2,9,0],
+"index.html#query-low-level-api":[2,2,6],
+"index.html#query-remarks":[2,2,9],
+"index.html#query-string":[2,2,7],
+"index.html#query-traversal":[2,2,2],
+"index.html#query-variables":[2,2,4],
 "index.html#querying-runtime-components":[2,9,7],
 "index.html#raw-access-and-cursors":[2,9,6],
 "index.html#registration":[2,9,0],
@@ -243,11 +249,5 @@ var NAVTREEINDEX5 =
 "structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html":[10,0,0,1,0,19],
 "structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#a841e10be3d5364725ec6ab373bb690a2":[10,0,0,1,0,19,0],
 "structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#ac10987d985d96ee5eb9d76008aea80aa":[10,0,0,1,0,19,1],
-"structgaia_1_1core_1_1detail_1_1member__func__none.html":[10,0,0,1,0,20],
-"structgaia_1_1core_1_1detail_1_1rem__rp.html":[10,0,0,1,0,21],
-"structgaia_1_1core_1_1detail_1_1rem__rp.html#a4a9ade06ccbbf1f22d8a82933c87c863":[10,0,0,1,0,21,0],
-"structgaia_1_1core_1_1detail_1_1span__storage.html":[10,0,0,1,0,22],
-"structgaia_1_1core_1_1detail_1_1span__storage_3_01T_00_01DynamicSpanExtent_01_4.html":[10,0,0,1,0,23],
-"structgaia_1_1core_1_1detail_1_1type__identity.html":[10,0,0,1,0,24],
-"structgaia_1_1core_1_1detail_1_1type__identity.html#aafd3d097cc8628dbd0bea902f8e7c18f":[10,0,0,1,0,24,0]
+"structgaia_1_1core_1_1detail_1_1member__func__none.html":[10,0,0,1,0,20]
 };

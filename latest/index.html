@@ -1920,6 +1920,16 @@ Grouping</h3>
 <div class="line">q.group_id(carrot).each([&amp;](ecs::Iter&amp; it) {</div>
 <div class="line">  ...</div>
 <div class="line">});</div>
+</div><!-- fragment --><p>When group ids are not known ahead of time, collect them with <code>groups(...)</code> and feed each id back into <code>group_id(...)</code>.</p>
+<p>Pass <code>true</code> to sort the collected ids by group id.</p>
+<div class="fragment"><div class="line">cnt::darr&lt;ecs::GroupId&gt; groups;</div>
+<div class="line">q.groups(groups, <span class="keyword">true</span>);</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordflow">for</span> (<span class="keyword">auto</span> groupId: groups) {</div>
+<div class="line">  q.group_id(groupId).each([&amp;](ecs::Iter&amp; it) {</div>
+<div class="line">    ...</div>
+<div class="line">  });</div>
+<div class="line">}</div>
 </div><!-- fragment --><p>Custom grouping function can be provided if needed. If a custom <code>group_by(...)</code> callback depends on hierarchy or relation topology, declare that explicitly with <code>group_dep(...)</code> so cached grouping is refreshed when that relation changes.</p>
 <div class="fragment"><div class="line">ecs::GroupId my_group_func([[maybe_unused]] <span class="keyword">const</span> ecs::World&amp; world, <span class="keyword">const</span> ecs::Archetype&amp; archetype, ecs::Entity groupBy) {</div>
 <div class="line">  <span class="keywordflow">if</span> (archetype.pairs() &gt; 0) {</div>

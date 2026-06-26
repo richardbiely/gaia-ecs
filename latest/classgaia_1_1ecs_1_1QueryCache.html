@@ -173,6 +173,9 @@ auto&#160;</td><td class="memItemRight" valign="bottom"><b>begin</b> ()</td></tr
 <tr class="memitem:af5f4cec8345a89cd4ea713c4932795f1" id="r_af5f4cec8345a89cd4ea713c4932795f1"><td class="memItemLeft" align="right" valign="top"><a id="af5f4cec8345a89cd4ea713c4932795f1" name="af5f4cec8345a89cd4ea713c4932795f1"></a>
 auto&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> ()</td></tr>
 <tr class="separator:af5f4cec8345a89cd4ea713c4932795f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa8b572139d7f43439ca87417a09a7df3" id="r_aa8b572139d7f43439ca87417a09a7df3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryCache.html#aa8b572139d7f43439ca87417a09a7df3">has_relation_query_dependencies</a> () const</td></tr>
+<tr class="memdesc:aa8b572139d7f43439ca87417a09a7df3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether any cached query depends on relation-version invalidation.  <br /></td></tr>
+<tr class="separator:aa8b572139d7f43439ca87417a09a7df3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adb568add95db5c5f9dc6db66edbb80db" id="r_adb568add95db5c5f9dc6db66edbb80db"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryCache.html#adb568add95db5c5f9dc6db66edbb80db">invalidate_queries_for_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> entityKey, ChangeKind changeKind)</td></tr>
 <tr class="memdesc:adb568add95db5c5f9dc6db66edbb80db"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invalidates all cached queries that work with the given entity This covers the following kinds of query terms: 1) X 2) (*, X) 3) (X, *)  <br /></td></tr>
 <tr class="separator:adb568add95db5c5f9dc6db66edbb80db"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -317,6 +320,34 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>register_archetype_wi
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Query info </dd></dl>
+
+</div>
+</div>
+<a id="aa8b572139d7f43439ca87417a09a7df3" name="aa8b572139d7f43439ca87417a09a7df3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa8b572139d7f43439ca87417a09a7df3">&#9670;&#160;</a></span>has_relation_query_dependencies()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCache::has_relation_query_dependencies </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether any cached query depends on relation-version invalidation. </p>
+<dl class="section return"><dt>Returns</dt><dd>True if relation changes may need to invalidate query results. </dd></dl>
 
 </div>
 </div>

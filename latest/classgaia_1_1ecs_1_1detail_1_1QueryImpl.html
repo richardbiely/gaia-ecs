@@ -579,6 +579,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> ()</td></
 <tr class="memitem:abcb913ddc3c4dfb96e66567ab326c492"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abcb913ddc3c4dfb96e66567ab326c492">group_id</a> ()</td></tr>
 <tr class="memdesc:abcb913ddc3c4dfb96e66567ab326c492"><td class="mdescLeft">&#160;</td><td class="mdescRight">Selects the group to iterate over.  <br /></td></tr>
 <tr class="separator:abcb913ddc3c4dfb96e66567ab326c492"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a487cefb5bcd7c566a21134ae00523a1b" id="r_a487cefb5bcd7c566a21134ae00523a1b"><td class="memTemplParams" colspan="2">template&lt;typename Container &gt; </td></tr>
+<tr class="memitem:a487cefb5bcd7c566a21134ae00523a1b"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a487cefb5bcd7c566a21134ae00523a1b">groups</a> (Container &amp;out, bool sortGroups)</td></tr>
+<tr class="memdesc:a487cefb5bcd7c566a21134ae00523a1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collects active non-zero group ids for a grouped query. The ids can be fed back to group_id(...) to process each group without knowing group ids ahead of time.  <br /></td></tr>
+<tr class="separator:a487cefb5bcd7c566a21134ae00523a1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2d88fc8023ce3388ede3788316d33306" id="r_a2d88fc8023ce3388ede3788316d33306"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:a2d88fc8023ce3388ede3788316d33306"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1SchedJob.html">SchedJob</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2d88fc8023ce3388ede3788316d33306">job</a> (Func func, QueryExecType execType)</td></tr>
 <tr class="memdesc:a2d88fc8023ce3388ede3788316d33306"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a query execution job without submitting it.  <br /></td></tr>
@@ -3403,6 +3407,59 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a487cefb5bcd7c566a21134ae00523a1b" name="a487cefb5bcd7c566a21134ae00523a1b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a487cefb5bcd7c566a21134ae00523a1b">&#9670;&#160;</a></span>groups()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Container &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::QueryImpl::groups </td>
+          <td>(</td>
+          <td class="paramtype">Container &amp;&#160;</td>
+          <td class="paramname"><em>out</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>sortGroups</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Collects active non-zero group ids for a grouped query. The ids can be fed back to group_id(...) to process each group without knowing group ids ahead of time. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Container</td><td>Container with GroupId elements. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">out</td><td>Output array overwritten with unique group ids. </td></tr>
+    <tr><td class="paramname">sortGroups</td><td>True to sort grouped cache ranges by group id before collecting ids. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a985c51d2fb9ae3ab648e913ddc14c676" name="a985c51d2fb9ae3ab648e913ddc14c676"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a985c51d2fb9ae3ab648e913ddc14c676">&#9670;&#160;</a></span>has_depth_order_hierarchy_enabled_barrier()</h2>
 
@@ -5254,6 +5311,7 @@ template&lt;bool HasFilters, bool HasGroups, typename Func &gt; </div>
   </table>
   </dd>
 </dl>
+<p>Direct dense plans already encode expensive process gates. When no cached archetype can require prefab filtering and no depth-order barrier cache can prune, only deletion state remains dynamic.</p>
 
 </div>
 </div>

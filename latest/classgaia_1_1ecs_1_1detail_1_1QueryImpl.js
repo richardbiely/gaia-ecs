@@ -109,6 +109,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "group_id", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#abcb913ddc3c4dfb96e66567ab326c492", null ],
     [ "group_id", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9d7aba8d70f6432a102e1d0c2e80982a", null ],
     [ "group_id", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af79dfd39b5f4a2e4cb8c82419e0293c2", null ],
+    [ "groups", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a487cefb5bcd7c566a21134ae00523a1b", null ],
     [ "has_depth_order_hierarchy_enabled_barrier", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a985c51d2fb9ae3ab648e913ddc14c676", null ],
     [ "has_direct_not_terms", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a7c795b6088305836f7db7f0c734150a0", null ],
     [ "has_only_direct_or_terms", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a31bcfd8217a1ee468b67ed52b9533678", null ],

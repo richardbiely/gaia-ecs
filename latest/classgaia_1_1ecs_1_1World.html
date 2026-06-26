@@ -249,12 +249,9 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse
 <tr class="memitem:a59674526993f0a4b4050971d396ea39a" id="r_a59674526993f0a4b4050971d396ea39a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ExclusiveAdjunctStore &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a59674526993f0a4b4050971d396ea39a">exclusive_adjunct_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
 <tr class="memdesc:a59674526993f0a4b4050971d396ea39a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the exclusive adjunct store for <em>relation</em>, creating it if needed.  <br /></td></tr>
 <tr class="separator:a59674526993f0a4b4050971d396ea39a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a19f521cc961083acd2366aeed054f45c" id="r_a19f521cc961083acd2366aeed054f45c"><td class="memItemLeft" align="right" valign="top"><a id="a19f521cc961083acd2366aeed054f45c" name="a19f521cc961083acd2366aeed054f45c"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_track_src_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
-<tr class="separator:a19f521cc961083acd2366aeed054f45c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7503482ee2f67c2cc2b71c0d1df2baf5" id="r_a7503482ee2f67c2cc2b71c0d1df2baf5"><td class="memItemLeft" align="right" valign="top"><a id="a7503482ee2f67c2cc2b71c0d1df2baf5" name="a7503482ee2f67c2cc2b71c0d1df2baf5"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_untrack_src_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
-<tr class="separator:a7503482ee2f67c2cc2b71c0d1df2baf5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae30596dd097cefbe59670e82a3df93a3" id="r_ae30596dd097cefbe59670e82a3df93a3"><td class="memItemLeft" align="right" valign="top"><a id="ae30596dd097cefbe59670e82a3df93a3" name="ae30596dd097cefbe59670e82a3df93a3"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_set</b> (ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
+<tr class="separator:ae30596dd097cefbe59670e82a3df93a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aed027823894e98f214c4fe21e935468e" id="r_aed027823894e98f214c4fe21e935468e"><td class="memItemLeft" align="right" valign="top"><a id="aed027823894e98f214c4fe21e935468e" name="aed027823894e98f214c4fe21e935468e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_set</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
 <tr class="separator:aed027823894e98f214c4fe21e935468e"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -466,12 +463,11 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>child</b> (<a class="
 <tr class="memitem:aaeaa6200867d1e1f57b185df94ce5ed6" id="r_aaeaa6200867d1e1f57b185df94ce5ed6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaeaa6200867d1e1f57b185df94ce5ed6">child</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>) const</td></tr>
 <tr class="memdesc:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>.  <br /></td></tr>
 <tr class="separator:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a79f6448dfaa8a80a0f7370c12cd55b3d" id="r_a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memItemLeft" align="right" valign="top"><a id="a79f6448dfaa8a80a0f7370c12cd55b3d" name="a79f6448dfaa8a80a0f7370c12cd55b3d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>parent</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity)</td></tr>
-<tr class="memdesc:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Shortcut for add(entity, Pair(Parent, parent)) <br /></td></tr>
+<tr class="memitem:a79f6448dfaa8a80a0f7370c12cd55b3d" id="r_a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity)</td></tr>
+<tr class="memdesc:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is stored out of archetype identity.  <br /></td></tr>
 <tr class="separator:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad3ed785c3d3ef27fb18d706a6a98a42e" id="r_ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad3ed785c3d3ef27fb18d706a6a98a42e">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity) const</td></tr>
-<tr class="memdesc:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
+<tr class="memdesc:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
 <tr class="separator:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e" id="r_a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a52c22a2481cc0139287fadd2b9baa57e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a52c22a2481cc0139287fadd2b9baa57e">modify</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
@@ -5743,8 +5739,53 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a79f6448dfaa8a80a0f7370c12cd55b3d" name="a79f6448dfaa8a80a0f7370c12cd55b3d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a79f6448dfaa8a80a0f7370c12cd55b3d">&#9670;&#160;</a></span>parent() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::parent </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parentEntity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is stored out of archetype identity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
+    <tr><td class="paramname">parentEntity</td><td>Candidate parent entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="ad3ed785c3d3ef27fb18d706a6a98a42e" name="ad3ed785c3d3ef27fb18d706a6a98a42e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad3ed785c3d3ef27fb18d706a6a98a42e">&#9670;&#160;</a></span>parent()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ad3ed785c3d3ef27fb18d706a6a98a42e">&#9670;&#160;</a></span>parent() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -5777,7 +5818,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Checks whether <em>entity</em> has a non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. </p>
+<p>Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>

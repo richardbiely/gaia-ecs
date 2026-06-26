@@ -189,6 +189,10 @@ GAIA_NODISCARD QueryCtx::CachePolicy&#160;</td><td class="memItemRight" valign="
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_grouped_payload</b> () const</td></tr>
 <tr class="memdesc:a849d9fb8cb85051002c90e2b68beeeed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when grouped-query payloads are active for this query. <br /></td></tr>
 <tr class="separator:a849d9fb8cb85051002c90e2b68beeeed"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3e0b1212010c0469ede62eedfcf5c8cd" id="r_a3e0b1212010c0469ede62eedfcf5c8cd"><td class="memTemplParams" colspan="2">template&lt;typename Container &gt; </td></tr>
+<tr class="memitem:a3e0b1212010c0469ede62eedfcf5c8cd"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a3e0b1212010c0469ede62eedfcf5c8cd">group_ids</a> (Container &amp;out, bool sortGroups)</td></tr>
+<tr class="memdesc:a3e0b1212010c0469ede62eedfcf5c8cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collects the query's active non-zero group ids.  <br /></td></tr>
+<tr class="separator:a3e0b1212010c0469ede62eedfcf5c8cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa0870ce4085c74c7fdba5bd2d28b601e" id="r_aa0870ce4085c74c7fdba5bd2d28b601e"><td class="memItemLeft" align="right" valign="top"><a id="aa0870ce4085c74c7fdba5bd2d28b601e" name="aa0870ce4085c74c7fdba5bd2d28b601e"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_sorted_payload</b> () const</td></tr>
 <tr class="memdesc:aa0870ce4085c74c7fdba5bd2d28b601e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when sorted-query payloads are active for this query. <br /></td></tr>
@@ -197,6 +201,10 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_so
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>result_cache_rev</b> () const</td></tr>
 <tr class="memdesc:a3d3ca3af841e4aa8aca5434e8994249f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the result membership revision used by reverse-index cache users. <br /></td></tr>
 <tr class="separator:a3d3ca3af841e4aa8aca5434e8994249f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a45fbba3bfaff5dbfcbe32a6fe823357b" id="r_a45fbba3bfaff5dbfcbe32a6fe823357b"><td class="memItemLeft" align="right" valign="top"><a id="a45fbba3bfaff5dbfcbe32a6fe823357b" name="a45fbba3bfaff5dbfcbe32a6fe823357b"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>result_cache_may_need_prefab_filter</b> () const</td></tr>
+<tr class="memdesc:a45fbba3bfaff5dbfcbe32a6fe823357b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the result cache contains archetypes that need default prefab filtering. <br /></td></tr>
+<tr class="separator:a45fbba3bfaff5dbfcbe32a6fe823357b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a352c7aaf5d3db5b74ac1133a641369ee" id="r_a352c7aaf5d3db5b74ac1133a641369ee"><td class="memItemLeft" align="right" valign="top"><a id="a352c7aaf5d3db5b74ac1133a641369ee" name="a352c7aaf5d3db5b74ac1133a641369ee"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>can_update_with_new_archetype</b> () const</td></tr>
 <tr class="memdesc:a352c7aaf5d3db5b74ac1133a641369ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when a new archetype can be propagated into the current cache incrementally. <br /></td></tr>
@@ -277,6 +285,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_depth_order_hi
 <tr class="memitem:a571482fa27f9670fa4b41d6e9cdc857c" id="r_a571482fa27f9670fa4b41d6e9cdc857c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a571482fa27f9670fa4b41d6e9cdc857c">create_inherited_data</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype)</td></tr>
 <tr class="memdesc:a571482fa27f9670fa4b41d6e9cdc857c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds inherited component data pointers for semantic self-source terms on one archetype.  <br /></td></tr>
 <tr class="separator:a571482fa27f9670fa4b41d6e9cdc857c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aed7a5b3b6c4b079f72363513c8682639" id="r_aed7a5b3b6c4b079f72363513c8682639"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#aed7a5b3b6c4b079f72363513c8682639">update_result_cache_prefab_filter_state</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype)</td></tr>
+<tr class="memdesc:aed7a5b3b6c4b079f72363513c8682639"><td class="mdescLeft">&#160;</td><td class="mdescRight">Records whether <em>pArchetype</em> requires the default prefab filter during result-cache iteration.  <br /></td></tr>
+<tr class="separator:aed7a5b3b6c4b079f72363513c8682639"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc3796f79ff1f2020d935e99972768a6" id="r_afc3796f79ff1f2020d935e99972768a6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#afc3796f79ff1f2020d935e99972768a6">add_archetype_to_cache_no_grouping</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype, bool trackMembershipChange, bool assumeAbsent=false)</td></tr>
 <tr class="memdesc:afc3796f79ff1f2020d935e99972768a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds an archetype to the final result cache for ungrouped queries.  <br /></td></tr>
 <tr class="separator:afc3796f79ff1f2020d935e99972768a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1166,6 +1177,59 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
 
 </div>
 </div>
+<a id="a3e0b1212010c0469ede62eedfcf5c8cd" name="a3e0b1212010c0469ede62eedfcf5c8cd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3e0b1212010c0469ede62eedfcf5c8cd">&#9670;&#160;</a></span>group_ids()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Container &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::group_ids </td>
+          <td>(</td>
+          <td class="paramtype">Container &amp;&#160;</td>
+          <td class="paramname"><em>out</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>sortGroups</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Collects the query's active non-zero group ids. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Container</td><td>Container with GroupId elements. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">out</td><td>Output array overwritten with unique group ids. </td></tr>
+    <tr><td class="paramname">sortGroups</td><td>True to sort grouped cache ranges by group id before collecting ids. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="ab5dca686297406a5d1a47e52bedb1e00" name="ab5dca686297406a5d1a47e52bedb1e00"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ab5dca686297406a5d1a47e52bedb1e00">&#9670;&#160;</a></span>has_same_result_membership_as()</h2>
 
@@ -1702,6 +1766,40 @@ template&lt;typename ArchetypeLookup &gt; </div>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">pArchetype</td><td>Matched archetype to look up. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aed7a5b3b6c4b079f72363513c8682639" name="aed7a5b3b6c4b079f72363513c8682639"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aed7a5b3b6c4b079f72363513c8682639">&#9670;&#160;</a></span>update_result_cache_prefab_filter_state()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::update_result_cache_prefab_filter_state </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td>
+          <td class="paramname"><em>pArchetype</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Records whether <em>pArchetype</em> requires the default prefab filter during result-cache iteration. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pArchetype</td><td>Matched archetype added to the result cache. </td></tr>
   </table>
   </dd>
 </dl>

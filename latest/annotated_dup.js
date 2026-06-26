@@ -265,6 +265,7 @@ var annotated_dup =
         [ "ComponentDesc", "structgaia_1_1ecs_1_1ComponentDesc.html", "structgaia_1_1ecs_1_1ComponentDesc" ],
         [ "ComponentGetter", "structgaia_1_1ecs_1_1ComponentGetter.html", "structgaia_1_1ecs_1_1ComponentGetter" ],
         [ "ComponentIndexEntry", "structgaia_1_1ecs_1_1ComponentIndexEntry.html", null ],
+        [ "ComponentIndexEntryArray", "classgaia_1_1ecs_1_1ComponentIndexEntryArray.html", null ],
         [ "ComponentRawMutView", "structgaia_1_1ecs_1_1ComponentRawMutView.html", "structgaia_1_1ecs_1_1ComponentRawMutView" ],
         [ "ComponentRawView", "structgaia_1_1ecs_1_1ComponentRawView.html", "structgaia_1_1ecs_1_1ComponentRawView" ],
         [ "ComponentRecord", "structgaia_1_1ecs_1_1ComponentRecord.html", "structgaia_1_1ecs_1_1ComponentRecord" ],
