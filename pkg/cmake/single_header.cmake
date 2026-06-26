@@ -17,6 +17,11 @@ if(GAIA_GENERATE_SINGLE_HEADER)
     # Discover clang-format if it is available and formatting is enabled
     # -----------------------------------------------------------------------
     if(GAIA_FORMAT_SINGLE_HEADER)
+        if(CLANG_FORMAT_EXE AND NOT EXISTS "${CLANG_FORMAT_EXE}")
+            message(WARNING "Cached clang-format was not found: ${CLANG_FORMAT_EXE}. Searching again.")
+            unset(CLANG_FORMAT_EXE CACHE)
+        endif()
+
         find_program(CLANG_FORMAT_EXE
             NAMES clang-format
             clang-format-19 clang-format-18 clang-format-17
