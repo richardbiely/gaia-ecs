@@ -1780,7 +1780,7 @@ TEST_CASE("CommandBuffer") {
 		wld.add<Position>(e1, {1, 2, 3});
 		auto e2 = wld.add();
 		wld.add<Position>(e2, {4, 5, 6});
-		wld.add<Rotation>();
+		(void)wld.add<Rotation>();
 
 		auto q = wld.query().all<Position>();
 		uint32_t queued = 0;

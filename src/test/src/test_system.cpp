@@ -96,8 +96,8 @@ TEST_CASE("System - iterator command buffer is visible to later system") {
 	struct SystemDeferredResult {};
 
 	TestWorld twld;
-	wld.add<SystemDeferredSource>();
-	wld.add<SystemDeferredResult>();
+	(void)wld.add<SystemDeferredSource>();
+	(void)wld.add<SystemDeferredResult>();
 
 	const auto e = wld.add();
 	wld.add<SystemDeferredSource>(e);
@@ -131,8 +131,8 @@ TEST_CASE("System - iterator command buffer crosses phase boundary") {
 	struct PhaseDeferredResult {};
 
 	TestWorld twld;
-	wld.add<PhaseDeferredSource>();
-	wld.add<PhaseDeferredResult>();
+	(void)wld.add<PhaseDeferredSource>();
+	(void)wld.add<PhaseDeferredResult>();
 
 	const auto producerPhase = wld.add();
 	const auto consumerPhase = wld.add();
@@ -171,8 +171,8 @@ TEST_CASE("System - nested retained query writes are visible to later system") {
 	};
 
 	TestWorld twld;
-	wld.add<NestedTick>();
-	wld.add<NestedWork>();
+	(void)wld.add<NestedTick>();
+	(void)wld.add<NestedWork>();
 
 	const auto tick = wld.add();
 	wld.add<NestedTick>(tick);
@@ -263,7 +263,7 @@ TEST_CASE("System - builder context is visible from iterator callbacks") {
 
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
-	wld.copy(e);
+	(void)wld.copy(e);
 
 	auto sys = wld.system().ctx(&ctx).all<Position>().on_each([](ecs::Iter& it) {
 		auto& data = *static_cast<SystemCtx*>(it.ctx());
@@ -296,7 +296,7 @@ TEST_CASE("Query - context is visible from iterator callbacks") {
 
 	auto e = wld.add();
 	wld.add<Position>(e, {1, 2, 3});
-	wld.copy(e);
+	(void)wld.copy(e);
 
 	auto q = wld.query().ctx(&ctx).all<Position>();
 
