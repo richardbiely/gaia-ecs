@@ -6330,6 +6330,7 @@ namespace gaia {
 				if (!valid(relation) || !valid(rootTarget))
 					return cache;
 
+				cnt::darray_ext<Entity, 64> children;
 				cnt::darray_ext<Entity, 32> queue;
 				queue.push_back(rootTarget);
 
@@ -6339,10 +6340,10 @@ namespace gaia {
 				for (uint32_t i = 0; i < queue.size(); ++i) {
 					const auto currTarget = queue[i];
 
-					cnt::darray<Entity> children;
+					children.clear();
 					sources(relation, currTarget, [&](Entity source) {
 						const auto keySource = EntityLookupKey(source);
-						const auto ins = visited.insert(keySource);
+						const auto& ins = visited.insert(keySource);
 						if (!ins.second)
 							return;
 
@@ -7055,7 +7056,15 @@ namespace gaia {
 				if (!valid(relation) || !valid(rootTarget))
 					return;
 
-				cnt::darray<Entity> queue;
+				if (m_enabledHierarchyVersion == 0) {
+					const auto& cachedSources = sources_bfs_trav_cache(relation, rootTarget);
+					for (auto source: cachedSources)
+						func(source);
+					return;
+				}
+
+				cnt::darray_ext<Entity, 64> children;
+				cnt::darray_ext<Entity, 32> queue;
 				queue.push_back(rootTarget);
 
 				cnt::set<EntityLookupKey> visited;
@@ -7064,7 +7073,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < queue.size(); ++i) {
 					const auto currTarget = queue[i];
 
-					cnt::darray<Entity> children;
+					children.clear();
 					sources(relation, currTarget, [&](Entity source) {
 						const auto key = EntityLookupKey(source);
 						const auto ins = visited.insert(key);
@@ -7099,7 +7108,18 @@ namespace gaia {
 				if (!valid(relation) || !valid(rootTarget))
 					return false;
 
-				cnt::darray<Entity> queue;
+				if (m_enabledHierarchyVersion == 0) {
+					const auto& cachedSources = sources_bfs_trav_cache(relation, rootTarget);
+					for (auto source: cachedSources) {
+						if (func(source))
+							return true;
+					}
+
+					return false;
+				}
+
+				cnt::darray_ext<Entity, 64> children;
+				cnt::darray_ext<Entity, 32> queue;
 				queue.push_back(rootTarget);
 
 				cnt::set<EntityLookupKey> visited;
@@ -7108,7 +7128,7 @@ namespace gaia {
 				for (uint32_t i = 0; i < queue.size(); ++i) {
 					const auto currTarget = queue[i];
 
-					cnt::darray<Entity> children;
+					children.clear();
 					sources(relation, currTarget, [&](Entity source) {
 						const auto key = EntityLookupKey(source);
 						const auto ins = visited.insert(key);
