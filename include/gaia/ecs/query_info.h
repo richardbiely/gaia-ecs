@@ -40,10 +40,15 @@ namespace gaia {
 
 		//! Cached archetype/chunk pair used by repeated direct-dense scans over highly fragmented result caches.
 		struct DirectChunkEntry {
+			//! Archetype owning the chunk.
 			const Archetype* pArchetype = nullptr;
+			//! Chunk supplying entity and component rows.
 			Chunk* pChunk = nullptr;
+			//! Prepared query-field to chunk-column mapping for pArchetype, or null when not available.
 			const uint8_t* pCompIndices = nullptr;
+			//! First enabled row in pChunk processed by direct-dense iteration.
 			uint16_t rowFrom = 0;
+			//! One-past-the-end enabled row in pChunk processed by direct-dense iteration.
 			uint16_t rowTo = 0;
 		};
 
