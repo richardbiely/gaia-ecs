@@ -2743,6 +2743,8 @@ void Test_Query_Filter_Changed_Or_Missing_Component() {
 	struct B {
 		int value;
 	};
+	const auto compA = wld.add<A>().entity;
+	const auto compB = wld.add<B>().entity;
 
 	const auto eA = wld.add();
 	wld.add<Marker>(eA);
@@ -2760,6 +2762,46 @@ void Test_Query_Filter_Changed_Or_Missing_Component() {
 							 .template or_<B>()
 							 .template changed<B>()
 							 .template changed<A>();
+	{
+		auto& info = q.fetch();
+		q.match_all(info);
+
+		uint8_t fieldA = 0xFF;
+		uint8_t fieldB = 0xFF;
+		for (const auto& term: info.ctx().data.terms_view()) {
+			if (term.id == compA)
+				fieldA = term.fieldIndex;
+			else if (term.id == compB)
+				fieldB = term.fieldIndex;
+		}
+		CHECK(fieldA != 0xFF);
+		CHECK(fieldB != 0xFF);
+
+		bool sawAOnly = false;
+		bool sawBOnly = false;
+		const auto archetypes = info.cache_archetype_view();
+		const auto cnt = (uint32_t)archetypes.size();
+		GAIA_FOR(cnt) {
+			const auto* pArchetype = archetypes[i];
+			const bool hasA = pArchetype->has(compA);
+			const bool hasB = pArchetype->has(compB);
+			if (hasA == hasB)
+				continue;
+
+			const auto indices = info.indices_mapping_view(i);
+			if (hasA) {
+				sawAOnly = true;
+				CHECK(indices[fieldA] != 0xFF);
+				CHECK(indices[fieldB] == 0xFF);
+			} else {
+				sawBOnly = true;
+				CHECK(indices[fieldA] == 0xFF);
+				CHECK(indices[fieldB] != 0xFF);
+			}
+		}
+		CHECK(sawAOnly);
+		CHECK(sawBOnly);
+	}
 
 	CHECK(q.count() == 2);
 	expect_exact_entities(q, {eA, eB});

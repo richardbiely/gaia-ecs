@@ -1805,12 +1805,12 @@ namespace gaia {
 					auto compIdx = world_component_index_comp_idx(*world(), *pArchetype, queryId);
 					if (compIdx == BadIndex) {
 						// Wildcard/semantic terms are not represented by an exact component index entry.
-						// Fall back to the archetype-local scan in those cases.
-						compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
+						// OR terms may also be absent from this matching archetype. Use a safe lookup so
+						// absent terms stay unmapped instead of becoming a past-the-end chunk column.
+						compIdx = core::get_index(pArchetype->ids_view(), queryId);
 					}
-					GAIA_ASSERT(compIdx != BadIndex);
 
-					cacheData.indices[fieldIdx] = (uint8_t)compIdx;
+					cacheData.indices[fieldIdx] = compIdx != BadIndex ? (uint8_t)compIdx : (uint8_t)0xFF;
 				}
 				return cacheData;
 			}
