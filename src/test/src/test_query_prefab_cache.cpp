@@ -189,6 +189,31 @@ TEST_CASE("Query - cached flattened direct typed query maps single callback arg"
 	CHECK(sum == doctest::Approx((float)EntityCount * 7.0f));
 }
 
+TEST_CASE("Query - cached flattened direct typed query maps multiple callback args") {
+	TestWorld twld;
+
+	constexpr uint32_t EntityCount = 1100;
+	GAIA_FOR(EntityCount) {
+		const auto parent = wld.add();
+		const auto entity = wld.add();
+		wld.add<Position>(entity, {1.0f, 0.0f, 0.0f});
+		wld.add<Acceleration>(entity, {3.0f, 0.0f, 0.0f});
+		wld.add<Rotation>(entity, {5.0f, 0.0f, 0.0f, 1.0f});
+		wld.add(entity, ecs::Pair(ecs::ChildOf, parent));
+	}
+
+	auto q = wld.query().all<Position>().all<Acceleration>().all<Rotation>();
+	uint32_t count = 0;
+	float sum = 0.0f;
+	q.each([&](const Rotation& rot, const Acceleration& accel) {
+		++count;
+		sum += rot.x + accel.x;
+	});
+
+	CHECK(count == EntityCount);
+	CHECK(sum == doctest::Approx((float)EntityCount * 8.0f));
+}
+
 TEST_CASE("Query - cached dynamic query after input changes") {
 	TestWorld twld;
 

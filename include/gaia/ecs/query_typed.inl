@@ -634,8 +634,8 @@ namespace gaia {
 				Chunk* pChunk = nullptr;
 				//! Prepared query-field to chunk-column mapping for pChunk's archetype, or null for uncached direct scans.
 				const uint8_t* pCompIndices = nullptr;
-				//! Base data pointer for the selected query field, or null when unavailable.
-				const void* pData = nullptr;
+				//! Cached base data pointers for selected callback fields, or null when unavailable.
+				const void* const* pData = nullptr;
 				//! First absolute row to process.
 				uint16_t from = 0;
 				//! One-past-the-end absolute row to process.
@@ -648,7 +648,7 @@ namespace gaia {
 			//! \param chunkRun Chunk, row range, and optional prepared term mapping.
 			//! \param func Callback invoked for each matching row.
 			//! \param state Typed callback metadata, including fallback component ids for uncached direct scans.
-			//! \note pData is selected for the sole callback argument when available. Otherwise the chunk-local
+			//! \note pData[0] is selected for the sole callback argument when available. Otherwise the chunk-local
 			//! component lookup preserves correctness for ordinary direct scans.
 			template <typename Func, typename T>
 			inline void run_typed_direct_chunk_row_arg(
@@ -663,7 +663,7 @@ namespace gaia {
 					GAIA_FOR(cnt)
 					func(data[from + i]);
 				} else if constexpr (!mem::is_soa_layout_v<U>) {
-					const auto* pData = chunkRun.pData;
+					const auto* pData = chunkRun.pData != nullptr ? chunkRun.pData[0] : nullptr;
 					if (pData == nullptr)
 						pData = pChunk->comp_rec_view()[pChunk->comp_idx(state.argIds[0])].pData;
 					auto* data = (U*)pData + from;
@@ -674,6 +674,46 @@ namespace gaia {
 					GAIA_FOR(cnt)
 					func(view[from + i]);
 				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr bool typed_direct_chunk_data_cacheable_arg() {
+				using U = typename actual_type_t<T>::Type;
+				return !std::is_same_v<U, Entity> && !mem::is_soa_layout_v<U>;
+			}
+
+			template <typename... T>
+			GAIA_NODISCARD constexpr bool typed_direct_chunk_data_cacheable(core::func_type_list<T...>) {
+				if constexpr (sizeof...(T) == 0)
+					return false;
+				else
+					return (typed_direct_chunk_data_cacheable_arg<T>() && ...);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD inline decltype(auto)
+			typed_direct_chunk_cached_arg(const void* const* pData, uint32_t argIdx, uint32_t row) {
+				using U = typename actual_type_t<T>::Type;
+				auto* data = (U*)pData[argIdx];
+				return data[row];
+			}
+
+			template <typename Func, typename... T, size_t... I>
+			inline void invoke_typed_direct_chunk_cached_row(
+					Func& func, const void* const* pData, uint32_t row, core::func_type_list<T...>,
+					std::index_sequence<I...>) {
+				func(typed_direct_chunk_cached_arg<T>(pData, (uint32_t)I, row)...);
+			}
+
+			template <uint32_t ArgCount>
+			GAIA_NODISCARD inline bool typed_direct_chunk_cached_data_valid(const void* const* pData) {
+				if (pData == nullptr)
+					return false;
+				GAIA_FOR(ArgCount) {
+					if (pData[i] == nullptr)
+						return false;
+				}
+				return true;
 			}
 
 			//! Runs a typed row callback directly on a chunk without constructing Iter.
@@ -696,8 +736,18 @@ namespace gaia {
 				if constexpr (sizeof...(T) == 1) {
 					run_typed_direct_chunk_row_arg(chunkRun, func, state, core::func_type_list<T...>{});
 				} else if constexpr (sizeof...(T) > 0) {
-					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					const auto cnt = (uint32_t)(to - from);
+					if constexpr (typed_direct_chunk_data_cacheable(core::func_type_list<T...>{})) {
+						if (typed_direct_chunk_cached_data_valid<(uint32_t)sizeof...(T)>(chunkRun.pData)) {
+							GAIA_FOR(cnt)
+							invoke_typed_direct_chunk_cached_row(
+									func, chunkRun.pData, (uint32_t)i, core::func_type_list<T...>{},
+									std::index_sequence_for<T...>{});
+							return;
+						}
+					}
+
+					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					GAIA_FOR(cnt)
 					invoke_typed_direct_chunk_row(
 							func, views, (uint32_t)i, from, core::func_type_list<T...>{}, std::index_sequence_for<T...>{});
@@ -847,19 +897,41 @@ namespace gaia {
 				if constexpr (!HasFilters) {
 					if (!state.hasWriteArgs && canSkipProcessCheck && plan.idxTo - plan.idxFrom >= 1024) {
 						const auto terms = queryInfo.ctx().data.terms_view();
-						uint32_t dataFieldIdx = UINT32_MAX;
-						if (state.argCount == 1) {
-							const auto argId = state.argIds[0];
-							GAIA_EACH(terms) {
-								if (terms[i].id == argId) {
-									dataFieldIdx = (uint32_t)i;
+						uint32_t dataFields[MAX_ITEMS_IN_QUERY]{};
+						uint32_t dataFieldCount = 0;
+						if constexpr (typed_direct_chunk_data_cacheable(types)) {
+							dataFieldCount = state.argCount;
+							GAIA_FOR(state.argCount) {
+								const auto argId = state.argIds[i];
+								uint32_t termIdx = UINT32_MAX;
+								for (uint32_t j = 0; j < terms.size(); ++j) {
+									if (terms[j].id == argId) {
+										termIdx = (uint32_t)j;
+										break;
+									}
+								}
+								if (termIdx == UINT32_MAX) {
+									dataFieldCount = 0;
 									break;
 								}
+								dataFields[i] = termIdx;
 							}
 						}
-						for (const auto& entry: queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFieldIdx)) {
+						const auto chunkView = queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFields, dataFieldCount);
+						const auto dataView = queryInfo.direct_chunk_data_view();
+						for (const auto& entry: chunkView) {
+							const void* pSingleData[1]{};
+							const void* const* pData = nullptr;
+							if (entry.pData != nullptr) {
+								//! Single-arg flattened chunks store the selected field directly on the entry.
+								//! Adapt it to the pointer-block shape consumed by TypedDirectChunkRun without
+								//! allocating or touching the sidecar directChunkData array.
+								pSingleData[0] = entry.pData;
+								pData = pSingleData;
+							} else if (entry.dataOffset != UINT32_MAX)
+								pData = &dataView[entry.dataOffset];
 							const TypedDirectChunkRun chunkRun{
-									entry.pChunk, entry.pCompIndices, entry.pData, entry.rowFrom, entry.rowTo};
+									entry.pChunk, entry.pCompIndices, pData, entry.rowFrom, entry.rowTo};
 
 							GAIA_PROF_SCOPE(query_func);
 							run_typed_direct_chunk_rows(chunkRun, func, state, types);

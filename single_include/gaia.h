@@ -44579,8 +44579,10 @@ namespace gaia {
 			Chunk* pChunk = nullptr;
 			//! Prepared query-field to chunk-column mapping for pArchetype, or null when not available.
 			const uint8_t* pCompIndices = nullptr;
-			//! Base data pointer for the selected query field in pChunk, or null when unavailable.
+			//! Cached base data pointer for the common single selected field, or null when unavailable/not single-field.
 			const void* pData = nullptr;
+			//! Offset into ExecPayload::directChunkData for this entry, or UINT32_MAX when no pointers are cached.
+			uint32_t dataOffset = UINT32_MAX;
 			//! First enabled row in pChunk processed by direct-dense iteration.
 			uint16_t rowFrom = 0;
 			//! One-past-the-end enabled row in pChunk processed by direct-dense iteration.
@@ -44760,6 +44762,8 @@ namespace gaia {
 					cnt::darray<ArchetypeInheritedData> archetypeInheritedData;
 					//! Flattened chunk cache for read-only direct dense iteration over highly fragmented result caches.
 					cnt::darray<DirectChunkEntry> directChunks;
+					//! Contiguous cached component data pointers for DirectChunkEntry pointer blocks.
+					cnt::darray<const void*> directChunkData;
 					//! World version captured when directChunks was built.
 					uint32_t directChunksWorldVersion = UINT32_MAX;
 					//! Enabled hierarchy version captured when directChunks was built.
@@ -44772,8 +44776,10 @@ namespace gaia {
 					uint32_t directChunksIdxFrom = UINT32_MAX;
 					//! One-past-the-end result-cache archetype index captured when directChunks was built.
 					uint32_t directChunksIdxTo = UINT32_MAX;
-					//! Query field whose component data pointer was captured in DirectChunkEntry::pData.
-					uint32_t directChunksDataFieldIdx = UINT32_MAX;
+					//! Query fields whose component data pointers were captured in DirectChunkEntry pointer blocks.
+					uint32_t directChunksDataFields[MAX_ITEMS_IN_QUERY]{};
+					//! Number of valid entries in directChunksDataFields.
+					uint32_t directChunksDataFieldCount = 0;
 					//! Component-index mapping storage captured by DirectChunkEntry::pCompIndices pointers.
 					const void* directChunksCompIndicesData = nullptr;
 					//! True when archetype membership is populated but component-index metadata
@@ -44788,13 +44794,14 @@ namespace gaia {
 						archetypeCompIndices = {};
 						archetypeInheritedData = {};
 						directChunks = {};
+						directChunkData = {};
 						directChunksWorldVersion = UINT32_MAX;
 						directChunksEnabledVersion = UINT32_MAX;
 						directChunksDeleteVersion = UINT32_MAX;
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
-						directChunksDataFieldIdx = UINT32_MAX;
+						directChunksDataFieldCount = 0;
 						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
@@ -44805,13 +44812,14 @@ namespace gaia {
 						archetypeCompIndices.clear();
 						archetypeInheritedData.clear();
 						directChunks.clear();
+						directChunkData.clear();
 						directChunksWorldVersion = UINT32_MAX;
 						directChunksEnabledVersion = UINT32_MAX;
 						directChunksDeleteVersion = UINT32_MAX;
 						directChunksResultRevision = 0;
 						directChunksIdxFrom = UINT32_MAX;
 						directChunksIdxTo = UINT32_MAX;
-						directChunksDataFieldIdx = UINT32_MAX;
+						directChunksDataFieldCount = 0;
 						directChunksCompIndicesData = nullptr;
 						compIndicesPending = false;
 						inheritedDataPending = false;
@@ -46261,12 +46269,38 @@ namespace gaia {
 				m_state.exec.compIndicesPending = false;
 			}
 
-			//! Rebuilds flattened direct chunk cache when result membership or world structure changed.
+			//! Rebuilds flattened direct chunk cache when result membership, world structure, selected rows,
+			//! component-index mapping storage, or cached callback fields changed.
+			//!
+			//! The flattened cache is used by read-only direct typed execution over highly fragmented
+			//! result caches. It stores the chunks and enabled row ranges once, then lets iteration skip
+			//! per-archetype/per-chunk traversal setup on repeated runs.
+			//!
+			//! When callback component fields are supplied, the cache also captures component data pointers
+			//! in callback-argument order. A single selected field is stored directly in DirectChunkEntry::pData
+			//! because that is the hot hierarchy-query path. Multiple selected fields are stored as a stable
+			//! pointer block in ExecPayload::directChunkData and referenced by DirectChunkEntry::dataOffset.
+			//!
+			//! The cache key includes the selected field list because the same query may be iterated later with
+			//! a different typed callback argument order. In that case, the pointer block must be rebuilt even
+			//! if the result archetype range itself is unchanged.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
-			void ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, uint32_t dataFieldIdx) {
+			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
+			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			void
+			ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) {
 				ensure_comp_indices();
 				const auto* pCompIndicesData = m_state.exec.archetypeCompIndices.data();
+				const auto dataFieldsMatch = [&]() {
+					if (m_state.exec.directChunksDataFieldCount != dataFieldCount)
+						return false;
+					GAIA_FOR(dataFieldCount) {
+						if (m_state.exec.directChunksDataFields[i] != pDataFields[i])
+							return false;
+					}
+					return true;
+				};
 
 				const auto currWorldVersion = ::gaia::ecs::world_version(*world());
 				const auto currEnabledVersion = world_enabled_hierarchy_version(*world());
@@ -46276,14 +46310,17 @@ namespace gaia {
 						m_state.exec.directChunksDeleteVersion == currDeleteVersion &&
 						m_state.exec.directChunksResultRevision == m_state.resultCacheRevision &&
 						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo &&
-						m_state.exec.directChunksDataFieldIdx == dataFieldIdx &&
-						m_state.exec.directChunksCompIndicesData == pCompIndicesData)
+						dataFieldsMatch() && m_state.exec.directChunksCompIndicesData == pCompIndicesData)
 					return;
 
 				m_state.exec.directChunks.clear();
+				m_state.exec.directChunkData.clear();
 				m_state.exec.directChunksIdxFrom = idxFrom;
 				m_state.exec.directChunksIdxTo = idxTo;
-				m_state.exec.directChunksDataFieldIdx = dataFieldIdx;
+				m_state.exec.directChunksDataFieldCount = dataFieldCount;
+				GAIA_FOR(dataFieldCount) {
+					m_state.exec.directChunksDataFields[i] = pDataFields[i];
+				}
 				m_state.exec.directChunksResultRevision = m_state.resultCacheRevision;
 				m_state.exec.directChunksWorldVersion = currWorldVersion;
 				m_state.exec.directChunksEnabledVersion = currEnabledVersion;
@@ -46294,6 +46331,7 @@ namespace gaia {
 				for (uint32_t i = idxFrom; i < idxTo; ++i)
 					chunkCnt += (uint32_t)m_state.archetypeCache[i]->chunks().size();
 				m_state.exec.directChunks.reserve(chunkCnt);
+				m_state.exec.directChunkData.reserve(chunkCnt * dataFieldCount);
 
 				for (uint32_t i = idxFrom; i < idxTo; ++i) {
 					const auto* pArchetype = m_state.archetypeCache[i];
@@ -46305,12 +46343,28 @@ namespace gaia {
 						const auto to = detail::ChunkIterImpl::end_index(pChunk, Constraints::EnabledOnly);
 						if (from != to) {
 							const void* pData = nullptr;
-							if (dataFieldIdx < ChunkHeader::MAX_COMPONENTS) {
-								const auto compIdx = pCompIndices[dataFieldIdx];
+							uint32_t dataOffset = UINT32_MAX;
+							if (dataFieldCount == 1) {
+								//! Single-argument callbacks are the hot hierarchy path. Store their pointer directly
+								//! in DirectChunkEntry so iteration avoids the sidecar pointer block and its extra
+								//! lookup. Multi-argument callbacks use directChunkData below because they need a
+								//! stable per-entry block of pointers in callback-argument order.
+								const auto dataFieldIdx = pDataFields[0];
+								const auto compIdx =
+										dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
 								if (compIdx != 0xFF)
 									pData = pChunk->comp_rec_view()[compIdx].pData;
+							} else if (dataFieldCount > 1) {
+								dataOffset = (uint32_t)m_state.exec.directChunkData.size();
+								const auto recs = pChunk->comp_rec_view();
+								GAIA_FOR(dataFieldCount) {
+									const auto dataFieldIdx = pDataFields[i];
+									const auto compIdx =
+											dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
+									m_state.exec.directChunkData.push_back(compIdx != 0xFF ? recs[compIdx].pData : nullptr);
+								}
 							}
-							m_state.exec.directChunks.push_back({pArchetype, pChunk, pCompIndices, pData, from, to});
+							m_state.exec.directChunks.push_back({pArchetype, pChunk, pCompIndices, pData, dataOffset, from, to});
 						}
 					}
 				}
@@ -46885,10 +46939,15 @@ namespace gaia {
 			//! Returns a flattened chunk view for a direct-dense result-cache range.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
-			std::span<const DirectChunkEntry>
-			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, uint32_t dataFieldIdx = UINT32_MAX) const {
-				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo, dataFieldIdx);
+			std::span<const DirectChunkEntry> direct_chunk_view(
+					uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields = nullptr, uint32_t dataFieldCount = 0) const {
+				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo, pDataFields, dataFieldCount);
 				return {m_state.exec.directChunks.data(), m_state.exec.directChunks.size()};
+			}
+
+			//! Returns cached flattened direct chunk data pointers.
+			std::span<const void* const> direct_chunk_data_view() const {
+				return {m_state.exec.directChunkData.data(), m_state.exec.directChunkData.size()};
 			}
 
 			//! Returns cached inherited-term data for a matched archetype index.
@@ -56055,8 +56114,8 @@ namespace gaia {
 				Chunk* pChunk = nullptr;
 				//! Prepared query-field to chunk-column mapping for pChunk's archetype, or null for uncached direct scans.
 				const uint8_t* pCompIndices = nullptr;
-				//! Base data pointer for the selected query field, or null when unavailable.
-				const void* pData = nullptr;
+				//! Cached base data pointers for selected callback fields, or null when unavailable.
+				const void* const* pData = nullptr;
 				//! First absolute row to process.
 				uint16_t from = 0;
 				//! One-past-the-end absolute row to process.
@@ -56069,7 +56128,7 @@ namespace gaia {
 			//! \param chunkRun Chunk, row range, and optional prepared term mapping.
 			//! \param func Callback invoked for each matching row.
 			//! \param state Typed callback metadata, including fallback component ids for uncached direct scans.
-			//! \note pData is selected for the sole callback argument when available. Otherwise the chunk-local
+			//! \note pData[0] is selected for the sole callback argument when available. Otherwise the chunk-local
 			//! component lookup preserves correctness for ordinary direct scans.
 			template <typename Func, typename T>
 			inline void run_typed_direct_chunk_row_arg(
@@ -56083,7 +56142,7 @@ namespace gaia {
 					GAIA_FOR(cnt)
 					func(data[from + i]);
 				} else if constexpr (!mem::is_soa_layout_v<U>) {
-					const auto* pData = chunkRun.pData;
+					const auto* pData = chunkRun.pData != nullptr ? chunkRun.pData[0] : nullptr;
 					if (pData == nullptr)
 						pData = pChunk->comp_rec_view()[pChunk->comp_idx(state.argIds[0])].pData;
 					auto* data = (U*)pData + from;
@@ -56094,6 +56153,45 @@ namespace gaia {
 					GAIA_FOR(cnt)
 					func(view[from + i]);
 				}
+			}
+
+			template <typename T>
+			GAIA_NODISCARD constexpr bool typed_direct_chunk_data_cacheable_arg() {
+				using U = typename actual_type_t<T>::Type;
+				return !std::is_same_v<U, Entity> && !mem::is_soa_layout_v<U>;
+			}
+
+			template <typename... T>
+			GAIA_NODISCARD constexpr bool typed_direct_chunk_data_cacheable(core::func_type_list<T...>) {
+				if constexpr (sizeof...(T) == 0)
+					return false;
+				else
+					return (typed_direct_chunk_data_cacheable_arg<T>() && ...);
+			}
+
+			template <typename T>
+			GAIA_NODISCARD inline decltype(auto)
+			typed_direct_chunk_cached_arg(const void* const* pData, uint32_t argIdx, uint32_t row) {
+				using U = typename actual_type_t<T>::Type;
+				auto* data = (U*)pData[argIdx];
+				return data[row];
+			}
+
+			template <typename Func, typename... T, size_t... I>
+			inline void invoke_typed_direct_chunk_cached_row(
+					Func& func, const void* const* pData, uint32_t row, core::func_type_list<T...>, std::index_sequence<I...>) {
+				func(typed_direct_chunk_cached_arg<T>(pData, (uint32_t)I, row)...);
+			}
+
+			template <uint32_t ArgCount>
+			GAIA_NODISCARD inline bool typed_direct_chunk_cached_data_valid(const void* const* pData) {
+				if (pData == nullptr)
+					return false;
+				GAIA_FOR(ArgCount) {
+					if (pData[i] == nullptr)
+						return false;
+				}
+				return true;
 			}
 
 			//! Runs a typed row callback directly on a chunk without constructing Iter.
@@ -56116,8 +56214,17 @@ namespace gaia {
 				if constexpr (sizeof...(T) == 1) {
 					run_typed_direct_chunk_row_arg(chunkRun, func, state, core::func_type_list<T...>{});
 				} else if constexpr (sizeof...(T) > 0) {
-					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					const auto cnt = (uint32_t)(to - from);
+					if constexpr (typed_direct_chunk_data_cacheable(core::func_type_list<T...>{})) {
+						if (typed_direct_chunk_cached_data_valid<(uint32_t)sizeof...(T)>(chunkRun.pData)) {
+							GAIA_FOR(cnt)
+							invoke_typed_direct_chunk_cached_row(
+									func, chunkRun.pData, (uint32_t)i, core::func_type_list<T...>{}, std::index_sequence_for<T...>{});
+							return;
+						}
+					}
+
+					auto views = std::make_tuple(pChunk->template sview_auto<T>(from, to)...);
 					GAIA_FOR(cnt)
 					invoke_typed_direct_chunk_row(
 							func, views, (uint32_t)i, from, core::func_type_list<T...>{}, std::index_sequence_for<T...>{});
@@ -56267,19 +56374,40 @@ namespace gaia {
 				if constexpr (!HasFilters) {
 					if (!state.hasWriteArgs && canSkipProcessCheck && plan.idxTo - plan.idxFrom >= 1024) {
 						const auto terms = queryInfo.ctx().data.terms_view();
-						uint32_t dataFieldIdx = UINT32_MAX;
-						if (state.argCount == 1) {
-							const auto argId = state.argIds[0];
-							GAIA_EACH(terms) {
-								if (terms[i].id == argId) {
-									dataFieldIdx = (uint32_t)i;
+						uint32_t dataFields[MAX_ITEMS_IN_QUERY]{};
+						uint32_t dataFieldCount = 0;
+						if constexpr (typed_direct_chunk_data_cacheable(types)) {
+							dataFieldCount = state.argCount;
+							GAIA_FOR(state.argCount) {
+								const auto argId = state.argIds[i];
+								uint32_t termIdx = UINT32_MAX;
+								for (uint32_t j = 0; j < terms.size(); ++j) {
+									if (terms[j].id == argId) {
+										termIdx = (uint32_t)j;
+										break;
+									}
+								}
+								if (termIdx == UINT32_MAX) {
+									dataFieldCount = 0;
 									break;
 								}
+								dataFields[i] = termIdx;
 							}
 						}
-						for (const auto& entry: queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFieldIdx)) {
-							const TypedDirectChunkRun chunkRun{
-									entry.pChunk, entry.pCompIndices, entry.pData, entry.rowFrom, entry.rowTo};
+						const auto chunkView = queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFields, dataFieldCount);
+						const auto dataView = queryInfo.direct_chunk_data_view();
+						for (const auto& entry: chunkView) {
+							const void* pSingleData[1]{};
+							const void* const* pData = nullptr;
+							if (entry.pData != nullptr) {
+								//! Single-arg flattened chunks store the selected field directly on the entry.
+								//! Adapt it to the pointer-block shape consumed by TypedDirectChunkRun without
+								//! allocating or touching the sidecar directChunkData array.
+								pSingleData[0] = entry.pData;
+								pData = pSingleData;
+							} else if (entry.dataOffset != UINT32_MAX)
+								pData = &dataView[entry.dataOffset];
+							const TypedDirectChunkRun chunkRun{entry.pChunk, entry.pCompIndices, pData, entry.rowFrom, entry.rowTo};
 
 							GAIA_PROF_SCOPE(query_func);
 							run_typed_direct_chunk_rows(chunkRun, func, state, types);
