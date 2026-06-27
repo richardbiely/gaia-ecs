@@ -133,6 +133,14 @@ const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#1
 const uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>pCompIndices</b> = nullptr</td></tr>
 <tr class="memdesc:a5e780711297cbe3ebd0899b84ed18880"><td class="mdescLeft">&#160;</td><td class="mdescRight">Prepared query-field to chunk-column mapping for pArchetype, or null when not available. <br /></td></tr>
 <tr class="separator:a5e780711297cbe3ebd0899b84ed18880"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6251f2b0a78c86d2f1bfb9ab0949273e" id="r_a6251f2b0a78c86d2f1bfb9ab0949273e"><td class="memItemLeft" align="right" valign="top"><a id="a6251f2b0a78c86d2f1bfb9ab0949273e" name="a6251f2b0a78c86d2f1bfb9ab0949273e"></a>
+const void *&#160;</td><td class="memItemRight" valign="bottom"><b>pData</b> = nullptr</td></tr>
+<tr class="memdesc:a6251f2b0a78c86d2f1bfb9ab0949273e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cached base data pointer for the common single selected field, or null when unavailable/not single-field. <br /></td></tr>
+<tr class="separator:a6251f2b0a78c86d2f1bfb9ab0949273e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6dd9c2ffe52fd8c8e02213c03bed3b30" id="r_a6dd9c2ffe52fd8c8e02213c03bed3b30"><td class="memItemLeft" align="right" valign="top"><a id="a6dd9c2ffe52fd8c8e02213c03bed3b30" name="a6dd9c2ffe52fd8c8e02213c03bed3b30"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>dataOffset</b> = UINT32_MAX</td></tr>
+<tr class="memdesc:a6dd9c2ffe52fd8c8e02213c03bed3b30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Offset into ExecPayload::directChunkData for this entry, or UINT32_MAX when no pointers are cached. <br /></td></tr>
+<tr class="separator:a6dd9c2ffe52fd8c8e02213c03bed3b30"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aae7d3fc9979375a7803717c4f04f3f45" id="r_aae7d3fc9979375a7803717c4f04f3f45"><td class="memItemLeft" align="right" valign="top"><a id="aae7d3fc9979375a7803717c4f04f3f45" name="aae7d3fc9979375a7803717c4f04f3f45"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>rowFrom</b> = 0</td></tr>
 <tr class="memdesc:aae7d3fc9979375a7803717c4f04f3f45"><td class="mdescLeft">&#160;</td><td class="mdescRight">First enabled row in pChunk processed by direct-dense iteration. <br /></td></tr>

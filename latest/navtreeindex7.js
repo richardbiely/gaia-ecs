@@ -1,5 +1,6 @@
 var NAVTREEINDEX7 =
 {
+"structgaia_1_1ecs_1_1ComponentDesc.html#a25944538e7bd56ae4b09ab696192c83c":[10,0,0,3,35,24],
 "structgaia_1_1ecs_1_1ComponentDesc.html#a27b1b9e290c7df959dc9f9161f9d6d22":[10,0,0,3,35,22],
 "structgaia_1_1ecs_1_1ComponentDesc.html#a314ea870255dc198ab80756531284f1b":[10,0,0,3,35,7],
 "structgaia_1_1ecs_1_1ComponentDesc.html#a33f4cca9029d9bed7f5fd867efbe6887":[10,0,0,3,35,33],
@@ -77,11 +78,13 @@ var NAVTREEINDEX7 =
 "structgaia_1_1ecs_1_1Delete__.html":[10,0,0,3,47],
 "structgaia_1_1ecs_1_1DependsOn__.html":[10,0,0,3,48],
 "structgaia_1_1ecs_1_1DirectChunkEntry.html":[10,0,0,3,49],
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#a5e780711297cbe3ebd0899b84ed18880":[10,0,0,3,49,2],
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#a86a735bc752aec8ddb087615768bf800":[10,0,0,3,49,1],
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45":[10,0,0,3,49,3],
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#aefef427e9088d8e829bc919dee22ff7d":[10,0,0,3,49,0],
-"structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b":[10,0,0,3,49,4],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#a5e780711297cbe3ebd0899b84ed18880":[10,0,0,3,49,3],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#a6251f2b0a78c86d2f1bfb9ab0949273e":[10,0,0,3,49,4],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#a6dd9c2ffe52fd8c8e02213c03bed3b30":[10,0,0,3,49,0],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#a86a735bc752aec8ddb087615768bf800":[10,0,0,3,49,2],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45":[10,0,0,3,49,5],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#aefef427e9088d8e829bc919dee22ff7d":[10,0,0,3,49,1],
+"structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b":[10,0,0,3,49,6],
 "structgaia_1_1ecs_1_1DontFragment__.html":[10,0,0,3,50],
 "structgaia_1_1ecs_1_1DontInherit__.html":[10,0,0,3,51],
 "structgaia_1_1ecs_1_1Entity.html":[10,0,0,3,52],
@@ -246,8 +249,5 @@ var NAVTREEINDEX7 =
 "structgaia_1_1ecs_1_1QueryTerm.html#ad4d95431ac470c8746a084d66325aba8":[10,0,0,3,86,5],
 "structgaia_1_1ecs_1_1QueryTerm.html#adad652ec63b36fd156a387278bd373ee":[10,0,0,3,86,8],
 "structgaia_1_1ecs_1_1QueryTermOptions.html":[10,0,0,3,87],
-"structgaia_1_1ecs_1_1QueryTermOptions.html#a149601819cd87f3e81fa6cb4d8860a5c":[10,0,0,3,87,4],
-"structgaia_1_1ecs_1_1QueryTermOptions.html#a212122d2721c1de0d43da9c42e8b1188":[10,0,0,3,87,1],
-"structgaia_1_1ecs_1_1QueryTermOptions.html#a4ed3364b37864ec2da22957ccf71022d":[10,0,0,3,87,2],
-"structgaia_1_1ecs_1_1QueryTermOptions.html#a535a5f11621a334f298cd7a147061ab3":[10,0,0,3,87,0]
+"structgaia_1_1ecs_1_1QueryTermOptions.html#a149601819cd87f3e81fa6cb4d8860a5c":[10,0,0,3,87,4]
 };

@@ -24,7 +24,7 @@ var searchData=
   ['ensure_5fcomp_5findices_21',['ensure_comp_indices',['../classgaia_1_1ecs_1_1QueryInfo.html#a72b267e26d67bcc0d37370d3913143f0',1,'gaia::ecs::QueryInfo']]],
   ['ensure_5fdepth_5forder_5fhierarchy_5fbarrier_5fcache_22',['ensure_depth_order_hierarchy_barrier_cache',['../classgaia_1_1ecs_1_1QueryInfo.html#ae33c0c93ffc23e87d38a41be411c914e',1,'gaia::ecs::QueryInfo']]],
   ['ensure_5fdepth_5forder_5fhierarchy_5fbarrier_5fcache_5finter_23',['ensure_depth_order_hierarchy_barrier_cache_inter',['../classgaia_1_1ecs_1_1QueryInfo.html#a8cbd84b148d2822ead95c16c2a359ca2',1,'gaia::ecs::QueryInfo']]],
-  ['ensure_5fdirect_5fchunks_24',['ensure_direct_chunks',['../classgaia_1_1ecs_1_1QueryInfo.html#a9ec532a9b8906e7aeff081f4c791e4d8',1,'gaia::ecs::QueryInfo']]],
+  ['ensure_5fdirect_5fchunks_24',['ensure_direct_chunks',['../classgaia_1_1ecs_1_1QueryInfo.html#a77c3b843dfb0c610330ab8ee139ad212',1,'gaia::ecs::QueryInfo']]],
   ['ensure_5fgroup_5fdata_25',['ensure_group_data',['../classgaia_1_1ecs_1_1QueryInfo.html#aec23c572ae4b9788e31c45ee1bb7bc56',1,'gaia::ecs::QueryInfo']]],
   ['ensure_5finherited_5fdata_26',['ensure_inherited_data',['../classgaia_1_1ecs_1_1QueryInfo.html#a010b52bd97f749df8fb139eb1d8d935e',1,'gaia::ecs::QueryInfo']]],
   ['entity_27',['entity',['../structgaia_1_1ecs_1_1Entity.html#ad33c147aeba2ddfb983917c22495b8f7',1,'gaia::ecs::Entity::Entity(T value) noexcept'],['../structgaia_1_1ecs_1_1Entity.html#aaae9666c04c358536a89baff5e65b7b2',1,'gaia::ecs::Entity::Entity(EntityId id, IdentifierData gen) noexcept']]],

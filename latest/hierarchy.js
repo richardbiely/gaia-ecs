@@ -106,6 +106,7 @@ var hierarchy =
     [ "gaia::cnt::darr< const Archetype * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< const gaia::ecs::Archetype * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< const gaia::ecs::Chunk * >", "classgaia_1_1cnt_1_1darr.html", null ],
+    [ "gaia::cnt::darr< const void * >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< CreateQueryCandidate >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< Ctx >", "classgaia_1_1cnt_1_1darr.html", null ],
     [ "gaia::cnt::darr< gaia::cnt::darr< gaia::ecs::Entity > >", "classgaia_1_1cnt_1_1darr.html", null ],

@@ -1,5 +1,9 @@
 var NAVTREEINDEX10 =
 {
+"structgaia_1_1ser_1_1detail_1_1has__save__raw__ptr.html":[10,0,0,7,0,8],
+"structgaia_1_1ser_1_1detail_1_1has__save__raw__ptr_3_01T_00_01std_1_1void__t_3_01decltype_07std_c728a9c81f6de8c25093ad94bfbbbc30.html":[10,0,0,7,0,9],
+"structgaia_1_1ser_1_1detail_1_1has__seek__fn.html":[10,0,0,7,0,10],
+"structgaia_1_1ser_1_1detail_1_1has__seek__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1decde0c993735b2058fbd9b080718d84786.html":[10,0,0,7,0,11],
 "structgaia_1_1ser_1_1detail_1_1has__tell__fn.html":[10,0,0,7,0,12],
 "structgaia_1_1ser_1_1detail_1_1has__tell__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1dec16493ebf98a8d23d7877f9f2a01cd59a.html":[10,0,0,7,0,13],
 "structgaia_1_1ser_1_1is__flt__kind__id.html":[10,0,0,7,2],

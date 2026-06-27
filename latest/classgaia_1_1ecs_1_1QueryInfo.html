@@ -174,7 +174,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>invalidate_sort</b> (
 <tr class="memdesc:a5573c36133977320354b4f1fdb582293"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the cached sorted slices dirty without invalidating query membership. <br /></td></tr>
 <tr class="separator:a5573c36133977320354b4f1fdb582293"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ed91ebda613826e2102b613b5874c11" id="r_a7ed91ebda613826e2102b613b5874c11"><td class="memItemLeft" align="right" valign="top"><a id="a7ed91ebda613826e2102b613b5874c11" name="a7ed91ebda613826e2102b613b5874c11"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>compile</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>compile</b> (const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
 <tr class="memdesc:a7ed91ebda613826e2102b613b5874c11"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile the query terms into a form we can easily process. <br /></td></tr>
 <tr class="separator:a7ed91ebda613826e2102b613b5874c11"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2fb228ac3a845ca4b9e429ebc6c37f4f" id="r_a2fb228ac3a845ca4b9e429ebc6c37f4f"><td class="memItemLeft" align="right" valign="top"><a id="a2fb228ac3a845ca4b9e429ebc6c37f4f" name="a2fb228ac3a845ca4b9e429ebc6c37f4f"></a>
@@ -224,23 +224,23 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>operat
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;other) const</td></tr>
 <tr class="separator:a37314d288bb6689d2ee9a4990e125e2b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024" id="r_a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplParams" colspan="2">template&lt;typename ArchetypeLookup &gt; </td></tr>
-<tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7b53fad34cbe4a065927f8aaa2c97024">match</a> (const ArchetypeLookup &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> *pEntityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a7b53fad34cbe4a065927f8aaa2c97024">match</a> (const ArchetypeLookup &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeVersionMap</a> *pEntityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a7b53fad34cbe4a065927f8aaa2c97024"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to match the query against archetypes in <em>entityToArchetypeMap</em>. This is necessary so we do not iterate all chunks over and over again when running queries.  <br /></td></tr>
 <tr class="separator:a7b53fad34cbe4a065927f8aaa2c97024"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9e1b1478407080ec54edcf9e82389c5b" id="r_a9e1b1478407080ec54edcf9e82389c5b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">match_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+<tr class="memitem:a9e1b1478407080ec54edcf9e82389c5b" id="r_a9e1b1478407080ec54edcf9e82389c5b"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9e1b1478407080ec54edcf9e82389c5b">match_one</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="memdesc:a9e1b1478407080ec54edcf9e82389c5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to match the query against the provided archetype. This is necessary so we do not iterate all chunks over and over again when running queries.  <br /></td></tr>
 <tr class="separator:a9e1b1478407080ec54edcf9e82389c5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a231d6de795fa3177dff4bede43085263" id="r_a231d6de795fa3177dff4bede43085263"><td class="memItemLeft" align="right" valign="top"><a id="a231d6de795fa3177dff4bede43085263" name="a231d6de795fa3177dff4bede43085263"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches</b> (const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, ArchetypeId archetypeLastId, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="separator:a231d6de795fa3177dff4bede43085263"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad1e749a3315789b7507674b8f6416be9" id="r_ad1e749a3315789b7507674b8f6416be9"><td class="memItemLeft" align="right" valign="top"><a id="ad1e749a3315789b7507674b8f6416be9" name="ad1e749a3315789b7507674b8f6416be9"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_transient</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_transient</b> (const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeVersionMap</a> &amp;entityToArchetypeMapVersions, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="separator:ad1e749a3315789b7507674b8f6416be9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20a174ce3f809b986874468e469589c3" id="r_a20a174ce3f809b986874468e469589c3"><td class="memItemLeft" align="right" valign="top"><a id="a20a174ce3f809b986874468e469589c3" name="a20a174ce3f809b986874468e469589c3"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_one</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_one</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="separator:a20a174ce3f809b986874468e469589c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a12384ea1d54f1c480fc7ca47596af4a9" id="r_a12384ea1d54f1c480fc7ca47596af4a9"><td class="memItemLeft" align="right" valign="top"><a id="a12384ea1d54f1c480fc7ca47596af4a9" name="a12384ea1d54f1c480fc7ca47596af4a9"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_one_transient</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_matches_one_transient</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> targetEntities, const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeVarBindings, uint8_t runtimeVarBindingMask)</td></tr>
 <tr class="separator:a12384ea1d54f1c480fc7ca47596af4a9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5fc33144c73bf6ac47ff1e37fe8d42a3" id="r_a5fc33144c73bf6ac47ff1e37fe8d42a3"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a5fc33144c73bf6ac47ff1e37fe8d42a3">register_archetype</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> &amp;archetype, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> matchedSelector=EntityBad, bool assumeNew=false)</td></tr>
 <tr class="memdesc:a5fc33144c73bf6ac47ff1e37fe8d42a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a new or updated archetype with query caches when it matches this query.  <br /></td></tr>
@@ -264,9 +264,9 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>sort_cache_groups</b>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_comp_indices</b> ()</td></tr>
 <tr class="memdesc:a72b267e26d67bcc0d37370d3913143f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds cached component-index payloads for matched archetypes when marked pending. <br /></td></tr>
 <tr class="separator:a72b267e26d67bcc0d37370d3913143f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9ec532a9b8906e7aeff081f4c791e4d8" id="r_a9ec532a9b8906e7aeff081f4c791e4d8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a9ec532a9b8906e7aeff081f4c791e4d8">ensure_direct_chunks</a> (uint32_t idxFrom, uint32_t idxTo)</td></tr>
-<tr class="memdesc:a9ec532a9b8906e7aeff081f4c791e4d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds flattened direct chunk cache when result membership or world structure changed.  <br /></td></tr>
-<tr class="separator:a9ec532a9b8906e7aeff081f4c791e4d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a77c3b843dfb0c610330ab8ee139ad212" id="r_a77c3b843dfb0c610330ab8ee139ad212"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a77c3b843dfb0c610330ab8ee139ad212">ensure_direct_chunks</a> (uint32_t idxFrom, uint32_t idxTo, const uint32_t *pDataFields, uint32_t dataFieldCount)</td></tr>
+<tr class="memdesc:a77c3b843dfb0c610330ab8ee139ad212"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rebuilds flattened direct chunk cache when result membership, world structure, selected rows, component-index mapping storage, or cached callback fields changed.  <br /></td></tr>
+<tr class="separator:a77c3b843dfb0c610330ab8ee139ad212"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a35ba68bbab5f46f5983a14c7f4d3751c" id="r_a35ba68bbab5f46f5983a14c7f4d3751c"><td class="memItemLeft" align="right" valign="top"><a id="a35ba68bbab5f46f5983a14c7f4d3751c" name="a35ba68bbab5f46f5983a14c7f4d3751c"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_inherited_data_payload</b> () const</td></tr>
 <tr class="memdesc:a35ba68bbab5f46f5983a14c7f4d3751c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when query iteration needs cached inherited data payloads. <br /></td></tr>
@@ -427,13 +427,17 @@ template&lt;typename... T&gt; </td></tr>
 <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>indices_mapping_view</b> (uint32_t archetypeIdx) const</td></tr>
 <tr class="memdesc:ac0af18432dfc4cba22908421d94fe9e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a view of indices mapping for component entities in a given archetype. <br /></td></tr>
 <tr class="separator:ac0af18432dfc4cba22908421d94fe9e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6d67ed48590c517510dc79617f9b7c22" id="r_a6d67ed48590c517510dc79617f9b7c22"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html">DirectChunkEntry</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a6d67ed48590c517510dc79617f9b7c22">direct_chunk_view</a> (uint32_t idxFrom, uint32_t idxTo) const</td></tr>
-<tr class="memdesc:a6d67ed48590c517510dc79617f9b7c22"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a flattened chunk view for a direct-dense result-cache range.  <br /></td></tr>
-<tr class="separator:a6d67ed48590c517510dc79617f9b7c22"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a68cfbbf149046aa0e699ca46be84d778" id="r_a68cfbbf149046aa0e699ca46be84d778"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a68cfbbf149046aa0e699ca46be84d778">inherited_data_view</a> (uint32_t archetypeIdx) const</td></tr>
+<tr class="memitem:aaa039a574b73ac3a634ff7e8202dbef5" id="r_aaa039a574b73ac3a634ff7e8202dbef5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html">DirectChunkEntry</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#aaa039a574b73ac3a634ff7e8202dbef5">direct_chunk_view</a> (uint32_t idxFrom, uint32_t idxTo, const uint32_t *pDataFields, uint32_t dataFieldCount) const</td></tr>
+<tr class="memdesc:aaa039a574b73ac3a634ff7e8202dbef5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a flattened chunk view for a direct-dense result-cache range.  <br /></td></tr>
+<tr class="separator:aaa039a574b73ac3a634ff7e8202dbef5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6793fa4acab96d6b6091809a1c1c88f9" id="r_a6793fa4acab96d6b6091809a1c1c88f9"><td class="memItemLeft" align="right" valign="top"><a id="a6793fa4acab96d6b6091809a1c1c88f9" name="a6793fa4acab96d6b6091809a1c1c88f9"></a>
+<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const void *const &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>direct_chunk_data_view</b> () const</td></tr>
+<tr class="memdesc:a6793fa4acab96d6b6091809a1c1c88f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns cached flattened direct chunk data pointers. <br /></td></tr>
+<tr class="separator:a6793fa4acab96d6b6091809a1c1c88f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a68cfbbf149046aa0e699ca46be84d778" id="r_a68cfbbf149046aa0e699ca46be84d778"><td class="memItemLeft" align="right" valign="top">InheritedTermDataView&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a68cfbbf149046aa0e699ca46be84d778">inherited_data_view</a> (uint32_t archetypeIdx) const</td></tr>
 <tr class="memdesc:a68cfbbf149046aa0e699ca46be84d778"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns cached inherited-term data for a matched archetype index.  <br /></td></tr>
 <tr class="separator:a68cfbbf149046aa0e699ca46be84d778"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af9e3275c07b9d4d0a6a7f3dacc063d4e" id="r_af9e3275c07b9d4d0a6a7f3dacc063d4e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#af9e3275c07b9d4d0a6a7f3dacc063d4e">inherited_data_view</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype) const</td></tr>
+<tr class="memitem:af9e3275c07b9d4d0a6a7f3dacc063d4e" id="r_af9e3275c07b9d4d0a6a7f3dacc063d4e"><td class="memItemLeft" align="right" valign="top">InheritedTermDataView&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#af9e3275c07b9d4d0a6a7f3dacc063d4e">inherited_data_view</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype) const</td></tr>
 <tr class="memdesc:af9e3275c07b9d4d0a6a7f3dacc063d4e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns cached inherited-term data for a matched archetype pointer.  <br /></td></tr>
 <tr class="separator:af9e3275c07b9d4d0a6a7f3dacc063d4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae33c0c93ffc23e87d38a41be411c914e" id="r_ae33c0c93ffc23e87d38a41be411c914e"><td class="memItemLeft" align="right" valign="top"><a id="ae33c0c93ffc23e87d38a41be411c914e" name="ae33c0c93ffc23e87d38a41be411c914e"></a>
@@ -444,7 +448,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_depth_order_hi
 <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>try_indices_mapping_view</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype) const</td></tr>
 <tr class="memdesc:a4e59c3aa36b574dd5e0816064524770f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a cached indices mapping view for an exact archetype match, or an empty span when absent. <br /></td></tr>
 <tr class="separator:a4e59c3aa36b574dd5e0816064524770f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af6fde1c2623424314ecab27e4ee11dbc" id="r_af6fde1c2623424314ecab27e4ee11dbc"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc">try_inherited_data_view</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype) const</td></tr>
+<tr class="memitem:af6fde1c2623424314ecab27e4ee11dbc" id="r_af6fde1c2623424314ecab27e4ee11dbc"><td class="memItemLeft" align="right" valign="top">InheritedTermDataView&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc">try_inherited_data_view</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype) const</td></tr>
 <tr class="memdesc:af6fde1c2623424314ecab27e4ee11dbc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns cached inherited-term data if it is already available for a matched archetype.  <br /></td></tr>
 <tr class="separator:af6fde1c2623424314ecab27e4ee11dbc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a14a67eacf069bce8eed09375b2e95149" id="r_a14a67eacf069bce8eed09375b2e95149"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD GroupId&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a14a67eacf069bce8eed09375b2e95149">group_id</a> (uint32_t archetypeIdx) const</td></tr>
@@ -496,7 +500,7 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:afce2e6ee06d022001549d165ab1c822d" id="r_afce2e6ee06d022001549d165ab1c822d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#afce2e6ee06d022001549d165ab1c822d">create</a> (QueryId id, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;&amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
+<tr class="memitem:afce2e6ee06d022001549d165ab1c822d" id="r_afce2e6ee06d022001549d165ab1c822d"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#afce2e6ee06d022001549d165ab1c822d">create</a> (QueryId id, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;&amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#abf56f2bf70bb2a3e18b6908e4c8bc57a">ctx</a>, const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes)</td></tr>
 <tr class="memdesc:afce2e6ee06d022001549d165ab1c822d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates and compiles a query info object from a moved query context.  <br /></td></tr>
 <tr class="separator:afce2e6ee06d022001549d165ab1c822d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3dcb6dc9e094ee1ecd63a8a973015edd" id="r_a3dcb6dc9e094ee1ecd63a8a973015edd"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a3dcb6dc9e094ee1ecd63a8a973015edd">create</a> (uint32_t <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a6ad7587f5f8d2c175efcdfd53b05d439">idx</a>, uint32_t <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8">gen</a>, void *pCtx)</td></tr>
@@ -888,7 +892,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeMap</a> &amp;&#160;</td>
           <td class="paramname"><em>entityToArchetypeMap</em>, </td>
         </tr>
         <tr>
@@ -1114,8 +1118,8 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
 
 </div>
 </div>
-<a id="a6d67ed48590c517510dc79617f9b7c22" name="a6d67ed48590c517510dc79617f9b7c22"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6d67ed48590c517510dc79617f9b7c22">&#9670;&#160;</a></span>direct_chunk_view()</h2>
+<a id="aaa039a574b73ac3a634ff7e8202dbef5" name="aaa039a574b73ac3a634ff7e8202dbef5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaa039a574b73ac3a634ff7e8202dbef5">&#9670;&#160;</a></span>direct_chunk_view()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1133,7 +1137,19 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>idxTo</em>&#160;</td>
+          <td class="paramname"><em>idxTo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint32_t *&#160;</td>
+          <td class="paramname"><em>pDataFields</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>dataFieldCount</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -1153,14 +1169,17 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
   <table class="params">
     <tr><td class="paramname">idxFrom</td><td>First result-cache archetype index to include. </td></tr>
     <tr><td class="paramname">idxTo</td><td>One-past-the-end result-cache archetype index to include. </td></tr>
+    <tr><td class="paramname">pDataFields</td><td>Query term indices to cache component data pointers for, in callback-argument order. </td></tr>
+    <tr><td class="paramname">dataFieldCount</td><td>Number of valid entries in <em>pDataFields</em>. Pass zero to cache only chunks/ranges. </td></tr>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Flattened chunk entries for the requested result-cache archetype range. </dd></dl>
 
 </div>
 </div>
-<a id="a9ec532a9b8906e7aeff081f4c791e4d8" name="a9ec532a9b8906e7aeff081f4c791e4d8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a9ec532a9b8906e7aeff081f4c791e4d8">&#9670;&#160;</a></span>ensure_direct_chunks()</h2>
+<a id="a77c3b843dfb0c610330ab8ee139ad212" name="a77c3b843dfb0c610330ab8ee139ad212"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a77c3b843dfb0c610330ab8ee139ad212">&#9670;&#160;</a></span>ensure_direct_chunks()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1178,7 +1197,19 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">uint32_t&#160;</td>
-          <td class="paramname"><em>idxTo</em>&#160;</td>
+          <td class="paramname"><em>idxTo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const uint32_t *&#160;</td>
+          <td class="paramname"><em>pDataFields</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>dataFieldCount</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -1193,14 +1224,19 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> = 0</td><
 </table>
 </div><div class="memdoc">
 
-<p>Rebuilds flattened direct chunk cache when result membership or world structure changed. </p>
-<dl class="params"><dt>Parameters</dt><dd>
+<p>Rebuilds flattened direct chunk cache when result membership, world structure, selected rows, component-index mapping storage, or cached callback fields changed. </p>
+<p>The flattened cache is used by read-only direct typed execution over highly fragmented result caches. It stores the chunks and enabled row ranges once, then lets iteration skip per-archetype/per-chunk traversal setup on repeated runs.</p>
+<p>When callback component fields are supplied, the cache also captures component data pointers in callback-argument order. A single selected field is stored directly in <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html#a6251f2b0a78c86d2f1bfb9ab0949273e" title="Cached base data pointer for the common single selected field, or null when unavailable/not single-fi...">DirectChunkEntry::pData</a> because that is the hot hierarchy-query path. Multiple selected fields are stored as a stable pointer block in ExecPayload::directChunkData and referenced by <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html#a6dd9c2ffe52fd8c8e02213c03bed3b30" title="Offset into ExecPayload::directChunkData for this entry, or UINT32_MAX when no pointers are cached.">DirectChunkEntry::dataOffset</a>.</p>
+<p>The cache key includes the selected field list because the same query may be iterated later with a different typed callback argument order. In that case, the pointer block must be rebuilt even if the result archetype range itself is unchanged. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">idxFrom</td><td>First result-cache archetype index to include. </td></tr>
     <tr><td class="paramname">idxTo</td><td>One-past-the-end result-cache archetype index to include. </td></tr>
+    <tr><td class="paramname">pDataFields</td><td>Query term indices to cache component data pointers for, in callback-argument order. </td></tr>
+    <tr><td class="paramname">dataFieldCount</td><td>Number of valid entries in <em>pDataFields</em>. Pass zero to cache only chunks/ranges. </td></tr>
   </table>
   </dd>
 </dl>
+<p>Single-argument callbacks are the hot hierarchy path. Store their pointer directly in <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html" title="Cached archetype/chunk pair used by repeated direct-dense scans over highly fragmented result caches.">DirectChunkEntry</a> so iteration avoids the sidecar pointer block and its extra lookup. Multi-argument callbacks use directChunkData below because they need a stable per-entry block of pointers in callback-argument order.</p>
 
 </div>
 </div>
@@ -1399,7 +1435,7 @@ template&lt;typename Container &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> gaia::ecs::QueryInfo::inherited_data_view </td>
+          <td class="memname">InheritedTermDataView gaia::ecs::QueryInfo::inherited_data_view </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td>
           <td class="paramname"><em>pArchetype</em></td><td>)</td>
@@ -1433,7 +1469,7 @@ template&lt;typename Container &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> gaia::ecs::QueryInfo::inherited_data_view </td>
+          <td class="memname">InheritedTermDataView gaia::ecs::QueryInfo::inherited_data_view </td>
           <td>(</td>
           <td class="paramtype">uint32_t&#160;</td>
           <td class="paramname"><em>archetypeIdx</em></td><td>)</td>
@@ -1551,7 +1587,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeVersionMap</a> *&#160;</td>
+          <td class="paramtype">const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">EntityToArchetypeVersionMap</a> *&#160;</td>
           <td class="paramname"><em>pEntityToArchetypeMapVersions</em>, </td>
         </tr>
         <tr>
@@ -1563,7 +1599,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -1631,7 +1667,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
           <td class="paramname"><em>runtimeVarBindings</em>, </td>
         </tr>
         <tr>
@@ -1844,7 +1880,7 @@ template&lt;typename ArchetypeLookup &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname"><a class="el" href="classgaia_1_1core_1_1span.html">InheritedTermDataView</a> gaia::ecs::QueryInfo::try_inherited_data_view </td>
+          <td class="memname">InheritedTermDataView gaia::ecs::QueryInfo::try_inherited_data_view </td>
           <td>(</td>
           <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td>
           <td class="paramname"><em>pArchetype</em></td><td>)</td>

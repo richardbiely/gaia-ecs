@@ -8,7 +8,7 @@ var searchData=
   ['var_5fprograms_5',['var_programs',['../structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#a98746e294febdf74b44063e0fd6da5a6',1,'gaia::ecs::vm::detail::QueryCompileCtx']]],
   ['varbindingmask_6',['varBindingMask',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#ad94e413ca9e847e411c9b9b26d56f6ff',1,'gaia::ecs::vm::MatchingCtx']]],
   ['varbindings_7',['varbindings',['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a1f8559b9c87500828070e99f0fc4f3ac',1,'gaia::ecs::vm::MatchingCtx::varBindings'],['../structgaia_1_1ecs_1_1vm_1_1detail_1_1VarBindings.html',1,'gaia::ecs::vm::detail::VarBindings']]],
-  ['variable_8',['variable',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#aa6460b2f03897af53f2b79a8ed57ff64',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::variable'],['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a47c14840d8e15331fa420b9b2f757cd9',1,'gaia::ecs::QueryCtx::Variable']]],
+  ['variable_8',['variable',['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a47c14840d8e15331fa420b9b2f757cd9',1,'gaia::ecs::QueryCtx::Variable'],['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html#aa6460b2f03897af53f2b79a8ed57ff64',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::variable']]],
   ['variable_20queries_9',['Multi-variable queries',['../index.html#multi-variable-queries',1,'']]],
   ['variablepayload_10',['VariablePayload',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1VariablePayload.html',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState']]],
   ['variables_11',['Query variables',['../index.html#query-variables',1,'']]],

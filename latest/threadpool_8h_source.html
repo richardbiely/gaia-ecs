@@ -209,8 +209,8 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>      std::thread::id m_mainThreadId;</div>
 <div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
 <div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>      std::atomic_bool m_stop{};</div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext&lt;GAIA_THREAD, MaxWorkers&gt;</a> m_workers;</div>
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>      GAIA_ALIGNAS(128) <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext&lt;ThreadCtx, MaxWorkers&gt;</a> m_workersCtx;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext&lt;GAIA_THREAD, MaxWorkers&gt;</a> m_workers;</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>      GAIA_ALIGNAS(128) <a class="code hl_class" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext&lt;ThreadCtx, MaxWorkers&gt;</a> m_workersCtx;</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span>      MpmcQueue&lt;JobHandle, 1024&gt; m_jobQueue[JobPriorityCnt];</div>
 <div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>      MpmcQueue&lt;JobHandle, 1024&gt; m_jobQueueBackground;</div>
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span>      uint32_t m_frameWorkersCnt = 0;</div>
@@ -1628,7 +1628,7 @@ $(document).ready(function(){initNavTree('threadpool_8h_source.html',''); initRe
 <div class="line"><a id="l01647" name="l01647"></a><span class="lineno"> 1647</span>    GAIA_MSVC_WARNING_POP()</div>
 <div class="line"><a id="l01648" name="l01648"></a><span class="lineno"> 1648</span>  } <span class="comment">// namespace mt</span></div>
 <div class="line"><a id="l01649" name="l01649"></a><span class="lineno"> 1649</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1sarr__ext_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1sarr__ext.html">gaia::cnt::sarr_ext</a></div><div class="ttdoc">Array of elements of type.</div><div class="ttdef"><b>Definition</b> sarray_ext_impl.h:27</div></div>
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1JobManager_html"><div class="ttname"><a href="classgaia_1_1mt_1_1JobManager.html">gaia::mt::JobManager</a></div><div class="ttdoc">Storage and lifecycle manager for internal job and parallel callback records.</div><div class="ttdef"><b>Definition</b> jobmanager.h:233</div></div>
 <div class="ttc" id="aclassgaia_1_1mt_1_1JobManager_html_a200d3efe304ba8e2d5ea5dd2f328c987"><div class="ttname"><a href="classgaia_1_1mt_1_1JobManager.html#a200d3efe304ba8e2d5ea5dd2f328c987">gaia::mt::JobManager::free_edges</a></div><div class="ttdeci">static void free_edges(JobContainer &amp;jobData)</div><div class="ttdoc">Releases heap storage used for the dependency list of jobData.</div><div class="ttdef"><b>Definition</b> jobmanager.h:340</div></div>

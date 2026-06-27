@@ -140,6 +140,10 @@ Public Attributes</h2></td></tr>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html">DirectChunkEntry</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>directChunks</b></td></tr>
 <tr class="memdesc:a2925994e13ceb3eae8a12a0dfd8a3383"><td class="mdescLeft">&#160;</td><td class="mdescRight">Flattened chunk cache for read-only direct dense iteration over highly fragmented result caches. <br /></td></tr>
 <tr class="separator:a2925994e13ceb3eae8a12a0dfd8a3383"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad7d56389f50b01a4ae243b75f0d7d93e" id="r_ad7d56389f50b01a4ae243b75f0d7d93e"><td class="memItemLeft" align="right" valign="top"><a id="ad7d56389f50b01a4ae243b75f0d7d93e" name="ad7d56389f50b01a4ae243b75f0d7d93e"></a>
+<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; const void * &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>directChunkData</b></td></tr>
+<tr class="memdesc:ad7d56389f50b01a4ae243b75f0d7d93e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Contiguous cached component data pointers for <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html" title="Cached archetype/chunk pair used by repeated direct-dense scans over highly fragmented result caches.">DirectChunkEntry</a> pointer blocks. <br /></td></tr>
+<tr class="separator:ad7d56389f50b01a4ae243b75f0d7d93e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac4c0e32f88e4bd8cdb2edc8deb178db7" id="r_ac4c0e32f88e4bd8cdb2edc8deb178db7"><td class="memItemLeft" align="right" valign="top"><a id="ac4c0e32f88e4bd8cdb2edc8deb178db7" name="ac4c0e32f88e4bd8cdb2edc8deb178db7"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksWorldVersion</b> = UINT32_MAX</td></tr>
 <tr class="memdesc:ac4c0e32f88e4bd8cdb2edc8deb178db7"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version captured when directChunks was built. <br /></td></tr>
@@ -164,6 +168,14 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksIdxFr
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksIdxTo</b> = UINT32_MAX</td></tr>
 <tr class="memdesc:a5e221a0f3de4ff3e59e0ec631ed9cba5"><td class="mdescLeft">&#160;</td><td class="mdescRight">One-past-the-end result-cache archetype index captured when directChunks was built. <br /></td></tr>
 <tr class="separator:a5e221a0f3de4ff3e59e0ec631ed9cba5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aea312b3c954a3b5cd1c5627709b951fa" id="r_aea312b3c954a3b5cd1c5627709b951fa"><td class="memItemLeft" align="right" valign="top"><a id="aea312b3c954a3b5cd1c5627709b951fa" name="aea312b3c954a3b5cd1c5627709b951fa"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksDataFields</b> [MAX_ITEMS_IN_QUERY] {}</td></tr>
+<tr class="memdesc:aea312b3c954a3b5cd1c5627709b951fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Query fields whose component data pointers were captured in <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html" title="Cached archetype/chunk pair used by repeated direct-dense scans over highly fragmented result caches.">DirectChunkEntry</a> pointer blocks. <br /></td></tr>
+<tr class="separator:aea312b3c954a3b5cd1c5627709b951fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a653ed1fcd0d976a9364d6e20b8695500" id="r_a653ed1fcd0d976a9364d6e20b8695500"><td class="memItemLeft" align="right" valign="top"><a id="a653ed1fcd0d976a9364d6e20b8695500" name="a653ed1fcd0d976a9364d6e20b8695500"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksDataFieldCount</b> = 0</td></tr>
+<tr class="memdesc:a653ed1fcd0d976a9364d6e20b8695500"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid entries in directChunksDataFields. <br /></td></tr>
+<tr class="separator:a653ed1fcd0d976a9364d6e20b8695500"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa8a66dc05138a0b51320c13e4d05fe28" id="r_aa8a66dc05138a0b51320c13e4d05fe28"><td class="memItemLeft" align="right" valign="top"><a id="aa8a66dc05138a0b51320c13e4d05fe28" name="aa8a66dc05138a0b51320c13e4d05fe28"></a>
 const void *&#160;</td><td class="memItemRight" valign="bottom"><b>directChunksCompIndicesData</b> = nullptr</td></tr>
 <tr class="memdesc:aa8a66dc05138a0b51320c13e4d05fe28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Component-index mapping storage captured by <a class="el" href="structgaia_1_1ecs_1_1DirectChunkEntry.html#a5e780711297cbe3ebd0899b84ed18880" title="Prepared query-field to chunk-column mapping for pArchetype, or null when not available.">DirectChunkEntry::pCompIndices</a> pointers. <br /></td></tr>
