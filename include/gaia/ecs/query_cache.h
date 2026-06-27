@@ -488,6 +488,11 @@ namespace gaia {
 			}
 
 			void register_archetype_with_queries(const Archetype* pArchetype) {
+				if (m_entityToCreateQuery.empty()) {
+					(void)pArchetype;
+					return;
+				}
+
 				auto& handles = prepare_create_query_handles();
 				const bool needsExactPairSelectors = has_create_selector_kind(CreateSelectorKind::ExactPair);
 				const bool needsRelWildcardSelectors = has_create_selector_kind(CreateSelectorKind::RelWildcardPair);
