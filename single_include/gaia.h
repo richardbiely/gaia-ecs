@@ -57559,6 +57559,12 @@ namespace gaia {
 				return !m_observer_map_add.empty() || !m_observer_map_add_is.empty() || !m_diff_index_add.empty();
 			}
 
+			//! Returns whether any OnDel observer can be dispatched.
+			//! \return True if at least one OnDel observer is registered.
+			GAIA_NODISCARD bool has_on_del_observers() const {
+				return !m_observer_map_del.empty() || !m_observer_map_del_is.empty() || !m_diff_index_del.empty();
+			}
+
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;
@@ -59361,14 +59367,16 @@ namespace gaia {
 						auto& ec = m_world.fetch(m_entity);
 						GAIA_ASSERT(ec.pArchetype == m_pArchetypeSrc);
 #if GAIA_OBSERVERS_ENABLED
-						auto delDiffCtx = tl_del_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
-																									 : m_world.m_observers.prepare_diff(
-																												 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
-																												 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = tl_new_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
-																									 : m_world.m_observers.prepare_diff(
-																												 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
-																												 EntitySpan{&m_entity, 1});
+						const bool hasOnDelObservers = !tl_del_comps.empty() && m_world.m_observers.has_on_del_observers();
+						const bool hasOnAddObservers = !tl_new_comps.empty() && m_world.m_observers.has_on_add_observers();
+						auto delDiffCtx = !hasOnDelObservers ? ObserverRegistry::DiffDispatchCtx{}
+																								 : m_world.m_observers.prepare_diff(
+																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
+																											 EntitySpan{&m_entity, 1});
+						auto addDiffCtx = !hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
+																								 : m_world.m_observers.prepare_diff(
+																											 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
+																											 EntitySpan{&m_entity, 1});
 #endif
 
 						// Trigger remove hooks if there are any
@@ -59399,8 +59407,10 @@ namespace gaia {
 						// Trigger add hooks if there are any
 						trigger_add_hooks(*m_pArchetype);
 #if GAIA_OBSERVERS_ENABLED
-						m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
-						m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+						if (hasOnDelObservers)
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
+						if (hasOnAddObservers)
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
 						cleanup_deleted_out_of_line_components();
 
@@ -59416,14 +59426,16 @@ namespace gaia {
 #endif
 
 #if GAIA_OBSERVERS_ENABLED
-						auto delDiffCtx = tl_del_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
-																									 : m_world.m_observers.prepare_diff(
-																												 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
-																												 EntitySpan{&m_entity, 1});
-						auto addDiffCtx = tl_new_comps.empty() ? ObserverRegistry::DiffDispatchCtx{}
-																									 : m_world.m_observers.prepare_diff(
-																												 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
-																												 EntitySpan{&m_entity, 1});
+						const bool hasOnDelObservers = !tl_del_comps.empty() && m_world.m_observers.has_on_del_observers();
+						const bool hasOnAddObservers = !tl_new_comps.empty() && m_world.m_observers.has_on_add_observers();
+						auto delDiffCtx = !hasOnDelObservers ? ObserverRegistry::DiffDispatchCtx{}
+																								 : m_world.m_observers.prepare_diff(
+																											 m_world, ObserverEvent::OnDel, EntitySpan{tl_del_comps},
+																											 EntitySpan{&m_entity, 1});
+						auto addDiffCtx = !hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
+																								 : m_world.m_observers.prepare_diff(
+																											 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
+																											 EntitySpan{&m_entity, 1});
 #endif
 
 						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
@@ -59445,8 +59457,10 @@ namespace gaia {
 						}
 
 #if GAIA_OBSERVERS_ENABLED
-						m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
-						m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
+						if (hasOnDelObservers)
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
+						if (hasOnAddObservers)
+							m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
 						cleanup_deleted_out_of_line_components();
 					}
@@ -59693,7 +59707,8 @@ namespace gaia {
 
 	#if GAIA_OBSERVERS_ENABLED
 					// Trigger observers second
-					m_world.m_observers.on_add(m_world, newArchetype, std::span<Entity>{tl_new_comps}, {&m_entity, 1});
+					if (m_world.m_observers.has_on_add_observers())
+						m_world.m_observers.on_add(m_world, newArchetype, std::span<Entity>{tl_new_comps}, {&m_entity, 1});
 	#else
 					(void)newArchetype;
 	#endif
@@ -59719,7 +59734,8 @@ namespace gaia {
 
 	#if GAIA_OBSERVERS_ENABLED
 					// Trigger observers first
-					m_world.m_observers.on_del(m_world, newArchetype, std::span<Entity>{tl_del_comps}, {&m_entity, 1});
+					if (m_world.m_observers.has_on_del_observers())
+						m_world.m_observers.on_del(m_world, newArchetype, std::span<Entity>{tl_del_comps}, {&m_entity, 1});
 	#else
 					(void)newArchetype;
 	#endif

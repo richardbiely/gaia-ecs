@@ -322,6 +322,12 @@ namespace gaia {
 				return !m_observer_map_add.empty() || !m_observer_map_add_is.empty() || !m_diff_index_add.empty();
 			}
 
+			//! Returns whether any OnDel observer can be dispatched.
+			//! \return True if at least one OnDel observer is registered.
+			GAIA_NODISCARD bool has_on_del_observers() const {
+				return !m_observer_map_del.empty() || !m_observer_map_del_is.empty() || !m_diff_index_del.empty();
+			}
+
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;
