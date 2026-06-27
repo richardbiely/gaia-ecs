@@ -1618,6 +1618,63 @@ namespace robin_hood {
 				return try_emplace_impl(GAIA_MOV(key), GAIA_FWD(args)...).first;
 			}
 
+			//! Prepared insertion slot returned by prepare_insert().
+			//! \warning If found() is false, the caller must immediately finish insertion with emplace_prepared().
+			struct prepared_insert {
+				static constexpr size_t FlagOverwriteNode = size_t(1) << ((sizeof(size_t) * 8) - 1);
+				static constexpr size_t FlagKeyFound = size_t(1) << ((sizeof(size_t) * 8) - 2);
+				static constexpr size_t IndexMask = ~(FlagOverwriteNode | FlagKeyFound);
+
+				size_t value{};
+
+				prepared_insert() = default;
+
+				prepared_insert(size_t idx, bool overwriteNode, bool keyFound) noexcept:
+						value(idx | (overwriteNode ? FlagOverwriteNode : 0) | (keyFound ? FlagKeyFound : 0)) {
+					GAIA_ASSERT((idx & ~IndexMask) == 0);
+				}
+
+				GAIA_NODISCARD size_t idx() const noexcept {
+					return value & IndexMask;
+				}
+
+				GAIA_NODISCARD bool overwrite_node() const noexcept {
+					return 0 != (value & FlagOverwriteNode);
+				}
+
+				GAIA_NODISCARD bool found() const noexcept {
+					return 0 != (value & FlagKeyFound);
+				}
+			};
+
+			static_assert(sizeof(prepared_insert) == sizeof(size_t), "prepared_insert must stay compact");
+
+			//! Finds key or prepares its insertion slot in one probe.
+			//! \warning If the returned token is not found(), call emplace_prepared() immediately.
+			GAIA_NODISCARD prepared_insert prepare_insert(const key_type& key) {
+				return prepare_insert_impl(key);
+			}
+
+			//! Finds key or prepares its insertion slot in one probe.
+			//! \warning If the returned token is not found(), call emplace_prepared() immediately.
+			GAIA_NODISCARD prepared_insert prepare_insert(key_type&& key) {
+				return prepare_insert_impl(GAIA_MOV(key));
+			}
+
+			GAIA_NODISCARD iterator prepared_iterator(prepared_insert prepared) {
+				return iterator(mKeyVals + prepared.idx(), mInfo + prepared.idx());
+			}
+
+			template <typename... Args>
+			iterator emplace_prepared(prepared_insert prepared, Args&&... args) {
+				GAIA_ASSERT(!prepared.found());
+				if (prepared.overwrite_node())
+					mKeyVals[prepared.idx()] = Node(*this, GAIA_FWD(args)...);
+				else
+					::new (static_cast<void*>(&mKeyVals[prepared.idx()])) Node(*this, GAIA_FWD(args)...);
+				return prepared_iterator(prepared);
+			}
+
 			template <typename Mapped>
 			std::pair<iterator, bool> insert_or_assign(const key_type& key, Mapped&& obj) {
 				return insertOrAssignImpl(key, GAIA_FWD(obj));
@@ -2100,6 +2157,59 @@ namespace robin_hood {
 				return std::make_pair(
 						iterator(mKeyVals + idxAndState.first, mInfo + idxAndState.first),
 						InsertionState::key_found != idxAndState.second);
+			}
+
+			template <typename OtherKey>
+			prepared_insert prepare_insert_impl(OtherKey&& key) {
+				ROBIN_HOOD_TRACE("%p", this);
+
+				for (int i = 0; i < 256; ++i) {
+					if GAIA_UNLIKELY (mNumElements >= mMaxNumElementsAllowed) {
+						if (!increase_size())
+							throwOverflowError();
+						continue;
+					}
+
+					size_t idx{};
+					InfoType info{};
+					keyToIdx(key, &idx, &info);
+
+					for (;;) {
+						if (info > mInfo[idx])
+							break;
+						if (info == mInfo[idx]) {
+							if GAIA_LIKELY (WKeyEqual::operator()(key, mKeyVals[idx].getFirst()))
+								return prepared_insert{idx, false, true};
+						}
+						next(&info, &idx);
+
+						if (info > mInfo[idx])
+							break;
+						if (info == mInfo[idx]) {
+							if GAIA_LIKELY (WKeyEqual::operator()(key, mKeyVals[idx].getFirst()))
+								return prepared_insert{idx, false, true};
+						}
+						next(&info, &idx);
+					}
+
+					auto const insertion_idx = idx;
+					auto const insertion_info = info;
+					if GAIA_UNLIKELY (insertion_info + mInfoInc > 0xFF)
+						mMaxNumElementsAllowed = 0;
+
+					while (0 != mInfo[idx])
+						next(&info, &idx);
+
+					if (idx != insertion_idx)
+						shiftUp(idx, insertion_idx);
+
+					mInfo[insertion_idx] = static_cast<uint8_t>(insertion_info);
+					++mNumElements;
+					return prepared_insert{insertion_idx, idx != insertion_idx, false};
+				}
+
+				throwOverflowError();
+				return {};
 			}
 
 			template <typename OtherKey, typename Mapped>
