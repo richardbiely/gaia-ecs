@@ -46939,8 +46939,11 @@ namespace gaia {
 			//! Returns a flattened chunk view for a direct-dense result-cache range.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
-			std::span<const DirectChunkEntry> direct_chunk_view(
-					uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields = nullptr, uint32_t dataFieldCount = 0) const {
+			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
+			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \return Flattened chunk entries for the requested result-cache archetype range.
+			std::span<const DirectChunkEntry>
+			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) const {
 				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo, pDataFields, dataFieldCount);
 				return {m_state.exec.directChunks.data(), m_state.exec.directChunks.size()};
 			}

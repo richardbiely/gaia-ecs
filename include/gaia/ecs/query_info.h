@@ -1755,8 +1755,8 @@ namespace gaia {
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
 			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
-			void ensure_direct_chunks(
-					uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) {
+			void
+			ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) {
 				ensure_comp_indices();
 				const auto* pCompIndicesData = m_state.exec.archetypeCompIndices.data();
 				const auto dataFieldsMatch = [&]() {
@@ -1777,8 +1777,7 @@ namespace gaia {
 						m_state.exec.directChunksDeleteVersion == currDeleteVersion &&
 						m_state.exec.directChunksResultRevision == m_state.resultCacheRevision &&
 						m_state.exec.directChunksIdxFrom == idxFrom && m_state.exec.directChunksIdxTo == idxTo &&
-						dataFieldsMatch() &&
-						m_state.exec.directChunksCompIndicesData == pCompIndicesData)
+						dataFieldsMatch() && m_state.exec.directChunksCompIndicesData == pCompIndicesData)
 					return;
 
 				m_state.exec.directChunks.clear();
@@ -1818,7 +1817,8 @@ namespace gaia {
 								//! lookup. Multi-argument callbacks use directChunkData below because they need a
 								//! stable per-entry block of pointers in callback-argument order.
 								const auto dataFieldIdx = pDataFields[0];
-								const auto compIdx = dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
+								const auto compIdx =
+										dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
 								if (compIdx != 0xFF)
 									pData = pChunk->comp_rec_view()[compIdx].pData;
 							} else if (dataFieldCount > 1) {
@@ -1826,7 +1826,8 @@ namespace gaia {
 								const auto recs = pChunk->comp_rec_view();
 								GAIA_FOR(dataFieldCount) {
 									const auto dataFieldIdx = pDataFields[i];
-									const auto compIdx = dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
+									const auto compIdx =
+											dataFieldIdx < ChunkHeader::MAX_COMPONENTS ? pCompIndices[dataFieldIdx] : uint8_t(0xFF);
 									m_state.exec.directChunkData.push_back(compIdx != 0xFF ? recs[compIdx].pData : nullptr);
 								}
 							}
@@ -2405,9 +2406,11 @@ namespace gaia {
 			//! Returns a flattened chunk view for a direct-dense result-cache range.
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
+			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
+			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \return Flattened chunk entries for the requested result-cache archetype range.
 			std::span<const DirectChunkEntry>
-			direct_chunk_view(
-					uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields = nullptr, uint32_t dataFieldCount = 0) const {
+			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) const {
 				const_cast<QueryInfo*>(this)->ensure_direct_chunks(idxFrom, idxTo, pDataFields, dataFieldCount);
 				return {m_state.exec.directChunks.data(), m_state.exec.directChunks.size()};
 			}
