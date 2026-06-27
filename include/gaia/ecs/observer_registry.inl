@@ -1106,6 +1106,9 @@ namespace gaia {
 		}
 
 		inline void ObserverRegistry::try_mark_term_observed(World& world, Entity term) {
+			if (!has_on_add_observers() && !has_on_del_observers() && !m_hasOnSetObservers)
+				return;
+
 			if (!can_mark_term_observed(world, term))
 				return;
 			if (!has_observers_for_term(term))

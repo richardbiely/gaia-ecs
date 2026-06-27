@@ -755,6 +755,8 @@ namespace gaia {
 			mutable bool m_relationCachesPopulated = false;
 			//! True once any relation has an OnDeleteTarget policy and pair adds/removes must inspect target flags.
 			bool m_hasOnDeleteTargetPolicy = false;
+			//! True once any entity has a Requires relation and add/remove paths must inspect requirements.
+			bool m_hasRequiresPolicy = false;
 			//! Map of relation -> targets
 			PairMap m_relToTgt;
 			//! Map of target -> relations
@@ -2116,7 +2118,7 @@ namespace gaia {
 					}
 
 					// Handle requirements
-					{
+					if (m_world.m_hasRequiresPolicy) {
 						targets.clear();
 						m_world.targets(entity, Requires, [&targets](Entity target) {
 							targets.push_back(target);
@@ -2134,6 +2136,9 @@ namespace gaia {
 				}
 
 				GAIA_NODISCARD bool has_Requires_tgt(Entity entity) const {
+					if (!m_world.m_hasRequiresPolicy)
+						return false;
+
 					// Don't allow to delete entity if something in the archetype requires it
 					auto ids = m_pArchetype->ids_view();
 					for (auto e: ids) {
@@ -2169,6 +2174,8 @@ namespace gaia {
 							try_set_OnDelete(ecMain, entity, enable);
 							try_set_OnDeleteTargetPolicy(ecMain, entity, enable);
 						}
+						if (enable && entity.id() == Requires.id())
+							m_world.m_hasRequiresPolicy = true;
 
 						if (m_world.m_hasOnDeleteTargetPolicy)
 							try_set_OnDeleteTarget(entity, enable);
