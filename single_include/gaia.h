@@ -66689,14 +66689,15 @@ namespace gaia {
 				GAIA_ASSERT(matchCount > 0);
 
 				EntityLookupKey entityKey(entity);
-				const auto it = m_entityToArchetypeMap.find(entityKey);
-				if (it == m_entityToArchetypeMap.end()) {
+				auto prepared = m_entityToArchetypeMap.prepare_insert(entityKey);
+				if (!prepared.found()) {
 					ComponentIndexEntryArray records;
 					records.push_back(ComponentIndexEntry{pArchetype, compIdx, matchCount});
-					m_entityToArchetypeMap.try_emplace(entityKey, GAIA_MOV(records));
+					m_entityToArchetypeMap.emplace_prepared(prepared, entityKey, GAIA_MOV(records));
 					return;
 				}
 
+				auto it = m_entityToArchetypeMap.prepared_iterator(prepared);
 				auto& records = it->second;
 				const auto idx = find_component_index_record(records, pArchetype);
 				if (idx == BadIndex) {
