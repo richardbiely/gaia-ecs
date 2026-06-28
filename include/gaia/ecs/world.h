@@ -2451,7 +2451,7 @@ namespace gaia {
 						return false;
 
 					if (entity.pair()) {
-						auto relation = m_world.get(entity.id());
+						auto relation = m_world.m_recs.entities.handle(entity.id());
 						m_world.invalidate_relation_caches(relation);
 					}
 
@@ -2527,7 +2527,7 @@ namespace gaia {
 						return;
 
 					if (entity.pair()) {
-						auto relation = m_world.get(entity.id());
+						auto relation = m_world.m_recs.entities.handle(entity.id());
 						m_world.invalidate_relation_caches(relation);
 					}
 
