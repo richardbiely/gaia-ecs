@@ -755,6 +755,8 @@ namespace gaia {
 			mutable bool m_relationCachesPopulated = false;
 			//! True once any relation has an OnDeleteTarget policy and pair adds/removes must inspect target flags.
 			bool m_hasOnDeleteTargetPolicy = false;
+			//! True once any entity has a CantCombine relation and add paths must inspect combination constraints.
+			bool m_hasCantCombinePolicy = false;
 			//! True once any entity has a Requires relation and add/remove paths must inspect requirements.
 			bool m_hasRequiresPolicy = false;
 			//! Map of relation -> targets
@@ -2043,22 +2045,24 @@ namespace gaia {
 				bool handle_add_entity(Entity entity) {
 					cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> targets;
 
-					const auto& ecMain = m_world.fetch(entity);
 					if (entity.pair())
 						m_world.invalidate_scope_path_cache();
 
 					// Handle entity combinations that can't be together
-					if ((ecMain.flags & EntityContainerFlags::HasCantCombine) != 0) {
-						m_world.targets(entity, CantCombine, [&targets](Entity target) {
-							targets.push_back(target);
-						});
-						for (auto e: targets) {
-							if (m_pArchetype->has(e)) {
+					if (m_world.m_hasCantCombinePolicy) {
+						const auto& ecMain = m_world.fetch(entity);
+						if ((ecMain.flags & EntityContainerFlags::HasCantCombine) != 0) {
+							m_world.targets(entity, CantCombine, [&targets](Entity target) {
+								targets.push_back(target);
+							});
+							for (auto e: targets) {
+								if (m_pArchetype->has(e)) {
 #if GAIA_ASSERT_ENABLED
-								GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
-								print_archetype_entities(m_world, *m_pArchetype, entity, true);
+									GAIA_ASSERT2(false, "Trying to add an entity which can't be combined with the source");
+									print_archetype_entities(m_world, *m_pArchetype, entity, true);
 #endif
-								return false;
+									return false;
+								}
 							}
 						}
 					}
@@ -2067,7 +2071,8 @@ namespace gaia {
 					if (entity.pair()) {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
-						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0) {
+						//! An archetype with no pairs cannot already contain another target for this exclusive relation.
+						if ((ecRel.flags & EntityContainerFlags::IsExclusive) != 0 && m_pArchetype->pairs() != 0) {
 							auto rel = Entity(
 									entity.id(), ecRel.data.gen, (bool)ecRel.data.ent, (bool)ecRel.data.pair,
 									(EntityKind)ecRel.data.kind);
@@ -2214,9 +2219,10 @@ namespace gaia {
 					// Therefore, when resetting the flag, we first need to check if there
 					// are any other targets with this flag set and only reset the flag
 					// if there is only one present.
-					if (enable)
+					if (enable) {
+						m_world.m_hasCantCombinePolicy = true;
 						set_flag(ec.flags, EntityContainerFlags::HasCantCombine, true);
-					else if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
+					} else if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0) {
 						uint32_t targets = 0;
 						m_world.targets(m_entity, CantCombine, [&targets]([[maybe_unused]] Entity entity) {
 							++targets;
@@ -7712,6 +7718,7 @@ namespace gaia {
 					m_targetsAllCache = {};
 					m_relationCachesPopulated = false;
 					m_hasOnDeleteTargetPolicy = false;
+					m_hasCantCombinePolicy = false;
 					m_tgtToRel = {};
 					m_relToTgt = {};
 					m_exclusiveAdjunctByRel = {};
@@ -8145,6 +8152,8 @@ namespace gaia {
 						s.load(ec.dataRaw);
 						s.load(ec.row);
 						s.load(ec.flags);
+						if ((ec.flags & EntityContainerFlags::HasCantCombine) != 0)
+							m_hasCantCombinePolicy = true;
 						if ((ec.flags & (EntityContainerFlags::OnDeleteTarget_Delete | EntityContainerFlags::OnDeleteTarget_Remove |
 														 EntityContainerFlags::OnDeleteTarget_Error)) != 0) {
 							m_hasOnDeleteTargetPolicy = true;
