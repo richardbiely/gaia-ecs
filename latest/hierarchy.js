@@ -520,6 +520,7 @@ var hierarchy =
     [ "gaia::mt::ParallelCallbackHandle", "structgaia_1_1mt_1_1ParallelCallbackHandle.html", null ],
     [ "gaia::ecs::Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
     [ "gaia::ecs::Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
+    [ "robin_hood::detail::Table< IsFlat, MaxLoadFactor100, Key, T, Hash, KeyEqual >::prepared_insert", "structrobin__hood_1_1detail_1_1Table_1_1prepared__insert.html", null ],
     [ "gaia::ecs::Archetype::Properties", "structgaia_1_1ecs_1_1Archetype_1_1Properties.html", null ],
     [ "gaia::ecs::query_sort_cond", "structgaia_1_1ecs_1_1query__sort__cond.html", null ],
     [ "gaia::ecs::QueryAccessSet", "structgaia_1_1ecs_1_1QueryAccessSet.html", null ],

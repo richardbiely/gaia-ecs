@@ -1,5 +1,7 @@
 var NAVTREEINDEX10 =
 {
+"structgaia_1_1ser_1_1detail_1_1has__reset__fn.html":[10,0,0,7,0,6],
+"structgaia_1_1ser_1_1detail_1_1has__reset__fn_3_01T_00_01std_1_1void__t_3_01decltype_07std_1_1dee4d6fcff1588f9093c259ebf893e533d.html":[10,0,0,7,0,7],
 "structgaia_1_1ser_1_1detail_1_1has__save__raw__ptr.html":[10,0,0,7,0,8],
 "structgaia_1_1ser_1_1detail_1_1has__save__raw__ptr_3_01T_00_01std_1_1void__t_3_01decltype_07std_c728a9c81f6de8c25093ad94bfbbbc30.html":[10,0,0,7,0,9],
 "structgaia_1_1ser_1_1detail_1_1has__seek__fn.html":[10,0,0,7,0,10],
@@ -84,6 +86,7 @@ var NAVTREEINDEX10 =
 "structrobin__hood_1_1detail_1_1NodeAllocator.html":[10,0,1,0,6],
 "structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01false_01_4.html":[10,0,1,0,7],
 "structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01true_01_4.html":[10,0,1,0,8],
+"structrobin__hood_1_1detail_1_1Table_1_1prepared__insert.html":[10,0,1,0,9,0],
 "structrobin__hood_1_1detail_1_1WrapHash.html":[10,0,1,0,10],
 "structrobin__hood_1_1detail_1_1WrapKeyEqual.html":[10,0,1,0,11],
 "structrobin__hood_1_1detail_1_1has__hash.html":[10,0,1,0,2],

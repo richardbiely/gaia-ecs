@@ -494,7 +494,7 @@ var annotated_dup =
         [ "NodeAllocator", "structrobin__hood_1_1detail_1_1NodeAllocator.html", null ],
         [ "NodeAllocator< T, MinSize, MaxSize, false >", "structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01false_01_4.html", null ],
         [ "NodeAllocator< T, MinSize, MaxSize, true >", "structrobin__hood_1_1detail_1_1NodeAllocator_3_01T_00_01MinSize_00_01MaxSize_00_01true_01_4.html", null ],
-        [ "Table", "classrobin__hood_1_1detail_1_1Table.html", null ],
+        [ "Table", "classrobin__hood_1_1detail_1_1Table.html", "classrobin__hood_1_1detail_1_1Table" ],
         [ "WrapHash", "structrobin__hood_1_1detail_1_1WrapHash.html", null ],
         [ "WrapKeyEqual", "structrobin__hood_1_1detail_1_1WrapKeyEqual.html", null ]
       ] ],
