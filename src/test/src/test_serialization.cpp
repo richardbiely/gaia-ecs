@@ -1578,6 +1578,43 @@ TEST_CASE("Serialization - world other") {
 	CHECK(apple2 == apple);
 }
 
+TEST_CASE("Serialization - world preserves Parent non-fragmenting relations") {
+	ecs::World in;
+
+	const auto root = in.add();
+	const auto child = in.add();
+	in.name(root, "Root");
+	in.name(child, "Child");
+	in.parent(child, root);
+
+	CHECK(in.has(ecs::Pair(ecs::Parent, root)));
+	CHECK(in.has(child, ecs::Pair(ecs::Parent, root)));
+	CHECK(in.target(child, ecs::Parent) == root);
+
+	ser::bin_stream buffer;
+	in.set_serializer(buffer);
+	in.save();
+
+	TestWorld twld;
+	CHECK(wld.load(buffer));
+
+	const auto loadedRoot = wld.get("Root");
+	const auto loadedChild = wld.get("Child");
+	CHECK(loadedRoot == root);
+	CHECK(loadedChild == child);
+	CHECK(wld.has(ecs::Pair(ecs::Parent, loadedRoot)));
+	CHECK(wld.has(loadedChild, ecs::Pair(ecs::Parent, loadedRoot)));
+	CHECK(wld.target(loadedChild, ecs::Parent) == loadedRoot);
+
+	cnt::darray<ecs::Entity> sources;
+	wld.sources(ecs::Parent, loadedRoot, [&](ecs::Entity source) {
+		sources.push_back(source);
+	});
+	CHECK(sources.size() == 1);
+	if (!sources.empty())
+		CHECK(sources[0] == loadedChild);
+}
+
 TEST_CASE("Serialization - world compatibility when core components are added later") {
 	TestWorld archetypeWorld;
 	const auto warmup = archetypeWorld.m_w.add();

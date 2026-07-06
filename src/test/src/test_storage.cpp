@@ -1,6 +1,6 @@
 #include "test_common.h"
 
-TEST_CASE("Sparse DontFragment component and adjunct storage") {
+TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") {
 	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -32,7 +32,7 @@ TEST_CASE("Sparse DontFragment component and adjunct storage") {
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("Builder handles sticky traits and adjunct ids") {
+TEST_CASE("Builder handles sticky traits and non-fragmenting relation ids") {
 	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -46,6 +46,12 @@ TEST_CASE("Builder handles sticky traits and adjunct ids") {
 	const auto* pArchetypeBefore = wld.fetch(child).pArchetype;
 
 	wld.build(child).add(ecs::Pair(ecs::Parent, parent));
+	CHECK(wld.has(ecs::Pair(ecs::Parent, parent)));
+	CHECK(wld.target(child, ecs::Parent) == parent);
+	CHECK(wld.fetch(child).pArchetype == pArchetypeBefore);
+
+	wld.build(child).add(ecs::Pair(ecs::Parent, parent));
+	CHECK(wld.has(ecs::Pair(ecs::Parent, parent)));
 	CHECK(wld.target(child, ecs::Parent) == parent);
 	CHECK(wld.fetch(child).pArchetype == pArchetypeBefore);
 

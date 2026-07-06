@@ -4042,7 +4042,7 @@ TEST_CASE("Pair wildcard relation maps preserve shared entries after relation de
 	CHECK(contains(wld.relations(ecs::All), relB));
 }
 
-TEST_CASE("Deleting exclusive dontfragment relation entity clears adjunct bindings") {
+TEST_CASE("Deleting exclusive dontfragment relation entity clears non-fragmenting bindings") {
 	TestWorld twld;
 
 	const auto rel = wld.add();

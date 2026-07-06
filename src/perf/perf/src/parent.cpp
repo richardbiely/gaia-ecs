@@ -40,6 +40,459 @@ void create_hierarchy_tree_with_position(
 		w.add<Position>(e, {1.0f, 2.0f, 3.0f});
 }
 
+static constexpr uint32_t HierarchyBatchLeafCount = 5U;
+
+template <bool UseParent>
+void create_hierarchy_batch_tree(ecs::World& w, ecs::Entity scene, uint32_t rootCount, uint64_t& entitySum) {
+	GAIA_FOR(rootCount) {
+		const auto root = w.add();
+		w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+		add_hierarchy_edge<UseParent>(w, root, scene);
+		entitySum += root.id();
+
+		GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+			const auto leaf = w.add();
+			w.add<Position>(leaf, {(float)(childIdx + 1U), 2.0f, 3.0f});
+			add_hierarchy_edge<UseParent>(w, leaf, root);
+			entitySum += leaf.id();
+		}
+	}
+}
+
+template <bool UseParent>
+void create_hierarchy_batch_tree_multi(ecs::World& w, ecs::Entity scene, uint32_t rootCount, uint64_t& entitySum) {
+	GAIA_FOR(rootCount) {
+		const auto root = w.add();
+		w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+		w.add<Velocity>(root, {4.0f, 5.0f, 6.0f});
+		w.add<Acceleration>(root, {7.0f, 8.0f, 9.0f});
+		add_hierarchy_edge<UseParent>(w, root, scene);
+		entitySum += root.id();
+
+		GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+			const auto leaf = w.add();
+			w.add<Position>(leaf, {(float)(childIdx + 1U), 2.0f, 3.0f});
+			w.add<Velocity>(leaf, {4.0f, (float)(childIdx + 5U), 6.0f});
+			w.add<Acceleration>(leaf, {7.0f, 8.0f, (float)(childIdx + 9U)});
+			add_hierarchy_edge<UseParent>(w, leaf, root);
+			entitySum += leaf.id();
+		}
+	}
+}
+
+void create_hierarchy_batch_parent_prefab(ecs::World& w, ecs::Entity& rootPrefab) {
+	rootPrefab = w.prefab();
+	w.add<Position>(rootPrefab, {1.0f, 2.0f, 3.0f});
+
+	GAIA_FOR(HierarchyBatchLeafCount) {
+		const auto childPrefab = w.prefab();
+		w.add<Position>(childPrefab, {(float)(i + 1U), 2.0f, 3.0f});
+		w.parent(childPrefab, rootPrefab);
+	}
+}
+
+template <bool UseParent>
+void BM_HierarchyBatch_SpawnManual(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		create_hierarchy_batch_tree<UseParent>(w, scene, rootCount, entitySum);
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+void BM_HierarchyBatch_SpawnFlatPositions(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		GAIA_FOR(rootCount) {
+			const auto root = w.add();
+			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+			entitySum += root.id();
+
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				const auto leaf = w.add();
+				w.add<Position>(leaf, {(float)(childIdx + 1U), 2.0f, 3.0f});
+				entitySum += leaf.id();
+			}
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+template <bool UseParent>
+void BM_HierarchyBatch_EdgeOnly(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		cnt::darray<ecs::Entity> roots;
+		cnt::darray<ecs::Entity> leaves;
+		roots.reserve(rootCount);
+		leaves.reserve(rootCount * HierarchyBatchLeafCount);
+		GAIA_FOR(rootCount) {
+			const auto root = w.add();
+			roots.push_back(root);
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				(void)childIdx;
+				leaves.push_back(w.add());
+			}
+		}
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		uint32_t leafIdx = 0;
+		for (auto root: roots) {
+			add_hierarchy_edge<UseParent>(w, root, scene);
+			entitySum += root.id();
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				(void)childIdx;
+				const auto leaf = leaves[leafIdx++];
+				add_hierarchy_edge<UseParent>(w, leaf, root);
+				entitySum += leaf.id();
+			}
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+void BM_HierarchyBatch_ParentEdgeOnlyExistingTargets(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		const auto sceneWarmup = w.add();
+		w.parent(sceneWarmup, scene);
+
+		cnt::darray<ecs::Entity> roots;
+		cnt::darray<ecs::Entity> leaves;
+		cnt::darray<ecs::Entity> warmups;
+		roots.reserve(rootCount);
+		leaves.reserve(rootCount * HierarchyBatchLeafCount);
+		warmups.reserve(rootCount);
+		GAIA_FOR(rootCount) {
+			const auto root = w.add();
+			roots.push_back(root);
+			const auto warmup = w.add();
+			w.parent(warmup, root);
+			warmups.push_back(warmup);
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				(void)childIdx;
+				leaves.push_back(w.add());
+			}
+		}
+
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		uint32_t leafIdx = 0;
+		for (auto root: roots) {
+			w.parent(root, scene);
+			entitySum += root.id();
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				(void)childIdx;
+				const auto leaf = leaves[leafIdx++];
+				w.parent(leaf, root);
+				entitySum += leaf.id();
+			}
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum + sceneWarmup.id();
+		for (auto warmup: warmups)
+			total += warmup.id();
+	}
+
+	dont_optimize(total);
+}
+
+void BM_HierarchyBatch_ParentTargetPrepare(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		cnt::darray<ecs::Entity> roots;
+		cnt::darray<ecs::Entity> warmups;
+		roots.reserve(rootCount);
+		warmups.reserve(rootCount);
+		GAIA_FOR(rootCount) {
+			roots.push_back(w.add());
+			warmups.push_back(w.add());
+		}
+
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		GAIA_FOR(rootCount) {
+			w.parent(warmups[i], roots[i]);
+			entitySum += warmups[i].id();
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_parent_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		w.instantiate_n(rootPrefab, scene, rootCount, [&](ecs::Entity instance) {
+			entitySum += instance.id();
+		});
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+template <bool UseParent>
+void BM_HierarchyBatch_QueryPlain(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree<UseParent>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>();
+	float sum = 0.0f;
+
+	q.each([&](const Position& pos) {
+		sum += pos.x;
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](const Position& pos) {
+			sum += pos.x;
+		});
+	}
+
+	dont_optimize(sum + (float)entitySum);
+}
+
+void BM_HierarchyBatch_QueryChildOfDepthOrder(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree<false>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>().depth_order(ecs::ChildOf);
+	float sum = 0.0f;
+
+	q.each([&](const Position& pos) {
+		sum += pos.x;
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](const Position& pos) {
+			sum += pos.x;
+		});
+	}
+
+	dont_optimize(sum + (float)entitySum);
+}
+
+template <bool UseParent, bool DepthOrder>
+void BM_HierarchyBatch_QueryMulti(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree_multi<UseParent>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>().all<Velocity>().all<Acceleration>();
+	if constexpr (DepthOrder)
+		q.depth_order(ecs::ChildOf);
+	float sum = 0.0f;
+
+	q.each([&](const Acceleration& acc, const Velocity& vel, const Position& pos) {
+		sum += acc.x + vel.y + pos.z;
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](const Acceleration& acc, const Velocity& vel, const Position& pos) {
+			sum += acc.x + vel.y + pos.z;
+		});
+	}
+
+	dont_optimize(sum + (float)entitySum);
+}
+
+void BM_HierarchyBatch_QueryParentOrderBy(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree<true>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>();
+	float sum = 0.0f;
+
+	q.order_by(ecs::Parent, ecs::TravOrder::Down).each([&](ecs::Entity, const Position& pos) {
+		sum += pos.x;
+	});
+	sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.order_by(ecs::Parent, ecs::TravOrder::Down).each([&](ecs::Entity, const Position& pos) {
+			sum += pos.x;
+		});
+	}
+
+	dont_optimize(sum + (float)entitySum);
+}
+
+template <bool UseParent>
+void BM_HierarchyBatch_QueryIterBatchesPlain(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree<UseParent>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>();
+	uint64_t visits = 0;
+
+	q.each([&](ecs::Iter& it) {
+		++visits;
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			visits += (uint64_t)posView[i].x;
+		}
+	});
+	visits = 0;
+
+	for (auto _: state) {
+		(void)_;
+
+		q.each([&](ecs::Iter& it) {
+			++visits;
+			auto posView = it.view<Position>();
+			GAIA_EACH(it) {
+				visits += (uint64_t)posView[i].x;
+			}
+		});
+	}
+
+	dont_optimize(visits + entitySum);
+}
+
+template <bool UseParent, bool DepthOrder, bool UsePtr>
+void BM_HierarchyBatch_QueryChunkRaw(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto scene = w.add();
+	uint64_t entitySum = 0;
+	create_hierarchy_batch_tree<UseParent>(w, scene, rootCount, entitySum);
+
+	auto q = w.query().all<Position>();
+	if constexpr (DepthOrder) {
+		if constexpr (UseParent)
+			q.order_by(ecs::Parent, ecs::TravOrder::Down);
+		else
+			q.depth_order(ecs::ChildOf);
+	}
+	auto& queryInfo = q.fetch();
+	q.match_all(queryInfo);
+	const auto posComp = w.get<Position>();
+	float sum = 0.0f;
+
+	for (auto _: state) {
+		(void)_;
+
+		for (const auto* pArchetype: queryInfo.cache_archetype_view()) {
+			const auto& chunks = pArchetype->chunks();
+			for (auto* pChunk: chunks) {
+				const auto from = ecs::Iter::start_index(pChunk);
+				const auto to = ecs::Iter::end_index(pChunk);
+				if (from == to)
+					continue;
+
+				if constexpr (UsePtr) {
+					const auto recs = pChunk->comp_rec_view();
+					const auto* p = (const Position*)recs[pChunk->comp_idx(posComp)].pData + from;
+					const auto cnt = (uint32_t)(to - from);
+					GAIA_FOR(cnt) {
+						sum += p[i].x;
+					}
+				} else {
+					auto posView = pChunk->view<Position>(from, to);
+					const auto cnt = (uint32_t)(to - from);
+					GAIA_FOR(cnt) {
+						sum += posView[i].x;
+					}
+				}
+			}
+		}
+	}
+
+	dont_optimize(sum + (float)entitySum);
+}
+
 void create_dependency_tree(
 		ecs::World& w, cnt::darray<ecs::Entity>& entities, uint32_t count, uint32_t branchingFactor = 4U) {
 	entities.clear();
@@ -1047,6 +1500,94 @@ void register_parent(PerfRunMode mode) {
 	PICOBENCH_SUITE_REG("Structural changes");
 	PICOBENCH_REG(BM_Hierarchy_Set<false>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("childof set 10K");
 	PICOBENCH_REG(BM_Hierarchy_Set<true>).PICO_SETTINGS_FOCUS().user_data(NEntitiesFew).label("parent set 10K");
+
+	PICOBENCH_SUITE_REG("Hierarchy batch relations");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnManual<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnManual<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnFlatPositions)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch flat position spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_EdgeOnly<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof edge only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_EdgeOnly<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent edge only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_ParentEdgeOnlyExistingTargets)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent existing-target edge only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_ParentTargetPrepare)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent target prep 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefab)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryPlain<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof plain query 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryPlain<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent plain query 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryChildOfDepthOrder)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof depth_order query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryMulti<false, false>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof multi query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryMulti<false, true>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof depth_order multi query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryMulti<true, false>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent multi query 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryParentOrderBy)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent order_by query 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryIterBatchesPlain<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof iter plain 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_QueryIterBatchesPlain<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent iter plain 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryChunkRaw<false, false, false>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof chunk raw query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryChunkRaw<false, false, true>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof chunk ptr raw query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryChunkRaw<false, true, true>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof depth_order chunk ptr raw query 40K roots");
+	PICOBENCH_REG((BM_HierarchyBatch_QueryChunkRaw<true, false, true>))
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent chunk ptr raw query 40K roots");
+
+	PICOBENCH_SUITE_REG("Structural changes");
 	PICOBENCH_REG(BM_Query_DirectHierarchy_All<false>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)

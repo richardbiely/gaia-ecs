@@ -25,7 +25,7 @@ TEST_CASE("Parent - non-fragmenting relation and structural archetype cache") {
 	CHECK(info.cache_archetype_view().size() == 1);
 }
 
-TEST_CASE("Parent - targets and sources use adjunct storage") {
+TEST_CASE("Parent - targets and sources use non-fragmenting relation storage") {
 	TestWorld twld;
 
 	const auto root = wld.add();
@@ -33,6 +33,7 @@ TEST_CASE("Parent - targets and sources use adjunct storage") {
 
 	wld.parent(child, root);
 
+	CHECK(wld.has(ecs::Pair(ecs::Parent, root)));
 	CHECK(wld.has(child, ecs::Pair(ecs::Parent, root)));
 	CHECK(wld.has(child, ecs::Pair(ecs::Parent, ecs::All)));
 	CHECK(wld.has(child, ecs::Pair(ecs::All, root)));
@@ -55,7 +56,7 @@ TEST_CASE("Parent - targets and sources use adjunct storage") {
 	CHECK(sources[0] == child);
 }
 
-TEST_CASE("Parent - deleting target deletes children through adjunct relation") {
+TEST_CASE("Parent - deleting target deletes children through non-fragmenting relation") {
 	TestWorld twld;
 
 	const auto root = wld.add();
@@ -71,7 +72,7 @@ TEST_CASE("Parent - deleting target deletes children through adjunct relation") 
 	CHECK(!wld.has(child));
 }
 
-TEST_CASE("Parent - breadth-first traversal on adjunct relation") {
+TEST_CASE("Parent - breadth-first traversal on non-fragmenting relation") {
 	TestWorld twld;
 
 	const auto root = wld.add();
@@ -141,5 +142,123 @@ TEST_CASE("Parent - duplicate direct set does not dispatch OnAdd again") {
 	wld.parent(child, root);
 	wld.parent(child, root);
 
+	const auto& cwld = wld;
+	CHECK(wld.has(ecs::Pair(ecs::Parent, root)));
+	CHECK(cwld.parent(child, root));
 	CHECK(hits == 1);
+}
+
+TEST_CASE("Parent - direct rebind replaces target without archetype move") {
+	TestWorld twld;
+
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto child = wld.add();
+	wld.add<Position>(child);
+
+	wld.parent(child, rootA);
+	const auto* pArchetype = wld.fetch(child).pArchetype;
+	CHECK(pArchetype != nullptr);
+	CHECK(wld.target(child, ecs::Parent) == rootA);
+
+	wld.parent(child, rootB);
+
+	CHECK(wld.has(ecs::Pair(ecs::Parent, rootA)));
+	CHECK(wld.has(ecs::Pair(ecs::Parent, rootB)));
+	CHECK_FALSE(wld.has(child, ecs::Pair(ecs::Parent, rootA)));
+	CHECK(wld.has(child, ecs::Pair(ecs::Parent, rootB)));
+	CHECK(wld.target(child, ecs::Parent) == rootB);
+	CHECK(wld.relation(child, rootB) == ecs::Parent);
+	CHECK(wld.fetch(child).pArchetype == pArchetype);
+
+	uint32_t oldRootSources = 0;
+	wld.sources(ecs::Parent, rootA, [&](ecs::Entity source) {
+		(void)source;
+		++oldRootSources;
+	});
+	CHECK(oldRootSources == 0);
+
+	cnt::darray<ecs::Entity> newRootSources;
+	wld.sources(ecs::Parent, rootB, [&](ecs::Entity source) {
+		newRootSources.push_back(source);
+	});
+	CHECK(newRootSources.size() == 1);
+	CHECK(newRootSources[0] == child);
+}
+
+TEST_CASE("Parent - duplicate builder add keeps target and archetype") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add<Position>(child);
+
+	{
+		auto builder = wld.build(child);
+		builder.add(ecs::Pair(ecs::Parent, root));
+		builder.commit();
+	}
+
+	const auto* pArchetype = wld.fetch(child).pArchetype;
+	CHECK(pArchetype != nullptr);
+	CHECK(wld.target(child, ecs::Parent) == root);
+
+	{
+		auto builder = wld.build(child);
+		builder.add(ecs::Pair(ecs::Parent, root));
+		builder.add(ecs::Pair(ecs::Parent, root));
+		builder.commit();
+	}
+
+	CHECK(wld.has(ecs::Pair(ecs::Parent, root)));
+	CHECK(wld.has(child, ecs::Pair(ecs::Parent, root)));
+	CHECK(wld.target(child, ecs::Parent) == root);
+	CHECK(wld.fetch(child).pArchetype == pArchetype);
+}
+
+TEST_CASE("Parent - builder rebind replaces target without archetype move") {
+	TestWorld twld;
+
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto child = wld.add();
+	wld.add<Position>(child);
+
+	{
+		auto builder = wld.build(child);
+		builder.add(ecs::Pair(ecs::Parent, rootA));
+		builder.commit();
+	}
+
+	const auto* pArchetype = wld.fetch(child).pArchetype;
+	CHECK(pArchetype != nullptr);
+	CHECK(wld.target(child, ecs::Parent) == rootA);
+
+	{
+		auto builder = wld.build(child);
+		builder.add(ecs::Pair(ecs::Parent, rootB));
+		builder.commit();
+	}
+
+	CHECK(wld.has(ecs::Pair(ecs::Parent, rootA)));
+	CHECK(wld.has(ecs::Pair(ecs::Parent, rootB)));
+	CHECK_FALSE(wld.has(child, ecs::Pair(ecs::Parent, rootA)));
+	CHECK(wld.has(child, ecs::Pair(ecs::Parent, rootB)));
+	CHECK(wld.target(child, ecs::Parent) == rootB);
+	CHECK(wld.relation(child, rootB) == ecs::Parent);
+	CHECK(wld.fetch(child).pArchetype == pArchetype);
+
+	uint32_t oldRootSources = 0;
+	wld.sources(ecs::Parent, rootA, [&](ecs::Entity source) {
+		(void)source;
+		++oldRootSources;
+	});
+	CHECK(oldRootSources == 0);
+
+	cnt::darray<ecs::Entity> newRootSources;
+	wld.sources(ecs::Parent, rootB, [&](ecs::Entity source) {
+		newRootSources.push_back(source);
+	});
+	CHECK(newRootSources.size() == 1);
+	CHECK(newRootSources[0] == child);
 }
