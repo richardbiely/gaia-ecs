@@ -46,7 +46,7 @@ namespace gaia {
 			struct IterTermDesc {
 				Entity termId = EntityBad;
 				bool isEntity = false;
-				bool isOutOfLine = false;
+				bool usesSparseStorage = false;
 			};
 
 			struct ChunkIterTypedOps {
@@ -149,8 +149,8 @@ namespace gaia {
 				}
 			};
 
-			//! Read-only term view for entity-backed AoS data resolved through the world store.
-			//! Used when the queried payload lives out of line and must be fetched by entity id.
+			//! Read-only term view for AoS data resolved through the world.
+			//! Used when the queried payload uses sparse storage or inheritance and must be fetched by entity id.
 			template <typename U>
 			struct EntityTermViewGetEntity {
 				const Entity* pEntities = nullptr;
@@ -206,8 +206,8 @@ namespace gaia {
 				}
 			};
 
-			//! Mutable term view for entity-backed AoS data resolved through the world store.
-			//! Used when writes target out-of-line payloads rather than chunk columns.
+			//! Mutable term view for AoS data resolved through the world.
+			//! Used when writes target sparse storage rather than archetype chunk columns.
 			template <typename U, bool WriteIm>
 			struct EntityTermViewSetEntity {
 				const Entity* pEntities = nullptr;
@@ -374,7 +374,7 @@ namespace gaia {
 				}
 			};
 
-			//! Writable row proxy for entity-backed SoA data.
+			//! Writable row proxy for SoA data resolved through the world.
 			//! Reads and writes the full structured value through the world store.
 			template <typename U, bool WriteIm>
 			struct SoATermRowWriteProxyEntity {
@@ -416,7 +416,7 @@ namespace gaia {
 				}
 			};
 
-			//! Read-only field proxy for a single SoA member in entity-backed storage.
+			//! Read-only field proxy for a single SoA member resolved through the world.
 			//! Resolves the whole value via the world store and projects the requested field.
 			template <typename U, size_t Item>
 			struct SoATermFieldReadProxyEntity {
@@ -464,14 +464,14 @@ namespace gaia {
 				}
 			};
 
-			//! Mutable field proxy for a single SoA member in entity-backed storage.
+			//! Mutable field proxy for a single SoA member resolved through the world.
 			//! Updates reconstruct the whole value, modify one field and store it back.
 			template <typename U, size_t Item, bool WriteIm>
 			struct SoATermFieldWriteProxyEntity {
 				using view_policy = mem::data_view_policy_soa_set<U::gaia_Data_Layout, U>;
 				using value_type = typename view_policy::template data_view_policy_idx_info<Item>::value_type;
 
-				//! Proxy representing one writable field element in entity-backed storage.
+				//! Proxy representing one writable field element resolved through the world.
 				struct ElementProxy {
 					const Entity* pEntities = nullptr;
 					World* pWorld = nullptr;
@@ -563,8 +563,8 @@ namespace gaia {
 				}
 			};
 
-			//! Read-only SoA term view for entity-backed storage only.
-			//! Used when the queried SoA payload lives out of line and is resolved by entity id.
+			//! Read-only SoA term view resolved through the world.
+			//! Used when the queried SoA payload is resolved by entity id.
 			template <typename U>
 			struct SoATermViewGetEntity {
 				const Entity* pEntities = nullptr;
@@ -627,7 +627,7 @@ namespace gaia {
 				}
 			};
 
-			//! Mutable SoA term view for entity-backed storage only.
+			//! Mutable SoA term view resolved through the world.
 			//! Reads and writes rows and fields through the world store.
 			template <typename U, bool WriteIm>
 			struct SoATermViewSetEntity {
@@ -920,7 +920,7 @@ namespace gaia {
 				//! Entity-backed terms that were exposed as mutable during the current callback.
 				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS]{};
 				uint8_t m_touchedTermCnt = 0;
-				//! Stable copy of the currently iterated entity rows for mutable entity-backed views.
+				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
 				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES]{};
 				bool m_entitySnapshotValid = false;
 				//! Row of the first entity we iterate from
@@ -1164,7 +1164,7 @@ namespace gaia {
 					}
 
 					if (!desc.isEntity && desc.termId != EntityBad)
-						desc.isOutOfLine = world_is_out_of_line_component(*world(), desc.termId);
+						desc.usesSparseStorage = world_component_uses_sparse_storage(*world(), desc.termId);
 
 					return desc;
 				}
@@ -1194,7 +1194,7 @@ namespace gaia {
 				void touch_term_desc(const IterTermDesc& desc) {
 					if (desc.isEntity)
 						return;
-					if (desc.isOutOfLine)
+					if (desc.usesSparseStorage)
 						touch_term(desc.termId);
 					else
 						touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
@@ -1293,9 +1293,9 @@ namespace gaia {
 					touch_comp_idx(compIdx);
 				}
 
-				//! Returns a read-only entity or component view that can resolve non-direct storage.
-				//! This is the fallback accessor for terms that may come from outside the chunk column,
-				//! such as inherited, sparse, out-of-line, or other entity-backed storage.
+				//! Returns a read-only entity or component view that can resolve sparse storage or inherited data.
+				//! This is the fallback accessor for terms that may come from outside the archetype chunk column,
+				//! such as inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
@@ -1304,9 +1304,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view_any<T>(*this);
 				}
 
-				//! Returns a read-only entity or component view for a query-term index that can resolve non-direct storage.
-				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage
-				//! instead of a dense chunk column.
+				//! Returns a read-only entity or component view for a query-term index that can resolve sparse storage or inherited data.
+				//! Use this when the term may resolve to inherited data or sparse storage
+				//! instead of an archetype chunk column.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
@@ -1318,9 +1318,8 @@ namespace gaia {
 
 				//! Returns a read-only entity or component view for the owned chunk-backed fast path.
 				//! This assumes the resolved term is stored directly in the current chunk range and therefore
-				//! skips all non-direct dispatch.
-				//! Use view_any() when the term may resolve to inherited, sparse, out-of-line, or otherwise
-				//! entity-backed storage.
+				//! skips world-resolution dispatch.
+				//! Use view_any() when the term may resolve to inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct read-only entity or component view
@@ -1330,10 +1329,9 @@ namespace gaia {
 				}
 
 				//! Returns a read-only entity or component view for a query-term owned chunk-backed term.
-				//! The caller is responsible for passing a term index that maps to a dense chunk column.
-				//! Use view_any(termIdx) when the term may resolve to inherited, sparse, out-of-line, or other
-				//! non-direct storage.
-				//! \warning Passing a non-mapped or entity-backed term index is invalid.
+				//! The caller is responsible for passing a term index that maps to an archetype chunk column.
+				//! Use view_any(termIdx) when the term may resolve to inherited data or sparse storage.
+				//! \warning Passing a non-mapped or world-resolved term index is invalid.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Direct read-only entity or component view
@@ -1342,9 +1340,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view<T>(*this, termIdx);
 				}
 
-				//! Returns a mutable entity or component view that can resolve non-direct storage.
-				//! This is the fallback accessor for inherited, sparse, out-of-line, or other entity-backed
-				//! terms that are not guaranteed to be backed by the current chunk column.
+				//! Returns a mutable entity or component view that can resolve sparse storage or inherited data.
+				//! This is the fallback accessor for inherited data or sparse storage terms
+				//! that are not guaranteed to be backed by the current archetype chunk column.
 				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
@@ -1354,9 +1352,8 @@ namespace gaia {
 				}
 
 				//! Returns a mutable entity or component view for the owned chunk-backed fast path.
-				//! Updates world versioning through the underlying chunk view and skips all non-direct dispatch.
-				//! Use view_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
-				//! entity-backed storage.
+				//! Updates world versioning through the underlying chunk view and skips world-resolution dispatch.
+				//! Use view_any_mut() when the term may resolve to inherited data or sparse storage.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view with read-write access
 				template <typename T>
@@ -1366,9 +1363,8 @@ namespace gaia {
 
 				//! Returns a mutable entity or component view for a query-term owned chunk-backed term.
 				//! Updates world versioning for the selected chunk column before handing out mutable access.
-				//! Use view_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
-				//! other non-direct storage.
-				//! \warning Passing a non-mapped or entity-backed term index is invalid.
+				//! Use view_any_mut(termIdx) when the term may resolve to inherited data or sparse storage.
+				//! \warning Passing a non-mapped or world-resolved term index is invalid.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Direct entity or component view with read-write access
@@ -1377,9 +1373,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view_mut<T>(*this, termIdx);
 				}
 
-				//! Returns a mutable entity or component view for a query-term index that can resolve non-direct storage.
-				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
-				//! storage instead of a dense chunk column.
+				//! Returns a mutable entity or component view for a query-term index that can resolve sparse storage or inherited data.
+				//! Use this when the term may resolve to inherited data or sparse storage
+				//! instead of an archetype chunk column.
 				//! Updates world versioning for chunk-backed terms before handing out mutable access.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
@@ -1390,9 +1386,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view_any_mut<T>(*this, termIdx);
 				}
 
-				//! Returns a mutable component view that can resolve non-direct storage.
-				//! This is the fallback accessor for inherited, sparse, out-of-line, or other entity-backed
-				//! terms that are not guaranteed to be backed by the current chunk column.
+				//! Returns a mutable component view that can resolve sparse storage or inherited data.
+				//! This is the fallback accessor for inherited data or sparse storage terms
+				//! that are not guaranteed to be backed by the current archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
@@ -1403,9 +1399,8 @@ namespace gaia {
 				}
 
 				//! Returns a mutable component view for the owned chunk-backed fast path.
-				//! Doesn't update the world version when the access is acquired and skips all non-direct dispatch.
-				//! Use sview_any_mut() when the term may resolve to inherited, sparse, out-of-line, or other
-				//! entity-backed storage.
+				//! Doesn't update the world version when the access is acquired and skips world-resolution dispatch.
+				//! Use sview_any_mut() when the term may resolve to inherited data or sparse storage.
 				//! \tparam T Component
 				//! \return Direct component view with read-write access
 				template <typename T>
@@ -1415,9 +1410,8 @@ namespace gaia {
 
 				//! Returns a mutable component view for a query-term owned chunk-backed term.
 				//! Doesn't update the world version when the access is acquired.
-				//! Use sview_any_mut(termIdx) when the term may resolve to inherited, sparse, out-of-line, or
-				//! other non-direct storage.
-				//! \warning Passing a non-mapped or entity-backed term index is invalid.
+				//! Use sview_any_mut(termIdx) when the term may resolve to inherited data or sparse storage.
+				//! \warning Passing a non-mapped or world-resolved term index is invalid.
 				//! \tparam T Component
 				//! \param termIdx Query term index
 				//! \return Direct component view with read-write access
@@ -1426,9 +1420,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template sview_mut<T>(*this, termIdx);
 				}
 
-				//! Returns a mutable component view for a query-term index that can resolve non-direct storage.
-				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed
-				//! storage instead of a dense chunk column.
+				//! Returns a mutable component view for a query-term index that can resolve sparse storage or inherited data.
+				//! Use this when the term may resolve to inherited data or sparse storage
+				//! instead of an archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component
@@ -1441,7 +1435,7 @@ namespace gaia {
 
 				//! Marks the component @a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
-				//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+				//! If @a TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
 					m_pChunk->template modify<T, TriggerHooks>();
@@ -1449,8 +1443,7 @@ namespace gaia {
 
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
-				//! Use view_auto_any() when the term may resolve to inherited, sparse, out-of-line, or other
-				//! non-direct storage.
+				//! Use view_auto_any() when the term may resolve to inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
@@ -1463,9 +1456,9 @@ namespace gaia {
 						return view<T>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
+				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited data.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage.
+				//! Use this when the term may resolve to inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
@@ -1478,9 +1471,9 @@ namespace gaia {
 						return view_any<T>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view that can resolve non-direct storage.
+				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited data.
 				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Use this when the term may resolve to inherited, sparse, out-of-line, or other entity-backed storage.
+				//! Use this when the term may resolve to inherited data or sparse storage.
 				//! Doesn't update the world version when read-write access is acquired.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
@@ -1497,8 +1490,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
 				//! Doesn't update the world version when read-write access is acquired.
-				//! Use sview_auto_any() when the term may resolve to inherited, sparse, out-of-line, or other
-				//! non-direct storage.
+				//! Use sview_auto_any() when the term may resolve to inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
@@ -1750,7 +1742,7 @@ namespace gaia {
 
 			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If \tparam TriggerHooks is true, also triggers the component's set hooks.
+			//! If @a TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
 			void modify() {
 				m_pChunk->template modify<T, TriggerHooks>();

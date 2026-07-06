@@ -24,7 +24,7 @@ You get complex queries with relationship traversal, per-component AoS/SoA layou
 
 ***Highlights:***
 * Clean, safe API — no boilerplate, no footguns
-* Hybrid storage model — archetype/chunk for fast iteration, optional out-of-line storage for low-cost frequent modification
+* Hybrid storage model — archetype/chunk storage for fast iteration, sparse storage for low-cost frequent modification
 * Expressive queries: [relationships](#relationships), wildcards, hierarchy traversal (DFS/BFS), variables
 * Per-component [AoS or SoA data layout](#data-layouts) with minimal code changes
 * Integrated [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
@@ -156,7 +156,7 @@ The three building blocks are:
 A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.
 
 ## Implementation
-**Gaia-ECS** is a hybrid ECS combining archetype-based storage with optional out-of-line component payload storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
+**Gaia-ECS** is a hybrid ECS combining archetype-based storage with sparse storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
 
 Each archetype is made up of chunks: fixed-size allocation blocks selected per archetype from a small set of size classes. Compact archetypes use small cache-friendly chunks, while wider dense archetypes can use larger chunks to reduce per-chunk iteration overhead. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.
 
@@ -433,12 +433,12 @@ const auto velocityComp = w.get("gameplay.render.Velocity");
 
 By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.
 
-If this is undesired, there is also an option to use out-of-line storage and optional non-fragmenting membership. The two traits are:
+If this is undesired, there is also an option to use sparse storage and optional non-fragmenting membership. The two traits are:
 
 - `ecs::Sparse`
 - `ecs::DontFragment`
 
-To use a non-fragmenting sparse component:
+To use sparse storage with non-fragmenting membership:
 
 ```cpp
 struct Cooldown {
@@ -447,7 +447,7 @@ struct Cooldown {
 
 ecs::World w;
 const auto& cooldown = w.add<Cooldown>();
-// Keep this component's data out-of-line (not stored in chunks).
+// Store this component's data in sparse storage instead of archetype chunks.
 w.add(cooldown.entity, ecs::Sparse);
 // Make sure this component is not a part of the archetype id-wise.
 // This means that adding or removing it won't make the parent entity change its archetype.
@@ -467,21 +467,21 @@ That gives three practical outcomes:
   - best for core simulation data, dense iteration, and structural queries
 
 - `Sparse`:
-  - payload stored out-of-line (stable memory address)
+  - payload stored in sparse storage (stable memory address)
   - the id lives in the archetype (add/del fragments)
   - good when the payload should stay out of chunks but the component should remain structurally visible
 
 - `DontFragment`:
-  - payload stored out-of-line (stable memory address)
+  - payload stored in sparse storage (stable memory address)
   - the id does not live in the archetype (add/del does not fragment)
   - this is effectively `Sparse` plus "do not participate in archetype identity"
   - the usual choice for optional, state-like, or frequently toggled data
 
 Rule of thumb:
-- keep hot, common, frequently iterated data fragmenting and chunk-stored
-- use plain `Sparse` when the payload should live out-of-line but the component should still participate in structural matching
+- keep hot, common, frequently iterated data fragmenting and archetype-stored
+- use plain `Sparse` when the payload should use sparse storage but the component should still participate in structural matching
 - use `DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
-- avoid out-of-line storage for components like `Position` or `Velocity` which benfit greatly of sequential access, unless profiling clearly justifies it
+- avoid sparse storage for components like `Position` or `Velocity` which benefit greatly from sequential archetype access, unless profiling clearly justifies it
 
 Because `DontFragment` components live outside archetype identity, adding or removing an already-registered
 `DontFragment` component from an existing entity does not move that entity to another archetype. This makes direct
@@ -489,7 +489,7 @@ add/remove safe during serial query iteration. If the active query also filters 
 matched against the current world state, not a snapshot taken before the query started.
 
 >**NOTE:<br/>** 
-SoA components do not support out-of-line storage and they stay chunk-backed. `ecs::Sparse` applies only to plain AoS generic components.<br/>
+SoA components do not support sparse storage and stay archetype-stored. `ecs::Sparse` applies only to plain AoS generic components.<br/>
 
 >**NOTE:<br/>** 
 Changing the storage mode is only supported before the component
@@ -497,8 +497,8 @@ has instances attached to entities.<br/>
 
 >**NOTE:<br/>**
 `ecs::Sparse` and `ecs::DontFragment` are sticky component traits. Once set on a component entity, removing the
-relation later does not revert the storage or fragmentation behavior. `ecs::DontFragment` also implies sparse
-out-of-line storage, so adding both traits is redundant.<br/>
+relation later does not revert the storage or fragmentation behavior. `ecs::DontFragment` also implies
+sparse storage, so adding both traits is redundant.<br/>
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
@@ -1882,7 +1882,7 @@ Processing via an iterator gives you even more expressive power, and opens doors
 
 The iterator exposes two families of accessors:
 * `view`, `view_mut`, `sview_mut`, `view_auto`, `sview_auto` - the fast path for terms stored directly in the current chunk
-* `view_any`, `view_any_mut`, `sview_any_mut`, `view_auto_any`, `sview_auto_any` - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity
+* `view_any`, `view_any_mut`, `sview_any_mut`, `view_auto_any`, `sview_auto_any` - fallback accessors for inherited prefab data, sparse storage, and other terms that may resolve through another entity
 
 Runtime-created table AoS components use the same iterator naming with erased raw byte views:
 * `view_raw(termIdx)` - read-only raw payload rows for a directly chunk-backed term
@@ -1969,7 +1969,7 @@ q.each([&](ecs::Iter& it) {
 ```
 
 Performance of views can be improved slightly by explicitly providing the index of the component in the query.
-For indexed access, plain `view(termIdx)` assumes the term maps to a chunk column. Use `view_any(termIdx)` when the indexed term may resolve through inheritance or non-direct storage.
+For indexed access, plain `view(termIdx)` assumes the term maps to a chunk column. Use `view_any(termIdx)` when the indexed term may resolve through inherited data or sparse storage.
 
 ```cpp
 ecs::Query q = w.query();
@@ -4494,7 +4494,7 @@ Parameter | Description
 **GAIA_PROFILER_MEM** | Enabled memory [profiling](#profiling) features
 **GAIA_PROFILER_BUILD** | Builds the [profiler](#profiling) ([Tracy](https://github.com/wolfpld/tracy) by default)
 **GAIA_USE_SANITIZER** | Applies the specified set of [sanitizers](#sanitizers)
-**GAIA_FUNC_WRAPPER_SMALLBLOCK** | Preprocessor switch enabling SmallBlockAllocator spill storage for `SmallFunc` and `MoveFunc`; enabled by default. Set to `0` to force out-of-line callables through the platform heap.
+**GAIA_FUNC_WRAPPER_SMALLBLOCK** | Uses `SmallBlockAllocator` for `SmallFunc` and `MoveFunc` callables that are too large for their inline buffer. Enabled by default. Set to `0` to allocate those larger callables with the platform heap instead.
 
 ### Sanitizers
 Possible options are listed in [cmake/sanitizers.cmake](https://github.com/richardbiely/gaia-ecs/blob/main/cmake/sanitizers.cmake).<br/>

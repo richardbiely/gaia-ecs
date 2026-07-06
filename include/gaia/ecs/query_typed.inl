@@ -503,7 +503,7 @@ namespace gaia {
 					}
 
 					seenTerms[seenCnt++] = term;
-					if (!world_is_out_of_line_component(world, term)) {
+					if (!world_component_uses_sparse_storage(world, term)) {
 						const auto compIdx = core::get_index(pChunk->ids_view(), term);
 						if (compIdx != BadIndex) {
 							pChunk->finish_write(compIdx, from, to);
@@ -560,14 +560,14 @@ namespace gaia {
 					}
 
 					seenTerms[seenCnt++] = term;
-					const bool isOutOfLine = world_is_out_of_line_component(world, term);
+					const bool usesSparseStorage = world_component_uses_sparse_storage(world, term);
 					auto compIdx = uint8_t(0xFF);
 					if (it.comp_indices() != nullptr && fieldIdx < ChunkHeader::MAX_COMPONENTS)
 						compIdx = it.comp_indices()[fieldIdx];
-					else if (!isOutOfLine)
+					else if (!usesSparseStorage)
 						compIdx = (uint8_t)pChunk->comp_idx(term);
 
-					if (compIdx != 0xFF && !isOutOfLine) {
+					if (compIdx != 0xFF && !usesSparseStorage) {
 						pChunk->finish_write(compIdx, it.row_begin(), it.row_end());
 						return;
 					}
@@ -643,8 +643,8 @@ namespace gaia {
 			};
 
 			//! Runs a single typed argument over a direct chunk range without constructing a view tuple.
-			//! 	param Func Callback type.
-			//! 	param T Single typed query argument.
+			//! \tparam Func Callback type.
+			//! \tparam T Single typed query argument.
 			//! \param chunkRun Chunk, row range, and optional prepared term mapping.
 			//! \param func Callback invoked for each matching row.
 			//! \param state Typed callback metadata, including fallback component ids for uncached direct scans.

@@ -61,16 +61,18 @@ namespace gaia {
 		uint32_t world_version(const World& world);
 		//! Returns the current version of @a relation-specific traversal metadata.
 		uint32_t world_rel_version(const World& world, Entity relation);
+		//! Returns whether @a relation is non-fragmenting.
+		bool world_relation_is_non_fragmenting(const World& world, Entity relation);
 		//! Returns whether @a relation is treated as a hierarchy relation by traversal helpers.
-		bool world_is_hierarchy_relation(const World& world, Entity relation);
+		bool world_relation_is_hierarchy(const World& world, Entity relation);
 		//! Returns whether @a relation fragments archetypes.
-		bool world_is_fragmenting_relation(const World& world, Entity relation);
+		bool world_relation_is_fragmenting(const World& world, Entity relation);
 		//! Returns whether @a relation is both hierarchy-like and fragmenting.
-		bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation);
+		bool world_relation_is_fragmenting_hierarchy(const World& world, Entity relation);
 		//! Returns whether @a relation supports cached depth-order traversal.
-		bool world_supports_depth_order(const World& world, Entity relation);
+		bool world_relation_supports_depth_order(const World& world, Entity relation);
 		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
-		bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
+		bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
 

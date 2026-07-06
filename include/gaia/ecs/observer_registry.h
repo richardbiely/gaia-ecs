@@ -12,7 +12,7 @@ namespace gaia {
 		class World;
 		class Archetype;
 
-		//! Runtime storage for observer callbacks and dispatch indexes kept out-of-line from ECS component storage.
+		//! Runtime storage for observer callbacks and dispatch indexes kept outside ECS component storage.
 		class ObserverRegistry {
 			struct DiffObserverIndex {
 				//! Exact direct term to diff observer mapping.

@@ -3661,13 +3661,13 @@ namespace gaia {
 					GAIA_ASSERT(queryCtx.w != nullptr);
 					const auto& world = *queryCtx.w;
 					const bool hasEntityFilterTerms = data.deps.has_dep_flag(QueryCtx::DependencyHasEntityFilterTerms);
-					auto isAdjunctDirectTerm = [&](const QueryTerm& term) {
+					auto isNonFragmentingDirectTerm = [&](const QueryTerm& term) {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
 
 						const auto id = term.id;
-						return (id.pair() && world_is_exclusive_dont_fragment_relation(world, pair_rel(world, id))) ||
-									 (!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
+						return (id.pair() && world_relation_uses_non_fragmenting_storage(world, pair_rel(world, id))) ||
+									 (!id.pair() && world_component_is_non_fragmenting(world, id));
 					};
 
 					QueryTermSpan terms = data.terms_view_mut();
@@ -3683,7 +3683,7 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
-							if (isAdjunctDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p))
 								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
@@ -3730,7 +3730,7 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
-							if (isAdjunctDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p))
 								continue;
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});

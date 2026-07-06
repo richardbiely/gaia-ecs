@@ -18,8 +18,8 @@ namespace gaia {
 		template <typename Signature>
 		class MoveFunc;
 
-		//! Move-only function wrapper with inline storage and optional SmallBlockAllocator spill storage.
-		//! Medium spill storage uses SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled.
+		//! Move-only function wrapper with inline storage for small callables.
+		//! Callables too large for the inline buffer use SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled.
 		template <typename R, typename... Args>
 		class MoveFunc<R(Args...)> {
 			static constexpr uint32_t BufferSize = 24;

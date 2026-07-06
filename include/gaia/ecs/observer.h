@@ -46,7 +46,7 @@ namespace gaia {
 			const void* old_ptr; // Previous component value (OnSet only)
 		};
 
-		//! Runtime payload for observers kept out-of-line from ECS component storage.
+		//! Runtime payload for observers kept outside ECS component storage.
 		struct ObserverPlan {
 			enum class ExecKind : uint8_t { DirectQuery, DirectFast, DiffLocal, DiffPropagated, DiffFallback };
 			enum class FastPath : uint8_t { None, SinglePositiveTerm, SingleNegativeTerm, Disabled };
@@ -184,7 +184,7 @@ namespace gaia {
 			}
 		};
 
-		//! Runtime payload for observers kept out-of-line from ECS component storage.
+		//! Runtime payload for observers kept outside ECS component storage.
 		struct ObserverRuntimeData {
 			using TObserverIterFunc = util::MoveFunc<void(Iter&)>;
 

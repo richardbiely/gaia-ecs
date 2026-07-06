@@ -27,7 +27,7 @@ namespace gaia {
 			const auto entities = it.entity_rows();
 			GAIA_EACH(terms) {
 				const auto term = terms[i];
-				if (!world_is_out_of_line_component(world, term)) {
+				if (!world_component_uses_sparse_storage(world, term)) {
 					const auto compIdx = core::get_index(it.chunk()->ids_view(), term);
 					if (compIdx != BadIndex) {
 						pChunk->finish_write(compIdx, it.row_begin(), it.row_end());

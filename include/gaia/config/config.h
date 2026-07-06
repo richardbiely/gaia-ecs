@@ -38,8 +38,8 @@
 	#define GAIA_USE_PREFETCH 1
 #endif
 
-//! If enabled, util::SmallFunc and util::MoveFunc spill medium-sized callables through SmallBlockAllocator.
-//! Disable this to force all out-of-line callable storage through the platform heap.
+//! If enabled, util::SmallFunc and util::MoveFunc use SmallBlockAllocator for callables too large for their inline buffer.
+//! Disable this to allocate those larger callables with the platform heap.
 #ifndef GAIA_FUNC_WRAPPER_SMALLBLOCK
 	#define GAIA_FUNC_WRAPPER_SMALLBLOCK 1
 #endif

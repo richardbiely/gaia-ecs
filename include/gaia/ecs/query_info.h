@@ -1907,7 +1907,7 @@ namespace gaia {
 
 			//! Rebuilds cached depth-order hierarchy barrier results when relation or enabled-state versions changed.
 			void ensure_depth_order_hierarchy_barrier_cache_inter() {
-				if (!world_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
+				if (!world_relation_depth_order_prunes_disabled_subtrees(*world(), m_plan.ctx.data.groupBy))
 					return;
 
 				ensure_group_data(true);
@@ -1955,7 +1955,7 @@ namespace gaia {
 					const auto& term = terms[i];
 					const auto fieldIdx = term.fieldIndex;
 					const auto queryId = term.id;
-					if (!queryId.pair() && world_is_out_of_line_component(*world(), queryId)) {
+					if (!queryId.pair() && world_component_uses_sparse_storage(*world(), queryId)) {
 #if GAIA_ASSERT_ENABLED
 						// Verify that the component is indeed not present on the archetype, otherwise our matching logic is flawed.
 						const auto compIdx = core::get_index_unsafe(pArchetype->ids_view(), queryId);
@@ -1995,7 +1995,7 @@ namespace gaia {
 					const auto queryId = term.id;
 					if (queryId == EntityBad || is_wildcard(queryId) || is_variable((EntityId)queryId.id()))
 						continue;
-					if (world_is_out_of_line_component(*world(), queryId))
+					if (world_component_uses_sparse_storage(*world(), queryId))
 						continue;
 					if (!world_term_uses_inherit_policy(*world(), queryId))
 						continue;

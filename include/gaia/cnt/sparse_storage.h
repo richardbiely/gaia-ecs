@@ -724,7 +724,7 @@ namespace gaia {
 				}
 			};
 
-			//! Sparse page. Specialized for zero-size \tparam T
+			//! Sparse page. Specialized for zero-size @a T
 			template <typename T, uint32_t PageCapacity, typename Allocator>
 			class sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 			public:
@@ -969,9 +969,9 @@ namespace gaia {
 			};
 		} // namespace detail
 
-		//! Array with variable size of elements of type \tparam T allocated on heap.
-		//! Allocates enough memory to support \tparam PageCapacity elements.
-		//! Uses \tparam Allocator to allocate memory.
+		//! Array with variable size of elements of type @a T allocated on heap.
+		//! Allocates enough memory to support @a PageCapacity elements.
+		//! Uses @a Allocator to allocate memory.
 		template <
 				typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor, typename = void>
 		class sparse_storage {
@@ -998,7 +998,7 @@ namespace gaia {
 			cnt::darray<sparse_id> m_dense;
 			//! Contains pages with data and sparse–>dense mapping
 			cnt::darray<page_type> m_pages;
-			//! Current number of items tracked by the sparse set
+			//! Current number of items tracked by sparse storage
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {
@@ -1312,9 +1312,9 @@ namespace gaia {
 			}
 		};
 
-		//! Array with variable size of elements of type \tparam T allocated on heap.
-		//! Allocates enough memory to support \tparam PageCapacity elements.
-		//! Uses \tparam Allocator to allocate memory.
+		//! Array with variable size of elements of type @a T allocated on heap.
+		//! Allocates enough memory to support @a PageCapacity elements.
+		//! Uses @a Allocator to allocate memory.
 		//! This version is optimized for tags (data of zero size).
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_storage<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
@@ -1341,7 +1341,7 @@ namespace gaia {
 			cnt::darray<sparse_id> m_dense;
 			//! Contains pages with data and sparse–>dense mapping
 			cnt::darray<page_type> m_pages;
-			//! Current number of items tracked by the sparse set
+			//! Current number of items tracked by sparse storage
 			size_type m_cnt = size_type(0);
 
 			void try_grow(uint32_t pid) {

@@ -27,17 +27,17 @@ namespace gaia {
 		using ChunkDataOffsetSpan = std::span<const ChunkDataOffset>;
 		using SortComponentCond = core::is_smaller<Entity>;
 
-		//! True when the component payload is stored inside archetype chunks.
+		//! True when the component payload uses table storage inside archetype chunks.
 		//! Sparse AoS components are the notable false case: their id may still fragment,
-		//! but the payload itself lives in the world-side sparse store.
-		GAIA_NODISCARD constexpr bool component_has_inline_data(Component component) noexcept {
+		//! but the payload itself uses sparse storage.
+		GAIA_NODISCARD constexpr bool component_uses_table_storage(Component component) noexcept {
 			return component.size() != 0U && (component.storage_type() != DataStorageType::Sparse || component.soa() != 0U);
 		}
 
-		//! True when the component payload is stored outside archetype chunks.
+		//! True when the component payload is stored in sparse storage.
 		//! Today this is used by sparse AoS components, regardless of whether the id
 		//! itself remains fragmenting or is marked DontFragment.
-		GAIA_NODISCARD constexpr bool component_has_out_of_line_data(Component component) noexcept {
+		GAIA_NODISCARD constexpr bool component_uses_sparse_storage(Component component) noexcept {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 

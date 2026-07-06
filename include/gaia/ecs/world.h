@@ -574,8 +574,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (out_of_line_mode(item.entity) != OutOfLineMode::None)
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
 						return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				}
 
@@ -605,8 +605,8 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) mut_im(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object))
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object))
 						return sparse_component_store_mut<FT>(object).mut(entity);
 				}
 
@@ -623,7 +623,7 @@ namespace gaia {
 				if (tearing_down() || !valid(entity))
 					return;
 
-				if (out_of_line_mode(term) != OutOfLineMode::None) {
+				if (sparse_storage_mode(term) != SparseStorageMode::None) {
 					world_notify_on_set_entity(*this, term, entity);
 					return;
 				}
@@ -653,8 +653,8 @@ namespace gaia {
 				using FT = typename component_type_t<TApi>::TypeFull;
 				::gaia::ecs::update_version(m_worldVersion);
 
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (out_of_line_mode(term) != OutOfLineMode::None) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (sparse_storage_mode(term) != SparseStorageMode::None) {
 						sparse_component_store_mut<FT>(term).add(entity) = value;
 						finish_write(entity, term);
 						return;
@@ -671,8 +671,8 @@ namespace gaia {
 			void write_back_set_object(Entity entity, Entity term, const TValue& value) {
 				using FT = typename component_type_t<TValue>::TypeFull;
 				::gaia::ecs::update_version(m_worldVersion);
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(term)) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(term)) {
 						sparse_component_store_mut<FT>(term).add(entity) = value;
 						finish_write(entity, term);
 						return;
@@ -777,7 +777,7 @@ namespace gaia {
 			//! Entries are created lazily on first snapshot to avoid any global per-entity tax.
 			mutable cnt::map<EntityLookupKey, uint32_t> m_srcEntityVersions;
 
-			enum class OutOfLineMode : uint8_t { None, Fragmenting, NonFragmenting };
+			enum class SparseStorageMode : uint8_t { None, Fragmenting, NonFragmenting };
 
 			//! Array of all archetypes
 			ArchetypeDArray m_archetypes;
@@ -826,7 +826,7 @@ namespace gaia {
 #endif
 
 #if GAIA_SYSTEMS_ENABLED
-			//! System runtime payload kept out-of-line from ECS component storage.
+			//! System runtime payload kept outside ECS component storage.
 			SystemRegistry m_systems;
 #endif
 
@@ -999,18 +999,18 @@ namespace gaia {
 				return (fetch(entity).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
-			//! Returns whether @a relation is a valid non-fragmenting relation entity.
+			//! Returns whether @a relation is non-fragmenting.
 			//! \param relation Relation entity
 			//! \return True if @a relation is valid and non-fragmenting. False otherwise.
-			GAIA_NODISCARD bool is_dont_fragment_relation(Entity relation) const {
+			GAIA_NODISCARD bool relation_is_non_fragmenting(Entity relation) const {
 				return valid(relation) && !relation.pair() && is_dont_fragment(relation);
 			}
 
-			//! Returns whether @a relation is both Exclusive and DontFragment.
-			//! Such relations are stored in the non-fragmenting side storage instead of archetype identity.
+			//! Returns whether @a relation uses non-fragmenting relation storage.
+			//! Only exclusive non-fragmenting relations use this storage path.
 			//! \param relation Relation entity
-			//! \return True if @a relation is an exclusive non-fragmenting relation. False otherwise.
-			GAIA_NODISCARD bool is_exclusive_dont_fragment_relation(Entity relation) const {
+			//! \return True if @a relation uses non-fragmenting relation storage. False otherwise.
+			GAIA_NODISCARD bool relation_uses_non_fragmenting_storage(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
 
@@ -1021,7 +1021,7 @@ namespace gaia {
 
 			//! Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain.
 			//! ChildOf and Parent satisfy this today. DependsOn intentionally does not.
-			GAIA_NODISCARD bool is_hierarchy_relation(Entity relation) const {
+			GAIA_NODISCARD bool relation_is_hierarchy(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
 
@@ -1030,36 +1030,36 @@ namespace gaia {
 
 			//! Returns true when the relation still participates in archetype identity.
 			//! Non-fragmenting relations such as Parent are excluded.
-			GAIA_NODISCARD bool is_fragmenting_relation(Entity relation) const {
+			GAIA_NODISCARD bool relation_is_fragmenting(Entity relation) const {
 				return valid(relation) && !relation.pair() && !is_dont_fragment(relation);
 			}
 
 			//! Returns true for hierarchy relations that still fragment archetypes.
 			//! ChildOf satisfies this today, while Parent intentionally does not.
-			GAIA_NODISCARD bool is_fragmenting_hierarchy_relation(Entity relation) const {
-				return is_hierarchy_relation(relation) && is_fragmenting_relation(relation);
+			GAIA_NODISCARD bool relation_is_fragmenting_hierarchy(Entity relation) const {
+				return relation_is_hierarchy(relation) && relation_is_fragmenting(relation);
 			}
 
 			//! Returns true when the relation can drive cached depth-ordered iteration.
 			//! This requires a fragmenting relation whose target participates in archetype identity,
 			//! such as ChildOf, DependsOn, or a custom fragmenting relation. Cycles are still invalid
 			//! and are diagnosed by the depth cache itself.
-			GAIA_NODISCARD bool supports_depth_order(Entity relation) const {
-				return is_fragmenting_relation(relation);
+			GAIA_NODISCARD bool relation_supports_depth_order(Entity relation) const {
+				return relation_is_fragmenting(relation);
 			}
 
 			//! Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level.
 			//! Only fragmenting hierarchy relations qualify because all rows in the archetype then share
 			//! the same direct parent and therefore the same ancestor chain.
-			GAIA_NODISCARD bool depth_order_prunes_disabled_subtrees(Entity relation) const {
-				return is_fragmenting_hierarchy_relation(relation);
+			GAIA_NODISCARD bool relation_depth_order_prunes_disabled_subtrees(Entity relation) const {
+				return relation_is_fragmenting_hierarchy(relation);
 			}
 
-			//! Returns whether @a component stores instance data out of line instead of in archetype chunks.
+			//! Returns whether @a component stores instance data in sparse storage instead of archetype chunks.
 			//! This is currently the storage path used for sparse plain generic AoS components.
 			//! \param component Component entity to inspect.
-			//! \return True when the component uses out-of-line storage.
-			GAIA_NODISCARD bool is_out_of_line_component(Entity component) const {
+			//! \return True when the component uses sparse storage.
+			GAIA_NODISCARD bool component_uses_sparse_storage(Entity component) const {
 				if (!valid(component) || component.pair() || component.entity())
 					return false;
 
@@ -1067,41 +1067,41 @@ namespace gaia {
 				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0)
 					return false;
 
-				return component_has_out_of_line_data(pItem->comp);
+				return gaia::ecs::component_uses_sparse_storage(pItem->comp);
 			}
 
-			//! Returns whether @a component is both out-of-line and non-fragmenting.
-			//! Non-fragmenting out-of-line components do not participate in archetype identity.
+			//! Returns whether @a component is non-fragmenting.
+			//! Non-fragmenting components do not participate in archetype identity.
 			//! \param component Component entity to inspect.
-			//! \return True when the component uses out-of-line non-fragmenting storage.
-			GAIA_NODISCARD bool is_non_fragmenting_out_of_line_component(Entity component) const {
-				if (!is_out_of_line_component(component))
+			//! \return True when the component is non-fragmenting.
+			GAIA_NODISCARD bool component_is_non_fragmenting(Entity component) const {
+				if (!component_uses_sparse_storage(component))
 					return false;
 
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
-			GAIA_NODISCARD OutOfLineMode out_of_line_mode(Entity component) const {
-				if (!is_out_of_line_component(component))
-					return OutOfLineMode::None;
+			GAIA_NODISCARD SparseStorageMode sparse_storage_mode(Entity component) const {
+				if (!component_uses_sparse_storage(component))
+					return SparseStorageMode::None;
 
-				return is_non_fragmenting_out_of_line_component(component) ? OutOfLineMode::NonFragmenting
-																																	 : OutOfLineMode::Fragmenting;
+				return component_is_non_fragmenting(component) ? SparseStorageMode::NonFragmenting
+																																	 : SparseStorageMode::Fragmenting;
 			}
 
 			GAIA_NODISCARD bool
 			copies_sparse_payload_inter(Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
-				return store.func_has(store.pStore, srcEntity) && out_of_line_mode(comp) != OutOfLineMode::None;
+				return store.func_has(store.pStore, srcEntity) && sparse_storage_mode(comp) != SparseStorageMode::None;
 			}
 
 			GAIA_NODISCARD bool copies_non_frag_sparse_payload_inter(
 					Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
 				return copies_sparse_payload_inter(comp, srcEntity, store) &&
-							 out_of_line_mode(comp) == OutOfLineMode::NonFragmenting;
+							 sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
 			}
 
 			GAIA_NODISCARD bool sparse_copy_adds_id_inter(Entity comp) const {
-				return out_of_line_mode(comp) == OutOfLineMode::NonFragmenting;
+				return sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
 			}
 
 			//----------------------------------------------------------------------
@@ -1182,30 +1182,30 @@ namespace gaia {
 				sync_component_record(component, comp);
 			}
 
-			//! Out-of-line non-fragmenting storage currently supports only plain generic components.
+			//! Sparse storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
-			//! \return True when @a T can use the out-of-line storage path.
+			//! \return True when @a T can use the sparse storage path.
 			template <typename T>
-			GAIA_NODISCARD static constexpr bool supports_out_of_line_component() {
+			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
 			}
 
-			//! Returns whether @a object is a usable out-of-line storage target for component type @a T.
+			//! Returns whether @a object is a usable sparse storage target for component type @a T.
 			//! \tparam T Component type to validate against.
 			//! \param object Component entity to inspect.
-			//! \return True when @a object can back an out-of-line store for @a T.
+			//! \return True when @a object can back sparse storage for @a T.
 			template <typename T>
-			GAIA_NODISCARD bool can_use_out_of_line_component(Entity object) const {
-				if constexpr (!supports_out_of_line_component<T>())
+			GAIA_NODISCARD bool can_use_sparse_component_storage(Entity object) const {
+				if constexpr (!supports_sparse_component_storage<T>())
 					return false;
 				else {
 					if (object.pair())
 						return false;
 
 					const auto* pItem = comp_cache().find(object);
-					if (pItem == nullptr || pItem->entity != object || out_of_line_mode(object) == OutOfLineMode::None)
+					if (pItem == nullptr || pItem->entity != object || sparse_storage_mode(object) == SparseStorageMode::None)
 						return false;
 
 					using U = typename actual_type_t<T>::Type;
@@ -1214,7 +1214,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! Returns the sparse component store for @a component, or nullptr if it does not exist.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
@@ -1227,7 +1227,7 @@ namespace gaia {
 				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
 			}
 
-			//! Returns the sparse out-of-line component store for @a component, or nullptr if it does not exist.
+			//! Returns the sparse component store for @a component, or nullptr if it does not exist.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
@@ -1240,7 +1240,7 @@ namespace gaia {
 				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
 			}
 
-			//! Returns the sparse out-of-line component store for @a component, creating it if needed.
+			//! Returns the sparse component store for @a component, creating it if needed.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Mutable sparse store reference.
@@ -1256,19 +1256,19 @@ namespace gaia {
 				return *pStore;
 			}
 
-			//! Finishes adding an out-of-line component after its sparse payload has been created.
+			//! Finishes adding a sparse component after its payload has been created.
 			//! Fragmenting components also add the id directly to the entity archetype.
 			//! \param entity Entity receiving the component.
 			//! \param object Component entity being added.
-			//! \param mode Out-of-line storage mode for the component.
-			void finish_out_of_line_add_inter(Entity entity, Entity object, OutOfLineMode mode) {
-				GAIA_ASSERT(mode != OutOfLineMode::None);
+			//! \param mode Sparse storage mode for the component.
+			void finish_sparse_component_add_inter(Entity entity, Entity object, SparseStorageMode mode) {
+				GAIA_ASSERT(mode != SparseStorageMode::None);
 
 #if GAIA_OBSERVERS_ENABLED
 				auto ctx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&object, 1}, EntitySpan{&entity, 1});
 #endif
-				if (mode == OutOfLineMode::Fragmenting) {
+				if (mode == SparseStorageMode::Fragmenting) {
 					GAIA_ASSERT(!locked());
 					EntityBuilder eb(*this, entity);
 					eb.add_inter_init(object);
@@ -1281,7 +1281,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Removes all sparse out-of-line component instances owned by @a entity.
+			//! Removes all sparse component instances owned by @a entity.
 			//! \param entity Entity
 			void del_sparse_components(Entity entity) {
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
@@ -1290,7 +1290,7 @@ namespace gaia {
 				}
 			}
 
-			//! Deletes the sparse out-of-line component store associated with @a component.
+			//! Deletes the sparse component store associated with @a component.
 			//! \param component Component entity identifying the store.
 			void del_sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -1386,7 +1386,7 @@ namespace gaia {
 			}
 
 			void nonfragmenting_relation_set(NonFragmentingRelationStore& store, Entity source, Entity relation, Entity target) {
-				GAIA_ASSERT(is_exclusive_dont_fragment_relation(relation));
+				GAIA_ASSERT(relation_uses_non_fragmenting_storage(relation));
 
 				ensure_nonfragmenting_relation_src_capacity(store, source);
 				const auto oldTarget = store.srcToTgt[source.id()];
@@ -1448,7 +1448,7 @@ namespace gaia {
 
 				if (relId != All.id()) {
 					const auto relation = get(relId);
-					if (!is_exclusive_dont_fragment_relation(relation))
+					if (!relation_uses_non_fragmenting_storage(relation))
 						return false;
 
 					const auto* pStore = nonfragmenting_relation_store(relation);
@@ -1680,7 +1680,7 @@ namespace gaia {
 						if (hasOnAddObservers)
 							m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
-						cleanup_deleted_out_of_line_components();
+						cleanup_deleted_sparse_components();
 
 						m_pArchetypeSrc = ec.pArchetype;
 						m_pChunkSrc = ec.pChunk;
@@ -1730,7 +1730,7 @@ namespace gaia {
 						if (hasOnAddObservers)
 							m_world.m_observers.finish_diff(m_world, GAIA_MOV(addDiffCtx));
 #endif
-						cleanup_deleted_out_of_line_components();
+						cleanup_deleted_sparse_components();
 					}
 
 					// Finalize the builder by reseting the archetype pointer
@@ -2028,10 +2028,10 @@ namespace gaia {
 #endif
 				}
 
-				void cleanup_deleted_out_of_line_components() {
+				void cleanup_deleted_sparse_components() {
 					for (auto entity: tl_del_comps) {
-						if (entity.pair() || !m_world.is_out_of_line_component(entity) ||
-								m_world.is_non_fragmenting_out_of_line_component(entity))
+						if (entity.pair() || !m_world.component_uses_sparse_storage(entity) ||
+								m_world.component_is_non_fragmenting(entity))
 							continue;
 
 						const auto it = m_world.m_sparseComponentsByComp.find(EntityLookupKey(entity));
@@ -2070,7 +2070,7 @@ namespace gaia {
 					}
 
 					// Handle archetype-backed exclusive pairs. Exclusive non-fragmenting relations replace their target in
-					// side storage and never need archetype-pair replacement checks.
+					// non-fragmenting relation storage and never need archetype-pair replacement checks.
 					if (isPair && relationPath != RelationMutationPath::NonFragmentingExclusive) {
 						// Check if (rel, tgt)'s rel part is exclusive
 						const auto& ecRel = m_world.m_recs.entities[entity.id()];
@@ -2302,7 +2302,7 @@ namespace gaia {
 				}
 
 				//! Checks whether @a entity is already present on a non-fragmenting relation path.
-				//! Exclusive non-fragmenting relations live in side storage. Other non-fragmenting pairs remain archetype-backed.
+				//! Exclusive non-fragmenting relations use non-fragmenting relation storage. Other non-fragmenting pairs remain archetype-backed.
 				//! \param entity Pair id being queried.
 				//! \param relationPath Non-fragmenting storage path for the pair relation.
 				//! \return True if the pair is attached to the source entity.
@@ -2333,7 +2333,7 @@ namespace gaia {
 					m_pArchetype = m_world.foc_archetype_add_no_graph(m_pArchetype, entity);
 				}
 
-				//! Adds a non-fragmenting exclusive relation to non-fragmenting side storage.
+				//! Adds a non-fragmenting exclusive relation to non-fragmenting relation storage.
 				//! \param entity Pair id to attach.
 				//! \return True when the add succeeded. False when endpoints are stale.
 				GAIA_NODISCARD bool add_nonfragmenting_relation_id(Entity entity) {
@@ -2356,7 +2356,7 @@ namespace gaia {
 					return true;
 				}
 
-				//! Removes a non-fragmenting exclusive relation from non-fragmenting side storage.
+				//! Removes a non-fragmenting exclusive relation from non-fragmenting relation storage.
 				//! \param entity Pair id to detach.
 				void del_nonfragmenting_relation_id(Entity entity) {
 					GAIA_ASSERT(entity.pair());
@@ -3560,7 +3560,7 @@ namespace gaia {
 			//! Creates a new runtime component from a plain component descriptor if not found already.
 			//! \param desc Component registration descriptor.
 			//! \param kind Entity kind assigned to the new component entity.
-			//! @return Mutable component cache item of the component.
+			//! \return Mutable component cache item of the component.
 			GAIA_NODISCARD ComponentCacheItem& add(const ComponentDesc& desc, EntityKind kind = EntityKind::EK_Gen) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < ComponentCacheItem::MaxNameLength);
@@ -3584,7 +3584,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
-					if (pItem != nullptr && pItem->entity == object && is_out_of_line_component(object))
+					if (pItem != nullptr && pItem->entity == object && component_uses_sparse_storage(object))
 						GAIA_ASSERT2(
 								false, "Out-of-line runtime components require an explicit typed value when added by entity id");
 				}
@@ -3613,11 +3613,11 @@ namespace gaia {
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_out_of_line_component<FT>()) {
-					const auto mode = out_of_line_mode(item.entity);
-					if (mode != OutOfLineMode::None) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					const auto mode = sparse_storage_mode(item.entity);
+					if (mode != SparseStorageMode::None) {
 						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
-						finish_out_of_line_add_inter(entity, item.entity, mode);
+						finish_sparse_component_add_inter(entity, item.entity, mode);
 						return;
 					}
 				}
@@ -3636,14 +3636,14 @@ namespace gaia {
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
 
-				if constexpr (supports_out_of_line_component<typename component_type_t<T>::TypeFull>()) {
+				if constexpr (supports_sparse_component_storage<typename component_type_t<T>::TypeFull>()) {
 					using FT = typename component_type_t<T>::TypeFull;
-					if (can_use_out_of_line_component<FT>(object)) {
-						const auto mode = out_of_line_mode(object);
-						if (mode != OutOfLineMode::None) {
+					if (can_use_sparse_component_storage<FT>(object)) {
+						const auto mode = sparse_storage_mode(object);
+						if (mode != SparseStorageMode::None) {
 							auto& data = sparse_component_store_mut<FT>(object).add(entity);
 							data = GAIA_FWD(value);
-							finish_out_of_line_add_inter(entity, object, mode);
+							finish_sparse_component_add_inter(entity, object, mode);
 							return;
 						}
 					}
@@ -3676,13 +3676,13 @@ namespace gaia {
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (!is_pair<FT>::value && supports_out_of_line_component<FT>()) {
+				if constexpr (!is_pair<FT>::value && supports_sparse_component_storage<FT>()) {
 					const auto& item = add<FT>();
-					const auto mode = out_of_line_mode(item.entity);
-					if (mode != OutOfLineMode::None) {
+					const auto mode = sparse_storage_mode(item.entity);
+					if (mode != SparseStorageMode::None) {
 						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
 						data = GAIA_FWD(value);
-						finish_out_of_line_add_inter(entity, item.entity, mode);
+						finish_sparse_component_add_inter(entity, item.entity, mode);
 						return;
 					}
 				}
@@ -3728,9 +3728,9 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (out_of_line_mode(item.entity) != OutOfLineMode::None)
-						return override_out_of_line_inter(entity, item.entity);
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
+						return override_sparse_component_inter(entity, item.entity);
 				}
 
 				return override_inter(entity, item.entity);
@@ -3743,9 +3743,9 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object))
-						return override_out_of_line_inter(entity, object);
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object))
+						return override_sparse_component_inter(entity, object);
 				}
 
 				return override_inter(entity, object);
@@ -4305,11 +4305,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns whether @a entity has a direct out-of-line payload for @a object.
+			//! Returns whether @a entity has a direct sparse payload for @a object.
 			//! \param entity Entity to inspect.
-			//! \param object Out-of-line component entity.
+			//! \param object Sparse component entity.
 			//! \return True when the sparse store contains a direct payload for the entity.
-			GAIA_NODISCARD bool has_direct_out_of_line_inter(Entity entity, Entity object) const {
+			GAIA_NODISCARD bool has_direct_sparse_component_inter(Entity entity, Entity object) const {
 				const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 				return itSparseStore != m_sparseComponentsByComp.end() &&
 							 itSparseStore->second.func_has(itSparseStore->second.pStore, entity);
@@ -4334,7 +4334,7 @@ namespace gaia {
 					if (has_nonfragmenting_relation_pair(entity, object) || ec.pArchetype->has(object))
 						return entity;
 				} else {
-					if (has_direct_out_of_line_inter(entity, object) || ec.pArchetype->has(object))
+					if (has_direct_sparse_component_inter(entity, object) || ec.pArchetype->has(object))
 						return entity;
 				}
 
@@ -4433,8 +4433,8 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD bool copy_sparse_payload_inter(Entity dstEntity, Entity srcEntity, Entity object) {
-				const auto mode = out_of_line_mode(object);
-				if (mode == OutOfLineMode::None)
+				const auto mode = sparse_storage_mode(object);
+				if (mode == SparseStorageMode::None)
 					return false;
 
 				const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
@@ -4444,14 +4444,14 @@ namespace gaia {
 				return copy_sparse_store_inter(srcEntity, dstEntity, object, itSparseStore->second);
 			}
 
-			//! Copies an inherited out-of-line payload onto @a entity and makes it direct when needed.
+			//! Copies an inherited sparse payload onto @a entity and makes it direct when needed.
 			//! \param entity Entity receiving the local override.
 			//! \param object Out-of-line component entity being overridden.
 			//! \return True when the local override was created. False otherwise.
-			GAIA_NODISCARD bool override_out_of_line_inter(Entity entity, Entity object) {
+			GAIA_NODISCARD bool override_sparse_component_inter(Entity entity, Entity object) {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(object));
-				GAIA_ASSERT(out_of_line_mode(object) != OutOfLineMode::None);
+				GAIA_ASSERT(sparse_storage_mode(object) != SparseStorageMode::None);
 
 				if (has_direct(entity, object))
 					return false;
@@ -4463,25 +4463,25 @@ namespace gaia {
 				if (!copy_sparse_payload_inter(entity, inheritedOwner, object))
 					return false;
 
-				if (out_of_line_mode(object) == OutOfLineMode::Fragmenting)
+				if (sparse_storage_mode(object) == SparseStorageMode::Fragmenting)
 					make_sparse_copy_direct_inter(entity, object);
 				return true;
 			}
 
-			//! Copies an owned out-of-line payload from @a srcEntity to @a dstEntity and reports the add.
+			//! Copies an owned sparse payload from @a srcEntity to @a dstEntity and reports the add.
 			//! Fragmenting components are also made direct on the destination archetype.
 			//! \param srcEntity Source entity owning the payload.
 			//! \param dstEntity Destination entity receiving the payload.
 			//! \param object Out-of-line component entity being copied.
 			//! \return True when the payload was copied. False otherwise.
-			GAIA_NODISCARD bool copy_owned_out_of_line_inter(Entity srcEntity, Entity dstEntity, Entity object) {
+			GAIA_NODISCARD bool copy_owned_sparse_component_inter(Entity srcEntity, Entity dstEntity, Entity object) {
 				GAIA_ASSERT(valid(srcEntity));
 				GAIA_ASSERT(valid(dstEntity));
 				GAIA_ASSERT(valid(object));
-				GAIA_ASSERT(out_of_line_mode(object) != OutOfLineMode::None);
+				GAIA_ASSERT(sparse_storage_mode(object) != SparseStorageMode::None);
 
-				const auto mode = out_of_line_mode(object);
-				if (mode == OutOfLineMode::Fragmenting) {
+				const auto mode = sparse_storage_mode(object);
+				if (mode == SparseStorageMode::Fragmenting) {
 					if (!copy_sparse_payload_inter(dstEntity, srcEntity, object))
 						return false;
 
@@ -4503,7 +4503,7 @@ namespace gaia {
 			}
 
 			void make_sparse_copy_direct_inter(Entity entity, Entity object) {
-				GAIA_ASSERT(out_of_line_mode(object) == OutOfLineMode::Fragmenting);
+				GAIA_ASSERT(sparse_storage_mode(object) == SparseStorageMode::Fragmenting);
 				EntityBuilder eb(*this, entity);
 				eb.add_inter_init(object);
 				eb.commit();
@@ -4549,9 +4549,9 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
 					if (pItem != nullptr && pItem->entity == object) {
-						const auto mode = out_of_line_mode(object);
-						if (mode != OutOfLineMode::None)
-							return override_out_of_line_inter(entity, object);
+						const auto mode = sparse_storage_mode(object);
+						if (mode != SparseStorageMode::None)
+							return override_sparse_component_inter(entity, object);
 
 						if (pItem->comp.size() != 0U) {
 							add(entity, object);
@@ -4576,8 +4576,8 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto* pItem = comp_cache().find(object);
 					if (pItem != nullptr && pItem->entity == object) {
-						if (out_of_line_mode(object) != OutOfLineMode::None)
-							return copy_owned_out_of_line_inter(srcEntity, dstEntity, object);
+						if (sparse_storage_mode(object) != SparseStorageMode::None)
+							return copy_owned_sparse_component_inter(srcEntity, dstEntity, object);
 
 						if (pItem->comp.size() != 0U) {
 							EntityBuilder eb(*this, dstEntity);
@@ -5137,7 +5137,7 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 					if (itSparseStore != m_sparseComponentsByComp.end()) {
-						if (!is_non_fragmenting_out_of_line_component(object)) {
+						if (!component_is_non_fragmenting(object)) {
 							{
 								EntityBuilder eb(*this, entity);
 								eb.del(object);
@@ -5180,9 +5180,9 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 
-				if constexpr (supports_out_of_line_component<FT>()) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (const auto* pItem = comp_cache().template find<FT>();
-							pItem != nullptr && out_of_line_mode(pItem->entity) != OutOfLineMode::None) {
+							pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
 						if (sparse_component_store<FT>(pItem->entity) != nullptr)
 							del(entity, pItem->entity);
 						return;
@@ -5245,7 +5245,7 @@ namespace gaia {
 			}
 
 			//! Adds a direct non-fragmenting `Parent` relationship to @a parentEntity.
-			//! The relationship is stored out of archetype identity.
+			//! The relationship is non-fragmenting and does not participate in archetype identity.
 			//! \param entity Entity to inspect.
 			//! \param parentEntity Candidate parent entity.
 			void parent(Entity entity, Entity parentEntity) {
@@ -5278,13 +5278,13 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				if constexpr (supports_out_of_line_component<T>()) {
+				if constexpr (supports_sparse_component_storage<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
-					if (pItem != nullptr && out_of_line_mode(pItem->entity) != OutOfLineMode::None) {
+					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
 #if GAIA_ASSERT_ENABLED
 						auto* pStore = sparse_component_store<typename component_type_t<T>::TypeFull>(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
-						GAIA_ASSERT(has_direct_out_of_line_inter(entity, pItem->entity));
+						GAIA_ASSERT(has_direct_sparse_component_inter(entity, pItem->entity));
 #endif
 
 						::gaia::ecs::update_version(m_worldVersion);
@@ -5340,12 +5340,12 @@ namespace gaia {
 				GAIA_ASSERT(valid(object));
 
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object)) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object)) {
 #if GAIA_ASSERT_ENABLED
 						auto* pStore = sparse_component_store<FT>(object);
 						GAIA_ASSERT(pStore != nullptr);
-						GAIA_ASSERT(has_direct_out_of_line_inter(entity, object));
+						GAIA_ASSERT(has_direct_sparse_component_inter(entity, object));
 #endif
 
 						::gaia::ecs::update_version(m_worldVersion);
@@ -5430,8 +5430,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (out_of_line_mode(item.entity) != OutOfLineMode::None)
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
 						return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				}
 				return acc_mut(entity).smut<T>();
@@ -5443,8 +5443,8 @@ namespace gaia {
 			GAIA_NODISCARD decltype(auto) sset(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object))
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object))
 						return sparse_component_store_mut<FT>(object).mut(entity);
 				}
 				return acc_mut(entity).smut<T>(object);
@@ -5536,7 +5536,7 @@ namespace gaia {
 			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
 			//! \param entity Entity being read.
 			//! \param component Component entity being read.
-			//! @return Cursor positioned at the root component payload, or invalid cursor when unavailable.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
 			//! Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on @a entity.
@@ -5544,7 +5544,7 @@ namespace gaia {
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
 			//! \param component Component entity being mutated.
-			//! @return Cursor positioned at the root component payload, or invalid cursor when unavailable.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor_mut(Entity entity, Entity component);
 
 			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
@@ -5649,9 +5649,9 @@ namespace gaia {
 						return comp_cache().template get<FT>().entity;
 					}
 				}();
-				if constexpr (supports_out_of_line_component<FT>()) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && out_of_line_mode(pItem->entity) != OutOfLineMode::None) {
+					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
 						const auto* pStore = sparse_component_store<FT>(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
 						const auto owner = id_owner_inter(entity, compEntity);
@@ -5669,8 +5669,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity, Entity object) const {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (supports_out_of_line_component<FT>()) {
-					if (can_use_out_of_line_component<FT>(object)) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (can_use_sparse_component_storage<FT>(object)) {
 						const auto* pStore = sparse_component_store<FT>(object);
 						GAIA_ASSERT(pStore != nullptr);
 						const auto owner = id_owner_inter(entity, object);
@@ -5782,7 +5782,7 @@ namespace gaia {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
 					if (itSparseStore != m_sparseComponentsByComp.end())
-						return has_direct_out_of_line_inter(entity, object) ||
+						return has_direct_sparse_component_inter(entity, object) ||
 									 (allowSemanticIs && inherited_id_owner(entity, object) != EntityBad);
 				}
 
@@ -5989,9 +5989,9 @@ namespace gaia {
 				if (compEntity == EntityBad)
 					return false;
 
-				if constexpr (supports_out_of_line_component<FT>()) {
+				if constexpr (supports_sparse_component_storage<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && out_of_line_mode(pItem->entity) != OutOfLineMode::None) {
+					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
 						return id_owner_inter(entity, compEntity) != EntityBad;
 					}
 				}
@@ -6705,7 +6705,7 @@ namespace gaia {
 					return targets.empty() ? EntityBad : targets[0];
 				}
 
-				if (is_exclusive_dont_fragment_relation(relation)) {
+				if (relation_uses_non_fragmenting_storage(relation)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return EntityBad;
@@ -6750,7 +6750,7 @@ namespace gaia {
 					return;
 				}
 
-				if (is_exclusive_dont_fragment_relation(relation)) {
+				if (relation_uses_non_fragmenting_storage(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
 						func(target);
@@ -6794,7 +6794,7 @@ namespace gaia {
 					return;
 				}
 
-				if (is_exclusive_dont_fragment_relation(relation)) {
+				if (relation_uses_non_fragmenting_storage(relation)) {
 					const auto target = this->target(entity, relation);
 					if (target != EntityBad)
 						(void)func(target);
@@ -6849,7 +6849,7 @@ namespace gaia {
 					return;
 				}
 
-				if (is_exclusive_dont_fragment_relation(relation)) {
+				if (relation_uses_non_fragmenting_storage(relation)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return;
@@ -6908,7 +6908,7 @@ namespace gaia {
 					return;
 				}
 
-				if (is_exclusive_dont_fragment_relation(relation)) {
+				if (relation_uses_non_fragmenting_storage(relation)) {
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
 						return;
@@ -7044,7 +7044,7 @@ namespace gaia {
 					return cnt;
 				}
 
-				if (term.pair() && is_exclusive_dont_fragment_relation(pair_rel(*this, term))) {
+				if (term.pair() && relation_uses_non_fragmenting_storage(pair_rel(*this, term))) {
 					const auto relation = pair_rel(*this, term);
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
@@ -7057,7 +7057,7 @@ namespace gaia {
 					return pSources != nullptr ? (uint32_t)pSources->size() : 0;
 				}
 
-				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
+				if (!term.pair() && component_is_non_fragmenting(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					return it != m_sparseComponentsByComp.end() ? it->second.func_count(it->second.pStore) : 0;
 				}
@@ -7104,7 +7104,7 @@ namespace gaia {
 					return;
 				}
 
-				if (term.pair() && is_exclusive_dont_fragment_relation(pair_rel(*this, term))) {
+				if (term.pair() && relation_uses_non_fragmenting_storage(pair_rel(*this, term))) {
 					const auto relation = pair_rel(*this, term);
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
@@ -7134,7 +7134,7 @@ namespace gaia {
 					return;
 				}
 
-				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
+				if (!term.pair() && component_is_non_fragmenting(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					if (it != m_sparseComponentsByComp.end())
 						it->second.func_collect_entities(it->second.pStore, out);
@@ -7187,7 +7187,7 @@ namespace gaia {
 					});
 				}
 
-				if (term.pair() && is_exclusive_dont_fragment_relation(pair_rel(*this, term))) {
+				if (term.pair() && relation_uses_non_fragmenting_storage(pair_rel(*this, term))) {
 					const auto relation = pair_rel(*this, term);
 					const auto* pStore = nonfragmenting_relation_store(relation);
 					if (pStore == nullptr)
@@ -7218,7 +7218,7 @@ namespace gaia {
 					return true;
 				}
 
-				if (!term.pair() && is_non_fragmenting_out_of_line_component(term)) {
+				if (!term.pair() && component_is_non_fragmenting(term)) {
 					const auto it = m_sparseComponentsByComp.find(EntityLookupKey(term));
 					if (it == m_sparseComponentsByComp.end())
 						return true;
@@ -8550,7 +8550,7 @@ namespace gaia {
 						s.load(relation);
 						s.load(target);
 
-						if (!valid(source) || !valid(relation) || !valid(target) || !is_exclusive_dont_fragment_relation(relation))
+						if (!valid(source) || !valid(relation) || !valid(target) || !relation_uses_non_fragmenting_storage(relation))
 							continue;
 
 						assign_pair(Pair(relation, target), *m_pEntityArchetype);
@@ -10262,7 +10262,7 @@ namespace gaia {
 					if (entity.id() != All.id()) {
 						const auto relation = try_get(entity.id());
 						const auto target = try_get(entity.gen());
-						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+						if (relation != EntityBad && target != EntityBad && relation_uses_non_fragmenting_storage(relation))
 							req_del_nonfragmenting_pair(relation, target);
 					} else {
 						const auto target = try_get(entity.gen());
@@ -10276,7 +10276,7 @@ namespace gaia {
 						}
 					skip_req_del_all_target:;
 					}
-				} else if (is_exclusive_dont_fragment_relation(entity)) {
+				} else if (relation_uses_non_fragmenting_storage(entity)) {
 					if (const auto* pTargets = targets(entity)) {
 						for (auto targetKey: *pTargets)
 							req_del_nonfragmenting_pair(entity, targetKey.entity());
@@ -10324,7 +10324,7 @@ namespace gaia {
 					if (entity.id() != All.id()) {
 						const auto relation = try_get(entity.id());
 						const auto target = try_get(entity.gen());
-						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+						if (relation != EntityBad && target != EntityBad && relation_uses_non_fragmenting_storage(relation))
 							req_del_nonfragmenting_pair(relation, target);
 					} else {
 						const auto target = try_get(entity.gen());
@@ -10338,7 +10338,7 @@ namespace gaia {
 						}
 					skip_req_del_all_target_cond:;
 					}
-				} else if (is_exclusive_dont_fragment_relation(entity)) {
+				} else if (relation_uses_non_fragmenting_storage(entity)) {
 					if (const auto* pTargets = targets(entity)) {
 						for (auto targetKey: *pTargets)
 							req_del_nonfragmenting_pair(entity, targetKey.entity());
@@ -10390,7 +10390,7 @@ namespace gaia {
 					if (entity.id() != All.id()) {
 						const auto relation = try_get(entity.id());
 						const auto target = try_get(entity.gen());
-						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+						if (relation != EntityBad && target != EntityBad && relation_uses_non_fragmenting_storage(relation))
 							rem_nonfragmenting_pair(relation, target);
 					} else {
 						const auto target = try_get(entity.gen());
@@ -10404,7 +10404,7 @@ namespace gaia {
 						}
 					skip_rem_all_target:;
 					}
-				} else if (is_exclusive_dont_fragment_relation(entity)) {
+				} else if (relation_uses_non_fragmenting_storage(entity)) {
 					if (const auto* pTargets = targets(entity)) {
 						for (auto targetKey: *pTargets)
 							rem_nonfragmenting_pair(entity, targetKey.entity());
@@ -10547,7 +10547,7 @@ namespace gaia {
 					if (entity.id() != All.id()) {
 						const auto relation = try_get(entity.id());
 						const auto target = try_get(entity.gen());
-						if (relation != EntityBad && target != EntityBad && is_exclusive_dont_fragment_relation(relation))
+						if (relation != EntityBad && target != EntityBad && relation_uses_non_fragmenting_storage(relation))
 							rem_nonfragmenting_pair(relation, target);
 					} else {
 						const auto target = try_get(entity.gen());
@@ -10561,7 +10561,7 @@ namespace gaia {
 						}
 					skip_rem_all_target_cond:;
 					}
-				} else if (is_exclusive_dont_fragment_relation(entity)) {
+				} else if (relation_uses_non_fragmenting_storage(entity)) {
 					if (const auto* pTargets = targets(entity)) {
 						for (auto targetKey: *pTargets)
 							rem_nonfragmenting_pair(entity, targetKey.entity());
@@ -10997,13 +10997,13 @@ namespace gaia {
 					auto ec = m_recs.entities[entity.id()];
 					m_recs.entities.free(entity);
 
-					// Remove all outgoing non-fragmenting sparse components from this entity.
+					// Remove all sparse-storage components from this entity.
 					del_sparse_components(entity);
 					// Remove all outgoing non-fragmenting exclusive relations from this source entity.
 					del_nonfragmenting_relation_source(entity);
 					// If the deleted entity is itself a non-fragmenting exclusive relation, drop its store.
 					del_nonfragmenting_relation(entity);
-					// If the deleted entity is itself a non-fragmenting sparse component, drop its store.
+					// If the deleted entity is itself a sparse-storage component, drop its store.
 					del_sparse_component_store(entity);
 
 					// If this is a singleton entity its archetype needs to be deleted
@@ -12070,7 +12070,7 @@ namespace gaia {
 			// Non-fragmenting relations such as Parent must stay on per-entity traversal, because their targets vary per
 			// entity and cannot be represented by one cached archetype depth. The level is derived from the cached upward
 			// traversal chain so normal query iteration can stay cheap.
-			if (!world.supports_depth_order(relation) || archetype.pairs() == 0)
+			if (!world.relation_supports_depth_order(relation) || archetype.pairs() == 0)
 				return 0;
 
 			auto ids = archetype.ids_view();
@@ -13157,28 +13157,36 @@ namespace gaia {
 			return world.has_direct(entity, term);
 		}
 
-		//! Returns whether @a relation is an exclusive non-fragmenting relation.
+		//! Returns whether @a relation uses the dedicated non-fragmenting relation store.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is exclusive and non-fragmenting.
-		inline bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation) {
-			return world.is_exclusive_dont_fragment_relation(relation);
+		//! \return True if @a relation is exclusive, non-fragmenting, and uses relation storage.
+		inline bool world_relation_uses_non_fragmenting_storage(const World& world, Entity relation) {
+			return world.relation_uses_non_fragmenting_storage(relation);
 		}
 
-		//! Returns whether @a component uses out-of-line instance storage.
+		//! Returns whether @a relation is non-fragmenting.
 		//! \param world World to query.
-		//! \param component Component entity to inspect.
-		//! \return True if @a component stores payload out of line.
-		inline bool world_is_out_of_line_component(const World& world, Entity component) {
-			return world.is_out_of_line_component(component);
+		//! \param relation Relation to inspect.
+		//! \return True if @a relation is non-fragmenting.
+		inline bool world_relation_is_non_fragmenting(const World& world, Entity relation) {
+			return world.relation_is_non_fragmenting(relation);
 		}
 
-		//! Returns whether @a component is out-of-line and non-fragmenting.
+		//! Returns whether @a component uses sparse instance storage.
 		//! \param world World to query.
 		//! \param component Component entity to inspect.
-		//! \return True if @a component uses non-fragmenting out-of-line storage.
-		inline bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component) {
-			return world.is_non_fragmenting_out_of_line_component(component);
+		//! \return True if @a component stores payload in sparse storage.
+		inline bool world_component_uses_sparse_storage(const World& world, Entity component) {
+			return world.component_uses_sparse_storage(component);
+		}
+
+		//! Returns whether @a component is non-fragmenting.
+		//! \param world World to query.
+		//! \param component Component entity to inspect.
+		//! \return True if @a component is non-fragmenting.
+		inline bool world_component_is_non_fragmenting(const World& world, Entity component) {
+			return world.component_is_non_fragmenting(component);
 		}
 
 		//! Counts direct entities addressable by @a term.
@@ -13323,40 +13331,40 @@ namespace gaia {
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
 		//! \return True if @a relation is a hierarchy relation.
-		inline bool world_is_hierarchy_relation(const World& world, Entity relation) {
-			return world.is_hierarchy_relation(relation);
+		inline bool world_relation_is_hierarchy(const World& world, Entity relation) {
+			return world.relation_is_hierarchy(relation);
 		}
 
 		//! Returns whether @a relation fragments archetypes.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
 		//! \return True if @a relation is fragmenting.
-		inline bool world_is_fragmenting_relation(const World& world, Entity relation) {
-			return world.is_fragmenting_relation(relation);
+		inline bool world_relation_is_fragmenting(const World& world, Entity relation) {
+			return world.relation_is_fragmenting(relation);
 		}
 
 		//! Returns whether @a relation is both hierarchy-forming and fragmenting.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
 		//! \return True if @a relation is a fragmenting hierarchy relation.
-		inline bool world_is_fragmenting_hierarchy_relation(const World& world, Entity relation) {
-			return world.is_fragmenting_hierarchy_relation(relation);
+		inline bool world_relation_is_fragmenting_hierarchy(const World& world, Entity relation) {
+			return world.relation_is_fragmenting_hierarchy(relation);
 		}
 
 		//! Returns whether @a relation supports cached depth-ordered iteration.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
 		//! \return True if @a relation supports depth ordering.
-		inline bool world_supports_depth_order(const World& world, Entity relation) {
-			return world.supports_depth_order(relation);
+		inline bool world_relation_supports_depth_order(const World& world, Entity relation) {
+			return world.relation_supports_depth_order(relation);
 		}
 
 		//! Returns whether disabled subtrees may be pruned for depth-ordered iteration.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
 		//! \return True if disabled subtree pruning is valid.
-		inline bool world_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
-			return world.depth_order_prunes_disabled_subtrees(relation);
+		inline bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation) {
+			return world.relation_depth_order_prunes_disabled_subtrees(relation);
 		}
 
 		//! Returns whether @a entity currently belongs to a prefab archetype.
@@ -13754,8 +13762,8 @@ namespace gaia {
 			GAIA_ASSERT(m_entity != EntityBad);
 
 			using FT = typename component_type_t<T>::TypeFull;
-			if constexpr (World::template supports_out_of_line_component<FT>()) {
-				if (m_pWorld->template can_use_out_of_line_component<FT>(type)) {
+			if constexpr (World::template supports_sparse_component_storage<FT>()) {
+				if (m_pWorld->template can_use_sparse_component_storage<FT>(type)) {
 					const auto* pStore = m_pWorld->template sparse_component_store<FT>(type);
 					GAIA_ASSERT(pStore != nullptr);
 					GAIA_ASSERT(pStore->has(m_entity));
@@ -13777,9 +13785,9 @@ namespace gaia {
 			GAIA_ASSERT(m_entity != EntityBad);
 
 			using FT = typename component_type_t<T>::TypeFull;
-			if constexpr (World::template supports_out_of_line_component<FT>()) {
+			if constexpr (World::template supports_sparse_component_storage<FT>()) {
 				auto& world = *const_cast<World*>(m_pWorld);
-				if (world.template can_use_out_of_line_component<FT>(type))
+				if (world.template can_use_sparse_component_storage<FT>(type))
 					return world.template sparse_component_store_mut<FT>(type).mut(m_entity);
 			}
 
@@ -13801,8 +13809,8 @@ namespace gaia {
 			using FT = typename component_type_t<T>::TypeFull;
 			auto& world = *const_cast<World*>(m_pWorld);
 
-			if constexpr (World::template supports_out_of_line_component<FT>()) {
-				if (world.template can_use_out_of_line_component<FT>(type))
+			if constexpr (World::template supports_sparse_component_storage<FT>()) {
+				if (world.template can_use_sparse_component_storage<FT>(type))
 					::gaia::ecs::update_version(world.m_worldVersion);
 			}
 

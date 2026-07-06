@@ -1894,7 +1894,7 @@ namespace gaia {
 				GAIA_NODISCARD static bool has_depth_order_hierarchy_enabled_barrier(const QueryInfo& queryInfo) {
 					const auto& data = queryInfo.ctx().data;
 					return data.groupByFunc == group_by_func_depth_order &&
-								 world_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
+								 world_relation_depth_order_prunes_disabled_subtrees(*queryInfo.world(), data.groupBy);
 				}
 
 				//! Checks whether the current row constraints require the depth-order hierarchy barrier cache.
@@ -2002,7 +2002,7 @@ namespace gaia {
 					auto& world = *it.world();
 					GAIA_EACH(terms) {
 						const auto term = terms[i];
-						if (!world_is_out_of_line_component(world, term)) {
+						if (!world_component_uses_sparse_storage(world, term)) {
 							const auto compIdx = core::get_index(it.chunk()->ids_view(), term);
 							if (compIdx != BadIndex) {
 								const_cast<Chunk*>(it.chunk())->finish_write(compIdx, it.row_begin(), it.row_end());
@@ -3826,14 +3826,14 @@ namespace gaia {
 				//! Returns whether a direct term is backed by non-fragmenting storage and must be evaluated per entity.
 				//! \param world World
 				//! \param term Query term
-				//! \return True if the term is backed by adjunct storage. False otherwise.
-				GAIA_NODISCARD static bool is_adjunct_direct_term(const World& world, const QueryTerm& term) {
+				//! \return True if the term is backed by non-fragmenting storage. False otherwise.
+				GAIA_NODISCARD static bool is_non_fragmenting_direct_term(const World& world, const QueryTerm& term) {
 					if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 						return false;
 
 					const auto id = term.id;
-					return (id.pair() && world_is_exclusive_dont_fragment_relation(world, pair_rel(world, id))) ||
-								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
+					return (id.pair() && world_relation_uses_non_fragmenting_storage(world, pair_rel(world, id))) ||
+								 (!id.pair() && world_component_is_non_fragmenting(world, id));
 				}
 
 				//! Returns whether a term uses semantic `Is` matching rather than direct storage matching.
@@ -3947,7 +3947,7 @@ namespace gaia {
 					return world_for_each_direct_term_entity_direct(world, term.id, &visitor, &Visitor::thunk);
 				}
 
-				//! Detects queries that can skip archetype seeding and start directly from entity-backed term indices.
+				//! Detects queries that can skip archetype seeding and start directly from non-fragmenting term indices.
 				GAIA_NODISCARD static bool can_use_direct_entity_seed_eval(const QueryInfo& queryInfo) {
 					if (!queryInfo.can_direct_entity_seed_eval_shape())
 						return false;
@@ -3958,7 +3958,7 @@ namespace gaia {
 						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Or)
 							continue;
 						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
-								uses_in_is_matching(term) || is_adjunct_direct_term(world, term))
+								uses_in_is_matching(term) || is_non_fragmenting_direct_term(world, term))
 							hasSeedableTerm = true;
 					}
 
@@ -4169,7 +4169,7 @@ namespace gaia {
 							return false;
 						if (term.op == QueryOpKind::All && term.id == seedTerm.id && term.matchKind == seedTerm.matchKind)
 							continue;
-						if (is_adjunct_direct_term(world, term))
+						if (is_non_fragmenting_direct_term(world, term))
 							return false;
 					}
 
@@ -4328,7 +4328,7 @@ namespace gaia {
 							continue;
 						if (term.op != QueryOpKind::All && term.op != QueryOpKind::Not)
 							return false;
-						if (is_adjunct_direct_term(world, term))
+						if (is_non_fragmenting_direct_term(world, term))
 							return false;
 						if (uses_inherited_id_matching(world, term))
 							return false;
@@ -4568,7 +4568,7 @@ namespace gaia {
 					}
 				}
 
-				//! Fast empty() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! Fast empty() path for direct non-fragmenting queries that can seed from non-fragmenting term indices.
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
@@ -4675,10 +4675,10 @@ namespace gaia {
 						const auto id = term.id;
 						const bool isDirectIsTerm = uses_non_direct_is_matching(term);
 						const bool isInheritedTerm = uses_inherited_id_matching(world, term);
-						const bool isAdjunctTerm =
-								(id.pair() && world_is_exclusive_dont_fragment_relation(world, pair_rel(world, id))) ||
-								(!id.pair() && world_is_non_fragmenting_out_of_line_component(world, id));
-						const bool needsEntityFilter = isAdjunctTerm || isDirectIsTerm || isInheritedTerm ||
+						const bool isNonFragmentingTerm =
+								(id.pair() && world_relation_uses_non_fragmenting_storage(world, pair_rel(world, id))) ||
+								(!id.pair() && world_component_is_non_fragmenting(world, id));
+						const bool needsEntityFilter = isNonFragmentingTerm || isDirectIsTerm || isInheritedTerm ||
 																					 (hasEntityFilterTerms && term.op == QueryOpKind::Or);
 						if (!needsEntityFilter)
 							continue;
@@ -4773,7 +4773,7 @@ namespace gaia {
 					return false;
 				}
 
-				//! Fast count() path for direct non-fragmenting queries that can seed from entity-backed indices.
+				//! Fast count() path for direct non-fragmenting queries that can seed from non-fragmenting term indices.
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
@@ -4907,7 +4907,7 @@ namespace gaia {
 								pIndices[fieldIdx] = indicesView[fieldIdx];
 								continue;
 							}
-							if (!queryId.pair() && world_is_out_of_line_component(world, queryId)) {
+							if (!queryId.pair() && world_component_uses_sparse_storage(world, queryId)) {
 #if GAIA_ASSERT_ENABLED
 								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
 								GAIA_ASSERT(compIdx != BadIndex);
@@ -4982,7 +4982,7 @@ namespace gaia {
 						return true;
 					if (desc.isPair)
 						return false;
-					if (world_is_out_of_line_component(world, desc.id))
+					if (world_component_uses_sparse_storage(world, desc.id))
 						return false;
 
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
@@ -4991,7 +4991,7 @@ namespace gaia {
 						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
 							return false;
 						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
-								is_adjunct_direct_term(world, term))
+								is_non_fragmenting_direct_term(world, term))
 							return false;
 						return true;
 					}
@@ -5799,7 +5799,7 @@ namespace gaia {
 				//! \return Reference to this query builder.
 				QueryImpl& depth_order(Entity relation = ChildOf) {
 					GAIA_ASSERT(!relation.pair());
-					GAIA_ASSERT(world_supports_depth_order(*m_storage.world(), relation));
+					GAIA_ASSERT(world_relation_supports_depth_order(*m_storage.world(), relation));
 					group_by_inter(relation, group_by_func_depth_order, true);
 					return *this;
 				}

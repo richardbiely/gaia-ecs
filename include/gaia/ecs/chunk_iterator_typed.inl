@@ -19,7 +19,7 @@ namespace gaia {
 							desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
 							desc.isEntity = false;
 							if constexpr (!mem::is_soa_layout_v<Arg>)
-								desc.isOutOfLine = world_is_out_of_line_component(*self.world(), desc.termId);
+								desc.usesSparseStorage = world_component_uses_sparse_storage(*self.world(), desc.termId);
 						}
 					}
 					return desc;
@@ -32,7 +32,7 @@ namespace gaia {
 						return self.m_pChunk->template view<T>(self.from(), self.to());
 					else {
 						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
+						const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
 							return EntityTermViewGet<U>::entity(
@@ -69,7 +69,7 @@ namespace gaia {
 					} else {
 						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
-						if (desc.isOutOfLine)
+						if (desc.usesSparseStorage)
 							return EntityTermViewGet<U>::entity(
 									self.m_pChunk->entity_view().data() + self.from(), const_cast<World*>(self.world()), desc.termId,
 									self.size());
@@ -139,7 +139,7 @@ namespace gaia {
 						return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 					} else {
 						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
+						const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
 						if (id != EntityBad) {
 							self.touch_term(id);
@@ -224,7 +224,7 @@ namespace gaia {
 					} else {
 						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
-						if (desc.isOutOfLine) {
+						if (desc.usesSparseStorage) {
 							self.touch_term(desc.termId);
 							return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
 						}
@@ -253,7 +253,7 @@ namespace gaia {
 						return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 					else {
 						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-						const auto id = desc.isOutOfLine ? desc.termId : EntityBad;
+						const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
 						if (id != EntityBad)
 							return self.template entity_view_set<U>(id, false);
@@ -317,7 +317,7 @@ namespace gaia {
 					} else {
 						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
-						if (desc.isOutOfLine)
+						if (desc.usesSparseStorage)
 							return self.template entity_view_set<U>(desc.termId, false);
 
 						if (compIdx == 0xFF) {

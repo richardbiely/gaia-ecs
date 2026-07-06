@@ -402,7 +402,7 @@ namespace gaia {
 					uint32_t offs, const ComponentCacheItem* const* pItems, uint32_t cnt, uint32_t cap, uint32_t maxDataOffset) {
 				GAIA_FOR(cnt) {
 					const auto comp = comp_from_item(pItems[i]);
-					if (!component_has_inline_data(comp))
+					if (!component_uses_table_storage(comp))
 						continue;
 
 					const auto* pItem = pItems[i];
@@ -430,7 +430,7 @@ namespace gaia {
 					const auto comp = comp_from_item(pItems[i]);
 					const auto compIdx = i;
 
-					if (!component_has_inline_data(comp)) {
+					if (!component_uses_table_storage(comp)) {
 						ofs[compIdx] = {};
 					} else {
 						const auto alig = comp.alig();
@@ -858,7 +858,7 @@ namespace gaia {
 				return m_runtime.observedTermCnt != 0;
 			}
 
-			//! Checks if component \tparam T is present in the chunk.
+			//! Checks if component @a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>

@@ -60,13 +60,13 @@ TEST_CASE("Builder handles sticky traits and non-fragmenting relation ids") {
 	CHECK(wld.fetch(child).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("DontFragment table component uses out-of-line storage") {
+TEST_CASE("DontFragment table component uses sparse storage") {
 	TestWorld twld;
 
 	const auto& compItem = wld.add<Position>();
 	wld.add(compItem.entity, ecs::DontFragment);
 	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
-	CHECK(wld.is_out_of_line_component(compItem.entity));
+	CHECK(wld.component_uses_sparse_storage(compItem.entity));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -219,7 +219,7 @@ TEST_CASE("Sparse DontFragment component can change directly during serial query
 	CHECK(posB.z == doctest::Approx(6.0f));
 }
 
-TEST_CASE("Sparse component uses out-of-line storage and still fragments") {
+TEST_CASE("Sparse component uses sparse storage and still fragments") {
 	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -281,7 +281,7 @@ TEST_CASE("Table component can opt into sparse storage via trait") {
 	wld.add(compItem.entity, ecs::Sparse);
 	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
 	CHECK(wld.has(compItem.entity, ecs::Sparse));
-	CHECK(wld.is_out_of_line_component(compItem.entity));
+	CHECK(wld.component_uses_sparse_storage(compItem.entity));
 	wld.del(compItem.entity, ecs::Sparse);
 	CHECK(wld.has(compItem.entity, ecs::Sparse));
 	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
@@ -300,7 +300,7 @@ TEST_CASE("Table component can opt into sparse storage via trait") {
 	CHECK(pos.z == doctest::Approx(3.0f));
 }
 
-TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
+TEST_CASE("Sparse prefab instantiate copies sparse payload") {
 	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();
@@ -318,7 +318,7 @@ TEST_CASE("Sparse prefab instantiate copies out-of-line payload") {
 	CHECK(pos.z == doctest::Approx(6.0f));
 }
 
-TEST_CASE("Sparse prefab sync keeps copied out-of-line payload after prefab delete") {
+TEST_CASE("Sparse prefab sync keeps copied sparse payload after prefab delete") {
 	SparseTestWorld twld;
 
 	const auto prefab = wld.prefab();
@@ -435,7 +435,7 @@ TEST_CASE("Sparse DontFragment runtime-registered component typed object access"
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("Sparse runtime-registered component uses out-of-line storage and still fragments") {
+TEST_CASE("Sparse runtime-registered component uses sparse storage and still fragments") {
 	TestWorld twld;
 
 	const auto& runtimeComp = add_runtime_component(
@@ -553,7 +553,7 @@ TEST_CASE("Runtime-registered table component can opt into sparse storage via tr
 	wld.add(runtimeComp.entity, ecs::Sparse);
 	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Sparse);
 	CHECK(wld.has(runtimeComp.entity, ecs::Sparse));
-	CHECK(wld.is_out_of_line_component(runtimeComp.entity));
+	CHECK(wld.component_uses_sparse_storage(runtimeComp.entity));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
@@ -577,7 +577,7 @@ TEST_CASE("DontFragment runtime-registered table component typed object access")
 			(uint32_t)alignof(Position));
 	wld.add(runtimeComp.entity, ecs::DontFragment);
 	CHECK(runtimeComp.comp.storage_type() == ecs::DataStorageType::Sparse);
-	CHECK(wld.is_out_of_line_component(runtimeComp.entity));
+	CHECK(wld.component_uses_sparse_storage(runtimeComp.entity));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;

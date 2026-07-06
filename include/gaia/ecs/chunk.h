@@ -119,7 +119,7 @@ namespace gaia {
 					const auto recs_cnt = recs.size();
 					GAIA_FOR(recs_cnt) {
 						const auto& rec = recs[i];
-						if (!component_has_inline_data(rec.comp))
+						if (!component_uses_table_storage(rec.comp))
 							continue;
 
 						const auto e = m_records.pCompEntities[i];
@@ -536,7 +536,7 @@ namespace gaia {
 				{
 					for (const auto& rec: comp_rec_view()) {
 						// Skip the component if there's no size associated with it
-						if (!component_has_inline_data(rec.comp))
+						if (!component_uses_table_storage(rec.comp))
 							continue;
 
 						rec.pItem->save(s, rec.pData, 0, cnt, cap);
@@ -576,7 +576,7 @@ namespace gaia {
 				{
 					for (const auto& rec: comp_rec_view()) {
 						// Skip the component if there's no size associated with it
-						if (!component_has_inline_data(rec.comp))
+						if (!component_uses_table_storage(rec.comp))
 							continue;
 
 						rec.pItem->load(s, rec.pData, 0, cnt, cap);
@@ -696,9 +696,9 @@ namespace gaia {
 				return sview_mut<T>(0, m_header.count);
 			}
 
-			//! Marks the component \tparam T as modified. Best used with sview to manually trigger
+			//! Marks the component @a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If \tparam TriggerSetHooks is true, also triggers the component's set hooks.
+			//! If @a TriggerSetHooks is true, also triggers the component's set hooks.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -873,7 +873,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					const auto* pSrc = (const void*)pSrcChunk->comp_ptr_mut(i);
@@ -905,7 +905,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					const auto* pSrc = (const void*)pSrcChunk->comp_ptr(i);
@@ -943,7 +943,7 @@ namespace gaia {
 
 					if (oldId == newId) {
 						const auto& rec = dstRecs[j];
-						if (component_has_inline_data(rec.comp)) {
+						if (component_uses_table_storage(rec.comp)) {
 							auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 							auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 							GAIA_FOR_(dstCount, rowOffset) {
@@ -991,7 +991,7 @@ namespace gaia {
 				// Unique components do not change place in the chunk so there is no need to move them.
 				GAIA_FOR(pSrcChunk->m_header.genEntities) {
 					const auto& rec = srcRecs[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
@@ -1030,7 +1030,7 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& rec = dstRecs[j];
-							if (component_has_inline_data(rec.comp)) {
+							if (component_uses_table_storage(rec.comp)) {
 								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 								rec.pItem->ctor_copy(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
@@ -1093,7 +1093,7 @@ namespace gaia {
 
 						if (oldId == newId) {
 							const auto& rec = dstRecs[j];
-							if (component_has_inline_data(rec.comp)) {
+							if (component_uses_table_storage(rec.comp)) {
 								auto* pSrc = (void*)pSrcChunk->comp_ptr_mut(i);
 								auto* pDst = (void*)pDstChunk->comp_ptr_mut(j);
 								rec.pItem->ctor_move(pDst, pSrc, dstRow, srcRow, pDstChunk->capacity(), pSrcChunk->capacity());
@@ -1163,7 +1163,7 @@ namespace gaia {
 					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recView[i];
-						if (!component_has_inline_data(rec.comp))
+						if (!component_uses_table_storage(rec.comp))
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i);
@@ -1181,7 +1181,7 @@ namespace gaia {
 					auto recView = comp_rec_view();
 					GAIA_FOR(m_header.genEntities) {
 						const auto& rec = recView[i];
-						if (!component_has_inline_data(rec.comp))
+						if (!component_uses_table_storage(rec.comp))
 							continue;
 
 						auto* pSrc = (void*)comp_ptr_mut(i, rowA);
@@ -1254,7 +1254,7 @@ namespace gaia {
 				auto recView = comp_rec_view();
 				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recView[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					GAIA_ASSERT(rec.pData == comp_ptr_mut(i));
@@ -1299,7 +1299,7 @@ namespace gaia {
 				auto recViewA = pChunkA->comp_rec_view();
 				GAIA_FOR(pChunkA->m_header.genEntities) {
 					const auto& recA = recViewA[i];
-					if (!component_has_inline_data(recA.comp))
+					if (!component_uses_table_storage(recA.comp))
 						continue;
 
 					auto* pDataA = pChunkA->comp_rec_view()[i].pData;
@@ -1381,7 +1381,7 @@ namespace gaia {
 			//----------------------------------------------------------------------
 
 			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
-				if (item.func_ctor == nullptr || !component_has_inline_data(item.comp))
+				if (item.func_ctor == nullptr || !component_uses_table_storage(item.comp))
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::call_ctor);
@@ -1400,7 +1400,7 @@ namespace gaia {
 				auto recs = comp_rec_view();
 				GAIA_FOR(m_header.genEntities) {
 					const auto& rec = recs[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					const auto* pItem = rec.pItem;
@@ -1423,7 +1423,7 @@ namespace gaia {
 				const auto recs_cnt = recs.size();
 				GAIA_FOR(recs_cnt) {
 					const auto& rec = recs[i];
-					if (!component_has_inline_data(rec.comp))
+					if (!component_uses_table_storage(rec.comp))
 						continue;
 
 					const auto* pItem = rec.pItem;
@@ -1589,7 +1589,7 @@ namespace gaia {
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \warning It is expected the component \tparam T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row, Entity type) {

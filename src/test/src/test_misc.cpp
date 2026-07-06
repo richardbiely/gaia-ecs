@@ -1932,14 +1932,14 @@ TEST_CASE("Component helpers") {
 			13, 2, (uint32_t)sizeof(Position), (uint32_t)alignof(Position), ecs::DataStorageType::Sparse);
 	const ecs::Component tagComp(14, 0, 0, 1, ecs::DataStorageType::Table);
 
-	CHECK(ecs::component_has_inline_data(denseComp));
-	CHECK_FALSE(ecs::component_has_out_of_line_data(denseComp));
-	CHECK_FALSE(ecs::component_has_inline_data(sparseAosComp));
-	CHECK(ecs::component_has_out_of_line_data(sparseAosComp));
-	CHECK(ecs::component_has_inline_data(sparseSoaComp));
-	CHECK_FALSE(ecs::component_has_out_of_line_data(sparseSoaComp));
-	CHECK_FALSE(ecs::component_has_inline_data(tagComp));
-	CHECK_FALSE(ecs::component_has_out_of_line_data(tagComp));
+	CHECK(ecs::component_uses_table_storage(denseComp));
+	CHECK_FALSE(ecs::component_uses_sparse_storage(denseComp));
+	CHECK_FALSE(ecs::component_uses_table_storage(sparseAosComp));
+	CHECK(ecs::component_uses_sparse_storage(sparseAosComp));
+	CHECK(ecs::component_uses_table_storage(sparseSoaComp));
+	CHECK_FALSE(ecs::component_uses_sparse_storage(sparseSoaComp));
+	CHECK_FALSE(ecs::component_uses_table_storage(tagComp));
+	CHECK_FALSE(ecs::component_uses_sparse_storage(tagComp));
 
 	TestWorld twld;
 	const auto pos = wld.add<Position>().entity;

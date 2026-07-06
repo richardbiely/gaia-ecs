@@ -9,7 +9,7 @@
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {
 	namespace ecs {
-		//! Runtime payload for systems kept out-of-line from ECS component storage.
+		//! Runtime payload for systems kept outside ECS component storage.
 		//!
 		//! System entities store their stable configuration in the ECS world, while the callable payload lives here so
 		//! non-trivial function objects do not become component data. The registry owns the callable and clears it during
@@ -39,7 +39,7 @@ namespace gaia {
 			TSystemRunFunc on_each_func;
 		};
 
-		//! Runtime storage for system callbacks kept out-of-line from ECS component storage.
+		//! Runtime storage for system callbacks kept outside ECS component storage.
 		//!
 		//! The registry maps system entities to their callable runtime payload. It deliberately does not participate in
 		//! normal component serialization: systems are expected to be rebuilt by setup code after loading a world.
@@ -50,8 +50,8 @@ namespace gaia {
 		public:
 			//! Clears all registered system callbacks.
 			//!
-			//! Existing system entities/components are not removed from the world by this call. Only the out-of-line callable
-			//! payload is released.
+			//! Existing system entities/components are not removed from the world by this call. Only the callable
+			//! payload outside ECS component storage is released.
 			void teardown() {
 				for (auto& it: m_system_data) {
 					it.second.on_each_func = {};

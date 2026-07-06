@@ -27,9 +27,9 @@ namespace gaia {
 		GAIA_NODISCARD bool world_has_entity_term_in(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_has_entity_term_direct(const World& world, Entity entity, Entity term);
 		GAIA_NODISCARD bool world_term_uses_inherit_policy(const World& world, Entity term);
-		GAIA_NODISCARD bool world_is_exclusive_dont_fragment_relation(const World& world, Entity relation);
-		GAIA_NODISCARD bool world_is_out_of_line_component(const World& world, Entity component);
-		GAIA_NODISCARD bool world_is_non_fragmenting_out_of_line_component(const World& world, Entity component);
+		GAIA_NODISCARD bool world_relation_uses_non_fragmenting_storage(const World& world, Entity relation);
+		GAIA_NODISCARD bool world_component_uses_sparse_storage(const World& world, Entity component);
+		GAIA_NODISCARD bool world_component_is_non_fragmenting(const World& world, Entity component);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_count_in_term_entities(const World& world, Entity term);
 		GAIA_NODISCARD uint32_t world_count_direct_term_entities_direct(const World& world, Entity term);
@@ -1281,11 +1281,11 @@ namespace gaia {
 																				!is_variable((EntityId)id.gen());
 						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
 						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
-						const bool isAdjunctTerm =
+						const bool isNonFragmentingTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, pair_rel(*w, id))) ||
-								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(*w, id)));
-						hasEntityFilterTerms |= isAdjunctTerm || isDirectIsTerm || isInheritedTerm;
+								((id.pair() && world_relation_uses_non_fragmenting_storage(*w, pair_rel(*w, id))) ||
+								 (!id.pair() && world_component_is_non_fragmenting(*w, id)));
+						hasEntityFilterTerms |= isNonFragmentingTerm || isDirectIsTerm || isInheritedTerm;
 					}
 
 					GAIA_FOR(cnt) {
@@ -1324,11 +1324,11 @@ namespace gaia {
 																				!is_variable((EntityId)id.gen());
 						const bool isPotentialInheritedTerm = query_term_uses_potential_inherited_id_matching(term);
 						const bool isInheritedTerm = isPotentialInheritedTerm && world_term_uses_inherit_policy(*w, id);
-						const bool isCachedInheritedDataTerm = isInheritedTerm && !world_is_out_of_line_component(*w, id);
-						const bool isAdjunctTerm =
+						const bool isCachedInheritedDataTerm = isInheritedTerm && !world_component_uses_sparse_storage(*w, id);
+						const bool isNonFragmentingTerm =
 								term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term) &&
-								((id.pair() && world_is_exclusive_dont_fragment_relation(*w, pair_rel(*w, id))) ||
-								 (!id.pair() && world_is_non_fragmenting_out_of_line_component(*w, id)));
+								((id.pair() && world_relation_uses_non_fragmenting_storage(*w, pair_rel(*w, id))) ||
+								 (!id.pair() && world_component_is_non_fragmenting(*w, id)));
 						canDirectCreateArchetypeMatch &= term.src == EntityBad;
 						if (id.pair() && (is_wildcard(id.id()) || is_wildcard(id.gen())))
 							data.deps.set_dep_flag(DependencyHasWildcardTerms);
@@ -1358,7 +1358,7 @@ namespace gaia {
 						if (isPotentialInheritedTerm)
 							data.deps.set_dep_flag(DependencyHasPotentialInheritedIdTerms);
 
-						if (isAdjunctTerm || isDirectIsTerm || isInheritedTerm) {
+						if (isNonFragmentingTerm || isDirectIsTerm || isInheritedTerm) {
 							data.deps.set_dep_flag(DependencyHasEntityFilterTerms);
 							if (isCachedInheritedDataTerm)
 								data.deps.set_dep_flag(DependencyHasInheritedDataTerms);

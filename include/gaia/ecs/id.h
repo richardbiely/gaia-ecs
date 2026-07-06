@@ -22,7 +22,7 @@ namespace gaia {
 		enum class DataStorageType : uint32_t {
 			//! Data stored in a table
 			Table,
-			//! Data stored in a sparse set
+			//! Data stored in sparse storage
 			Sparse,
 
 			Count = 2
@@ -216,8 +216,8 @@ namespace gaia {
 		//! Wrapper for two types forming a relationship pair.
 		//! Depending on what types are used to form a pair it can contain a value.
 		//! To determine the storage type the following logic is applied:
-		//! If \tparam Rel is non-empty, the storage type is Rel.
-		//! If \tparam Rel is empty and \tparam Tgt is non-empty, the storage type is Tgt.
+		//! If @a Rel is non-empty, the storage type is Rel.
+		//! If @a Rel is empty and @a Tgt is non-empty, the storage type is Tgt.
 		//! \tparam Rel relation part of the relationship
 		//! \tparam Tgt target part of the relationship
 		template <typename Rel, typename Tgt>
