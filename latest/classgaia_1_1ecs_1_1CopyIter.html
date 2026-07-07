@@ -177,9 +177,10 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1detail_1_1CommandBuffer.h
 <tr class="memitem:a4013b58420c6e66cfffc5cb06821b1a8"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1CopyIter.html#a4013b58420c6e66cfffc5cb06821b1a8">sview_mut</a> ()</td></tr>
 <tr class="memdesc:a4013b58420c6e66cfffc5cb06821b1a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable component view. Doesn't update the world version when the access is acquired.  <br /></td></tr>
 <tr class="separator:a4013b58420c6e66cfffc5cb06821b1a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab914c77d52d647a738b71c547685ef31" id="r_ab914c77d52d647a738b71c547685ef31"><td class="memTemplParams" colspan="2">template&lt;typename T , bool TriggerHooks&gt; </td></tr>
-<tr class="memitem:ab914c77d52d647a738b71c547685ef31"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1CopyIter.html#ab914c77d52d647a738b71c547685ef31">modify</a> ()</td></tr>
-<tr class="memdesc:ab914c77d52d647a738b71c547685ef31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component <em>T</em> as modified. Best used with sview to manually trigger an update at user's whim. If.  <br /></td></tr>
+<tr class="memitem:ab914c77d52d647a738b71c547685ef31" id="r_ab914c77d52d647a738b71c547685ef31"><td class="memTemplParams" colspan="2"><a id="ab914c77d52d647a738b71c547685ef31" name="ab914c77d52d647a738b71c547685ef31"></a>
+template&lt;typename T , bool TriggerHooks&gt; </td></tr>
+<tr class="memitem:ab914c77d52d647a738b71c547685ef31"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>modify</b> ()</td></tr>
+<tr class="memdesc:ab914c77d52d647a738b71c547685ef31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the component <em>T</em> as modified. Best used with sview to manually trigger an update at user's whim. If <em>TriggerHooks</em> is true, also triggers the component's set hooks. <br /></td></tr>
 <tr class="separator:ab914c77d52d647a738b71c547685ef31"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9328cc57587523d532e2e766e59f420d" id="r_a9328cc57587523d532e2e766e59f420d"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a9328cc57587523d532e2e766e59f420d"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1CopyIter.html#a9328cc57587523d532e2e766e59f420d">view_auto</a> ()</td></tr>
@@ -371,41 +372,6 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if the component is present. False otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="ab914c77d52d647a738b71c547685ef31" name="ab914c77d52d647a738b71c547685ef31"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab914c77d52d647a738b71c547685ef31">&#9670;&#160;</a></span>modify()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename T , bool TriggerHooks&gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">void gaia::ecs::CopyIter::modify </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Marks the component <em>T</em> as modified. Best used with sview to manually trigger an update at user's whim. If. </p>
-<dl class="tparams"><dt>Template Parameters</dt><dd>
-  <table class="tparams">
-    <tr><td class="paramname">TriggerHooks</td><td>is true, also triggers the component's set hooks. </td></tr>
-  </table>
-  </dd>
-</dl>
 
 </div>
 </div>

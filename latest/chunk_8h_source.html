@@ -225,7 +225,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span>          <span class="keyword">const</span> <span class="keyword">auto</span> recs_cnt = recs.size();</div>
 <div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>          GAIA_FOR(recs_cnt) {</div>
 <div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recs[i];</div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>            <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>            <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span> </div>
 <div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span>            <span class="keyword">const</span> <span class="keyword">auto</span> e = m_records.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkRecords.html#a58e77b072624dc0cb01a1e20820f5fc2">pCompEntities</a>[i];</div>
@@ -609,7 +609,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00536" name="l00536"></a><span class="lineno">  536</span>        {</div>
 <div class="line"><a id="l00537" name="l00537"></a><span class="lineno">  537</span>          <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec: comp_rec_view()) {</div>
 <div class="line"><a id="l00538" name="l00538"></a><span class="lineno">  538</span>            <span class="comment">// Skip the component if there&#39;s no size associated with it</span></div>
-<div class="line"><a id="l00539" name="l00539"></a><span class="lineno">  539</span>            <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00539" name="l00539"></a><span class="lineno">  539</span>            <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00540" name="l00540"></a><span class="lineno">  540</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00541" name="l00541"></a><span class="lineno">  541</span> </div>
 <div class="line"><a id="l00542" name="l00542"></a><span class="lineno">  542</span>            rec.pItem-&gt;save(s, rec.pData, 0, cnt, cap);</div>
@@ -649,7 +649,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00576" name="l00576"></a><span class="lineno">  576</span>        {</div>
 <div class="line"><a id="l00577" name="l00577"></a><span class="lineno">  577</span>          <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec: comp_rec_view()) {</div>
 <div class="line"><a id="l00578" name="l00578"></a><span class="lineno">  578</span>            <span class="comment">// Skip the component if there&#39;s no size associated with it</span></div>
-<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span>            <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00579" name="l00579"></a><span class="lineno">  579</span>            <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00580" name="l00580"></a><span class="lineno">  580</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00581" name="l00581"></a><span class="lineno">  581</span> </div>
 <div class="line"><a id="l00582" name="l00582"></a><span class="lineno">  582</span>            rec.pItem-&gt;load(s, rec.pData, 0, cnt, cap);</div>
@@ -919,7 +919,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00873" name="l00873"></a><span class="lineno">  873</span>        <span class="comment">// Unique components do not change place in the chunk so there is no need to move them.</span></div>
 <div class="line"><a id="l00874" name="l00874"></a><span class="lineno">  874</span>        GAIA_FOR(pSrcChunk-&gt;m_header.genEntities) {</div>
 <div class="line"><a id="l00875" name="l00875"></a><span class="lineno">  875</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = srcRecs[i];</div>
-<div class="line"><a id="l00876" name="l00876"></a><span class="lineno">  876</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00876" name="l00876"></a><span class="lineno">  876</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00877" name="l00877"></a><span class="lineno">  877</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00878" name="l00878"></a><span class="lineno">  878</span> </div>
 <div class="line"><a id="l00879" name="l00879"></a><span class="lineno">  879</span>          <span class="keyword">const</span> <span class="keyword">auto</span>* pSrc = (<span class="keyword">const</span> <span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr_mut(i);</div>
@@ -947,7 +947,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00905" name="l00905"></a><span class="lineno">  905</span>        <span class="comment">// Unique components do not change place in the chunk so there is no need to move them.</span></div>
 <div class="line"><a id="l00906" name="l00906"></a><span class="lineno">  906</span>        GAIA_FOR(pSrcChunk-&gt;m_header.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455">genEntities</a>) {</div>
 <div class="line"><a id="l00907" name="l00907"></a><span class="lineno">  907</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = srcRecs[i];</div>
-<div class="line"><a id="l00908" name="l00908"></a><span class="lineno">  908</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00908" name="l00908"></a><span class="lineno">  908</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00909" name="l00909"></a><span class="lineno">  909</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00910" name="l00910"></a><span class="lineno">  910</span> </div>
 <div class="line"><a id="l00911" name="l00911"></a><span class="lineno">  911</span>          <span class="keyword">const</span> <span class="keyword">auto</span>* pSrc = (<span class="keyword">const</span> <span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr(i);</div>
@@ -981,7 +981,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00943" name="l00943"></a><span class="lineno">  943</span> </div>
 <div class="line"><a id="l00944" name="l00944"></a><span class="lineno">  944</span>          <span class="keywordflow">if</span> (oldId == newId) {</div>
 <div class="line"><a id="l00945" name="l00945"></a><span class="lineno">  945</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = dstRecs[j];</div>
-<div class="line"><a id="l00946" name="l00946"></a><span class="lineno">  946</span>            <span class="keywordflow">if</span> (component_has_inline_data(rec.comp)) {</div>
+<div class="line"><a id="l00946" name="l00946"></a><span class="lineno">  946</span>            <span class="keywordflow">if</span> (component_uses_table_storage(rec.comp)) {</div>
 <div class="line"><a id="l00947" name="l00947"></a><span class="lineno">  947</span>              <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr_mut(i);</div>
 <div class="line"><a id="l00948" name="l00948"></a><span class="lineno">  948</span>              <span class="keyword">auto</span>* pDst = (<span class="keywordtype">void</span>*)pDstChunk-&gt;comp_ptr_mut(j);</div>
 <div class="line"><a id="l00949" name="l00949"></a><span class="lineno">  949</span>              GAIA_FOR_(dstCount, rowOffset) {</div>
@@ -1027,7 +1027,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l00991" name="l00991"></a><span class="lineno">  991</span>        <span class="comment">// Unique components do not change place in the chunk so there is no need to move them.</span></div>
 <div class="line"><a id="l00992" name="l00992"></a><span class="lineno">  992</span>        GAIA_FOR(pSrcChunk-&gt;m_header.genEntities) {</div>
 <div class="line"><a id="l00993" name="l00993"></a><span class="lineno">  993</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = srcRecs[i];</div>
-<div class="line"><a id="l00994" name="l00994"></a><span class="lineno">  994</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l00994" name="l00994"></a><span class="lineno">  994</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l00995" name="l00995"></a><span class="lineno">  995</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l00996" name="l00996"></a><span class="lineno">  996</span> </div>
 <div class="line"><a id="l00997" name="l00997"></a><span class="lineno">  997</span>          <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr_mut(i);</div>
@@ -1063,7 +1063,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01030" name="l01030"></a><span class="lineno"> 1030</span> </div>
 <div class="line"><a id="l01031" name="l01031"></a><span class="lineno"> 1031</span>            <span class="keywordflow">if</span> (oldId == newId) {</div>
 <div class="line"><a id="l01032" name="l01032"></a><span class="lineno"> 1032</span>              <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = dstRecs[j];</div>
-<div class="line"><a id="l01033" name="l01033"></a><span class="lineno"> 1033</span>              <span class="keywordflow">if</span> (component_has_inline_data(rec.comp)) {</div>
+<div class="line"><a id="l01033" name="l01033"></a><span class="lineno"> 1033</span>              <span class="keywordflow">if</span> (component_uses_table_storage(rec.comp)) {</div>
 <div class="line"><a id="l01034" name="l01034"></a><span class="lineno"> 1034</span>                <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr_mut(i);</div>
 <div class="line"><a id="l01035" name="l01035"></a><span class="lineno"> 1035</span>                <span class="keyword">auto</span>* pDst = (<span class="keywordtype">void</span>*)pDstChunk-&gt;comp_ptr_mut(j);</div>
 <div class="line"><a id="l01036" name="l01036"></a><span class="lineno"> 1036</span>                rec.pItem-&gt;ctor_copy(pDst, pSrc, dstRow, srcRow, pDstChunk-&gt;<a class="code hl_function" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>(), pSrcChunk-&gt;<a class="code hl_function" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>());</div>
@@ -1123,7 +1123,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01093" name="l01093"></a><span class="lineno"> 1093</span> </div>
 <div class="line"><a id="l01094" name="l01094"></a><span class="lineno"> 1094</span>            <span class="keywordflow">if</span> (oldId == newId) {</div>
 <div class="line"><a id="l01095" name="l01095"></a><span class="lineno"> 1095</span>              <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = dstRecs[j];</div>
-<div class="line"><a id="l01096" name="l01096"></a><span class="lineno"> 1096</span>              <span class="keywordflow">if</span> (component_has_inline_data(rec.comp)) {</div>
+<div class="line"><a id="l01096" name="l01096"></a><span class="lineno"> 1096</span>              <span class="keywordflow">if</span> (component_uses_table_storage(rec.comp)) {</div>
 <div class="line"><a id="l01097" name="l01097"></a><span class="lineno"> 1097</span>                <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)pSrcChunk-&gt;comp_ptr_mut(i);</div>
 <div class="line"><a id="l01098" name="l01098"></a><span class="lineno"> 1098</span>                <span class="keyword">auto</span>* pDst = (<span class="keywordtype">void</span>*)pDstChunk-&gt;comp_ptr_mut(j);</div>
 <div class="line"><a id="l01099" name="l01099"></a><span class="lineno"> 1099</span>                rec.pItem-&gt;ctor_move(pDst, pSrc, dstRow, srcRow, pDstChunk-&gt;<a class="code hl_function" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>(), pSrcChunk-&gt;<a class="code hl_function" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>());</div>
@@ -1189,7 +1189,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01163" name="l01163"></a><span class="lineno"> 1163</span>          <span class="keyword">auto</span> recView = comp_rec_view();</div>
 <div class="line"><a id="l01164" name="l01164"></a><span class="lineno"> 1164</span>          GAIA_FOR(m_header.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455">genEntities</a>) {</div>
 <div class="line"><a id="l01165" name="l01165"></a><span class="lineno"> 1165</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recView[i];</div>
-<div class="line"><a id="l01166" name="l01166"></a><span class="lineno"> 1166</span>            <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l01166" name="l01166"></a><span class="lineno"> 1166</span>            <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l01167" name="l01167"></a><span class="lineno"> 1167</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01168" name="l01168"></a><span class="lineno"> 1168</span> </div>
 <div class="line"><a id="l01169" name="l01169"></a><span class="lineno"> 1169</span>            <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)comp_ptr_mut(i);</div>
@@ -1207,7 +1207,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01181" name="l01181"></a><span class="lineno"> 1181</span>          <span class="keyword">auto</span> recView = comp_rec_view();</div>
 <div class="line"><a id="l01182" name="l01182"></a><span class="lineno"> 1182</span>          GAIA_FOR(m_header.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455">genEntities</a>) {</div>
 <div class="line"><a id="l01183" name="l01183"></a><span class="lineno"> 1183</span>            <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recView[i];</div>
-<div class="line"><a id="l01184" name="l01184"></a><span class="lineno"> 1184</span>            <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l01184" name="l01184"></a><span class="lineno"> 1184</span>            <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l01185" name="l01185"></a><span class="lineno"> 1185</span>              <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01186" name="l01186"></a><span class="lineno"> 1186</span> </div>
 <div class="line"><a id="l01187" name="l01187"></a><span class="lineno"> 1187</span>            <span class="keyword">auto</span>* pSrc = (<span class="keywordtype">void</span>*)comp_ptr_mut(i, rowA);</div>
@@ -1271,7 +1271,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01254" name="l01254"></a><span class="lineno"> 1254</span>        <span class="keyword">auto</span> recView = comp_rec_view();</div>
 <div class="line"><a id="l01255" name="l01255"></a><span class="lineno"> 1255</span>        GAIA_FOR(m_header.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455">genEntities</a>) {</div>
 <div class="line"><a id="l01256" name="l01256"></a><span class="lineno"> 1256</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recView[i];</div>
-<div class="line"><a id="l01257" name="l01257"></a><span class="lineno"> 1257</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l01257" name="l01257"></a><span class="lineno"> 1257</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l01258" name="l01258"></a><span class="lineno"> 1258</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01259" name="l01259"></a><span class="lineno"> 1259</span> </div>
 <div class="line"><a id="l01260" name="l01260"></a><span class="lineno"> 1260</span>          GAIA_ASSERT(rec.pData == comp_ptr_mut(i));</div>
@@ -1312,7 +1312,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01299" name="l01299"></a><span class="lineno"> 1299</span>        <span class="keyword">auto</span> recViewA = pChunkA-&gt;comp_rec_view();</div>
 <div class="line"><a id="l01300" name="l01300"></a><span class="lineno"> 1300</span>        GAIA_FOR(pChunkA-&gt;m_header.genEntities) {</div>
 <div class="line"><a id="l01301" name="l01301"></a><span class="lineno"> 1301</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; recA = recViewA[i];</div>
-<div class="line"><a id="l01302" name="l01302"></a><span class="lineno"> 1302</span>          <span class="keywordflow">if</span> (!component_has_inline_data(recA.comp))</div>
+<div class="line"><a id="l01302" name="l01302"></a><span class="lineno"> 1302</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(recA.comp))</div>
 <div class="line"><a id="l01303" name="l01303"></a><span class="lineno"> 1303</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01304" name="l01304"></a><span class="lineno"> 1304</span> </div>
 <div class="line"><a id="l01305" name="l01305"></a><span class="lineno"> 1305</span>          <span class="keyword">auto</span>* pDataA = pChunkA-&gt;comp_rec_view()[i].pData;</div>
@@ -1390,7 +1390,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01381" name="l01381"></a><span class="lineno"> 1381</span>      <span class="comment">//----------------------------------------------------------------------</span></div>
 <div class="line"><a id="l01382" name="l01382"></a><span class="lineno"> 1382</span> </div>
 <div class="line"><a id="l01383" name="l01383"></a><span class="lineno"> 1383</span>      <span class="keywordtype">void</span> call_ctor(uint32_t entIdx, <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a>&amp; item) {</div>
-<div class="line"><a id="l01384" name="l01384"></a><span class="lineno"> 1384</span>        <span class="keywordflow">if</span> (item.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9db9c0f427f0c1766d0e4512fd945109">func_ctor</a> == <span class="keyword">nullptr</span> || !component_has_inline_data(item.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a7bbb5854186e82296d6225db3df50130">comp</a>))</div>
+<div class="line"><a id="l01384" name="l01384"></a><span class="lineno"> 1384</span>        <span class="keywordflow">if</span> (item.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a9db9c0f427f0c1766d0e4512fd945109">func_ctor</a> == <span class="keyword">nullptr</span> || !component_uses_table_storage(item.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a7bbb5854186e82296d6225db3df50130">comp</a>))</div>
 <div class="line"><a id="l01385" name="l01385"></a><span class="lineno"> 1385</span>          <span class="keywordflow">return</span>;</div>
 <div class="line"><a id="l01386" name="l01386"></a><span class="lineno"> 1386</span> </div>
 <div class="line"><a id="l01387" name="l01387"></a><span class="lineno"> 1387</span>        GAIA_PROF_SCOPE(Chunk::call_ctor);</div>
@@ -1409,7 +1409,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01400" name="l01400"></a><span class="lineno"> 1400</span>        <span class="keyword">auto</span> recs = comp_rec_view();</div>
 <div class="line"><a id="l01401" name="l01401"></a><span class="lineno"> 1401</span>        GAIA_FOR(m_header.<a class="code hl_variable" href="structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455">genEntities</a>) {</div>
 <div class="line"><a id="l01402" name="l01402"></a><span class="lineno"> 1402</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recs[i];</div>
-<div class="line"><a id="l01403" name="l01403"></a><span class="lineno"> 1403</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l01403" name="l01403"></a><span class="lineno"> 1403</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l01404" name="l01404"></a><span class="lineno"> 1404</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01405" name="l01405"></a><span class="lineno"> 1405</span> </div>
 <div class="line"><a id="l01406" name="l01406"></a><span class="lineno"> 1406</span>          <span class="keyword">const</span> <span class="keyword">auto</span>* pItem = rec.pItem;</div>
@@ -1432,7 +1432,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="line"><a id="l01423" name="l01423"></a><span class="lineno"> 1423</span>        <span class="keyword">const</span> <span class="keyword">auto</span> recs_cnt = recs.size();</div>
 <div class="line"><a id="l01424" name="l01424"></a><span class="lineno"> 1424</span>        GAIA_FOR(recs_cnt) {</div>
 <div class="line"><a id="l01425" name="l01425"></a><span class="lineno"> 1425</span>          <span class="keyword">const</span> <span class="keyword">auto</span>&amp; rec = recs[i];</div>
-<div class="line"><a id="l01426" name="l01426"></a><span class="lineno"> 1426</span>          <span class="keywordflow">if</span> (!component_has_inline_data(rec.comp))</div>
+<div class="line"><a id="l01426" name="l01426"></a><span class="lineno"> 1426</span>          <span class="keywordflow">if</span> (!component_uses_table_storage(rec.comp))</div>
 <div class="line"><a id="l01427" name="l01427"></a><span class="lineno"> 1427</span>            <span class="keywordflow">continue</span>;</div>
 <div class="line"><a id="l01428" name="l01428"></a><span class="lineno"> 1428</span> </div>
 <div class="line"><a id="l01429" name="l01429"></a><span class="lineno"> 1429</span>          <span class="keyword">const</span> <span class="keyword">auto</span>* pItem = rec.pItem;</div>
@@ -1972,11 +1972,11 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html_aec1c3f97c0a87f40bd008c1fff8cc195"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195">gaia::ecs::Chunk::create</a></div><div class="ttdeci">static Chunk * create(const World &amp;wld, const ComponentCache &amp;cc, uint32_t chunkIndex, uint16_t capacity, uint8_t cntEntities, uint8_t genEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const ChunkDataOffsets &amp;offsets, const Entity *ids, const ComponentCacheItem *const *pItems, const ChunkDataOffset *compOffs)</div><div class="ttdoc">Allocates memory for a new chunk.</div><div class="ttdef"><b>Definition</b> chunk.h:465</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html_afddf7378607499c96842952458c2ec14"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html#afddf7378607499c96842952458c2ec14">gaia::ecs::Chunk::sset</a></div><div class="ttdeci">decltype(auto) sset(uint16_t row)</div><div class="ttdoc">Sets the value of the unique component T on row in the chunk.</div><div class="ttdef"><b>Definition</b> chunk.h:1554</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html_afdf9f0bb40e62aa6ddbd1d938e59ccef"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html#afdf9f0bb40e62aa6ddbd1d938e59ccef">gaia::ecs::Chunk::copy_foreign_entity_data_n</a></div><div class="ttdeci">static void copy_foreign_entity_data_n(Chunk *pSrcChunk, uint32_t srcRow, Chunk *pDstChunk, uint32_t dstRow, uint32_t dstCount)</div><div class="ttdoc">Copies all data associated with srcRow into dstCount consecutive rows in a foreign chunk.</div><div class="ttdef"><b>Definition</b> chunk.h:925</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html_afff622cc9aeffbf952549b676593547c"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html#afff622cc9aeffbf952549b676593547c">gaia::ecs::Chunk::modify</a></div><div class="ttdeci">GAIA_FORCEINLINE void modify()</div><div class="ttdoc">Marks the component.</div><div class="ttdef"><b>Definition</b> chunk.h:709</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html_afff622cc9aeffbf952549b676593547c"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html#afff622cc9aeffbf952549b676593547c">gaia::ecs::Chunk::modify</a></div><div class="ttdeci">GAIA_FORCEINLINE void modify()</div><div class="ttdoc">Marks the component T as modified. Best used with sview to manually trigger an update at user's whim....</div><div class="ttdef"><b>Definition</b> chunk.h:709</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1ComponentCache_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1ComponentCache.html">gaia::ecs::ComponentCache</a></div><div class="ttdoc">Cache for compile-time defined components.</div><div class="ttdef"><b>Definition</b> component_cache.h:24</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1ComponentCache_html_a43f33f922e3d6344744537c9f54536f8"><div class="ttname"><a href="classgaia_1_1ecs_1_1ComponentCache.html#a43f33f922e3d6344744537c9f54536f8">gaia::ecs::ComponentCache::get</a></div><div class="ttdeci">GAIA_NODISCARD const ComponentCacheItem &amp; get(Entity entity) const noexcept</div><div class="ttdoc">Returns the component cache item.</div><div class="ttdef"><b>Definition</b> component_cache.h:514</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1ComponentCache_html_a8aee578057c7cfb8b70053e0d2ab8aba"><div class="ttname"><a href="classgaia_1_1ecs_1_1ComponentCache.html#a8aee578057c7cfb8b70053e0d2ab8aba">gaia::ecs::ComponentCache::find</a></div><div class="ttdeci">GAIA_NODISCARD const ComponentCacheItem * find(Entity entity) const noexcept</div><div class="ttdoc">Searches for the component cache item.</div><div class="ttdef"><b>Definition</b> component_cache.h:495</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdef"><b>Definition</b> world.h:174</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1World_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html">gaia::ecs::World</a></div><div class="ttdef"><b>Definition</b> world.h:78</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">gaia::ecs::pair&lt; Entity, Entity &gt;</a></div><div class="ttdoc">Wrapper for two Entities forming a relationship pair.</div><div class="ttdef"><b>Definition</b> id.h:529</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 <div class="ttc" id="anamespacegaia_html_af64083bad9dffeca6c16b532da4a4d18"><div class="ttname"><a href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">gaia::BadIndex</a></div><div class="ttdeci">constexpr uint32_t BadIndex</div><div class="ttdoc">Sentinel index value returned by helpers when a lookup fails.</div><div class="ttdef"><b>Definition</b> utility.h:20</div></div>
@@ -2017,7 +2017,7 @@ $(document).ready(function(){initNavTree('chunk_8h_source.html',''); initResizab
 <div class="ttc" id="astructgaia_1_1ecs_1_1ComponentRecord_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ComponentRecord.html">gaia::ecs::ComponentRecord</a></div><div class="ttdef"><b>Definition</b> chunk_header.h:30</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1ComponentRecord_html_ae9e64062460cbc8d37d438f793a24d34"><div class="ttname"><a href="structgaia_1_1ecs_1_1ComponentRecord.html#ae9e64062460cbc8d37d438f793a24d34">gaia::ecs::ComponentRecord::pData</a></div><div class="ttdeci">uint8_t * pData</div><div class="ttdoc">Pointer to where the first instance of the component is stored.</div><div class="ttdef"><b>Definition</b> chunk_header.h:34</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1Component_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Component.html">gaia::ecs::Component</a></div><div class="ttdef"><b>Definition</b> id.h:35</div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1EntityContainers_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityContainers.html">gaia::ecs::EntityContainers</a></div><div class="ttdef"><b>Definition</b> entity_container.h:142</div></div>
+<div class="ttc" id="astructgaia_1_1ecs_1_1EntityContainers_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityContainers.html">gaia::ecs::EntityContainers</a></div><div class="ttdef"><b>Definition</b> entity_container.h:257</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1Entity_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1Entity.html">gaia::ecs::Entity</a></div><div class="ttdef"><b>Definition</b> id.h:247</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1is__pair_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1is__pair.html">gaia::ecs::is_pair</a></div><div class="ttdef"><b>Definition</b> id.h:239</div></div>
 <div class="ttc" id="astructgaia_1_1mem_1_1data__view__policy__get_html"><div class="ttname"><a href="structgaia_1_1mem_1_1data__view__policy__get.html">gaia::mem::data_view_policy_get</a></div><div class="ttdef"><b>Definition</b> data_layout_policy.h:90</div></div>

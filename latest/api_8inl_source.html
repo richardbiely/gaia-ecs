@@ -274,77 +274,57 @@ $(document).ready(function(){initNavTree('api_8inl_source.html',''); initResizab
 <div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span>      <span class="keywordflow">return</span> world.sources_bfs_if(relation, rootTarget, func);</div>
 <div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span>    }</div>
 <div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span> </div>
-<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> children(<span class="keyword">const</span> World&amp; world, Entity parent, Func func) {</div>
-<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span>      world.children(parent, func);</div>
-<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    }</div>
-<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span> </div>
-<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> children_if(<span class="keyword">const</span> World&amp; world, Entity parent, Func func) {</div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>      world.children_if(parent, func);</div>
+<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>    <span class="comment">// Query API</span></div>
+<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span> </div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span>    GAIA_NODISCARD <span class="keyword">inline</span> QuerySerBuffer&amp; query_buffer(World&amp; world, QueryId&amp; serId) {</div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>      <span class="keywordflow">return</span> world.query_buffer(serId);</div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>    }</div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span> </div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> query_buffer_reset(World&amp; world, QueryId&amp; serId) {</div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>      world.query_buffer_reset(serId);</div>
 <div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>    }</div>
 <div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span> </div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> children_bfs(<span class="keyword">const</span> World&amp; world, Entity root, Func func) {</div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>      world.children_bfs(root, func);</div>
-<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    }</div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span> </div>
-<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>    <span class="keyword">template</span> &lt;<span class="keyword">typename</span> Func&gt;</div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    <span class="keyword">inline</span> <span class="keywordtype">bool</span> children_bfs_if(<span class="keyword">const</span> World&amp; world, Entity root, Func func) {</div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>      <span class="keywordflow">return</span> world.children_bfs_if(root, func);</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    GAIA_NODISCARD <span class="keyword">inline</span> Entity expr_to_entity(<span class="keyword">const</span> World&amp; world, va_list&amp; args, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const char&gt;</a> exprRaw) {</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>      <span class="keywordflow">return</span> world.expr_to_entity(args, exprRaw);</div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    }</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span> </div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span>    <span class="comment">// Locking API</span></div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span> </div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> lock(World&amp; world) {</div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>      world.lock();</div>
 <div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>    }</div>
-<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span> </div>
-<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>    <span class="comment">// Query API</span></div>
-<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span> </div>
-<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>    GAIA_NODISCARD <span class="keyword">inline</span> QuerySerBuffer&amp; query_buffer(World&amp; world, QueryId&amp; serId) {</div>
-<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>      <span class="keywordflow">return</span> world.query_buffer(serId);</div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> unlock(World&amp; world) {</div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>      world.unlock();</div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>    }</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> locked(<span class="keyword">const</span> World&amp; world) {</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>      <span class="keywordflow">return</span> world.locked();</div>
 <div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span>    }</div>
 <div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span> </div>
-<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> query_buffer_reset(World&amp; world, QueryId&amp; serId) {</div>
-<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span>      world.query_buffer_reset(serId);</div>
-<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>    }</div>
-<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span> </div>
-<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span>    GAIA_NODISCARD <span class="keyword">inline</span> Entity expr_to_entity(<span class="keyword">const</span> World&amp; world, va_list&amp; args, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const char&gt;</a> exprRaw) {</div>
-<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span>      <span class="keywordflow">return</span> world.expr_to_entity(args, exprRaw);</div>
-<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span>    }</div>
-<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span> </div>
-<div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span>    <span class="comment">// Locking API</span></div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>    <span class="comment">// CommandBuffer API</span></div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span> </div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>    GAIA_NODISCARD <span class="keyword">inline</span> CommandBufferST&amp; cmd_buffer_st_get(World&amp; world) {</div>
+<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span>      <span class="keywordflow">return</span> world.cmd_buffer_st();</div>
+<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span>    }</div>
+<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span> </div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span>    GAIA_NODISCARD <span class="keyword">inline</span> CommandBufferMT&amp; cmd_buffer_mt_get(World&amp; world) {</div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span>      <span class="keywordflow">return</span> world.cmd_buffer_mt();</div>
+<div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span>    }</div>
 <div class="line"><a id="l00195" name="l00195"></a><span class="lineno">  195</span> </div>
-<div class="line"><a id="l00196" name="l00196"></a><span class="lineno">  196</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> lock(World&amp; world) {</div>
-<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>      world.lock();</div>
-<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>    }</div>
-<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> unlock(World&amp; world) {</div>
-<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>      world.unlock();</div>
-<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>    }</div>
-<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>    GAIA_NODISCARD <span class="keyword">inline</span> <span class="keywordtype">bool</span> locked(<span class="keyword">const</span> World&amp; world) {</div>
-<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>      <span class="keywordflow">return</span> world.locked();</div>
-<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>    }</div>
-<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span> </div>
-<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    <span class="comment">// CommandBuffer API</span></div>
-<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span> </div>
-<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>    GAIA_NODISCARD <span class="keyword">inline</span> CommandBufferST&amp; cmd_buffer_st_get(World&amp; world) {</div>
-<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>      <span class="keywordflow">return</span> world.cmd_buffer_st();</div>
-<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>    }</div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span> </div>
-<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>    GAIA_NODISCARD <span class="keyword">inline</span> CommandBufferMT&amp; cmd_buffer_mt_get(World&amp; world) {</div>
-<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>      <span class="keywordflow">return</span> world.cmd_buffer_mt();</div>
-<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>    }</div>
-<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span> </div>
-<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> commit_cmd_buffer_st(World&amp; world) {</div>
-<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span>      <span class="keywordflow">if</span> (world.locked())</div>
-<div class="line"><a id="l00218" name="l00218"></a><span class="lineno">  218</span>        <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>      cmd_buffer_commit(world.cmd_buffer_st());</div>
-<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>    }</div>
-<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span> </div>
-<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> commit_cmd_buffer_mt(World&amp; world) {</div>
-<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span>      <span class="keywordflow">if</span> (world.locked())</div>
-<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>        <span class="keywordflow">return</span>;</div>
-<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>      cmd_buffer_commit(world.cmd_buffer_mt());</div>
-<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span>    }</div>
-<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00196" name="l00196"></a><span class="lineno">  196</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> commit_cmd_buffer_st(World&amp; world) {</div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>      <span class="keywordflow">if</span> (world.locked())</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span>        <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>      cmd_buffer_commit(world.cmd_buffer_st());</div>
+<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>    }</div>
+<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span> </div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> commit_cmd_buffer_mt(World&amp; world) {</div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>      <span class="keywordflow">if</span> (world.locked())</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        <span class="keywordflow">return</span>;</div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>      cmd_buffer_commit(world.cmd_buffer_mt());</div>
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    }</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>} <span class="comment">// namespace gaia</span></div>
 <div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1World_html_ac6c1b4da9a3bdcc7e299b82d27ad646c"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c">gaia::ecs::World::is_req_del</a></div><div class="ttdeci">static GAIA_NODISCARD bool is_req_del(const EntityContainer &amp;ec)</div><div class="ttdoc">Returns whether the record is already in delete-requested state. Covers both explicit per-entity dele...</div><div class="ttdef"><b>Definition</b> world.h:986</div></div>
+<div class="ttc" id="aclassgaia_1_1ecs_1_1World_html_ac6c1b4da9a3bdcc7e299b82d27ad646c"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c">gaia::ecs::World::is_req_del</a></div><div class="ttdeci">static GAIA_NODISCARD bool is_req_del(const EntityContainer &amp;ec)</div><div class="ttdoc">Returns whether the record is already in delete-requested state. Covers both explicit per-entity dele...</div><div class="ttdef"><b>Definition</b> world.h:777</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

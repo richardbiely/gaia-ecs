@@ -5,9 +5,10 @@ var searchData=
   ['hasanycustomgendtor_2',['hasAnyCustomGenDtor',['../structgaia_1_1ecs_1_1ChunkHeader.html#a482ffe67799761457f4cea6dc5efaabd',1,'gaia::ecs::ChunkHeader']]],
   ['hasanycustomunictor_3',['hasAnyCustomUniCtor',['../structgaia_1_1ecs_1_1ChunkHeader.html#af154dec5ce8445c3704f5abce5d6437e',1,'gaia::ecs::ChunkHeader']]],
   ['hasanycustomunidtor_4',['hasAnyCustomUniDtor',['../structgaia_1_1ecs_1_1ChunkHeader.html#a28fc1eddf219aa9620027fd182062d4a',1,'gaia::ecs::ChunkHeader']]],
-  ['hashlookup_5',['hashlookup',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a7b8a13b88ee52400a3d4dbf23b864f7f',1,'gaia::ecs::ComponentCacheItem::hashLookup'],['../structgaia_1_1ecs_1_1ComponentDesc.html#acb1a8c80e21d742fc7aed1ad4deeaa8f',1,'gaia::ecs::ComponentDesc::hashLookup'],['../structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f',1,'gaia::ecs::QueryCtx::hashLookup']]],
-  ['hasonlydirectorterms_6',['hasOnlyDirectOrTerms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a221ff195e32df6f0459ff0f9794e2f5c',1,'gaia::ecs::QueryCtx::Data']]],
-  ['hasphase_7',['hasPhase',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html#ad64cab090ca7a8b0a987c0de78e168b3',1,'gaia::ecs::detail::SystemScheduleItem']]],
-  ['hasselectedgroup_8',['hasSelectedGroup',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html#a17e3dca252b078a5718311558c9eb3a1',1,'gaia::ecs::detail::QueryImpl::QueryCacheRange']]],
-  ['header_9',['header',['../structgaia_1_1cnt_1_1detail_1_1mem__page__data.html#a224763f1c4e584d15070884d16c79ecb',1,'gaia::cnt::detail::mem_page_data']]]
+  ['hascurrent_5',['hasCurrent',['../structgaia_1_1ecs_1_1detail_1_1SystemRunCtx.html#a22e60686b6f27ad0de6c1f9f37ea1d99',1,'gaia::ecs::detail::SystemRunCtx']]],
+  ['hashlookup_6',['hashlookup',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a7b8a13b88ee52400a3d4dbf23b864f7f',1,'gaia::ecs::ComponentCacheItem::hashLookup'],['../structgaia_1_1ecs_1_1ComponentDesc.html#acb1a8c80e21d742fc7aed1ad4deeaa8f',1,'gaia::ecs::ComponentDesc::hashLookup'],['../structgaia_1_1ecs_1_1QueryCtx.html#ad2f9b56b4cf85654f3d66ece014fa16f',1,'gaia::ecs::QueryCtx::hashLookup']]],
+  ['hasonlydirectorterms_7',['hasOnlyDirectOrTerms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a221ff195e32df6f0459ff0f9794e2f5c',1,'gaia::ecs::QueryCtx::Data']]],
+  ['hasphase_8',['hasPhase',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html#ad64cab090ca7a8b0a987c0de78e168b3',1,'gaia::ecs::detail::SystemScheduleItem']]],
+  ['hasselectedgroup_9',['hasSelectedGroup',['../structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryCacheRange.html#a17e3dca252b078a5718311558c9eb3a1',1,'gaia::ecs::detail::QueryImpl::QueryCacheRange']]],
+  ['header_10',['header',['../structgaia_1_1cnt_1_1detail_1_1mem__page__data.html#a224763f1c4e584d15070884d16c79ecb',1,'gaia::cnt::detail::mem_page_data']]]
 ];

@@ -144,7 +144,7 @@ $(document).ready(function(){initNavTree('observer_8inl_source.html',''); initRe
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>      <span class="keyword">const</span> <span class="keyword">auto</span> entities = it.entity_rows();</div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>      GAIA_EACH(terms) {</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>        <span class="keyword">const</span> <span class="keyword">auto</span> term = terms[i];</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        <span class="keywordflow">if</span> (!world_is_out_of_line_component(world, term)) {</div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        <span class="keywordflow">if</span> (!world_component_uses_sparse_storage(world, term)) {</div>
 <div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>          <span class="keyword">const</span> <span class="keyword">auto</span> compIdx = core::get_index(it.chunk()-&gt;ids_view(), term);</div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>          <span class="keywordflow">if</span> (compIdx != <a class="code hl_variable" href="namespacegaia.html#af64083bad9dffeca6c16b532da4a4d18">BadIndex</a>) {</div>
 <div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>            pChunk-&gt;finish_write(compIdx, it.row_begin(), it.row_end());</div>

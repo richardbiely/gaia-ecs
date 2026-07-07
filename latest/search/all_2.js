@@ -13,7 +13,7 @@ var searchData=
   ['basic_20operations_10',['Basic operations',['../index.html#basic-operations',1,'']]],
   ['basics_11',['basics',['../index.html#relationship-basics',1,'Relationship basics'],['../index.html#system-basics',1,'System basics']]],
   ['batched_20creation_12',['Batched creation',['../index.html#batched-creation',1,'']]],
-  ['begin_13',['begin',['../classgaia_1_1ecs_1_1QueryInfo.html#a0a37fcda5db15e814086b401402edf7e',1,'gaia::ecs::QueryInfo::begin()'],['../structgaia_1_1cnt_1_1paged__ilist.html#a97bbad09f78dea69e2d40af5835d0fae',1,'gaia::cnt::paged_ilist::begin()'],['../classgaia_1_1ecs_1_1QueryInfo.html#acf05f5b41308e6c619de9882ea921465',1,'gaia::ecs::QueryInfo::begin()']]],
+  ['begin_13',['begin',['../classgaia_1_1ecs_1_1QueryInfo.html#a0a37fcda5db15e814086b401402edf7e',1,'gaia::ecs::QueryInfo::begin()'],['../structgaia_1_1cnt_1_1paged__ilist.html#a97bbad09f78dea69e2d40af5835d0fae',1,'gaia::cnt::paged_ilist::begin()'],['../structgaia_1_1ecs_1_1PairRecords.html#a4f021c2a2e253bb8a8b3903561df6eb7',1,'gaia::ecs::PairRecords::begin()'],['../structgaia_1_1ecs_1_1PairRecords.html#a0a8528e3b88620810914b2897f26085b',1,'gaia::ecs::PairRecords::begin() const'],['../classgaia_1_1ecs_1_1QueryInfo.html#acf05f5b41308e6c619de9882ea921465',1,'gaia::ecs::QueryInfo::begin()']]],
   ['behavior_14',['behavior',['../index.html#job-behavior',1,'Job behavior'],['../index.html#query-cache-behavior',1,'Query cache behavior']]],
   ['benchmarks_15',['Benchmarks',['../index.html#benchmarks',1,'']]],
   ['bfschunkrun_16',['BfsChunkRun',['../structgaia_1_1ecs_1_1detail_1_1BfsChunkRun.html',1,'gaia::ecs::detail']]],

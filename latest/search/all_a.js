@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['job_0',['job',['../structgaia_1_1mt_1_1Job.html',1,'gaia::mt::Job'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2d88fc8023ce3388ede3788316d33306',1,'gaia::ecs::detail::QueryImpl::job()']]],
+  ['job_0',['job',['../structgaia_1_1mt_1_1Job.html',1,'gaia::mt::Job'],['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html#a5bf97548f10d1f3269b5e335bd94b3cd',1,'gaia::ecs::detail::PendingSystemJob::job'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2d88fc8023ce3388ede3788316d33306',1,'gaia::ecs::detail::QueryImpl::job()']]],
   ['job_20behavior_1',['Job behavior',['../index.html#job-behavior',1,'']]],
   ['job_20dependencies_2',['Job dependencies',['../index.html#job-dependencies',1,'']]],
   ['joballocctx_3',['JobAllocCtx',['../structgaia_1_1mt_1_1JobAllocCtx.html',1,'gaia::mt']]],

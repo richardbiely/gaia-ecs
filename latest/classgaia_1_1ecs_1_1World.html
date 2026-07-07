@@ -162,46 +162,46 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:aa7fd7f2406bece2c286f7398acc779e6" id="r_aa7fd7f2406bece2c286f7398acc779e6"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa7fd7f2406bece2c286f7398acc779e6">is_dont_fragment</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:aa7fd7f2406bece2c286f7398acc779e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>entity</em> is marked DontFragment.  <br /></td></tr>
 <tr class="separator:aa7fd7f2406bece2c286f7398acc779e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a839c45900b7605e5446f84dd38255784" id="r_a839c45900b7605e5446f84dd38255784"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a839c45900b7605e5446f84dd38255784">is_dont_fragment_relation</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:a839c45900b7605e5446f84dd38255784"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>relation</em> is a valid non-fragmenting relation entity.  <br /></td></tr>
-<tr class="separator:a839c45900b7605e5446f84dd38255784"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a49d21ba2c460ef189129cb5d203db59a" id="r_a49d21ba2c460ef189129cb5d203db59a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a49d21ba2c460ef189129cb5d203db59a">is_exclusive_dont_fragment_relation</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:a49d21ba2c460ef189129cb5d203db59a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>relation</em> is both Exclusive and DontFragment. Such relations are stored in the adjunct side structure instead of archetype identity.  <br /></td></tr>
-<tr class="separator:a49d21ba2c460ef189129cb5d203db59a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5b2ca62c81a7fad370aa4c6c92180e99" id="r_a5b2ca62c81a7fad370aa4c6c92180e99"><td class="memItemLeft" align="right" valign="top"><a id="a5b2ca62c81a7fad370aa4c6c92180e99" name="a5b2ca62c81a7fad370aa4c6c92180e99"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_hierarchy_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:a5b2ca62c81a7fad370aa4c6c92180e99"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain. ChildOf and Parent satisfy this today. DependsOn intentionally does not. <br /></td></tr>
-<tr class="separator:a5b2ca62c81a7fad370aa4c6c92180e99"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab9f69f18789ce414a43bdcc13ebbc776" id="r_ab9f69f18789ce414a43bdcc13ebbc776"><td class="memItemLeft" align="right" valign="top"><a id="ab9f69f18789ce414a43bdcc13ebbc776" name="ab9f69f18789ce414a43bdcc13ebbc776"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_fragmenting_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:ab9f69f18789ce414a43bdcc13ebbc776"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the relation still participates in archetype identity. Non-fragmenting relations such as Parent are excluded. <br /></td></tr>
-<tr class="separator:ab9f69f18789ce414a43bdcc13ebbc776"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afbba2603b00aa5650b27382d3d5b73bf" id="r_afbba2603b00aa5650b27382d3d5b73bf"><td class="memItemLeft" align="right" valign="top"><a id="afbba2603b00aa5650b27382d3d5b73bf" name="afbba2603b00aa5650b27382d3d5b73bf"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_fragmenting_hierarchy_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:afbba2603b00aa5650b27382d3d5b73bf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true for hierarchy relations that still fragment archetypes. ChildOf satisfies this today, while Parent intentionally does not. <br /></td></tr>
-<tr class="separator:afbba2603b00aa5650b27382d3d5b73bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7783f1ca9a055e753e2a00d710ef7bd9" id="r_a7783f1ca9a055e753e2a00d710ef7bd9"><td class="memItemLeft" align="right" valign="top"><a id="a7783f1ca9a055e753e2a00d710ef7bd9" name="a7783f1ca9a055e753e2a00d710ef7bd9"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>supports_depth_order</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:a7783f1ca9a055e753e2a00d710ef7bd9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the relation can drive cached depth-ordered iteration. This requires a fragmenting relation whose target participates in archetype identity, such as ChildOf, DependsOn, or a custom fragmenting relation. Cycles are still invalid and are diagnosed by the depth cache itself. <br /></td></tr>
-<tr class="separator:a7783f1ca9a055e753e2a00d710ef7bd9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa5278bbdd100ab1c3800c6e07bcdd918" id="r_aa5278bbdd100ab1c3800c6e07bcdd918"><td class="memItemLeft" align="right" valign="top"><a id="aa5278bbdd100ab1c3800c6e07bcdd918" name="aa5278bbdd100ab1c3800c6e07bcdd918"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>depth_order_prunes_disabled_subtrees</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:aa5278bbdd100ab1c3800c6e07bcdd918"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level. Only fragmenting hierarchy relations qualify because all rows in the archetype then share the same direct parent and therefore the same ancestor chain. <br /></td></tr>
-<tr class="separator:aa5278bbdd100ab1c3800c6e07bcdd918"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a76223b8458f8a3709400b9601ba0883a" id="r_a76223b8458f8a3709400b9601ba0883a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a76223b8458f8a3709400b9601ba0883a">is_out_of_line_component</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a76223b8458f8a3709400b9601ba0883a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data out of line instead of in archetype chunks. This is currently the storage path used for sparse plain generic AoS components.  <br /></td></tr>
-<tr class="separator:a76223b8458f8a3709400b9601ba0883a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a08cbea5dd87c01d32757dcabd2a75e3a" id="r_a08cbea5dd87c01d32757dcabd2a75e3a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a08cbea5dd87c01d32757dcabd2a75e3a">is_non_fragmenting_out_of_line_component</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a08cbea5dd87c01d32757dcabd2a75e3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is both out-of-line and non-fragmenting. Non-fragmenting out-of-line components do not participate in archetype identity.  <br /></td></tr>
-<tr class="separator:a08cbea5dd87c01d32757dcabd2a75e3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5f1a1fcaa847e157204e14b7d7428da1" id="r_a5f1a1fcaa847e157204e14b7d7428da1"><td class="memItemLeft" align="right" valign="top"><a id="a5f1a1fcaa847e157204e14b7d7428da1" name="a5f1a1fcaa847e157204e14b7d7428da1"></a>
-GAIA_NODISCARD OutOfLineMode&#160;</td><td class="memItemRight" valign="bottom"><b>out_of_line_mode</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="separator:a5f1a1fcaa847e157204e14b7d7428da1"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af5675fc9114c8050245bf703086a7253" id="r_af5675fc9114c8050245bf703086a7253"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af5675fc9114c8050245bf703086a7253">relation_is_non_fragmenting</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:af5675fc9114c8050245bf703086a7253"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>relation</em> is non-fragmenting.  <br /></td></tr>
+<tr class="separator:af5675fc9114c8050245bf703086a7253"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9402026ef15da810868f08d9c7cce125" id="r_a9402026ef15da810868f08d9c7cce125"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9402026ef15da810868f08d9c7cce125">relation_uses_non_fragmenting_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a9402026ef15da810868f08d9c7cce125"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>relation</em> uses non-fragmenting relation storage. Only exclusive non-fragmenting relations use this storage path.  <br /></td></tr>
+<tr class="separator:a9402026ef15da810868f08d9c7cce125"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8c70e175b1b9318fa84c59e95b85469b" id="r_a8c70e175b1b9318fa84c59e95b85469b"><td class="memItemLeft" align="right" valign="top"><a id="a8c70e175b1b9318fa84c59e95b85469b" name="a8c70e175b1b9318fa84c59e95b85469b"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>relation_is_hierarchy</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a8c70e175b1b9318fa84c59e95b85469b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain. ChildOf and Parent satisfy this today. DependsOn intentionally does not. <br /></td></tr>
+<tr class="separator:a8c70e175b1b9318fa84c59e95b85469b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94c1d0248678c4122829d0d9b5ac33b9" id="r_a94c1d0248678c4122829d0d9b5ac33b9"><td class="memItemLeft" align="right" valign="top"><a id="a94c1d0248678c4122829d0d9b5ac33b9" name="a94c1d0248678c4122829d0d9b5ac33b9"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>relation_is_fragmenting</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a94c1d0248678c4122829d0d9b5ac33b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the relation still participates in archetype identity. Non-fragmenting relations such as Parent are excluded. <br /></td></tr>
+<tr class="separator:a94c1d0248678c4122829d0d9b5ac33b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abeb62dc5c934e53f3bc2e798f178515a" id="r_abeb62dc5c934e53f3bc2e798f178515a"><td class="memItemLeft" align="right" valign="top"><a id="abeb62dc5c934e53f3bc2e798f178515a" name="abeb62dc5c934e53f3bc2e798f178515a"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>relation_is_fragmenting_hierarchy</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:abeb62dc5c934e53f3bc2e798f178515a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true for hierarchy relations that still fragment archetypes. ChildOf satisfies this today, while Parent intentionally does not. <br /></td></tr>
+<tr class="separator:abeb62dc5c934e53f3bc2e798f178515a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a94252582de42238b2d52dd439259d3d6" id="r_a94252582de42238b2d52dd439259d3d6"><td class="memItemLeft" align="right" valign="top"><a id="a94252582de42238b2d52dd439259d3d6" name="a94252582de42238b2d52dd439259d3d6"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>relation_supports_depth_order</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a94252582de42238b2d52dd439259d3d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the relation can drive cached depth-ordered iteration. This requires a fragmenting relation whose target participates in archetype identity, such as ChildOf, DependsOn, or a custom fragmenting relation. Cycles are still invalid and are diagnosed by the depth cache itself. <br /></td></tr>
+<tr class="separator:a94252582de42238b2d52dd439259d3d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a02e169ac8ac74540ed74e0c6c071aec0" id="r_a02e169ac8ac74540ed74e0c6c071aec0"><td class="memItemLeft" align="right" valign="top"><a id="a02e169ac8ac74540ed74e0c6c071aec0" name="a02e169ac8ac74540ed74e0c6c071aec0"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>relation_depth_order_prunes_disabled_subtrees</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a02e169ac8ac74540ed74e0c6c071aec0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level. Only fragmenting hierarchy relations qualify because all rows in the archetype then share the same direct parent and therefore the same ancestor chain. <br /></td></tr>
+<tr class="separator:a02e169ac8ac74540ed74e0c6c071aec0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:acb4637f3c7afe94417a3b654613e674e" id="r_acb4637f3c7afe94417a3b654613e674e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acb4637f3c7afe94417a3b654613e674e">component_uses_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:acb4637f3c7afe94417a3b654613e674e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is currently the storage path used for sparse plain generic AoS components.  <br /></td></tr>
+<tr class="separator:acb4637f3c7afe94417a3b654613e674e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af7380ffb311aa77115171a2435e804b3" id="r_af7380ffb311aa77115171a2435e804b3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af7380ffb311aa77115171a2435e804b3">component_is_non_fragmenting</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:af7380ffb311aa77115171a2435e804b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity.  <br /></td></tr>
+<tr class="separator:af7380ffb311aa77115171a2435e804b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a573a59fab8e7c4e7ed9f23d275ac63c9" id="r_a573a59fab8e7c4e7ed9f23d275ac63c9"><td class="memItemLeft" align="right" valign="top"><a id="a573a59fab8e7c4e7ed9f23d275ac63c9" name="a573a59fab8e7c4e7ed9f23d275ac63c9"></a>
+GAIA_NODISCARD SparseStorageMode&#160;</td><td class="memItemRight" valign="bottom"><b>sparse_storage_mode</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="separator:a573a59fab8e7c4e7ed9f23d275ac63c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa9f5998c3051c2452adc6752a64ed136" id="r_aa9f5998c3051c2452adc6752a64ed136"><td class="memItemLeft" align="right" valign="top"><a id="aa9f5998c3051c2452adc6752a64ed136" name="aa9f5998c3051c2452adc6752a64ed136"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const SparseComponentStoreErased &amp;store) const</td></tr>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> &amp;store) const</td></tr>
 <tr class="separator:aa9f5998c3051c2452adc6752a64ed136"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3640e1759e6f0764c3d9c3983402b8aa" id="r_a3640e1759e6f0764c3d9c3983402b8aa"><td class="memItemLeft" align="right" valign="top"><a id="a3640e1759e6f0764c3d9c3983402b8aa" name="a3640e1759e6f0764c3d9c3983402b8aa"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_non_frag_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const SparseComponentStoreErased &amp;store) const</td></tr>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>copies_non_frag_sparse_payload_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> &amp;store) const</td></tr>
 <tr class="separator:a3640e1759e6f0764c3d9c3983402b8aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a79a6215b3bd5e02bec6f980830e83d29" id="r_a79a6215b3bd5e02bec6f980830e83d29"><td class="memItemLeft" align="right" valign="top"><a id="a79a6215b3bd5e02bec6f980830e83d29" name="a79a6215b3bd5e02bec6f980830e83d29"></a>
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse_copy_adds_id_inter</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> comp) const</td></tr>
@@ -218,59 +218,59 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse
 <tr class="memitem:a19ae85a92bf78dcf23c711ed26f59a9f" id="r_a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a19ae85a92bf78dcf23c711ed26f59a9f">set_component_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
 <tr class="memdesc:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain generic AoS components are supported.  <br /></td></tr>
 <tr class="separator:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad4e00f5a094baf185e27eb0657158537" id="r_ad4e00f5a094baf185e27eb0657158537"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:ad4e00f5a094baf185e27eb0657158537"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad4e00f5a094baf185e27eb0657158537">can_use_out_of_line_component</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
-<tr class="memdesc:ad4e00f5a094baf185e27eb0657158537"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>object</em> is a usable out-of-line storage target for component type <em>T</em>.  <br /></td></tr>
-<tr class="separator:ad4e00f5a094baf185e27eb0657158537"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee" id="r_a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a90f02e266f83fea3f824dbd8082a90ee">can_use_sparse_component_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
+<tr class="memdesc:a90f02e266f83fea3f824dbd8082a90ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>object</em> is a usable sparse storage target for component type <em>T</em>.  <br /></td></tr>
+<tr class="separator:a90f02e266f83fea3f824dbd8082a90ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8ca38f2da646e973096e8e51ea8968fa" id="r_a8ca38f2da646e973096e8e51ea8968fa"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a8ca38f2da646e973096e8e51ea8968fa"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD SparseComponentStore&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8ca38f2da646e973096e8e51ea8968fa">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a8ca38f2da646e973096e8e51ea8968fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse out-of-line component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
+<tr class="memitem:a8ca38f2da646e973096e8e51ea8968fa"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8ca38f2da646e973096e8e51ea8968fa">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:a8ca38f2da646e973096e8e51ea8968fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
 <tr class="separator:a8ca38f2da646e973096e8e51ea8968fa"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af22df66d031b641e19d2f9a4d91b3222" id="r_af22df66d031b641e19d2f9a4d91b3222"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:af22df66d031b641e19d2f9a4d91b3222"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const SparseComponentStore&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af22df66d031b641e19d2f9a4d91b3222">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:af22df66d031b641e19d2f9a4d91b3222"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse out-of-line component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
+<tr class="memitem:af22df66d031b641e19d2f9a4d91b3222"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#af22df66d031b641e19d2f9a4d91b3222">sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:af22df66d031b641e19d2f9a4d91b3222"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, or nullptr if it does not exist.  <br /></td></tr>
 <tr class="separator:af22df66d031b641e19d2f9a4d91b3222"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acc6a248f4752be72856a38ace5289368" id="r_acc6a248f4752be72856a38ace5289368"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:acc6a248f4752be72856a38ace5289368"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD SparseComponentStore&lt; T &gt; &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acc6a248f4752be72856a38ace5289368">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:acc6a248f4752be72856a38ace5289368"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse out-of-line component store for <em>component</em>, creating it if needed.  <br /></td></tr>
+<tr class="memitem:acc6a248f4752be72856a38ace5289368"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acc6a248f4752be72856a38ace5289368">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
+<tr class="memdesc:acc6a248f4752be72856a38ace5289368"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, creating it if needed.  <br /></td></tr>
 <tr class="separator:acc6a248f4752be72856a38ace5289368"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:affc1635c511a9824f1f182194689d08a" id="r_affc1635c511a9824f1f182194689d08a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#affc1635c511a9824f1f182194689d08a">finish_out_of_line_add_inter</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, OutOfLineMode mode)</td></tr>
-<tr class="memdesc:affc1635c511a9824f1f182194689d08a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finishes adding an out-of-line component after its sparse payload has been created. Fragmenting components also add the id directly to the entity archetype.  <br /></td></tr>
-<tr class="separator:affc1635c511a9824f1f182194689d08a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee0bad5be7e54b944d747912905b9ccc" id="r_aee0bad5be7e54b944d747912905b9ccc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aee0bad5be7e54b944d747912905b9ccc">finish_sparse_component_add_inter</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, SparseStorageMode mode)</td></tr>
+<tr class="memdesc:aee0bad5be7e54b944d747912905b9ccc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finishes adding a sparse component after its payload has been created. Fragmenting components also add the id directly to the entity archetype.  <br /></td></tr>
+<tr class="separator:aee0bad5be7e54b944d747912905b9ccc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab28208e2301d5fe9317a7ca634e378cd" id="r_ab28208e2301d5fe9317a7ca634e378cd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab28208e2301d5fe9317a7ca634e378cd">del_sparse_components</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:ab28208e2301d5fe9317a7ca634e378cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes all sparse out-of-line component instances owned by <em>entity</em>.  <br /></td></tr>
+<tr class="memdesc:ab28208e2301d5fe9317a7ca634e378cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes all sparse component instances owned by <em>entity</em>.  <br /></td></tr>
 <tr class="separator:ab28208e2301d5fe9317a7ca634e378cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a511688713198e187c05fcef220920f34" id="r_a511688713198e187c05fcef220920f34"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a511688713198e187c05fcef220920f34">del_sparse_component_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a511688713198e187c05fcef220920f34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes the sparse out-of-line component store associated with <em>component</em>.  <br /></td></tr>
+<tr class="memdesc:a511688713198e187c05fcef220920f34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes the sparse component store associated with <em>component</em>.  <br /></td></tr>
 <tr class="separator:a511688713198e187c05fcef220920f34"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aac7623eec3592aac6f606313ea8205fc" id="r_aac7623eec3592aac6f606313ea8205fc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const ExclusiveAdjunctStore *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aac7623eec3592aac6f606313ea8205fc">exclusive_adjunct_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
-<tr class="memdesc:aac7623eec3592aac6f606313ea8205fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the exclusive adjunct store for <em>relation</em>, or nullptr when absent.  <br /></td></tr>
-<tr class="separator:aac7623eec3592aac6f606313ea8205fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a59674526993f0a4b4050971d396ea39a" id="r_a59674526993f0a4b4050971d396ea39a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ExclusiveAdjunctStore &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a59674526993f0a4b4050971d396ea39a">exclusive_adjunct_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
-<tr class="memdesc:a59674526993f0a4b4050971d396ea39a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the exclusive adjunct store for <em>relation</em>, creating it if needed.  <br /></td></tr>
-<tr class="separator:a59674526993f0a4b4050971d396ea39a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae30596dd097cefbe59670e82a3df93a3" id="r_ae30596dd097cefbe59670e82a3df93a3"><td class="memItemLeft" align="right" valign="top"><a id="ae30596dd097cefbe59670e82a3df93a3" name="ae30596dd097cefbe59670e82a3df93a3"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_set</b> (ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
-<tr class="separator:ae30596dd097cefbe59670e82a3df93a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aed027823894e98f214c4fe21e935468e" id="r_aed027823894e98f214c4fe21e935468e"><td class="memItemLeft" align="right" valign="top"><a id="aed027823894e98f214c4fe21e935468e" name="aed027823894e98f214c4fe21e935468e"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_set</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
-<tr class="separator:aed027823894e98f214c4fe21e935468e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a93c27c1a555aa9ae8761f3cca8542180" id="r_a93c27c1a555aa9ae8761f3cca8542180"><td class="memItemLeft" align="right" valign="top"><a id="a93c27c1a555aa9ae8761f3cca8542180" name="a93c27c1a555aa9ae8761f3cca8542180"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_del</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
-<tr class="separator:a93c27c1a555aa9ae8761f3cca8542180"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7ab5fd232da3c1b5f663a4c9b1b451a3" id="r_a7ab5fd232da3c1b5f663a4c9b1b451a3"><td class="memItemLeft" align="right" valign="top"><a id="a7ab5fd232da3c1b5f663a4c9b1b451a3" name="a7ab5fd232da3c1b5f663a4c9b1b451a3"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_exclusive_adjunct_pair</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
-<tr class="separator:a7ab5fd232da3c1b5f663a4c9b1b451a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a70d80ccda88f57210068af9b2596e151" id="r_a70d80ccda88f57210068af9b2596e151"><td class="memItemLeft" align="right" valign="top"><a id="a70d80ccda88f57210068af9b2596e151" name="a70d80ccda88f57210068af9b2596e151"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>del_exclusive_adjunct_source</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
-<tr class="separator:a70d80ccda88f57210068af9b2596e151"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5ac39368192967f61d335db35f00a9ac" id="r_a5ac39368192967f61d335db35f00a9ac"><td class="memItemLeft" align="right" valign="top"><a id="a5ac39368192967f61d335db35f00a9ac" name="a5ac39368192967f61d335db35f00a9ac"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>del_exclusive_adjunct_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
-<tr class="separator:a5ac39368192967f61d335db35f00a9ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a83240d7b16b98e9f5654daf0ef496562" id="r_a83240d7b16b98e9f5654daf0ef496562"><td class="memItemLeft" align="right" valign="top"><a id="a83240d7b16b98e9f5654daf0ef496562" name="a83240d7b16b98e9f5654daf0ef496562"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_exclusive_adjunct_target_cond</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>, <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> cond) const</td></tr>
-<tr class="memdesc:a83240d7b16b98e9f5654daf0ef496562"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether any non-fragmenting exclusive relation targeting <em>target</em> uses the given OnDeleteTarget rule. <br /></td></tr>
-<tr class="separator:a83240d7b16b98e9f5654daf0ef496562"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0a1bccee950ea70b583330dbf9fc5bfd" id="r_a0a1bccee950ea70b583330dbf9fc5bfd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html">NonFragmentingRelationStore</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0a1bccee950ea70b583330dbf9fc5bfd">nonfragmenting_relation_store</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>) const</td></tr>
+<tr class="memdesc:a0a1bccee950ea70b583330dbf9fc5bfd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the non-fragmenting relation store for <em>relation</em>, or nullptr when absent.  <br /></td></tr>
+<tr class="separator:a0a1bccee950ea70b583330dbf9fc5bfd"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad8ef549986cba3ec4559ec57654d1ac7" id="r_ad8ef549986cba3ec4559ec57654d1ac7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html">NonFragmentingRelationStore</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad8ef549986cba3ec4559ec57654d1ac7">nonfragmenting_relation_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
+<tr class="memdesc:ad8ef549986cba3ec4559ec57654d1ac7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the non-fragmenting relation store for <em>relation</em>, creating it if needed.  <br /></td></tr>
+<tr class="separator:ad8ef549986cba3ec4559ec57654d1ac7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5fd3e8af41cb3698183e514631484be4" id="r_a5fd3e8af41cb3698183e514631484be4"><td class="memItemLeft" align="right" valign="top"><a id="a5fd3e8af41cb3698183e514631484be4" name="a5fd3e8af41cb3698183e514631484be4"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>nonfragmenting_relation_set</b> (<a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html">NonFragmentingRelationStore</a> &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
+<tr class="separator:a5fd3e8af41cb3698183e514631484be4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2ebf31240ca59876c33f0dab18b1634e" id="r_a2ebf31240ca59876c33f0dab18b1634e"><td class="memItemLeft" align="right" valign="top"><a id="a2ebf31240ca59876c33f0dab18b1634e" name="a2ebf31240ca59876c33f0dab18b1634e"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>nonfragmenting_relation_set</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
+<tr class="separator:a2ebf31240ca59876c33f0dab18b1634e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a917d386737e94a6eba3005c62090df9e" id="r_a917d386737e94a6eba3005c62090df9e"><td class="memItemLeft" align="right" valign="top"><a id="a917d386737e94a6eba3005c62090df9e" name="a917d386737e94a6eba3005c62090df9e"></a>
+bool&#160;</td><td class="memItemRight" valign="bottom"><b>nonfragmenting_relation_del</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
+<tr class="separator:a917d386737e94a6eba3005c62090df9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a17938f23777a128e4a4c0dd4511b3580" id="r_a17938f23777a128e4a4c0dd4511b3580"><td class="memItemLeft" align="right" valign="top"><a id="a17938f23777a128e4a4c0dd4511b3580" name="a17938f23777a128e4a4c0dd4511b3580"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_nonfragmenting_relation_pair</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
+<tr class="separator:a17938f23777a128e4a4c0dd4511b3580"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad2d441f25840da49f0f65ee6dc07bdc2" id="r_ad2d441f25840da49f0f65ee6dc07bdc2"><td class="memItemLeft" align="right" valign="top"><a id="ad2d441f25840da49f0f65ee6dc07bdc2" name="ad2d441f25840da49f0f65ee6dc07bdc2"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>del_nonfragmenting_relation_source</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
+<tr class="separator:ad2d441f25840da49f0f65ee6dc07bdc2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4126edd31d4c5bfd2c29f226f32d4ace" id="r_a4126edd31d4c5bfd2c29f226f32d4ace"><td class="memItemLeft" align="right" valign="top"><a id="a4126edd31d4c5bfd2c29f226f32d4ace" name="a4126edd31d4c5bfd2c29f226f32d4ace"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>del_nonfragmenting_relation</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
+<tr class="separator:a4126edd31d4c5bfd2c29f226f32d4ace"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a20632f9f9003691a920d0bb8ab4e4bd3" id="r_a20632f9f9003691a920d0bb8ab4e4bd3"><td class="memItemLeft" align="right" valign="top"><a id="a20632f9f9003691a920d0bb8ab4e4bd3" name="a20632f9f9003691a920d0bb8ab4e4bd3"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_nonfragmenting_relation_target_cond</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>, <a class="el" href="classgaia_1_1ecs_1_1pair_3_01Entity_00_01Entity_01_4.html">Pair</a> cond) const</td></tr>
+<tr class="memdesc:a20632f9f9003691a920d0bb8ab4e4bd3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether any non-fragmenting exclusive relation targeting <em>target</em> uses the given OnDeleteTarget rule. <br /></td></tr>
+<tr class="separator:a20632f9f9003691a920d0bb8ab4e4bd3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adbc422eb87ee19c6a8648bda28a0de7e" id="r_adbc422eb87ee19c6a8648bda28a0de7e"><td class="memItemLeft" align="right" valign="top"><a id="adbc422eb87ee19c6a8648bda28a0de7e" name="adbc422eb87ee19c6a8648bda28a0de7e"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (std::nullptr_t)</td></tr>
 <tr class="memdesc:adbc422eb87ee19c6a8648bda28a0de7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets runtime serializer binding to the default internal bin_stream backend. <br /></td></tr>
@@ -464,7 +464,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>child</b> (<a class="
 <tr class="memdesc:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a <code>ChildOf</code> relationship to <em>parent</em>.  <br /></td></tr>
 <tr class="separator:aaeaa6200867d1e1f57b185df94ce5ed6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a79f6448dfaa8a80a0f7370c12cd55b3d" id="r_a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity)</td></tr>
-<tr class="memdesc:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is stored out of archetype identity.  <br /></td></tr>
+<tr class="memdesc:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is non-fragmenting and does not participate in archetype identity.  <br /></td></tr>
 <tr class="separator:a79f6448dfaa8a80a0f7370c12cd55b3d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad3ed785c3d3ef27fb18d706a6a98a42e" id="r_ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad3ed785c3d3ef27fb18d706a6a98a42e">parent</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentEntity) const</td></tr>
 <tr class="memdesc:ad3ed785c3d3ef27fb18d706a6a98a42e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether <em>entity</em> has a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>.  <br /></td></tr>
@@ -711,22 +711,6 @@ GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&
 <tr class="memitem:ace93a792edd1e81407b567e446ee80cd"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ace93a792edd1e81407b567e446ee80cd">sources_bfs_if</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> rootTarget, Func func) const</td></tr>
 <tr class="memdesc:ace93a792edd1e81407b567e446ee80cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Traverses relationship sources in breadth-first order. Starting at <em>rootTarget</em>, this visits all direct sources first and then deeper levels.  <br /></td></tr>
 <tr class="separator:ace93a792edd1e81407b567e446ee80cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2f04ddaa8415f37736e4cc791210b7a8" id="r_a2f04ddaa8415f37736e4cc791210b7a8"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a2f04ddaa8415f37736e4cc791210b7a8"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2f04ddaa8415f37736e4cc791210b7a8">children</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>, Func func) const</td></tr>
-<tr class="memdesc:a2f04ddaa8415f37736e4cc791210b7a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits direct children in the <code>ChildOf</code> hierarchy.  <br /></td></tr>
-<tr class="separator:a2f04ddaa8415f37736e4cc791210b7a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab103b3fdabc38a44fdfce41da638bf9e" id="r_ab103b3fdabc38a44fdfce41da638bf9e"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:ab103b3fdabc38a44fdfce41da638bf9e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab103b3fdabc38a44fdfce41da638bf9e">children_if</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#a79f6448dfaa8a80a0f7370c12cd55b3d">parent</a>, Func func) const</td></tr>
-<tr class="memdesc:ab103b3fdabc38a44fdfce41da638bf9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Visits direct children in the <code>ChildOf</code> hierarchy until <em>func</em> returns false.  <br /></td></tr>
-<tr class="separator:ab103b3fdabc38a44fdfce41da638bf9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2d4d2408b00772c494c25aa705d0d93d" id="r_a2d4d2408b00772c494c25aa705d0d93d"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a2d4d2408b00772c494c25aa705d0d93d"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2d4d2408b00772c494c25aa705d0d93d">children_bfs</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> root, Func func) const</td></tr>
-<tr class="memdesc:a2d4d2408b00772c494c25aa705d0d93d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Traverses descendants in the <code>ChildOf</code> hierarchy in breadth-first order.  <br /></td></tr>
-<tr class="separator:a2d4d2408b00772c494c25aa705d0d93d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b91fa08e7922c5306db508be5293065" id="r_a1b91fa08e7922c5306db508be5293065"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a1b91fa08e7922c5306db508be5293065"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a1b91fa08e7922c5306db508be5293065">children_bfs_if</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> root, Func func) const</td></tr>
-<tr class="memdesc:a1b91fa08e7922c5306db508be5293065"><td class="mdescLeft">&#160;</td><td class="mdescRight">Traverses descendants in the <code>ChildOf</code> hierarchy in breadth-first order.  <br /></td></tr>
-<tr class="separator:a1b91fa08e7922c5306db508be5293065"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abd1baeafe4c6fa150b88013d6bc2c5b0" id="r_abd1baeafe4c6fa150b88013d6bc2c5b0"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:abd1baeafe4c6fa150b88013d6bc2c5b0"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#abd1baeafe4c6fa150b88013d6bc2c5b0">as_targets_trav</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>, Func func) const</td></tr>
 <tr class="memdesc:abd1baeafe4c6fa150b88013d6bc2c5b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Traverses transitive <code>Is</code> targets of <em>relation</em>. The traversal uses the cached closure built by <a class="el" href="classgaia_1_1ecs_1_1World.html#a772ce90286449f1635100f1b0cde5e83" title="Returns the cached transitive Is targets for a relation entity. The cache is rebuilt lazily and clear...">as_targets_trav_cache()</a>.  <br /></td></tr>
@@ -903,25 +887,10 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:ac6c1b4da9a3bdcc7e299b82d27ad646c" id="r_ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c">is_req_del</a> (const <a class="el" href="structgaia_1_1ecs_1_1EntityContainer.html">EntityContainer</a> &amp;ec)</td></tr>
 <tr class="memdesc:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether the record is already in delete-requested state. Covers both explicit per-entity deletion and archetype-level forced teardown.  <br /></td></tr>
 <tr class="separator:ac6c1b4da9a3bdcc7e299b82d27ad646c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a489818d62837e8793eeb9dac0a3f5dfd" id="r_a489818d62837e8793eeb9dac0a3f5dfd"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a489818d62837e8793eeb9dac0a3f5dfd"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a489818d62837e8793eeb9dac0a3f5dfd">supports_out_of_line_component</a> ()</td></tr>
-<tr class="memdesc:a489818d62837e8793eeb9dac0a3f5dfd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Out-of-line non-fragmenting storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
-<tr class="separator:a489818d62837e8793eeb9dac0a3f5dfd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a51187c74e350cfba74a3bf637b9bb6af" id="r_a51187c74e350cfba74a3bf637b9bb6af"><td class="memItemLeft" align="right" valign="top"><a id="a51187c74e350cfba74a3bf637b9bb6af" name="a51187c74e350cfba74a3bf637b9bb6af"></a>
-static void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_exclusive_adjunct_src_capacity</b> (ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
-<tr class="separator:a51187c74e350cfba74a3bf637b9bb6af"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1bde4a744fa7e8b1287ef01852984008" id="r_a1bde4a744fa7e8b1287ef01852984008"><td class="memItemLeft" align="right" valign="top"><a id="a1bde4a744fa7e8b1287ef01852984008" name="a1bde4a744fa7e8b1287ef01852984008"></a>
-static void&#160;</td><td class="memItemRight" valign="bottom"><b>ensure_exclusive_adjunct_tgt_capacity</b> (ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
-<tr class="separator:a1bde4a744fa7e8b1287ef01852984008"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a94f23ee16fa90a36e2fc49c10bed4b69" id="r_a94f23ee16fa90a36e2fc49c10bed4b69"><td class="memItemLeft" align="right" valign="top"><a id="a94f23ee16fa90a36e2fc49c10bed4b69" name="a94f23ee16fa90a36e2fc49c10bed4b69"></a>
-static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_target</b> (const ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
-<tr class="separator:a94f23ee16fa90a36e2fc49c10bed4b69"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a785af03d5660961fb5c7b93e005bc3e1" id="r_a785af03d5660961fb5c7b93e005bc3e1"><td class="memItemLeft" align="right" valign="top"><a id="a785af03d5660961fb5c7b93e005bc3e1" name="a785af03d5660961fb5c7b93e005bc3e1"></a>
-static GAIA_NODISCARD const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; *&#160;</td><td class="memItemRight" valign="bottom"><b>exclusive_adjunct_sources</b> (const ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>)</td></tr>
-<tr class="separator:a785af03d5660961fb5c7b93e005bc3e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6a58428e857ca37a5ee036e3bb8ab40b" id="r_a6a58428e857ca37a5ee036e3bb8ab40b"><td class="memItemLeft" align="right" valign="top"><a id="a6a58428e857ca37a5ee036e3bb8ab40b" name="a6a58428e857ca37a5ee036e3bb8ab40b"></a>
-static void&#160;</td><td class="memItemRight" valign="bottom"><b>del_exclusive_adjunct_target_source</b> (ExclusiveAdjunctStore &amp;store, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#af0cc1b133f49ebe3c2642b5204d9a227">target</a>, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> source)</td></tr>
-<tr class="separator:a6a58428e857ca37a5ee036e3bb8ab40b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f" id="r_ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad7ea32faaa6320b799383c71c3e6312f">supports_sparse_component_storage</a> ()</td></tr>
+<tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
+<tr class="separator:ad7ea32faaa6320b799383c71c3e6312f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -2102,8 +2071,8 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
-<a id="ad4e00f5a094baf185e27eb0657158537" name="ad4e00f5a094baf185e27eb0657158537"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ad4e00f5a094baf185e27eb0657158537">&#9670;&#160;</a></span>can_use_out_of_line_component()</h2>
+<a id="a90f02e266f83fea3f824dbd8082a90ee" name="a90f02e266f83fea3f824dbd8082a90ee"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a90f02e266f83fea3f824dbd8082a90ee">&#9670;&#160;</a></span>can_use_sparse_component_storage()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2114,7 +2083,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::can_use_out_of_line_component </td>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::can_use_sparse_component_storage </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>object</em></td><td>)</td>
@@ -2128,7 +2097,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns whether <em>object</em> is a usable out-of-line storage target for component type <em>T</em>. </p>
+<p>Returns whether <em>object</em> is a usable sparse storage target for component type <em>T</em>. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to validate against. </td></tr>
@@ -2141,7 +2110,7 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True when <em>object</em> can back an out-of-line store for <em>T</em>. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>object</em> can back sparse storage for <em>T</em>. </dd></dl>
 
 </div>
 </div>
@@ -2188,195 +2157,6 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if <em>entity</em> is a child of <em>parent</em>. False otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="a2f04ddaa8415f37736e4cc791210b7a8" name="a2f04ddaa8415f37736e4cc791210b7a8"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2f04ddaa8415f37736e4cc791210b7a8">&#9670;&#160;</a></span>children()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Func &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">void gaia::ecs::World::children </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>parent</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Func&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Visits direct children in the <code>ChildOf</code> hierarchy. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">parent</td><td>Parent entity </td></tr>
-    <tr><td class="paramname">func</td><td>void(Entity child) functor executed for each child. </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
-<a id="a2d4d2408b00772c494c25aa705d0d93d" name="a2d4d2408b00772c494c25aa705d0d93d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2d4d2408b00772c494c25aa705d0d93d">&#9670;&#160;</a></span>children_bfs()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Func &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">void gaia::ecs::World::children_bfs </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>root</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Func&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Traverses descendants in the <code>ChildOf</code> hierarchy in breadth-first order. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">root</td><td>Root entity </td></tr>
-    <tr><td class="paramname">func</td><td>void(Entity child) functor executed for each descendant. </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
-<a id="a1b91fa08e7922c5306db508be5293065" name="a1b91fa08e7922c5306db508be5293065"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a1b91fa08e7922c5306db508be5293065">&#9670;&#160;</a></span>children_bfs_if()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Func &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::children_bfs_if </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>root</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Func&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Traverses descendants in the <code>ChildOf</code> hierarchy in breadth-first order. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">root</td><td>Root entity </td></tr>
-    <tr><td class="paramname">func</td><td>bool(Entity child) functor executed for each child found. Stops if true is returned. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True when traversal stopped early. False otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="ab103b3fdabc38a44fdfce41da638bf9e" name="ab103b3fdabc38a44fdfce41da638bf9e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab103b3fdabc38a44fdfce41da638bf9e">&#9670;&#160;</a></span>children_if()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;typename Func &gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">void gaia::ecs::World::children_if </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>parent</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Func&#160;</td>
-          <td class="paramname"><em>func</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Visits direct children in the <code>ChildOf</code> hierarchy until <em>func</em> returns false. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">parent</td><td>Parent entity </td></tr>
-    <tr><td class="paramname">func</td><td>bool(Entity child) functor executed for each child found. Stops if false is returned. </td></tr>
-  </table>
-  </dd>
-</dl>
 
 </div>
 </div>
@@ -2616,6 +2396,76 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 <p>Returns mutable access to the world component cache. </p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache owned by this world. </dd></dl>
+
+</div>
+</div>
+<a id="af7380ffb311aa77115171a2435e804b3" name="af7380ffb311aa77115171a2435e804b3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7380ffb311aa77115171a2435e804b3">&#9670;&#160;</a></span>component_is_non_fragmenting()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::component_is_non_fragmenting </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>component</em> is non-fragmenting. Non-fragmenting components do not participate in archetype identity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the component is non-fragmenting. </dd></dl>
+
+</div>
+</div>
+<a id="acb4637f3c7afe94417a3b654613e674e" name="acb4637f3c7afe94417a3b654613e674e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acb4637f3c7afe94417a3b654613e674e">&#9670;&#160;</a></span>component_uses_sparse_storage()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::component_uses_sparse_storage </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>component</em> stores instance data in sparse storage instead of archetype chunks. This is currently the storage path used for sparse plain generic AoS components. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the component uses sparse storage. </dd></dl>
 
 </div>
 </div>
@@ -3105,7 +2955,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Deletes the sparse out-of-line component store associated with <em>component</em>. </p>
+<p>Deletes the sparse component store associated with <em>component</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity identifying the store. </td></tr>
@@ -3139,7 +2989,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Removes all sparse out-of-line component instances owned by <em>entity</em>. </p>
+<p>Removes all sparse component instances owned by <em>entity</em>. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> </td></tr>
@@ -3329,76 +3179,6 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
-<a id="aac7623eec3592aac6f606313ea8205fc" name="aac7623eec3592aac6f606313ea8205fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aac7623eec3592aac6f606313ea8205fc">&#9670;&#160;</a></span>exclusive_adjunct_store()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD const ExclusiveAdjunctStore * gaia::ecs::World::exclusive_adjunct_store </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>relation</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the exclusive adjunct store for <em>relation</em>, or nullptr when absent. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Exclusive adjunct store or nullptr if absent. </dd></dl>
-
-</div>
-</div>
-<a id="a59674526993f0a4b4050971d396ea39a" name="a59674526993f0a4b4050971d396ea39a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a59674526993f0a4b4050971d396ea39a">&#9670;&#160;</a></span>exclusive_adjunct_store_mut()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD ExclusiveAdjunctStore &amp; gaia::ecs::World::exclusive_adjunct_store_mut </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>relation</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns the exclusive adjunct store for <em>relation</em>, creating it if needed. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>Mutable exclusive adjunct store reference. </dd></dl>
-
-</div>
-</div>
 <a id="a2f477bdb1be18b22c0f0593a8ed57864" name="a2f477bdb1be18b22c0f0593a8ed57864"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a2f477bdb1be18b22c0f0593a8ed57864">&#9670;&#160;</a></span>expr_to_entity()</h2>
 
@@ -3560,8 +3340,8 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
-<a id="affc1635c511a9824f1f182194689d08a" name="affc1635c511a9824f1f182194689d08a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#affc1635c511a9824f1f182194689d08a">&#9670;&#160;</a></span>finish_out_of_line_add_inter()</h2>
+<a id="aee0bad5be7e54b944d747912905b9ccc" name="aee0bad5be7e54b944d747912905b9ccc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aee0bad5be7e54b944d747912905b9ccc">&#9670;&#160;</a></span>finish_sparse_component_add_inter()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -3570,7 +3350,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">void gaia::ecs::World::finish_out_of_line_add_inter </td>
+          <td class="memname">void gaia::ecs::World::finish_sparse_component_add_inter </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em>, </td>
@@ -3584,7 +3364,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">OutOfLineMode&#160;</td>
+          <td class="paramtype">SparseStorageMode&#160;</td>
           <td class="paramname"><em>mode</em>&#160;</td>
         </tr>
         <tr>
@@ -3600,12 +3380,12 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </table>
 </div><div class="memdoc">
 
-<p>Finishes adding an out-of-line component after its sparse payload has been created. Fragmenting components also add the id directly to the entity archetype. </p>
+<p>Finishes adding a sparse component after its payload has been created. Fragmenting components also add the id directly to the entity archetype. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
     <tr><td class="paramname">object</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being added. </td></tr>
-    <tr><td class="paramname">mode</td><td>Out-of-line storage mode for the component. </td></tr>
+    <tr><td class="paramname">mode</td><td>Sparse storage mode for the component. </td></tr>
   </table>
   </dd>
 </dl>
@@ -4686,146 +4466,6 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 
 </div>
 </div>
-<a id="a839c45900b7605e5446f84dd38255784" name="a839c45900b7605e5446f84dd38255784"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a839c45900b7605e5446f84dd38255784">&#9670;&#160;</a></span>is_dont_fragment_relation()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_dont_fragment_relation </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>relation</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns whether <em>relation</em> is a valid non-fragmenting relation entity. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True if <em>relation</em> is valid and non-fragmenting. False otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="a49d21ba2c460ef189129cb5d203db59a" name="a49d21ba2c460ef189129cb5d203db59a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a49d21ba2c460ef189129cb5d203db59a">&#9670;&#160;</a></span>is_exclusive_dont_fragment_relation()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_exclusive_dont_fragment_relation </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>relation</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns whether <em>relation</em> is both Exclusive and DontFragment. Such relations are stored in the adjunct side structure instead of archetype identity. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True if <em>relation</em> is an exclusive non-fragmenting relation. False otherwise. </dd></dl>
-
-</div>
-</div>
-<a id="a08cbea5dd87c01d32757dcabd2a75e3a" name="a08cbea5dd87c01d32757dcabd2a75e3a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a08cbea5dd87c01d32757dcabd2a75e3a">&#9670;&#160;</a></span>is_non_fragmenting_out_of_line_component()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_non_fragmenting_out_of_line_component </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>component</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns whether <em>component</em> is both out-of-line and non-fragmenting. Non-fragmenting out-of-line components do not participate in archetype identity. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True when the component uses out-of-line non-fragmenting storage. </dd></dl>
-
-</div>
-</div>
-<a id="a76223b8458f8a3709400b9601ba0883a" name="a76223b8458f8a3709400b9601ba0883a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a76223b8458f8a3709400b9601ba0883a">&#9670;&#160;</a></span>is_out_of_line_component()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::is_out_of_line_component </td>
-          <td>(</td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
-          <td class="paramname"><em>component</em></td><td>)</td>
-          <td> const</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Returns whether <em>component</em> stores instance data out of line instead of in archetype chunks. This is currently the storage path used for sparse plain generic AoS components. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity to inspect. </td></tr>
-  </table>
-  </dd>
-</dl>
-<dl class="section return"><dt>Returns</dt><dd>True when the component uses out-of-line storage. </dd></dl>
-
-</div>
-</div>
 <a id="ac6c1b4da9a3bdcc7e299b82d27ad646c" name="ac6c1b4da9a3bdcc7e299b82d27ad646c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ac6c1b4da9a3bdcc7e299b82d27ad646c">&#9670;&#160;</a></span>is_req_del()</h2>
 
@@ -5624,6 +5264,76 @@ In this case the string is NOT copied and NOT stored internally. You are respons
 
 </div>
 </div>
+<a id="a0a1bccee950ea70b583330dbf9fc5bfd" name="a0a1bccee950ea70b583330dbf9fc5bfd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0a1bccee950ea70b583330dbf9fc5bfd">&#9670;&#160;</a></span>nonfragmenting_relation_store()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html">NonFragmentingRelationStore</a> * gaia::ecs::World::nonfragmenting_relation_store </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the non-fragmenting relation store for <em>relation</em>, or nullptr when absent. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Non-fragmenting relation store or nullptr if absent. </dd></dl>
+
+</div>
+</div>
+<a id="ad8ef549986cba3ec4559ec57654d1ac7" name="ad8ef549986cba3ec4559ec57654d1ac7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad8ef549986cba3ec4559ec57654d1ac7">&#9670;&#160;</a></span>nonfragmenting_relation_store_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html">NonFragmentingRelationStore</a> &amp; gaia::ecs::World::nonfragmenting_relation_store_mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the non-fragmenting relation store for <em>relation</em>, creating it if needed. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable non-fragmenting relation store reference. </dd></dl>
+
+</div>
+</div>
 <a id="a7864c6b86a27ad684b329112c704eeb2" name="a7864c6b86a27ad684b329112c704eeb2"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a7864c6b86a27ad684b329112c704eeb2">&#9670;&#160;</a></span>override() <span class="overload">[1/4]</span></h2>
 
@@ -5808,7 +5518,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is stored out of archetype identity. </p>
+<p>Adds a direct non-fragmenting <code>Parent</code> relationship to <em>parentEntity</em>. The relationship is non-fragmenting and does not participate in archetype identity. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to inspect. </td></tr>
@@ -6211,6 +5921,76 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Relationship target. EntityBad if there is nothing to return. </dd></dl>
 <dl class="section warning"><dt>Warning</dt><dd>It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="af5675fc9114c8050245bf703086a7253" name="af5675fc9114c8050245bf703086a7253"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af5675fc9114c8050245bf703086a7253">&#9670;&#160;</a></span>relation_is_non_fragmenting()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::relation_is_non_fragmenting </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>relation</em> is non-fragmenting. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if <em>relation</em> is valid and non-fragmenting. False otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="a9402026ef15da810868f08d9c7cce125" name="a9402026ef15da810868f08d9c7cce125"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9402026ef15da810868f08d9c7cce125">&#9670;&#160;</a></span>relation_uses_non_fragmenting_storage()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::relation_uses_non_fragmenting_storage </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>relation</em> uses non-fragmenting relation storage. Only exclusive non-fragmenting relations use this storage path. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation entity </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if <em>relation</em> uses non-fragmenting relation storage. False otherwise. </dd></dl>
 
 </div>
 </div>
@@ -7249,7 +7029,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD SparseComponentStore&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -7263,7 +7043,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the sparse out-of-line component store for <em>component</em>, or nullptr if it does not exist. </p>
+<p>Returns the sparse component store for <em>component</em>, or nullptr if it does not exist. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
@@ -7292,7 +7072,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD const SparseComponentStore&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; * gaia::ecs::World::sparse_component_store </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -7306,7 +7086,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the sparse out-of-line component store for <em>component</em>, or nullptr if it does not exist. </p>
+<p>Returns the sparse component store for <em>component</em>, or nullptr if it does not exist. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
@@ -7335,7 +7115,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD SparseComponentStore&lt; T &gt; &amp; gaia::ecs::World::sparse_component_store_mut </td>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; &amp; gaia::ecs::World::sparse_component_store_mut </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>component</em></td><td>)</td>
@@ -7349,7 +7129,7 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Returns the sparse out-of-line component store for <em>component</em>, creating it if needed. </p>
+<p>Returns the sparse component store for <em>component</em>, creating it if needed. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> payload type stored in the sparse store. </td></tr>
@@ -7413,8 +7193,8 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 
 </div>
 </div>
-<a id="a489818d62837e8793eeb9dac0a3f5dfd" name="a489818d62837e8793eeb9dac0a3f5dfd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a489818d62837e8793eeb9dac0a3f5dfd">&#9670;&#160;</a></span>supports_out_of_line_component()</h2>
+<a id="ad7ea32faaa6320b799383c71c3e6312f" name="ad7ea32faaa6320b799383c71c3e6312f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad7ea32faaa6320b799383c71c3e6312f">&#9670;&#160;</a></span>supports_sparse_component_storage()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -7425,7 +7205,7 @@ template&lt;typename T &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">static GAIA_NODISCARD constexpr bool gaia::ecs::World::supports_out_of_line_component </td>
+          <td class="memname">static GAIA_NODISCARD constexpr bool gaia::ecs::World::supports_sparse_component_storage </td>
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td></td>
@@ -7438,14 +7218,14 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Out-of-line non-fragmenting storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path. </p>
+<p>Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
     <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to inspect. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>True when <em>T</em> can use the out-of-line storage path. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>T</em> can use the sparse storage path. </dd></dl>
 
 </div>
 </div>

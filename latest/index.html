@@ -116,7 +116,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 <p><b>Gaia-ECS</b> is a fast, ergonomic C++17 ECS framework designed to be the option you can actually learn in an afternoon without reading a manual the size of a novel. You get complex queries with relationship traversal, per-component AoS/SoA layouts, integrated serialization, and multithreading with job dependencies — all behind an API that stays out of your way.</p>
 <p><em><b>Highlights:</b></em></p><ul>
 <li>Clean, safe API — no boilerplate, no footguns</li>
-<li>Hybrid storage model — archetype/chunk for fast iteration, optional out-of-line storage for low-cost frequent modification</li>
+<li>Hybrid storage model — archetype/chunk storage for fast iteration, sparse storage for low-cost frequent modification</li>
 <li>Expressive queries: <a class="el" href="index.html#relationships">relationships</a>, wildcards, hierarchy traversal (DFS/BFS), variables</li>
 <li>Per-component <a class="el" href="index.html#data-layouts">AoS or SoA data layout</a> with minimal code changes</li>
 <li>Integrated <a class="el" href="index.html#compile-time-serialization">compile-time</a> and <a class="el" href="index.html#runtime-serialization">runtime</a> serialization</li>
@@ -276,7 +276,7 @@ ECS</h2>
 <p>A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.</p>
 <h2><a class="anchor" id="implementation"></a>
 Implementation</h2>
-<p><b>Gaia-ECS</b> is a hybrid ECS combining archetype-based storage with optional out-of-line component payload storage. Unique combinations of components are grouped into archetypes — think of them as <a href="https://en.wikipedia.org/wiki/Table_(database)">database tables</a> where components are columns and entities are rows.</p>
+<p><b>Gaia-ECS</b> is a hybrid ECS combining archetype-based storage with sparse storage. Unique combinations of components are grouped into archetypes — think of them as <a href="https://en.wikipedia.org/wiki/Table_(database)">database tables</a> where components are columns and entities are rows.</p>
 <p>Each archetype is made up of chunks: fixed-size allocation blocks selected per archetype from a small set of size classes. Compact archetypes use small cache-friendly chunks, while wider dense archetypes can use larger chunks to reduce per-chunk iteration overhead. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.</p>
 <p>The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing fragmenting ids requires moving data between archetypes — mitigated here by an archetype graph and support for batched component changes.</p>
 <p>Gaia-ECS also supports selected component data living outside chunk columns when a different tradeoff is needed. That keeps the main archetype path optimized for dense iteration while still allowing more dynamic, optional, or less cache-sensitive data to use a different storage path.</p>
@@ -378,7 +378,8 @@ Name entity</h3>
 <div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> e1 = wld.get(<span class="stringliteral">&quot;europe.slovakia&quot;</span>); <span class="comment">// returns slovakia</span></div>
 <div class="line"><span class="keyword">auto</span> e2 = wld.get(<span class="stringliteral">&quot;europe.slovakia.bratislava&quot;</span>); <span class="comment">// returns bratislava</span></div>
-</div><!-- fragment --><p>Character '.' (dot) is used as a separator. Therefore, dots can not be used inside entity names. </p><div class="fragment"><div class="line"><span class="keyword">auto</span> e = wld.add();</div>
+</div><!-- fragment --><p>Hierarchical entity lookup follows direct <code>ChildOf</code> links and direct non-fragmenting <code>Parent</code> links. Use <code>ChildOf</code> when the hierarchy should participate in archetype identity, and use <code>Parent</code> when you need non-fragmenting hierarchy edges.</p>
+<p>Character '.' (dot) is used as a separator. Therefore, dots can not be used inside entity names. </p><div class="fragment"><div class="line"><span class="keyword">auto</span> e = wld.add();</div>
 <div class="line">wld.name(e, <span class="stringliteral">&quot;eur.ope&quot;</span>); <span class="comment">// invalid name, the naming request is going to be ignored</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="names-and-lookup"></a>
 Names and lookup</h3>
@@ -497,19 +498,19 @@ Component scope</h3>
 <h3><a class="anchor" id="non-fragmenting-and-sparse-components"></a>
 Non-fragmenting and sparse components</h3>
 <p>By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.</p>
-<p>If this is undesired, there is also an option to use out-of-line storage and optional non-fragmenting membership. The two traits are:</p>
+<p>If this is undesired, there is also an option to use sparse storage and optional non-fragmenting membership. The two traits are:</p>
 <ul>
 <li><code>ecs::Sparse</code></li>
 <li><code>ecs::DontFragment</code></li>
 </ul>
-<p>To use a non-fragmenting sparse component:</p>
+<p>To use sparse storage with non-fragmenting membership:</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>Cooldown {</div>
 <div class="line">  <span class="keywordtype">float</span> value = 0.0f;</div>
 <div class="line">};</div>
 <div class="line"> </div>
 <div class="line">ecs::World w;</div>
 <div class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp; cooldown = w.add&lt;Cooldown&gt;();</div>
-<div class="line"><span class="comment">// Keep this component&#39;s data out-of-line (not stored in chunks).</span></div>
+<div class="line"><span class="comment">// Store this component&#39;s data in sparse storage instead of archetype chunks.</span></div>
 <div class="line">w.add(cooldown.entity, ecs::Sparse);</div>
 <div class="line"><span class="comment">// Make sure this component is not a part of the archetype id-wise.</span></div>
 <div class="line"><span class="comment">// This means that adding or removing it won&#39;t make the parent entity change its archetype.</span></div>
@@ -528,13 +529,13 @@ Non-fragmenting and sparse components</h3>
 </ul>
 </li>
 <li><code>Sparse</code>:<ul>
-<li>payload stored out-of-line (stable memory address)</li>
+<li>payload stored in sparse storage (stable memory address)</li>
 <li>the id lives in the archetype (add/del fragments)</li>
 <li>good when the payload should stay out of chunks but the component should remain structurally visible</li>
 </ul>
 </li>
 <li><code>DontFragment</code>:<ul>
-<li>payload stored out-of-line (stable memory address)</li>
+<li>payload stored in sparse storage (stable memory address)</li>
 <li>the id does not live in the archetype (add/del does not fragment)</li>
 <li>this is effectively <code>Sparse</code> plus "do not participate in archetype identity"</li>
 <li>the usual choice for optional, state-like, or frequently toggled data</li>
@@ -542,20 +543,20 @@ Non-fragmenting and sparse components</h3>
 </li>
 </ul>
 <p>Rule of thumb:</p><ul>
-<li>keep hot, common, frequently iterated data fragmenting and chunk-stored</li>
-<li>use plain <code>Sparse</code> when the payload should live out-of-line but the component should still participate in structural matching</li>
+<li>keep hot, common, frequently iterated data fragmenting and archetype-stored</li>
+<li>use plain <code>Sparse</code> when the payload should use sparse storage but the component should still participate in structural matching</li>
 <li>use <code>DontFragment</code> for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data</li>
-<li>avoid out-of-line storage for components like <code>Position</code> or <code>Velocity</code> which benfit greatly of sequential access, unless profiling clearly justifies it</li>
+<li>avoid sparse storage for components like <code>Position</code> or <code>Velocity</code> which benefit greatly from sequential archetype access, unless profiling clearly justifies it</li>
 </ul>
 <p>Because <code>DontFragment</code> components live outside archetype identity, adding or removing an already-registered <code>DontFragment</code> component from an existing entity does not move that entity to another archetype. This makes direct add/remove safe during serial query iteration. If the active query also filters on the same component, later rows are matched against the current world state, not a snapshot taken before the query started.</p>
 <p>&gt;<b>NOTE:<br  />
-</b> SoA components do not support out-of-line storage and they stay chunk-backed. <code>ecs::Sparse</code> applies only to plain AoS generic components.<br  />
+</b> SoA components do not support sparse storage and stay archetype-stored. <code>ecs::Sparse</code> applies only to plain AoS generic components.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
 </b> Changing the storage mode is only supported before the component has instances attached to entities.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
-</b> <code>ecs::Sparse</code> and <code>ecs::DontFragment</code> are sticky component traits. Once set on a component entity, removing the relation later does not revert the storage or fragmentation behavior. <code>ecs::DontFragment</code> also implies sparse out-of-line storage, so adding both traits is redundant.<br  />
+</b> <code>ecs::Sparse</code> and <code>ecs::DontFragment</code> are sticky component traits. Once set on a component entity, removing the relation later does not revert the storage or fragmentation behavior. <code>ecs::DontFragment</code> also implies sparse storage, so adding both traits is redundant.<br  />
 </p>
 <h3><a class="anchor" id="component-presence"></a>
 Component presence</h3>
@@ -1308,12 +1309,13 @@ Query traversal</h3>
 <div class="line">ecs::Query qDownUnlimited = w.query()</div>
 <div class="line">  .all&lt;Position&gt;()</div>
 <div class="line">  .all(level, ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));</div>
-</div><!-- fragment --><p>If you know a traversed source closure is small and stable, you can opt into traversed-source snapshots explicitly:</p>
+</div><!-- fragment --><p>Query source traversal treats disabled entities as traversal barriers. Disabled sources are not matched, and descendants under a disabled source are not searched until that source is enabled again.</p>
+<p>If you know a traversed source closure is small and stable, you can opt into traversed-source snapshots explicitly:</p>
 <div class="fragment"><div class="line">ecs::Query qTravCached = w.query()</div>
 <div class="line">  .all&lt;Position&gt;()</div>
 <div class="line">  .all(level, ecs::QueryTermOptions{}.src(scene).trav())</div>
 <div class="line">  .cache_src_trav(16);</div>
-</div><!-- fragment --><p>This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.</p>
+</div><!-- fragment --><p>This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures. Cached traversed-source snapshots also track hierarchy enabled-state changes, so disabled-subtree barriers invalidate the snapshot before reuse.</p>
 <h3><a class="anchor" id="traversal-order"></a>
 Traversal order</h3>
 <p>Use <code>order_by(relation, ecs::TravOrder::...)</code> when you want to reorder the current query result by a relationship traversal. It does not change what the query matches, only the order in which the current result is visited.</p>
@@ -1676,7 +1678,7 @@ Iterating over components not present in the query is not supported and results 
 <p>Processing via an iterator gives you even more expressive power, and opens doors for new kinds of optimizations. <code>Iter</code> is an abstraction over underlying data structures and gives you access to their public API.</p>
 <p>The iterator exposes two families of accessors:</p><ul>
 <li><code>view</code>, <code>view_mut</code>, <code>sview_mut</code>, <code>view_auto</code>, <code>sview_auto</code> - the fast path for terms stored directly in the current chunk</li>
-<li><code>view_any</code>, <code>view_any_mut</code>, <code>sview_any_mut</code>, <code>view_auto_any</code>, <code>sview_auto_any</code> - fallback accessors for inherited prefab data, sparse/out-of-line storage, and other terms that may resolve through another entity</li>
+<li><code>view_any</code>, <code>view_any_mut</code>, <code>sview_any_mut</code>, <code>view_auto_any</code>, <code>sview_auto_any</code> - fallback accessors for inherited prefab data, sparse storage, and other terms that may resolve through another entity</li>
 </ul>
 <p>Runtime-created table AoS components use the same iterator naming with erased raw byte views:</p><ul>
 <li><code>view_raw(termIdx)</code> - read-only raw payload rows for a directly chunk-backed term</li>
@@ -1746,7 +1748,7 @@ Iterating over components not present in the query is not supported and results 
 <div class="line">  }</div>
 <div class="line">  total += localTotal;</div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Performance of views can be improved slightly by explicitly providing the index of the component in the query. For indexed access, plain <code>view(termIdx)</code> assumes the term maps to a chunk column. Use <code>view_any(termIdx)</code> when the indexed term may resolve through inheritance or non-direct storage.</p>
+</div><!-- fragment --><p>Performance of views can be improved slightly by explicitly providing the index of the component in the query. For indexed access, plain <code>view(termIdx)</code> assumes the term maps to a chunk column. Use <code>view_any(termIdx)</code> when the indexed term may resolve through inherited data or sparse storage.</p>
 <div class="fragment"><div class="line">ecs::Query q = w.query();</div>
 <div class="line">q.any&lt;Something&gt;()</div>
 <div class="line"> .all&lt;Position&amp;&gt;()</div>
@@ -3773,7 +3775,7 @@ Project settings</h3>
 <tr class="markdownTableRowOdd">
 <td class="markdownTableBodyNone"><b>GAIA_USE_SANITIZER</b>   </td><td class="markdownTableBodyNone">Applies the specified set of <a class="el" href="index.html#sanitizers">sanitizers</a>    </td></tr>
 <tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Preprocessor switch enabling SmallBlockAllocator spill storage for <code>SmallFunc</code> and <code>MoveFunc</code>; enabled by default. Set to <code>0</code> to force out-of-line callables through the platform heap.   </td></tr>
+<td class="markdownTableBodyNone"><b>GAIA_FUNC_WRAPPER_SMALLBLOCK</b>   </td><td class="markdownTableBodyNone">Uses <code>SmallBlockAllocator</code> for <code>SmallFunc</code> and <code>MoveFunc</code> callables that are too large for their inline buffer. Enabled by default. Set to <code>0</code> to allocate those larger callables with the platform heap instead.   </td></tr>
 </table>
 <h3><a class="anchor" id="sanitizers"></a>
 Sanitizers</h3>

@@ -36,7 +36,8 @@ var searchData=
   ['const_5fsparse_5fiterator_3c_20t_2c_20pagecapacity_2c_20allocator_2c_20std_3a_3aenable_5fif_5ft_3c_20std_3a_3ais_5fempty_5fv_3c_20t_20_3e_20_3e_20_3e_33',['const_sparse_iterator&lt; T, PageCapacity, Allocator, std::enable_if_t&lt; std::is_empty_v&lt; T &gt; &gt; &gt;',['../structgaia_1_1cnt_1_1const__sparse__iterator_3_01T_00_01PageCapacity_00_01Allocator_00_01std_1_1ac6071468172e14d5e0cd6a6d6bb0e21.html',1,'gaia::cnt']]],
   ['contiguous_5fiterator_5ftag_34',['contiguous_iterator_tag',['../structgaia_1_1core_1_1contiguous__iterator__tag.html',1,'gaia::core']]],
   ['copyiter_35',['CopyIter',['../classgaia_1_1ecs_1_1CopyIter.html',1,'gaia::ecs']]],
-  ['core_5f_36',['Core_',['../structgaia_1_1ecs_1_1Core__.html',1,'gaia::ecs']]],
-  ['cursorresult_37',['CursorResult',['../structgaia_1_1ecs_1_1CursorResult.html',1,'gaia::ecs']]],
-  ['cursorresult_3c_20void_20_3e_38',['CursorResult&lt; void &gt;',['../structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html',1,'gaia::ecs']]]
+  ['copyitergroupstate_36',['CopyIterGroupState',['../structgaia_1_1ecs_1_1detail_1_1CopyIterGroupState.html',1,'gaia::ecs::detail']]],
+  ['core_5f_37',['Core_',['../structgaia_1_1ecs_1_1Core__.html',1,'gaia::ecs']]],
+  ['cursorresult_38',['CursorResult',['../structgaia_1_1ecs_1_1CursorResult.html',1,'gaia::ecs']]],
+  ['cursorresult_3c_20void_20_3e_39',['CursorResult&lt; void &gt;',['../structgaia_1_1ecs_1_1CursorResult_3_01void_01_4.html',1,'gaia::ecs']]]
 ];

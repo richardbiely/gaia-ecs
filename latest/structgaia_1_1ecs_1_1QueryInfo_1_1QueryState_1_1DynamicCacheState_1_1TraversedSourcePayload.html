@@ -134,14 +134,14 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_ove
 GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>versions_changed</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>) const</td></tr>
 <tr class="memdesc:a5de70decad148fd84f812cde283c7005"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when any tracked traversed source entity changed archetype. <br /></td></tr>
 <tr class="separator:a5de70decad148fd84f812cde283c7005"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a145891a3b76d676e4f6f85d8210a1afd" id="r_a145891a3b76d676e4f6f85d8210a1afd"><td class="memItemLeft" align="right" valign="top"><a id="a145891a3b76d676e4f6f85d8210a1afd" name="a145891a3b76d676e4f6f85d8210a1afd"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; SrcTravSnapshotItem &gt; &amp;items) const</td></tr>
-<tr class="memdesc:a145891a3b76d676e4f6f85d8210a1afd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when a rebuilt traversed-source closure differs from the captured snapshot. <br /></td></tr>
-<tr class="separator:a145891a3b76d676e4f6f85d8210a1afd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaf532e33e9f261b584190679856e4c47" id="r_aaf532e33e9f261b584190679856e4c47"><td class="memItemLeft" align="right" valign="top"><a id="aaf532e33e9f261b584190679856e4c47" name="aaf532e33e9f261b584190679856e4c47"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>capture</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; SrcTravSnapshotItem &gt; &amp;items)</td></tr>
-<tr class="memdesc:aaf532e33e9f261b584190679856e4c47"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures a newly built traversed-source closure snapshot. <br /></td></tr>
-<tr class="separator:aaf532e33e9f261b584190679856e4c47"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a53bc0c12f6f4160c7e676f60e9abb654" id="r_a53bc0c12f6f4160c7e676f60e9abb654"><td class="memItemLeft" align="right" valign="top"><a id="a53bc0c12f6f4160c7e676f60e9abb654" name="a53bc0c12f6f4160c7e676f60e9abb654"></a>
+GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; SrcTravSnapshotItem &gt; &amp;items) const</td></tr>
+<tr class="memdesc:a53bc0c12f6f4160c7e676f60e9abb654"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when a rebuilt traversed-source closure differs from the captured snapshot. <br /></td></tr>
+<tr class="separator:a53bc0c12f6f4160c7e676f60e9abb654"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae33906d1795bb37cd5200299db8ec33a" id="r_ae33906d1795bb37cd5200299db8ec33a"><td class="memItemLeft" align="right" valign="top"><a id="ae33906d1795bb37cd5200299db8ec33a" name="ae33906d1795bb37cd5200299db8ec33a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>capture</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; SrcTravSnapshotItem &gt; &amp;items)</td></tr>
+<tr class="memdesc:ae33906d1795bb37cd5200299db8ec33a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures a newly built traversed-source closure snapshot. <br /></td></tr>
+<tr class="separator:ae33906d1795bb37cd5200299db8ec33a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2a0069ce4e051c8d58c7bf19a923dc1f" id="r_a2a0069ce4e051c8d58c7bf19a923dc1f"><td class="memItemLeft" align="right" valign="top"><a id="a2a0069ce4e051c8d58c7bf19a923dc1f" name="a2a0069ce4e051c8d58c7bf19a923dc1f"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>mark_overflowed</b> ()</td></tr>
 <tr class="memdesc:a2a0069ce4e051c8d58c7bf19a923dc1f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks the traversed-source snapshot as overflowed and unusable for reuse. <br /></td></tr>
@@ -153,6 +153,10 @@ Public Attributes</h2></td></tr>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; SrcTravSnapshotItem &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>snapshot</b></td></tr>
 <tr class="memdesc:a6d1014f840fcc33a0f11240e55b58bbc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Last seen traversed-source closure for reusable source queries. <br /></td></tr>
 <tr class="separator:a6d1014f840fcc33a0f11240e55b58bbc"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a37b87b0605c012fd22df9cbb0653efbf" id="r_a37b87b0605c012fd22df9cbb0653efbf"><td class="memItemLeft" align="right" valign="top"><a id="a37b87b0605c012fd22df9cbb0653efbf" name="a37b87b0605c012fd22df9cbb0653efbf"></a>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>enabledVersion</b> = UINT32_MAX</td></tr>
+<tr class="memdesc:a37b87b0605c012fd22df9cbb0653efbf"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> enable-state version captured with the traversed-source closure. <br /></td></tr>
+<tr class="separator:a37b87b0605c012fd22df9cbb0653efbf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afd4b3501017cb419aecafbccce9a6172" id="r_afd4b3501017cb419aecafbccce9a6172"><td class="memItemLeft" align="right" valign="top"><a id="afd4b3501017cb419aecafbccce9a6172" name="afd4b3501017cb419aecafbccce9a6172"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>overflowed</b> = false</td></tr>
 <tr class="memdesc:afd4b3501017cb419aecafbccce9a6172"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when the traversed source closure exceeded the configured snapshot cap. <br /></td></tr>

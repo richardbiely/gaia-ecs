@@ -116,7 +116,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1util_1_1MoveFunc_3_01R_07
 </div><!--header-->
 <div class="contents">
 
-<p>Move-only function wrapper with inline storage and optional SmallBlockAllocator spill storage. Medium spill storage uses SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled.  
+<p>Move-only function wrapper with inline storage for small callables. Callables too large for the inline buffer use SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled.  
  <a href="classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="move__func_8h_source.html">move_func.h</a>&gt;</code></p>
@@ -185,7 +185,7 @@ Static Public Member Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename R, typename... Args&gt;<br />
-class gaia::util::MoveFunc&lt; R(Args...)&gt;</div><p>Move-only function wrapper with inline storage and optional SmallBlockAllocator spill storage. Medium spill storage uses SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled. </p>
+class gaia::util::MoveFunc&lt; R(Args...)&gt;</div><p>Move-only function wrapper with inline storage for small callables. Callables too large for the inline buffer use SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ab5ecda408869ce2ef7472576ebd5833f" name="ab5ecda408869ce2ef7472576ebd5833f"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ab5ecda408869ce2ef7472576ebd5833f">&#9670;&#160;</a></span>MoveFunc()</h2>

@@ -119,12 +119,9 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1World_1_1EntityBu
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
-<tr class="memitem:a428e9f92f7a2797a2fca55af632c4ef3" id="r_a428e9f92f7a2797a2fca55af632c4ef3"><td class="memItemLeft" align="right" valign="top">enum class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3">IdMode</a> : uint8_t { <a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3a960b44c579bc2f6818d2daaf9e4c16f0">Normal</a>
-, <a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3a046513a081532a7b821da39488a56d95">Adjunct</a>
-, <a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3ad8f6d391ba573fe747a3360afb99904d">Sticky</a>
- }</td></tr>
-<tr class="memdesc:a428e9f92f7a2797a2fca55af632c4ef3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Classifies how a builder operation treats an id.  <a href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3">More...</a><br /></td></tr>
-<tr class="separator:a428e9f92f7a2797a2fca55af632c4ef3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2659239871e11408896abe8339c58428" id="r_a2659239871e11408896abe8339c58428"><td class="memItemLeft" align="right" valign="top"><a id="a2659239871e11408896abe8339c58428" name="a2659239871e11408896abe8339c58428"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>RelationMutationPath</b> = detail::RelationMutationPath</td></tr>
+<tr class="separator:a2659239871e11408896abe8339c58428"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -248,39 +245,6 @@ Friends</h2></td></tr>
 class&#160;</td><td class="memItemRight" valign="bottom"><b>World</b></td></tr>
 <tr class="separator:a7b4bcdf992c21ae83363f25df05b1d25"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Enumeration Documentation</h2>
-<a id="a428e9f92f7a2797a2fca55af632c4ef3" name="a428e9f92f7a2797a2fca55af632c4ef3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a428e9f92f7a2797a2fca55af632c4ef3">&#9670;&#160;</a></span>IdMode</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">enum class <a class="el" href="structgaia_1_1ecs_1_1World_1_1EntityBuilder.html#a428e9f92f7a2797a2fca55af632c4ef3">gaia::ecs::World::EntityBuilder::IdMode</a> : uint8_t</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">strong</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-<p>Classifies how a builder operation treats an id. </p>
-<table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a428e9f92f7a2797a2fca55af632c4ef3a960b44c579bc2f6818d2daaf9e4c16f0" name="a428e9f92f7a2797a2fca55af632c4ef3a960b44c579bc2f6818d2daaf9e4c16f0"></a>Normal&#160;</td><td class="fielddoc"><p>Normal ids change archetype membership. </p>
-</td></tr>
-<tr><td class="fieldname"><a id="a428e9f92f7a2797a2fca55af632c4ef3a046513a081532a7b821da39488a56d95" name="a428e9f92f7a2797a2fca55af632c4ef3a046513a081532a7b821da39488a56d95"></a>Adjunct&#160;</td><td class="fielddoc"><p>Adjunct ids use exclusive adjunct storage. </p>
-</td></tr>
-<tr><td class="fieldname"><a id="a428e9f92f7a2797a2fca55af632c4ef3ad8f6d391ba573fe747a3360afb99904d" name="a428e9f92f7a2797a2fca55af632c4ef3ad8f6d391ba573fe747a3360afb99904d"></a>Sticky&#160;</td><td class="fielddoc"><p>Sticky ids change how a component behaves and stay that way after they are added. </p>
-</td></tr>
-</table>
-
-</div>
-</div>
 <h2 class="groupheader">Member Function Documentation</h2>
 <a id="a5e758f62ad12d8d972113f2969b529ec" name="a5e758f62ad12d8d972113f2969b529ec"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a5e758f62ad12d8d972113f2969b529ec">&#9670;&#160;</a></span>add() <span class="overload">[1/2]</span></h2>

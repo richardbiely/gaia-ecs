@@ -144,11 +144,11 @@ $(document).ready(function(){initNavTree('component_8h_source.html',''); initRes
 <div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>    <span class="keyword">using </span>ChunkDataOffsetSpan = <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const ChunkDataOffset&gt;</a>;</div>
 <div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>    <span class="keyword">using </span>SortComponentCond = core::is_smaller&lt;Entity&gt;;</div>
 <div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span> </div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> component_has_inline_data(Component component) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> component_uses_table_storage(Component component) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>      <span class="keywordflow">return</span> component.size() != 0U &amp;&amp; (component.storage_type() != DataStorageType::Sparse || component.soa() != 0U);</div>
 <div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    }</div>
 <div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> component_has_out_of_line_data(Component component) <span class="keyword">noexcept</span> {</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    GAIA_NODISCARD <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> component_uses_sparse_storage(Component component) <span class="keyword">noexcept</span> {</div>
 <div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>      <span class="keywordflow">return</span> component.size() != 0U &amp;&amp; component.storage_type() == DataStorageType::Sparse &amp;&amp; component.soa() == 0U;</div>
 <div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    }</div>
 <div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span> </div>

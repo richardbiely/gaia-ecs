@@ -114,7 +114,7 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1pair.html',''); in
 </div><!--header-->
 <div class="contents">
 
-<p>Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it can contain a value. To determine the storage type the following logic is applied: If.  
+<p>Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it can contain a value. To determine the storage type the following logic is applied: If <em>Rel</em> is non-empty, the storage type is Rel. If <em>Rel</em> is empty and <em>Tgt</em> is non-empty, the storage type is Tgt.  
  <a href="classgaia_1_1ecs_1_1pair.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="id_8h_source.html">id.h</a>&gt;</code></p>
@@ -156,12 +156,9 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>type</b> = std::cond
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename Rel, typename Tgt&gt;<br />
-class gaia::ecs::pair&lt; Rel, Tgt &gt;</div><p>Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it can contain a value. To determine the storage type the following logic is applied: If. </p>
+class gaia::ecs::pair&lt; Rel, Tgt &gt;</div><p>Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it can contain a value. To determine the storage type the following logic is applied: If <em>Rel</em> is non-empty, the storage type is Rel. If <em>Rel</em> is empty and <em>Tgt</em> is non-empty, the storage type is Tgt. </p>
 <dl class="tparams"><dt>Template Parameters</dt><dd>
   <table class="tparams">
-    <tr><td class="paramname">Rel</td><td>is non-empty, the storage type is Rel. If </td></tr>
-    <tr><td class="paramname">Rel</td><td>is empty and </td></tr>
-    <tr><td class="paramname">Tgt</td><td>is non-empty, the storage type is Tgt. </td></tr>
     <tr><td class="paramname">Rel</td><td>relation part of the relationship </td></tr>
     <tr><td class="paramname">Tgt</td><td>target part of the relationship </td></tr>
   </table>
