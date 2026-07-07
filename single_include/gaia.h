@@ -28393,10 +28393,11 @@ namespace gaia {
 		inline Entity Traversable = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
 		inline Entity All = Entity(15, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a physical hierarchy.
-		// When the relationship target is deleted all children are deleted as well.
+		//! Fragmenting physical hierarchy relation.
+		//! The target participates in archetype identity and is deleted with its children.
 		inline Entity ChildOf = Entity(16, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a logical/non-fragmenting hierarchy.
+		//! Non-fragmenting logical hierarchy relation.
+		//! Parent changes do not move the source entity to another archetype.
 		inline Entity Parent = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
 		inline Entity Is = Entity(18, 0, false, false, EntityKind::EK_Gen);
@@ -31984,6 +31985,13 @@ namespace gaia {
 			//! \return Const pair record or nullptr when missing.
 			GAIA_NODISCARD const EntityContainer* pair_record_find(Entity entity) const {
 				return m_pairRecords.find(entity);
+			}
+
+			//! Adds a pair record known to be absent.
+			//! \param entity Pair entity.
+			//! \param ec Pair record to store.
+			void pair_record_add(Entity entity, EntityContainer&& ec) {
+				m_pairRecords.add(entity, GAIA_MOV(ec));
 			}
 
 			//! Adds a pair record if it does not exist yet.
@@ -41898,6 +41906,8 @@ namespace gaia {
 						const auto next = target(w, cursor.upSource, term.entTrav);
 						if (next == EntityBad || next == cursor.upSource)
 							return false;
+						if (!world_entity_enabled(w, next))
+							return false;
 
 						cursor.upSource = next;
 						++cursor.upDepth;
@@ -41951,6 +41961,9 @@ namespace gaia {
 							cursor.childIdx = 0;
 							cursor.childLevel = level + 1;
 							sources(w, term.entTrav, source, [&](Entity next) {
+								if (!world_entity_enabled(w, next))
+									return;
+
 								const auto key = EntityLookupKey(next);
 								const auto ins = cursor.visited.insert(key);
 								if (!ins.second)
@@ -41981,7 +41994,7 @@ namespace gaia {
 					const bool unlimitedTraversal =
 							term.travDepth == QueryTermOptions::TravDepthUnlimited && term.entTrav != EntityBad;
 
-					if (unlimitedTraversal &&
+					if (unlimitedTraversal && world_enabled_hierarchy_version(w) == 0 &&
 							(opcode == EOpcode::Src_Up || opcode == EOpcode::Src_Down || opcode == EOpcode::Src_UpDown)) {
 						if (!valid(w, sourceEntity))
 							return false;
@@ -45417,12 +45430,15 @@ namespace gaia {
 					struct TraversedSourcePayload {
 						//! Last seen traversed-source closure for reusable source queries.
 						cnt::darray<SrcTravSnapshotItem> snapshot;
+						//! Entity enable-state version captured with the traversed-source closure.
+						uint32_t enabledVersion = UINT32_MAX;
 						//! True when the traversed source closure exceeded the configured snapshot cap.
 						bool overflowed = false;
 
 						//! Clears traversed-source snapshot state.
 						void clear() {
 							snapshot.clear();
+							enabledVersion = UINT32_MAX;
 							overflowed = false;
 						}
 
@@ -45433,6 +45449,9 @@ namespace gaia {
 
 						//! Returns true when any tracked traversed source entity changed archetype.
 						GAIA_NODISCARD bool versions_changed(const World& world) const {
+							if (enabledVersion != world_enabled_hierarchy_version(world))
+								return true;
+
 							const auto cnt = (uint32_t)snapshot.size();
 							GAIA_FOR(cnt) {
 								const auto& item = snapshot[i];
@@ -45444,7 +45463,10 @@ namespace gaia {
 						}
 
 						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
-						GAIA_NODISCARD bool changed(const cnt::darray<SrcTravSnapshotItem>& items) const {
+						GAIA_NODISCARD bool changed(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) const {
+							if (enabledVersion != world_enabled_hierarchy_version(world))
+								return true;
+
 							if (items.size() != snapshot.size())
 								return true;
 
@@ -45458,14 +45480,16 @@ namespace gaia {
 						}
 
 						//! Captures a newly built traversed-source closure snapshot.
-						void capture(const cnt::darray<SrcTravSnapshotItem>& items) {
+						void capture(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) {
 							snapshot = items;
+							enabledVersion = world_enabled_hierarchy_version(world);
 							overflowed = false;
 						}
 
 						//! Marks the traversed-source snapshot as overflowed and unusable for reuse.
 						void mark_overflowed() {
 							snapshot.clear();
+							enabledVersion = UINT32_MAX;
 							overflowed = true;
 						}
 					};
@@ -45755,7 +45779,7 @@ namespace gaia {
 				if (!build_src_trav_snapshot(scratch))
 					return true;
 
-				return m_state.dynamic.traversedSource.changed(scratch);
+				return m_state.dynamic.traversedSource.changed(*world(), scratch);
 			}
 
 			//! Checks mixed-shape dynamic inputs with the pre-existing dependency-flag path.
@@ -45823,7 +45847,7 @@ namespace gaia {
 			void snapshot_dyn_traversed_src_inputs() {
 				cnt::darray<SrcTravSnapshotItem> scratch;
 				if (build_src_trav_snapshot(scratch))
-					m_state.dynamic.traversedSource.capture(scratch);
+					m_state.dynamic.traversedSource.capture(*world(), scratch);
 				else
 					m_state.dynamic.traversedSource.mark_overflowed();
 			}
@@ -69684,9 +69708,8 @@ namespace gaia {
 				pChunk->update_versions();
 				archetype.try_update_free_chunk_idx();
 
-				const bool added = m_recs.pair_record_try_add(entity, GAIA_MOV(ec));
-				GAIA_ASSERT(added);
-				return added;
+				m_recs.pair_record_add(entity, GAIA_MOV(ec));
+				return true;
 			}
 
 			//! Adds @a entity to the pair lookup index.
