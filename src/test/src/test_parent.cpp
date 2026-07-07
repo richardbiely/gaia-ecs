@@ -92,6 +92,156 @@ TEST_CASE("Parent - breadth-first traversal on non-fragmenting relation") {
 	CHECK(traversed[1] == leaf);
 }
 
+TEST_CASE("ChildOf and Parent - breadth-first sources skip disabled subtrees") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.child(childOfChild, childOfRoot);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRoot);
+	wld.parent(parentLeaf, parentChild);
+
+	wld.enable(childOfChild, false);
+	wld.enable(parentChild, false);
+
+	cnt::darray<ecs::Entity> childOfDisabled;
+	wld.sources_bfs(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		childOfDisabled.push_back(source);
+	});
+	CHECK(childOfDisabled.size() == 0);
+
+	cnt::darray<ecs::Entity> parentDisabled;
+	wld.sources_bfs(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		parentDisabled.push_back(source);
+	});
+	CHECK(parentDisabled.size() == 0);
+
+	wld.enable(childOfChild, true);
+	wld.enable(parentChild, true);
+
+	cnt::darray<ecs::Entity> childOfEnabled;
+	wld.sources_bfs(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		childOfEnabled.push_back(source);
+	});
+	CHECK(childOfEnabled.size() == 2);
+	if (childOfEnabled.size() == 2) {
+		CHECK(childOfEnabled[0] == childOfChild);
+		CHECK(childOfEnabled[1] == childOfLeaf);
+	}
+
+	cnt::darray<ecs::Entity> parentEnabled;
+	wld.sources_bfs(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		parentEnabled.push_back(source);
+	});
+	CHECK(parentEnabled.size() == 2);
+	if (parentEnabled.size() == 2) {
+		CHECK(parentEnabled[0] == parentChild);
+		CHECK(parentEnabled[1] == parentLeaf);
+	}
+}
+
+TEST_CASE("ChildOf and Parent - breadth-first source search skips disabled subtrees") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.child(childOfChild, childOfRoot);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRoot);
+	wld.parent(parentLeaf, parentChild);
+
+	wld.enable(childOfChild, false);
+	wld.enable(parentChild, false);
+
+	const bool childOfFoundDisabled = wld.sources_bfs_if(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		return source == childOfLeaf;
+	});
+	CHECK_FALSE(childOfFoundDisabled);
+
+	const bool parentFoundDisabled = wld.sources_bfs_if(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		return source == parentLeaf;
+	});
+	CHECK_FALSE(parentFoundDisabled);
+
+	wld.enable(childOfChild, true);
+	wld.enable(parentChild, true);
+
+	const bool childOfFoundEnabled = wld.sources_bfs_if(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		return source == childOfLeaf;
+	});
+	CHECK(childOfFoundEnabled);
+
+	const bool parentFoundEnabled = wld.sources_bfs_if(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		return source == parentLeaf;
+	});
+	CHECK(parentFoundEnabled);
+}
+
+TEST_CASE("ChildOf and Parent - breadth-first sources use deterministic sibling order") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfA = wld.add();
+	const auto childOfB = wld.add();
+	const auto childOfC = wld.add();
+	const auto childOfALeaf = wld.add();
+	const auto childOfCLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentA = wld.add();
+	const auto parentB = wld.add();
+	const auto parentC = wld.add();
+	const auto parentALeaf = wld.add();
+	const auto parentCLeaf = wld.add();
+
+	wld.child(childOfC, childOfRoot);
+	wld.child(childOfA, childOfRoot);
+	wld.child(childOfB, childOfRoot);
+	wld.child(childOfCLeaf, childOfC);
+	wld.child(childOfALeaf, childOfA);
+	wld.parent(parentC, parentRoot);
+	wld.parent(parentA, parentRoot);
+	wld.parent(parentB, parentRoot);
+	wld.parent(parentCLeaf, parentC);
+	wld.parent(parentALeaf, parentA);
+
+	cnt::darray<ecs::Entity> childOfOrder;
+	wld.sources_bfs(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		childOfOrder.push_back(source);
+	});
+	CHECK(childOfOrder.size() == 5);
+	if (childOfOrder.size() == 5) {
+		CHECK(childOfOrder[0] == childOfA);
+		CHECK(childOfOrder[1] == childOfB);
+		CHECK(childOfOrder[2] == childOfC);
+		CHECK(childOfOrder[3] == childOfALeaf);
+		CHECK(childOfOrder[4] == childOfCLeaf);
+	}
+
+	cnt::darray<ecs::Entity> parentOrder;
+	wld.sources_bfs(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		parentOrder.push_back(source);
+	});
+	CHECK(parentOrder.size() == 5);
+	if (parentOrder.size() == 5) {
+		CHECK(parentOrder[0] == parentA);
+		CHECK(parentOrder[1] == parentB);
+		CHECK(parentOrder[2] == parentC);
+		CHECK(parentOrder[3] == parentALeaf);
+		CHECK(parentOrder[4] == parentCLeaf);
+	}
+}
+
 TEST_CASE("Parent - direct query terms are evaluated as entity filters") {
 	TestWorld twld;
 
@@ -261,4 +411,165 @@ TEST_CASE("Parent - builder rebind replaces target without archetype move") {
 	});
 	CHECK(newRootSources.size() == 1);
 	CHECK(newRootSources[0] == child);
+}
+
+TEST_CASE("ChildOf and Parent - direct child query returns equivalent entity sets") {
+	TestWorld twld;
+
+	const auto childOfRootA = wld.add();
+	const auto childOfRootB = wld.add();
+	const auto parentRootA = wld.add();
+	const auto parentRootB = wld.add();
+	const auto childOfA0 = wld.add();
+	const auto childOfA1 = wld.add();
+	const auto childOfB = wld.add();
+	const auto parentA0 = wld.add();
+	const auto parentA1 = wld.add();
+	const auto parentB = wld.add();
+
+	wld.add<Position>(childOfA0);
+	wld.add<Position>(childOfA1);
+	wld.add<Position>(childOfB);
+	wld.add<Position>(parentA0);
+	wld.add<Position>(parentA1);
+	wld.add<Position>(parentB);
+
+	wld.child(childOfA0, childOfRootA);
+	wld.child(childOfA1, childOfRootA);
+	wld.child(childOfB, childOfRootB);
+	wld.parent(parentA0, parentRootA);
+	wld.parent(parentA1, parentRootA);
+	wld.parent(parentB, parentRootB);
+
+	auto childOfQuery = wld.query().all<Position>().all(ecs::Pair(ecs::ChildOf, childOfRootA));
+	CHECK(childOfQuery.count() == 2);
+	expect_exact_entities(childOfQuery, {childOfA0, childOfA1});
+
+	auto parentQuery = wld.query().all<Position>().all(ecs::Pair(ecs::Parent, parentRootA));
+	CHECK(parentQuery.count() == 2);
+	expect_exact_entities(parentQuery, {parentA0, parentA1});
+}
+
+TEST_CASE("ChildOf and Parent - recursive delete removes nested subtree") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.child(childOfChild, childOfRoot);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRoot);
+	wld.parent(parentLeaf, parentChild);
+
+	wld.del(childOfRoot);
+	wld.del(parentRoot);
+	wld.update();
+
+	CHECK_FALSE(wld.has(childOfRoot));
+	CHECK_FALSE(wld.has(childOfChild));
+	CHECK_FALSE(wld.has(childOfLeaf));
+	CHECK_FALSE(wld.has(parentRoot));
+	CHECK_FALSE(wld.has(parentChild));
+	CHECK_FALSE(wld.has(parentLeaf));
+}
+
+TEST_CASE("ChildOf and Parent - observer OnAdd and OnDel fire for relation replacement") {
+	TestWorld twld;
+
+	const auto childOfRootA = wld.add();
+	const auto childOfRootB = wld.add();
+	const auto childOfChild = wld.add();
+	const auto parentRootA = wld.add();
+	const auto parentRootB = wld.add();
+	const auto parentChild = wld.add();
+
+	uint32_t childOfAddNew = 0;
+	uint32_t childOfDelOld = 0;
+	uint32_t parentAddNew = 0;
+	uint32_t parentDelOld = 0;
+
+	const auto childOfAddObserver = wld.observer()
+												 .event(ecs::ObserverEvent::OnAdd)
+												 .all(ecs::Pair(ecs::ChildOf, childOfRootB))
+												 .on_each([&](ecs::Iter& it) {
+													 childOfAddNew += it.size();
+												 })
+												 .entity();
+	const auto childOfDelObserver = wld.observer()
+												 .event(ecs::ObserverEvent::OnDel)
+												 .all(ecs::Pair(ecs::ChildOf, childOfRootA))
+												 .on_each([&](ecs::Iter& it) {
+													 childOfDelOld += it.size();
+												 })
+												 .entity();
+	const auto parentAddObserver = wld.observer()
+											 .event(ecs::ObserverEvent::OnAdd)
+											 .all(ecs::Pair(ecs::Parent, parentRootB))
+											 .on_each([&](ecs::Iter& it) {
+												 parentAddNew += it.size();
+											 })
+											 .entity();
+	const auto parentDelObserver = wld.observer()
+											 .event(ecs::ObserverEvent::OnDel)
+											 .all(ecs::Pair(ecs::Parent, parentRootA))
+											 .on_each([&](ecs::Iter& it) {
+												 parentDelOld += it.size();
+											 })
+											 .entity();
+	(void)childOfAddObserver;
+	(void)childOfDelObserver;
+	(void)parentAddObserver;
+	(void)parentDelObserver;
+
+	wld.child(childOfChild, childOfRootA);
+	wld.parent(parentChild, parentRootA);
+
+	CHECK(childOfAddNew == 0);
+	CHECK(childOfDelOld == 0);
+	CHECK(parentAddNew == 0);
+	CHECK(parentDelOld == 0);
+
+	wld.child(childOfChild, childOfRootB);
+	wld.parent(parentChild, parentRootB);
+
+	CHECK(childOfAddNew == 1);
+	CHECK(childOfDelOld == 1);
+	CHECK(parentAddNew == 1);
+	CHECK(parentDelOld == 1);
+	CHECK(wld.has(childOfChild, ecs::Pair(ecs::ChildOf, childOfRootB)));
+	CHECK(wld.has(parentChild, ecs::Pair(ecs::Parent, parentRootB)));
+}
+
+TEST_CASE("ChildOf and Parent - hierarchical name lookup resolves nested children") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.name(childOfRoot, "childof_root");
+	wld.name(childOfChild, "childof_child");
+	wld.name(childOfLeaf, "childof_leaf");
+	wld.name(parentRoot, "parent_root");
+	wld.name(parentChild, "parent_child");
+	wld.name(parentLeaf, "parent_leaf");
+
+	wld.child(childOfChild, childOfRoot);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRoot);
+	wld.parent(parentLeaf, parentChild);
+
+	CHECK(wld.get("childof_root.childof_child") == childOfChild);
+	CHECK(wld.get("childof_root.childof_child.childof_leaf") == childOfLeaf);
+	CHECK(wld.get("parent_root.parent_child") == parentChild);
+	CHECK(wld.get("parent_root.parent_child.parent_leaf") == parentLeaf);
+	CHECK(wld.get("childof_root.parent_child") == ecs::EntityBad);
+	CHECK(wld.get("parent_root.childof_child") == ecs::EntityBad);
 }

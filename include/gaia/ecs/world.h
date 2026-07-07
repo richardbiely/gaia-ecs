@@ -3696,22 +3696,31 @@ namespace gaia {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(parentEntity));
 				auto& parentStore = nonfragmenting_relation_store_mut(Parent);
+				const auto oldParentEntity = parentStore.target(entity);
 
-				if (parentStore.target(entity) == parentEntity)
+				if (oldParentEntity == parentEntity)
 					return;
 
 #if GAIA_OBSERVERS_ENABLED
-				if (!m_observers.has_on_add_observers()) {
+				const bool hasOnDelObservers = oldParentEntity != EntityBad && m_observers.has_on_del_observers();
+				const bool hasOnAddObservers = m_observers.has_on_add_observers();
+				if (!hasOnDelObservers && !hasOnAddObservers) {
 					prepare_parent_batch(parentEntity, parentStore);
 					nonfragmenting_relation_set(parentStore, entity, Parent, parentEntity);
 					return;
 				}
 
+				const Entity oldParentPair = hasOnDelObservers ? Pair(Parent, oldParentEntity) : EntityBad;
 				const Entity parentPair = Pair(Parent, parentEntity);
+				auto delDiffCtx = !hasOnDelObservers ? ObserverRegistry::DiffDispatchCtx{}
+																		 : m_observers.prepare_diff(
+																				 *this, ObserverEvent::OnDel, EntitySpan{&oldParentPair, 1},
+																				 EntitySpan{&entity, 1});
+				auto addDiffCtx = !hasOnAddObservers ? ObserverRegistry::DiffDispatchCtx{}
+																		 : m_observers.prepare_diff(
+																				 *this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1},
+																				 EntitySpan{&entity, 1});
 				prepare_parent_batch(parentEntity, parentStore);
-
-				auto addDiffCtx =
-						m_observers.prepare_diff(*this, ObserverEvent::OnAdd, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
 #else
 				prepare_parent_batch(parentEntity, parentStore);
 #endif
@@ -3719,8 +3728,14 @@ namespace gaia {
 
 #if GAIA_OBSERVERS_ENABLED
 				const auto& ec = fetch(entity);
-				m_observers.on_add(*this, *ec.pArchetype, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
-				m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
+				if (hasOnDelObservers)
+					m_observers.on_del(*this, *ec.pArchetype, EntitySpan{&oldParentPair, 1}, EntitySpan{&entity, 1});
+				if (hasOnAddObservers)
+					m_observers.on_add(*this, *ec.pArchetype, EntitySpan{&parentPair, 1}, EntitySpan{&entity, 1});
+				if (hasOnDelObservers)
+					m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
+				if (hasOnAddObservers)
+					m_observers.finish_diff(*this, GAIA_MOV(addDiffCtx));
 #endif
 			}
 
@@ -5786,6 +5801,14 @@ namespace gaia {
 				return it != m_nameToEntity.end() ? it->second : EntityBad;
 			}
 
+			//! Checks whether @a child is directly nested under @a parent through a Gaia hierarchy relation.
+			//! \param child Candidate child entity.
+			//! \param parent Candidate parent entity.
+			//! \return True when `ChildOf` or non-fragmenting `Parent` links @a child to @a parent.
+			GAIA_NODISCARD bool hierarchy_child_matches_parent(Entity child, Entity parent) const {
+				return this->child(child, parent) || this->parent(child, parent);
+			}
+
 			GAIA_NODISCARD Entity get_entity_inter(const char* name, uint32_t len = 0) const {
 				if (name == nullptr || name[0] == 0)
 					return EntityBad;
@@ -5817,7 +5840,7 @@ namespace gaia {
 
 					if (posDot == BadIndex) {
 						child = find_named_entity_inter(str.data(), (uint32_t)str.size());
-						if (child == EntityBad || !this->child(child, parent))
+						if (child == EntityBad || !hierarchy_child_matches_parent(child, parent))
 							return EntityBad;
 
 						return child;
@@ -5827,7 +5850,7 @@ namespace gaia {
 						return EntityBad;
 
 					child = find_named_entity_inter(str.data(), posDot);
-					if (child == EntityBad || !this->child(child, parent))
+					if (child == EntityBad || !hierarchy_child_matches_parent(child, parent))
 						return EntityBad;
 
 					parent = child;
@@ -7038,41 +7061,6 @@ namespace gaia {
 				}
 
 				return false;
-			}
-
-			//! Visits direct children in the `ChildOf` hierarchy.
-			//! \param parent Parent entity
-			//! \param func void(Entity child) functor executed for each child.
-			template <typename Func>
-			void children(Entity parent, Func func) const {
-				sources(ChildOf, parent, func);
-			}
-
-			//! Visits direct children in the `ChildOf` hierarchy until @a func returns false.
-			//! \param parent Parent entity
-			//! \param func bool(Entity child) functor executed for each child found.
-			//!             Stops if false is returned.
-			template <typename Func>
-			void children_if(Entity parent, Func func) const {
-				sources_if(ChildOf, parent, func);
-			}
-
-			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
-			//! \param root Root entity
-			//! \param func void(Entity child) functor executed for each descendant.
-			template <typename Func>
-			void children_bfs(Entity root, Func func) const {
-				sources_bfs(ChildOf, root, func);
-			}
-
-			//! Traverses descendants in the `ChildOf` hierarchy in breadth-first order.
-			//! \param root Root entity
-			//! \param func bool(Entity child) functor executed for each child found.
-			//!             Stops if true is returned.
-			//! \return True when traversal stopped early. False otherwise.
-			template <typename Func>
-			GAIA_NODISCARD bool children_bfs_if(Entity root, Func func) const {
-				return sources_bfs_if(ChildOf, root, func);
 			}
 
 			//! Traverses transitive `Is` targets of @a relation.
@@ -9945,6 +9933,13 @@ namespace gaia {
 				if (!visited.insert(EntityLookupKey(entity)).second)
 					return;
 
+				cnt::darray<Entity> cascadeTargets;
+				if (entity.pair() && entity.id() == All.id()) {
+					const auto target = try_get(entity.gen());
+					if (target != EntityBad)
+						collect_delete_cascade_direct_sources(target, cond, cascadeTargets);
+				}
+
 				auto req_del_nonfragmenting_pair = [&](Entity relation, Entity target) {
 					if (!has(relation, cond))
 						return;
@@ -9957,6 +9952,9 @@ namespace gaia {
 					for (auto source: sourcesToDel)
 						req_del(fetch(source), source);
 				};
+
+				for (auto source: cascadeTargets)
+					req_del_entities_with(Pair(All, source), cond, visited);
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {
@@ -9986,16 +9984,6 @@ namespace gaia {
 				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(entity));
 				if (it == m_entityToArchetypeMap.end())
 					return;
-
-				cnt::darray<Entity> cascadeTargets;
-				if (entity.pair() && entity.id() == All.id()) {
-					const auto target = try_get(entity.gen());
-					if (target != EntityBad)
-						collect_delete_cascade_direct_sources(target, cond, cascadeTargets);
-				}
-
-				for (auto source: cascadeTargets)
-					req_del_entities_with(Pair(All, source), cond, visited);
 
 				for (const auto& record: it->second) {
 					auto* pArchetype = record.pArchetype;

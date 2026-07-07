@@ -652,10 +652,11 @@ namespace gaia {
 		inline Entity Traversable = Entity(14, 0, false, false, EntityKind::EK_Gen);
 		// Wildcard query entity
 		inline Entity All = Entity(15, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a physical hierarchy.
-		// When the relationship target is deleted all children are deleted as well.
+		//! Fragmenting physical hierarchy relation.
+		//! The target participates in archetype identity and is deleted with its children.
 		inline Entity ChildOf = Entity(16, 0, false, false, EntityKind::EK_Gen);
-		// Entity representing a logical/non-fragmenting hierarchy.
+		//! Non-fragmenting logical hierarchy relation.
+		//! Parent changes do not move the source entity to another archetype.
 		inline Entity Parent = Entity(17, 0, false, false, EntityKind::EK_Gen);
 		// Alias for a base entity/inheritance
 		inline Entity Is = Entity(18, 0, false, false, EntityKind::EK_Gen);

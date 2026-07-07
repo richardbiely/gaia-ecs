@@ -1023,6 +1023,57 @@ TEST_CASE("Prefab - instantiate_n recurses nested prefab children") {
 	CHECK(leafCount == 2);
 }
 
+TEST_CASE("Prefab - nested Parent prefab children can be found through shared source helpers") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.parent(leafPrefab, childPrefab);
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+
+	cnt::darray<ecs::Entity> children;
+	wld.sources(ecs::Parent, rootInstance, [&](ecs::Entity child) {
+		children.push_back(child);
+	});
+	uint32_t visitedUntilStop = 0;
+	wld.sources_if(ecs::Parent, rootInstance, [&](ecs::Entity) {
+		++visitedUntilStop;
+		return false;
+	});
+
+	CHECK(children.size() == 1);
+	CHECK(visitedUntilStop == 1);
+	if (children.size() == 1) {
+		CHECK(wld.has_direct(children[0], ecs::Pair(ecs::Is, childPrefab)));
+
+		cnt::darray<ecs::Entity> leaves;
+		ecs::sources(wld, ecs::Parent, children[0], [&](ecs::Entity leaf) {
+			leaves.push_back(leaf);
+		});
+
+		CHECK(leaves.size() == 1);
+		if (leaves.size() == 1) {
+			CHECK(wld.has_direct(leaves[0], ecs::Pair(ecs::Is, leafPrefab)));
+			CHECK(wld.has(leaves[0], ecs::Pair(ecs::Parent, children[0])));
+		}
+	}
+
+	cnt::darray<ecs::Entity> descendants;
+	wld.sources_bfs(ecs::Parent, rootInstance, [&](ecs::Entity descendant) {
+		descendants.push_back(descendant);
+	});
+	CHECK(descendants.size() == 2);
+
+	const bool stoppedOnLeaf = ecs::sources_bfs_if(wld, ecs::Parent, rootInstance, [&](ecs::Entity descendant) {
+		return wld.has_direct(descendant, ecs::Pair(ecs::Is, leafPrefab));
+	});
+	CHECK(stoppedOnLeaf);
+}
+
 TEST_CASE("Prefab - instantiate_n with zero count does nothing") {
 	TestWorld twld;
 

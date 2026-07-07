@@ -157,26 +157,6 @@ namespace gaia {
 			return world.sources_bfs_if(relation, rootTarget, func);
 		}
 
-		template <typename Func>
-		inline void children(const World& world, Entity parent, Func func) {
-			world.children(parent, func);
-		}
-
-		template <typename Func>
-		inline void children_if(const World& world, Entity parent, Func func) {
-			world.children_if(parent, func);
-		}
-
-		template <typename Func>
-		inline void children_bfs(const World& world, Entity root, Func func) {
-			world.children_bfs(root, func);
-		}
-
-		template <typename Func>
-		inline bool children_bfs_if(const World& world, Entity root, Func func) {
-			return world.children_bfs_if(root, func);
-		}
-
 		// Query API
 
 		GAIA_NODISCARD inline QuerySerBuffer& query_buffer(World& world, QueryId& serId) {

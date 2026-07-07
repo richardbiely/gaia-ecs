@@ -287,6 +287,10 @@ auto e1 = wld.get("europe.slovakia"); // returns slovakia
 auto e2 = wld.get("europe.slovakia.bratislava"); // returns bratislava
 ```
 
+Hierarchical entity lookup follows direct `ChildOf` links and direct non-fragmenting `Parent` links. Use `ChildOf`
+when the hierarchy should participate in archetype identity, and use `Parent` when you need non-fragmenting hierarchy
+edges.
+
 Character '.' (dot) is used as a separator. Therefore, dots can not be used inside entity names.
 ```cpp
 auto e = wld.add();

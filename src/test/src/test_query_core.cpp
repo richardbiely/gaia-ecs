@@ -4131,7 +4131,7 @@ TEST_CASE("Deleting exclusive dontfragment relation entity clears non-fragmentin
 	CHECK(targetsB.empty());
 }
 
-TEST_CASE("Child hierarchy traversal") {
+TEST_CASE("ChildOf source hierarchy traversal") {
 	TestWorld twld;
 
 	auto root = wld.add();
@@ -4147,7 +4147,7 @@ TEST_CASE("Child hierarchy traversal") {
 
 	{
 		cnt::darr<ecs::Entity> direct;
-		wld.children(root, [&direct](ecs::Entity child) {
+		wld.sources(ecs::ChildOf, root, [&direct](ecs::Entity child) {
 			direct.push_back(child);
 		});
 
@@ -4158,7 +4158,7 @@ TEST_CASE("Child hierarchy traversal") {
 
 	{
 		cnt::darr<ecs::Entity> bfs;
-		wld.children_bfs(root, [&bfs](ecs::Entity child) {
+		wld.sources_bfs(ecs::ChildOf, root, [&bfs](ecs::Entity child) {
 			bfs.push_back(child);
 		});
 
@@ -4173,7 +4173,7 @@ TEST_CASE("Child hierarchy traversal") {
 		wld.enable(c0, false);
 
 		cnt::darr<ecs::Entity> bfs;
-		wld.children_bfs(root, [&bfs](ecs::Entity child) {
+		wld.sources_bfs(ecs::ChildOf, root, [&bfs](ecs::Entity child) {
 			bfs.push_back(child);
 		});
 
