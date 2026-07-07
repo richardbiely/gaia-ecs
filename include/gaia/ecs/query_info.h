@@ -389,12 +389,15 @@ namespace gaia {
 					struct TraversedSourcePayload {
 						//! Last seen traversed-source closure for reusable source queries.
 						cnt::darray<SrcTravSnapshotItem> snapshot;
+						//! Entity enable-state version captured with the traversed-source closure.
+						uint32_t enabledVersion = UINT32_MAX;
 						//! True when the traversed source closure exceeded the configured snapshot cap.
 						bool overflowed = false;
 
 						//! Clears traversed-source snapshot state.
 						void clear() {
 							snapshot.clear();
+							enabledVersion = UINT32_MAX;
 							overflowed = false;
 						}
 
@@ -405,6 +408,9 @@ namespace gaia {
 
 						//! Returns true when any tracked traversed source entity changed archetype.
 						GAIA_NODISCARD bool versions_changed(const World& world) const {
+							if (enabledVersion != world_enabled_hierarchy_version(world))
+								return true;
+
 							const auto cnt = (uint32_t)snapshot.size();
 							GAIA_FOR(cnt) {
 								const auto& item = snapshot[i];
@@ -416,7 +422,10 @@ namespace gaia {
 						}
 
 						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
-						GAIA_NODISCARD bool changed(const cnt::darray<SrcTravSnapshotItem>& items) const {
+						GAIA_NODISCARD bool changed(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) const {
+							if (enabledVersion != world_enabled_hierarchy_version(world))
+								return true;
+
 							if (items.size() != snapshot.size())
 								return true;
 
@@ -430,14 +439,16 @@ namespace gaia {
 						}
 
 						//! Captures a newly built traversed-source closure snapshot.
-						void capture(const cnt::darray<SrcTravSnapshotItem>& items) {
+						void capture(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) {
 							snapshot = items;
+							enabledVersion = world_enabled_hierarchy_version(world);
 							overflowed = false;
 						}
 
 						//! Marks the traversed-source snapshot as overflowed and unusable for reuse.
 						void mark_overflowed() {
 							snapshot.clear();
+							enabledVersion = UINT32_MAX;
 							overflowed = true;
 						}
 					};
@@ -727,7 +738,7 @@ namespace gaia {
 				if (!build_src_trav_snapshot(scratch))
 					return true;
 
-				return m_state.dynamic.traversedSource.changed(scratch);
+				return m_state.dynamic.traversedSource.changed(*world(), scratch);
 			}
 
 			//! Checks mixed-shape dynamic inputs with the pre-existing dependency-flag path.
@@ -795,7 +806,7 @@ namespace gaia {
 			void snapshot_dyn_traversed_src_inputs() {
 				cnt::darray<SrcTravSnapshotItem> scratch;
 				if (build_src_trav_snapshot(scratch))
-					m_state.dynamic.traversedSource.capture(scratch);
+					m_state.dynamic.traversedSource.capture(*world(), scratch);
 				else
 					m_state.dynamic.traversedSource.mark_overflowed();
 			}

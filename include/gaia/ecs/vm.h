@@ -984,6 +984,8 @@ namespace gaia {
 						const auto next = target(w, cursor.upSource, term.entTrav);
 						if (next == EntityBad || next == cursor.upSource)
 							return false;
+						if (!world_entity_enabled(w, next))
+							return false;
 
 						cursor.upSource = next;
 						++cursor.upDepth;
@@ -1037,6 +1039,9 @@ namespace gaia {
 							cursor.childIdx = 0;
 							cursor.childLevel = level + 1;
 							sources(w, term.entTrav, source, [&](Entity next) {
+								if (!world_entity_enabled(w, next))
+									return;
+
 								const auto key = EntityLookupKey(next);
 								const auto ins = cursor.visited.insert(key);
 								if (!ins.second)
@@ -1067,7 +1072,7 @@ namespace gaia {
 					const bool unlimitedTraversal =
 							term.travDepth == QueryTermOptions::TravDepthUnlimited && term.entTrav != EntityBad;
 
-					if (unlimitedTraversal &&
+					if (unlimitedTraversal && world_enabled_hierarchy_version(w) == 0 &&
 							(opcode == EOpcode::Src_Up || opcode == EOpcode::Src_Down || opcode == EOpcode::Src_UpDown)) {
 						if (!valid(w, sourceEntity))
 							return false;

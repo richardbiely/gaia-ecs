@@ -525,6 +525,75 @@ TEST_CASE("Query - cached traversed-source query after traversal changes") {
 	CHECK(q.count() == 0);
 }
 
+TEST_CASE("Query - cached Parent traversed-source query after reparent") {
+	TestWorld twld;
+
+	const auto rootA = wld.add();
+	const auto rootB = wld.add();
+	const auto parentA = wld.add();
+	const auto parentB = wld.add();
+	const auto scene = wld.add();
+	wld.parent(scene, parentA);
+	wld.parent(parentA, rootA);
+	wld.parent(parentB, rootB);
+	wld.add<Acceleration>(parentA, {1, 2, 3});
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {4, 5, 6});
+
+	auto q = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav_parent(ecs::Parent));
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revParentA = info.result_cache_rev();
+	CHECK(q.count() == 1);
+
+	wld.parent(scene, parentB);
+	q.match_all(info);
+	const auto revParentB = info.result_cache_rev();
+	CHECK(revParentB != revParentA);
+	CHECK(q.count() == 0);
+
+	wld.add<Acceleration>(parentB, {7, 8, 9});
+	q.match_all(info);
+	CHECK(info.result_cache_rev() != revParentB);
+	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached Parent traversed-source query after source subtree delete") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto parent = wld.add();
+	const auto scene = wld.add();
+	wld.parent(scene, parent);
+	wld.parent(parent, root);
+	wld.add<Acceleration>(parent, {1, 2, 3});
+
+	const auto e = wld.add();
+	wld.add<Position>(e, {4, 5, 6});
+
+	auto q = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(scene).trav_parent(ecs::Parent));
+	auto& info = q.fetch();
+
+	q.match_all(info);
+	const auto revParent = info.result_cache_rev();
+	CHECK(q.count() == 1);
+
+	wld.del(parent);
+	wld.update();
+
+	q.match_all(info);
+	CHECK(info.result_cache_rev() != revParent);
+	CHECK(q.count() == 0);
+}
+
 TEST_CASE("Query - cached traversed-source query with unrelated archetype changes") {
 	TestWorld twld;
 
@@ -555,6 +624,617 @@ TEST_CASE("Query - cached traversed-source query with unrelated archetype change
 	q.match_all(info);
 	CHECK(info.result_cache_rev() == revA);
 	CHECK(q.count() == 1);
+}
+
+TEST_CASE("Query - cached down traversed-source query after reparent") {
+	TestWorld twld;
+
+	const auto childOfRootA = wld.add();
+	const auto childOfRootB = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentRootA = wld.add();
+	const auto parentRootB = wld.add();
+	const auto parentSource = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add<Acceleration>(childOfSource, {4, 5, 6});
+	wld.add<Acceleration>(parentSource, {7, 8, 9});
+	wld.child(childOfSource, childOfRootA);
+	wld.parent(parentSource, parentRootA);
+
+	auto childOfOldRoot = wld.query()
+									 .cache_src_trav(ecs::MaxCacheSrcTrav)
+									 .all<Position>()
+									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf));
+	auto childOfNewRoot = wld.query()
+									 .cache_src_trav(ecs::MaxCacheSrcTrav)
+									 .all<Position>()
+									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf));
+	auto parentOldRoot = wld.query()
+								 .cache_src_trav(ecs::MaxCacheSrcTrav)
+								 .all<Position>()
+								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent));
+	auto parentNewRoot = wld.query()
+								 .cache_src_trav(ecs::MaxCacheSrcTrav)
+								 .all<Position>()
+								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent));
+
+	auto& childOfOldInfo = childOfOldRoot.fetch();
+	auto& childOfNewInfo = childOfNewRoot.fetch();
+	auto& parentOldInfo = parentOldRoot.fetch();
+	auto& parentNewInfo = parentNewRoot.fetch();
+
+	childOfOldRoot.match_all(childOfOldInfo);
+	childOfNewRoot.match_all(childOfNewInfo);
+	parentOldRoot.match_all(parentOldInfo);
+	parentNewRoot.match_all(parentNewInfo);
+	const auto childOfOldRev = childOfOldInfo.result_cache_rev();
+	const auto childOfNewRev = childOfNewInfo.result_cache_rev();
+	const auto parentOldRev = parentOldInfo.result_cache_rev();
+	const auto parentNewRev = parentNewInfo.result_cache_rev();
+	CHECK(childOfOldRoot.count() == 1);
+	CHECK(childOfNewRoot.count() == 0);
+	CHECK(parentOldRoot.count() == 1);
+	CHECK(parentNewRoot.count() == 0);
+
+	wld.child(childOfSource, childOfRootB);
+	wld.parent(parentSource, parentRootB);
+
+	childOfOldRoot.match_all(childOfOldInfo);
+	childOfNewRoot.match_all(childOfNewInfo);
+	parentOldRoot.match_all(parentOldInfo);
+	parentNewRoot.match_all(parentNewInfo);
+	CHECK(childOfOldInfo.result_cache_rev() != childOfOldRev);
+	CHECK(childOfNewInfo.result_cache_rev() != childOfNewRev);
+	CHECK(parentOldInfo.result_cache_rev() != parentOldRev);
+	CHECK(parentNewInfo.result_cache_rev() != parentNewRev);
+	CHECK(childOfOldRoot.count() == 0);
+	CHECK(childOfNewRoot.count() == 1);
+	CHECK(parentOldRoot.count() == 0);
+	CHECK(parentNewRoot.count() == 1);
+}
+
+TEST_CASE("Query - cached down traversed-source query after subtree delete") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfSource = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentSource = wld.add();
+	const auto parentLeaf = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add<Acceleration>(childOfLeaf, {4, 5, 6});
+	wld.add<Acceleration>(parentLeaf, {7, 8, 9});
+	wld.child(childOfSource, childOfRoot);
+	wld.child(childOfLeaf, childOfSource);
+	wld.parent(parentSource, parentRoot);
+	wld.parent(parentLeaf, parentSource);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.del(childOfSource);
+	wld.del(parentSource);
+	wld.update();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+}
+
+TEST_CASE("Query - cached down traversed-source query skips disabled subtrees") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfSource = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentSource = wld.add();
+	const auto parentLeaf = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add<Acceleration>(childOfLeaf, {4, 5, 6});
+	wld.add<Acceleration>(parentLeaf, {7, 8, 9});
+	wld.child(childOfSource, childOfRoot);
+	wld.child(childOfLeaf, childOfSource);
+	wld.parent(parentSource, parentRoot);
+	wld.parent(parentLeaf, parentSource);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent));
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.enable(childOfSource, false);
+	wld.enable(parentSource, false);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+
+	wld.enable(childOfSource, true);
+	wld.enable(parentSource, true);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+}
+
+TEST_CASE("Query - cached up traversed-source query skips disabled ancestors") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfParent = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentParent = wld.add();
+	const auto parentSource = wld.add();
+	const auto childOfMatch = wld.add();
+	const auto parentMatch = wld.add();
+
+	wld.add<Position>(childOfMatch, {1, 2, 3});
+	wld.add<Position>(parentMatch, {4, 5, 6});
+	wld.add<Acceleration>(childOfParent, {7, 8, 9});
+	wld.add<Acceleration>(parentParent, {10, 11, 12});
+	wld.child(childOfSource, childOfParent);
+	wld.child(childOfParent, childOfRoot);
+	wld.parent(parentSource, parentParent);
+	wld.parent(parentParent, parentRoot);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent));
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 2);
+	CHECK(parentQuery.count() == 2);
+
+	wld.enable(childOfParent, false);
+	wld.enable(parentParent, false);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+
+	wld.enable(childOfParent, true);
+	wld.enable(parentParent, true);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfQuery.count() == 2);
+	CHECK(parentQuery.count() == 2);
+}
+
+TEST_CASE("Query - mixed dynamic traversed-source query after reparent") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfRootA = wld.add();
+	const auto childOfRootB = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentRootA = wld.add();
+	const auto parentRootB = wld.add();
+	const auto parentSource = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfSource, {4, 5, 6});
+	wld.add<Acceleration>(parentSource, {7, 8, 9});
+	wld.child(childOfSource, childOfRootA);
+	wld.parent(parentSource, parentRootA);
+
+	auto childOfOldRoot = wld.query()
+									 .cache_src_trav(ecs::MaxCacheSrcTrav)
+									 .all<Position>()
+									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootA).trav_down(ecs::ChildOf))
+									 .all(ecs::Pair(tagRel, ecs::Var0));
+	auto childOfNewRoot = wld.query()
+									 .cache_src_trav(ecs::MaxCacheSrcTrav)
+									 .all<Position>()
+									 .all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRootB).trav_down(ecs::ChildOf))
+									 .all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentOldRoot = wld.query()
+								 .cache_src_trav(ecs::MaxCacheSrcTrav)
+								 .all<Position>()
+								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootA).trav_down(ecs::Parent))
+								 .all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentNewRoot = wld.query()
+								 .cache_src_trav(ecs::MaxCacheSrcTrav)
+								 .all<Position>()
+								 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRootB).trav_down(ecs::Parent))
+								 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfOldRoot.set_var(ecs::Var0, tag);
+	childOfNewRoot.set_var(ecs::Var0, tag);
+	parentOldRoot.set_var(ecs::Var0, tag);
+	parentNewRoot.set_var(ecs::Var0, tag);
+
+	auto& childOfOldInfo = childOfOldRoot.fetch();
+	auto& childOfNewInfo = childOfNewRoot.fetch();
+	auto& parentOldInfo = parentOldRoot.fetch();
+	auto& parentNewInfo = parentNewRoot.fetch();
+
+	childOfOldRoot.match_all(childOfOldInfo);
+	childOfNewRoot.match_all(childOfNewInfo);
+	parentOldRoot.match_all(parentOldInfo);
+	parentNewRoot.match_all(parentNewInfo);
+	const auto childOfOldRev = childOfOldInfo.result_cache_rev();
+	const auto childOfNewRev = childOfNewInfo.result_cache_rev();
+	const auto parentOldRev = parentOldInfo.result_cache_rev();
+	const auto parentNewRev = parentNewInfo.result_cache_rev();
+	CHECK(childOfOldRoot.count() == 1);
+	CHECK(childOfNewRoot.count() == 0);
+	CHECK(parentOldRoot.count() == 1);
+	CHECK(parentNewRoot.count() == 0);
+
+	wld.child(childOfSource, childOfRootB);
+	wld.parent(parentSource, parentRootB);
+
+	childOfOldRoot.match_all(childOfOldInfo);
+	childOfNewRoot.match_all(childOfNewInfo);
+	parentOldRoot.match_all(parentOldInfo);
+	parentNewRoot.match_all(parentNewInfo);
+	CHECK(childOfOldInfo.result_cache_rev() != childOfOldRev);
+	CHECK(childOfNewInfo.result_cache_rev() != childOfNewRev);
+	CHECK(parentOldInfo.result_cache_rev() != parentOldRev);
+	CHECK(parentNewInfo.result_cache_rev() != parentNewRev);
+	CHECK(childOfOldRoot.count() == 0);
+	CHECK(childOfNewRoot.count() == 1);
+	CHECK(parentOldRoot.count() == 0);
+	CHECK(parentNewRoot.count() == 1);
+}
+
+TEST_CASE("Query - mixed dynamic up traversed-source query after reparent") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfParentA = wld.add();
+	const auto childOfParentB = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentParentA = wld.add();
+	const auto parentParentB = wld.add();
+	const auto parentSource = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfParentA, {4, 5, 6});
+	wld.add<Acceleration>(parentParentA, {7, 8, 9});
+	wld.child(childOfSource, childOfParentA);
+	wld.parent(parentSource, parentParentA);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+								.all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfQuery.set_var(ecs::Var0, tag);
+	parentQuery.set_var(ecs::Var0, tag);
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRevA = childOfInfo.result_cache_rev();
+	const auto parentRevA = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.child(childOfSource, childOfParentB);
+	wld.parent(parentSource, parentParentB);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRevB = childOfInfo.result_cache_rev();
+	const auto parentRevB = parentInfo.result_cache_rev();
+	CHECK(childOfRevB != childOfRevA);
+	CHECK(parentRevB != parentRevA);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+
+	wld.add<Acceleration>(childOfParentB, {10, 11, 12});
+	wld.add<Acceleration>(parentParentB, {13, 14, 15});
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRevB);
+	CHECK(parentInfo.result_cache_rev() != parentRevB);
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+}
+
+TEST_CASE("Query - mixed dynamic up traversed-source query skips disabled ancestors") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfRoot = wld.add();
+	const auto childOfParent = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentParent = wld.add();
+	const auto parentSource = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfParent, {4, 5, 6});
+	wld.add<Acceleration>(parentParent, {7, 8, 9});
+	wld.child(childOfSource, childOfParent);
+	wld.child(childOfParent, childOfRoot);
+	wld.parent(parentSource, parentParent);
+	wld.parent(parentParent, parentRoot);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+								.all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfQuery.set_var(ecs::Var0, tag);
+	parentQuery.set_var(ecs::Var0, tag);
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.enable(childOfParent, false);
+	wld.enable(parentParent, false);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfDisabledRev = childOfInfo.result_cache_rev();
+	const auto parentDisabledRev = parentInfo.result_cache_rev();
+	CHECK(childOfDisabledRev != childOfRev);
+	CHECK(parentDisabledRev != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+
+	wld.enable(childOfParent, true);
+	wld.enable(parentParent, true);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfDisabledRev);
+	CHECK(parentInfo.result_cache_rev() != parentDisabledRev);
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+}
+
+TEST_CASE("Query - mixed dynamic up traversed-source query after source subtree delete") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfRoot = wld.add();
+	const auto childOfParent = wld.add();
+	const auto childOfSource = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentParent = wld.add();
+	const auto parentSource = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfParent, {4, 5, 6});
+	wld.add<Acceleration>(parentParent, {7, 8, 9});
+	wld.child(childOfSource, childOfParent);
+	wld.child(childOfParent, childOfRoot);
+	wld.parent(parentSource, parentParent);
+	wld.parent(parentParent, parentRoot);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfSource).trav_parent(ecs::ChildOf))
+								.all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentSource).trav_parent(ecs::Parent))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfQuery.set_var(ecs::Var0, tag);
+	parentQuery.set_var(ecs::Var0, tag);
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.del(childOfParent);
+	wld.del(parentParent);
+	wld.update();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+}
+
+TEST_CASE("Query - mixed dynamic traversed-source query skips disabled subtrees") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfRoot = wld.add();
+	const auto childOfSource = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentSource = wld.add();
+	const auto parentLeaf = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfLeaf, {4, 5, 6});
+	wld.add<Acceleration>(parentLeaf, {7, 8, 9});
+	wld.child(childOfSource, childOfRoot);
+	wld.child(childOfLeaf, childOfSource);
+	wld.parent(parentSource, parentRoot);
+	wld.parent(parentLeaf, parentSource);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
+								.all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfQuery.set_var(ecs::Var0, tag);
+	parentQuery.set_var(ecs::Var0, tag);
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.enable(childOfSource, false);
+	wld.enable(parentSource, false);
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
+}
+
+TEST_CASE("Query - mixed dynamic traversed-source query after subtree delete") {
+	TestWorld twld;
+
+	const auto tagRel = wld.add();
+	const auto tag = wld.add();
+	const auto childOfRoot = wld.add();
+	const auto childOfSource = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentSource = wld.add();
+	const auto parentLeaf = wld.add();
+	const auto match = wld.add();
+
+	wld.add<Position>(match, {1, 2, 3});
+	wld.add(match, ecs::Pair(tagRel, tag));
+	wld.add<Acceleration>(childOfLeaf, {4, 5, 6});
+	wld.add<Acceleration>(parentLeaf, {7, 8, 9});
+	wld.child(childOfSource, childOfRoot);
+	wld.child(childOfLeaf, childOfSource);
+	wld.parent(parentSource, parentRoot);
+	wld.parent(parentLeaf, parentSource);
+
+	auto childOfQuery = wld.query()
+								.cache_src_trav(ecs::MaxCacheSrcTrav)
+								.all<Position>()
+								.all<Acceleration>(ecs::QueryTermOptions{}.src(childOfRoot).trav_down(ecs::ChildOf))
+								.all(ecs::Pair(tagRel, ecs::Var0));
+	auto parentQuery = wld.query()
+							 .cache_src_trav(ecs::MaxCacheSrcTrav)
+							 .all<Position>()
+							 .all<Acceleration>(ecs::QueryTermOptions{}.src(parentRoot).trav_down(ecs::Parent))
+							 .all(ecs::Pair(tagRel, ecs::Var0));
+	childOfQuery.set_var(ecs::Var0, tag);
+	parentQuery.set_var(ecs::Var0, tag);
+	auto& childOfInfo = childOfQuery.fetch();
+	auto& parentInfo = parentQuery.fetch();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	const auto childOfRev = childOfInfo.result_cache_rev();
+	const auto parentRev = parentInfo.result_cache_rev();
+	CHECK(childOfQuery.count() == 1);
+	CHECK(parentQuery.count() == 1);
+
+	wld.del(childOfSource);
+	wld.del(parentSource);
+	wld.update();
+
+	childOfQuery.match_all(childOfInfo);
+	parentQuery.match_all(parentInfo);
+	CHECK(childOfInfo.result_cache_rev() != childOfRev);
+	CHECK(parentInfo.result_cache_rev() != parentRev);
+	CHECK(childOfQuery.count() == 0);
+	CHECK(parentQuery.count() == 0);
 }
 
 TEST_CASE("Query - source traversal snapshot caching is opt-in for cached traversed-source queries") {

@@ -1452,6 +1452,8 @@ ecs::Query qDownUnlimited = w.query()
   .all(level, ecs::QueryTermOptions{}.src(root).trav_down().trav_depth(0));
 ```
 
+Query source traversal treats disabled entities as traversal barriers. Disabled sources are not matched, and descendants under a disabled source are not searched until that source is enabled again.
+
 If you know a traversed source closure is small and stable, you can opt into traversed-source snapshots explicitly:
 
 ```cpp
@@ -1461,7 +1463,7 @@ ecs::Query qTravCached = w.query()
   .cache_src_trav(16);
 ```
 
-This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures.
+This is not recommended as a blanket default. It is most useful for read-heavy queries with small traversal closures. Cached traversed-source snapshots also track hierarchy enabled-state changes, so disabled-subtree barriers invalidate the snapshot before reuse.
 
 ### Traversal order
 

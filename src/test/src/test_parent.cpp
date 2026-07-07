@@ -188,6 +188,147 @@ TEST_CASE("ChildOf and Parent - breadth-first source search skips disabled subtr
 	CHECK(parentFoundEnabled);
 }
 
+TEST_CASE("ChildOf and Parent - breadth-first source cache updates after reparent") {
+	TestWorld twld;
+
+	const auto childOfRootA = wld.add();
+	const auto childOfRootB = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRootA = wld.add();
+	const auto parentRootB = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.child(childOfChild, childOfRootA);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRootA);
+	wld.parent(parentLeaf, parentChild);
+
+	cnt::darray<ecs::Entity> childOfBefore;
+	wld.sources_bfs(ecs::ChildOf, childOfRootA, [&](ecs::Entity source) {
+		childOfBefore.push_back(source);
+	});
+	CHECK(childOfBefore.size() == 2);
+	if (childOfBefore.size() == 2) {
+		CHECK(childOfBefore[0] == childOfChild);
+		CHECK(childOfBefore[1] == childOfLeaf);
+	}
+
+	cnt::darray<ecs::Entity> parentBefore;
+	wld.sources_bfs(ecs::Parent, parentRootA, [&](ecs::Entity source) {
+		parentBefore.push_back(source);
+	});
+	CHECK(parentBefore.size() == 2);
+	if (parentBefore.size() == 2) {
+		CHECK(parentBefore[0] == parentChild);
+		CHECK(parentBefore[1] == parentLeaf);
+	}
+
+	wld.child(childOfChild, childOfRootB);
+	wld.parent(parentChild, parentRootB);
+
+	cnt::darray<ecs::Entity> childOfOldRoot;
+	wld.sources_bfs(ecs::ChildOf, childOfRootA, [&](ecs::Entity source) {
+		childOfOldRoot.push_back(source);
+	});
+	CHECK(childOfOldRoot.size() == 0);
+
+	cnt::darray<ecs::Entity> parentOldRoot;
+	wld.sources_bfs(ecs::Parent, parentRootA, [&](ecs::Entity source) {
+		parentOldRoot.push_back(source);
+	});
+	CHECK(parentOldRoot.size() == 0);
+
+	cnt::darray<ecs::Entity> childOfNewRoot;
+	wld.sources_bfs(ecs::ChildOf, childOfRootB, [&](ecs::Entity source) {
+		childOfNewRoot.push_back(source);
+	});
+	CHECK(childOfNewRoot.size() == 2);
+	if (childOfNewRoot.size() == 2) {
+		CHECK(childOfNewRoot[0] == childOfChild);
+		CHECK(childOfNewRoot[1] == childOfLeaf);
+	}
+
+	cnt::darray<ecs::Entity> parentNewRoot;
+	wld.sources_bfs(ecs::Parent, parentRootB, [&](ecs::Entity source) {
+		parentNewRoot.push_back(source);
+	});
+	CHECK(parentNewRoot.size() == 2);
+	if (parentNewRoot.size() == 2) {
+		CHECK(parentNewRoot[0] == parentChild);
+		CHECK(parentNewRoot[1] == parentLeaf);
+	}
+
+	CHECK_FALSE(wld.sources_bfs_if(ecs::ChildOf, childOfRootA, [&](ecs::Entity source) {
+		return source == childOfLeaf;
+	}));
+	CHECK_FALSE(wld.sources_bfs_if(ecs::Parent, parentRootA, [&](ecs::Entity source) {
+		return source == parentLeaf;
+	}));
+	CHECK(wld.sources_bfs_if(ecs::ChildOf, childOfRootB, [&](ecs::Entity source) {
+		return source == childOfLeaf;
+	}));
+	CHECK(wld.sources_bfs_if(ecs::Parent, parentRootB, [&](ecs::Entity source) {
+		return source == parentLeaf;
+	}));
+}
+
+TEST_CASE("ChildOf and Parent - breadth-first source cache updates after subtree delete") {
+	TestWorld twld;
+
+	const auto childOfRoot = wld.add();
+	const auto childOfChild = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto parentRoot = wld.add();
+	const auto parentChild = wld.add();
+	const auto parentLeaf = wld.add();
+
+	wld.child(childOfChild, childOfRoot);
+	wld.child(childOfLeaf, childOfChild);
+	wld.parent(parentChild, parentRoot);
+	wld.parent(parentLeaf, parentChild);
+
+	cnt::darray<ecs::Entity> childOfBefore;
+	wld.sources_bfs(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		childOfBefore.push_back(source);
+	});
+	CHECK(childOfBefore.size() == 2);
+
+	cnt::darray<ecs::Entity> parentBefore;
+	wld.sources_bfs(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		parentBefore.push_back(source);
+	});
+	CHECK(parentBefore.size() == 2);
+
+	wld.del(childOfChild);
+	wld.del(parentChild);
+	wld.update();
+
+	cnt::darray<ecs::Entity> childOfAfter;
+	wld.sources_bfs(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		childOfAfter.push_back(source);
+	});
+	CHECK(childOfAfter.size() == 0);
+
+	cnt::darray<ecs::Entity> parentAfter;
+	wld.sources_bfs(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		parentAfter.push_back(source);
+	});
+	CHECK(parentAfter.size() == 0);
+
+	CHECK_FALSE(wld.sources_bfs_if(ecs::ChildOf, childOfRoot, [&](ecs::Entity source) {
+		return source == childOfLeaf;
+	}));
+	CHECK_FALSE(wld.sources_bfs_if(ecs::Parent, parentRoot, [&](ecs::Entity source) {
+		return source == parentLeaf;
+	}));
+	CHECK_FALSE(wld.has(childOfChild));
+	CHECK_FALSE(wld.has(childOfLeaf));
+	CHECK_FALSE(wld.has(parentChild));
+	CHECK_FALSE(wld.has(parentLeaf));
+}
+
 TEST_CASE("ChildOf and Parent - breadth-first sources use deterministic sibling order") {
 	TestWorld twld;
 
