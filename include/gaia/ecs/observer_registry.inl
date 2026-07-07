@@ -787,8 +787,8 @@ namespace gaia {
 			if (is_wildcard(term))
 				return false;
 
-			const auto it = world.m_recs.pairs.find(EntityLookupKey(term));
-			return it != world.m_recs.pairs.end() && world.valid(it->second, term);
+			const auto* pPair = world.m_recs.pair_record_find(term);
+			return pPair != nullptr && world.valid(*pPair, term);
 		}
 
 		inline bool ObserverRegistry::is_semantic_is_term(Entity term, QueryMatchKind matchKind) {
@@ -1123,7 +1123,7 @@ namespace gaia {
 			GAIA_ASSERT(!observer.pair());
 			GAIA_ASSERT(world.valid(observer));
 			// For a pair term, valid(pair) is true only if that exact pair already exists
-			// in m_recs.pairs (exists in-world). Observers are allowed to register pair terms that
+			// in the world's pair records. Observers are allowed to register pair terms that
 			// may appear later, so asserting just world.valid(term) for pairs when adding is wrong.
 			GAIA_ASSERT(term.pair() || world.valid(term));
 

@@ -139,24 +139,219 @@ namespace gaia {
 			}
 		};
 
+		struct PairRecords {
+		private:
+			//! Exact pair records keyed by the pair entity.
+			cnt::map<EntityLookupKey, EntityContainer> m_records;
+
+		public:
+			//! Clears all pair records.
+			void clear() {
+				m_records = {};
+			}
+
+			//! Checks whether @a entity has a pair record.
+			//! \param entity Pair entity.
+			//! \return True when a pair record exists.
+			GAIA_NODISCARD bool contains(Entity entity) const {
+				GAIA_ASSERT(entity.pair());
+				return m_records.contains(EntityLookupKey(entity));
+			}
+
+			//! Finds a mutable pair record.
+			//! \param entity Pair entity.
+			//! \return Mutable pair record or nullptr when missing.
+			GAIA_NODISCARD EntityContainer* find(Entity entity) {
+				GAIA_ASSERT(entity.pair());
+
+				const auto it = m_records.find(EntityLookupKey(entity));
+				if (it == m_records.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
+			//! Finds a const pair record.
+			//! \param entity Pair entity.
+			//! \return Const pair record or nullptr when missing.
+			GAIA_NODISCARD const EntityContainer* find(Entity entity) const {
+				GAIA_ASSERT(entity.pair());
+
+				const auto it = m_records.find(EntityLookupKey(entity));
+				if (it == m_records.end())
+					return nullptr;
+
+				return &it->second;
+			}
+
+			//! Adds a pair record.
+			//! \param entity Pair entity.
+			//! \param ec Pair record to store.
+			void add(Entity entity, EntityContainer&& ec) {
+				GAIA_ASSERT(entity.pair());
+				m_records.emplace(EntityLookupKey(entity), GAIA_MOV(ec));
+			}
+
+			//! Adds a pair record if it does not exist yet.
+			//! \param entity Pair entity.
+			//! \param ec Pair record to store.
+			//! \return True when the record was added. False when it already existed.
+			GAIA_NODISCARD bool try_add(Entity entity, EntityContainer&& ec) {
+				GAIA_ASSERT(entity.pair());
+
+				if (contains(entity))
+					return false;
+
+				add(entity, GAIA_MOV(ec));
+				return true;
+			}
+
+			//! Removes a pair record.
+			//! \param entity Pair entity.
+			void remove(Entity entity) {
+				GAIA_ASSERT(entity.pair());
+				m_records.erase(EntityLookupKey(entity));
+			}
+
+			//! Removes a pair record and returns its previous value.
+			//! \param entity Pair entity.
+			//! \param ec Removed pair record.
+			//! \return True when a pair record was removed.
+			GAIA_NODISCARD bool remove(Entity entity, EntityContainer& ec) {
+				GAIA_ASSERT(entity.pair());
+
+				const auto it = m_records.find(EntityLookupKey(entity));
+				if (it == m_records.end())
+					return false;
+
+				ec = GAIA_MOV(it->second);
+				m_records.erase(it);
+				return true;
+			}
+
+			//! Returns the first pair record.
+			//! \return Iterator to the first pair record.
+			GAIA_NODISCARD auto begin() {
+				return m_records.begin();
+			}
+
+			//! Returns the first pair record.
+			//! \return Const iterator to the first pair record.
+			GAIA_NODISCARD auto begin() const {
+				return m_records.begin();
+			}
+
+			//! Returns past the last pair record.
+			//! \return Iterator past the last pair record.
+			GAIA_NODISCARD auto end() {
+				return m_records.end();
+			}
+
+			//! Returns past the last pair record.
+			//! \return Const iterator past the last pair record.
+			GAIA_NODISCARD auto end() const {
+				return m_records.end();
+			}
+		};
+
 		struct EntityContainers {
+		private:
+			//! Exact pair records. Needs to be a map because pair ids are huge numbers.
+			PairRecords m_pairRecords;
+
+		public:
 			//! Implicit list of entities. Used for look-ups only when searching for
 			//! entities in chunks + data validation. Entities only.
 			cnt::paged_ilist<EntityContainer, Entity> entities;
-			//! Just like m_recs.entities, but stores pairs. Needs to be a map because
-			//! pair ids are huge numbers.
-			cnt::map<EntityLookupKey, EntityContainer> pairs;
+
+			//! Clears all pair records.
+			void pair_records_clear() {
+				m_pairRecords.clear();
+			}
+
+			//! Checks whether @a entity has a pair record.
+			//! \param entity Pair entity.
+			//! \return True when a pair record exists.
+			GAIA_NODISCARD bool pair_record_contains(Entity entity) const {
+				return m_pairRecords.contains(entity);
+			}
+
+			//! Finds a mutable pair record.
+			//! \param entity Pair entity.
+			//! \return Mutable pair record or nullptr when missing.
+			GAIA_NODISCARD EntityContainer* pair_record_find(Entity entity) {
+				return m_pairRecords.find(entity);
+			}
+
+			//! Finds a const pair record.
+			//! \param entity Pair entity.
+			//! \return Const pair record or nullptr when missing.
+			GAIA_NODISCARD const EntityContainer* pair_record_find(Entity entity) const {
+				return m_pairRecords.find(entity);
+			}
+
+			//! Adds a pair record if it does not exist yet.
+			//! \param entity Pair entity.
+			//! \param ec Pair record to store.
+			//! \return True when the record was added. False when it already existed.
+			GAIA_NODISCARD bool pair_record_try_add(Entity entity, EntityContainer&& ec) {
+				return m_pairRecords.try_add(entity, GAIA_MOV(ec));
+			}
+
+			//! Removes a pair record.
+			//! \param entity Pair entity.
+			void pair_record_remove(Entity entity) {
+				m_pairRecords.remove(entity);
+			}
+
+			//! Removes a pair record and returns its previous value.
+			//! \param entity Pair entity.
+			//! \param ec Removed pair record.
+			//! \return True when a pair record was removed.
+			GAIA_NODISCARD bool pair_record_remove(Entity entity, EntityContainer& ec) {
+				return m_pairRecords.remove(entity, ec);
+			}
+
+			//! Returns the first pair record.
+			//! \return Iterator to the first pair record.
+			GAIA_NODISCARD auto pair_record_begin() {
+				return m_pairRecords.begin();
+			}
+
+			//! Returns the first pair record.
+			//! \return Const iterator to the first pair record.
+			GAIA_NODISCARD auto pair_record_begin() const {
+				return m_pairRecords.begin();
+			}
+
+			//! Returns past the last pair record.
+			//! \return Iterator past the last pair record.
+			GAIA_NODISCARD auto pair_record_end() {
+				return m_pairRecords.end();
+			}
+
+			//! Returns past the last pair record.
+			//! \return Const iterator past the last pair record.
+			GAIA_NODISCARD auto pair_record_end() const {
+				return m_pairRecords.end();
+			}
 
 			EntityContainer& operator[](Entity entity) {
-				return entity.pair() //
-									 ? pairs.find(EntityLookupKey(entity))->second
-									 : entities[entity.id()];
+				if (!entity.pair())
+					return entities[entity.id()];
+
+				auto* pPair = m_pairRecords.find(entity);
+				GAIA_ASSERT(pPair != nullptr);
+				return *pPair;
 			}
 
 			const EntityContainer& operator[](Entity entity) const {
-				return entity.pair() //
-									 ? pairs.find(EntityLookupKey(entity))->second
-									 : entities[entity.id()];
+				if (!entity.pair())
+					return entities[entity.id()];
+
+				const auto* pPair = m_pairRecords.find(entity);
+				GAIA_ASSERT(pPair != nullptr);
+				return *pPair;
 			}
 		};
 

@@ -1913,7 +1913,17 @@ TEST_CASE("EntityContainer helpers") {
 	ecs::EntityContainerCtx pairCtx{pairHandle.entity(), pairHandle.pair(), pairHandle.kind()};
 	auto pairRecord = ecs::EntityContainer::create(pairHandle.id(), pairHandle.gen(), &pairCtx);
 	pairRecord.row = 22;
-	(void)containers.pairs.try_emplace(ecs::EntityLookupKey(pairHandle), pairRecord);
+	CHECK(containers.pair_record_try_add(pairHandle, GAIA_MOV(pairRecord)));
+	CHECK(containers.pair_record_contains(pairHandle));
+	const auto* pPairRecord = containers.pair_record_find(pairHandle);
+	CHECK(pPairRecord != nullptr);
+	if (pPairRecord != nullptr)
+		CHECK(pPairRecord->row == 22);
+
+	auto duplicatePairRecord = ecs::EntityContainer::create(pairHandle.id(), pairHandle.gen(), &pairCtx);
+	duplicatePairRecord.row = 99;
+	CHECK_FALSE(containers.pair_record_try_add(pairHandle, GAIA_MOV(duplicatePairRecord)));
+	CHECK(containers[pairHandle].row == 22);
 
 	CHECK(containers[entityHandle].row == 11);
 	CHECK(containers[pairHandle].row == 22);
@@ -1921,6 +1931,20 @@ TEST_CASE("EntityContainer helpers") {
 	const auto& containersConst = containers;
 	CHECK(containersConst[entityHandle].row == 11);
 	CHECK(containersConst[pairHandle].row == 22);
+
+	ecs::EntityContainer removedPairRecord{};
+	CHECK(containers.pair_record_remove(pairHandle, removedPairRecord));
+	CHECK(removedPairRecord.row == 22);
+	CHECK_FALSE(containers.pair_record_contains(pairHandle));
+	CHECK_FALSE(containers.pair_record_remove(pairHandle, removedPairRecord));
+
+	pairRecord = ecs::EntityContainer::create(pairHandle.id(), pairHandle.gen(), &pairCtx);
+	pairRecord.row = 33;
+	CHECK(containers.pair_record_try_add(pairHandle, GAIA_MOV(pairRecord)));
+	CHECK(containers[pairHandle].row == 33);
+
+	containers.pair_records_clear();
+	CHECK_FALSE(containers.pair_record_contains(pairHandle));
 }
 
 TEST_CASE("Component helpers") {
