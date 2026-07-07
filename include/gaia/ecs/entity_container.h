@@ -290,6 +290,13 @@ namespace gaia {
 				return m_pairRecords.find(entity);
 			}
 
+			//! Adds a pair record known to be absent.
+			//! \param entity Pair entity.
+			//! \param ec Pair record to store.
+			void pair_record_add(Entity entity, EntityContainer&& ec) {
+				m_pairRecords.add(entity, GAIA_MOV(ec));
+			}
+
 			//! Adds a pair record if it does not exist yet.
 			//! \param entity Pair entity.
 			//! \param ec Pair record to store.

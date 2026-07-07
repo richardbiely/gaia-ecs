@@ -11027,9 +11027,8 @@ namespace gaia {
 				pChunk->update_versions();
 				archetype.try_update_free_chunk_idx();
 
-				const bool added = m_recs.pair_record_try_add(entity, GAIA_MOV(ec));
-				GAIA_ASSERT(added);
-				return added;
+				m_recs.pair_record_add(entity, GAIA_MOV(ec));
+				return true;
 			}
 
 			//! Adds @a entity to the pair lookup index.
