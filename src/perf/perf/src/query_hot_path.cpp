@@ -1601,6 +1601,27 @@ ecs::Entity create_prefab_inherit_fixture(ecs::World& w, uint32_t count) {
 	return prefab;
 }
 
+ecs::Entity create_prefab_health_position_fixture(
+		ecs::World& w, uint32_t count, bool inheritedHealth, uint32_t localHealthPercent) {
+	if (inheritedHealth) {
+		const auto health = w.add<Health>().entity;
+		w.add(health, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+	}
+
+	const auto prefab = w.prefab();
+	if (inheritedHealth)
+		w.add<Health>(prefab, {7, 10});
+
+	uint32_t idx = 0;
+	w.instantiate_n(prefab, count, [&](ecs::Entity instance) {
+		w.add<Position>(instance, {(float)idx, (float)(idx + 1U), (float)(idx + 2U)});
+		if (!inheritedHealth || (localHealthPercent != 0U && idx % 100U < localHealthPercent))
+			w.add<Health>(instance, {(int32_t)(idx & 255U), 255});
+		++idx;
+	});
+	return prefab;
+}
+
 void BM_Query_PrefabInherited_Read_Each(picobench::state& state) {
 	const uint32_t count = (uint32_t)state.user_data();
 
@@ -1660,6 +1681,67 @@ void BM_Query_PrefabInherited_Write_Each(picobench::state& state) {
 
 		state.stop_timer();
 	}
+}
+
+template <bool InheritedHealth, uint32_t LocalHealthPercent>
+void BM_Query_PrefabHealthPosition_Read_Each(picobench::state& state) {
+	const uint32_t count = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto prefab = create_prefab_health_position_fixture(w, count, InheritedHealth, LocalHealthPercent);
+	auto q = w.query().all<Health>().all<Position>().is(prefab);
+	dont_optimize(q.empty());
+
+	for (auto _: state) {
+		(void)_;
+		int64_t sum = 0;
+		q.each([&](const Health& h, const Position& p) {
+			sum += h.value + h.max + (int32_t)(p.x + p.y + p.z);
+		});
+		dont_optimize(sum);
+	}
+}
+
+template <bool InheritedHealth, uint32_t LocalHealthPercent>
+void BM_Query_PrefabHealthPosition_Read_ColdEach(picobench::state& state) {
+	const uint32_t count = (uint32_t)state.user_data();
+
+	ecs::World w;
+	const auto prefab = create_prefab_health_position_fixture(w, count, InheritedHealth, LocalHealthPercent);
+
+	for (auto _: state) {
+		(void)_;
+		int64_t sum = 0;
+		auto q = w.uquery().all<Health>().all<Position>().is(prefab);
+		q.each([&](const Health& h, const Position& p) {
+			sum += h.value + h.max + (int32_t)(p.x + p.y + p.z);
+		});
+		dont_optimize(sum);
+	}
+}
+
+void BM_Query_PrefabHealthPosition_Read_Each_Owned(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_Each<false, 100U>(state);
+}
+
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_Each<true, 0U>(state);
+}
+
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override1(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_Each<true, 1U>(state);
+}
+
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override10(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_Each<true, 10U>(state);
+}
+
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override50(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_Each<true, 50U>(state);
+}
+
+void BM_Query_PrefabHealthPosition_Read_ColdEach_Inherited(picobench::state& state) {
+	BM_Query_PrefabHealthPosition_Read_ColdEach<true, 0U>(state);
 }
 
 template <uint32_t ChainDepth, bool Direct>
@@ -2944,6 +3026,12 @@ void BM_Query_IsEach_Semantic_D8(picobench::state& state);
 void BM_Query_PrefabInherited_Read_Each(picobench::state& state);
 void BM_Query_PrefabInherited_Read_Iter(picobench::state& state);
 void BM_Query_PrefabInherited_Write_Each(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_Each_Owned(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override1(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override10(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override50(picobench::state& state);
+void BM_Query_PrefabHealthPosition_Read_ColdEach_Inherited(picobench::state& state);
 void BM_Query_ReadOnly_1Comp(picobench::state& state);
 void BM_Query_ReadWrite_2Comp(picobench::state& state);
 void BM_Query_ReadWrite_2Comp_Readback(picobench::state& state);
@@ -3032,6 +3120,30 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesMedium)
 					.label("query prefab inherit write each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_Each_Owned)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab owned health position read each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_Each_Inherited)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab inherited health owned position read each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override1)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab inherited health override 1 read each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override10)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab inherited health override 10 read each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_Each_Inherited_Override50)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab inherited health override 50 read each 100K");
+			PICOBENCH_REG(BM_Query_PrefabHealthPosition_Read_ColdEach_Inherited)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query prefab inherited health cold read each 100K");
 			PICOBENCH_REG(BM_Query_Variable_Source_Bound)
 					.PICO_SETTINGS()
 					.user_data(NEntitiesMedium)

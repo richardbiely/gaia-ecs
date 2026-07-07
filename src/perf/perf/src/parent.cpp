@@ -292,6 +292,58 @@ void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
 	dont_optimize(total);
 }
 
+void BM_HierarchyBatch_SpawnParentPrefabSingle(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_parent_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		GAIA_FOR(rootCount) {
+			const auto instance = w.instantiate(rootPrefab, scene);
+			entitySum += instance.id();
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+void BM_HierarchyBatch_SpawnParentPrefabCopyIter(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_parent_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		w.instantiate_n(rootPrefab, scene, rootCount, [&](ecs::CopyIter& it) {
+			auto entityView = it.view<ecs::Entity>();
+			GAIA_EACH(it) {
+				entitySum += entityView[i].id();
+			}
+		});
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
 template <bool UseParent>
 void BM_HierarchyBatch_QueryPlain(picobench::state& state) {
 	const uint32_t rootCount = (uint32_t)state.user_data();
@@ -1534,6 +1586,14 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
 			.label("hierarchy batch parent prefab spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefabSingle)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab single spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefabCopyIter)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab copyiter spawn 40K roots");
 	PICOBENCH_REG(BM_HierarchyBatch_QueryPlain<false>)
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
