@@ -194,7 +194,7 @@ var NAVTREEINDEX =
 "structgaia_1_1ecs_1_1ComponentCursor.html#af3478e1fefecc1d80cc10fad506ff907",
 "structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e",
 "structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3",
-"structgaia_1_1mem_1_1data__view__policy__soa__set.html"
+"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1accessor.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

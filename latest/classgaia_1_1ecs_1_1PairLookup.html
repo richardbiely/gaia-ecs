@@ -145,10 +145,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a88bcb01a9d9cc4019f81e33b9c7b2757" id="r_a88bcb01a9d9cc4019f81e33b9c7b2757"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1PairLookup.html#a88bcb01a9d9cc4019f81e33b9c7b2757">del_bucket_entry</a> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">PairLookupMap</a> &amp;map, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> source, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> remove)</td></tr>
+<tr class="memitem:a88bcb01a9d9cc4019f81e33b9c7b2757" id="r_a88bcb01a9d9cc4019f81e33b9c7b2757"><td class="memItemLeft" align="right" valign="top">static bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1PairLookup.html#a88bcb01a9d9cc4019f81e33b9c7b2757">del_bucket_entry</a> (<a class="el" href="classrobin__hood_1_1detail_1_1Table.html">PairLookupMap</a> &amp;map, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> source, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> remove)</td></tr>
 <tr class="memdesc:a88bcb01a9d9cc4019f81e33b9c7b2757"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes one target from a source bucket.  <br /></td></tr>
 <tr class="separator:a88bcb01a9d9cc4019f81e33b9c7b2757"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a842f0a0d14afde94c88365926d970250" id="r_a842f0a0d14afde94c88365926d970250"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1PairLookup.html#a842f0a0d14afde94c88365926d970250">collect_bucket_entries</a> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">PairLookupMap</a> &amp;map, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> source, <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>, 64 &gt; &amp;out)</td></tr>
+<tr class="memitem:a842f0a0d14afde94c88365926d970250" id="r_a842f0a0d14afde94c88365926d970250"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1PairLookup.html#a842f0a0d14afde94c88365926d970250">collect_bucket_entries</a> (const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">PairLookupMap</a> &amp;map, <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> source, <a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>, 64 &gt; &amp;out)</td></tr>
 <tr class="memdesc:a842f0a0d14afde94c88365926d970250"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies bucket entries before pair lookup mutation invalidates iterators.  <br /></td></tr>
 <tr class="separator:a842f0a0d14afde94c88365926d970250"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
@@ -210,7 +210,7 @@ Static Public Member Functions</h2></td></tr>
         <tr>
           <td class="memname">static void gaia::ecs::PairLookup::collect_bucket_entries </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1darr.html">PairLookupMap</a> &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="classrobin__hood_1_1detail_1_1Table.html">PairLookupMap</a> &amp;&#160;</td>
           <td class="paramname"><em>map</em>, </td>
         </tr>
         <tr>
@@ -222,7 +222,7 @@ Static Public Member Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>, 64 &gt; &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1cnt_1_1darr__ext.html">cnt::darray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>, 64 &gt; &amp;&#160;</td>
           <td class="paramname"><em>out</em>&#160;</td>
         </tr>
         <tr>
@@ -262,7 +262,7 @@ Static Public Member Functions</h2></td></tr>
         <tr>
           <td class="memname">static bool gaia::ecs::PairLookup::del_bucket_entry </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="classgaia_1_1cnt_1_1darr.html">PairLookupMap</a> &amp;&#160;</td>
+          <td class="paramtype"><a class="el" href="classrobin__hood_1_1detail_1_1Table.html">PairLookupMap</a> &amp;&#160;</td>
           <td class="paramname"><em>map</em>, </td>
         </tr>
         <tr>
