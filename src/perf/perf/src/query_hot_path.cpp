@@ -1142,6 +1142,82 @@ void BM_QueryCache_Grouped_SwitchingRead(picobench::state& state) {
 	}
 }
 
+//! Benchmarks renderer-shaped asset group discovery through `group_by(Is)`.
+//! This isolates the cost of collecting active prefab/base groups before extraction.
+void BM_Query_GroupByIs_Groups(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	static constexpr uint32_t AssetCount = 64;
+
+	ecs::World w;
+	cnt::sarray<ecs::Entity, AssetCount> assets{};
+	GAIA_FOR(AssetCount) {
+		assets[i] = w.prefab();
+	}
+
+	GAIA_FOR(n) {
+		const auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), (float)(i % 17U)});
+		w.add(e, ecs::Pair(ecs::Is, assets[i % AssetCount]));
+	}
+
+	auto q = w.query().all<Position>().group_by(ecs::Is);
+	cnt::darray<ecs::GroupId> groups;
+	q.groups(groups, true);
+	dont_optimize(groups.size());
+
+	for (auto _: state) {
+		(void)_;
+		q.group_id(ecs::GroupId(0));
+		q.groups(groups, true);
+		uint64_t sum = 0;
+		for (const auto groupId: groups)
+			sum += (uint64_t)groupId;
+		dont_optimize(sum);
+	}
+}
+
+//! Benchmarks renderer-shaped extraction by discovering `Is` groups and scanning each selected group.
+//! This mirrors asset-bucketed render extraction without relying on globally unique instance names.
+void BM_Query_GroupByIs_RenderExtract(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+	static constexpr uint32_t AssetCount = 64;
+
+	ecs::World w;
+	cnt::sarray<ecs::Entity, AssetCount> assets{};
+	GAIA_FOR(AssetCount) {
+		assets[i] = w.prefab();
+	}
+
+	GAIA_FOR(n) {
+		const auto e = w.add();
+		w.add<Position>(e, {(float)i, (float)(i % 97U), (float)(i % 17U)});
+		w.add(e, ecs::Pair(ecs::Is, assets[i % AssetCount]));
+	}
+
+	auto q = w.query().all<Position>().group_by(ecs::Is);
+	cnt::darray<ecs::GroupId> groups;
+	q.groups(groups, true);
+	dont_optimize(q.count());
+
+	for (auto _: state) {
+		(void)_;
+		q.group_id(ecs::GroupId(0));
+		q.groups(groups, true);
+
+		uint64_t sum = 0;
+		for (const auto groupId: groups) {
+			q.group_id(groupId).each([&](ecs::Iter& it) {
+				auto pos = it.view<Position>(0);
+				const auto cnt = it.size();
+				GAIA_FOR(cnt) {
+					sum += (uint64_t)(pos[i].x + pos[i].y + pos[i].z);
+				}
+			});
+		}
+		dont_optimize(sum);
+	}
+}
+
 //! Benchmarks warm reads for a cached relation-wildcard query spanning many matching archetypes.
 //! This isolates steady-state wildcard selector reads after the cache has already registered all matching archetypes.
 void BM_QueryCache_Wildcard_WarmRead(picobench::state& state) {
@@ -3023,6 +3099,8 @@ void BM_Query_IsEach_Direct_D2(picobench::state& state);
 void BM_Query_IsEach_Direct_D8(picobench::state& state);
 void BM_Query_IsEach_Semantic_D2(picobench::state& state);
 void BM_Query_IsEach_Semantic_D8(picobench::state& state);
+void BM_Query_GroupByIs_Groups(picobench::state& state);
+void BM_Query_GroupByIs_RenderExtract(picobench::state& state);
 void BM_Query_PrefabInherited_Read_Each(picobench::state& state);
 void BM_Query_PrefabInherited_Read_Iter(picobench::state& state);
 void BM_Query_PrefabInherited_Write_Each(picobench::state& state);
@@ -3108,6 +3186,14 @@ void register_query_hot_path(PerfRunMode mode) {
 					.PICO_SETTINGS_FOCUS()
 					.user_data(1024)
 					.label("query is iter direct d8");
+			PICOBENCH_REG(BM_Query_GroupByIs_Groups)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query group_by Is groups 100K");
+			PICOBENCH_REG(BM_Query_GroupByIs_RenderExtract)
+					.PICO_SETTINGS_FOCUS()
+					.user_data(NEntitiesMedium)
+					.label("query group_by Is render extract 100K");
 			PICOBENCH_REG(BM_Query_PrefabInherited_Read_Each)
 					.PICO_SETTINGS_FOCUS()
 					.user_data(NEntitiesMedium)

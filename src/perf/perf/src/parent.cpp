@@ -91,6 +91,35 @@ void create_hierarchy_batch_parent_prefab(ecs::World& w, ecs::Entity& rootPrefab
 	}
 }
 
+void create_hierarchy_batch_parent_root_prefab(ecs::World& w, ecs::Entity& rootPrefab) {
+	rootPrefab = w.prefab();
+	w.add<Position>(rootPrefab, {1.0f, 2.0f, 3.0f});
+}
+
+void create_hierarchy_batch_childof_prefab(ecs::World& w, ecs::Entity& rootPrefab) {
+	rootPrefab = w.prefab();
+	w.add<Position>(rootPrefab, {1.0f, 2.0f, 3.0f});
+
+	GAIA_FOR(HierarchyBatchLeafCount) {
+		const auto childPrefab = w.prefab();
+		w.add<Position>(childPrefab, {(float)(i + 1U), 2.0f, 3.0f});
+		w.add(childPrefab, ecs::Pair(ecs::ChildOf, rootPrefab));
+	}
+}
+
+template <bool UseParent>
+void create_hierarchy_batch_prefab_children(
+		ecs::World& w, ecs::Entity& rootPrefab, cnt::sarray<ecs::Entity, HierarchyBatchLeafCount>& childPrefabs) {
+	rootPrefab = w.prefab();
+	w.add<Position>(rootPrefab, {1.0f, 2.0f, 3.0f});
+
+	GAIA_FOR(HierarchyBatchLeafCount) {
+		childPrefabs[i] = w.prefab();
+		w.add<Position>(childPrefabs[i], {(float)(i + 1U), 2.0f, 3.0f});
+		add_hierarchy_edge<UseParent>(w, childPrefabs[i], rootPrefab);
+	}
+}
+
 template <bool UseParent>
 void BM_HierarchyBatch_SpawnManual(picobench::state& state) {
 	const uint32_t rootCount = (uint32_t)state.user_data();
@@ -292,6 +321,135 @@ void BM_HierarchyBatch_SpawnParentPrefab(picobench::state& state) {
 	dont_optimize(total);
 }
 
+//! Benchmarks the manual root-only part of the hierarchy-batch `Parent` spawn shape.
+//! This isolates root creation plus the scene-parent edge from the per-root prefab-child work.
+void BM_HierarchyBatch_SpawnParentRootOnly(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		GAIA_FOR(rootCount) {
+			const auto root = w.add();
+			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+			w.parent(root, scene);
+			entitySum += root.id();
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks root-only `instantiate_n(...)` under a scene parent for the hierarchy-batch prefab shape.
+//! This separates root prefab copy and direct parent batching from prefab child spawning/attachment.
+void BM_HierarchyBatch_SpawnParentPrefabRootOnly(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_parent_root_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		w.instantiate_n(rootPrefab, scene, rootCount, [&](ecs::Entity instance) {
+			entitySum += instance.id();
+		});
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks child-to-root hierarchy attachment only for an already-created hierarchy-batch shape.
+//! This mirrors the prefab subtree attach phase without timing entity/component creation.
+template <bool UseParent>
+void BM_HierarchyBatch_PrefabChildAttachOnly(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		cnt::darray<ecs::Entity> roots;
+		cnt::darray<ecs::Entity> leaves;
+		roots.reserve(rootCount);
+		leaves.reserve(rootCount * HierarchyBatchLeafCount);
+
+		GAIA_FOR(rootCount) {
+			const auto root = w.add();
+			w.add<Position>(root, {1.0f, 2.0f, 3.0f});
+			roots.push_back(root);
+
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				const auto leaf = w.add();
+				w.add<Position>(leaf, {(float)(childIdx + 1U), 2.0f, 3.0f});
+				leaves.push_back(leaf);
+			}
+		}
+
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		uint32_t leafIdx = 0;
+		for (auto root: roots) {
+			GAIA_FOR_(HierarchyBatchLeafCount, childIdx) {
+				(void)childIdx;
+				const auto leaf = leaves[leafIdx++];
+				add_hierarchy_edge<UseParent>(w, leaf, root);
+				entitySum += leaf.id();
+			}
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks child prefab instance creation without attaching spawned children to root instances.
+//! This isolates prefab child-node copy cost from relation attachment cost.
+template <bool UseParent>
+void BM_HierarchyBatch_PrefabChildCopyOnly(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		cnt::sarray<ecs::Entity, HierarchyBatchLeafCount> childPrefabs{};
+		create_hierarchy_batch_prefab_children<UseParent>(w, rootPrefab, childPrefabs);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		for (const auto childPrefab: childPrefabs) {
+			w.instantiate_n(childPrefab, rootCount, [&](ecs::Entity instance) {
+				entitySum += instance.id();
+			});
+		}
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum + rootPrefab.id();
+	}
+
+	dont_optimize(total);
+}
+
 void BM_HierarchyBatch_SpawnParentPrefabSingle(picobench::state& state) {
 	const uint32_t rootCount = (uint32_t)state.user_data();
 	uint64_t total = 0;
@@ -326,6 +484,61 @@ void BM_HierarchyBatch_SpawnParentPrefabCopyIter(picobench::state& state) {
 		const auto scene = w.add();
 		ecs::Entity rootPrefab = ecs::EntityBad;
 		create_hierarchy_batch_parent_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		w.instantiate_n(rootPrefab, scene, rootCount, [&](ecs::CopyIter& it) {
+			auto entityView = it.view<ecs::Entity>();
+			GAIA_EACH(it) {
+				entitySum += entityView[i].id();
+			}
+		});
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks batched prefab-tree spawning when the child prefab edges use fragmenting `ChildOf`.
+//! Root instances are still attached to the scene through the public parented `instantiate_n(...)` API.
+void BM_HierarchyBatch_SpawnChildOfPrefab(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_childof_prefab(w, rootPrefab);
+		uint64_t entitySum = 0;
+		const auto t0 = std::chrono::steady_clock::now();
+
+		w.instantiate_n(rootPrefab, scene, rootCount, [&](ecs::Entity instance) {
+			entitySum += instance.id();
+		});
+
+		const auto t1 = std::chrono::steady_clock::now();
+		state.add_custom_duration(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+		total += entitySum;
+	}
+
+	dont_optimize(total);
+}
+
+//! Benchmarks the `CopyIter` callback shape for a prefab tree whose child edges use `ChildOf`.
+//! This keeps the comparison with `Parent` prefab children callback-equivalent.
+void BM_HierarchyBatch_SpawnChildOfPrefabCopyIter(picobench::state& state) {
+	const uint32_t rootCount = (uint32_t)state.user_data();
+	uint64_t total = 0;
+
+	GAIA_FOR((uint32_t)state.iterations()) {
+		ecs::World w;
+		const auto scene = w.add();
+		ecs::Entity rootPrefab = ecs::EntityBad;
+		create_hierarchy_batch_childof_prefab(w, rootPrefab);
 		uint64_t entitySum = 0;
 		const auto t0 = std::chrono::steady_clock::now();
 
@@ -1586,6 +1799,30 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
 			.label("hierarchy batch parent prefab spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentRootOnly)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent root spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefabRootOnly)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab root spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_PrefabChildAttachOnly<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab child attach only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_PrefabChildAttachOnly<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof prefab child attach only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_PrefabChildCopyOnly<true>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch parent prefab child copy only 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_PrefabChildCopyOnly<false>)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof prefab child copy only 40K roots");
 	PICOBENCH_REG(BM_HierarchyBatch_SpawnParentPrefabSingle)
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
@@ -1594,6 +1831,14 @@ void register_parent(PerfRunMode mode) {
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
 			.label("hierarchy batch parent prefab copyiter spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnChildOfPrefab)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof prefab spawn 40K roots");
+	PICOBENCH_REG(BM_HierarchyBatch_SpawnChildOfPrefabCopyIter)
+			.PICO_SETTINGS_HEAVY()
+			.user_data(40'000)
+			.label("hierarchy batch childof prefab copyiter spawn 40K roots");
 	PICOBENCH_REG(BM_HierarchyBatch_QueryPlain<false>)
 			.PICO_SETTINGS_HEAVY()
 			.user_data(40'000)
