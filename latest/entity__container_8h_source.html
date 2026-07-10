@@ -137,7 +137,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    <span class="keyword">template</span> &lt;&gt;</div>
 <div class="foldopen" id="foldopen00021" data-start="{" data-end="};">
 <div class="line"><a id="l00021" name="l00021"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1to__page__storage__id_3_01ecs_1_1EntityContainer_01_4.html">   21</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1to__page__storage__id.html">to_page_storage_id</a>&lt;ecs::EntityContainer&gt; {</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>      <span class="keyword">static</span> page_storage_id get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityContainer.html">ecs::EntityContainer</a>&amp; item) <span class="keyword">noexcept</span>;</div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>      <span class="keyword">static</span> <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">page_storage_id</a> get(<span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityContainer.html">ecs::EntityContainer</a>&amp; item) <span class="keyword">noexcept</span>;</div>
 <div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>    };</div>
 </div>
 <div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>  } <span class="comment">// namespace cnt</span></div>
@@ -245,7 +245,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="foldopen" id="foldopen00142" data-start="{" data-end="};">
 <div class="line"><a id="l00142" name="l00142"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1PairRecords.html">  142</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1PairRecords.html">PairRecords</a> {</div>
 <div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span>    <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>      <a class="code hl_class" href="classrobin__hood_1_1detail_1_1Table.html">cnt::map&lt;EntityLookupKey, EntityContainer&gt;</a> m_records;</div>
+<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;EntityLookupKey, EntityContainer&gt;</a> m_records;</div>
 <div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span> </div>
 <div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>    <span class="keyword">public</span>:</div>
 <div class="foldopen" id="foldopen00149" data-start="{" data-end="}">
@@ -307,7 +307,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="foldopen" id="foldopen00211" data-start="{" data-end="}">
 <div class="line"><a id="l00211" name="l00211"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1PairRecords.html#a55a32c28cf6d3556b0e9100c4986d3c7">  211</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="structgaia_1_1ecs_1_1PairRecords.html#a55a32c28cf6d3556b0e9100c4986d3c7">remove</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) {</div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>        GAIA_ASSERT(entity.pair());</div>
-<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>        m_records.erase(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(entity));</div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>        m_records.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>(entity));</div>
 <div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>      }</div>
 </div>
 <div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span> </div>
@@ -320,7 +320,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>          <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
 <div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span> </div>
 <div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>        ec = GAIA_MOV(it-&gt;second);</div>
-<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>        m_records.erase(it);</div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>        m_records.<a class="code hl_function" href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">erase</a>(it);</div>
 <div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>        <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
 <div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>      }</div>
 </div>
@@ -357,7 +357,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>      <a class="code hl_struct" href="structgaia_1_1ecs_1_1PairRecords.html">PairRecords</a> m_pairRecords;</div>
 <div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span> </div>
 <div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>    <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00265" name="l00265"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityContainers.html#a80fed30c874c06582511f7cc5a05f970">  265</a></span>      <a class="code hl_struct" href="structgaia_1_1cnt_1_1paged__ilist.html">cnt::paged_ilist&lt;EntityContainer, Entity&gt;</a> <a class="code hl_variable" href="structgaia_1_1ecs_1_1EntityContainers.html#a80fed30c874c06582511f7cc5a05f970">entities</a>;</div>
+<div class="line"><a id="l00265" name="l00265"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityContainers.html#a80fed30c874c06582511f7cc5a05f970">  265</a></span>      <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::paged_ilist&lt;EntityContainer, Entity&gt;</a> <a class="code hl_variable" href="structgaia_1_1ecs_1_1EntityContainers.html#a80fed30c874c06582511f7cc5a05f970">entities</a>;</div>
 <div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span> </div>
 <div class="foldopen" id="foldopen00268" data-start="{" data-end="}">
 <div class="line"><a id="l00268" name="l00268"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1EntityContainers.html#a4705777c73322023641fcc50c4c5ccfb">  268</a></span>      <span class="keywordtype">void</span> <a class="code hl_function" href="structgaia_1_1ecs_1_1EntityContainers.html#a4705777c73322023641fcc50c4c5ccfb">pair_records_clear</a>() {</div>
@@ -457,7 +457,7 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00368" name="l00368"></a><span class="lineno">  368</span>    <span class="keyword">template</span> &lt;&gt;</div>
 <div class="foldopen" id="foldopen00369" data-start="{" data-end="};">
 <div class="line"><a id="l00369" name="l00369"></a><span class="lineno"><a class="line" href="structgaia_1_1cnt_1_1ilist__handle__traits_3_01ecs_1_1Entity_01_4.html">  369</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1cnt_1_1ilist__handle__traits.html">ilist_handle_traits</a>&lt;ecs::Entity&gt; {</div>
-<div class="line"><a id="l00370" name="l00370"></a><span class="lineno">  370</span>      <span class="keyword">static</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a> <a class="code hl_function" href="structgaia_1_1cnt_1_1ilist__handle__traits.html#a09f6cc8860d12a917c39acbd92f86acb">make</a>(uint32_t <span class="keywordtype">id</span>, uint32_t gen, <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; prev) {</div>
+<div class="line"><a id="l00370" name="l00370"></a><span class="lineno">  370</span>      <span class="keyword">static</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a> <a class="code hl_function" href="structgaia_1_1cnt_1_1ilist__handle__traits.html#a09f6cc8860d12a917c39acbd92f86acb">make</a>(<a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> <span class="keywordtype">id</span>, <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">uint32_t</a> gen, <span class="keyword">const</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>&amp; prev) {</div>
 <div class="line"><a id="l00371" name="l00371"></a><span class="lineno">  371</span>        <span class="keywordflow">return</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1Entity.html">ecs::Entity</a>((ecs::EntityId)<span class="keywordtype">id</span>, gen, prev.entity(), prev.pair(), prev.kind());</div>
 <div class="line"><a id="l00372" name="l00372"></a><span class="lineno">  372</span>      }</div>
 <div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>    };</div>
@@ -716,13 +716,13 @@ $(document).ready(function(){initNavTree('entity__container_8h_source.html','');
 <div class="line"><a id="l00638" name="l00638"></a><span class="lineno">  638</span>    }</div>
 <div class="line"><a id="l00639" name="l00639"></a><span class="lineno">  639</span>  } <span class="comment">// namespace cnt</span></div>
 <div class="line"><a id="l00640" name="l00640"></a><span class="lineno">  640</span>} <span class="comment">// namespace gaia</span></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
+<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html_abfb7024398b4835c0ebf3b3413f482fa"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html#abfb7024398b4835c0ebf3b3413f482fa">gaia::cnt::darr::erase</a></div><div class="ttdeci">iterator erase(iterator pos) noexcept</div><div class="ttdoc">Removes the element at pos.</div><div class="ttdef"><b>Definition</b> darray_impl.h:331</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Archetype_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Archetype.html">gaia::ecs::Archetype</a></div><div class="ttdef"><b>Definition</b> archetype.h:83</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1Chunk_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1Chunk.html">gaia::ecs::Chunk</a></div><div class="ttdef"><b>Definition</b> chunk.h:35</div></div>
-<div class="ttc" id="aclassrobin__hood_1_1detail_1_1Table_html"><div class="ttname"><a href="classrobin__hood_1_1detail_1_1Table.html">robin_hood::detail::Table</a></div><div class="ttdef"><b>Definition</b> robin_hood.h:720</div></div>
 <div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__handle__traits_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__handle__traits.html">gaia::cnt::ilist_handle_traits</a></div><div class="ttdef"><b>Definition</b> ilist.h:399</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1ilist__handle__traits_html_a09f6cc8860d12a917c39acbd92f86acb"><div class="ttname"><a href="structgaia_1_1cnt_1_1ilist__handle__traits.html#a09f6cc8860d12a917c39acbd92f86acb">gaia::cnt::ilist_handle_traits::make</a></div><div class="ttdeci">static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle &amp;prev)</div><div class="ttdoc">Rebuilds a handle after its generation changes.</div><div class="ttdef"><b>Definition</b> ilist.h:405</div></div>
-<div class="ttc" id="astructgaia_1_1cnt_1_1paged__ilist_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1paged__ilist.html">gaia::cnt::paged_ilist</a></div><div class="ttdoc">Paged implicit list declaration.</div><div class="ttdef"><b>Definition</b> ilist.h:502</div></div>
 <div class="ttc" id="astructgaia_1_1cnt_1_1to__page__storage__id_html"><div class="ttname"><a href="structgaia_1_1cnt_1_1to__page__storage__id.html">gaia::cnt::to_page_storage_id</a></div><div class="ttdef"><b>Definition</b> paged_storage.h:37</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1EntityContainerCtx_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityContainerCtx.html">gaia::ecs::EntityContainerCtx</a></div><div class="ttdef"><b>Definition</b> entity_container.h:34</div></div>
 <div class="ttc" id="astructgaia_1_1ecs_1_1EntityContainer_1_1EntityData_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html">gaia::ecs::EntityContainer::EntityData</a></div><div class="ttdef"><b>Definition</b> entity_container.h:69</div></div>
