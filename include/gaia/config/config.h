@@ -99,7 +99,7 @@
 //! Partitioned bloom filter is slightly more computationaly expensive but gives less false postives.
 //! Therefore, it will be more useful when there is a lot of archetypes with very different components.
 #ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
-	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
+	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 0
 #endif
 
 //! If enabled, every registered compile-time component will have runtime fields registered automatically.
