@@ -47,7 +47,23 @@ set(PROJ_NAME_NO_AUTOREG "gaia_test_no_autoreg")
 gaia_configure_test_target(${PROJ_NAME_NO_AUTOREG})
 target_compile_definitions(${PROJ_NAME_NO_AUTOREG} PRIVATE GAIA_ECS_AUTO_COMPONENT_REGISTRATION=0)
 
+set(PROJ_NAME_NO_OBSERVERS "gaia_test_no_observers")
+add_executable(${PROJ_NAME_NO_OBSERVERS} src/test_no_observers.cpp)
+target_link_libraries(${PROJ_NAME_NO_OBSERVERS} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_NO_OBSERVERS} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_compile_definitions(${PROJ_NAME_NO_OBSERVERS} PRIVATE GAIA_OBSERVERS_ENABLED=0 GAIA_USE_SAFE_ENTITY=1)
+
+set(PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER "gaia_test_no_observers_single_header")
+add_executable(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} src/test_no_observers.cpp)
+target_link_libraries(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE Threads::Threads)
+target_include_directories(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE ${PROJECT_SOURCE_DIR}/single_include)
+target_compile_definitions(
+	${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE GAIA_OBSERVERS_ENABLED=0 GAIA_USE_SAFE_ENTITY=1)
+
 add_test(NAME ${PROJ_NAME} COMMAND $<TARGET_FILE:${PROJ_NAME}>)
 add_test(
 	NAME ${PROJ_NAME_NO_AUTOREG}
 	COMMAND $<TARGET_FILE:${PROJ_NAME_NO_AUTOREG}> "--test-case=*component registration*")
+add_test(NAME ${PROJ_NAME_NO_OBSERVERS} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_OBSERVERS}>)
+add_test(
+	NAME ${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} COMMAND $<TARGET_FILE:${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER}>)

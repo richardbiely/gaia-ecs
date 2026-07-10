@@ -76835,7 +76835,6 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#if GAIA_OBSERVERS_ENABLED
 namespace gaia {
 	namespace ecs {
 		inline uint32_t world_rel_version(const World& world, Entity relation) {
@@ -76857,7 +76856,12 @@ namespace gaia {
 			it = world.m_srcEntityVersions.try_emplace(key, 1).first;
 			return it->second;
 		}
+	} // namespace ecs
+} // namespace gaia
 
+#if GAIA_OBSERVERS_ENABLED
+namespace gaia {
+	namespace ecs {
 		inline ObserverBuilder World::observer() {
 			// Create the observer
 			auto e = add();
