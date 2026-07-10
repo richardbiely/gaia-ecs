@@ -63374,6 +63374,9 @@ namespace gaia {
 				auto* pDstArchetype = node.pDstArchetype;
 				const auto prefabKey = EntityLookupKey(node.prefab);
 				EntityContainerCtx ctx{true, false, node.prefab.kind()};
+				auto& asRelations = m_entityToAsRelations[prefabKey];
+				m_entityToAsTargets.reserve(m_entityToAsTargets.size() + count);
+				asRelations.reserve(asRelations.size() + count);
 
 				uint32_t left = count;
 				do {
@@ -63398,7 +63401,6 @@ namespace gaia {
 					invalidate_relation_caches(Is);
 
 					auto entities = pDstChunk->entity_view();
-					auto& asRelations = m_entityToAsRelations[prefabKey];
 					GAIA_FOR2_(originalChunkSize, originalChunkSize + toCreate, rowIdx) {
 						const auto instance = entities[rowIdx];
 						m_entityToAsTargets[EntityLookupKey(instance)].insert(prefabKey);
@@ -68903,6 +68905,39 @@ namespace gaia {
 				}
 			}
 
+			//! Checks whether deleting @a target must recurse into at least one live direct source.
+			//! \param target Target entity whose direct sources are checked.
+			//! \param cond OnDeleteTarget condition required on the source relation.
+			//! \return True when a matching direct source exists and can have descendants.
+			GAIA_NODISCARD bool has_delete_cascade_direct_sources(Entity target, Pair cond) const {
+				GAIA_ASSERT(!target.pair());
+
+				for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
+					if (store.sources(target) != nullptr && has(relKey.entity(), cond))
+						return true;
+				}
+
+				const auto pairEntity = Pair(All, target);
+				const auto it = m_entityToArchetypeMap.find(EntityLookupKey(pairEntity));
+				if (it == m_entityToArchetypeMap.end())
+					return false;
+
+				for (const auto& record: it->second) {
+					auto* pArchetype = record.pArchetype;
+					if (pArchetype == nullptr || pArchetype->is_req_del())
+						continue;
+					if (!archetype_cond_match(*pArchetype, cond, pairEntity))
+						continue;
+
+					for (const auto* pChunk: pArchetype->chunks()) {
+						if (!pChunk->empty())
+							return true;
+					}
+				}
+
+				return false;
+			}
+
 			void collect_delete_cascade_direct_sources(Entity target, Pair cond, cnt::darray<Entity>& out) {
 				GAIA_ASSERT(!target.pair());
 				const auto visitStamp = next_entity_visit_stamp();
@@ -69022,8 +69057,10 @@ namespace gaia {
 						req_del(fetch(source), source);
 				};
 
-				for (auto source: cascadeTargets)
-					req_del_entities_with(Pair(All, source), cond, visited);
+				for (auto source: cascadeTargets) {
+					if (has_delete_cascade_direct_sources(source, cond))
+						req_del_entities_with(Pair(All, source), cond, visited);
+				}
 
 				if (entity.pair()) {
 					if (entity.id() != All.id()) {

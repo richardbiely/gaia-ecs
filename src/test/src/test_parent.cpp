@@ -1111,6 +1111,36 @@ TEST_CASE("ChildOf and Parent - recursive delete removes nested subtree") {
 	CHECK_FALSE(wld.has(parentLeaf));
 }
 
+TEST_CASE("ChildOf and Parent - mixed recursive delete removes branch and leaf siblings") {
+	TestWorld twld;
+
+	const auto root = wld.add();
+	const auto childOfLeaf = wld.add();
+	const auto childOfBranch = wld.add();
+	const auto parentGrandchild = wld.add();
+	const auto parentLeaf = wld.add();
+	const auto parentBranch = wld.add();
+	const auto childOfGrandchild = wld.add();
+
+	wld.child(childOfLeaf, root);
+	wld.child(childOfBranch, root);
+	wld.parent(parentGrandchild, childOfBranch);
+	wld.parent(parentLeaf, root);
+	wld.parent(parentBranch, root);
+	wld.child(childOfGrandchild, parentBranch);
+
+	wld.del(root);
+	wld.update();
+
+	CHECK_FALSE(wld.has(root));
+	CHECK_FALSE(wld.has(childOfLeaf));
+	CHECK_FALSE(wld.has(childOfBranch));
+	CHECK_FALSE(wld.has(parentGrandchild));
+	CHECK_FALSE(wld.has(parentLeaf));
+	CHECK_FALSE(wld.has(parentBranch));
+	CHECK_FALSE(wld.has(childOfGrandchild));
+}
+
 TEST_CASE("ChildOf and Parent - observer OnAdd and OnDel fire for relation replacement") {
 	TestWorld twld;
 
