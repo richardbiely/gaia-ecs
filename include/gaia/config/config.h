@@ -96,10 +96,10 @@
 //! 	-1 - No filter
 //! 	 0 - Bloom filter (calculates a 8 byte hash for each archetype)
 //! 	 1 - Partitioned bloom filter (calculates 4x8 byte hash for each archetype)
-//! Partitioned bloom filter is slightly more computationaly expensive but gives less false postives.
-//! Therefore, it will be more useful when there is a lot of archetypes with very different components.
+//! Uses a 256-bit partitioned bloom filter instead of the default 64-bit mask.
+//! This lowers false positives but increases archetype memory and matching cost.
 #ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
-	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
+	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 0
 #endif
 
 //! If enabled, every registered compile-time component will have runtime fields registered automatically.

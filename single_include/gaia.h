@@ -785,10 +785,10 @@ namespace gaia {
 //! 	-1 - No filter
 //! 	 0 - Bloom filter (calculates a 8 byte hash for each archetype)
 //! 	 1 - Partitioned bloom filter (calculates 4x8 byte hash for each archetype)
-//! Partitioned bloom filter is slightly more computationaly expensive but gives less false postives.
-//! Therefore, it will be more useful when there is a lot of archetypes with very different components.
+//! Uses a 256-bit partitioned bloom filter instead of the default 64-bit mask.
+//! This lowers false positives but increases archetype memory and matching cost.
 #ifndef GAIA_USE_PARTITIONED_BLOOM_FILTER
-	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 1
+	#define GAIA_USE_PARTITIONED_BLOOM_FILTER 0
 #endif
 
 //! If enabled, every registered compile-time component will have runtime fields registered automatically.
@@ -34238,13 +34238,11 @@ namespace gaia {
 			QueryMask mask{};
 			const uint64_t id = entity.id();
 
-			// Pick 1 bit in each 16-bit block.
-			// We are shifting right by 60 bits, leaving only the top 4 bits of the 64-bit product. This effectively
-			// gives us a random-ish value in the range 0–15, which fits one bit per 16-bit block (since 2^4 = 16).
-			const auto bit0 = (id * s_ct_queryMask_primes[0]) >> (64 - 4);
-			const auto bit1 = (id * s_ct_queryMask_primes[1]) >> (64 - 4);
-			const auto bit2 = (id * s_ct_queryMask_primes[2]) >> (64 - 4);
-			const auto bit3 = (id * s_ct_queryMask_primes[3]) >> (64 - 4);
+			// Pick one bit in each 64-bit partition.
+			const auto bit0 = (id * s_ct_queryMask_primes[0]) >> (64 - 6);
+			const auto bit1 = (id * s_ct_queryMask_primes[1]) >> (64 - 6);
+			const auto bit2 = (id * s_ct_queryMask_primes[2]) >> (64 - 6);
+			const auto bit3 = (id * s_ct_queryMask_primes[3]) >> (64 - 6);
 
 			mask.value[0] = 1ull << bit0;
 			mask.value[1] = 1ull << bit1;
@@ -41238,6 +41236,10 @@ namespace gaia {
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_or;
 					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
+					//! Bloom mask for direct NOT terms.
+					QueryMask mask_not{};
+					//! Whether operation-local masks are valid for this simple query.
+					bool useSimpleOpMasks = true;
 					//! Source lookup terms for ALL
 					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_all_src;
 					//! Source lookup terms for OR
@@ -43090,8 +43092,10 @@ namespace gaia {
 							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							// Try early exit
-							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask))
+							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask)) {
+								++i;
 								continue;
+							}
 
 							if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -43160,6 +43164,10 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
+					if constexpr (Style == MatchingStyle::Simple) {
+						if (comp.useSimpleOpMasks)
+							ctx.queryMask = comp.mask_not;
+					}
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches
@@ -43206,6 +43214,10 @@ namespace gaia {
 						ctx.ent = comp.ids_or[i];
 						const Entity idsToMatchData[1] = {ctx.ent};
 						ctx.idsToMatch = EntitySpan{idsToMatchData, 1};
+						if constexpr (Style == MatchingStyle::Simple) {
+							if (comp.useSimpleOpMasks)
+								ctx.queryMask = build_entity_mask(ctx.idsToMatch);
+						}
 
 						if constexpr (Style == MatchingStyle::Complex)
 							match_archetype_or_as(ctx);
@@ -43222,6 +43234,10 @@ namespace gaia {
 						return true;
 
 					ctx.idsToMatch = std::span{comp.ids_or.data(), comp.ids_or.size()};
+					if constexpr (Style == MatchingStyle::Simple) {
+						if (comp.useSimpleOpMasks)
+							ctx.queryMask = build_entity_mask(ctx.idsToMatch);
+					}
 
 					if constexpr (Style == MatchingStyle::Complex)
 						filter_current_matches<OpOr, MatchingStyle::Complex>(ctx, ctx.idsToMatch);
@@ -44593,6 +44609,7 @@ namespace gaia {
 					m_compCtx.var_programs.clear();
 					m_compCtx.mainOpsCount = 0;
 					m_compCtx.ops.clear();
+					m_compCtx.useSimpleOpMasks = true;
 
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
@@ -44620,8 +44637,10 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
-							if (isNonFragmentingDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p)) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_all_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -44644,8 +44663,10 @@ namespace gaia {
 						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
-							if (p.src == EntityBad && hasEntityFilterTerms)
+							if (p.src == EntityBad && hasEntityFilterTerms) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_or_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -44667,8 +44688,10 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
-							if (isNonFragmentingDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p)) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_not_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -44682,6 +44705,15 @@ namespace gaia {
 								m_compCtx.terms_not_src.push_back({detail::src_opcode_from_term(p), p});
 						}
 					}
+
+					m_compCtx.mask_not =
+							build_entity_mask(std::span<const Entity>{m_compCtx.ids_not.data(), m_compCtx.ids_not.size()});
+					for (const auto id: m_compCtx.ids_all)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
+					for (const auto id: m_compCtx.ids_or)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
+					for (const auto id: m_compCtx.ids_not)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
 
 					// ANY
 					if (!terms_any.empty()) {

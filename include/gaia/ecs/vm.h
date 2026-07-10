@@ -306,6 +306,10 @@ namespace gaia {
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_or;
 					//! Array of ops that can be evaluated with a NOT opcode
 					cnt::sarray_ext<Entity, MAX_ITEMS_IN_QUERY> ids_not;
+					//! Bloom mask for direct NOT terms.
+					QueryMask mask_not{};
+					//! Whether operation-local masks are valid for this simple query.
+					bool useSimpleOpMasks = true;
 					//! Source lookup terms for ALL
 					cnt::sarray_ext<SourceTermOp, MAX_ITEMS_IN_QUERY> terms_all_src;
 					//! Source lookup terms for OR
@@ -2158,8 +2162,10 @@ namespace gaia {
 							const auto* pArchetype = (*ctx.pMatchesArr)[i];
 
 							// Try early exit
-							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask))
+							if (OpNo::check_mask(pArchetype->queryMask(), ctx.queryMask)) {
+								++i;
 								continue;
+							}
 
 							if (match_res<OpNo>(*pArchetype, ctx.idsToMatch)) {
 								++i;
@@ -2228,6 +2234,10 @@ namespace gaia {
 				template <MatchingStyle Style>
 				GAIA_NODISCARD inline bool exec_not_impl(const QueryCompileCtx& comp, MatchingCtx& ctx) {
 					ctx.idsToMatch = std::span{comp.ids_not.data(), comp.ids_not.size()};
+					if constexpr (Style == MatchingStyle::Simple) {
+						if (comp.useSimpleOpMasks)
+							ctx.queryMask = comp.mask_not;
+					}
 
 					if (ctx.targetEntities.empty()) {
 						// We searched for nothing more than NOT matches
@@ -2274,6 +2284,10 @@ namespace gaia {
 						ctx.ent = comp.ids_or[i];
 						const Entity idsToMatchData[1] = {ctx.ent};
 						ctx.idsToMatch = EntitySpan{idsToMatchData, 1};
+						if constexpr (Style == MatchingStyle::Simple) {
+							if (comp.useSimpleOpMasks)
+								ctx.queryMask = build_entity_mask(ctx.idsToMatch);
+						}
 
 						if constexpr (Style == MatchingStyle::Complex)
 							match_archetype_or_as(ctx);
@@ -2290,6 +2304,10 @@ namespace gaia {
 						return true;
 
 					ctx.idsToMatch = std::span{comp.ids_or.data(), comp.ids_or.size()};
+					if constexpr (Style == MatchingStyle::Simple) {
+						if (comp.useSimpleOpMasks)
+							ctx.queryMask = build_entity_mask(ctx.idsToMatch);
+					}
 
 					if constexpr (Style == MatchingStyle::Complex)
 						filter_current_matches<OpOr, MatchingStyle::Complex>(ctx, ctx.idsToMatch);
@@ -3661,6 +3679,7 @@ namespace gaia {
 					m_compCtx.var_programs.clear();
 					m_compCtx.mainOpsCount = 0;
 					m_compCtx.ops.clear();
+					m_compCtx.useSimpleOpMasks = true;
 
 					auto& data = queryCtx.data;
 					GAIA_ASSERT(queryCtx.w != nullptr);
@@ -3688,8 +3707,10 @@ namespace gaia {
 						const auto cnt = terms_all.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_all[i];
-							if (isNonFragmentingDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p)) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_all_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3712,8 +3733,10 @@ namespace gaia {
 						const auto cnt = terms_or.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_or[i];
-							if (p.src == EntityBad && hasEntityFilterTerms)
+							if (p.src == EntityBad && hasEntityFilterTerms) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_or_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3735,8 +3758,10 @@ namespace gaia {
 						const auto cnt = terms_not.size();
 						GAIA_FOR(cnt) {
 							auto& p = terms_not[i];
-							if (isNonFragmentingDirectTerm(p))
+							if (isNonFragmentingDirectTerm(p)) {
+								m_compCtx.useSimpleOpMasks = false;
 								continue;
+							}
 							if (term_has_variables(p)) {
 								const auto varMask = term_unbound_var_mask(world, p, detail::VarBindings{});
 								m_compCtx.terms_not_var.push_back({detail::src_opcode_from_term(p), p, varMask});
@@ -3750,6 +3775,15 @@ namespace gaia {
 								m_compCtx.terms_not_src.push_back({detail::src_opcode_from_term(p), p});
 						}
 					}
+
+					m_compCtx.mask_not = build_entity_mask(
+							std::span<const Entity>{m_compCtx.ids_not.data(), m_compCtx.ids_not.size()});
+					for (const auto id: m_compCtx.ids_all)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
+					for (const auto id: m_compCtx.ids_or)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
+					for (const auto id: m_compCtx.ids_not)
+						m_compCtx.useSimpleOpMasks &= !id.pair();
 
 					// ANY
 					if (!terms_any.empty()) {

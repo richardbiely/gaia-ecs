@@ -35,13 +35,11 @@ namespace gaia {
 			QueryMask mask{};
 			const uint64_t id = entity.id();
 
-			// Pick 1 bit in each 16-bit block.
-			// We are shifting right by 60 bits, leaving only the top 4 bits of the 64-bit product. This effectively
-			// gives us a random-ish value in the range 0–15, which fits one bit per 16-bit block (since 2^4 = 16).
-			const auto bit0 = (id * s_ct_queryMask_primes[0]) >> (64 - 4);
-			const auto bit1 = (id * s_ct_queryMask_primes[1]) >> (64 - 4);
-			const auto bit2 = (id * s_ct_queryMask_primes[2]) >> (64 - 4);
-			const auto bit3 = (id * s_ct_queryMask_primes[3]) >> (64 - 4);
+			// Pick one bit in each 64-bit partition.
+			const auto bit0 = (id * s_ct_queryMask_primes[0]) >> (64 - 6);
+			const auto bit1 = (id * s_ct_queryMask_primes[1]) >> (64 - 6);
+			const auto bit2 = (id * s_ct_queryMask_primes[2]) >> (64 - 6);
+			const auto bit3 = (id * s_ct_queryMask_primes[3]) >> (64 - 6);
 
 			mask.value[0] = 1ull << bit0;
 			mask.value[1] = 1ull << bit1;
