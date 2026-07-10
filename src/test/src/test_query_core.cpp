@@ -4726,6 +4726,29 @@ TEST_CASE("Query depth_order ChildOf orders entities by depth") {
 	CHECK(ents[3] == grandChild);
 }
 
+TEST_CASE("Query depth_order ChildOf handles many archetypes at the same depth") {
+	TestWorld twld;
+
+	constexpr uint32_t EntityCount = 10000;
+	cnt::darray<ecs::Entity> entities;
+	entities.reserve(EntityCount);
+	GAIA_FOR(EntityCount) {
+		const auto entity = wld.add();
+		entities.push_back(entity);
+		if (i != 0)
+			wld.child(entity, entities[(i - 1U) / 4U]);
+		wld.add<Position>(entity, {0, 0, 0});
+	}
+
+	auto q = wld.query().all<Position>().depth_order(ecs::ChildOf);
+	uint32_t visited = 0;
+	q.each([&](ecs::Entity) {
+		++visited;
+	});
+
+	CHECK(visited == EntityCount);
+}
+
 TEST_CASE("Query depth_order ChildOf prunes disabled subtree") {
 	TestWorld twld;
 

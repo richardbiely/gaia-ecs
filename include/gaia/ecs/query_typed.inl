@@ -919,7 +919,25 @@ namespace gaia {
 						}
 						const auto chunkView = queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFields, dataFieldCount);
 						const auto dataView = queryInfo.direct_chunk_data_view();
+						uint32_t chunkIdx = 0;
 						for (const auto& entry: chunkView) {
+							if constexpr (sizeof...(T) > 1 && typed_direct_chunk_data_cacheable(types)) {
+								//! Multi-field fragmented scans touch independent component arrays in many tiny chunks.
+								//! Prefetch far enough ahead to overlap those cache misses with the intervening callbacks.
+								constexpr uint32_t PrefetchDistance = 8;
+								const auto prefetchIdx = chunkIdx + PrefetchDistance;
+								if (prefetchIdx < chunkView.size()) {
+									const auto& prefetchEntry = chunkView[prefetchIdx];
+									if (prefetchEntry.dataOffset != UINT32_MAX) {
+										const auto* pPrefetchData = &dataView[prefetchEntry.dataOffset];
+										GAIA_FOR_(sizeof...(T), dataIdx) {
+											if (pPrefetchData[dataIdx] != nullptr)
+												gaia::prefetch(pPrefetchData[dataIdx], PrefetchHint::PREFETCH_HINT_T1);
+										}
+									}
+								}
+								++chunkIdx;
+							}
 							const void* pSingleData[1]{};
 							const void* const* pData = nullptr;
 							if (entry.pData != nullptr) {

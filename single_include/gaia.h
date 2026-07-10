@@ -46933,13 +46933,24 @@ namespace gaia {
 				if (!orderGroups && (m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) == 0)
 					return;
 
+				const auto groupCnt = (uint32_t)m_state.grouped.archetypeGroupIds.size();
+				// Include the initial cache index so equal groups keep deterministic order under a strict comparator.
+				cnt::darray_ext<uint64_t, 32> sortKeys;
+				sortKeys.resize(groupCnt);
+				GAIA_FOR(groupCnt) {
+					sortKeys[i] = ((uint64_t)m_state.grouped.archetypeGroupIds[i] << 32U) | i;
+				}
+
 				struct sort_cond {
-					bool operator()(GroupId a, GroupId b) const {
-						return a <= b;
+					bool operator()(uint64_t a, uint64_t b) const {
+						return a < b;
 					}
 				};
 
-				core::sort(m_state.grouped.archetypeGroupIds, sort_cond{}, [&](uint32_t left, uint32_t right) {
+				core::sort(sortKeys, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					const auto tmp = sortKeys[left];
+					sortKeys[left] = sortKeys[right];
+					sortKeys[right] = tmp;
 					swap_archetype_cache_entry(left, right);
 				});
 
@@ -56933,7 +56944,25 @@ namespace gaia {
 						}
 						const auto chunkView = queryInfo.direct_chunk_view(plan.idxFrom, plan.idxTo, dataFields, dataFieldCount);
 						const auto dataView = queryInfo.direct_chunk_data_view();
+						uint32_t chunkIdx = 0;
 						for (const auto& entry: chunkView) {
+							if constexpr (sizeof...(T) > 1 && typed_direct_chunk_data_cacheable(types)) {
+								//! Multi-field fragmented scans touch independent component arrays in many tiny chunks.
+								//! Prefetch far enough ahead to overlap those cache misses with the intervening callbacks.
+								constexpr uint32_t PrefetchDistance = 8;
+								const auto prefetchIdx = chunkIdx + PrefetchDistance;
+								if (prefetchIdx < chunkView.size()) {
+									const auto& prefetchEntry = chunkView[prefetchIdx];
+									if (prefetchEntry.dataOffset != UINT32_MAX) {
+										const auto* pPrefetchData = &dataView[prefetchEntry.dataOffset];
+										GAIA_FOR_(sizeof...(T), dataIdx) {
+											if (pPrefetchData[dataIdx] != nullptr)
+												gaia::prefetch(pPrefetchData[dataIdx], PrefetchHint::PREFETCH_HINT_T1);
+										}
+									}
+								}
+								++chunkIdx;
+							}
 							const void* pSingleData[1]{};
 							const void* const* pData = nullptr;
 							if (entry.pData != nullptr) {

@@ -2,6 +2,7 @@
 #include "gaia/config/config.h"
 
 #include "gaia/cnt/darray.h"
+#include "gaia/cnt/darray_ext.h"
 #include "gaia/cnt/ilist.h"
 #include "gaia/config/profiler.h"
 #include "gaia/core/hashing_policy.h"
@@ -1882,13 +1883,24 @@ namespace gaia {
 				if (!orderGroups && (m_plan.ctx.data.flags & QueryCtx::QueryFlags::OrderGroups) == 0)
 					return;
 
+				const auto groupCnt = (uint32_t)m_state.grouped.archetypeGroupIds.size();
+				// Include the initial cache index so equal groups keep deterministic order under a strict comparator.
+				cnt::darray_ext<uint64_t, 32> sortKeys;
+				sortKeys.resize(groupCnt);
+				GAIA_FOR(groupCnt) {
+					sortKeys[i] = ((uint64_t)m_state.grouped.archetypeGroupIds[i] << 32U) | i;
+				}
+
 				struct sort_cond {
-					bool operator()(GroupId a, GroupId b) const {
-						return a <= b;
+					bool operator()(uint64_t a, uint64_t b) const {
+						return a < b;
 					}
 				};
 
-				core::sort(m_state.grouped.archetypeGroupIds, sort_cond{}, [&](uint32_t left, uint32_t right) {
+				core::sort(sortKeys, sort_cond{}, [&](uint32_t left, uint32_t right) {
+					const auto tmp = sortKeys[left];
+					sortKeys[left] = sortKeys[right];
+					sortKeys[right] = tmp;
 					swap_archetype_cache_entry(left, right);
 				});
 
