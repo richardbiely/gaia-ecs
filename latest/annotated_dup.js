@@ -181,6 +181,7 @@ var annotated_dup =
           [ "NonFragmentingRelationStore", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html", "structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore" ],
           [ "pair_base", "structgaia_1_1ecs_1_1detail_1_1pair__base.html", null ],
           [ "PendingSystemJob", "structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html", "structgaia_1_1ecs_1_1detail_1_1PendingSystemJob" ],
+          [ "PrefabChildEdge", "structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html", "structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge" ],
           [ "PrefabInstantiatePlanNode", "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html", "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode" ],
           [ "QueryCmd_AddFilter", "structgaia_1_1ecs_1_1detail_1_1QueryCmd__AddFilter.html", null ],
           [ "QueryCmd_AddItem", "structgaia_1_1ecs_1_1detail_1_1QueryCmd__AddItem.html", null ],

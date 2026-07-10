@@ -1,5 +1,6 @@
 var NAVTREEINDEX4 =
 {
+"classgaia_1_1ser_1_1ser__json.html#ad67d06481931cbc3b0b9cbf7937c84d0":[10,0,0,7,11,2],
 "classgaia_1_1util_1_1MoveFunc.html":[10,0,0,8,3],
 "classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html":[10,0,0,8,4],
 "classgaia_1_1util_1_1MoveFunc_3_01R_07Args_8_8_8_08_4.html#a0ba0410da3acab584db78e65894efb4b":[10,0,0,8,4,8],
@@ -107,8 +108,8 @@ var NAVTREEINDEX4 =
 "event_8h_source.html":[11,0,0,0,7,0],
 "files.html":[11,0],
 "func_8h_source.html":[11,0,0,0,2,3],
-"functions.html":[10,3,0],
 "functions.html":[10,3,0,0],
+"functions.html":[10,3,0],
 "functions_b.html":[10,3,0,1],
 "functions_c.html":[10,3,0,2],
 "functions_d.html":[10,3,0,3],
@@ -116,8 +117,8 @@ var NAVTREEINDEX4 =
 "functions_enum.html":[10,3,4],
 "functions_eval.html":[10,3,5],
 "functions_f.html":[10,3,0,5],
-"functions_func.html":[10,3,1,0],
 "functions_func.html":[10,3,1],
+"functions_func.html":[10,3,1,0],
 "functions_func_b.html":[10,3,1,1],
 "functions_func_c.html":[10,3,1,2],
 "functions_func_d.html":[10,3,1,3],
@@ -160,8 +161,8 @@ var NAVTREEINDEX4 =
 "functions_type.html":[10,3,3],
 "functions_u.html":[10,3,0,20],
 "functions_v.html":[10,3,0,21],
-"functions_vars.html":[10,3,2,0],
 "functions_vars.html":[10,3,2],
+"functions_vars.html":[10,3,2,0],
 "functions_vars_b.html":[10,3,2,1],
 "functions_vars_c.html":[10,3,2,2],
 "functions_vars_d.html":[10,3,2,3],
@@ -248,6 +249,5 @@ var NAVTREEINDEX4 =
 "index.html#jobs":[2,10,0],
 "index.html#license":[8],
 "index.html#logging":[2,11,0],
-"index.html#minimum-requirements":[2,0],
-"index.html#multi-variable-queries":[2,2,5]
+"index.html#minimum-requirements":[2,0]
 };

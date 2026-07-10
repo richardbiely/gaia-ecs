@@ -1,5 +1,10 @@
 var NAVTREEINDEX10 =
 {
+"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1accessor.html":[10,0,0,4,29,0],
+"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1data__view__policy__idx__info.html":[10,0,0,4,29,1],
+"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html":[10,0,0,4,0,0],
+"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#a6c392eaa1cecb595698ca03ffc138ce8":[10,0,0,4,0,0,0],
+"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#ae5492716244697fea5db3db861a22881":[10,0,0,4,0,0,1],
 "structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#af7a64794af942e2a9b1c8332f7d88ebb":[10,0,0,4,0,0,2],
 "structgaia_1_1mem_1_1detail_1_1SmallBlockHeader.html":[10,0,0,4,0,9],
 "structgaia_1_1mem_1_1detail_1_1SmallBlockPage.html":[10,0,0,4,0,10],

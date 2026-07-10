@@ -774,6 +774,7 @@ Observers</h3>
 </div><!-- fragment --><h4><a class="anchor" id="observers-for-relation-pairs"></a>
 Observers for relation pairs</h4>
 <p>Observers also work with relation pairs. Use them when a relation change should run code right away. The callback is normal user code. It can update a store, rebuild an index, notify gameplay code, or save work for a later pass.</p>
+<p>Finish the observer callback before calling <code>update()</code> or <code>frame_cleanup()</code>. Debug builds assert this contract because deferred cleanup must not invalidate the mutation that triggered the observer.</p>
 <p>Use a wildcard target when every target of a relation should trigger the same code:</p>
 <div class="fragment"><div class="line"><span class="keyword">const</span> ecs::Entity HomeOf = w.add();</div>
 <div class="line"> </div>
@@ -2314,17 +2315,19 @@ Prefabs</h3>
 <div class="line">    <span class="comment">// ...</span></div>
 <div class="line">  }</div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Both <code>instantiate(...)</code> and <code>instantiate_n(...)</code> follows the same rules:</p><ul>
+</div><!-- fragment --><p>All <code>instantiate(...)</code> and <code>instantiate_n(...)</code> overloads follow the same rules:</p><ul>
 <li>prefab names are not copied to spawned instances</li>
 <li><code>Override</code>, <code>Inherit</code>, and <code>DontInherit</code> are applied per spawned instance</li>
-<li>recursively instantiated prefab children are attached under each spawned root</li>
+<li>recursively instantiated prefab children are attached under each spawned root through the hierarchy relation used by the prefab child</li>
 </ul>
+<p>To find the instance entity that came from a prefab child, keep the spawned root and call <code>find_prefab_instance(rootInstance, prefabChild)</code>. Passing the root prefab returns the root instance. Passing a nested child prefab walks the instance's <code>Parent</code> and <code>ChildOf</code> subtree and returns the matching descendant. Missing prefab children return <code>EntityBad</code>.</p>
+<p>For bulk spawns, the <code>instantiate_n(...)</code> callback reports the spawned root instances. Call <code>find_prefab_instance(rootInstance, prefabChild)</code> for each root you keep. The lookup follows <code>Parent</code> and <code>ChildOf</code> descendants and matches the direct <code>Pair(ecs::Is, prefabChild)</code> edge created by instantiation, so it does not depend on copied names. If you need custom filtering or ordering, traverse with the relation-explicit <code>sources(...)</code> or <code>sources_bfs(...)</code> helpers directly.</p>
 <p>Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:</p><ul>
 <li><code>ecs::Prefab</code> is not copied to the instance</li>
 <li><code>EntityDesc</code> is not copied, so prefab names stay unique</li>
 <li>the instance gets a direct <code>Pair(ecs::Is, prefab)</code> edge instead of copying the prefab's direct <code>Is</code> edges</li>
-<li><code>instantiate(prefab, parent)</code> attaches <code>Pair(ecs::Parent, parent)</code> to the new root instance</li>
-<li>direct <code>Parent</code>-owned prefab children are instantiated recursively under the new parent instance</li>
+<li>parented overloads attach <code>Pair(ecs::Parent, parent)</code> to each new root instance</li>
+<li>prefab children attached through <code>ecs::Parent</code> or <code>ecs::ChildOf</code> are instantiated recursively under each new root instance with the same hierarchy relation</li>
 </ul>
 <p>If the source entity is not tagged with <code>ecs::Prefab</code>, <code>instantiate(...)</code> falls back to <code>copy(...)</code> and <code>instantiate_n(...)</code> falls back to <code>copy_n(...)</code>. The parented overloads still attach the requested <code>ecs::Parent</code> relationship in that fallback path.</p>
 <p>Only children that are themselves tagged with <code>ecs::Prefab</code> are instantiated recursively. Plain <code>Parent</code> children under a prefab are ignored.</p>

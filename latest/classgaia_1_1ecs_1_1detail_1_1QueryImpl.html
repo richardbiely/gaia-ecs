@@ -5242,6 +5242,7 @@ template&lt;bool HasFilters, typename Func , typename... T&gt; </div>
   </dd>
 </dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2cafa9132d4631dc5fe6a86574a12a4d" title="Selects the prepared execution plan for typed callbacks.">prepare_query_plan(const QueryInfo&amp;, const TypedQueryExecState&amp;) const</a> </dd></dl>
+<p>Multi-field fragmented scans touch independent component arrays in many tiny chunks. Prefetch far enough ahead to overlap those cache misses with the intervening callbacks.</p>
 <p>Single-arg flattened chunks store the selected field directly on the entry. Adapt it to the pointer-block shape consumed by <a class="el" href="structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html" title="Direct typed chunk execution input. Carries the chunk range plus optional prepared term-to-column map...">TypedDirectChunkRun</a> without allocating or touching the sidecar directChunkData array.</p>
 
 </div>

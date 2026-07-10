@@ -186,15 +186,15 @@ var NAVTREEINDEX =
 [
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a3d335eb23e50fe3c322bf300c6eec3de",
-"classgaia_1_1ecs_1_1World.html#a613e6099c54153a6340c1efa389c2b8f",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbda4cd8413207629a963225f4314b53adcd",
-"classgaia_1_1util_1_1MoveFunc.html",
-"index.html#multithreading",
-"structgaia_1_1core_1_1detail_1_1is__direct__hash__key_3_01T_00_01std_1_1void__t_3_01decltype_07T_1_1IsDirectHashKey_08_4_01_4.html",
-"structgaia_1_1ecs_1_1ComponentCursor.html#af6e5399e0b0ed3d4ebb81411d6145f49",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#add9b16e71e210c972b71e818059fa013",
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae0c78467f314e6d15d36828c6833bb3e",
-"structgaia_1_1mem_1_1detail_1_1AllocationInfo.html#af7a64794af942e2a9b1c8332f7d88ebb"
+"classgaia_1_1ecs_1_1World.html#a604f2f6b57a16b579f703c89a762089d",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd",
+"classgaia_1_1ser_1_1ser__json.html#ad67d06481931cbc3b0b9cbf7937c84d0",
+"index.html#multi-variable-queries",
+"structgaia_1_1core_1_1detail_1_1is__direct__hash__key.html",
+"structgaia_1_1ecs_1_1ComponentCursor.html#af3478e1fefecc1d80cc10fad506ff907",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e",
+"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3",
+"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1accessor.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

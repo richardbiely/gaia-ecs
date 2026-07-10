@@ -22,7 +22,8 @@ var searchData=
   ['parent_5f_19',['Parent_',['../structgaia_1_1ecs_1_1Parent__.html',1,'gaia::ecs']]],
   ['pendingsystemjob_20',['PendingSystemJob',['../structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html',1,'gaia::ecs::detail']]],
   ['prefab_5f_21',['Prefab_',['../structgaia_1_1ecs_1_1Prefab__.html',1,'gaia::ecs']]],
-  ['prefabinstantiateplannode_22',['PrefabInstantiatePlanNode',['../structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html',1,'gaia::ecs::detail']]],
-  ['prepared_5finsert_23',['prepared_insert',['../structrobin__hood_1_1detail_1_1Table_1_1prepared__insert.html',1,'robin_hood::detail::Table']]],
-  ['properties_24',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]]
+  ['prefabchildedge_22',['PrefabChildEdge',['../structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html',1,'gaia::ecs::detail']]],
+  ['prefabinstantiateplannode_23',['PrefabInstantiatePlanNode',['../structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html',1,'gaia::ecs::detail']]],
+  ['prepared_5finsert_24',['prepared_insert',['../structrobin__hood_1_1detail_1_1Table_1_1prepared__insert.html',1,'robin_hood::detail::Table']]],
+  ['properties_25',['Properties',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html',1,'gaia::ecs::Archetype']]]
 ];

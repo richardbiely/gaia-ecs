@@ -526,6 +526,7 @@ var hierarchy =
     [ "gaia::ecs::Parent_", "structgaia_1_1ecs_1_1Parent__.html", null ],
     [ "gaia::ecs::detail::PendingSystemJob", "structgaia_1_1ecs_1_1detail_1_1PendingSystemJob.html", null ],
     [ "gaia::ecs::Prefab_", "structgaia_1_1ecs_1_1Prefab__.html", null ],
+    [ "gaia::ecs::detail::PrefabChildEdge", "structgaia_1_1ecs_1_1detail_1_1PrefabChildEdge.html", null ],
     [ "gaia::ecs::detail::PrefabInstantiatePlanNode", "structgaia_1_1ecs_1_1detail_1_1PrefabInstantiatePlanNode.html", null ],
     [ "robin_hood::detail::Table< IsFlat, MaxLoadFactor100, Key, T, Hash, KeyEqual >::prepared_insert", "structrobin__hood_1_1detail_1_1Table_1_1prepared__insert.html", null ],
     [ "gaia::ecs::Archetype::Properties", "structgaia_1_1ecs_1_1Archetype_1_1Properties.html", null ],

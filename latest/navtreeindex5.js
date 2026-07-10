@@ -1,5 +1,6 @@
 var NAVTREEINDEX5 =
 {
+"index.html#multi-variable-queries":[2,2,5],
 "index.html#multithreading":[2,10],
 "index.html#name-entity":[2,1,1],
 "index.html#names-and-lookup":[2,1,2],
@@ -248,6 +249,5 @@ var NAVTREEINDEX5 =
 "structgaia_1_1core_1_1detail_1_1is__complete_3_01T_00_01decltype_07sizeof_07T_08_08_4.html":[10,0,0,1,0,1],
 "structgaia_1_1core_1_1detail_1_1is__container.html":[10,0,0,1,0,2],
 "structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html":[10,0,0,1,0,3],
-"structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible_3_01T_00_01E_00_01typen25493d4f5b646d1ff43bb65fcbf4e827.html":[10,0,0,1,0,4],
-"structgaia_1_1core_1_1detail_1_1is__direct__hash__key.html":[10,0,0,1,0,5]
+"structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible_3_01T_00_01E_00_01typen25493d4f5b646d1ff43bb65fcbf4e827.html":[10,0,0,1,0,4]
 };

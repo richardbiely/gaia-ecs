@@ -407,29 +407,30 @@ GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&
 <tr class="separator:ab5cbe9fb47bd97c2a6462d974b18f8f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ade94b4eb23ba6988d7963ff8e1cba689" id="r_ade94b4eb23ba6988d7963ff8e1cba689"><td class="memItemLeft" align="right" valign="top"><a id="ade94b4eb23ba6988d7963ff8e1cba689" name="ade94b4eb23ba6988d7963ff8e1cba689"></a>
 GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>instantiate</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
-<tr class="memdesc:ade94b4eb23ba6988d7963ff8e1cba689"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. <br /></td></tr>
+<tr class="memdesc:ade94b4eb23ba6988d7963ff8e1cba689"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. <br /></td></tr>
 <tr class="separator:ade94b4eb23ba6988d7963ff8e1cba689"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6b87231415d6397b171bb1c0093f8af7" id="r_a6b87231415d6397b171bb1c0093f8af7"><td class="memItemLeft" align="right" valign="top"><a id="a6b87231415d6397b171bb1c0093f8af7" name="a6b87231415d6397b171bb1c0093f8af7"></a>
 GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>instantiate</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance)</td></tr>
-<tr class="memdesc:a6b87231415d6397b171bb1c0093f8af7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity parented under <em>parentInstance</em>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. <br /></td></tr>
+<tr class="memdesc:a6b87231415d6397b171bb1c0093f8af7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates a prefab as a normal entity parented under <em>parentInstance</em>. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation. <br /></td></tr>
 <tr class="separator:a6b87231415d6397b171bb1c0093f8af7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaa988e2f9dc10937ae00ca17d6e1f7e6" id="r_aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memTemplParams" colspan="2">template&lt;typename Func  = TFunc_Void_With_Entity&gt; </td></tr>
 <tr class="memitem:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aaa988e2f9dc10937ae00ca17d6e1f7e6">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, uint32_t count, Func func=func_void_with_entity)</td></tr>
-<tr class="memdesc:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal entities. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance.  <br /></td></tr>
+<tr class="memdesc:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
 <tr class="separator:aaa988e2f9dc10937ae00ca17d6e1f7e6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a811a1c25152660c9611580b268d2ada8" id="r_a811a1c25152660c9611580b268d2ada8"><td class="memItemLeft" align="right" valign="top"><a id="a811a1c25152660c9611580b268d2ada8" name="a811a1c25152660c9611580b268d2ada8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>instantiate_n</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count)</td></tr>
-<tr class="memdesc:a811a1c25152660c9611580b268d2ada8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal entities parented under <em>parentInstance</em>. <br /></td></tr>
+<tr class="memitem:a811a1c25152660c9611580b268d2ada8" id="r_a811a1c25152660c9611580b268d2ada8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a811a1c25152660c9611580b268d2ada8">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count)</td></tr>
+<tr class="memdesc:a811a1c25152660c9611580b268d2ada8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities parented under <em>parentInstance</em>. Each spawned root instance receives a direct Pair(Parent, parentInstance) relationship. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
 <tr class="separator:a811a1c25152660c9611580b268d2ada8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0fc840171f223309fb57f540e1fd3a86" id="r_a0fc840171f223309fb57f540e1fd3a86"><td class="memTemplParams" colspan="2"><a id="a0fc840171f223309fb57f540e1fd3a86" name="a0fc840171f223309fb57f540e1fd3a86"></a>
-template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a0fc840171f223309fb57f540e1fd3a86"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>instantiate_n</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count, Func func)</td></tr>
-<tr class="memdesc:a0fc840171f223309fb57f540e1fd3a86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal entities parented under <em>parentInstance</em>. The callback is invoked for each spawned root instance. <br /></td></tr>
+<tr class="memitem:a0fc840171f223309fb57f540e1fd3a86" id="r_a0fc840171f223309fb57f540e1fd3a86"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a0fc840171f223309fb57f540e1fd3a86"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0fc840171f223309fb57f540e1fd3a86">instantiate_n</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> parentInstance, uint32_t count, Func func)</td></tr>
+<tr class="memdesc:a0fc840171f223309fb57f540e1fd3a86"><td class="mdescLeft">&#160;</td><td class="mdescRight">Instantiates <em>count</em> copies of a prefab as normal root entities, assigning a direct Pair(Parent, parentInstance) relationship when <em>parentInstance</em> is not EntityBad. The callback is invoked for each spawned root instance after its subtree has been instantiated. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.  <br /></td></tr>
 <tr class="separator:a0fc840171f223309fb57f540e1fd3a86"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a37e11cbe63800bf64486259c9de3f5d8" id="r_a37e11cbe63800bf64486259c9de3f5d8"><td class="memItemLeft" align="right" valign="top"><a id="a37e11cbe63800bf64486259c9de3f5d8" name="a37e11cbe63800bf64486259c9de3f5d8"></a>
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>sync</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity)</td></tr>
-<tr class="memdesc:a37e11cbe63800bf64486259c9de3f5d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Propagates additive prefab changes to existing non-prefab instances. Missing copied ids are added to existing instances and missing prefab children are spawned. Existing owned instance data is left intact. <br /></td></tr>
+<tr class="memdesc:a37e11cbe63800bf64486259c9de3f5d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Propagates additive prefab changes to existing non-prefab instances. Missing copied ids are added to existing instances and missing prefab children are spawned with their Parent or ChildOf hierarchy relation. Existing owned instance data is left intact. <br /></td></tr>
 <tr class="separator:a37e11cbe63800bf64486259c9de3f5d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4f47590a3c8922f351043b8a6c87913f" id="r_a4f47590a3c8922f351043b8a6c87913f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4f47590a3c8922f351043b8a6c87913f">find_prefab_instance</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> instanceRoot, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> prefabEntity) const</td></tr>
+<tr class="memdesc:a4f47590a3c8922f351043b8a6c87913f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finds the entity inside <em>instanceRoot</em> that was instantiated from <em>prefabEntity</em>. The lookup checks <em>instanceRoot</em> first, then walks direct <code>Parent</code> and <code>ChildOf</code> descendants breadth-first. It matches the direct <code>Pair(Is, prefabEntity)</code> edge created by prefab instantiation and does not use names.  <br /></td></tr>
+<tr class="separator:a4f47590a3c8922f351043b8a6c87913f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a546e93622641d482c66a430e11a601ef" id="r_a546e93622641d482c66a430e11a601ef"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a546e93622641d482c66a430e11a601ef">del</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a546e93622641d482c66a430e11a601ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes an entity along with all data associated with it.  <br /></td></tr>
 <tr class="separator:a546e93622641d482c66a430e11a601ef"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -959,9 +960,8 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_version</b>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_archetype_delete_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world)</td></tr>
 <tr class="memdesc:a604f2f6b57a16b579f703c89a762089d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the version that changes when an archetype enters or leaves the deletion-request set. <br /></td></tr>
 <tr class="separator:a604f2f6b57a16b579f703c89a762089d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5f5117bfe6572aef53b3862b66d8bf8c" id="r_a5f5117bfe6572aef53b3862b66d8bf8c"><td class="memItemLeft" align="right" valign="top"><a id="a5f5117bfe6572aef53b3862b66d8bf8c" name="a5f5117bfe6572aef53b3862b66d8bf8c"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_entity_archetype_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:a5f5117bfe6572aef53b3862b66d8bf8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the per-entity archetype version used for targeted source-query freshness checks. <br /></td></tr>
+<tr class="memitem:a5f5117bfe6572aef53b3862b66d8bf8c" id="r_a5f5117bfe6572aef53b3862b66d8bf8c"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5f5117bfe6572aef53b3862b66d8bf8c">world_entity_archetype_version</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a5f5117bfe6572aef53b3862b66d8bf8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the per-entity archetype version used for targeted source-query freshness checks.  <br /></td></tr>
 <tr class="separator:a5f5117bfe6572aef53b3862b66d8bf8c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <h2 class="groupheader">Member Function Documentation</h2>
@@ -3340,6 +3340,52 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 </div>
 </div>
+<a id="a4f47590a3c8922f351043b8a6c87913f" name="a4f47590a3c8922f351043b8a6c87913f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4f47590a3c8922f351043b8a6c87913f">&#9670;&#160;</a></span>find_prefab_instance()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> gaia::ecs::World::find_prefab_instance </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>instanceRoot</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>prefabEntity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Finds the entity inside <em>instanceRoot</em> that was instantiated from <em>prefabEntity</em>. The lookup checks <em>instanceRoot</em> first, then walks direct <code>Parent</code> and <code>ChildOf</code> descendants breadth-first. It matches the direct <code>Pair(Is, prefabEntity)</code> edge created by prefab instantiation and does not use names. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">instanceRoot</td><td>Root instance entity to search from. </td></tr>
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to map into the instance subtree. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Matching instance entity, or EntityBad when the prefab is not present in the instance subtree. </dd></dl>
+
+</div>
+</div>
 <a id="aee0bad5be7e54b944d747912905b9ccc" name="aee0bad5be7e54b944d747912905b9ccc"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aee0bad5be7e54b944d747912905b9ccc">&#9670;&#160;</a></span>finish_sparse_component_add_inter()</h2>
 
@@ -3523,7 +3569,9 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 <p>Performs deferred cleanup for the current frame. </p>
 <p>This finalizes deferred entity deletion and runs Gaia-ECS garbage collection. Use this after an external loop calls systems_run() itself, or when a frame has no system pass but still needs world cleanup.</p>
-<dl class="section warning"><dt>Warning</dt><dd>This does not execute registered systems. Call systems_run() first when the frame should run systems. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd>This does not execute registered systems. Call systems_run() first when the frame should run systems. </dd>
+<dd>
+Do not call this from an observer callback. Debug builds assert this contract. </dd></dl>
 <dl class="section see"><dt>See also</dt><dd>systems_run() </dd>
 <dd>
 <a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a> </dd>
@@ -4192,8 +4240,127 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 
 </div>
 </div>
+<a id="a811a1c25152660c9611580b268d2ada8" name="a811a1c25152660c9611580b268d2ada8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a811a1c25152660c9611580b268d2ada8">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::instantiate_n </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>prefabEntity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parentInstance</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>count</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Instantiates <em>count</em> copies of a prefab as normal root entities parented under <em>parentInstance</em>. Each spawned root instance receives a direct Pair(Parent, parentInstance) relationship. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to clone </td></tr>
+    <tr><td class="paramname">parentInstance</td><td>Parent entity attached to each spawned root instance </td></tr>
+    <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a0fc840171f223309fb57f540e1fd3a86" name="a0fc840171f223309fb57f540e1fd3a86"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0fc840171f223309fb57f540e1fd3a86">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Func &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::World::instantiate_n </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>prefabEntity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>parentInstance</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>count</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Func&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Instantiates <em>count</em> copies of a prefab as normal root entities, assigning a direct Pair(Parent, parentInstance) relationship when <em>parentInstance</em> is not EntityBad. The callback is invoked for each spawned root instance after its subtree has been instantiated. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Func</td><td>Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">prefabEntity</td><td>Prefab entity to clone </td></tr>
+    <tr><td class="paramname">parentInstance</td><td>Parent entity attached to each spawned root instance, or EntityBad for unparented roots </td></tr>
+    <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
+    <tr><td class="paramname">func</td><td>Functor executed for spawned root instances. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="aaa988e2f9dc10937ae00ca17d6e1f7e6" name="aaa988e2f9dc10937ae00ca17d6e1f7e6"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aaa988e2f9dc10937ae00ca17d6e1f7e6">&#9670;&#160;</a></span>instantiate_n()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aaa988e2f9dc10937ae00ca17d6e1f7e6">&#9670;&#160;</a></span>instantiate_n() <span class="overload">[3/3]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4234,12 +4401,18 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Instantiates <em>count</em> copies of a prefab as normal entities. The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead, and attaches Pair(Parent, parentInstance) to the new root instance. </p>
+<p>Instantiates <em>count</em> copies of a prefab as normal root entities. Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name, removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead. Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Func</td><td>Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
+  </table>
+  </dd>
+</dl>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">prefabEntity</td><td>Prefab entity to clone </td></tr>
     <tr><td class="paramname">count</td><td>Number of clones to make </td></tr>
-    <tr><td class="paramname">func</td><td>Functor executed every time a copy is created. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
+    <tr><td class="paramname">func</td><td>Functor executed for spawned root instances. It can be either void(ecs::Entity) or void(ecs::CopyIter&amp;). </td></tr>
   </table>
   </dd>
 </dl>
@@ -7619,6 +7792,7 @@ template&lt;typename Func &gt; </div>
 
 <p>Runs systems and then finishes the current frame. </p>
 <p>This is the normal frame step. It executes registered systems through systems_run(), then calls <a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> and <a class="el" href="classgaia_1_1ecs_1_1World.html#ae6a7635089afa3b9ad70bcbdc94ec6a3" title="Marks the end of the current frame.">frame_end()</a>.</p>
+<dl class="section warning"><dt>Warning</dt><dd>Do not call this from an observer callback. Debug builds assert this contract. </dd></dl>
 <dl class="section see"><dt>See also</dt><dd>systems_run() </dd>
 <dd>
 <a class="el" href="classgaia_1_1ecs_1_1World.html#aad2cc9053ab29b9d3706764d5fa51092" title="Performs deferred cleanup for the current frame.">frame_cleanup()</a> </dd>
@@ -8056,6 +8230,45 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Query argument bound to <em>entity</em>. </dd></dl>
+
+</div>
+</div>
+<a id="a5f5117bfe6572aef53b3862b66d8bf8c" name="a5f5117bfe6572aef53b3862b66d8bf8c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5f5117bfe6572aef53b3862b66d8bf8c">&#9670;&#160;</a></span>world_entity_archetype_version</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t world_entity_archetype_version </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">friend</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the per-entity archetype version used for targeted source-query freshness checks. </p>
+<p>Returns the sparse archetype-membership version tracked for a source entity. Invalid source entities report version 0 so cached queries see deletions immediately. Valid entries are created on first use so non-source entities do not pay any extra storage. </p>
 
 </div>
 </div>
