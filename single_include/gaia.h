@@ -40654,12 +40654,22 @@ namespace gaia {
 				uint16_t count = 0;
 			};
 
+			//! Prefab child edge discovered while building an instantiation or synchronization plan.
+			struct PrefabChildEdge {
+				//! Child prefab entity.
+				Entity prefab = EntityBad;
+				//! Hierarchy relation connecting the child prefab to its parent prefab.
+				Entity relation = EntityBad;
+			};
+
 			//! One node in a prefab instantiation or synchronization plan.
 			struct PrefabInstantiatePlanNode {
 				//! Prefab entity represented by this node.
 				Entity prefab = EntityBad;
 				//! Parent node index in the plan, or BadIndex for a root node.
 				uint32_t parentIdx = BadIndex;
+				//! Hierarchy relation used to attach this node to its parent node.
+				Entity parentRelation = EntityBad;
 				//! Destination archetype used for instances of @a prefab.
 				Archetype* pDstArchetype = nullptr;
 				//! Non-fragmenting sparse component ids copied from @a prefab.
@@ -58801,6 +58811,7 @@ namespace gaia {
 			template <typename T>
 			using SparseComponentStore = detail::SparseComponentStore<T>;
 			using CopyIterGroupState = detail::CopyIterGroupState;
+			using PrefabChildEdge = detail::PrefabChildEdge;
 			using PrefabInstantiatePlanNode = detail::PrefabInstantiatePlanNode;
 
 			template <
@@ -62694,17 +62705,84 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether @a children already contains an edge for @a childPrefab.
+			//! \tparam T Prefab child edge container type.
+			//! \param children Collected child edges to inspect.
+			//! \param childPrefab Child prefab entity to look for.
+			//! \return True when an edge for @a childPrefab is already present.
+			template <typename T>
+			GAIA_NODISCARD bool prefab_child_edge_exists(const T& children, Entity childPrefab) const {
+				for (const auto& child: children) {
+					if (child.prefab == childPrefab)
+						return true;
+				}
+
+				return false;
+			}
+
+			//! Appends direct prefab children connected to @a prefabEntity through @a relation.
+			//! Duplicate child prefabs are ignored so relation precedence stays deterministic.
+			//! \tparam T Prefab child edge container type.
+			//! \param prefabEntity Parent prefab entity whose children are gathered.
+			//! \param relation Hierarchy relation used to discover child prefabs.
+			//! \param outChildren Destination child edge list.
+			template <typename T>
+			void gather_prefab_children_for_relation(Entity prefabEntity, Entity relation, T& outChildren) {
+				sources(relation, prefabEntity, [&](Entity childPrefab) {
+					if (!has_direct(childPrefab, Prefab) || prefab_child_edge_exists(outChildren, childPrefab))
+						return;
+
+					PrefabChildEdge edge{};
+					edge.prefab = childPrefab;
+					edge.relation = relation;
+					outChildren.push_back(edge);
+				});
+			}
+
+			//! Gathers direct prefab children in deterministic order with their hierarchy relation.
+			//! `Parent` edges take precedence over `ChildOf` when a child prefab is linked by both relations.
+			//! \tparam T Prefab child edge container type.
+			//! \param prefabEntity Parent prefab entity whose direct prefab children are gathered.
+			//! \param outChildren Destination child edge list.
 			template <typename T>
 			void gather_sorted_prefab_children(Entity prefabEntity, T& outChildren) {
-				sources(Parent, prefabEntity, [&](Entity childPrefab) {
-					if (!has_direct(childPrefab, Prefab))
-						return;
-					outChildren.push_back(childPrefab);
-				});
+				gather_prefab_children_for_relation(prefabEntity, Parent, outChildren);
+				gather_prefab_children_for_relation(prefabEntity, ChildOf, outChildren);
 
-				core::sort(outChildren, [](Entity left, Entity right) {
-					return left.id() < right.id();
+				core::sort(outChildren, [](const PrefabChildEdge& left, const PrefabChildEdge& right) {
+					if (left.prefab.id() != right.prefab.id())
+						return left.prefab.id() < right.prefab.id();
+
+					return left.relation.id() < right.relation.id();
 				});
+			}
+
+			//! Returns whether @a id is a prefab-only ChildOf parent edge that should not be copied directly.
+			//! \param id Component or pair id from a prefab archetype.
+			//! \return True when @a id is Pair(ChildOf, prefab parent).
+			GAIA_NODISCARD bool prefab_hierarchy_parent_id(Entity id) const {
+				if (!id.pair() || id.id() != ChildOf.id())
+					return false;
+
+				const auto parentPrefab = pair_tgt(*this, id);
+				return valid(parentPrefab) && has_direct(parentPrefab, Prefab);
+			}
+
+			//! Attaches @a instance under @a parentInstance using the prefab child hierarchy relation.
+			//! \param instance Spawned child instance.
+			//! \param relation Hierarchy relation copied from the prefab child edge.
+			//! \param parentInstance Spawned parent instance.
+			void attach_prefab_child_instance(Entity instance, Entity relation, Entity parentInstance) {
+				GAIA_ASSERT(valid(instance));
+				GAIA_ASSERT(valid(relation));
+				GAIA_ASSERT(valid(parentInstance));
+
+				if (relation == Parent) {
+					parent_direct(instance, parentInstance);
+					return;
+				}
+
+				add(instance, Pair(relation, parentInstance));
 			}
 
 			GAIA_NODISCARD bool copy_sparse_store_inter(
@@ -62960,6 +63038,10 @@ namespace gaia {
 						pDstArchetype = foc_archetype_del(pDstArchetype, id);
 						continue;
 					}
+					if (prefab_hierarchy_parent_id(id)) {
+						pDstArchetype = foc_archetype_del(pDstArchetype, id);
+						continue;
+					}
 
 					if (!instantiate_copies_id(id))
 						pDstArchetype = foc_archetype_del(pDstArchetype, id);
@@ -63202,11 +63284,18 @@ namespace gaia {
 #endif
 			}
 
+			//! Builds a depth-first prefab instantiation plan from @a prefabEntity.
+			//! \tparam T Prefab instantiation plan container type.
+			//! \param prefabEntity Prefab represented by the next plan node.
+			//! \param parentIdx Parent node index, or BadIndex for the root node.
+			//! \param parentRelation Hierarchy relation connecting this node to its parent node.
+			//! \param plan Destination plan receiving the new node and child nodes.
 			template <typename T>
-			void build_prefab_instantiate_plan(Entity prefabEntity, uint32_t parentIdx, T& plan) {
+			void build_prefab_instantiate_plan(Entity prefabEntity, uint32_t parentIdx, Entity parentRelation, T& plan) {
 				PrefabInstantiatePlanNode node{};
 				node.prefab = prefabEntity;
 				node.parentIdx = parentIdx;
+				node.parentRelation = parentRelation;
 				node.pDstArchetype = instantiate_prefab_dst_archetype(prefabEntity);
 				collect_prefab_copied_sparse_ids(prefabEntity, node.copiedSparseIds);
 				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
@@ -63215,16 +63304,21 @@ namespace gaia {
 				const auto nodeIdx = (uint32_t)plan.size();
 				plan.push_back(GAIA_MOV(node));
 
-				cnt::darray_ext<Entity, 16> prefabChildren;
+				cnt::darray_ext<PrefabChildEdge, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
 
-				for (const auto childPrefab: prefabChildren)
-					build_prefab_instantiate_plan(childPrefab, nodeIdx, plan);
+				for (const auto& child: prefabChildren)
+					build_prefab_instantiate_plan(child.prefab, nodeIdx, child.relation, plan);
 			}
 
-			GAIA_NODISCARD bool instance_has_prefab_child(Entity parentInstance, Entity childPrefab) const {
+			//! Returns whether @a parentInstance already has a child instance of @a childPrefab through @a relation.
+			//! \param parentInstance Instance subtree parent to inspect.
+			//! \param relation Hierarchy relation used for the child edge.
+			//! \param childPrefab Prefab child entity to find.
+			//! \return True when a matching child instance already exists.
+			GAIA_NODISCARD bool instance_has_prefab_child(Entity parentInstance, Entity relation, Entity childPrefab) const {
 				bool found = false;
-				sources(Parent, parentInstance, [&](Entity child) {
+				sources(relation, parentInstance, [&](Entity child) {
 					if (found)
 						return;
 					if (has_direct(child, Pair(Is, childPrefab)))
@@ -63233,8 +63327,16 @@ namespace gaia {
 				return found;
 			}
 
+			//! Synchronizes one existing instance with additive prefab data and missing child prefabs.
+			//! \tparam T Prefab child edge container type.
+			//! \param prefabEntity Prefab source entity.
+			//! \param instance Existing instance receiving additive prefab changes.
+			//! \param node Cached instantiation data for @a prefabEntity.
+			//! \param prefabChildren Direct child prefab edges of @a prefabEntity.
+			//! \return Number of copied ids or spawned child instances.
+			template <typename T>
 			uint32_t sync_prefab_instance(
-					Entity prefabEntity, Entity instance, const PrefabInstantiatePlanNode& node, EntitySpan prefabChildren) {
+					Entity prefabEntity, Entity instance, const PrefabInstantiatePlanNode& node, const T& prefabChildren) {
 				uint32_t changes = 0;
 
 				const auto isPair = Pair(Is, prefabEntity);
@@ -63252,16 +63354,20 @@ namespace gaia {
 						++changes;
 				}
 
-				for (const auto childPrefab: prefabChildren) {
-					if (instance_has_prefab_child(instance, childPrefab))
+				for (const auto& child: prefabChildren) {
+					if (instance_has_prefab_child(instance, child.relation, child.prefab))
 						continue;
-					(void)instantiate(childPrefab, instance);
+					(void)instantiate_inter(child.prefab, instance, child.relation);
 					++changes;
 				}
 
 				return changes;
 			}
 
+			//! Recursively synchronizes prefab instances and their prefab child trees.
+			//! \param prefabEntity Prefab root to synchronize.
+			//! \param visited Prefab recursion guard keyed by prefab entity.
+			//! \return Number of copied ids or spawned child instances.
 			uint32_t sync_prefab_inter(Entity prefabEntity, cnt::set<EntityLookupKey>& visited) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -63280,7 +63386,7 @@ namespace gaia {
 				collect_prefab_added_ids(node.pDstArchetype, EntitySpan{node.copiedSparseIds}, node.addedIds);
 				collect_prefab_add_hook_ids(EntitySpan{node.addedIds}, node.addHookIds);
 
-				cnt::darray_ext<Entity, 16> prefabChildren;
+				cnt::darray_ext<PrefabChildEdge, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
 
 				uint32_t changes = 0;
@@ -63288,24 +63394,32 @@ namespace gaia {
 				for (const auto entity: descendants) {
 					if (has_direct(entity, Prefab))
 						continue;
-					changes += sync_prefab_instance(prefabEntity, entity, node, EntitySpan{prefabChildren});
+					changes += sync_prefab_instance(prefabEntity, entity, node, prefabChildren);
 				}
 
-				for (const auto childPrefab: prefabChildren)
-					changes += sync_prefab_inter(childPrefab, visited);
+				for (const auto& child: prefabChildren)
+					changes += sync_prefab_inter(child.prefab, visited);
 
 				return changes;
 			}
 
-			//! Instantiates a prefab as a normal entity and optionally parents it under @a parentInstance.
-			GAIA_NODISCARD Entity instantiate_inter(Entity prefabEntity, Entity parentInstance) {
-				const auto instance = instantiate_prefab_node_inter(prefabEntity, parentInstance);
+			//! Instantiates a prefab as a normal entity and optionally attaches it under @a parentInstance.
+			//! \param prefabEntity Prefab entity to instantiate.
+			//! \param parentInstance Parent instance, or EntityBad for an unparented root.
+			//! \param parentRelation Hierarchy relation used when @a parentInstance is valid.
+			//! \return Spawned root instance entity.
+			GAIA_NODISCARD Entity
+			instantiate_inter(Entity prefabEntity, Entity parentInstance, Entity parentRelation = Parent) {
+				const auto directParentInstance = parentRelation == Parent ? parentInstance : EntityBad;
+				const auto instance = instantiate_prefab_node_inter(prefabEntity, directParentInstance);
+				if (parentInstance != EntityBad && parentRelation != Parent)
+					attach_prefab_child_instance(instance, parentRelation, parentInstance);
 
-				cnt::darray_ext<Entity, 16> prefabChildren;
+				cnt::darray_ext<PrefabChildEdge, 16> prefabChildren;
 				gather_sorted_prefab_children(prefabEntity, prefabChildren);
 
-				for (const auto childPrefab: prefabChildren)
-					(void)instantiate_inter(childPrefab, instance);
+				for (const auto& child: prefabChildren)
+					(void)instantiate_inter(child.prefab, instance, child.relation);
 
 				return instance;
 			}
@@ -63314,6 +63428,7 @@ namespace gaia {
 			//! Instantiates a prefab as a normal entity.
 			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
+			//! Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -63327,7 +63442,8 @@ namespace gaia {
 			//! Instantiates a prefab as a normal entity parented under @a parentInstance.
 			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
-			//! and attaches Pair(Parent, parentInstance) to the new root instance.
+			//! and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through
+			//! Parent or ChildOf are instantiated with the same hierarchy relation.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -63342,13 +63458,14 @@ namespace gaia {
 				return instantiate_inter(prefabEntity, parentInstance);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal entities.
-			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
-			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
-			//! and attaches Pair(Parent, parentInstance) to the new root instance.
+			//! Instantiates @a count copies of a prefab as normal root entities.
+			//! Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
+			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
+			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
+			//! \tparam Func Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&).
 			//! \param prefabEntity Prefab entity to clone
 			//! \param count Number of clones to make
-			//! \param func Functor executed every time a copy is created.
+			//! \param func Functor executed for spawned root instances.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
 			//! \warning It is expected @a prefabEntity is valid entity. Undefined behavior otherwise.
 			//! \warning If EntityDesc is present on @a prefabEntity, it is not copied because names are
@@ -63359,13 +63476,25 @@ namespace gaia {
 				instantiate_n(prefabEntity, EntityBad, count, func);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal entities parented under @a parentInstance.
+			//! Instantiates @a count copies of a prefab as normal root entities parented under @a parentInstance.
+			//! Each spawned root instance receives a direct Pair(Parent, parentInstance) relationship.
+			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
+			//! \param prefabEntity Prefab entity to clone
+			//! \param parentInstance Parent entity attached to each spawned root instance
+			//! \param count Number of clones to make
 			void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count) {
 				instantiate_n(prefabEntity, parentInstance, count, func_void_with_entity);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal entities parented under @a parentInstance.
-			//! The callback is invoked for each spawned root instance.
+			//! Instantiates @a count copies of a prefab as normal root entities, assigning a direct
+			//! Pair(Parent, parentInstance) relationship when @a parentInstance is not EntityBad.
+			//! The callback is invoked for each spawned root instance after its subtree has been instantiated.
+			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
+			//! \tparam Func Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&).
+			//! \param prefabEntity Prefab entity to clone
+			//! \param parentInstance Parent entity attached to each spawned root instance, or EntityBad for unparented roots
+			//! \param count Number of clones to make
+			//! \param func Functor executed for spawned root instances.
 			template <typename Func>
 			void instantiate_n(Entity prefabEntity, Entity parentInstance, uint32_t count, Func func) {
 				GAIA_ASSERT(!prefabEntity.pair());
@@ -63386,70 +63515,54 @@ namespace gaia {
 				}
 
 				cnt::darray_ext<PrefabInstantiatePlanNode, 16> plan;
-				cnt::darray_ext<Entity, 16> spawned;
+				build_prefab_instantiate_plan(prefabEntity, BadIndex, EntityBad, plan);
+				if (plan.size() == 1) {
+					instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
+					return;
+				}
+
+				const auto planSize = (uint32_t)plan.size();
+				GAIA_ASSERT(planSize <= uint32_t(-1) / count);
+				cnt::darray<Entity> spawned;
+				spawned.resize(planSize * count);
+
+				uint32_t rootIdx = 0;
+				auto collectRoot = [&](Entity instance) {
+					spawned[rootIdx++] = instance;
+				};
+				instantiate_prefab_n_inter(plan[0], parentInstance, count, collectRoot);
+
+				GAIA_FOR2_(1, planSize, planIdx) {
+					uint32_t nodeIdx = 0;
+					const auto nodeOffset = planIdx * count;
+					auto collectNode = [&](Entity instance) {
+						spawned[nodeOffset + nodeIdx++] = instance;
+					};
+					instantiate_prefab_n_inter(plan[planIdx], EntityBad, count, collectNode);
+
+					const auto parentOffset = plan[planIdx].parentIdx * count;
+					GAIA_FOR_(count, instanceIdx) {
+						attach_prefab_child_instance(
+								spawned[nodeOffset + instanceIdx], plan[planIdx].parentRelation, spawned[parentOffset + instanceIdx]);
+					}
+				}
 
 				if constexpr (std::is_invocable_v<Func, CopyIter&>) {
-					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
-					if (plan.size() == 1) {
-						instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
-						return;
-					}
-
 					CopyIterGroupState group;
-					cnt::darray<Entity> roots;
-					roots.reserve(count);
-					auto collectRoot = [&](Entity instance) {
-						roots.push_back(instance);
-					};
-					instantiate_prefab_n_inter(plan[0], parentInstance, count, collectRoot);
-
-					spawned.resize((uint32_t)plan.size());
-
-					GAIA_FOR_(count, rootIdx) {
-						spawned[0] = roots[rootIdx];
-						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
-							const auto parent = spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] = instantiate_prefab_node_inter(
-									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].copiedSparseIds},
-									EntitySpan{plan[planIdx].addedIds}, EntitySpan{plan[planIdx].addHookIds});
-						}
-
-						push_copy_iter_group(func, group, roots[rootIdx]);
+					GAIA_FOR_(count, idx) {
+						push_copy_iter_group(func, group, spawned[idx]);
 					}
-
 					flush_copy_iter_group(func, group);
 				} else {
-					build_prefab_instantiate_plan(prefabEntity, BadIndex, plan);
-					if (plan.size() == 1) {
-						instantiate_prefab_n_inter(plan[0], parentInstance, count, func);
-						return;
-					}
-
-					cnt::darray<Entity> roots;
-					roots.reserve(count);
-					auto collectRoot = [&](Entity instance) {
-						roots.push_back(instance);
-					};
-					instantiate_prefab_n_inter(plan[0], parentInstance, count, collectRoot);
-
-					spawned.resize((uint32_t)plan.size());
-
-					GAIA_FOR_(count, rootIdx) {
-						spawned[0] = roots[rootIdx];
-						GAIA_FOR2_(1, (uint32_t)plan.size(), planIdx) {
-							const auto parent = spawned[plan[planIdx].parentIdx];
-							spawned[planIdx] = instantiate_prefab_node_inter(
-									plan[planIdx].prefab, plan[planIdx].pDstArchetype, parent, EntitySpan{plan[planIdx].copiedSparseIds},
-									EntitySpan{plan[planIdx].addedIds}, EntitySpan{plan[planIdx].addHookIds});
-						}
-
-						func(roots[rootIdx]);
+					GAIA_FOR_(count, idx) {
+						func(spawned[idx]);
 					}
 				}
 			}
 
 			//! Propagates additive prefab changes to existing non-prefab instances.
-			//! Missing copied ids are added to existing instances and missing prefab children are spawned.
+			//! Missing copied ids are added to existing instances and missing prefab children are spawned with
+			//! their Parent or ChildOf hierarchy relation.
 			//! Existing owned instance data is left intact.
 			GAIA_NODISCARD uint32_t sync(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
@@ -63457,6 +63570,57 @@ namespace gaia {
 
 				cnt::set<EntityLookupKey> visited;
 				return sync_prefab_inter(prefabEntity, visited);
+			}
+
+			//! Finds the entity inside @a instanceRoot that was instantiated from @a prefabEntity.
+			//! The lookup checks @a instanceRoot first, then walks direct `Parent` and `ChildOf` descendants breadth-first.
+			//! It matches the direct `Pair(Is, prefabEntity)` edge created by prefab instantiation and does not use names.
+			//! \param instanceRoot Root instance entity to search from.
+			//! \param prefabEntity Prefab entity to map into the instance subtree.
+			//! \return Matching instance entity, or EntityBad when the prefab is not present in the instance subtree.
+			GAIA_NODISCARD Entity find_prefab_instance(Entity instanceRoot, Entity prefabEntity) const {
+				if (!valid(instanceRoot) || !valid(prefabEntity))
+					return EntityBad;
+
+				const auto isPair = Pair(Is, prefabEntity);
+				if (has_direct(instanceRoot, isPair))
+					return instanceRoot;
+
+				Entity found = EntityBad;
+				cnt::darray_ext<Entity, 64> children;
+				cnt::darray_ext<Entity, 32> queue;
+				cnt::set<EntityLookupKey> visited;
+				queue.push_back(instanceRoot);
+				visited.insert(EntityLookupKey(instanceRoot));
+
+				for (uint32_t i = 0; i < queue.size() && found == EntityBad; ++i) {
+					children.clear();
+					auto collectChild = [&](Entity child) {
+						const auto key = EntityLookupKey(child);
+						const auto ins = visited.insert(key);
+						if (!ins.second)
+							return;
+
+						children.push_back(child);
+					};
+					sources(Parent, queue[i], collectChild);
+					sources(ChildOf, queue[i], collectChild);
+
+					core::sort(children, [](Entity left, Entity right) {
+						return left.id() < right.id();
+					});
+
+					for (const auto child: children) {
+						if (has_direct(child, isPair)) {
+							found = child;
+							break;
+						}
+
+						queue.push_back(child);
+					}
+				}
+
+				return found;
 			}
 
 			//----------------------------------------------------------------------

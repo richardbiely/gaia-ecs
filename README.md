@@ -2684,17 +2684,21 @@ w.instantiate_n(prefab, 10, [](ecs::CopyIter& it) {
 });
 ```
 
-Both `instantiate(...)` and `instantiate_n(...)` follows the same rules:
+All `instantiate(...)` and `instantiate_n(...)` overloads follow the same rules:
 - prefab names are not copied to spawned instances
 - `Override`, `Inherit`, and `DontInherit` are applied per spawned instance
-- recursively instantiated prefab children are attached under each spawned root
+- recursively instantiated prefab children are attached under each spawned root through the hierarchy relation used by the prefab child
+
+To find the instance entity that came from a prefab child, keep the spawned root and call `find_prefab_instance(rootInstance, prefabChild)`. Passing the root prefab returns the root instance. Passing a nested child prefab walks the instance's `Parent` and `ChildOf` subtree and returns the matching descendant. Missing prefab children return `EntityBad`.
+
+For bulk spawns, the `instantiate_n(...)` callback reports the spawned root instances. Call `find_prefab_instance(rootInstance, prefabChild)` for each root you keep. The lookup follows `Parent` and `ChildOf` descendants and matches the direct `Pair(ecs::Is, prefabChild)` edge created by instantiation, so it does not depend on copied names. If you need custom filtering or ordering, traverse with the relation-explicit `sources(...)` or `sources_bfs(...)` helpers directly.
 
 Instantiation keeps the prefab relationship but intentionally strips prefab-only identity details from the new entity:
 * `ecs::Prefab` is not copied to the instance
 * `EntityDesc` is not copied, so prefab names stay unique
 * the instance gets a direct `Pair(ecs::Is, prefab)` edge instead of copying the prefab's direct `Is` edges
-* `instantiate(prefab, parent)` attaches `Pair(ecs::Parent, parent)` to the new root instance
-* direct `Parent`-owned prefab children are instantiated recursively under the new parent instance
+* parented overloads attach `Pair(ecs::Parent, parent)` to each new root instance
+* prefab children attached through `ecs::Parent` or `ecs::ChildOf` are instantiated recursively under each new root instance with the same hierarchy relation
 
 If the source entity is not tagged with `ecs::Prefab`, `instantiate(...)` falls back to `copy(...)`
 and `instantiate_n(...)` falls back to `copy_n(...)`. The parented overloads still attach the

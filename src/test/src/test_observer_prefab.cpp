@@ -619,6 +619,115 @@ TEST_CASE("Observer - prefab sync spawned child matches Parent pair") {
 	(void)observer;
 }
 
+TEST_CASE("Observer - prefab sync spawned child matches ChildOf pair") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto rootInstance = wld.instantiate(rootPrefab);
+	const auto childPrefab = wld.prefab();
+
+	uint32_t hits = 0;
+	ecs::Entity observedChild = ecs::EntityBad;
+
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnAdd)
+														.all(ecs::Pair(ecs::ChildOf, rootInstance))
+														.on_each([&](ecs::Iter& it) {
+															++hits;
+															auto entityView = it.view<ecs::Entity>();
+															observedChild = entityView[0];
+														})
+														.entity();
+
+	wld.child(childPrefab, rootPrefab);
+
+	hits = 0;
+	observedChild = ecs::EntityBad;
+
+	CHECK(wld.sync(rootPrefab) == 1);
+	CHECK(hits == 1);
+	CHECK(observedChild != ecs::EntityBad);
+	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::ChildOf, rootInstance)));
+	CHECK(wld.has_direct(observedChild, ecs::Pair(ecs::Is, childPrefab)));
+
+	(void)observer;
+}
+
+TEST_CASE("Observer - instantiate_n parented ChildOf prefab subtree emits hierarchy pairs") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.child(leafPrefab, childPrefab);
+	wld.add<Position>(rootPrefab, {1.0f, 0.0f, 0.0f});
+	wld.add<Position>(childPrefab, {2.0f, 0.0f, 0.0f});
+	wld.add<Position>(leafPrefab, {3.0f, 0.0f, 0.0f});
+
+	uint32_t rootPairHits = 0;
+	uint32_t childOfPairHits = 0;
+	cnt::darr<ecs::Entity> roots;
+	cnt::darr<ecs::Entity> childOfEntities;
+
+	const auto rootObserver = wld.observer()
+																.event(ecs::ObserverEvent::OnAdd)
+																.all(ecs::Pair(ecs::Parent, scene))
+																.on_each([&](ecs::Iter& it) {
+																	rootPairHits += it.size();
+																	auto entityView = it.view<ecs::Entity>();
+																	GAIA_EACH(it) {
+																		roots.push_back(entityView[i]);
+																	}
+																})
+																.entity();
+	const auto childOfObserver = wld.observer()
+																	 .event(ecs::ObserverEvent::OnAdd)
+																	 .all(ecs::Pair(ecs::ChildOf, ecs::All))
+																	 .on_each([&](ecs::Iter& it) {
+																		 childOfPairHits += it.size();
+																		 auto entityView = it.view<ecs::Entity>();
+																		 GAIA_EACH(it) {
+																			 childOfEntities.push_back(entityView[i]);
+																		 }
+																	 })
+																	 .entity();
+	(void)rootObserver;
+	(void)childOfObserver;
+
+	wld.instantiate_n(rootPrefab, scene, 3, [&](ecs::Entity root) {
+		CHECK(wld.has(root, ecs::Pair(ecs::Parent, scene)));
+	});
+
+	CHECK(rootPairHits == 3);
+	CHECK(roots.size() == 3);
+	CHECK(childOfPairHits == 6);
+	CHECK(childOfEntities.size() == 6);
+
+	for (const auto root: roots) {
+		const auto child = wld.find_prefab_instance(root, childPrefab);
+		const auto leaf = wld.find_prefab_instance(root, leafPrefab);
+		CHECK(child != ecs::EntityBad);
+		CHECK(leaf != ecs::EntityBad);
+		if (child == ecs::EntityBad || leaf == ecs::EntityBad)
+			continue;
+
+		CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, root)));
+		CHECK(wld.has(leaf, ecs::Pair(ecs::ChildOf, child)));
+
+		bool observedChild = false;
+		bool observedLeaf = false;
+		for (const auto observed: childOfEntities) {
+			observedChild |= observed == child;
+			observedLeaf |= observed == leaf;
+		}
+		CHECK(observedChild);
+		CHECK(observedLeaf);
+	}
+}
+
 TEST_CASE("Observer - prefab sync child removal emits no OnDel") {
 	TestWorld twld;
 

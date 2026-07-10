@@ -24,12 +24,22 @@ namespace gaia {
 				uint16_t count = 0;
 			};
 
+			//! Prefab child edge discovered while building an instantiation or synchronization plan.
+			struct PrefabChildEdge {
+				//! Child prefab entity.
+				Entity prefab = EntityBad;
+				//! Hierarchy relation connecting the child prefab to its parent prefab.
+				Entity relation = EntityBad;
+			};
+
 			//! One node in a prefab instantiation or synchronization plan.
 			struct PrefabInstantiatePlanNode {
 				//! Prefab entity represented by this node.
 				Entity prefab = EntityBad;
 				//! Parent node index in the plan, or BadIndex for a root node.
 				uint32_t parentIdx = BadIndex;
+				//! Hierarchy relation used to attach this node to its parent node.
+				Entity parentRelation = EntityBad;
 				//! Destination archetype used for instances of @a prefab.
 				Archetype* pDstArchetype = nullptr;
 				//! Non-fragmenting sparse component ids copied from @a prefab.

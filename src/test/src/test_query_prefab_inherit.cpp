@@ -629,6 +629,56 @@ TEST_CASE("Prefab - instantiate recurses Parent-owned prefab children") {
 	CHECK(wld.get<Position>(leafInstance).x == 3.0f);
 }
 
+TEST_CASE("Prefab - instantiate recurses ChildOf-owned prefab children") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.child(leafPrefab, childPrefab);
+
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	const auto rootInstance = wld.instantiate(rootPrefab);
+	const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+	const auto leafInstance = wld.find_prefab_instance(rootInstance, leafPrefab);
+
+	CHECK(childInstance != ecs::EntityBad);
+	CHECK(leafInstance != ecs::EntityBad);
+	if (childInstance != ecs::EntityBad && leafInstance != ecs::EntityBad) {
+		CHECK(wld.has(childInstance, ecs::Pair(ecs::ChildOf, rootInstance)));
+		CHECK(wld.has(leafInstance, ecs::Pair(ecs::ChildOf, childInstance)));
+		CHECK_FALSE(wld.has(childInstance, ecs::Pair(ecs::ChildOf, rootPrefab)));
+		CHECK_FALSE(wld.has(leafInstance, ecs::Pair(ecs::ChildOf, childPrefab)));
+		CHECK(wld.get<Position>(childInstance).x == doctest::Approx(2.0f));
+		CHECK(wld.get<Position>(leafInstance).x == doctest::Approx(3.0f));
+	}
+
+	cnt::darray<ecs::Entity> roots;
+	wld.instantiate_n(rootPrefab, 2, [&](ecs::Entity instance) {
+		roots.push_back(instance);
+	});
+
+	CHECK(roots.size() == 2);
+	for (const auto instance: roots) {
+		const auto child = wld.find_prefab_instance(instance, childPrefab);
+		const auto leaf = wld.find_prefab_instance(instance, leafPrefab);
+		CHECK(child != ecs::EntityBad);
+		CHECK(leaf != ecs::EntityBad);
+		if (child == ecs::EntityBad || leaf == ecs::EntityBad)
+			continue;
+
+		CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+		CHECK(wld.has(leaf, ecs::Pair(ecs::ChildOf, child)));
+		CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+		CHECK(wld.get<Position>(leaf).x == doctest::Approx(3.0f));
+	}
+}
+
 TEST_CASE("Prefab - instantiate can parent the spawned subtree under an existing entity") {
 	TestWorld twld;
 
@@ -950,6 +1000,55 @@ TEST_CASE("Prefab - instantiate_n parented roots support CopyIter callbacks") {
 	CHECK(childCount == 4);
 }
 
+TEST_CASE("Prefab - instantiate_n parented ChildOf roots support CopyIter callbacks") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	uint32_t rootCount = 0;
+	cnt::darray<ecs::Entity> roots;
+	roots.reserve(4);
+	wld.instantiate_n(rootPrefab, scene, 4, [&](ecs::CopyIter& it) {
+		rootCount += it.size();
+		auto entityView = it.view<ecs::Entity>();
+		auto posView = it.view<Position>();
+		GAIA_EACH(it) {
+			const auto root = entityView[i];
+			roots.push_back(root);
+			CHECK(posView[i].x == doctest::Approx(1.0f));
+			CHECK(wld.has(root, ecs::Pair(ecs::Parent, scene)));
+
+			const auto child = wld.find_prefab_instance(root, childPrefab);
+			CHECK(child != ecs::EntityBad);
+			if (child == ecs::EntityBad)
+				continue;
+
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, root)));
+			CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+		}
+	});
+
+	CHECK(rootCount == 4);
+	CHECK(roots.size() == 4);
+
+	uint32_t childCount = 0;
+	for (const auto instance: roots) {
+		wld.sources(ecs::ChildOf, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+		});
+	}
+	CHECK(childCount == 4);
+}
+
 TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {
 	TestWorld twld;
 
@@ -980,6 +1079,174 @@ TEST_CASE("Prefab - instantiate_n can parent each spawned subtree") {
 	}
 
 	CHECK(childCount == 3);
+}
+
+TEST_CASE("Prefab - instantiate_n can parent each spawned ChildOf subtree") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	cnt::darray<ecs::Entity> rootInstances;
+	wld.instantiate_n(rootPrefab, scene, 3, [&](ecs::Entity instance) {
+		rootInstances.push_back(instance);
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+
+		const auto child = wld.find_prefab_instance(instance, childPrefab);
+		CHECK(child != ecs::EntityBad);
+		if (child == ecs::EntityBad)
+			return;
+
+		CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+		CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+		CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+	});
+
+	CHECK(rootInstances.size() == 3);
+
+	uint32_t childCount = 0;
+	for (const auto instance: rootInstances) {
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+		wld.sources(ecs::ChildOf, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+		});
+	}
+
+	CHECK(childCount == 3);
+}
+
+TEST_CASE("Prefab - instantiate_n can parent each spawned nested ChildOf subtree") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.child(leafPrefab, childPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	cnt::darray<ecs::Entity> rootInstances;
+	wld.instantiate_n(rootPrefab, scene, 3, [&](ecs::Entity instance) {
+		rootInstances.push_back(instance);
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+
+		const auto child = wld.find_prefab_instance(instance, childPrefab);
+		const auto leaf = wld.find_prefab_instance(instance, leafPrefab);
+		CHECK(child != ecs::EntityBad);
+		CHECK(leaf != ecs::EntityBad);
+		if (child == ecs::EntityBad || leaf == ecs::EntityBad)
+			return;
+
+		CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+		CHECK(wld.has_direct(leaf, ecs::Pair(ecs::Is, leafPrefab)));
+		CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+		CHECK(wld.has(leaf, ecs::Pair(ecs::ChildOf, child)));
+		CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+		CHECK(wld.get<Position>(leaf).x == doctest::Approx(3.0f));
+	});
+
+	CHECK(rootInstances.size() == 3);
+
+	uint32_t childCount = 0;
+	uint32_t leafCount = 0;
+	for (const auto instance: rootInstances) {
+		CHECK(wld.has(instance, ecs::Pair(ecs::Parent, scene)));
+		wld.sources(ecs::ChildOf, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, instance)));
+
+			wld.sources(ecs::ChildOf, child, [&](ecs::Entity leaf) {
+				++leafCount;
+				CHECK(wld.has_direct(leaf, ecs::Pair(ecs::Is, leafPrefab)));
+				CHECK(wld.has(leaf, ecs::Pair(ecs::ChildOf, child)));
+			});
+		});
+	}
+
+	CHECK(childCount == 3);
+	CHECK(leafCount == 3);
+}
+
+TEST_CASE("Prefab - instantiate_n callbacks see spawned child subtrees") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	uint32_t entityCallbackRoots = 0;
+	wld.instantiate_n(rootPrefab, 3, [&](ecs::Entity instance) {
+		++entityCallbackRoots;
+
+		uint32_t childCount = 0;
+		wld.sources(ecs::Parent, instance, [&](ecs::Entity child) {
+			++childCount;
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::Parent, instance)));
+		});
+		CHECK(childCount == 1);
+	});
+	CHECK(entityCallbackRoots == 3);
+
+	uint32_t copyIterCallbackRoots = 0;
+	wld.instantiate_n(rootPrefab, 4, [&](ecs::CopyIter& it) {
+		copyIterCallbackRoots += it.size();
+		auto entityView = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			uint32_t childCount = 0;
+			wld.sources(ecs::Parent, entityView[i], [&](ecs::Entity child) {
+				++childCount;
+				CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+				CHECK(wld.has(child, ecs::Pair(ecs::Parent, entityView[i])));
+			});
+			CHECK(childCount == 1);
+		}
+	});
+	CHECK(copyIterCallbackRoots == 4);
+}
+
+TEST_CASE("Prefab - instantiate_n CopyIter callbacks see spawned ChildOf subtrees") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+
+	uint32_t copyIterCallbackRoots = 0;
+	wld.instantiate_n(rootPrefab, 4, [&](ecs::CopyIter& it) {
+		copyIterCallbackRoots += it.size();
+		auto entityView = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			const auto child = wld.find_prefab_instance(entityView[i], childPrefab);
+			CHECK(child != ecs::EntityBad);
+			if (child == ecs::EntityBad)
+				continue;
+
+			CHECK(wld.has_direct(child, ecs::Pair(ecs::Is, childPrefab)));
+			CHECK(wld.has(child, ecs::Pair(ecs::ChildOf, entityView[i])));
+			CHECK(wld.get<Position>(child).x == doctest::Approx(2.0f));
+		}
+	});
+
+	CHECK(copyIterCallbackRoots == 4);
 }
 
 TEST_CASE("Prefab - instantiate_n recurses nested prefab children") {
@@ -1074,6 +1341,73 @@ TEST_CASE("Prefab - nested Parent prefab children can be found through shared so
 	CHECK(stoppedOnLeaf);
 }
 
+TEST_CASE("Prefab - prefab instance lookup maps nested child prefabs under a spawned root") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+	const auto missingPrefab = wld.prefab();
+
+	wld.name(rootPrefab, "prefab_lookup_root");
+	wld.name(childPrefab, "prefab_lookup_child");
+	wld.name(leafPrefab, "prefab_lookup_leaf");
+	wld.name(missingPrefab, "prefab_lookup_missing");
+
+	wld.parent(childPrefab, rootPrefab);
+	wld.parent(leafPrefab, childPrefab);
+
+	wld.add<Position>(rootPrefab, {1, 0, 0});
+	wld.add<Position>(childPrefab, {2, 0, 0});
+	wld.add<Position>(leafPrefab, {3, 0, 0});
+
+	const auto returnedRoot = wld.instantiate(rootPrefab);
+	const auto returnedChild = wld.find_prefab_instance(returnedRoot, childPrefab);
+	const auto returnedLeaf = wld.find_prefab_instance(returnedRoot, leafPrefab);
+	CHECK(returnedChild != ecs::EntityBad);
+	CHECK(returnedLeaf != ecs::EntityBad);
+	if (returnedChild != ecs::EntityBad && returnedLeaf != ecs::EntityBad) {
+		uint32_t directChildCount = 0;
+		wld.sources(ecs::Parent, returnedRoot, [&](ecs::Entity child) {
+			++directChildCount;
+			CHECK(child == returnedChild);
+		});
+		CHECK(directChildCount == 1);
+		CHECK(wld.has(returnedLeaf, ecs::Pair(ecs::Parent, returnedChild)));
+	}
+
+	cnt::darray<ecs::Entity> roots;
+	wld.instantiate_n(rootPrefab, 2, [&](ecs::CopyIter& it) {
+		auto entityView = it.view<ecs::Entity>();
+		GAIA_EACH(it) {
+			roots.push_back(entityView[i]);
+		}
+	});
+
+	CHECK(roots.size() == 2);
+	for (const auto rootInstance: roots) {
+		const auto rootLookup = wld.find_prefab_instance(rootInstance, rootPrefab);
+		const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+		const auto leafInstance = wld.find_prefab_instance(rootInstance, leafPrefab);
+
+		CHECK(rootLookup == rootInstance);
+		CHECK(childInstance != ecs::EntityBad);
+		CHECK(leafInstance != ecs::EntityBad);
+		CHECK(wld.find_prefab_instance(rootInstance, missingPrefab) == ecs::EntityBad);
+		if (childInstance == ecs::EntityBad || leafInstance == ecs::EntityBad)
+			continue;
+
+		CHECK(wld.name(childInstance).empty());
+		CHECK(wld.name(leafInstance).empty());
+		CHECK(wld.has(childInstance, ecs::Pair(ecs::Parent, rootInstance)));
+		CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstance)));
+		CHECK(wld.has_direct(childInstance, ecs::Pair(ecs::Is, childPrefab)));
+		CHECK(wld.has_direct(leafInstance, ecs::Pair(ecs::Is, leafPrefab)));
+		CHECK(wld.get<Position>(childInstance).x == doctest::Approx(2.0f));
+		CHECK(wld.get<Position>(leafInstance).x == doctest::Approx(3.0f));
+	}
+}
+
 TEST_CASE("Prefab - instantiate_n with zero count does nothing") {
 	TestWorld twld;
 
@@ -1124,12 +1458,15 @@ TEST_CASE("Prefab - sync spawns missing prefab children on existing instances") 
 	const auto rootPrefab = wld.prefab();
 	const auto rootInstance = wld.instantiate(rootPrefab);
 	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
 
 	auto childBuilder = wld.build(childPrefab);
 	childBuilder.add<Position>();
 	childBuilder.add(ecs::Pair(ecs::Parent, rootPrefab));
 	childBuilder.commit();
 	wld.set<Position>(childPrefab) = {2.0f, 0.0f, 0.0f};
+	wld.parent(leafPrefab, childPrefab);
+	wld.add<Scale>(leafPrefab, {3.0f, 0.0f, 0.0f});
 
 	CHECK_FALSE(wld.has(rootInstance, ecs::Pair(ecs::Parent, rootPrefab)));
 
@@ -1144,6 +1481,40 @@ TEST_CASE("Prefab - sync spawns missing prefab children on existing instances") 
 
 	CHECK(childInstances.size() == 1);
 	CHECK(wld.get<Position>(childInstances[0]).x == doctest::Approx(2.0f));
+	CHECK(wld.find_prefab_instance(rootInstance, childPrefab) == childInstances[0]);
+	const auto leafInstance = wld.find_prefab_instance(rootInstance, leafPrefab);
+	CHECK(leafInstance != ecs::EntityBad);
+	if (leafInstance != ecs::EntityBad) {
+		CHECK(wld.has(leafInstance, ecs::Pair(ecs::Parent, childInstances[0])));
+		CHECK(wld.get<Scale>(leafInstance).x == doctest::Approx(3.0f));
+	}
+
+	const auto changesAgain = wld.sync(rootPrefab);
+	CHECK(changesAgain == 0);
+}
+
+TEST_CASE("Prefab - sync spawns missing ChildOf prefab children on existing instances") {
+	TestWorld twld;
+
+	const auto rootPrefab = wld.prefab();
+	const auto rootInstance = wld.instantiate(rootPrefab);
+	const auto childPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.add<Position>(childPrefab, {4.0f, 0.0f, 0.0f});
+
+	CHECK(wld.find_prefab_instance(rootInstance, childPrefab) == ecs::EntityBad);
+
+	const auto changes = wld.sync(rootPrefab);
+	CHECK(changes == 1);
+
+	const auto childInstance = wld.find_prefab_instance(rootInstance, childPrefab);
+	CHECK(childInstance != ecs::EntityBad);
+	if (childInstance != ecs::EntityBad) {
+		CHECK(wld.has(childInstance, ecs::Pair(ecs::ChildOf, rootInstance)));
+		CHECK_FALSE(wld.has(childInstance, ecs::Pair(ecs::ChildOf, rootPrefab)));
+		CHECK(wld.get<Position>(childInstance).x == doctest::Approx(4.0f));
+	}
 
 	const auto changesAgain = wld.sync(rootPrefab);
 	CHECK(changesAgain == 0);
