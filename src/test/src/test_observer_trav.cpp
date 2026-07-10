@@ -727,6 +727,70 @@ TEST_CASE("Observer - traversed source propagation on relation edge changes") {
 		CHECK(removed[0] == cable);
 }
 
+TEST_CASE("Observer - Parent traversed source propagation on relation edge changes") {
+	TestWorld twld;
+
+	const auto connectedTo = wld.add();
+	const auto root = wld.add();
+	const auto child = wld.add();
+	wld.add<Acceleration>(root);
+
+	const auto cable = wld.add();
+	wld.add<Position>(cable);
+	wld.add(cable, ecs::Pair(connectedTo, child));
+	auto q = wld.query()
+							 .template all<Position>()
+							 .all(ecs::Pair(connectedTo, ecs::Var0))
+							 .template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav(ecs::Parent));
+	CHECK(q.count() == 0);
+
+	int addHits = 0;
+	int delHits = 0;
+	cnt::darr<ecs::Entity> added;
+	cnt::darr<ecs::Entity> removed;
+
+	const auto makeObserver = [&twld, connectedTo](ecs::ObserverEvent event, int& hits, cnt::darr<ecs::Entity>& out) {
+		return wld.observer()
+				.event(event)
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav(ecs::Parent))
+				.on_each([&](ecs::Iter& it) {
+					auto entities = it.view<ecs::Entity>();
+					GAIA_EACH(it) {
+						++hits;
+						out.push_back(entities[i]);
+					}
+				})
+				.entity();
+	};
+	const auto buildQuery = [&twld, connectedTo] {
+		return wld.uquery()
+				.template all<Position>()
+				.all(ecs::Pair(connectedTo, ecs::Var0))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(ecs::Var0).trav(ecs::Parent));
+	};
+
+	(void)makeObserver(ecs::ObserverEvent::OnAdd, addHits, added);
+	(void)makeObserver(ecs::ObserverEvent::OnDel, delHits, removed);
+
+	wld.parent(child, root);
+	CHECK(wld.target(child, ecs::Parent) == root);
+	CHECK(buildQuery().count() == 1);
+	CHECK(addHits == 1);
+	CHECK(added.size() == 1);
+	if (!added.empty())
+		CHECK(added[0] == cable);
+
+	wld.del(child, ecs::Pair(ecs::Parent, root));
+	CHECK(wld.target(child, ecs::Parent) == ecs::EntityBad);
+	CHECK(buildQuery().count() == 0);
+	CHECK(delHits == 1);
+	CHECK(removed.size() == 1);
+	if (!removed.empty())
+		CHECK(removed[0] == cable);
+}
+
 TEST_CASE("Observer - traversed source propagation and unrelated pair relation changes") {
 	TestWorld twld;
 

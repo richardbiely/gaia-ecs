@@ -783,6 +783,8 @@ w.query().all<Position&>().each([&](Position& pos) {
 
 Observers also work with relation pairs. Use them when a relation change should run code right away. The callback is normal user code. It can update a store, rebuild an index, notify gameplay code, or save work for a later pass.
 
+Finish the observer callback before calling `update()` or `frame_cleanup()`. Debug builds assert this contract because deferred cleanup must not invalidate the mutation that triggered the observer.
+
 Use a wildcard target when every target of a relation should trigger the same code:
 
 ```cpp

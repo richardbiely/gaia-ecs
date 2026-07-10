@@ -51,6 +51,9 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
+#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+			pWorld->observer_callback_enter();
+#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
 			const auto& termIds = queryTermIds;
 
@@ -93,6 +96,9 @@ namespace gaia {
 				observer_finish_iter_writes(iter);
 				iter.clear_touched_writes();
 			}
+#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+			pWorld->observer_callback_leave();
+#endif
 		}
 
 		class ObserverBuilder {

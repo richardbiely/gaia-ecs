@@ -728,6 +728,97 @@ TEST_CASE("Observer - instantiate_n parented ChildOf prefab subtree emits hierar
 	}
 }
 
+TEST_CASE("Observer - deleting parented ChildOf prefab subtree emits hierarchy pair removal") {
+	TestWorld twld;
+
+	const auto scene = wld.add();
+	const auto rootPrefab = wld.prefab();
+	const auto childPrefab = wld.prefab();
+	const auto leafPrefab = wld.prefab();
+
+	wld.child(childPrefab, rootPrefab);
+	wld.child(leafPrefab, childPrefab);
+	wld.add<Position>(rootPrefab, {1.0f, 0.0f, 0.0f});
+	wld.add<Position>(childPrefab, {2.0f, 0.0f, 0.0f});
+	wld.add<Position>(leafPrefab, {3.0f, 0.0f, 0.0f});
+
+	cnt::darr<ecs::Entity> roots;
+	cnt::darr<ecs::Entity> children;
+	cnt::darr<ecs::Entity> leaves;
+	wld.instantiate_n(rootPrefab, scene, 2, [&](ecs::Entity root) {
+		const auto child = wld.find_prefab_instance(root, childPrefab);
+		const auto leaf = wld.find_prefab_instance(root, leafPrefab);
+		CHECK(child != ecs::EntityBad);
+		CHECK(leaf != ecs::EntityBad);
+		if (child == ecs::EntityBad || leaf == ecs::EntityBad)
+			return;
+
+		roots.push_back(root);
+		children.push_back(child);
+		leaves.push_back(leaf);
+	});
+
+	CHECK(roots.size() == 2);
+	CHECK(children.size() == 2);
+	CHECK(leaves.size() == 2);
+
+	uint32_t rootPairDelHits = 0;
+	uint32_t childOfPairDelHits = 0;
+	cnt::darr<ecs::Entity> removedRoots;
+	cnt::darr<ecs::Entity> removedChildOfEntities;
+
+	const auto rootObserver = wld.observer()
+																.event(ecs::ObserverEvent::OnDel)
+																.all(ecs::Pair(ecs::Parent, scene))
+																.on_each([&](ecs::Iter& it) {
+																	rootPairDelHits += it.size();
+																	auto entityView = it.view<ecs::Entity>();
+																	GAIA_EACH(it) {
+																		removedRoots.push_back(entityView[i]);
+																	}
+																})
+																.entity();
+	const auto childOfObserver = wld.observer()
+																	 .event(ecs::ObserverEvent::OnDel)
+																	 .all(ecs::Pair(ecs::ChildOf, ecs::All))
+																	 .on_each([&](ecs::Iter& it) {
+																		 childOfPairDelHits += it.size();
+																		 auto entityView = it.view<ecs::Entity>();
+																		 GAIA_EACH(it) {
+																			 removedChildOfEntities.push_back(entityView[i]);
+																		 }
+																	 })
+																	 .entity();
+	(void)rootObserver;
+	(void)childOfObserver;
+
+	for (const auto root: roots)
+		wld.del(root);
+
+	CHECK(rootPairDelHits == 2);
+	CHECK(removedRoots.size() == 2);
+	CHECK(childOfPairDelHits == 4);
+	CHECK(removedChildOfEntities.size() == 4);
+
+	for (const auto root: roots) {
+		bool observedRoot = false;
+		for (const auto removedRoot: removedRoots)
+			observedRoot |= removedRoot == root;
+		CHECK(observedRoot);
+	}
+
+	for (uint32_t i = 0; i < children.size(); ++i) {
+		bool observedChild = false;
+		bool observedLeaf = false;
+		for (const auto removed: removedChildOfEntities) {
+			observedChild |= removed == children[i];
+			observedLeaf |= removed == leaves[i];
+		}
+		CHECK(observedChild);
+		CHECK(observedLeaf);
+	}
+}
+
 TEST_CASE("Observer - prefab sync child removal emits no OnDel") {
 	TestWorld twld;
 

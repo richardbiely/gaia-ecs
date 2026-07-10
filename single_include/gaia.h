@@ -58773,6 +58773,7 @@ namespace gaia {
 			friend CommandBufferMT;
 #if GAIA_OBSERVERS_ENABLED
 			friend class ObserverRegistry;
+			friend struct ObserverRuntimeData;
 			friend struct ObserverRegistry::DiffDispatcher;
 			friend struct ObserverRegistry::DirectDispatcher;
 			friend struct ObserverRegistry::SharedDispatch;
@@ -59186,8 +59187,10 @@ namespace gaia {
 			QuerySerMap m_querySerMap;
 			uint32_t m_nextQuerySerId = 0;
 
-			//! TODO: Use this empty space for something
-			uint32_t m_emptySpace0 = 0;
+#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+			//! Number of active observer callbacks. Deferred cleanup is forbidden while non-zero.
+			uint32_t m_observerCallbackDepth = 0;
+#endif
 
 			//! Map of entity -> archetypes
 			EntityToArchetypeMap m_entityToArchetypeMap;
@@ -59325,8 +59328,10 @@ namespace gaia {
 			//! Monotonic stamp used with m_entityVisitStamps for O(1) per-call dedup.
 			mutable uint64_t m_entityVisitStamp = 0;
 
-			//! Local set of entities to delete
-			cnt::set<EntityLookupKey> m_entitiesToDel;
+#if GAIA_OBSERVERS_ENABLED
+			//! Active entity-deletion stack used to suppress duplicate reentrant deletion.
+			cnt::darray_ext<Entity, 16> m_entitiesDeleting;
+#endif
 			//! Array of chunks to delete
 			cnt::darray<ArchetypeChunkPair> m_chunksToDel;
 			//! Array of archetypes to delete
@@ -59430,10 +59435,21 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
 					// Delete-time cleanup can still reference an exact pair record after one endpoint
-					// has already become invalid. As long as the pair record itself still exists,
-					// allow fetch() so cleanup can finish removing it.
+					// has already become invalid. Delete-time observer diffs can also still reference
+					// a delete-requested, queued-for-delete, or stale removed entity record before it
+					// is invalidated. Allow these forms so cleanup and observer dispatch can finish.
 					const bool allowStaleExactPair = entity.pair() && m_recs.pair_record_contains(entity);
-					GAIA_ASSERT(allowStaleExactPair);
+					const bool allowDeleteRequestedEntity =
+							!entity.pair() && entity.id() < m_recs.entities.size() &&
+							m_recs.entities[entity.id()].data.gen == entity.gen() &&
+							(m_recs.entities[entity.id()].flags & EntityContainerFlags::DeleteRequested) != 0;
+					const bool allowQueuedDeleteEntity = !entity.pair() && m_reqEntitiesToDel.contains(EntityLookupKey(entity));
+					const bool allowStaleEntityRecord = !entity.pair() && entity.id() < m_recs.entities.size() &&
+																							m_recs.entities[entity.id()].data.gen == entity.gen() &&
+																							m_recs.entities[entity.id()].pArchetype != nullptr &&
+																							m_recs.entities[entity.id()].pChunk != nullptr;
+					GAIA_ASSERT(
+							allowStaleExactPair || allowDeleteRequestedEntity || allowQueuedDeleteEntity || allowStaleEntityRecord);
 				}
 #endif
 				return m_recs[entity];
@@ -59448,10 +59464,21 @@ namespace gaia {
 				GAIA_ASSERT(!entity.pair() || !is_wildcard(entity));
 				if (!valid(entity)) {
 					// Delete-time cleanup can still reference an exact pair record after one endpoint
-					// has already become invalid. As long as the pair record itself still exists,
-					// allow fetch() so cleanup can finish removing it.
+					// has already become invalid. Delete-time observer diffs can also still reference
+					// a delete-requested, queued-for-delete, or stale removed entity record before it
+					// is invalidated. Allow these forms so cleanup and observer dispatch can finish.
 					const bool allowStaleExactPair = entity.pair() && m_recs.pair_record_contains(entity);
-					GAIA_ASSERT(allowStaleExactPair);
+					const bool allowDeleteRequestedEntity =
+							!entity.pair() && entity.id() < m_recs.entities.size() &&
+							m_recs.entities[entity.id()].data.gen == entity.gen() &&
+							(m_recs.entities[entity.id()].flags & EntityContainerFlags::DeleteRequested) != 0;
+					const bool allowQueuedDeleteEntity = !entity.pair() && m_reqEntitiesToDel.contains(EntityLookupKey(entity));
+					const bool allowStaleEntityRecord = !entity.pair() && entity.id() < m_recs.entities.size() &&
+																							m_recs.entities[entity.id()].data.gen == entity.gen() &&
+																							m_recs.entities[entity.id()].pArchetype != nullptr &&
+																							m_recs.entities[entity.id()].pChunk != nullptr;
+					GAIA_ASSERT(
+							allowStaleExactPair || allowDeleteRequestedEntity || allowQueuedDeleteEntity || allowStaleEntityRecord);
 				}
 #endif
 				return m_recs[entity];
@@ -59469,6 +59496,52 @@ namespace gaia {
 				GAIA_ASSERT((ec.flags & EntityContainerFlags::Load) == 0);
 				return ec.pArchetype != nullptr && ec.pArchetype->is_req_del();
 			}
+
+#if GAIA_OBSERVERS_ENABLED
+	#if GAIA_ASSERT_ENABLED
+			//! Marks entry into an observer callback.
+			void observer_callback_enter() {
+				++m_observerCallbackDepth;
+			}
+
+			//! Marks exit from an observer callback.
+			void observer_callback_leave() {
+				GAIA_ASSERT(m_observerCallbackDepth != 0);
+				--m_observerCallbackDepth;
+			}
+
+			//! Returns whether an observer callback is currently executing.
+			GAIA_NODISCARD bool observer_callback_active() const {
+				return m_observerCallbackDepth != 0;
+			}
+	#endif
+
+			//! Returns whether @a entity is already being processed by the deletion pipeline.
+			//! \param entity Entity to inspect.
+			//! True when deletion is active for @a entity.
+			GAIA_NODISCARD bool entity_deletion_active(Entity entity) const {
+				for (auto deleting: m_entitiesDeleting) {
+					if (deleting == entity)
+						return true;
+				}
+				return false;
+			}
+
+			//! Marks @a entity as active in the deletion pipeline.
+			//! \param entity Entity entering deletion.
+			void entity_deletion_enter(Entity entity) {
+				GAIA_ASSERT(!entity_deletion_active(entity));
+				m_entitiesDeleting.push_back(entity);
+			}
+
+			//! Removes @a entity from the active deletion stack.
+			//! \param entity Entity leaving deletion.
+			void entity_deletion_leave(Entity entity) {
+				GAIA_ASSERT(!m_entitiesDeleting.empty());
+				GAIA_ASSERT(m_entitiesDeleting.back() == entity);
+				m_entitiesDeleting.pop_back();
+			}
+#endif
 
 			//! Returns whether @a entity is marked DontFragment.
 			//! \param entity Entity
@@ -59885,6 +59958,40 @@ namespace gaia {
 				clear_relation_caches();
 			}
 
+#if GAIA_OBSERVERS_ENABLED
+			//! Removes outgoing non-fragmenting relation pairs from @a source and emits OnDel observers.
+			//! \param source Source entity whose outgoing relation pairs are removed.
+			void del_nonfragmenting_relation_source_observed(Entity source) {
+				if (!m_observers.has_on_del_observers())
+					return;
+
+				cnt::darray<Entity> pairs;
+				for (const auto& it: m_nonFragmentingRelationsByRel) {
+					const auto relation = it.first.entity();
+					const auto target = it.second.target(source);
+					if (target != EntityBad)
+						pairs.push_back(Pair(relation, target));
+				}
+				if (pairs.empty())
+					return;
+
+				const auto& ec = fetch(source);
+				for (auto pair: pairs) {
+					const auto relation = try_get(pair.id());
+					const auto target = try_get(pair.gen());
+					if (relation == EntityBad || target == EntityBad)
+						continue;
+
+					const Entity object = Pair(relation, target);
+					auto delDiffCtx =
+							m_observers.prepare_diff(*this, ObserverEvent::OnDel, EntitySpan{&object, 1}, EntitySpan{&source, 1});
+					if (nonfragmenting_relation_del(source, relation, target))
+						m_observers.on_del(*this, *ec.pArchetype, EntitySpan{&object, 1}, EntitySpan{&source, 1});
+					m_observers.finish_diff(*this, GAIA_MOV(delDiffCtx));
+				}
+			}
+#endif
+
 			void del_nonfragmenting_relation(Entity relation) {
 				const auto itStore = m_nonFragmentingRelationsByRel.find(EntityLookupKey(relation));
 				if (itStore == m_nonFragmentingRelationsByRel.end())
@@ -59971,6 +60078,10 @@ namespace gaia {
 				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_comps;
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
+#endif
+
 				EntityBuilder(World& world, Entity entity, EntityContainer& ec):
 						m_world(world), m_pArchetypeSrc(ec.pArchetype), m_pChunkSrc(ec.pChunk), m_rowSrc(ec.row),
 						m_pArchetype(ec.pArchetype), m_entity(entity) {
@@ -60019,6 +60130,11 @@ namespace gaia {
 																								 : m_world.m_observers.prepare_diff(
 																											 m_world, ObserverEvent::OnAdd, EntitySpan{tl_new_comps},
 																											 EntitySpan{&m_entity, 1});
+#endif
+
+#if GAIA_OBSERVERS_ENABLED
+						if (hasOnDelObservers)
+							flush_del_nonfragmenting_relations();
 #endif
 
 						// Trigger remove hooks if there are any
@@ -60080,6 +60196,11 @@ namespace gaia {
 																											 EntitySpan{&m_entity, 1});
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+						if (hasOnDelObservers)
+							flush_del_nonfragmenting_relations();
+#endif
+
 						if (m_targetNameKey.str() != nullptr || m_targetAliasKey.str() != nullptr) {
 							const auto compIdx = m_pChunkSrc->comp_idx(GAIA_ID(EntityDesc));
 							auto* pDesc = reinterpret_cast<EntityDesc*>(m_pChunkSrc->comp_ptr_mut_gen<true>(compIdx, m_rowSrc));
@@ -60099,6 +60220,10 @@ namespace gaia {
 						}
 
 #if GAIA_OBSERVERS_ENABLED
+						if (hasOnDelObservers)
+							m_world.m_observers.on_del(m_world, *m_pArchetypeSrc, EntitySpan{tl_del_comps}, EntitySpan{&m_entity, 1});
+						if (hasOnAddObservers)
+							m_world.m_observers.on_add(m_world, *m_pArchetypeSrc, EntitySpan{tl_new_comps}, EntitySpan{&m_entity, 1});
 						if (hasOnDelObservers)
 							m_world.m_observers.finish_diff(m_world, GAIA_MOV(delDiffCtx));
 						if (hasOnAddObservers)
@@ -60416,6 +60541,14 @@ namespace gaia {
 					tl_del_comps.clear();
 				}
 
+#if GAIA_OBSERVERS_ENABLED
+				void flush_del_nonfragmenting_relations() {
+					for (auto entity: tl_del_nonfragmenting_relations)
+						del_nonfragmenting_relation_id(entity);
+					tl_del_nonfragmenting_relations.clear();
+				}
+#endif
+
 				bool handle_add_entity(Entity entity, RelationMutationPath relationPath) {
 					cnt::sarray_ext<Entity, ChunkHeader::MAX_COMPONENTS> targets;
 					const bool isPair = entity.pair();
@@ -60693,21 +60826,6 @@ namespace gaia {
 				//! \param entity Id to attach.
 				void add_archetype_id(Entity entity) {
 					m_pArchetype = m_world.foc_archetype_add_no_graph(m_pArchetype, entity);
-				}
-
-				//! Adds a non-fragmenting exclusive relation to non-fragmenting relation storage.
-				//! \param entity Pair id to attach.
-				//! \return True when the add succeeded. False when endpoints are stale.
-				GAIA_NODISCARD bool add_nonfragmenting_relation_id(Entity entity) {
-					GAIA_ASSERT(entity.pair());
-
-					const auto relation = m_world.try_get(entity.id());
-					const auto target = m_world.try_get(entity.gen());
-					if (relation == EntityBad || target == EntityBad)
-						return false;
-
-					m_world.nonfragmenting_relation_set(m_entity, relation, target);
-					return true;
 				}
 
 				//! Adds @a entity to the pending target archetype.
@@ -60993,14 +61111,29 @@ namespace gaia {
 					if (has_nonfragmenting_relation_id(entity))
 						return false;
 
+					const auto relation = m_world.try_get(entity.id());
+					const auto target = m_world.try_get(entity.gen());
+					if (relation == EntityBad || target == EntityBad)
+						return false;
+
+					const auto* pStore = m_world.nonfragmenting_relation_store(relation);
+					const auto oldTarget = pStore != nullptr ? pStore->target(m_entity) : EntityBad;
+					if (oldTarget != EntityBad && oldTarget != target) {
+						const auto oldPair = Pair(relation, oldTarget);
+						invalidate_relation_change(oldPair);
+						try_set_flags(oldPair, false);
+						handle_DependsOn(oldPair, false);
+						unlink_is_relation(oldPair);
+						finish_del_id(oldPair);
+					}
+
 					invalidate_relation_change(entity);
 
 					try_set_flags(entity, true);
 					if (!link_is_relation(entity))
 						return false;
 
-					if (!add_nonfragmenting_relation_id(entity))
-						return false;
+					m_world.nonfragmenting_relation_set(m_entity, relation, target);
 
 					finish_add_id<IsBootstrap>(entity);
 
@@ -61083,7 +61216,12 @@ namespace gaia {
 					handle_DependsOn(entity, false);
 					unlink_is_relation(entity);
 
-					del_nonfragmenting_relation_id(entity);
+#if GAIA_OBSERVERS_ENABLED
+					if (m_world.m_observers.has_on_del_observers())
+						tl_del_nonfragmenting_relations.push_back(entity);
+					else
+#endif
+						del_nonfragmenting_relation_id(entity);
 					finish_del_id(entity);
 				}
 
@@ -63628,7 +63766,31 @@ namespace gaia {
 			//! Removes an entity along with all data associated with it.
 			//! \param entity Entity to delete
 			void del(Entity entity) {
+#if GAIA_OBSERVERS_ENABLED
+				if (entity_deletion_active(entity))
+					return;
+#endif
+
 				if (!entity.pair()) {
+					if (relation_uses_non_fragmenting_storage(entity)) {
+						cnt::darray_ext<Entity, 64> pairEntities;
+						if (const auto* pTargets = targets(entity)) {
+							for (auto targetKey: *pTargets)
+								pairEntities.push_back(Pair(entity, targetKey.entity()));
+						}
+						if (const auto* pRelations = relations(entity)) {
+							for (auto relationKey: *pRelations) {
+								const auto relation = relationKey.entity();
+								if (relation != entity)
+									pairEntities.push_back(Pair(relation, entity));
+							}
+						}
+
+						auto& ec = fetch(entity);
+						handle_del_entity(ec, entity, EntitySpan{pairEntities.data(), pairEntities.size()});
+						return;
+					}
+
 					// Delete all relationships associated with this entity (if any)
 					del_inter(Pair(entity, All));
 					del_inter(Pair(All, entity));
@@ -66210,10 +66372,15 @@ namespace gaia {
 			//! external loop calls systems_run() itself, or when a frame has no system pass but still needs world cleanup.
 			//!
 			//! \warning This does not execute registered systems. Call systems_run() first when the frame should run systems.
+			//! \warning Do not call this from an observer callback. Debug builds assert this contract.
 			//! \see systems_run()
 			//! \see frame_end()
 			//! \see update()
 			void frame_cleanup() {
+#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!observer_callback_active());
+#endif
+
 				// Finish deleting entities
 				del_finalize();
 
@@ -66242,10 +66409,15 @@ namespace gaia {
 			//! This is the normal frame step. It executes registered systems through systems_run(), then calls
 			//! frame_cleanup() and frame_end().
 			//!
+			//! \warning Do not call this from an observer callback. Debug builds assert this contract.
 			//! \see systems_run()
 			//! \see frame_cleanup()
 			//! \see frame_end()
 			void update() {
+#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+				GAIA_ASSERT(!observer_callback_active());
+#endif
+
 				systems_run();
 				frame_cleanup();
 				frame_end();
@@ -66373,7 +66545,9 @@ namespace gaia {
 					m_queryCache.clear_archetype_tracking();
 					m_reqArchetypesToDel = {};
 					m_reqEntitiesToDel = {};
-					m_entitiesToDel = {};
+#if GAIA_OBSERVERS_ENABLED
+					m_entitiesDeleting = {};
+#endif
 					m_chunksToDel = {};
 					m_archetypesToDel = {};
 				}
@@ -68254,7 +68428,7 @@ namespace gaia {
 			void del_inter(Entity entity) {
 				auto on_delete = [this](Entity entityToDel) {
 					auto& ec = fetch(entityToDel);
-					handle_del_entity(ec, entityToDel);
+					handle_del_entity(ec, entityToDel, EntitySpan{});
 				};
 
 				if (is_wildcard(entity)) {
@@ -68544,11 +68718,16 @@ namespace gaia {
 				m_reqArchetypesToDel.insert(ArchetypeLookupKey(archetype.lookup_hash(), &archetype));
 			}
 
-			void req_del(EntityContainer& ec, Entity entity) {
+			//! Requests deletion without acquiring observer reentrancy state.
+			//! The caller already owns the active deletion transaction when observers are enabled.
+			//! \param ec Entity container associated with @a entity.
+			//! \param entity Entity to request for deletion.
+			void req_del_inter(EntityContainer& ec, Entity entity) {
 				if (is_req_del(ec))
 					return;
 
 #if GAIA_OBSERVERS_ENABLED
+				del_nonfragmenting_relation_source_observed(entity);
 				auto delDiffCtx =
 						m_observers.prepare_diff(*this, ObserverEvent::OnDel, EntitySpan{&entity, 1}, EntitySpan{&entity, 1});
 #endif
@@ -68559,6 +68738,22 @@ namespace gaia {
 
 				ec.req_del();
 				m_reqEntitiesToDel.insert(EntityLookupKey(entity));
+			}
+
+			//! Requests deletion and owns the active deletion transaction for the request.
+			//! \param ec Entity container associated with @a entity.
+			//! \param entity Entity to request for deletion.
+			void req_del(EntityContainer& ec, Entity entity) {
+#if GAIA_OBSERVERS_ENABLED
+				if (entity_deletion_active(entity))
+					return;
+
+				entity_deletion_enter(entity);
+				req_del_inter(ec, entity);
+				entity_deletion_leave(entity);
+#else
+				req_del_inter(ec, entity);
+#endif
 			}
 
 			void invalidate_pair_removal_caches(Entity entity) {
@@ -69123,6 +69318,15 @@ namespace gaia {
 #endif
 			}
 
+			//! Deletes pair entities that are still valid.
+			//! \param pairEntities Pair entities to delete.
+			void del_pair_entities(EntitySpan pairEntities) {
+				for (auto pair: pairEntities) {
+					if (valid(pair))
+						del_inter(pair);
+				}
+			}
+
 			//! Handles specific conditions that might arise from deleting @a entity.
 			//! Conditions are:
 			//!   OnDelete - deleting an entity/pair
@@ -69135,10 +69339,15 @@ namespace gaia {
 			//!   e.add(Pair(OnDelete, Remove));
 			//! \param ec Entity container associated with @a entity.
 			//! \param entity Entity being deleted.
-			void handle_del_entity(EntityContainer& ec, Entity entity) {
+			//! \param pairEntities Pair entities to delete after the entity passes deletion checks.
+			void handle_del_entity(EntityContainer& ec, Entity entity, EntitySpan pairEntities) {
 				GAIA_PROF_SCOPE(World::handle_del_entity);
 
 				GAIA_ASSERT(!is_wildcard(entity));
+#if GAIA_OBSERVERS_ENABLED
+				if (entity_deletion_active(entity))
+					return;
+#endif
 
 				if (entity.pair()) {
 					if ((ec.flags & EntityContainerFlags::OnDelete_Error) != 0) {
@@ -69176,6 +69385,10 @@ namespace gaia {
 						return;
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+					entity_deletion_enter(entity);
+#endif
+
 					if (hasLiveTarget) {
 						const auto& ecTgt = fetch(tgt);
 						if ((ecTgt.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
@@ -69202,8 +69415,12 @@ namespace gaia {
 					}
 
 					// This entity has been requested to be deleted already. Nothing more for us to do here
-					if (is_req_del(ec))
+					if (is_req_del(ec)) {
+#if GAIA_OBSERVERS_ENABLED
+						entity_deletion_leave(entity);
+#endif
 						return;
+					}
 
 #if GAIA_OBSERVERS_ENABLED
 					observers().del(*this, entity);
@@ -69249,6 +69466,10 @@ namespace gaia {
 						return;
 #endif
 
+#if GAIA_OBSERVERS_ENABLED
+					entity_deletion_enter(entity);
+#endif
+
 					const bool deleteTargets = (ec.flags & EntityContainerFlags::OnDeleteTarget_Delete) != 0 ||
 																		 has_nonfragmenting_relation_target_cond(entity, Pair(OnDeleteTarget, Delete));
 					cnt::darray<Entity> cascadeTargets;
@@ -69276,8 +69497,13 @@ namespace gaia {
 #endif
 
 					// This entity is has been requested to be deleted already. Nothing more for us to do here
-					if (is_req_del(ec))
+					if (is_req_del(ec)) {
+						del_pair_entities(pairEntities);
+#if GAIA_OBSERVERS_ENABLED
+						entity_deletion_leave(entity);
+#endif
 						return;
+					}
 
 #if GAIA_OBSERVERS_ENABLED
 					observers().del(*this, entity);
@@ -69295,8 +69521,10 @@ namespace gaia {
 					}
 				}
 
+				del_pair_entities(pairEntities);
+
 				// Mark the entity with the "delete requested" flag
-				req_del(ec, entity);
+				req_del_inter(ec, entity);
 
 #if GAIA_USE_WEAK_ENTITY
 				// Invalidate WeakEntities
@@ -69313,6 +69541,9 @@ namespace gaia {
 					pWeakEntity->m_entity = EntityBad;
 					delete pTracker;
 				}
+#endif
+#if GAIA_OBSERVERS_ENABLED
+				entity_deletion_leave(entity);
 #endif
 			}
 
@@ -71678,6 +71909,9 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
+	#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+			pWorld->observer_callback_enter();
+	#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
 			const auto& termIds = queryTermIds;
 
@@ -71720,6 +71954,9 @@ namespace gaia {
 				observer_finish_iter_writes(iter);
 				iter.clear_touched_writes();
 			}
+	#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+			pWorld->observer_callback_leave();
+	#endif
 		}
 
 		class ObserverBuilder {

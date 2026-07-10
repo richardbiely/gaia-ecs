@@ -72,6 +72,447 @@ TEST_CASE("Parent - deleting target deletes children through non-fragmenting rel
 	CHECK(!wld.has(child));
 }
 
+TEST_CASE("Non-fragmenting relation - deleting target removes source pair when policy is Remove") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	wld.add<Position>(source);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDeleteTarget, ecs::Remove));
+	wld.add(source, ecs::Pair(relation, target));
+
+	uint32_t removed = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(ecs::Pair(relation, target))
+														.on_each([&](ecs::Iter& it) {
+															removed += it.size();
+														})
+														.entity();
+	(void)observer;
+
+	CHECK(wld.has(source, ecs::Pair(relation, target)));
+	CHECK(wld.target(source, relation) == target);
+
+	wld.del(target);
+	wld.update();
+
+	CHECK(!wld.has(target));
+	CHECK(wld.has(source));
+	CHECK(wld.has<Position>(source));
+	CHECK(!wld.has(source, ecs::Pair(relation, target)));
+	CHECK(wld.target(source, relation) == ecs::EntityBad);
+	CHECK(removed == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - deleting target deletes source and emits source pair OnDel") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	wld.add<Position>(source);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDeleteTarget, ecs::Delete));
+	wld.add(source, ecs::Pair(relation, target));
+
+	uint32_t removed = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(ecs::Pair(relation, target))
+														.on_each([&](ecs::Iter& it) {
+															removed += it.size();
+														})
+														.entity();
+	(void)observer;
+
+	CHECK(wld.has(source, ecs::Pair(relation, target)));
+	wld.del(target);
+	wld.update();
+
+	CHECK_FALSE(wld.has(target));
+	CHECK_FALSE(wld.has(source));
+	CHECK(removed == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - deleting relation entity emits source pair OnDel") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+	wld.add<Position>(sourceA);
+	wld.add<Position>(sourceB);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(sourceA, ecs::Pair(relation, targetA));
+	wld.add(sourceB, ecs::Pair(relation, targetB));
+
+	uint32_t removedA = 0;
+	uint32_t removedB = 0;
+	const auto observerA = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(ecs::Pair(relation, targetA))
+														 .on_each([&](ecs::Iter& it) {
+															 removedA += it.size();
+														 })
+														 .entity();
+	const auto observerB = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(ecs::Pair(relation, targetB))
+														 .on_each([&](ecs::Iter& it) {
+															 removedB += it.size();
+														 })
+														 .entity();
+	(void)observerA;
+	(void)observerB;
+
+	wld.del(relation);
+	wld.update();
+
+	CHECK_FALSE(wld.has(relation));
+	CHECK(wld.has(sourceA));
+	CHECK(wld.has(sourceB));
+	CHECK_FALSE(wld.has(sourceA, ecs::Pair(relation, targetA)));
+	CHECK_FALSE(wld.has(sourceB, ecs::Pair(relation, targetB)));
+	CHECK(removedA == 1);
+	CHECK(removedB == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - reentrant relation deletion keeps pair removal stable") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+	const auto pairA = ecs::Pair(relation, targetA);
+	const auto pairB = ecs::Pair(relation, targetB);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(sourceA, pairA);
+	wld.add(sourceB, pairB);
+
+	bool reentered = false;
+	uint32_t removedA = 0;
+	uint32_t removedB = 0;
+	const auto observerA = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(pairA)
+														 .on_each([&](ecs::Iter& it) {
+															 removedA += it.size();
+															 if (reentered)
+																 return;
+
+															 reentered = true;
+															 wld.del(relation);
+														 })
+														 .entity();
+	const auto observerB = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(pairB)
+														 .on_each([&](ecs::Iter& it) {
+															 removedB += it.size();
+														 })
+														 .entity();
+	(void)observerA;
+	(void)observerB;
+
+	wld.del(relation);
+	wld.update();
+
+	CHECK(reentered);
+	CHECK_FALSE(wld.has(relation));
+	CHECK(wld.has(sourceA));
+	CHECK(wld.has(sourceB));
+	CHECK_FALSE(wld.has(sourceA, pairA));
+	CHECK_FALSE(wld.has(sourceB, pairB));
+	CHECK_FALSE(wld.has(pairA));
+	CHECK_FALSE(wld.has(pairB));
+	CHECK(removedA == 1);
+	CHECK(removedB == 1);
+}
+
+TEST_CASE("Non-fragmenting relation - repeated deletion cleans self and external pairs once") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto incomingRelation = wld.add();
+	const auto target = wld.add();
+	const auto outgoingSource = wld.add();
+	const auto incomingSource = wld.add();
+	const auto selfPair = ecs::Pair(relation, relation);
+	const auto outgoingPair = ecs::Pair(relation, target);
+	const auto incomingPair = ecs::Pair(incomingRelation, relation);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(incomingRelation, ecs::Exclusive);
+	wld.add(incomingRelation, ecs::DontFragment);
+	wld.add(relation, selfPair);
+	wld.add(outgoingSource, outgoingPair);
+	wld.add(incomingSource, incomingPair);
+
+	uint32_t selfRemoved = 0;
+	uint32_t outgoingRemoved = 0;
+	uint32_t incomingRemoved = 0;
+	const auto selfObserver = wld.observer()
+																.event(ecs::ObserverEvent::OnDel)
+																.all(selfPair)
+																.on_each([&](ecs::Iter& it) {
+																	selfRemoved += it.size();
+																})
+																.entity();
+	const auto outgoingObserver = wld.observer()
+																		.event(ecs::ObserverEvent::OnDel)
+																		.all(outgoingPair)
+																		.on_each([&](ecs::Iter& it) {
+																			outgoingRemoved += it.size();
+																		})
+																		.entity();
+	const auto incomingObserver = wld.observer()
+																		.event(ecs::ObserverEvent::OnDel)
+																		.all(incomingPair)
+																		.on_each([&](ecs::Iter& it) {
+																			incomingRemoved += it.size();
+																		})
+																		.entity();
+	(void)selfObserver;
+	(void)outgoingObserver;
+	(void)incomingObserver;
+
+	wld.del(relation);
+	wld.del(relation);
+	wld.update();
+
+	CHECK_FALSE(wld.has(relation));
+	CHECK(wld.has(outgoingSource));
+	CHECK(wld.has(incomingSource));
+	CHECK_FALSE(wld.has(selfPair));
+	CHECK_FALSE(wld.has(outgoingPair));
+	CHECK_FALSE(wld.has(incomingPair));
+	CHECK(selfRemoved == 1);
+	CHECK(outgoingRemoved == 1);
+	CHECK(incomingRemoved == 1);
+
+	const auto replacement = wld.add();
+	const auto replacementSelfPair = ecs::Pair(replacement, replacement);
+	const auto replacementOutgoingPair = ecs::Pair(replacement, target);
+	const auto replacementIncomingPair = ecs::Pair(incomingRelation, replacement);
+	CHECK(replacement.id() == relation.id());
+	CHECK(replacement.gen() != relation.gen());
+	CHECK_FALSE(wld.has(replacementSelfPair));
+	CHECK_FALSE(wld.has(replacementOutgoingPair));
+	CHECK_FALSE(wld.has(replacementIncomingPair));
+	CHECK_FALSE(wld.has(outgoingSource, replacementOutgoingPair));
+	CHECK_FALSE(wld.has(incomingSource, replacementIncomingPair));
+}
+
+TEST_CASE("Non-fragmenting relation - deleting relation entity cascades sources and emits source pair OnDel") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto sourceA = wld.add();
+	const auto sourceB = wld.add();
+	const auto pairA = ecs::Pair(relation, targetA);
+	const auto pairB = ecs::Pair(relation, targetB);
+	wld.add<Position>(sourceA);
+	wld.add<Position>(sourceB);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	wld.add(sourceA, pairA);
+	wld.add(sourceB, pairB);
+
+	uint32_t removedA = 0;
+	uint32_t removedB = 0;
+	bool repeatedSourceDelete = false;
+	const auto observerA = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(pairA)
+														 .on_each([&](ecs::Iter& it) {
+															 removedA += it.size();
+															 if (repeatedSourceDelete)
+																 return;
+
+															 repeatedSourceDelete = true;
+															 wld.del(sourceA);
+														 })
+														 .entity();
+	const auto observerB = wld.observer()
+														 .event(ecs::ObserverEvent::OnDel)
+														 .all(pairB)
+														 .on_each([&](ecs::Iter& it) {
+															 removedB += it.size();
+														 })
+														 .entity();
+	(void)observerA;
+	(void)observerB;
+
+	CHECK(wld.has(sourceA, pairA));
+	CHECK(wld.has(sourceB, pairB));
+	CHECK(wld.target(sourceA, relation) == targetA);
+	CHECK(wld.target(sourceB, relation) == targetB);
+
+	wld.del(relation);
+	wld.del(relation);
+	wld.update();
+
+	CHECK_FALSE(wld.has(relation));
+	CHECK_FALSE(wld.has(sourceA));
+	CHECK_FALSE(wld.has(sourceB));
+	CHECK(wld.has(targetA));
+	CHECK(wld.has(targetB));
+	CHECK_FALSE(wld.has(pairA));
+	CHECK_FALSE(wld.has(pairB));
+	CHECK(removedA == 1);
+	CHECK(removedB == 1);
+}
+
+#if !GAIA_ASSERT_ENABLED
+TEST_CASE("Non-fragmenting relation - OnDelete Error preserves sources") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDelete, ecs::Error));
+	wld.add(source, pair);
+
+	uint32_t removed = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(pair)
+														.on_each([&](ecs::Iter& it) {
+															removed += it.size();
+														})
+														.entity();
+	(void)observer;
+
+	for (uint32_t attempt = 0; attempt < 2; ++attempt) {
+		wld.del(relation);
+		wld.update();
+
+		CHECK(wld.has(relation));
+		CHECK(wld.has(target));
+		CHECK(wld.has(source));
+		CHECK(wld.has(source, pair));
+		CHECK(wld.has(pair));
+		CHECK(removed == 0);
+	}
+}
+
+TEST_CASE("Non-fragmenting relation - protected relation deletion preserves sources") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto guardRelation = wld.add();
+	const auto guardSource = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+	const auto guardPair = ecs::Pair(guardRelation, relation);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	wld.add(source, pair);
+
+	wld.add(guardRelation, ecs::Pair(ecs::OnDeleteTarget, ecs::Error));
+	wld.add(guardSource, guardPair);
+
+	uint32_t removed = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(pair)
+														.on_each([&](ecs::Iter& it) {
+															removed += it.size();
+														})
+														.entity();
+	(void)observer;
+
+	for (uint32_t attempt = 0; attempt < 2; ++attempt) {
+		wld.del(relation);
+		wld.update();
+
+		CHECK(wld.has(relation));
+		CHECK(wld.has(target));
+		CHECK(wld.has(source));
+		CHECK(wld.has(source, pair));
+		CHECK(wld.has(pair));
+		CHECK(wld.has(guardSource));
+		CHECK(wld.has(guardSource, guardPair));
+		CHECK(wld.has(guardPair));
+		CHECK(removed == 0);
+	}
+}
+#endif
+
+#if GAIA_USE_SAFE_ENTITY
+TEST_CASE("Non-fragmenting relation - retained relation deletion preserves sources") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = ecs::Pair(relation, target);
+
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.add(relation, ecs::Pair(ecs::OnDelete, ecs::Delete));
+	wld.add(source, pair);
+
+	uint32_t removed = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnDel)
+														.all(pair)
+														.on_each([&](ecs::Iter& it) {
+															removed += it.size();
+														})
+														.entity();
+	(void)observer;
+
+	{
+		auto safeRelation = ecs::SafeEntity(wld, relation);
+		(void)safeRelation;
+		wld.del(relation);
+		wld.del(relation);
+		wld.update();
+
+		CHECK(wld.has(relation));
+		CHECK(wld.has(source));
+		CHECK(wld.has(source, pair));
+		CHECK(wld.has(pair));
+		CHECK(removed == 0);
+	}
+	wld.update();
+
+	CHECK_FALSE(wld.has(relation));
+	CHECK_FALSE(wld.has(source));
+	CHECK(wld.has(target));
+	CHECK_FALSE(wld.has(pair));
+	CHECK(removed == 1);
+}
+#endif
+
 TEST_CASE("Parent - breadth-first traversal on non-fragmenting relation") {
 	TestWorld twld;
 
@@ -422,12 +863,12 @@ TEST_CASE("Parent - duplicate direct set does not dispatch OnAdd again") {
 
 	uint32_t hits = 0;
 	const auto observer = wld.observer()
-											 .event(ecs::ObserverEvent::OnAdd)
-											 .all(ecs::Pair(ecs::Parent, root))
-											 .on_each([&](ecs::Iter& it) {
-												 hits += it.size();
-											 })
-											 .entity();
+														.event(ecs::ObserverEvent::OnAdd)
+														.all(ecs::Pair(ecs::Parent, root))
+														.on_each([&](ecs::Iter& it) {
+															hits += it.size();
+														})
+														.entity();
 	(void)observer;
 
 	wld.parent(child, root);
@@ -554,6 +995,58 @@ TEST_CASE("Parent - builder rebind replaces target without archetype move") {
 	CHECK(newRootSources[0] == child);
 }
 
+TEST_CASE("Non-fragmenting relation - builder rebind emits observer replacement events") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+
+	const auto targetA = wld.add();
+	const auto targetB = wld.add();
+	const auto source = wld.add();
+	wld.add<Position>(source);
+
+	uint32_t addNew = 0;
+	uint32_t delOld = 0;
+	const auto addObserver = wld.observer()
+															 .event(ecs::ObserverEvent::OnAdd)
+															 .all(ecs::Pair(relation, targetB))
+															 .on_each([&](ecs::Iter& it) {
+																 addNew += it.size();
+															 })
+															 .entity();
+	const auto delObserver = wld.observer()
+															 .event(ecs::ObserverEvent::OnDel)
+															 .all(ecs::Pair(relation, targetA))
+															 .on_each([&](ecs::Iter& it) {
+																 delOld += it.size();
+															 })
+															 .entity();
+	(void)addObserver;
+	(void)delObserver;
+
+	{
+		auto builder = wld.build(source);
+		builder.add(ecs::Pair(relation, targetA));
+		builder.commit();
+	}
+
+	CHECK(addNew == 0);
+	CHECK(delOld == 0);
+
+	{
+		auto builder = wld.build(source);
+		builder.add(ecs::Pair(relation, targetB));
+		builder.commit();
+	}
+
+	CHECK(addNew == 1);
+	CHECK(delOld == 1);
+	CHECK_FALSE(wld.has(source, ecs::Pair(relation, targetA)));
+	CHECK(wld.has(source, ecs::Pair(relation, targetB)));
+}
+
 TEST_CASE("ChildOf and Parent - direct child query returns equivalent entity sets") {
 	TestWorld twld;
 
@@ -634,33 +1127,33 @@ TEST_CASE("ChildOf and Parent - observer OnAdd and OnDel fire for relation repla
 	uint32_t parentDelOld = 0;
 
 	const auto childOfAddObserver = wld.observer()
-												 .event(ecs::ObserverEvent::OnAdd)
-												 .all(ecs::Pair(ecs::ChildOf, childOfRootB))
-												 .on_each([&](ecs::Iter& it) {
-													 childOfAddNew += it.size();
-												 })
-												 .entity();
+																			.event(ecs::ObserverEvent::OnAdd)
+																			.all(ecs::Pair(ecs::ChildOf, childOfRootB))
+																			.on_each([&](ecs::Iter& it) {
+																				childOfAddNew += it.size();
+																			})
+																			.entity();
 	const auto childOfDelObserver = wld.observer()
-												 .event(ecs::ObserverEvent::OnDel)
-												 .all(ecs::Pair(ecs::ChildOf, childOfRootA))
-												 .on_each([&](ecs::Iter& it) {
-													 childOfDelOld += it.size();
-												 })
-												 .entity();
+																			.event(ecs::ObserverEvent::OnDel)
+																			.all(ecs::Pair(ecs::ChildOf, childOfRootA))
+																			.on_each([&](ecs::Iter& it) {
+																				childOfDelOld += it.size();
+																			})
+																			.entity();
 	const auto parentAddObserver = wld.observer()
-											 .event(ecs::ObserverEvent::OnAdd)
-											 .all(ecs::Pair(ecs::Parent, parentRootB))
-											 .on_each([&](ecs::Iter& it) {
-												 parentAddNew += it.size();
-											 })
-											 .entity();
+																		 .event(ecs::ObserverEvent::OnAdd)
+																		 .all(ecs::Pair(ecs::Parent, parentRootB))
+																		 .on_each([&](ecs::Iter& it) {
+																			 parentAddNew += it.size();
+																		 })
+																		 .entity();
 	const auto parentDelObserver = wld.observer()
-											 .event(ecs::ObserverEvent::OnDel)
-											 .all(ecs::Pair(ecs::Parent, parentRootA))
-											 .on_each([&](ecs::Iter& it) {
-												 parentDelOld += it.size();
-											 })
-											 .entity();
+																		 .event(ecs::ObserverEvent::OnDel)
+																		 .all(ecs::Pair(ecs::Parent, parentRootA))
+																		 .on_each([&](ecs::Iter& it) {
+																			 parentDelOld += it.size();
+																		 })
+																		 .entity();
 	(void)childOfAddObserver;
 	(void)childOfDelObserver;
 	(void)parentAddObserver;

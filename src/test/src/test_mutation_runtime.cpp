@@ -3122,6 +3122,61 @@ TEST_CASE("Query Filter - cached changed traversed source queries with instance-
 	expect_changed_consume_exact(qMars, {childMars});
 }
 
+TEST_CASE("Query Filter - cached changed Parent traversed source queries report changed chunks") {
+	TestWorld twld;
+	struct Status {
+		int value;
+	};
+
+	const auto rootEarth = wld.add();
+	const auto rootMars = wld.add();
+	wld.add<Acceleration>(rootEarth);
+	wld.add<Acceleration>(rootMars);
+
+	const auto parentEarth = wld.add();
+	const auto parentMars = wld.add();
+	wld.parent(parentEarth, rootEarth);
+	wld.parent(parentMars, rootMars);
+
+	const auto childEarth = wld.add();
+	const auto childMars = wld.add();
+	wld.add<Status>(childEarth, {1});
+	wld.add<Status>(childMars, {2});
+	wld.parent(childEarth, parentEarth);
+	wld.parent(childMars, parentMars);
+
+	auto makeQuery = [&](ecs::Entity parent) {
+		return wld.query()
+				.template all<Status>()
+				.all(ecs::Pair(ecs::Parent, parent))
+				.template all<Acceleration>(ecs::QueryTermOptions{}.src(parent).trav(ecs::Parent))
+				.template changed<Status>();
+	};
+
+	auto qEarth = makeQuery(parentEarth);
+	auto qMars = makeQuery(parentMars);
+
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {childEarth});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {childMars});
+
+	wld.set<Status>(childEarth) = {3};
+
+	// Parent is non-fragmenting, so both filtered rows stay in the same changed chunk.
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {childEarth});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {childMars});
+
+	wld.set<Status>(childMars) = {4};
+
+	expect_changed_probe_state(qEarth, 1);
+	expect_changed_consume_exact(qEarth, {childEarth});
+	expect_changed_probe_state(qMars, 1);
+	expect_changed_consume_exact(qMars, {childMars});
+}
+
 TEST_CASE("Query Filter - systems") {
 	uint32_t expectedCnt = 0;
 	uint32_t actualCnt = 0;
