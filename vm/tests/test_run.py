@@ -1,6 +1,8 @@
 import importlib.util
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -129,6 +131,18 @@ class TargetConfigTests(unittest.TestCase):
 
 
 class CommandTests(unittest.TestCase):
+    def test_full_build_wrapper_is_independent_of_the_callers_working_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            vm_dir = Path(directory) / "vm"
+            vm_dir.mkdir()
+            shutil.copy2(MODULE_PATH.parent / "build.sh", vm_dir / "build.sh")
+            for name in ("build_clang.sh", "build_gcc.sh"):
+                (vm_dir / name).write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+
+            result = subprocess.run(["bash", str(vm_dir / "build.sh"), "-c"], cwd=directory, check=False)
+
+        self.assertEqual(0, result.returncode)
+
     def test_profiles_are_named_commands_owned_by_gaia_ecs(self) -> None:
         profiles = json.loads((MODULE_PATH.parent / "profiles.json").read_text(encoding="utf-8"))["profiles"]
 
