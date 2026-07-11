@@ -1,9 +1,11 @@
 import importlib.util
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).parents[1] / "run.py"
@@ -195,6 +197,18 @@ class CommandTests(unittest.TestCase):
         self.assertIn("other-host", command)
         self.assertIn("StrictHostKeyChecking=yes", command)
         self.assertNotIn("krabicka1", command)
+
+    def test_password_authentication_uses_sshpass_without_command_line_secret(self) -> None:
+        target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image", "ci", 2222)
+
+        with patch.dict(os.environ, {"SSHPASS": "write-only-value"}):
+            command = run.host_command(target, ["podman", "info"])
+            sync = run.remote_sync_command(target, "/tmp/runs/a1b2/src")
+
+        self.assertEqual(["sshpass", "-e", "ssh"], command[:3])
+        self.assertIn("BatchMode=no", command)
+        self.assertTrue(any("sshpass -e ssh" in value for value in sync))
+        self.assertNotIn("write-only-value", " ".join(command + sync))
 
     def test_remote_sync_is_non_interactive_and_requires_a_known_host(self) -> None:
         target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image")

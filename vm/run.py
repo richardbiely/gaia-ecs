@@ -114,11 +114,12 @@ def host_command(target: Target, command: Sequence[str], interactive: bool = Fal
     if target.transport == "local":
         return list(command)
     assert target.ssh_host is not None
-    result = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-p", str(target.ssh_port)]
+    batch_mode = "no" if os.environ.get("SSHPASS") else "yes"
+    result = ["ssh", "-o", f"BatchMode={batch_mode}", "-o", "StrictHostKeyChecking=yes", "-p", str(target.ssh_port)]
     if interactive:
         result.append("-tt")
     result.extend(("--", ssh_destination(target), shlex.join(command)))
-    return result
+    return ["sshpass", "-e", *result] if os.environ.get("SSHPASS") else result
 
 
 def container_command(
@@ -202,7 +203,7 @@ def remote_sync_command(target: Target, workspace: str) -> List[str]:
         "-az",
         "--delete",
         "-e",
-        f"ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p {target.ssh_port}",
+        f'{"sshpass -e " if os.environ.get("SSHPASS") else ""}ssh -o BatchMode={"no" if os.environ.get("SSHPASS") else "yes"} -o StrictHostKeyChecking=yes -p {target.ssh_port}',
         "--exclude=.git/",
         "--exclude=build*/",
         "--exclude=vm/build*/",
