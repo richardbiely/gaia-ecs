@@ -180,6 +180,8 @@ namespace sysbase {
 	}
 
 	void renderSprite(FrameBuffer& fb, float x, float y, const SpriteComponent& spr) {
+		if (!(x >= 0.0f && x < (float)FrameBufferWidth && y >= 0.0f && y < (float)FrameBufferHeight))
+			return;
 		fb.draw((int)x, (int)y, spr.character);
 	}
 

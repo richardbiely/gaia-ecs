@@ -132,7 +132,7 @@ namespace {
 		for (auto _: state) {
 			(void)_;
 
-			int32_t sum = 0;
+			uint32_t sum = 0;
 			GAIA_FOR(InvokeOps) {
 				sum += func((int32_t)i, 3);
 			}
@@ -153,7 +153,7 @@ namespace {
 		for (auto _: state) {
 			(void)_;
 
-			int32_t sum = 0;
+			uint32_t sum = 0;
 			GAIA_FOR(InvokeOps) {
 				sum += invoke_erased_once(func, (int32_t)i, 3);
 			}
@@ -167,7 +167,7 @@ namespace {
 		for (auto _: state) {
 			(void)_;
 
-			int32_t sum = 0;
+			uint32_t sum = 0;
 			GAIA_FOR(ConstructOps) {
 				TFunc func(callable);
 				gaia::dont_optimize(func);
@@ -183,7 +183,7 @@ namespace {
 		for (auto _: state) {
 			(void)_;
 
-			int32_t sum = 0;
+			uint32_t sum = 0;
 			GAIA_FOR(ConstructOps) {
 				void* pStorage = nullptr;
 				if constexpr (UseMoveFuncStorage && sizeof(TCallable) <= mem::SmallBlockMaxSize)
@@ -251,7 +251,7 @@ namespace {
 		for (auto _: state) {
 			(void)_;
 
-			int32_t sum = 0;
+			uint32_t sum = 0;
 			GAIA_FOR(ConstructOps) {
 				void* pStorage = nullptr;
 				if constexpr (UseSmallBlock && sizeof(TCallable) <= mem::SmallBlockMaxSize)
