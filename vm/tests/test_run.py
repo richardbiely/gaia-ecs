@@ -196,6 +196,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual("ssh", command[0])
         self.assertIn("other-host", command)
         self.assertIn("StrictHostKeyChecking=yes", command)
+        self.assertIn("/dev/null", command)
         self.assertNotIn("krabicka1", command)
 
     def test_password_authentication_uses_sshpass_without_command_line_secret(self) -> None:
@@ -215,7 +216,8 @@ class CommandTests(unittest.TestCase):
 
         command = run.remote_sync_command(target, "/tmp/runs/a1b2/src")
 
-        self.assertIn("ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p 22", command)
+        self.assertIn("ssh -F /dev/null -o BatchMode=yes -o StrictHostKeyChecking=yes -p 22", command)
+        self.assertIn("-F /dev/null", command[4])
         self.assertEqual("builder:/tmp/runs/a1b2/src/", command[-1])
 
     def test_remote_interactive_shell_allocates_an_ssh_tty(self) -> None:
