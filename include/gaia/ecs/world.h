@@ -11285,8 +11285,41 @@ namespace gaia {
 						GAIA_ASSERT(!valid(entity));
 						continue;
 					}
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(*pEc));
+						continue;
+					}
 					GAIA_ASSERT(pEc->pChunk == pChunk);
 					GAIA_ASSERT(pEc->row == row);
+					GAIA_ASSERT(pEc->pEntity == &entities[row]);
+				}
+
+				for (const auto& ec: m_recs.entities) {
+					if (ec.pChunk != pChunk)
+						continue;
+					const Entity entity(ec.idx, ec.data.gen, ec.data.ent != 0, false, (EntityKind)ec.data.kind);
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(ec));
+						continue;
+					}
+					GAIA_ASSERT(ec.row < entities.size());
+					GAIA_ASSERT(entities[ec.row] == entity);
+					GAIA_ASSERT(ec.pEntity == &entities[ec.row]);
+				}
+
+				for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
+					const auto& pair = *it;
+					const auto& ec = pair.second;
+					if (ec.pChunk != pChunk)
+						continue;
+					const auto entity = pair.first.entity();
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(ec));
+						continue;
+					}
+					GAIA_ASSERT(ec.row < entities.size());
+					GAIA_ASSERT(entities[ec.row] == entity);
+					GAIA_ASSERT(ec.pEntity == &entities[ec.row]);
 				}
 #endif
 			}

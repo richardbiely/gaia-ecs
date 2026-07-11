@@ -5667,7 +5667,7 @@ inline void GAIA_MEM_SANI_ADD_BLOCK(size_t type_size, void* ptr, size_t cap, siz
 	__sanitizer_annotate_contiguous_container(
 			ptr, /**/
 			(unsigned char*)(ptr) + ((cap)*type_size), /**/
-			ptr, /**/
+			(unsigned char*)(ptr) + ((cap)*type_size), /**/
 			(unsigned char*)(ptr) + ((size)*type_size));
 }
 
@@ -5680,7 +5680,7 @@ inline void GAIA_MEM_SANI_DEL_BLOCK(size_t type_size, void* ptr, size_t cap, siz
 			ptr, /**/
 			(unsigned char*)(ptr) + ((cap)*type_size), /**/
 			(unsigned char*)(ptr) + ((size)*type_size), /**/
-			ptr);
+			(unsigned char*)(ptr) + ((cap)*type_size));
 }
 
 // Unpoison memory for N new elements, use before adding the elements
@@ -7600,8 +7600,11 @@ namespace gaia {
 			darr_ext& operator=(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				// Release previously allocated memory if there was anything
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				// Release previously allocated memory or its stack-container annotation.
+				if (m_pDataHeap != nullptr)
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				else
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, extent, m_cnt);
 
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
@@ -7627,7 +7630,10 @@ namespace gaia {
 			}
 
 			~darr_ext() {
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				if (m_pDataHeap != nullptr)
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				else
+					GAIA_MEM_SANI_DEL_BLOCK(value_size, m_data, extent, m_cnt);
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -10502,8 +10508,11 @@ namespace gaia {
 			darr_ext_soa& operator=(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				// Release previously allocated memory if there was anything
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				// Release previously allocated memory or its stack-container annotation.
+				if (m_pDataHeap != nullptr)
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				else
+					view_policy::mem_del_block(m_data, extent, m_cnt);
 
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
@@ -10529,7 +10538,11 @@ namespace gaia {
 			}
 
 			~darr_ext_soa() {
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				if (m_pDataHeap != nullptr) {
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				} else {
+					view_policy::mem_del_block(m_data, extent, m_cnt);
+				}
 			}
 
 			GAIA_CLANG_WARNING_PUSH()
@@ -31806,9 +31819,9 @@ namespace gaia {
 #endif
 
 			//! Archetype (stable address)
-			Archetype* pArchetype;
+			Archetype* pArchetype = nullptr;
 			//! Chunk the entity currently resides in (stable address)
-			Chunk* pChunk;
+			Chunk* pChunk = nullptr;
 			//! Cached pointer to the entity's current slot inside the owning chunk.
 			const Entity* pEntity = nullptr;
 			// uint8_t depthDependsOn = 0;
@@ -39222,13 +39235,11 @@ namespace gaia {
 				//! Which entity subset the iterator currently exposes from the chunk.
 				Constraints m_constraints = Constraints::EnabledOnly;
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
-				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS]{};
+				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedCompCnt = 0;
 				//! Entity-backed terms that were exposed as mutable during the current callback.
-				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS]{};
+				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedTermCnt = 0;
-				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
-				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES]{};
 				bool m_entitySnapshotValid = false;
 				//! Row of the first entity we iterate from
 				uint16_t m_from;
@@ -39238,6 +39249,9 @@ namespace gaia {
 				GroupId m_groupId = 0;
 				//! User-owned pointer supplied by the caller driving this iteration.
 				void* m_pCtx = nullptr;
+				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
+				//! Kept last because GCC 11 ASan partially poisons fields placed after this large stack array.
+				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES];
 
 			public:
 				ChunkIterImpl() = default;
@@ -49459,7 +49473,7 @@ namespace gaia {
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed) {
+					if (!m_destroyed && m_pCache != nullptr) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);
@@ -49484,7 +49498,7 @@ namespace gaia {
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed) {
+					if (!m_destroyed && m_pCache != nullptr) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);
@@ -67428,8 +67442,8 @@ namespace gaia {
 					}
 
 					// Delete unused chunks that are past their lifespan
-					remove_chunk(*pArchetype, *pChunk);
 					remove_chunk_from_delete_queue(i);
+					remove_chunk(*pArchetype, *pChunk);
 				}
 			}
 
@@ -69986,30 +70000,55 @@ namespace gaia {
 #if GAIA_ECS_VALIDATE_CHUNKS && GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(pChunk != nullptr);
 
-				if (!pChunk->empty()) {
-					// Make sure a proper amount of entities reference the chunk
-					uint32_t cnt = 0;
-					for (const auto& ec: m_recs.entities) {
-						if (ec.pChunk != pChunk)
-							continue;
-						++cnt;
+				const auto entities = pChunk->entity_view();
+				for (uint16_t row = 0; row < entities.size(); ++row) {
+					const auto entity = entities[row];
+					const EntityContainer* pEc = nullptr;
+					if (entity.pair()) {
+						pEc = m_recs.pair_record_find(entity);
+					} else if (entity.id() < m_recs.entities.size()) {
+						pEc = &m_recs.entities[entity.id()];
 					}
-					for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
-						const auto& pair = *it;
-						if (pair.second.pChunk != pChunk)
-							continue;
-						++cnt;
+
+					if (pEc == nullptr) {
+						GAIA_ASSERT(!valid(entity));
+						continue;
 					}
-					GAIA_ASSERT(cnt == pChunk->size());
-				} else {
-					// Make sure no entities reference the chunk
-					for (const auto& ec: m_recs.entities) {
-						GAIA_ASSERT(ec.pChunk != pChunk);
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(*pEc));
+						continue;
 					}
-					for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
-						const auto& pair = *it;
-						GAIA_ASSERT(pair.second.pChunk != pChunk);
+					GAIA_ASSERT(pEc->pChunk == pChunk);
+					GAIA_ASSERT(pEc->row == row);
+					GAIA_ASSERT(pEc->pEntity == &entities[row]);
+				}
+
+				for (const auto& ec: m_recs.entities) {
+					if (ec.pChunk != pChunk)
+						continue;
+					const Entity entity(ec.idx, ec.data.gen, ec.data.ent != 0, false, (EntityKind)ec.data.kind);
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(ec));
+						continue;
 					}
+					GAIA_ASSERT(ec.row < entities.size());
+					GAIA_ASSERT(entities[ec.row] == entity);
+					GAIA_ASSERT(ec.pEntity == &entities[ec.row]);
+				}
+
+				for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
+					const auto& pair = *it;
+					const auto& ec = pair.second;
+					if (ec.pChunk != pChunk)
+						continue;
+					const auto entity = pair.first.entity();
+					if (!valid(entity)) {
+						GAIA_ASSERT(is_req_del(ec));
+						continue;
+					}
+					GAIA_ASSERT(ec.row < entities.size());
+					GAIA_ASSERT(entities[ec.row] == entity);
+					GAIA_ASSERT(ec.pEntity == &entities[ec.row]);
 				}
 #endif
 			}
