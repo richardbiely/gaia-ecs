@@ -109,9 +109,9 @@ namespace gaia {
 #endif
 
 			//! Archetype (stable address)
-			Archetype* pArchetype;
+			Archetype* pArchetype = nullptr;
 			//! Chunk the entity currently resides in (stable address)
-			Chunk* pChunk;
+			Chunk* pChunk = nullptr;
 			//! Cached pointer to the entity's current slot inside the owning chunk.
 			const Entity* pEntity = nullptr;
 			// uint8_t depthDependsOn = 0;

@@ -14,6 +14,13 @@ namespace {
 	};
 } // namespace
 
+TEST_CASE("Query - empty storage is copyable") {
+	ecs::detail::QueryImplStorage source;
+	ecs::detail::QueryImplStorage copy(source);
+	ecs::detail::QueryImplStorage assigned;
+	assigned = source;
+}
+
 TEST_CASE("Query - assignment releases overwritten cached query") {
 	TestWorld twld;
 

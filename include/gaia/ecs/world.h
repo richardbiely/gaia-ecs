@@ -8713,8 +8713,8 @@ namespace gaia {
 					}
 
 					// Delete unused chunks that are past their lifespan
-					remove_chunk(*pArchetype, *pChunk);
 					remove_chunk_from_delete_queue(i);
+					remove_chunk(*pArchetype, *pChunk);
 				}
 			}
 
@@ -11271,30 +11271,22 @@ namespace gaia {
 #if GAIA_ECS_VALIDATE_CHUNKS && GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(pChunk != nullptr);
 
-				if (!pChunk->empty()) {
-					// Make sure a proper amount of entities reference the chunk
-					uint32_t cnt = 0;
-					for (const auto& ec: m_recs.entities) {
-						if (ec.pChunk != pChunk)
-							continue;
-						++cnt;
+				const auto entities = pChunk->entity_view();
+				for (uint16_t row = 0; row < entities.size(); ++row) {
+					const auto entity = entities[row];
+					const EntityContainer* pEc = nullptr;
+					if (entity.pair()) {
+						pEc = m_recs.pair_record_find(entity);
+					} else if (entity.id() < m_recs.entities.size()) {
+						pEc = &m_recs.entities[entity.id()];
 					}
-					for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
-						const auto& pair = *it;
-						if (pair.second.pChunk != pChunk)
-							continue;
-						++cnt;
+
+					if (pEc == nullptr) {
+						GAIA_ASSERT(!valid(entity));
+						continue;
 					}
-					GAIA_ASSERT(cnt == pChunk->size());
-				} else {
-					// Make sure no entities reference the chunk
-					for (const auto& ec: m_recs.entities) {
-						GAIA_ASSERT(ec.pChunk != pChunk);
-					}
-					for (auto it = m_recs.pair_record_begin(); it != m_recs.pair_record_end(); ++it) {
-						const auto& pair = *it;
-						GAIA_ASSERT(pair.second.pChunk != pChunk);
-					}
+					GAIA_ASSERT(pEc->pChunk == pChunk);
+					GAIA_ASSERT(pEc->row == row);
 				}
 #endif
 			}

@@ -915,13 +915,13 @@ namespace gaia {
 				//! Which entity subset the iterator currently exposes from the chunk.
 				Constraints m_constraints = Constraints::EnabledOnly;
 				//! Chunk-backed columns that were exposed as mutable during the current callback.
-				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS]{};
+				uint8_t m_touchedCompIndices[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedCompCnt = 0;
 				//! Entity-backed terms that were exposed as mutable during the current callback.
-				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS]{};
+				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedTermCnt = 0;
 				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
-				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES]{};
+				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES];
 				bool m_entitySnapshotValid = false;
 				//! Row of the first entity we iterate from
 				uint16_t m_from;

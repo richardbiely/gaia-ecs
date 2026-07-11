@@ -348,7 +348,7 @@ namespace gaia {
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed) {
+					if (!m_destroyed && m_pCache != nullptr) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);
@@ -373,7 +373,7 @@ namespace gaia {
 
 					// Make sure to update the ref count of the cached query so
 					// it doesn't get deleted by accident.
-					if (!m_destroyed) {
+					if (!m_destroyed && m_pCache != nullptr) {
 						auto* pInfo = try_query_info_fast();
 						if (pInfo == nullptr)
 							pInfo = m_pCache->try_get(m_identity.handle);

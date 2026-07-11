@@ -1,5 +1,12 @@
 #include "test_common.h"
 
+TEST_CASE("EntityContainer - default storage pointers are null") {
+	ecs::EntityContainer container;
+	CHECK(container.pArchetype == nullptr);
+	CHECK(container.pChunk == nullptr);
+	CHECK(container.pEntity == nullptr);
+}
+
 TEST_CASE("StringLookupKey") {
 	constexpr uint32_t MaxLen = 32;
 	char tmp0[MaxLen];
