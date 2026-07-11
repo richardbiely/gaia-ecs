@@ -6,7 +6,10 @@ all:
 install: clean
 	mkdir build && cd build && cmake .. && cmake --build . --config Release --target install
 
-test: clean build
+test:
+	rm -rf ./build || true
+	cmake -S . -B build -DGAIA_BUILD_UNITTEST=ON
+	cmake --build build
 	ctest --test-dir build --output-on-failure
 
 build:
@@ -15,3 +18,5 @@ build:
 
 clean:
 	rm -rf ./build || true
+
+.PHONY: all install test build clean

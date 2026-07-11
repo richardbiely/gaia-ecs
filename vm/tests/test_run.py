@@ -169,10 +169,21 @@ class CommandTests(unittest.TestCase):
         self.assertIn("arm64|aarch64", script)
         self.assertIn("ENABLE_MSAN=0", script)
 
-    def test_gcc_matrix_disables_broken_container_annotation_check(self) -> None:
+    def test_managed_images_use_latest_stable_ubuntu(self) -> None:
+        self.assertTrue((MODULE_PATH.parent / "Dockerfile").read_text(encoding="utf-8").startswith("FROM ubuntu:26.04\n"))
+        self.assertTrue(
+            (MODULE_PATH.parent / "amd64.Dockerfile")
+            .read_text(encoding="utf-8")
+            .startswith("FROM amd64/ubuntu:26.04\n")
+        )
+
+    def test_gcc_matrix_keeps_sanitizer_checks_enabled_for_full_suite(self) -> None:
         script = (MODULE_PATH.parent / "build_gcc.sh").read_text(encoding="utf-8")
-        self.assertIn("detect_container_overflow=0", script)
-        self.assertIn("detect_stack_use_after_return=0", script)
+        self.assertIn(
+            "export ASAN_OPTIONS=halt_on_error=1:detect_stack_use_after_return=1:"
+            "detect_container_overflow=1:check_initialization_order=1:strict_init_order=1",
+            script,
+        )
 
     def test_profiles_are_named_commands_owned_by_gaia_ecs(self) -> None:
         profiles = json.loads((MODULE_PATH.parent / "profiles.json").read_text(encoding="utf-8"))["profiles"]

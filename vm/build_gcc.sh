@@ -98,10 +98,7 @@ fi
 
 # Print a detailed report and fail the managed profile on the first sanitizer hit.
 export UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1:report_error_type=1
-# GCC's ASan misclassifies writes inside large stack-resident Iter objects after Gaia's
-# contiguous-container annotations. Its optional fake-stack mode also makes the suite impractically slow
-# with those iterators. Disable those two runtime options; all standard ASan checks remain active.
-export ASAN_OPTIONS=halt_on_error=1:detect_container_overflow=0:detect_stack_use_after_return=0:check_initialization_order=1:strict_init_order=1
+export ASAN_OPTIONS=halt_on_error=1:detect_stack_use_after_return=1:detect_container_overflow=1:check_initialization_order=1:strict_init_order=1
 export ASAN_SYMBOLIZER_PATH=$(which addr2line)
 
 UNIT_TEST_PATH="src/test/gaia_test"

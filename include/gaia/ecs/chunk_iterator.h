@@ -920,6 +920,8 @@ namespace gaia {
 				//! Entity-backed terms that were exposed as mutable during the current callback.
 				Entity m_touchedTerms[ChunkHeader::MAX_COMPONENTS];
 				uint8_t m_touchedTermCnt = 0;
+				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
+				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES];
 				bool m_entitySnapshotValid = false;
 				//! Row of the first entity we iterate from
 				uint16_t m_from;
@@ -929,10 +931,6 @@ namespace gaia {
 				GroupId m_groupId = 0;
 				//! User-owned pointer supplied by the caller driving this iteration.
 				void* m_pCtx = nullptr;
-				//! Stable copy of the currently iterated entity rows for mutable world-resolved views.
-				//! Kept last because GCC 11 ASan partially poisons fields placed after this large stack array.
-				Entity m_entitySnapshot[ChunkHeader::MAX_CHUNK_ENTITIES];
-
 			public:
 				ChunkIterImpl() = default;
 				~ChunkIterImpl() = default;
