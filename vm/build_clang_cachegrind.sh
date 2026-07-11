@@ -1,5 +1,10 @@
 #!/bin/bash
 
+set -e
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
+
 PATH_BASE="build-clang"
 
 while getopts ":c" flag; do
@@ -34,7 +39,7 @@ PATH_RELEASE="./${PATH_BASE}/release-cachegrind"
 cmake -E make_directory ${PATH_RELEASE}
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ${BUILD_SETTINGS_COMMON} -DGAIA_DEBUG=0 -S .. -B ${PATH_RELEASE}
 if ! cmake --build ${PATH_RELEASE} --config RelWithDebInfo; then
-    echo "${PATH_DEBUG} build failed"
+    echo "${PATH_RELEASE} build failed"
     exit 1
 fi
 
@@ -42,7 +47,7 @@ fi
 # Run cachegrind
 ####################################################################
 
-OUTPUT_BASE="src/perf/duel/gaia_perf_duel"
+OUTPUT_BASE="src/perf/duel/gaia_duel"
 OUTPUT_ARGS_DOD="-p -dod"
 OUTPUT_ARGS_ECS="-p"
 
@@ -53,26 +58,14 @@ chmod +x ${PATH_RELEASE}/${OUTPUT_BASE}
 
 # We need to adjust how cachegrind is called based on what CPU we have.
 CURRENT_PLATFORM=$(uname -p)
-if [[ "$CURRENT_PLATFORM" = "i386|i686|x86_64" ]]; then
-    # Most Intel a AMD CPUs should work just fine using a generic cachegrind call
+if [[ "$CURRENT_PLATFORM" =~ ^(i386|i686|x86_64)$ ]]; then
+    # Most Intel and AMD CPUs should work just fine using a generic cachegrind call
     VALGRIND_ARGS_CUSTOM=""
 else
-    # If we are not an x86 CPU we will assume an ARM. Namely Apple M1.
-    # Docker at least up to version 4.17 is somewhat broken for ARM CPUs and does not propagate /proc/cpuinfo to the virtual machine.
-    # Therefore, there is no easy way for us to tell what CPU is used. Obviously, we could use a 3rd party program or write our own.
-    # However, virtually noone besides the maintainers is going to use this tool so we take the incorrect but good-enough-for-now way
-    # and will assume an Apple M1.
-
-    # M1 chips are not detected properly so we have to force cache sizes.
-    # M1 has both performance and efficiency cores which differ in their setup:
-    #     performance cores: I1=192kiB 8-way, D1=131kiB 8-way, L2=12MiB 16-way
-    #     efficiency cores : I1=128kiB 8-way, D1=64kiB 8-way, L2=4MiB 16-way
-    # Unfortunatelly, Cachegrind thinks the cache can only be a power of 2 in size. Therefore, performance cores can't be measured
-    # properly and we have to simulate at least the efficiency cores.
-
-    # M1 performance core (won't run because L1 cache is not a power of 2):
-    # VALGRIND_ARGS_CUSTOM="--I1=196608,8,128 --D1=131072,8,128 --L2=12582912,16,128 --cache-sim=yes"
-    # M1 efficiency core:
+    # If we are not an x86 CPU we assume ARM. Namely Apple M1.
+    # Docker at least up to version 4.17 does not reliably propagate /proc/cpuinfo to the virtual machine.
+    # M1 cache sizes therefore need to be supplied explicitly.
+    # M1 efficiency core: I1=128kiB 8-way, D1=64kiB 8-way, L2=4MiB 16-way.
     VALGRIND_ARGS_CUSTOM="--I1=131072,8,128 --D1=65536,8,128 --L2=4194304,16,128 --cache-sim=yes"
 fi
 

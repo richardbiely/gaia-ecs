@@ -143,6 +143,37 @@ class CommandTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode)
 
+    def test_managed_build_scripts_reference_current_benchmark_targets(self) -> None:
+        for name in ("build_clang.sh", "build_gcc.sh"):
+            script = (MODULE_PATH.parent / name).read_text(encoding="utf-8")
+            self.assertIn("BASH_SOURCE[0]", script)
+            self.assertIn("src/perf/perf/gaia_perf", script)
+            self.assertIn("src/perf/duel/gaia_duel", script)
+            self.assertIn("src/perf/app/gaia_app", script)
+            self.assertIn("src/perf/mt/gaia_mt", script)
+            self.assertNotIn("gaia_perf_duel", script)
+            self.assertNotIn("gaia_perf_app", script)
+            self.assertNotIn("gaia_perf_mt", script)
+            self.assertNotIn("src/perf/entity", script)
+            self.assertNotIn("src/perf/iter", script)
+            self.assertIn("--target gaia_test", script)
+            self.assertNotIn("PATH_DEBUG_PROF", script)
+
+        cachegrind = (MODULE_PATH.parent / "build_clang_cachegrind.sh").read_text(encoding="utf-8")
+        self.assertIn("BASH_SOURCE[0]", cachegrind)
+        self.assertIn("src/perf/duel/gaia_duel", cachegrind)
+        self.assertNotIn("gaia_perf_duel", cachegrind)
+
+    def test_clang_matrix_skips_unsupported_memory_sanitizer_on_arm(self) -> None:
+        script = (MODULE_PATH.parent / "build_clang.sh").read_text(encoding="utf-8")
+        self.assertIn("arm64|aarch64", script)
+        self.assertIn("ENABLE_MSAN=0", script)
+
+    def test_gcc_matrix_disables_broken_container_annotation_check(self) -> None:
+        script = (MODULE_PATH.parent / "build_gcc.sh").read_text(encoding="utf-8")
+        self.assertIn("detect_container_overflow=0", script)
+        self.assertIn("detect_stack_use_after_return=0", script)
+
     def test_profiles_are_named_commands_owned_by_gaia_ecs(self) -> None:
         profiles = json.loads((MODULE_PATH.parent / "profiles.json").read_text(encoding="utf-8"))["profiles"]
 

@@ -59,6 +59,9 @@ target_link_libraries(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE Threads::T
 target_include_directories(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE ${PROJECT_SOURCE_DIR}/single_include)
 target_compile_definitions(
 	${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} PRIVATE GAIA_OBSERVERS_ENABLED=0 GAIA_USE_SAFE_ENTITY=1)
+if(TARGET single_header)
+	add_dependencies(${PROJ_NAME_NO_OBSERVERS_SINGLE_HEADER} single_header)
+endif()
 
 add_test(NAME ${PROJ_NAME} COMMAND $<TARGET_FILE:${PROJ_NAME}>)
 add_test(

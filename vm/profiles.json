@@ -7,12 +7,12 @@
     },
     "full": {
       "label": "Clang and GCC matrix",
-      "description": "Runs debug, release, C++20/23, profiler, unit, performance, and sanitizer coverage with both compilers.",
+      "description": "Runs C++17/20/23 unit coverage plus debug and optimized sanitizer unit/performance coverage with both compilers.",
       "command": ["bash", "vm/build.sh", "-c"]
     },
     "clang": {
       "label": "Clang and sanitizers",
-      "description": "Runs the Clang build, unit and performance tests, Address/Undefined sanitizers, and MemorySanitizer.",
+      "description": "Runs the Clang build, unit and performance tests, Address/Undefined sanitizers, and MemorySanitizer where supported.",
       "command": ["bash", "vm/build_clang.sh", "-c"]
     },
     "gcc": {

@@ -7,9 +7,11 @@ install: clean
 	mkdir build && cd build && cmake .. && cmake --build . --config Release --target install
 
 test: clean build
+	ctest --test-dir build --output-on-failure
 
 build:
-	mkdir build && cd build && cmake .. && $(MAKE) test
+	cmake -S . -B build -DGAIA_BUILD_UNITTEST=ON
+	cmake --build build
 
 clean:
 	rm -rf ./build || true
