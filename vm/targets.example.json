@@ -1,0 +1,18 @@
+{
+  "targets": {
+    "local-docker": {
+      "transport": "local",
+      "runtime": "docker"
+    },
+    "local-podman": {
+      "transport": "local",
+      "runtime": "podman"
+    },
+    "remote-docker": {
+      "transport": "ssh",
+      "ssh_host": "my-linux-builder",
+      "runtime": "docker",
+      "workspace_root": "/tmp/gaia-ecs-runs"
+    }
+  }
+}

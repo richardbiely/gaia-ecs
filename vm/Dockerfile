@@ -45,4 +45,4 @@ RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/
     && echo 'root:docker' | chpasswd
 
 EXPOSE 22
-ENTRYPOINT ["sh", "-c", "service ssh restart && exec bash"]
+ENTRYPOINT ["sh", "-c", "[ \"$(id -u)\" -ne 0 ] || service ssh restart; exec \"$@\"", "--"]
