@@ -350,8 +350,11 @@ namespace gaia {
 			darr_ext_soa& operator=(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
-				// Release previously allocated memory if there was anything
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				// Release previously allocated memory or its stack-container annotation.
+				if (m_pDataHeap != nullptr)
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				else
+					view_policy::mem_del_block(m_data, extent, m_cnt);
 
 				// Moving from stack-allocated source
 				if (other.m_pDataHeap == nullptr) {
@@ -377,7 +380,11 @@ namespace gaia {
 			}
 
 			~darr_ext_soa() {
-				view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				if (m_pDataHeap != nullptr) {
+					view_policy::template free<Allocator>(m_pDataHeap, m_cap, m_cnt);
+				} else {
+					view_policy::mem_del_block(m_data, extent, m_cnt);
+				}
 			}
 
 			GAIA_CLANG_WARNING_PUSH()

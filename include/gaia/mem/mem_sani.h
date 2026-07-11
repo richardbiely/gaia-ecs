@@ -32,7 +32,7 @@ inline void GAIA_MEM_SANI_ADD_BLOCK(size_t type_size, void* ptr, size_t cap, siz
 	__sanitizer_annotate_contiguous_container(
 			ptr, /**/
 			(unsigned char*)(ptr) + ((cap)*type_size), /**/
-			ptr, /**/
+			(unsigned char*)(ptr) + ((cap)*type_size), /**/
 			(unsigned char*)(ptr) + ((size)*type_size));
 }
 
@@ -45,7 +45,7 @@ inline void GAIA_MEM_SANI_DEL_BLOCK(size_t type_size, void* ptr, size_t cap, siz
 			ptr, /**/
 			(unsigned char*)(ptr) + ((cap)*type_size), /**/
 			(unsigned char*)(ptr) + ((size)*type_size), /**/
-			ptr);
+			(unsigned char*)(ptr) + ((cap)*type_size));
 }
 
 // Unpoison memory for N new elements, use before adding the elements
