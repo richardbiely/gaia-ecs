@@ -165,11 +165,22 @@ class CommandTests(unittest.TestCase):
 
     def test_parse_accepts_an_external_run_id_and_stop_mode(self) -> None:
         execute_args = run.parse_args(["--target", "local", "--run-id", "a1b2", "--", "true"])
-        stop_args = run.parse_args(["--target", "local", "--stop-run", "a1b2"])
+        stop_args = run.parse_args(["--target", "local", "--stop-run", "a1b2", "--run-token", "12345678-1234-1234-1234-123456789abc"])
 
         self.assertEqual("a1b2", execute_args.run_id)
         self.assertEqual("a1b2", stop_args.stop_run)
         self.assertEqual([], stop_args.command)
+
+    def test_remote_run_claim_is_exclusive_and_token_owned(self) -> None:
+        target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image")
+        token = "12345678-1234-1234-1234-123456789abc"
+
+        commands = run.remote_claim_commands(target, "/tmp/runs/a1b2/src", "a1b2", token)
+        container = run.container_command(target, "/tmp/runs/a1b2/src", ["true"], "a1b2", run_token=token)
+
+        self.assertEqual(["mkdir", "/tmp/runs/a1b2"], commands[1])
+        self.assertIn(f"/tmp/runs/a1b2/token-{token}", commands[2])
+        self.assertIn(f"gaiaecs.run-token={token}", container)
 
     def test_remote_shell_uses_configured_ssh_host(self) -> None:
         target = run.Target("remote", "ssh", "other-host", "podman", "/tmp/runs", "gaiaecs-linux-builder")

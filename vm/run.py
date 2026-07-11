@@ -114,6 +114,7 @@ def container_command(
     user: Optional[str] = None,
     interactive: bool = False,
     workdir: str = "/gaia-ecs",
+    run_token: str = "00000000-0000-0000-0000-000000000000",
 ) -> List[str]:
     result = [
         target.runtime,
@@ -122,6 +123,8 @@ def container_command(
         "--pull=never",
         "--name",
         f"gaiaecs-{run_id}",
+        "--label",
+        f"gaiaecs.run-token={validate_run_token(run_token)}",
         "--volume",
         f"{workspace}:/gaia-ecs",
     ]
@@ -195,8 +198,17 @@ def remote_sync_command(target: Target, workspace: str) -> List[str]:
     ]
 
 
-def stage_remote_workspace(target: Target, workspace: str) -> None:
-    run_checked(host_command(target, ["mkdir", "-p", workspace]), "remote workspace creation")
+def remote_claim_commands(target: Target, workspace: str, run_id: str, run_token: str) -> List[List[str]]:
+    run_root = f"{target.workspace_root.rstrip('/')}/{validate_run_id(run_id)}"
+    marker = f"{run_root}/token-{validate_run_token(run_token)}"
+    return [["mkdir", "-p", target.workspace_root], ["mkdir", run_root], ["mkdir", "-p", workspace, marker]]
+
+
+def stage_remote_workspace(target: Target, workspace: str, run_id: str, run_token: str) -> None:
+    root, claim, create = remote_claim_commands(target, workspace, run_id, run_token)
+    run_checked(host_command(target, root), "remote workspace root creation")
+    run_checked(host_command(target, claim), "exclusive remote run claim")
+    run_checked(host_command(target, create), "remote workspace creation")
     run_checked(remote_sync_command(target, workspace), "remote source synchronization")
 
 
@@ -211,15 +223,41 @@ def validate_run_id(run_id: str) -> str:
     return run_id
 
 
+def validate_run_token(run_token: str) -> str:
+    try:
+        return str(uuid.UUID(run_token))
+    except (ValueError, AttributeError) as exc:
+        raise ConfigError("run token must be a UUID") from exc
+
+
 def container_stop_command(target: Target, run_id: str) -> List[str]:
     return [target.runtime, "rm", "--force", f"gaiaecs-{validate_run_id(run_id)}"]
 
 
-def stop_run(target: Target, run_id: str) -> None:
-    subprocess.run(host_command(target, container_stop_command(target, run_id)), check=False)
+def container_token_command(target: Target, run_id: str) -> List[str]:
+    return [target.runtime, "inspect", "--format", '{{ index .Config.Labels "gaiaecs.run-token" }}', f"gaiaecs-{validate_run_id(run_id)}"]
+
+
+def command_succeeds(command: Sequence[str]) -> bool:
+    try:
+        return subprocess.run(command, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def stop_run(target: Target, run_id: str, run_token: str) -> None:
+    token = validate_run_token(run_token)
+    try:
+        active_token = capture_checked(host_command(target, container_token_command(target, run_id)), "container ownership check")
+    except RuntimeError:
+        active_token = ""
+    if active_token == token:
+        subprocess.run(host_command(target, container_stop_command(target, run_id)), check=False)
     if target.transport == "ssh":
         run_root = f"{target.workspace_root.rstrip('/')}/{validate_run_id(run_id)}"
-        subprocess.run(host_command(target, ["rm", "-rf", run_root]), check=False)
+        marker = f"{run_root}/token-{token}"
+        if command_succeeds(host_command(target, ["test", "-d", marker])):
+            subprocess.run(host_command(target, ["rm", "-rf", run_root]), check=False)
 
 
 def host_architecture(target: Target) -> str:
@@ -280,6 +318,7 @@ def execute(
     local_workspace_override: Optional[Path],
     host_user_override: Optional[str],
     run_id: str,
+    run_token: str,
 ) -> None:
     probe_runtime(target)
     validate_run_id(run_id)
@@ -288,7 +327,7 @@ def execute(
 
     if staged:
         workspace = remote_workspace(target, run_id)
-        stage_remote_workspace(target, workspace)
+        stage_remote_workspace(target, workspace, run_id, run_token)
 
     succeeded = False
     try:
@@ -298,7 +337,7 @@ def execute(
         run_checked(
             host_command(
                 target,
-                container_command(target, workspace, command, run_id, user, interactive, workdir),
+                container_command(target, workspace, command, run_id, user, interactive, workdir, run_token),
                 interactive,
             ),
             f'container command on target "{target.name}"',
@@ -326,6 +365,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument("--host-user", help="numeric uid:gid used for local bind-mounted container output")
     parser.add_argument("--run-id", default=uuid.uuid4().hex, help="caller-provided collision-resistant run identifier")
+    parser.add_argument("--run-token", help="UUID ownership token used for cancellation")
     parser.add_argument("--stop-run", help="stop and clean up a previously named run")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
@@ -333,8 +373,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = args.command[1:]
     if args.stop_run and args.command:
         parser.error("--stop-run does not accept a container command")
+    if args.stop_run and not args.run_token:
+        parser.error("--stop-run requires --run-token")
     if not args.stop_run and not args.command:
         parser.error("a container command is required after --")
+    if not args.run_token:
+        args.run_token = str(uuid.uuid4())
     return args
 
 
@@ -343,7 +387,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         target = load_target(args.config, args.target)
         if args.stop_run:
-            stop_run(target, validate_run_id(args.stop_run))
+            stop_run(target, validate_run_id(args.stop_run), args.run_token)
         else:
             execute(
                 target,
@@ -355,6 +399,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 args.local_workspace,
                 args.host_user,
                 validate_run_id(args.run_id),
+                args.run_token,
             )
     except (ConfigError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
