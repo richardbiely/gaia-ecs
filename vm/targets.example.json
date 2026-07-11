@@ -10,7 +10,9 @@
     },
     "remote-docker": {
       "transport": "ssh",
-      "ssh_host": "my-linux-builder",
+      "ssh_host": "builder.example.com",
+      "ssh_user": "builder",
+      "ssh_port": 22,
       "runtime": "docker",
       "workspace_root": "/tmp/gaia-ecs-runs"
     }

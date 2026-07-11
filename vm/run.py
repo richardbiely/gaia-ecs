@@ -16,7 +16,7 @@ from typing import List, Optional, Sequence
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "gaia-ecs" / "targets.json"
 DEFAULT_IMAGE = "gaiaecs-linux-builder"
-TARGET_FIELDS = {"transport", "runtime", "ssh_host", "workspace_root", "image"}
+TARGET_FIELDS = {"transport", "runtime", "ssh_host", "ssh_user", "ssh_port", "workspace_root", "image"}
 
 
 class ConfigError(ValueError):
@@ -31,6 +31,8 @@ class Target:
     runtime: str
     workspace_root: str
     image: str
+    ssh_user: Optional[str] = None
+    ssh_port: int = 22
 
 
 def load_target(path: Path, name: str) -> Target:
@@ -60,6 +62,8 @@ def load_target(path: Path, name: str) -> Target:
     transport = values.get("transport")
     runtime = values.get("runtime")
     ssh_host = values.get("ssh_host")
+    ssh_user = values.get("ssh_user")
+    ssh_port = values.get("ssh_port", 22)
     workspace_root = values.get("workspace_root", "/tmp/gaia-ecs-runs")
     image = values.get("image", DEFAULT_IMAGE)
 
@@ -77,6 +81,12 @@ def load_target(path: Path, name: str) -> Target:
         raise ConfigError(f'target "{name}" ssh_host must be a safe OpenSSH destination or alias')
     if transport == "local" and ssh_host:
         raise ConfigError(f'target "{name}" must not set ssh_host for local transport')
+    if ssh_user is not None and (not isinstance(ssh_user, str) or not ssh_user or any(not (char.isalnum() or char in "._-") for char in ssh_user)):
+        raise ConfigError(f'target "{name}" ssh_user must be a safe user name')
+    if not isinstance(ssh_port, int) or isinstance(ssh_port, bool) or not 1 <= ssh_port <= 65535:
+        raise ConfigError(f'target "{name}" ssh_port must be between 1 and 65535')
+    if transport == "local" and (ssh_user is not None or "ssh_port" in values):
+        raise ConfigError(f'target "{name}" must not set SSH connection fields for local transport')
     workspace_chars = "/._-"
     if (
         not isinstance(workspace_root, str)
@@ -88,7 +98,12 @@ def load_target(path: Path, name: str) -> Target:
     if not isinstance(image, str) or not image or not image[0].isalnum() or any(not (char.isalnum() or char in "/_.:@-") for char in image):
         raise ConfigError(f'target "{name}" image must be a valid container image reference')
 
-    return Target(name, transport, ssh_host, runtime, workspace_root, image)
+    return Target(name, transport, ssh_host, runtime, workspace_root, image, ssh_user, ssh_port)
+
+
+def ssh_destination(target: Target) -> str:
+    assert target.ssh_host is not None
+    return f"{target.ssh_user}@{target.ssh_host}" if target.ssh_user else target.ssh_host
 
 
 def runtime_probe_command(target: Target) -> List[str]:
@@ -99,10 +114,10 @@ def host_command(target: Target, command: Sequence[str], interactive: bool = Fal
     if target.transport == "local":
         return list(command)
     assert target.ssh_host is not None
-    result = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes"]
+    result = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes", "-p", str(target.ssh_port)]
     if interactive:
         result.append("-tt")
-    result.extend(("--", target.ssh_host, shlex.join(command)))
+    result.extend(("--", ssh_destination(target), shlex.join(command)))
     return result
 
 
@@ -181,13 +196,13 @@ def local_workspace(target: Target, override: Optional[Path]) -> str:
 def remote_sync_command(target: Target, workspace: str) -> List[str]:
     assert target.ssh_host is not None
     source = f"{REPO_ROOT}/"
-    destination = f"{target.ssh_host}:{workspace}/"
+    destination = f"{ssh_destination(target)}:{workspace}/"
     return [
         "rsync",
         "-az",
         "--delete",
         "-e",
-        "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes",
+        f"ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p {target.ssh_port}",
         "--exclude=.git/",
         "--exclude=build*/",
         "--exclude=vm/build*/",

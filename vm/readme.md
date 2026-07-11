@@ -31,7 +31,7 @@ If you do not, it is also fine.
 
 `run.py` executes a command in a Docker or Podman container, either locally or on a configurable SSH host. Native execution is not supported.
 
-Copy `targets.example.json` to `~/.config/gaia-ecs/targets.json` and customize the target names and SSH aliases. SSH connection details belong in `~/.ssh/config`; do not store passwords or private keys in the target file.
+Copy `targets.example.json` to `~/.config/gaia-ecs/targets.json` and customize the target name, host, username, and port. Do not store passwords or private keys in the target file.
 
 Remote commands use non-interactive SSH authentication and require the host key to already exist in the user's known-hosts file. Unlock credentials through an SSH agent or operating-system keychain before starting a run.
 

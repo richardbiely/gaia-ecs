@@ -26,6 +26,8 @@ class TargetConfigTests(unittest.TestCase):
         path = self.write_config(json.dumps({"targets": {"arm-runner": {
             "transport": "ssh",
             "ssh_host": "buildbox",
+            "ssh_user": "builder",
+            "ssh_port": 2222,
             "runtime": "docker",
             "workspace_root": "/var/tmp/gaia-runs",
         }}}))
@@ -35,6 +37,8 @@ class TargetConfigTests(unittest.TestCase):
         self.assertEqual("arm-runner", target.name)
         self.assertEqual("ssh", target.transport)
         self.assertEqual("buildbox", target.ssh_host)
+        self.assertEqual("builder", target.ssh_user)
+        self.assertEqual(2222, target.ssh_port)
         self.assertEqual("docker", target.runtime)
         self.assertEqual("/var/tmp/gaia-runs", target.workspace_root)
 
@@ -197,7 +201,7 @@ class CommandTests(unittest.TestCase):
 
         command = run.remote_sync_command(target, "/tmp/runs/a1b2/src")
 
-        self.assertIn("ssh -o BatchMode=yes -o StrictHostKeyChecking=yes", command)
+        self.assertIn("ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -p 22", command)
         self.assertEqual("builder:/tmp/runs/a1b2/src/", command[-1])
 
     def test_remote_interactive_shell_allocates_an_ssh_tty(self) -> None:
