@@ -62,8 +62,75 @@ class TargetConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(run.ConfigError, "ssh_host"):
             run.load_target(path, "bad")
 
+    def test_rejects_unsafe_remote_workspace_path(self) -> None:
+        path = self.write_config(json.dumps({"targets": {"bad": {
+            "transport": "ssh", "ssh_host": "builder", "runtime": "podman",
+            "workspace_root": "/tmp/runs with spaces",
+        }}}))
+
+        with self.assertRaisesRegex(run.ConfigError, "workspace_root"):
+            run.load_target(path, "bad")
+
+    def test_rejects_unknown_and_credential_target_fields(self) -> None:
+        path = self.write_config(json.dumps({"targets": {"remote": {
+            "transport": "ssh", "ssh_host": "builder", "runtime": "podman",
+            "password": "never-store-this",
+        }}}))
+
+        with self.assertRaisesRegex(run.ConfigError, "unsupported field"):
+            run.load_target(path, "remote")
+
+    def test_rejects_unsafe_target_identity_fields(self) -> None:
+        for name, values in (
+            ("Bad Name", {"transport": "local", "runtime": "podman"}),
+            ("remote", {"transport": "ssh", "ssh_host": "-oProxyCommand=bad", "runtime": "podman"}),
+            ("local", {"transport": "local", "runtime": "podman", "image": "bad image"}),
+        ):
+            path = self.write_config(json.dumps({"targets": {name: values}}))
+            with self.assertRaises(run.ConfigError):
+                run.load_target(path, name)
+
+    def test_local_workspace_can_use_a_host_visible_path(self) -> None:
+        target = run.Target("local", "local", None, "podman", "/tmp/runs", "image")
+
+        self.assertEqual(
+            "/Users/example/gaia-ecs",
+            run.local_workspace(target, Path("/Users/example/gaia-ecs")),
+        )
+
+    def test_remote_target_rejects_a_local_workspace_override(self) -> None:
+        target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image")
+
+        with self.assertRaisesRegex(run.ConfigError, "local-workspace"):
+            run.local_workspace(target, Path("/Users/example/gaia-ecs"))
+
+    def test_local_workspace_override_must_be_absolute(self) -> None:
+        target = run.Target("local", "local", None, "podman", "/tmp/runs", "image")
+
+        with self.assertRaisesRegex(run.ConfigError, "absolute"):
+            run.local_workspace(target, Path("relative/path"))
+
+    def test_explicit_local_host_identity_preserves_bind_mount_ownership(self) -> None:
+        target = run.Target("local", "local", None, "podman", "/tmp/runs", "image")
+
+        self.assertEqual("501:20", run.execution_identity(target, "501:20"))
+
+    def test_remote_target_rejects_a_local_host_identity_override(self) -> None:
+        target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image")
+
+        with self.assertRaisesRegex(run.ConfigError, "host-user"):
+            run.execution_identity(target, "501:20")
+
 
 class CommandTests(unittest.TestCase):
+    def test_profiles_are_named_commands_owned_by_gaia_ecs(self) -> None:
+        profiles = json.loads((MODULE_PATH.parent / "profiles.json").read_text(encoding="utf-8"))["profiles"]
+
+        self.assertEqual(["smoke", "full", "clang", "gcc", "cachegrind"], list(profiles))
+        for profile in profiles.values():
+            self.assertIsInstance(profile["command"], list)
+            self.assertTrue((MODULE_PATH.parents[1] / profile["command"][1]).is_file())
+
     def test_image_build_context_excludes_workspace_artifacts(self) -> None:
         text = (MODULE_PATH.parent / ".dockerignore").read_text(encoding="utf-8")
 
@@ -91,6 +158,19 @@ class CommandTests(unittest.TestCase):
         self.assertNotIn("podman", command)
         self.assertNotIn("sudo", command)
 
+    def test_stop_command_targets_only_the_named_container(self) -> None:
+        target = run.Target("local", "local", None, "podman", "/tmp/runs", "image")
+
+        self.assertEqual(["podman", "rm", "--force", "gaiaecs-a1b2"], run.container_stop_command(target, "a1b2"))
+
+    def test_parse_accepts_an_external_run_id_and_stop_mode(self) -> None:
+        execute_args = run.parse_args(["--target", "local", "--run-id", "a1b2", "--", "true"])
+        stop_args = run.parse_args(["--target", "local", "--stop-run", "a1b2"])
+
+        self.assertEqual("a1b2", execute_args.run_id)
+        self.assertEqual("a1b2", stop_args.stop_run)
+        self.assertEqual([], stop_args.command)
+
     def test_remote_shell_uses_configured_ssh_host(self) -> None:
         target = run.Target("remote", "ssh", "other-host", "podman", "/tmp/runs", "gaiaecs-linux-builder")
 
@@ -98,7 +178,16 @@ class CommandTests(unittest.TestCase):
 
         self.assertEqual("ssh", command[0])
         self.assertIn("other-host", command)
+        self.assertIn("StrictHostKeyChecking=yes", command)
         self.assertNotIn("krabicka1", command)
+
+    def test_remote_sync_is_non_interactive_and_requires_a_known_host(self) -> None:
+        target = run.Target("remote", "ssh", "builder", "podman", "/tmp/runs", "image")
+
+        command = run.remote_sync_command(target, "/tmp/runs/a1b2/src")
+
+        self.assertIn("ssh -o BatchMode=yes -o StrictHostKeyChecking=yes", command)
+        self.assertEqual("builder:/tmp/runs/a1b2/src/", command[-1])
 
     def test_remote_interactive_shell_allocates_an_ssh_tty(self) -> None:
         target = run.Target("remote", "ssh", "other-host", "docker", "/tmp/runs", "gaiaecs-linux-builder")

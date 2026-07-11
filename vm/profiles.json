@@ -1,0 +1,29 @@
+{
+  "profiles": {
+    "smoke": {
+      "label": "Environment smoke test",
+      "description": "Checks the container toolchain and mounted Gaia-ECS source without creating build output.",
+      "command": ["bash", "vm/smoke.sh"]
+    },
+    "full": {
+      "label": "Clang and GCC matrix",
+      "description": "Runs debug, release, C++20/23, profiler, unit, performance, and sanitizer coverage with both compilers.",
+      "command": ["bash", "vm/build.sh", "-c"]
+    },
+    "clang": {
+      "label": "Clang and sanitizers",
+      "description": "Runs the Clang build, unit and performance tests, Address/Undefined sanitizers, and MemorySanitizer.",
+      "command": ["bash", "vm/build_clang.sh", "-c"]
+    },
+    "gcc": {
+      "label": "GCC and sanitizers",
+      "description": "Runs the GCC build, unit and performance tests, and Address/Undefined sanitizers.",
+      "command": ["bash", "vm/build_gcc.sh", "-c"]
+    },
+    "cachegrind": {
+      "label": "Cachegrind duel",
+      "description": "Builds the optimized duel benchmark and records Cachegrind read, write, and branch reports.",
+      "command": ["bash", "vm/build_clang_cachegrind.sh", "-c"]
+    }
+  }
+}

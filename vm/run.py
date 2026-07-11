@@ -7,7 +7,7 @@ import platform
 import shlex
 import subprocess
 import sys
-import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -16,6 +16,7 @@ from typing import List, Optional, Sequence
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "gaia-ecs" / "targets.json"
 DEFAULT_IMAGE = "gaiaecs-linux-builder"
+TARGET_FIELDS = {"transport", "runtime", "ssh_host", "workspace_root", "image"}
 
 
 class ConfigError(ValueError):
@@ -40,10 +41,21 @@ def load_target(path: Path, name: str) -> Target:
     except json.JSONDecodeError as exc:
         raise ConfigError(f"invalid target configuration {path}: {exc}") from exc
 
+    if not isinstance(data, dict) or set(data) != {"targets"}:
+        raise ConfigError(f"target configuration {path} must contain only the targets object")
+
     try:
         values = data["targets"][name]
     except (KeyError, TypeError) as exc:
         raise ConfigError(f'target "{name}" is not defined in {path}') from exc
+
+    if not isinstance(values, dict):
+        raise ConfigError(f'target "{name}" must be an object')
+    if not name or len(name) > 63 or not name[0].isalnum() or any(not (char.islower() or char.isdigit() or char == "-") for char in name):
+        raise ConfigError(f'target "{name}" has an invalid name')
+    unsupported = set(values) - TARGET_FIELDS
+    if unsupported:
+        raise ConfigError(f'target "{name}" contains unsupported field: {sorted(unsupported)[0]}')
 
     transport = values.get("transport")
     runtime = values.get("runtime")
@@ -57,12 +69,24 @@ def load_target(path: Path, name: str) -> Target:
         raise ConfigError(f'target "{name}" runtime must be docker or podman')
     if transport == "ssh" and not ssh_host:
         raise ConfigError(f'target "{name}" requires ssh_host')
+    if ssh_host and (
+        not isinstance(ssh_host, str)
+        or not ssh_host[0].isalnum()
+        or any(not (char.isalnum() or char in "@._:[]-") for char in ssh_host)
+    ):
+        raise ConfigError(f'target "{name}" ssh_host must be a safe OpenSSH destination or alias')
     if transport == "local" and ssh_host:
         raise ConfigError(f'target "{name}" must not set ssh_host for local transport')
-    if not isinstance(workspace_root, str) or not workspace_root.startswith("/"):
-        raise ConfigError(f'target "{name}" workspace_root must be an absolute path')
-    if not isinstance(image, str) or not image:
-        raise ConfigError(f'target "{name}" image must be a non-empty string')
+    workspace_chars = "/._-"
+    if (
+        not isinstance(workspace_root, str)
+        or not workspace_root.startswith("/")
+        or not all(char.isalnum() or char in workspace_chars for char in workspace_root)
+        or ".." in workspace_root.split("/")
+    ):
+        raise ConfigError(f'target "{name}" workspace_root must be a safe absolute path')
+    if not isinstance(image, str) or not image or not image[0].isalnum() or any(not (char.isalnum() or char in "/_.:@-") for char in image):
+        raise ConfigError(f'target "{name}" image must be a valid container image reference')
 
     return Target(name, transport, ssh_host, runtime, workspace_root, image)
 
@@ -75,7 +99,7 @@ def host_command(target: Target, command: Sequence[str], interactive: bool = Fal
     if target.transport == "local":
         return list(command)
     assert target.ssh_host is not None
-    result = ["ssh", "-o", "BatchMode=yes"]
+    result = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes"]
     if interactive:
         result.append("-tt")
     result.extend(("--", target.ssh_host, shlex.join(command)))
@@ -143,15 +167,24 @@ def remote_workspace(target: Target, run_id: str) -> str:
     return f"{target.workspace_root.rstrip('/')}/{run_id}/src"
 
 
-def stage_remote_workspace(target: Target, workspace: str) -> None:
+def local_workspace(target: Target, override: Optional[Path]) -> str:
+    if target.transport == "ssh" and override is not None:
+        raise ConfigError("--local-workspace is only valid for local targets")
+    if override is not None and not override.is_absolute():
+        raise ConfigError("--local-workspace must be an absolute path")
+    return str(override if override is not None else REPO_ROOT)
+
+
+def remote_sync_command(target: Target, workspace: str) -> List[str]:
     assert target.ssh_host is not None
-    run_checked(host_command(target, ["mkdir", "-p", workspace]), "remote workspace creation")
     source = f"{REPO_ROOT}/"
     destination = f"{target.ssh_host}:{workspace}/"
-    command = [
+    return [
         "rsync",
         "-az",
         "--delete",
+        "-e",
+        "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes",
         "--exclude=.git/",
         "--exclude=build*/",
         "--exclude=vm/build*/",
@@ -160,12 +193,33 @@ def stage_remote_workspace(target: Target, workspace: str) -> None:
         source,
         destination,
     ]
-    run_checked(command, "remote source synchronization")
+
+
+def stage_remote_workspace(target: Target, workspace: str) -> None:
+    run_checked(host_command(target, ["mkdir", "-p", workspace]), "remote workspace creation")
+    run_checked(remote_sync_command(target, workspace), "remote source synchronization")
 
 
 def remove_remote_run(target: Target, run_id: str) -> None:
     run_root = f"{target.workspace_root.rstrip('/')}/{run_id}"
     run_checked(host_command(target, ["rm", "-rf", run_root]), "remote workspace cleanup")
+
+
+def validate_run_id(run_id: str) -> str:
+    if not run_id or len(run_id) > 64 or any(not (char.islower() or char.isdigit() or char == "-") for char in run_id):
+        raise ConfigError("run id must contain only lowercase letters, digits, and hyphens")
+    return run_id
+
+
+def container_stop_command(target: Target, run_id: str) -> List[str]:
+    return [target.runtime, "rm", "--force", f"gaiaecs-{validate_run_id(run_id)}"]
+
+
+def stop_run(target: Target, run_id: str) -> None:
+    subprocess.run(host_command(target, container_stop_command(target, run_id)), check=False)
+    if target.transport == "ssh":
+        run_root = f"{target.workspace_root.rstrip('/')}/{validate_run_id(run_id)}"
+        subprocess.run(host_command(target, ["rm", "-rf", run_root]), check=False)
 
 
 def host_architecture(target: Target) -> str:
@@ -190,6 +244,17 @@ def host_identity(target: Target) -> Optional[str]:
     return f"{user_id}:{group_id}"
 
 
+def execution_identity(target: Target, override: Optional[str]) -> Optional[str]:
+    if override is None:
+        return host_identity(target)
+    if target.transport != "local":
+        raise ConfigError("--host-user is only valid for local targets")
+    values = override.split(":")
+    if len(values) != 2 or not all(value.isdigit() for value in values):
+        raise ConfigError("--host-user must be a numeric uid:gid pair")
+    return override
+
+
 def build_image(target: Target, workspace: str) -> None:
     architecture = host_architecture(target)
     dockerfile = "amd64.Dockerfile" if architecture in ("x86_64", "amd64") else "Dockerfile"
@@ -212,10 +277,13 @@ def execute(
     keep_workspace: bool,
     interactive: bool,
     workdir: str,
+    local_workspace_override: Optional[Path],
+    host_user_override: Optional[str],
+    run_id: str,
 ) -> None:
     probe_runtime(target)
-    run_id = f"{int(time.time())}-{os.getpid()}"
-    workspace = str(REPO_ROOT)
+    validate_run_id(run_id)
+    workspace = local_workspace(target, local_workspace_override)
     staged = target.transport == "ssh"
 
     if staged:
@@ -226,7 +294,7 @@ def execute(
     try:
         if rebuild_image:
             build_image(target, workspace)
-        user = host_identity(target)
+        user = execution_identity(target, host_user_override)
         run_checked(
             host_command(
                 target,
@@ -251,11 +319,21 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--keep-workspace", action="store_true")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--container-workdir", default="/gaia-ecs")
+    parser.add_argument(
+        "--local-workspace",
+        type=Path,
+        help="host-visible absolute Gaia-ECS path used as the local container bind source",
+    )
+    parser.add_argument("--host-user", help="numeric uid:gid used for local bind-mounted container output")
+    parser.add_argument("--run-id", default=uuid.uuid4().hex, help="caller-provided collision-resistant run identifier")
+    parser.add_argument("--stop-run", help="stop and clean up a previously named run")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
     if args.command[:1] == ["--"]:
         args.command = args.command[1:]
-    if not args.command:
+    if args.stop_run and args.command:
+        parser.error("--stop-run does not accept a container command")
+    if not args.stop_run and not args.command:
         parser.error("a container command is required after --")
     return args
 
@@ -264,14 +342,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     try:
         target = load_target(args.config, args.target)
-        execute(
-            target,
-            args.command,
-            args.build_image,
-            args.keep_workspace,
-            args.interactive,
-            args.container_workdir,
-        )
+        if args.stop_run:
+            stop_run(target, validate_run_id(args.stop_run))
+        else:
+            execute(
+                target,
+                args.command,
+                args.build_image,
+                args.keep_workspace,
+                args.interactive,
+                args.container_workdir,
+                args.local_workspace,
+                args.host_user,
+                validate_run_id(args.run_id),
+            )
     except (ConfigError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

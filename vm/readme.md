@@ -33,6 +33,8 @@ If you do not, it is also fine.
 
 Copy `targets.example.json` to `~/.config/gaia-ecs/targets.json` and customize the target names and SSH aliases. SSH connection details belong in `~/.ssh/config`; do not store passwords or private keys in the target file.
 
+Remote commands use non-interactive SSH authentication and require the host key to already exist in the user's known-hosts file. Unlock credentials through an SSH agent or operating-system keychain before starting a run.
+
 Run a command in an existing image:
 
 ```text
@@ -41,6 +43,12 @@ python3 vm/run.py --target remote-docker -- bash vm/build_gcc.sh -c
 ```
 
 Add `--build-image` to build `gaiaecs-linux-builder` before running the command. The target can override the image with an `image` field. The runner selects `amd64.Dockerfile` on x86-64 hosts and `Dockerfile` on other architectures.
+
+`profiles.json` is the machine-readable list of supported integration profiles used by tooling such as Gaia-ECS Control Room. It includes a non-mutating environment smoke test, complete Clang and GCC matrices with sanitizer coverage, individual compiler matrices, and Cachegrind analysis.
+
+Control processes running inside another container can pass `--local-workspace` for the host-visible bind source and `--host-user uid:gid` to preserve ownership of generated build files. These options apply only to local targets. Direct host usage normally needs neither option.
+
+Integrations can assign a collision-resistant identifier with `--run-id`. Cancellation uses the same identifier with `--stop-run` to force-remove the named container and clean a staged remote workspace.
 
 Remote targets stage the current working tree under the configured absolute `workspace_root`, bind-mount that remote directory at `/gaia-ecs`, and remove it after a successful run. Failed workspaces are retained for diagnosis. Use `--keep-workspace` to retain successful runs as well.
 
