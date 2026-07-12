@@ -44,7 +44,9 @@ python3 vm/run.py --target remote-docker -- bash vm/build_gcc.sh -c
 
 Add `--build-image` to build `gaiaecs-linux-builder` before running the command. The target can override the image with an `image` field. The runner selects `amd64.Dockerfile` on x86-64 hosts and `Dockerfile` on other architectures.
 
-`profiles.json` is the machine-readable list of supported integration profiles used by tooling such as Gaia-ECS Control Room. It includes a non-mutating environment smoke test, complete Clang and GCC matrices with sanitizer coverage, individual compiler matrices, and Cachegrind analysis.
+`profiles.json` is the machine-readable list of supported integration profiles used by tooling such as Gaia-ECS Control Room. It includes a non-mutating environment smoke test, complete Clang and GCC matrices, sanitizer-only compiler profiles, and Cachegrind analysis. The sanitizer-only profiles skip unsanitized C++17/20/23 builds and tests.
+
+The Clang and GCC profiles build each configuration once, then run independent sanitized executables as separate processes with a default concurrency of two. Set `GAIA_SANITIZER_JOBS` inside the workflow environment to a value from 1 through 64 to adjust that bound. Child output is grouped by task and limited to the final one MiB per task. All requested sanitizer tasks finish even if one fails, and the profile exits unsuccessfully when any task fails. Cancellation first terminates each active process group, then forcibly kills groups that remain after two seconds.
 
 Control processes running inside another container can pass `--local-workspace` for the host-visible bind source and `--host-user uid:gid` to preserve ownership of generated build files. These options apply only to local targets. Direct host usage normally needs neither option.
 

@@ -15,10 +15,20 @@
       "description": "Runs the Clang build, unit and performance tests, Address/Undefined sanitizers, and MemorySanitizer where supported.",
       "command": ["bash", "vm/build_clang.sh", "-c"]
     },
+    "clang-sanitizers": {
+      "label": "Clang sanitizer matrix",
+      "description": "Builds and runs only Clang Address/Undefined and supported MemorySanitizer unit and performance coverage.",
+      "command": ["bash", "vm/build_clang.sh", "-cs"]
+    },
     "gcc": {
       "label": "GCC and sanitizers",
       "description": "Runs the GCC build, unit and performance tests, and Address/Undefined sanitizers.",
       "command": ["bash", "vm/build_gcc.sh", "-c"]
+    },
+    "gcc-sanitizers": {
+      "label": "GCC sanitizer matrix",
+      "description": "Builds and runs only GCC Address/Undefined sanitizer unit and performance coverage.",
+      "command": ["bash", "vm/build_gcc.sh", "-cs"]
     },
     "cachegrind": {
       "label": "Cachegrind duel",

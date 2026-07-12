@@ -6,11 +6,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
 PATH_BASE="build-gcc"
+SANITIZER_ONLY=0
 
-while getopts ":c" flag; do
+while getopts ":cs" flag; do
     case "${flag}" in
         c) # remove the build directory
           rm -rf ${PATH_BASE};;
+        s) SANITIZER_ONLY=1;;
         \?) # invalid option
          echo "Error: Invalid option"
          exit;;
@@ -52,28 +54,30 @@ PATH_RELEASE_ADDR="./${PATH_BASE}/release-addr"
 # Sanitizer settings
 SANI_ADDR="'Address;Undefined'"
 
-# Debug mode
-cmake -E make_directory ${PATH_DEBUG}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
-if ! cmake --build ${PATH_DEBUG} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
-    echo "${PATH_DEBUG} build failed"
-    exit 1
-fi
+if [[ ${SANITIZER_ONLY} -eq 0 ]]; then
+    # Debug mode
+    cmake -E make_directory ${PATH_DEBUG}
+    cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG}
+    if ! cmake --build ${PATH_DEBUG} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
+        echo "${PATH_DEBUG} build failed"
+        exit 1
+    fi
 
-# Debug mode C++20
-cmake -E make_directory ${PATH_DEBUG20}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=20 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG20}
-if ! cmake --build ${PATH_DEBUG20} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
-    echo "${PATH_DEBUG20} build failed"
-    exit 1
-fi
+    # Debug mode C++20
+    cmake -E make_directory ${PATH_DEBUG20}
+    cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=20 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG20}
+    if ! cmake --build ${PATH_DEBUG20} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
+        echo "${PATH_DEBUG20} build failed"
+        exit 1
+    fi
 
-# Debug mode C++23
-cmake -E make_directory ${PATH_DEBUG23}
-cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=23 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG23}
-if ! cmake --build ${PATH_DEBUG23} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
-    echo "${PATH_DEBUG23} build failed"
-    exit 1
+    # Debug mode C++23
+    cmake -E make_directory ${PATH_DEBUG23}
+    cmake -DCMAKE_BUILD_TYPE=Debug ${BUILD_SETTINGS_COMMON} -DCMAKE_CXX_STANDARD=23 -DGAIA_USE_SANITIZER="" -DGAIA_DEVMODE=ON -S .. -B ${PATH_DEBUG23}
+    if ! cmake --build ${PATH_DEBUG23} --config Debug "${BUILD_TARGET_UNIT[@]}"; then
+        echo "${PATH_DEBUG23} build failed"
+        exit 1
+    fi
 fi
 
 # Debug mode - address sanitizers
@@ -107,31 +111,39 @@ PERF_DUEL_PATH="src/perf/duel/gaia_duel"
 PERF_APP_PATH="src/perf/app/gaia_app"
 PERF_MT_PATH="src/perf/mt/gaia_mt"
 
-run_sanitized_binary() {
-    local binary="$1"
-    echo "Debug mode + addr sanitizer: ${binary}"
-    "${PATH_DEBUG_ADDR}/${binary}" -s
-    echo "Release mode + addr sanitizer: ${binary}"
-    "${PATH_RELEASE_ADDR}/${binary}" -s
+SANITIZER_TASKS=()
+
+queue_sanitized_binary() {
+    local task_id="$1"
+    local label="$2"
+    local binary="$3"
+    SANITIZER_TASKS+=(
+        --task "${task_id}-debug-addr" "${label} - Debug Address/Undefined" "${PATH_DEBUG_ADDR}/${binary}" -s
+        --task "${task_id}-release-addr" "${label} - RelWithDebInfo Address/Undefined" "${PATH_RELEASE_ADDR}/${binary}" -s
+    )
 }
 
-echo ${PATH_DEBUG}/${UNIT_TEST_PATH}
-echo "Debug mode"
-chmod +x ${PATH_DEBUG}/${UNIT_TEST_PATH}
-${PATH_DEBUG}/${UNIT_TEST_PATH}
+if [[ ${SANITIZER_ONLY} -eq 0 ]]; then
+    echo ${PATH_DEBUG}/${UNIT_TEST_PATH}
+    echo "Debug mode"
+    chmod +x ${PATH_DEBUG}/${UNIT_TEST_PATH}
+    ${PATH_DEBUG}/${UNIT_TEST_PATH}
 
-echo ${PATH_DEBUG20}/${UNIT_TEST_PATH}
-echo "Debug mode C++20"
-chmod +x ${PATH_DEBUG20}/${UNIT_TEST_PATH}
-${PATH_DEBUG20}/${UNIT_TEST_PATH}
+    echo ${PATH_DEBUG20}/${UNIT_TEST_PATH}
+    echo "Debug mode C++20"
+    chmod +x ${PATH_DEBUG20}/${UNIT_TEST_PATH}
+    ${PATH_DEBUG20}/${UNIT_TEST_PATH}
 
-echo ${PATH_DEBUG23}/${UNIT_TEST_PATH}
-echo "Debug mode C++23"
-chmod +x ${PATH_DEBUG23}/${UNIT_TEST_PATH}
-${PATH_DEBUG23}/${UNIT_TEST_PATH}
+    echo ${PATH_DEBUG23}/${UNIT_TEST_PATH}
+    echo "Debug mode C++23"
+    chmod +x ${PATH_DEBUG23}/${UNIT_TEST_PATH}
+    ${PATH_DEBUG23}/${UNIT_TEST_PATH}
+fi
 
-run_sanitized_binary "${UNIT_TEST_PATH}"
-run_sanitized_binary "${PERF_PATH}"
-run_sanitized_binary "${PERF_DUEL_PATH}"
-run_sanitized_binary "${PERF_APP_PATH}"
-run_sanitized_binary "${PERF_MT_PATH}"
+queue_sanitized_binary "unit" "Unit tests" "${UNIT_TEST_PATH}"
+queue_sanitized_binary "perf" "Performance tests" "${PERF_PATH}"
+queue_sanitized_binary "duel" "Duel benchmark" "${PERF_DUEL_PATH}"
+queue_sanitized_binary "app" "Application benchmark" "${PERF_APP_PATH}"
+queue_sanitized_binary "mt" "Multithreaded benchmark" "${PERF_MT_PATH}"
+
+python3 "${SCRIPT_DIR}/run_tasks.py" --jobs "${GAIA_SANITIZER_JOBS:-2}" "${SANITIZER_TASKS[@]}"

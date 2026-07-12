@@ -185,10 +185,27 @@ class CommandTests(unittest.TestCase):
             script,
         )
 
+    def test_managed_sanitizer_binaries_use_the_bounded_process_runner(self) -> None:
+        for name in ("build_clang.sh", "build_gcc.sh"):
+            script = (MODULE_PATH.parent / name).read_text(encoding="utf-8")
+            self.assertIn('SANITIZER_ONLY=0', script, name)
+            self.assertIn('s) SANITIZER_ONLY=1', script, name)
+            self.assertIn("GAIA_SANITIZER_JOBS:-2", script, name)
+            self.assertIn("run_tasks.py", script, name)
+            self.assertIn("SANITIZER_TASKS=()", script, name)
+            self.assertNotIn("run_sanitized_binary", script, name)
+            for task_id in ("unit", "perf", "duel", "app", "mt"):
+                self.assertIn(f'queue_sanitized_binary "{task_id}"', script, name)
+
     def test_profiles_are_named_commands_owned_by_gaia_ecs(self) -> None:
         profiles = json.loads((MODULE_PATH.parent / "profiles.json").read_text(encoding="utf-8"))["profiles"]
 
-        self.assertEqual(["smoke", "full", "clang", "gcc", "cachegrind"], list(profiles))
+        self.assertEqual(
+            ["smoke", "full", "clang", "clang-sanitizers", "gcc", "gcc-sanitizers", "cachegrind"],
+            list(profiles),
+        )
+        self.assertEqual(["bash", "vm/build_clang.sh", "-cs"], profiles["clang-sanitizers"]["command"])
+        self.assertEqual(["bash", "vm/build_gcc.sh", "-cs"], profiles["gcc-sanitizers"]["command"])
         for profile in profiles.values():
             self.assertIsInstance(profile["command"], list)
             self.assertTrue((MODULE_PATH.parents[1] / profile["command"][1]).is_file())
