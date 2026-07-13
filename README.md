@@ -3978,7 +3978,7 @@ if (cursor.field("seconds")) {
 }
 ```
 
-`get_raw(...)` and `mut_raw(...)` return byte views for table AoS runtime components and tags. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
+`get_raw(...)` and `mut_raw(...)` return byte views for table or sparse AoS runtime components and tags. Sparse runtime components can keep normal fragmenting membership or use `ecs::DontFragment`. Runtime-sized sparse payloads use aligned store-local pages and recycle released slots. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
 
 `ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
 

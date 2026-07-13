@@ -1188,6 +1188,214 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.add_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize - 1));
 	}
 
+	SUBCASE("runtime raw payload access supports non-fragmenting sparse components") {
+		TestWorld twld;
+		static uint32_t ctorCalls = 0;
+		static uint32_t dtorCalls = 0;
+		ctorCalls = dtorCalls = 0;
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_Raw_Sparse");
+		desc.size = RuntimePayloadSize;
+		desc.alig = RuntimePayloadAlign;
+		desc.storageType = ecs::DataStorageType::Sparse;
+		desc.fields = RuntimeXYZFields;
+		desc.fieldCount = RuntimeXYZFieldCount;
+		desc.funcCtor = [](void* data, uint32_t count) {
+			++ctorCalls;
+			memset(data, 0, (uintptr_t)RuntimePayloadSize * count);
+		};
+		desc.funcDtor = [](void*, uint32_t count) {
+			dtorCalls += count;
+		};
+		auto& runtimeComp = wld.add(desc);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity) {
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		const auto entity = wld.add();
+		uint8_t initial[RuntimePayloadSize]{};
+		write_xyz(initial, 1.0f, 2.0f, 3.0f);
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+		CHECK(wld.has(entity, runtimeComp.entity));
+		CHECK(ctorCalls == 1);
+		CHECK(dtorCalls == 0);
+
+		const auto payload = wld.get_raw(entity, runtimeComp.entity);
+		CHECK(payload.valid());
+		if (!payload.valid())
+			return;
+		CHECK(payload.size == RuntimePayloadSize);
+		CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(read_f32(payload.data, RuntimeYOffset) == doctest::Approx(2.0f));
+		CHECK(read_f32(payload.data, RuntimeZOffset) == doctest::Approx(3.0f));
+		const auto& typedPayload = wld.get<Position>(entity, runtimeComp.entity);
+		CHECK(typedPayload.x == doctest::Approx(1.0f));
+		CHECK(typedPayload.y == doctest::Approx(2.0f));
+		CHECK(typedPayload.z == doctest::Approx(3.0f));
+
+		const auto copy = wld.copy(entity);
+		CHECK(wld.has(copy, runtimeComp.entity));
+		const auto copiedPayload = wld.get_raw(copy, runtimeComp.entity);
+		CHECK(copiedPayload.valid());
+		if (!copiedPayload.valid())
+			return;
+		CHECK(read_f32(copiedPayload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+		CHECK(ctorCalls == 2);
+		wld.del(copy);
+		wld.update();
+		CHECK(dtorCalls == 1);
+
+		auto mutablePayload = wld.mut_raw(entity, runtimeComp.entity);
+		CHECK(mutablePayload.valid());
+		if (!mutablePayload.valid())
+			return;
+		write_xyz(mutablePayload.data, 4.0f, 5.0f, 6.0f);
+		wld.modify_raw(entity, runtimeComp.entity);
+		CHECK(setHits == 1);
+
+		uint8_t replacement[RuntimePayloadSize]{};
+		write_xyz(replacement, 7.0f, 8.0f, 9.0f);
+		CHECK(wld.set_raw(entity, runtimeComp.entity, replacement, RuntimePayloadSize));
+		CHECK(setHits == 2);
+		const auto replaced = wld.get_raw(entity, runtimeComp.entity);
+		CHECK(replaced.valid());
+		if (!replaced.valid())
+			return;
+		CHECK(read_f32(replaced.data, RuntimeXOffset) == doctest::Approx(7.0f));
+		CHECK(read_f32(replaced.data, RuntimeYOffset) == doctest::Approx(8.0f));
+		CHECK(read_f32(replaced.data, RuntimeZOffset) == doctest::Approx(9.0f));
+		auto cursor = wld.cursor_mut(entity, runtimeComp.entity);
+		CHECK(cursor.field(util::str_view("x")));
+		CHECK(cursor.f32(10.0f));
+		CHECK(setHits == 3);
+		CHECK(read_f32(wld.get_raw(entity, runtimeComp.entity).data, RuntimeXOffset) == doctest::Approx(10.0f));
+
+		wld.del(entity, runtimeComp.entity);
+		CHECK(dtorCalls == 2);
+		CHECK_FALSE(wld.has(entity, runtimeComp.entity));
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, RuntimePayloadSize));
+		CHECK(ctorCalls == 3);
+		wld.del(entity);
+		wld.update();
+		CHECK(dtorCalls == 3);
+	}
+
+	SUBCASE("runtime sparse payloads preserve over-alignment") {
+		TestWorld twld;
+		constexpr uint32_t PayloadSize = 64;
+		constexpr uint32_t PayloadAlignment = 64;
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_Raw_Sparse_Aligned");
+		desc.size = PayloadSize;
+		desc.alig = PayloadAlignment;
+		desc.storageType = ecs::DataStorageType::Sparse;
+		auto& runtimeComp = wld.add(desc);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+
+		const auto entity = wld.add();
+		alignas(PayloadAlignment) uint8_t initial[PayloadSize]{};
+		CHECK(wld.add_raw(entity, runtimeComp.entity, initial, PayloadSize));
+		const auto payload = wld.get_raw(entity, runtimeComp.entity);
+		CHECK(payload.valid());
+		CHECK((uintptr_t)payload.data % PayloadAlignment == 0);
+
+		const auto copy = wld.copy(entity);
+		const auto copiedPayload = wld.get_raw(copy, runtimeComp.entity);
+		CHECK(copiedPayload.valid());
+		CHECK((uintptr_t)copiedPayload.data % PayloadAlignment == 0);
+	}
+
+	SUBCASE("runtime sparse payload pages recycle small values") {
+		TestWorld twld;
+		static uint32_t ctorCalls = 0;
+		static uint32_t dtorCalls = 0;
+		ctorCalls = dtorCalls = 0;
+		constexpr uint32_t EntityCount = 300;
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_Raw_Sparse_Paged_Small");
+		desc.size = 1;
+		desc.alig = 1;
+		desc.storageType = ecs::DataStorageType::Sparse;
+		desc.funcCtor = [](void* data, uint32_t count) {
+			ctorCalls += count;
+			memset(data, 0, count);
+		};
+		desc.funcDtor = [](void*, uint32_t count) {
+			dtorCalls += count;
+		};
+		auto& runtimeComp = wld.add(desc);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+
+		cnt::darray<ecs::Entity> entities;
+		entities.reserve(EntityCount);
+		bool allAdded = true;
+		const uint8_t initial = 7;
+		GAIA_FOR(EntityCount) {
+			const auto entity = wld.add();
+			entities.push_back(entity);
+			allAdded = wld.add_raw(entity, runtimeComp.entity, &initial, sizeof(initial)) && allAdded;
+		}
+		CHECK(allAdded);
+		CHECK(ctorCalls == EntityCount);
+
+		for (auto entity: entities)
+			wld.del(entity, runtimeComp.entity);
+		CHECK(dtorCalls == EntityCount);
+
+		const uint8_t replacement = 9;
+		for (auto entity: entities)
+			allAdded = wld.add_raw(entity, runtimeComp.entity, &replacement, sizeof(replacement)) && allAdded;
+		CHECK(allAdded);
+		CHECK(ctorCalls == EntityCount * 2);
+
+		bool allRecycledValuesValid = true;
+		for (auto entity: entities) {
+			const auto payload = wld.get_raw(entity, runtimeComp.entity);
+			allRecycledValuesValid =
+					payload.valid() && *(const uint8_t*)payload.data == replacement && allRecycledValuesValid;
+		}
+		CHECK(allRecycledValuesValid);
+
+		wld.del(runtimeComp.entity);
+		wld.update();
+		CHECK(dtorCalls == EntityCount * 2);
+	}
+
+	SUBCASE("typed-by-id first access keeps runtime sparse lifecycle metadata") {
+		TestWorld twld;
+		static uint32_t ctorCalls = 0;
+		ctorCalls = 0;
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_Raw_Sparse_Typed_First");
+		desc.size = RuntimePayloadSize;
+		desc.alig = RuntimePayloadAlign;
+		desc.storageType = ecs::DataStorageType::Sparse;
+		desc.funcCtor = [](void* data, uint32_t count) {
+			ctorCalls += count;
+			memset(data, 0, (uintptr_t)RuntimePayloadSize * count);
+		};
+		auto& runtimeComp = wld.add(desc);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+
+		const auto entity = wld.add();
+		wld.add<Position>(entity, runtimeComp.entity, {1.0f, 2.0f, 3.0f});
+		CHECK(ctorCalls == 1);
+		const auto payload = wld.get_raw(entity, runtimeComp.entity);
+		CHECK(payload.valid());
+		CHECK(read_f32(payload.data, RuntimeXOffset) == doctest::Approx(1.0f));
+	}
+
 	SUBCASE("runtime component accessors expose raw payloads") {
 		TestWorld twld;
 
@@ -1831,7 +2039,7 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(gridY.value == doctest::Approx(8.0f));
 	}
 
-	SUBCASE("runtime raw payload access rejects unsupported storage") {
+	SUBCASE("runtime raw payload access supports fragmenting sparse components") {
 		TestWorld twld;
 
 		const auto& sparseComp =
@@ -1839,10 +2047,46 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto entity = wld.add();
 		uint32_t value = 42;
 
-		CHECK_FALSE(wld.add_raw(entity, sparseComp.entity, &value, sizeof(value)));
+		CHECK(wld.add_raw(entity, sparseComp.entity, &value, sizeof(value)));
+		const auto payload = wld.get_raw(entity, sparseComp.entity);
+		CHECK(payload.valid());
+		CHECK(payload.size == sizeof(value));
+		if (!payload.valid())
+			return;
+		CHECK(*(const uint32_t*)payload.data == value);
+
+		value = 84;
+		CHECK(wld.set_raw(entity, sparseComp.entity, &value, sizeof(value)));
+		CHECK(*(const uint32_t*)wld.get_raw(entity, sparseComp.entity).data == value);
+
+		wld.del(entity, sparseComp.entity);
 		CHECK_FALSE(wld.get_raw(entity, sparseComp.entity).valid());
-		CHECK_FALSE(wld.mut_raw(entity, sparseComp.entity).valid());
-		CHECK_FALSE(wld.set_raw(entity, sparseComp.entity, &value, sizeof(value)));
+	}
+
+	SUBCASE("raw sparse storage remains compatible with typed component access") {
+		SparseTestWorld twld;
+		const auto& sparseComp = wld.add<PositionSparse>();
+		const auto entity = wld.add();
+		const PositionSparse initial{1.0f, 2.0f, 3.0f};
+
+		CHECK(wld.add_raw(entity, sparseComp.entity, &initial, sizeof(initial)));
+		const auto& typed = wld.get<PositionSparse>(entity);
+		CHECK(typed.x == doctest::Approx(1.0f));
+		CHECK(typed.y == doctest::Approx(2.0f));
+		CHECK(typed.z == doctest::Approx(3.0f));
+
+		auto& mutableTyped = wld.mut<PositionSparse>(entity);
+		mutableTyped.x = 4.0f;
+		CHECK(((const PositionSparse*)wld.get_raw(entity, sparseComp.entity).data)->x == doctest::Approx(4.0f));
+		wld.modify<PositionSparse, true>(entity);
+		wld.set<PositionSparse>(entity) = {5.0f, 6.0f, 7.0f};
+		CHECK(((const PositionSparse*)wld.get_raw(entity, sparseComp.entity).data)->x == doctest::Approx(5.0f));
+
+		const auto copy = wld.copy(entity);
+		CHECK(wld.get<PositionSparse>(copy).y == doctest::Approx(6.0f));
+		wld.del(copy);
+		wld.del(entity);
+		wld.update();
 	}
 }
 

@@ -53,6 +53,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			//! Compares two component values for equality.
 			using FuncCmp = bool(const void*, const void*);
+			//! Creates the typed sparse store selected by compile-time component registration.
+			using FuncCreateSparseStore = void(World&, Entity);
 
 			//! Saves a contiguous range of component values through a serializer.
 			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
@@ -100,6 +102,8 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Equality callback for this component type.
 			FuncCmp* func_cmp{};
+			//! Typed sparse-store factory. Null for runtime-created components.
+			mutable FuncCreateSparseStore* func_create_sparse_store{};
 			//! Serialization callback for saving component values.
 			FuncSave* func_save{};
 			//! Serialization callback for loading component values.
@@ -679,6 +683,7 @@ namespace gaia {
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
 				GAIA_ASSERT(desc.size < Component::MaxComponentSizeInBytes);
 				GAIA_ASSERT((desc.size == 0 && desc.alig == 0) || (desc.alig > 0 && desc.alig < Component::MaxAlignment));
+				GAIA_ASSERT(desc.alig == 0 || (desc.alig & (desc.alig - 1)) == 0);
 				GAIA_ASSERT(desc.soa <= meta::StructToTupleMaxTypes);
 
 				auto* cci = new ComponentCacheItem();
