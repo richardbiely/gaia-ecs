@@ -500,6 +500,24 @@ namespace gaia {
 				return it != m_compByEntityId.end() ? it->second : nullptr;
 			}
 
+			//! Resolves payload metadata for a relationship pair.
+			//! A non-empty relation wins. Otherwise a non-empty target supplies the payload metadata.
+			//! \param pair Exact relationship pair.
+			//! \return Component cache item if either endpoint has metadata, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find_pair_payload(Entity pair) const noexcept {
+				if (!pair.pair())
+					return nullptr;
+
+				const auto relationIt = m_compByEntityId.find(pair.id());
+				const auto* pRelation = relationIt != m_compByEntityId.end() ? relationIt->second : nullptr;
+				if (pRelation != nullptr && pRelation->comp.size() != 0U)
+					return pRelation;
+
+				const auto targetIt = m_compByEntityId.find(pair.gen());
+				const auto* pTarget = targetIt != m_compByEntityId.end() ? targetIt->second : nullptr;
+				return pTarget != nullptr && pTarget->comp.size() != 0U ? pTarget : pRelation;
+			}
+
 			//! Searches for the component cache item.
 			//! \param entity Entity associated with the component item.
 			//! \return Component cache item if found, nullptr otherwise.

@@ -111,6 +111,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Dynamic vectors](#dynamic-vectors)
     * [Enum and bitmask metadata](#enum-and-bitmask-metadata)
     * [Raw access and cursors](#raw-access-and-cursors)
+    * [Data on runtime relationships](#data-on-runtime-relationships)
     * [Querying runtime components](#querying-runtime-components)
   * [Multithreading](#multithreading)
     * [Jobs](#jobs)
@@ -3982,6 +3983,66 @@ if (cursor.field("seconds")) {
 `ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
 
 Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)` to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
+
+### Data on runtime relationships
+
+A runtime relationship can store data for each target.
+
+For example, an `Affinity` relationship can store a different score for every person an entity knows:
+```cpp
+struct Affinity {
+  float score;
+};
+
+const ecs::RuntimeFieldDesc affinityFields[] = {
+  {util::str_view("score", 5), ecs::F32, 0, 0}
+};
+
+ecs::ComponentDesc affinityDesc{};
+affinityDesc.name = util::str_view("Affinity", 8);
+affinityDesc.size = sizeof(Affinity);
+affinityDesc.alig = alignof(Affinity);
+affinityDesc.storageType = ecs::DataStorageType::Table;
+affinityDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+affinityDesc.fields = affinityFields;
+affinityDesc.fieldCount = 1;
+
+ecs::ComponentCacheItem& affinity = w.add(affinityDesc);
+```
+
+Create the exact relationship by combining the relation and target. Pass that pair to the same raw and cursor APIs used for runtime components:
+
+```cpp
+ecs::Entity alice = w.add();
+ecs::Entity bob = w.add();
+w.name(bob, "Bob");
+ecs::Entity affinityToBob = (ecs::Entity)ecs::Pair(affinity.entity, bob);
+
+Affinity initial{0.75f};
+if (w.add_raw(alice, affinityToBob, &initial, sizeof(initial))) {
+  ecs::ComponentCursor cursor = w.cursor_mut(alice, affinityToBob);
+  if (cursor.field(util::str_view("score", 5))) {
+    auto score = cursor.f32();
+    if (score) {
+      // score.value == 0.75f
+    }
+    (void)cursor.f32(0.9f);
+  }
+}
+```
+
+The relation defines the stored data. The target identifies which relationship the value belongs to.
+
+Queries can match one exact relationship or every target of the same relation:
+
+```cpp
+auto affinityForBob = w.query().all(affinityToBob);
+auto affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));
+```
+
+Use an exact pair when reading or writing its value because a wildcard query can match several targets. Adding, removing, and changing relationship data triggers the same lifecycle hooks and `OnSet` notifications as component data.
+
+Semantic JSON writes the relationship as `(Relation,Target)`, such as `(Affinity,Bob)`. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with archetype/chunk AoS storage, not sparse or SoA components.
 
 ### Querying runtime components
 

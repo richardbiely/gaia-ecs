@@ -2215,3 +2215,158 @@ TEST_CASE("Serialization - world + query") {
 		}
 	}
 }
+
+TEST_CASE("Serialization - world json runtime pair payload") {
+	struct RuntimePairSchema {
+		ecs::Entity relation = ecs::EntityBad;
+		ecs::Entity target = ecs::EntityBad;
+	};
+	struct RuntimePairPayload {
+		float weight;
+		uint32_t flags;
+	};
+
+	auto register_schema = [](ecs::World& world) {
+		ecs::ComponentDesc targetDesc{};
+		targetDesc.name = runtime_component_name_view("Runtime_Pair_Json_Target");
+		targetDesc.size = 0;
+		targetDesc.alig = 1;
+		targetDesc.storageType = ecs::DataStorageType::Table;
+		auto& target = world.add(targetDesc);
+
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("weight"), ecs::F32, 0, 0}, {util::str_view("flags"), ecs::U32, sizeof(float), 0}};
+		ecs::ComponentDesc relationDesc{};
+		relationDesc.name = runtime_component_name_view("Runtime_Pair_Json_Relation");
+		relationDesc.size = sizeof(RuntimePairPayload);
+		relationDesc.alig = alignof(RuntimePairPayload);
+		relationDesc.storageType = ecs::DataStorageType::Table;
+		relationDesc.typeKind = ecs::RuntimeTypeKind::Struct;
+		relationDesc.fields = fields;
+		relationDesc.fieldCount = 2;
+		auto& relation = world.add(relationDesc);
+
+		return RuntimePairSchema{relation.entity, target.entity};
+	};
+
+	TestWorld twld;
+	const auto schema = register_schema(wld);
+	const auto source = wld.add();
+	wld.name(source, "RuntimePairJsonSource");
+	const auto pair = (ecs::Entity)ecs::Pair(schema.relation, schema.target);
+	const RuntimePairPayload payload{3.5f, 7};
+	const bool added = wld.add_raw(source, pair, &payload, sizeof(payload));
+	CHECK(added);
+	if (!added)
+		return;
+
+	ser::ser_json writer;
+	const bool saved = wld.save_json(writer, ser::JsonSaveFlags::RawFallback);
+	CHECK(saved);
+	if (!saved)
+		return;
+	const auto& json = writer.str();
+	CHECK(json.find("\"binary\":[") == BadIndex);
+	CHECK(json.find("\"(Runtime_Pair_Json_Relation,Runtime_Pair_Json_Target)\":") != BadIndex);
+	CHECK(json.find("\"weight\":3.5") != BadIndex);
+	CHECK(json.find("\"flags\":7") != BadIndex);
+
+	TestWorld twldOut;
+	const auto schemaOut = register_schema(twldOut.m_w);
+	const bool loadedWorld = twldOut.m_w.load_json(json);
+	CHECK(loadedWorld);
+	if (!loadedWorld)
+		return;
+	const auto sourceOut = twldOut.m_w.get("RuntimePairJsonSource");
+	CHECK(sourceOut != ecs::EntityBad);
+	if (sourceOut == ecs::EntityBad)
+		return;
+	const auto pairOut = (ecs::Entity)ecs::Pair(schemaOut.relation, schemaOut.target);
+	CHECK(twldOut.m_w.has(sourceOut, pairOut));
+	const auto loaded = twldOut.m_w.get_raw(sourceOut, pairOut);
+	CHECK(loaded.valid());
+	if (!loaded.valid())
+		return;
+	CHECK(loaded.size == sizeof(RuntimePairPayload));
+	RuntimePairPayload loadedPayload{};
+	memcpy(&loadedPayload, loaded.data, sizeof(loadedPayload));
+	CHECK(loadedPayload.weight == doctest::Approx(payload.weight));
+	CHECK(loadedPayload.flags == payload.flags);
+}
+
+TEST_CASE("Serialization - world json diagnoses malformed runtime pair key") {
+	auto register_schema = [](ecs::World& world, ecs::Entity& target) {
+		ecs::ComponentDesc targetDesc{};
+		targetDesc.name = runtime_component_name_view("Runtime_Pair_Malformed_Target");
+		targetDesc.alig = 1;
+		targetDesc.storageType = ecs::DataStorageType::Table;
+		target = world.add(targetDesc).entity;
+
+		ecs::ComponentDesc relationDesc{};
+		relationDesc.name = runtime_component_name_view("Runtime_Pair_Malformed_Relation");
+		relationDesc.size = sizeof(uint32_t);
+		relationDesc.alig = alignof(uint32_t);
+		relationDesc.storageType = ecs::DataStorageType::Table;
+		return world.add(relationDesc).entity;
+	};
+
+	TestWorld twld;
+	ecs::Entity target = ecs::EntityBad;
+	const auto relation = register_schema(wld, target);
+	const auto source = wld.add();
+	wld.name(source, "MalformedPairSource");
+
+	auto resolve = [&](const char* expression) {
+		return wld.name_to_entity(std::span<const char>{expression, strlen(expression)});
+	};
+	CHECK(resolve("") == ecs::EntityBad);
+	CHECK(resolve("(") == ecs::EntityBad);
+	CHECK(resolve("(MissingComma)") == ecs::EntityBad);
+	CHECK(resolve("(,Target)") == ecs::EntityBad);
+	CHECK(resolve("(Relation,)") == ecs::EntityBad);
+	CHECK(resolve("(Relation,(Target,Other))") == ecs::EntityBad);
+	const auto pair = (ecs::Entity)ecs::Pair(relation, target);
+	const uint32_t payload = 17;
+	CHECK(wld.add_raw(source, pair, &payload, sizeof(payload)));
+
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+	const auto& json = writer.str();
+	std::string malformed(json.data(), json.size());
+	const std::string pairName = "(Runtime_Pair_Malformed_Relation,Runtime_Pair_Malformed_Target)";
+	const auto pairPos = malformed.find(pairName);
+	CHECK(pairPos != std::string::npos);
+	if (pairPos == std::string::npos)
+		return;
+	malformed.replace(pairPos, pairName.size(), "(MalformedProbe)");
+
+	TestWorld twldOut;
+	ecs::Entity targetOut = ecs::EntityBad;
+	(void)register_schema(twldOut.m_w, targetOut);
+	ser::JsonDiagnostics diagnostics;
+	CHECK(twldOut.m_w.load_json(malformed.data(), (uint32_t)malformed.size(), diagnostics));
+	bool diagnosed = false;
+	for (const auto& diag: diagnostics.items) {
+		if (diag.reason == ser::JsonDiagReason::UnknownComponent)
+			diagnosed = true;
+	}
+	CHECK(diagnosed);
+}
+
+TEST_CASE("Serialization - world json rejects unnamed runtime pair target") {
+	TestWorld twld;
+	ecs::ComponentDesc relationDesc{};
+	relationDesc.name = runtime_component_name_view("Runtime_Pair_Unnamed_Relation");
+	relationDesc.size = sizeof(uint32_t);
+	relationDesc.alig = alignof(uint32_t);
+	relationDesc.storageType = ecs::DataStorageType::Table;
+	const auto relation = wld.add(relationDesc).entity;
+	const auto target = wld.add();
+	const auto source = wld.add();
+	const auto pair = (ecs::Entity)ecs::Pair(relation, target);
+	const uint32_t payload = 23;
+	CHECK(wld.add_raw(source, pair, &payload, sizeof(payload)));
+
+	ser::ser_json writer;
+	CHECK_FALSE(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+}

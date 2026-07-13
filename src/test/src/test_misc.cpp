@@ -12,6 +12,12 @@ struct AutoRegObserverProbe {
 	int value = 0;
 };
 
+struct ErasedPairRelationTag {};
+struct ErasedPairPayload {
+	float x;
+	float y;
+};
+
 TEST_CASE("DataLayout SoA - ECS") {
 	TestDataLayoutSoA_ECS<PositionSoA>();
 	TestDataLayoutSoA_ECS<RotationSoA>();
@@ -1838,6 +1844,257 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.mut_raw(entity, sparseComp.entity).valid());
 		CHECK_FALSE(wld.set_raw(entity, sparseComp.entity, &value, sizeof(value)));
 	}
+}
+
+TEST_CASE("Erased pair access preserves compile-time target-owned payload metadata") {
+	using PairType = ecs::pair<ErasedPairRelationTag, ErasedPairPayload>;
+
+	TestWorld twld;
+	const auto source = wld.add();
+	wld.add<PairType>(source, {1.0f, 2.0f});
+
+	const auto relation = wld.add<PairType::rel>().entity;
+	const auto target = wld.add<PairType::tgt>().entity;
+	const auto pair = (ecs::Entity)ecs::Pair(relation, target);
+	CHECK(wld.comp_cache().find_pair_payload(pair)->entity == target);
+
+	const auto initial = wld.get_raw(source, pair);
+	CHECK(initial.valid());
+	CHECK(initial.size == sizeof(ErasedPairPayload));
+	if (initial.size != sizeof(ErasedPairPayload))
+		return;
+	CHECK(((const ErasedPairPayload*)initial.data)->x == doctest::Approx(1.0f));
+
+	auto mutableView = wld.mut_raw(source, pair);
+	CHECK(mutableView.valid());
+	CHECK(mutableView.size == sizeof(ErasedPairPayload));
+	if (mutableView.size != sizeof(ErasedPairPayload))
+		return;
+	((ErasedPairPayload*)mutableView.data)->y = 3.0f;
+	wld.modify_raw(source, pair);
+	CHECK(wld.get<PairType>(source).y == doctest::Approx(3.0f));
+
+	const ErasedPairPayload replacement{4.0f, 5.0f};
+	CHECK(wld.set_raw(source, pair, &replacement, sizeof(replacement)));
+	CHECK(wld.get<PairType>(source).x == doctest::Approx(4.0f));
+	CHECK(wld.get<PairType>(source).y == doctest::Approx(5.0f));
+
+	auto cursor = wld.cursor(source, pair);
+	CHECK(cursor.valid());
+	CHECK(cursor.type() == pair);
+	CHECK(cursor.size() == sizeof(ErasedPairPayload));
+	CHECK(((const ErasedPairPayload*)cursor.ptr())->x == doctest::Approx(4.0f));
+
+	const auto rawSource = wld.add();
+	const ErasedPairPayload rawInitial{6.0f, 7.0f};
+	const bool rawAdded = wld.add_raw(rawSource, pair, &rawInitial, sizeof(rawInitial));
+	CHECK(rawAdded);
+	if (!rawAdded)
+		return;
+	CHECK(wld.get<PairType>(rawSource).x == doctest::Approx(6.0f));
+	CHECK(wld.get<PairType>(rawSource).y == doctest::Approx(7.0f));
+}
+
+TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
+	constexpr uint32_t PayloadSize = sizeof(float) * 3;
+	constexpr uint32_t XOffset = 0;
+	constexpr uint32_t YOffset = sizeof(float);
+	constexpr uint32_t ZOffset = sizeof(float) * 2;
+	const ecs::RuntimeFieldDesc fields[] = {
+			{util::str_view("x"), ecs::F32, XOffset, 0},
+			{util::str_view("y"), ecs::F32, YOffset, 0},
+			{util::str_view("z"), ecs::F32, ZOffset, 0}};
+
+	auto write_f32 = [](void* data, uint32_t offset, float value) {
+		memcpy((uint8_t*)data + offset, &value, sizeof(value));
+	};
+	auto read_f32 = [](const void* data, uint32_t offset) {
+		float value = 0.0f;
+		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
+		return value;
+	};
+
+	static ecs::Entity expectedRelation = ecs::EntityBad;
+	static uint32_t ctorCalls = 0;
+	static uint32_t dtorCalls = 0;
+	static uint32_t addHookCalls = 0;
+	static uint32_t delHookCalls = 0;
+	static uint32_t setHookCalls = 0;
+	ctorCalls = dtorCalls = addHookCalls = delHookCalls = setHookCalls = 0;
+
+	TestWorld twld;
+	ecs::ComponentDesc desc{};
+	desc.name = util::str_view("Runtime_Pair_Relation");
+	desc.size = PayloadSize;
+	desc.alig = alignof(float);
+	desc.storageType = ecs::DataStorageType::Table;
+	desc.typeKind = ecs::RuntimeTypeKind::Struct;
+	desc.fields = fields;
+	desc.fieldCount = 3;
+	desc.funcCtor = [](void* data, uint32_t count) {
+		++ctorCalls;
+		memset(data, 0, (uintptr_t)PayloadSize * count);
+	};
+	desc.funcDtor = [](void*, uint32_t) {
+		++dtorCalls;
+	};
+	auto& relation = wld.add(desc);
+	expectedRelation = relation.entity;
+
+	ecs::ComponentDesc targetDesc{};
+	targetDesc.name = util::str_view("Runtime_Pair_Competing_Target_Metadata");
+	targetDesc.size = sizeof(uint64_t);
+	targetDesc.alig = alignof(uint64_t);
+	targetDesc.storageType = ecs::DataStorageType::Table;
+	auto& targetItem = wld.add(targetDesc);
+	const auto target = targetItem.entity;
+	const auto otherTarget = wld.add();
+	const auto pair = (ecs::Entity)ecs::Pair(relation.entity, target);
+	const auto otherPair = (ecs::Entity)ecs::Pair(relation.entity, otherTarget);
+	const auto source = wld.add();
+	const auto otherSource = wld.add();
+
+	CHECK(wld.comp_cache().find(pair) == nullptr);
+	CHECK(wld.comp_cache().find_pair_payload(pair) == &relation);
+	CHECK(wld.comp_cache().find_pair_payload(pair) != &targetItem);
+	CHECK(wld.comp_cache().find_pair_payload(otherPair) == &relation);
+
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	auto& hooks = ecs::ComponentCache::hooks(relation);
+	hooks.func_add = [](const ecs::World&, const ecs::ComponentCacheItem& item, ecs::Entity entity) {
+		CHECK(item.entity == expectedRelation);
+		CHECK(entity != ecs::EntityBad);
+		++addHookCalls;
+	};
+	hooks.func_del = [](const ecs::World&, const ecs::ComponentCacheItem& item, ecs::Entity entity) {
+		CHECK(item.entity == expectedRelation);
+		CHECK(entity != ecs::EntityBad);
+		++delHookCalls;
+	};
+#endif
+#if GAIA_ENABLE_SET_HOOKS
+	ecs::ComponentCache::hooks(relation).func_set = [](const ecs::World&, const ecs::ComponentRecord& rec, ecs::Chunk&) {
+		CHECK(rec.pItem != nullptr);
+		if (rec.pItem != nullptr)
+			CHECK(rec.pItem->entity == expectedRelation);
+		++setHookCalls;
+	};
+#endif
+
+	uint32_t setObserverCalls = 0;
+	const auto onSet = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all(pair)
+												 .on_each([&](ecs::Entity entity) {
+													 CHECK(entity == source);
+													 ++setObserverCalls;
+												 })
+												 .entity();
+	(void)onSet;
+
+	float initial[] = {1.0f, 2.0f, 3.0f};
+	const bool added = wld.add_raw(source, pair, initial, sizeof(initial));
+	CHECK(added);
+	if (!added)
+		return;
+	CHECK(ctorCalls == 1);
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	CHECK(addHookCalls == 1);
+#endif
+
+	const auto initialView = wld.get_raw(source, pair);
+	CHECK(initialView.valid());
+	if (!initialView.valid())
+		return;
+	CHECK(initialView.size == PayloadSize);
+	CHECK(read_f32(initialView.data, XOffset) == doctest::Approx(1.0f));
+
+	auto mutableView = wld.mut_raw(source, pair);
+	CHECK(mutableView.valid());
+	if (!mutableView.valid())
+		return;
+	write_f32(mutableView.data, YOffset, 4.0f);
+	CHECK(setObserverCalls == 0);
+	wld.modify_raw(source, pair);
+	CHECK(setObserverCalls == 1);
+#if GAIA_ENABLE_SET_HOOKS
+	CHECK(setHookCalls == 1);
+#endif
+
+	float replacement[] = {5.0f, 6.0f, 7.0f};
+	CHECK(wld.set_raw(source, pair, replacement, sizeof(replacement)));
+	CHECK(setObserverCalls == 2);
+
+	auto readCursor = wld.cursor(source, pair);
+	CHECK(readCursor.valid());
+	CHECK(readCursor.type() == pair);
+	CHECK(readCursor.field(util::str_view("x")));
+	const auto x = readCursor.f32();
+	CHECK(x);
+	CHECK(x.value == doctest::Approx(5.0f));
+
+	auto cursor = wld.cursor_mut(source, pair);
+	CHECK(cursor.valid());
+	if (!cursor.valid())
+		return;
+	CHECK(cursor.type() == pair);
+	CHECK(cursor.field(util::str_view("z")));
+	CHECK(cursor.f32(8.0f));
+	CHECK(setObserverCalls == 3);
+#if GAIA_ENABLE_SET_HOOKS
+	CHECK(setHookCalls == 3);
+#endif
+
+	float otherInitial[] = {10.0f, 11.0f, 12.0f};
+	const bool otherAdded = wld.add_raw(otherSource, otherPair, otherInitial, sizeof(otherInitial));
+	CHECK(otherAdded);
+	if (!otherAdded)
+		return;
+	auto fixedQuery = wld.query().all(pair);
+	CHECK(fixedQuery.count() == 1);
+	fixedQuery.each([&](ecs::Iter& it) {
+		const auto raw = it.view_raw(0);
+		CHECK(raw.size() == it.size());
+		if (raw.size() != it.size())
+			return;
+		GAIA_FOR(it.size()) CHECK(raw[i].valid());
+	});
+
+	uint32_t wildcardRows = 0;
+	auto wildcardQuery = wld.query().all(ecs::Pair(relation.entity, ecs::All));
+	wildcardQuery.each([&](ecs::Entity) {
+		++wildcardRows;
+	});
+	CHECK(wildcardRows == 2);
+	CHECK(setObserverCalls == 3);
+
+	const auto uniqueTarget = wld.add<ecs::uni<Position>>().entity;
+	const auto uniquePair = (ecs::Entity)ecs::Pair(relation.entity, uniqueTarget);
+	const auto uniqueSourceA = wld.add();
+	const auto uniqueSourceB = wld.add();
+	float uniqueInitialA[] = {30.0f, 31.0f, 32.0f};
+	float uniqueInitialB[] = {40.0f, 41.0f, 42.0f};
+	CHECK(wld.add_raw(uniqueSourceA, uniquePair, uniqueInitialA, sizeof(uniqueInitialA)));
+	CHECK(wld.add_raw(uniqueSourceB, uniquePair, uniqueInitialB, sizeof(uniqueInitialB)));
+	const auto uniqueViewA = wld.get_raw(uniqueSourceA, uniquePair);
+	const auto uniqueViewB = wld.get_raw(uniqueSourceB, uniquePair);
+	CHECK(uniqueViewA.valid());
+	CHECK(uniqueViewB.valid());
+	CHECK(read_f32(uniqueViewA.data, XOffset) == doctest::Approx(40.0f));
+	CHECK(read_f32(uniqueViewB.data, XOffset) == doctest::Approx(40.0f));
+
+	const auto finalView = wld.get_raw(source, pair);
+	CHECK(finalView.valid());
+	if (!finalView.valid())
+		return;
+	CHECK(read_f32(finalView.data, ZOffset) == doctest::Approx(8.0f));
+
+	wld.del(source, pair);
+	CHECK_FALSE(wld.has(source, pair));
+#if GAIA_ENABLE_ADD_DEL_HOOKS
+	CHECK(delHookCalls == 1);
+#endif
+	CHECK(dtorCalls >= 1);
 }
 
 TEST_CASE("ArchetypeGraph") {

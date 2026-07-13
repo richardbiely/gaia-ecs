@@ -519,22 +519,7 @@ namespace gaia {
 				newArch->m_shape.properties.cntEntities = (uint8_t)ids.size();
 
 				auto compItems = std::span(&newArch->m_shape.compItems[0], cnt);
-				GAIA_FOR(cnt) {
-					const ComponentCacheItem* pItem = nullptr;
-					if (ids[i].pair()) {
-						// When using pairs we need to decode the storage type from them.
-						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
-						Entity pairEntities[] = {pair_rel(world, ids[i]), pair_tgt(world, ids[i])};
-						const auto* pRelItem = cc.find(pairEntities[0]);
-						const auto* pTgtItem = cc.find(pairEntities[1]);
-						Component pairComponents[] = {comp_from_item(pRelItem), comp_from_item(pTgtItem)};
-						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
-						pItem = idx == 0 ? pRelItem : pTgtItem;
-					} else {
-						pItem = cc.find(ids[i]);
-					}
-					compItems[i] = pItem;
-				}
+				GAIA_FOR(cnt) compItems[i] = ids[i].pair() ? cc.find_pair_payload(ids[i]) : cc.find(ids[i]);
 
 				// Calculate offsets
 				static auto ChunkDataAreaOffset = Chunk::chunk_data_area_offset();

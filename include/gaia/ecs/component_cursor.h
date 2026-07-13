@@ -756,7 +756,8 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem* current_item() const noexcept {
 				if (!m_valid || m_components == nullptr)
 					return nullptr;
-				return m_components->find(m_stack[m_depth].type);
+				const auto type = m_stack[m_depth].type;
+				return type.pair() ? m_components->find_pair_payload(type) : m_components->find(type);
 			}
 
 			GAIA_NODISCARD const ComponentCacheItem* opaque_semantic_item(const ComponentCacheItem& item) const noexcept {

@@ -131,7 +131,7 @@ namespace gaia {
 							m_header.hasAnyCustomUniDtor |= (rec.pItem->func_dtor != nullptr);
 
 							// We construct unique components right away if possible
-							call_ctor(0, *rec.pItem);
+							call_ctor(0, i, *rec.pItem);
 						}
 					}
 				}
@@ -1382,13 +1382,12 @@ namespace gaia {
 			// Component handling
 			//----------------------------------------------------------------------
 
-			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
+			void call_ctor(uint32_t entIdx, uint32_t compIdx, const ComponentCacheItem& item) {
 				if (item.func_ctor == nullptr || !component_uses_table_storage(item.comp))
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::call_ctor);
 
-				const auto compIdx = comp_idx(item.entity);
 				auto* pSrc = (void*)comp_ptr_mut(compIdx, entIdx);
 				item.func_ctor(pSrc, 1);
 			}

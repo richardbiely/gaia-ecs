@@ -931,6 +931,7 @@ namespace gaia {
 				GroupId m_groupId = 0;
 				//! User-owned pointer supplied by the caller driving this iteration.
 				void* m_pCtx = nullptr;
+
 			public:
 				ChunkIterImpl() = default;
 				~ChunkIterImpl() = default;
@@ -1213,7 +1214,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return {};
 
 					const auto elemSize = rec.comp.size();
@@ -1236,7 +1237,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return {};
 
 					if (trackWrite) {
@@ -1251,14 +1252,14 @@ namespace gaia {
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
 				}
 
-				//! Returns a read-only raw byte view for a directly chunk-backed AoS query term.
+				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw view. Rows return invalid payloads when the term is unsupported.
 				GAIA_NODISCARD RawTermViewGet view_raw(uint32_t termIdx) const {
 					return raw_term_view(termIdx);
 				}
 
-				//! Returns a mutable raw byte view for a directly chunk-backed AoS query term.
+				//! Returns a mutable raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! Writes are finished after the iterator callback through normal touched-write tracking.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw mutable view. Rows return invalid payloads when unsupported.
@@ -1286,7 +1287,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return;
 
 					touch_comp_idx(compIdx);
@@ -1303,9 +1304,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view_any<T>(*this);
 				}
 
-				//! Returns a read-only entity or component view for a query-term index that can resolve sparse storage or inherited data.
-				//! Use this when the term may resolve to inherited data or sparse storage
-				//! instead of an archetype chunk column.
+				//! Returns a read-only entity or component view for a query-term index that can resolve sparse storage or
+				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
+				//! archetype chunk column.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
@@ -1372,10 +1373,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template view_mut<T>(*this, termIdx);
 				}
 
-				//! Returns a mutable entity or component view for a query-term index that can resolve sparse storage or inherited data.
-				//! Use this when the term may resolve to inherited data or sparse storage
-				//! instead of an archetype chunk column.
-				//! Updates world versioning for chunk-backed terms before handing out mutable access.
+				//! Returns a mutable entity or component view for a query-term index that can resolve sparse storage or
+				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
+				//! archetype chunk column. Updates world versioning for chunk-backed terms before handing out mutable access.
 				//! \warning It is expected the term index maps to a valid query term for @a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
@@ -1455,9 +1455,9 @@ namespace gaia {
 						return view<T>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited data.
-				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Use this when the term may resolve to inherited data or sparse storage.
+				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited
+				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
+				//! resolve to inherited data or sparse storage.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
@@ -1470,10 +1470,10 @@ namespace gaia {
 						return view_any<T>();
 				}
 
-				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited data.
-				//! Value and const types are considered immutable. Anything else is mutable.
-				//! Use this when the term may resolve to inherited data or sparse storage.
-				//! Doesn't update the world version when read-write access is acquired.
+				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited
+				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
+				//! resolve to inherited data or sparse storage. Doesn't update the world version when read-write access is
+				//! acquired.
 				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view

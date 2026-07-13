@@ -379,6 +379,17 @@ namespace gaia {
 					return ec.pChunk->template set<T>();
 			}
 
+			//! Resolves the metadata backing an exact component or pair column on @a entity.
+			//! Pair columns use their archetype record so compile-time pair storage selection remains unchanged.
+			GAIA_NODISCARD const ComponentCacheItem* component_item(Entity entity, Entity component) const {
+				if (!component.pair())
+					return comp_cache().find(component);
+
+				const auto& ec = fetch(entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem : nullptr;
+			}
+
 			//! Checks whether @a item can expose a direct raw byte view in the first runtime-component slice.
 			GAIA_NODISCARD static bool raw_component_supported(const ComponentCacheItem& item) noexcept {
 				return item.comp.storage_type() == DataStorageType::Table && item.comp.soa() == 0;
@@ -1773,13 +1784,12 @@ namespace gaia {
 					{
 						// Trigger component hooks first
 						for (auto entity: tl_new_comps) {
-							if (!entity.comp())
+							const auto* pItem = m_world.component_item(m_entity, entity);
+							if (pItem == nullptr)
 								continue;
-
-							const auto& item = m_world.comp_cache().get(entity);
-							const auto& hooks = ComponentCache::hooks(item);
+							const auto& hooks = ComponentCache::hooks(*pItem);
 							if (hooks.func_add != nullptr)
-								hooks.func_add(m_world, item, m_entity);
+								hooks.func_add(m_world, *pItem, m_entity);
 						}
 					}
 	#endif
@@ -1824,13 +1834,12 @@ namespace gaia {
 					{
 						// Trigger component hooks second
 						for (auto entity: tl_del_comps) {
-							if (!entity.comp())
+							const auto* pItem = m_world.component_item(m_entity, entity);
+							if (pItem == nullptr)
 								continue;
-
-							const auto& item = m_world.comp_cache().get(entity);
-							const auto& hooks = ComponentCache::hooks(item);
+							const auto& hooks = ComponentCache::hooks(*pItem);
 							if (hooks.func_del != nullptr)
-								hooks.func_del(m_world, item, m_entity);
+								hooks.func_del(m_world, *pItem, m_entity);
 						}
 					}
 	#endif
@@ -3890,11 +3899,11 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				if (object.comp()) {
-					const auto& item = comp_cache().get(object);
-					const auto& hooks = ComponentCache::hooks(item);
+				const auto* pItem = component_item(entity, object);
+				if (pItem != nullptr) {
+					const auto& hooks = ComponentCache::hooks(*pItem);
 					if (hooks.func_add != nullptr)
-						hooks.func_add(*this, item, entity);
+						hooks.func_add(*this, *pItem, entity);
 				}
 	#endif
 
@@ -3923,11 +3932,11 @@ namespace gaia {
 	#endif
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				if (object.comp()) {
-					const auto& item = comp_cache().get(object);
-					const auto& hooks = ComponentCache::hooks(item);
+				const auto* pItem = component_item(entity, object);
+				if (pItem != nullptr) {
+					const auto& hooks = ComponentCache::hooks(*pItem);
 					if (hooks.func_del != nullptr)
-						hooks.func_del(*this, item, entity);
+						hooks.func_del(*this, *pItem, entity);
 				}
 	#endif
 
@@ -5457,21 +5466,21 @@ namespace gaia {
 				return sset<T>(entity, object);
 			}
 
-			//! Returns raw read-only bytes for a chunk-backed AoS component on @a entity.
+			//! Returns raw read-only bytes for a chunk-backed AoS component or exact pair payload on @a entity.
 			//! Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.
 			//! \param entity Entity being read.
-			//! \param component Component entity being read.
+			//! \param component Component entity or exact relationship pair being read.
 			//! \return Raw payload view, or invalid view when the component cannot be resolved.
 			GAIA_NODISCARD ComponentRawView get_raw(Entity entity, Entity component) const {
-				if (component == EntityBad || component.pair() || !valid(entity))
-					return {};
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_supported(*pItem))
+				if (component == EntityBad || !valid(entity))
 					return {};
 
 				const auto owner = id_owner_inter(entity, component);
 				if (owner == EntityBad)
+					return {};
+
+				const auto* pItem = component_item(owner, component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
 
 				const auto& ec = fetch(owner);
@@ -5487,21 +5496,21 @@ namespace gaia {
 				return {ec.pChunk->comp_ptr(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
-			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component on @a entity.
+			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component or exact pair payload.
 			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
 			//! \param entity Entity being mutated.
-			//! \param component Component entity being mutated.
+			//! \param component Component entity or exact relationship pair being mutated.
 			//! \return Raw mutable payload view, or invalid view when the component is absent or unsupported.
 			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity entity, Entity component) {
-				if (component == EntityBad || component.pair() || !valid(entity))
-					return {};
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_supported(*pItem))
+				if (component == EntityBad || !valid(entity))
 					return {};
 
 				const auto& ec = fetch(entity);
 				if (is_req_del(ec))
+					return {};
+
+				const auto* pItem = component_item(entity, component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
 
 				const auto compIdx = ec.pChunk->comp_idx(component);
@@ -5519,7 +5528,7 @@ namespace gaia {
 			//! Creates a read-only cursor over a chunk-backed AoS runtime component on @a entity.
 			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
 			//! \param entity Entity being read.
-			//! \param component Component entity being read.
+			//! \param component Component entity or exact relationship pair being read.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
@@ -5527,21 +5536,21 @@ namespace gaia {
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
-			//! \param component Component entity being mutated.
+			//! \param component Component entity or exact relationship pair being mutated.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor_mut(Entity entity, Entity component);
 
 			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
 			//! \param entity Entity receiving the component.
-			//! \param component Runtime component entity.
+			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
 			//! \param size Payload byte count. Must match the registered component size.
 			//! \return True when the component was added and initialized.
 			bool add_raw(Entity entity, Entity component, const void* data, uint32_t size) {
-				if (component == EntityBad || component.pair() || !valid(entity))
+				if (component == EntityBad || !valid(entity))
 					return false;
 
-				const auto* pItem = comp_cache().find(component);
+				const auto* pItem = component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
 					return false;
 				if (has_direct(entity, component))
@@ -5569,25 +5578,21 @@ namespace gaia {
 
 			//! Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.
 			//! \param entity Entity whose component is being replaced.
-			//! \param component Runtime component entity.
+			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
 			//! \param size Payload byte count. Must match the registered component size.
 			//! \return True when the component was updated.
 			bool set_raw(Entity entity, Entity component, const void* data, uint32_t size) {
-				if (component == EntityBad || component.pair())
-					return false;
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
+				if (component == EntityBad)
 					return false;
 
 				const auto payload = mut_raw(entity, component);
-				if (!payload.valid())
+				if (!payload.valid() || payload.size != size || (size != 0 && data == nullptr))
 					return false;
 				if (size != 0)
 					memcpy(payload.data, data, size);
 
-				modify_raw(entity, component);
+				finish_write(entity, component);
 				return true;
 			}
 
@@ -11696,35 +11701,33 @@ namespace gaia {
 			//! \return Resolved entity or EntityBad on failure.
 			Entity name_to_entity(std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
+				if (expr.empty())
+					return EntityBad;
 
 				if (expr[0] == '(') {
-					if (expr.back() != ')') {
-						GAIA_ASSERT2(false, "Expression '(' not terminated");
+					if (expr.size() < 5 || expr.back() != ')')
 						return EntityBad;
-					}
 
 					const auto idStr = expr.subspan(1, expr.size() - 2);
 					const auto commaIdx = core::get_index(idStr, ',');
+					if (commaIdx == BadIndex)
+						return EntityBad;
 
 					const auto first = name_to_entity(idStr.subspan(0, commaIdx));
-					if (first == EntityBad)
+					if (first == EntityBad || first.pair())
 						return EntityBad;
 					const auto second = name_to_entity(idStr.subspan(commaIdx + 1));
-					if (second == EntityBad)
+					if (second == EntityBad || second.pair())
 						return EntityBad;
 
 					return ecs::Pair(first, second);
 				}
 
-				{
-					auto idStr = util::trim(expr);
+				// Wildcard character
+				if (expr.size() == 1 && expr[0] == '*')
+					return All;
 
-					// Wildcard character
-					if (idStr.size() == 1 && idStr[0] == '*')
-						return All;
-
-					return get_inter(idStr.data(), (uint32_t)idStr.size());
-				}
+				return get_inter(expr.data(), (uint32_t)expr.size());
 			}
 
 			//! Resolves a textual id expression with `%e` placeholders to an entity.

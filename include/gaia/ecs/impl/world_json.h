@@ -707,10 +707,40 @@ namespace gaia {
 		}
 
 		//! Serializes world state into a JSON document.
-		//! Components with runtime fields are emitted as structured JSON objects.
-		//! Components with no runtime fields fallback to raw serialized bytes.
-		//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
+		//! Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and
+		//! target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime
+		//! field types are unsupported (those fields are emitted as null).
 		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
+			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
+				if (!component.pair()) {
+					const auto componentName = comp_cache().symbol_name(item);
+					if (componentName.empty())
+						return false;
+					writer.key(componentName.data(), componentName.size());
+					return true;
+				}
+
+				const auto relation = pair_rel(*this, component);
+				auto relationName = symbol(relation);
+				if (relationName.empty())
+					relationName = name(relation);
+				const auto target = pair_tgt(*this, component);
+				auto targetName = symbol(target);
+				if (targetName.empty())
+					targetName = name(target);
+				if (relationName.empty() || targetName.empty())
+					return false;
+
+				util::str pairName;
+				pairName.append("(");
+				pairName.append(relationName.data(), relationName.size());
+				pairName.append(",");
+				pairName.append(targetName.data(), targetName.size());
+				pairName.append(")");
+				writer.key(pairName.data(), pairName.size());
+				return true;
+			};
+
 			auto write_raw_component = [&](const ComponentCacheItem& item, const uint8_t* pData, uint32_t from, uint32_t to,
 																		 uint32_t cap) {
 				ser::ser_buffer_binary raw;
@@ -816,8 +846,12 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										const auto name = symbol(item.entity);
-										writer.key(name.data(), name.size());
+										const auto component = pChunk->ids_view()[j];
+										if (!write_component_key(component, item)) {
+											writer.key("<unnamed>");
+											if (component.pair() && !includeBinarySnapshot)
+												ok = false;
+										}
 
 										// Tags have no associated payload.
 										if (rec.comp.size() == 0) {
@@ -825,7 +859,7 @@ namespace gaia {
 											continue;
 										}
 
-										const auto row = item.entity.kind() == EntityKind::EK_Uni ? 0U : i;
+										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
 
 										if (item.field_count() != 0 && rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
@@ -983,35 +1017,21 @@ namespace gaia {
 			struct CompDataLoc {
 				uint8_t* pBase = nullptr;
 				uint32_t row = 0;
-				uint32_t cap = 0;
-				bool valid = false;
 			};
 
-			auto locate_component_data = [&](Entity entity, const ComponentCacheItem& item) -> CompDataLoc {
+			auto locate_component_data = [&](Entity entity, Entity component) {
 				CompDataLoc loc{};
-				if (!has(entity))
-					return loc;
-
 				auto& ec = fetch(entity);
-				const auto compIdx = core::get_index(ec.pChunk->ids_view(), item.entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
 				if (compIdx == BadIndex)
 					return loc;
 
 				loc.pBase = ec.pChunk->comp_ptr_mut(compIdx, 0);
-				loc.row = item.entity.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-				loc.cap = ec.pChunk->capacity();
-				loc.valid = true;
+				loc.row = component.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 				return loc;
 			};
 
-			auto has_direct_component = [&](Entity entity, Entity componentEntity) -> bool {
-				if (!has(entity))
-					return false;
-				const auto& ec = fetch(entity);
-				return core::get_index(ec.pChunk->ids_view(), componentEntity) != BadIndex;
-			};
-
-			auto parse_and_apply_component_value = [&](Entity entity, const ComponentCacheItem& item,
+			auto parse_and_apply_component_value = [&](Entity entity, Entity component, const ComponentCacheItem& item,
 																								 ser::json_str_view compPath) -> bool {
 				jp.ws();
 				if (jp.eof())
@@ -1036,11 +1056,15 @@ namespace gaia {
 					return true;
 				}
 
-				if (!has_direct_component(entity, item.entity))
-					add(entity, item.entity);
+				if (!has_direct(entity, component)) {
+					if (component.pair())
+						add(entity, Pair(pair_rel(*this, component), pair_tgt(*this, component)));
+					else
+						add(entity, component);
+				}
 
-				auto loc = locate_component_data(entity, item);
-				if (!loc.valid) {
+				const auto loc = locate_component_data(entity, component);
+				if (loc.pBase == nullptr) {
 					warn(
 							ser::JsonDiagReason::MissingComponentStorage, compPath,
 							"Component storage is unavailable on the target entity.");
@@ -1112,13 +1136,23 @@ namespace gaia {
 					if (!jp.expect(':'))
 						return false;
 
-					const bool isInternalComp = compName.size() >= 10 && memcmp(compName.data(), "gaia::ecs::", 10) == 0;
-					if (isPair || isInternalComp) {
+					const auto componentName = util::str_view(compName.data(), compName.size());
+					const bool nameIsInternal = ComponentCache::is_internal_symbol(componentName);
+					const auto componentEntity = nameIsInternal ? EntityBad : name_to_entity({compName.data(), compName.size()});
+					const ComponentCacheItem* pItem = nullptr;
+					if (componentEntity.pair())
+						pItem = comp_cache().find_pair_payload(componentEntity);
+					else if (componentEntity != EntityBad)
+						pItem = comp_cache().find(componentEntity);
+					const auto itemName = pItem != nullptr ? comp_cache().symbol_name(*pItem) : util::str_view{};
+					const bool itemIsInternal = ComponentCache::is_internal_symbol(itemName);
+					const auto relationName =
+							componentEntity.pair() ? symbol(pair_rel(*this, componentEntity)) : util::str_view{};
+					const bool relationIsInternal = ComponentCache::is_internal_symbol(relationName);
+					if (isPair || nameIsInternal || itemIsInternal || relationIsInternal) {
 						if (!jp.skip_value())
 							return false;
 					} else {
-						const auto componentEntity = get(compName.data(), (uint32_t)compName.size());
-						const auto* pItem = componentEntity != EntityBad ? comp_cache().find(componentEntity) : nullptr;
 						if (pItem == nullptr) {
 							warn(
 									ser::JsonDiagReason::UnknownComponent, compName,
@@ -1147,7 +1181,7 @@ namespace gaia {
 								}
 							}
 
-							if (!parse_and_apply_component_value(entity, *pItem, compName))
+							if (!parse_and_apply_component_value(entity, componentEntity, *pItem, compName))
 								return false;
 						}
 					}

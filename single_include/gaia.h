@@ -31498,6 +31498,24 @@ namespace gaia {
 				return it != m_compByEntityId.end() ? it->second : nullptr;
 			}
 
+			//! Resolves payload metadata for a relationship pair.
+			//! A non-empty relation wins. Otherwise a non-empty target supplies the payload metadata.
+			//! \param pair Exact relationship pair.
+			//! \return Component cache item if either endpoint has metadata, nullptr otherwise.
+			GAIA_NODISCARD const ComponentCacheItem* find_pair_payload(Entity pair) const noexcept {
+				if (!pair.pair())
+					return nullptr;
+
+				const auto relationIt = m_compByEntityId.find(pair.id());
+				const auto* pRelation = relationIt != m_compByEntityId.end() ? relationIt->second : nullptr;
+				if (pRelation != nullptr && pRelation->comp.size() != 0U)
+					return pRelation;
+
+				const auto targetIt = m_compByEntityId.find(pair.gen());
+				const auto* pTarget = targetIt != m_compByEntityId.end() ? targetIt->second : nullptr;
+				return pTarget != nullptr && pTarget->comp.size() != 0U ? pTarget : pRelation;
+			}
+
 			//! Searches for the component cache item.
 			//! \param entity Entity associated with the component item.
 			//! \return Component cache item if found, nullptr otherwise.
@@ -32456,7 +32474,7 @@ namespace gaia {
 							m_header.hasAnyCustomUniDtor |= (rec.pItem->func_dtor != nullptr);
 
 							// We construct unique components right away if possible
-							call_ctor(0, *rec.pItem);
+							call_ctor(0, i, *rec.pItem);
 						}
 					}
 				}
@@ -33707,13 +33725,12 @@ namespace gaia {
 			// Component handling
 			//----------------------------------------------------------------------
 
-			void call_ctor(uint32_t entIdx, const ComponentCacheItem& item) {
+			void call_ctor(uint32_t entIdx, uint32_t compIdx, const ComponentCacheItem& item) {
 				if (item.func_ctor == nullptr || !component_uses_table_storage(item.comp))
 					return;
 
 				GAIA_PROF_SCOPE(Chunk::call_ctor);
 
-				const auto compIdx = comp_idx(item.entity);
 				auto* pSrc = (void*)comp_ptr_mut(compIdx, entIdx);
 				item.func_ctor(pSrc, 1);
 			}
@@ -34811,22 +34828,7 @@ namespace gaia {
 				newArch->m_shape.properties.cntEntities = (uint8_t)ids.size();
 
 				auto compItems = std::span(&newArch->m_shape.compItems[0], cnt);
-				GAIA_FOR(cnt) {
-					const ComponentCacheItem* pItem = nullptr;
-					if (ids[i].pair()) {
-						// When using pairs we need to decode the storage type from them.
-						// This is what pair<Rel, Tgt>::type actually does to determine what type to use at compile-time.
-						Entity pairEntities[] = {pair_rel(world, ids[i]), pair_tgt(world, ids[i])};
-						const auto* pRelItem = cc.find(pairEntities[0]);
-						const auto* pTgtItem = cc.find(pairEntities[1]);
-						Component pairComponents[] = {comp_from_item(pRelItem), comp_from_item(pTgtItem)};
-						const uint32_t idx = (pairComponents[0].size() != 0U || pairComponents[1].size() == 0U) ? 0 : 1;
-						pItem = idx == 0 ? pRelItem : pTgtItem;
-					} else {
-						pItem = cc.find(ids[i]);
-					}
-					compItems[i] = pItem;
-				}
+				GAIA_FOR(cnt) compItems[i] = ids[i].pair() ? cc.find_pair_payload(ids[i]) : cc.find(ids[i]);
 
 				// Calculate offsets
 				static auto ChunkDataAreaOffset = Chunk::chunk_data_area_offset();
@@ -36415,7 +36417,8 @@ namespace gaia {
 			GAIA_NODISCARD const ComponentCacheItem* current_item() const noexcept {
 				if (!m_valid || m_components == nullptr)
 					return nullptr;
-				return m_components->find(m_stack[m_depth].type);
+				const auto type = m_stack[m_depth].type;
+				return type.pair() ? m_components->find_pair_payload(type) : m_components->find(type);
 			}
 
 			GAIA_NODISCARD const ComponentCacheItem* opaque_semantic_item(const ComponentCacheItem& item) const noexcept {
@@ -39536,7 +39539,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return {};
 
 					const auto elemSize = rec.comp.size();
@@ -39559,7 +39562,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return {};
 
 					if (trackWrite) {
@@ -39574,14 +39577,14 @@ namespace gaia {
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
 				}
 
-				//! Returns a read-only raw byte view for a directly chunk-backed AoS query term.
+				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw view. Rows return invalid payloads when the term is unsupported.
 				GAIA_NODISCARD RawTermViewGet view_raw(uint32_t termIdx) const {
 					return raw_term_view(termIdx);
 				}
 
-				//! Returns a mutable raw byte view for a directly chunk-backed AoS query term.
+				//! Returns a mutable raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! Writes are finished after the iterator callback through normal touched-write tracking.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw mutable view. Rows return invalid payloads when unsupported.
@@ -39609,7 +39612,7 @@ namespace gaia {
 
 					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
-					if (term.pair() || rec.comp.soa() != 0)
+					if (rec.comp.soa() != 0)
 						return;
 
 					touch_comp_idx(compIdx);
@@ -59109,6 +59112,17 @@ namespace gaia {
 					return ec.pChunk->template set<T>();
 			}
 
+			//! Resolves the metadata backing an exact component or pair column on @a entity.
+			//! Pair columns use their archetype record so compile-time pair storage selection remains unchanged.
+			GAIA_NODISCARD const ComponentCacheItem* component_item(Entity entity, Entity component) const {
+				if (!component.pair())
+					return comp_cache().find(component);
+
+				const auto& ec = fetch(entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem : nullptr;
+			}
+
 			//! Checks whether @a item can expose a direct raw byte view in the first runtime-component slice.
 			GAIA_NODISCARD static bool raw_component_supported(const ComponentCacheItem& item) noexcept {
 				return item.comp.storage_type() == DataStorageType::Table && item.comp.soa() == 0;
@@ -60503,13 +60517,12 @@ namespace gaia {
 					{
 						// Trigger component hooks first
 						for (auto entity: tl_new_comps) {
-							if (!entity.comp())
+							const auto* pItem = m_world.component_item(m_entity, entity);
+							if (pItem == nullptr)
 								continue;
-
-							const auto& item = m_world.comp_cache().get(entity);
-							const auto& hooks = ComponentCache::hooks(item);
+							const auto& hooks = ComponentCache::hooks(*pItem);
 							if (hooks.func_add != nullptr)
-								hooks.func_add(m_world, item, m_entity);
+								hooks.func_add(m_world, *pItem, m_entity);
 						}
 					}
 	#endif
@@ -60554,13 +60567,12 @@ namespace gaia {
 					{
 						// Trigger component hooks second
 						for (auto entity: tl_del_comps) {
-							if (!entity.comp())
+							const auto* pItem = m_world.component_item(m_entity, entity);
+							if (pItem == nullptr)
 								continue;
-
-							const auto& item = m_world.comp_cache().get(entity);
-							const auto& hooks = ComponentCache::hooks(item);
+							const auto& hooks = ComponentCache::hooks(*pItem);
 							if (hooks.func_del != nullptr)
-								hooks.func_del(m_world, item, m_entity);
+								hooks.func_del(m_world, *pItem, m_entity);
 						}
 					}
 	#endif
@@ -62620,11 +62632,11 @@ namespace gaia {
 				lock();
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				if (object.comp()) {
-					const auto& item = comp_cache().get(object);
-					const auto& hooks = ComponentCache::hooks(item);
+				const auto* pItem = component_item(entity, object);
+				if (pItem != nullptr) {
+					const auto& hooks = ComponentCache::hooks(*pItem);
 					if (hooks.func_add != nullptr)
-						hooks.func_add(*this, item, entity);
+						hooks.func_add(*this, *pItem, entity);
 				}
 	#endif
 
@@ -62653,11 +62665,11 @@ namespace gaia {
 	#endif
 
 	#if GAIA_ENABLE_ADD_DEL_HOOKS
-				if (object.comp()) {
-					const auto& item = comp_cache().get(object);
-					const auto& hooks = ComponentCache::hooks(item);
+				const auto* pItem = component_item(entity, object);
+				if (pItem != nullptr) {
+					const auto& hooks = ComponentCache::hooks(*pItem);
 					if (hooks.func_del != nullptr)
-						hooks.func_del(*this, item, entity);
+						hooks.func_del(*this, *pItem, entity);
 				}
 	#endif
 
@@ -64187,21 +64199,21 @@ namespace gaia {
 				return sset<T>(entity, object);
 			}
 
-			//! Returns raw read-only bytes for a chunk-backed AoS component on @a entity.
+			//! Returns raw read-only bytes for a chunk-backed AoS component or exact pair payload on @a entity.
 			//! Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.
 			//! \param entity Entity being read.
-			//! \param component Component entity being read.
+			//! \param component Component entity or exact relationship pair being read.
 			//! \return Raw payload view, or invalid view when the component cannot be resolved.
 			GAIA_NODISCARD ComponentRawView get_raw(Entity entity, Entity component) const {
-				if (component == EntityBad || component.pair() || !valid(entity))
-					return {};
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_supported(*pItem))
+				if (component == EntityBad || !valid(entity))
 					return {};
 
 				const auto owner = id_owner_inter(entity, component);
 				if (owner == EntityBad)
+					return {};
+
+				const auto* pItem = component_item(owner, component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
 
 				const auto& ec = fetch(owner);
@@ -64217,21 +64229,21 @@ namespace gaia {
 				return {ec.pChunk->comp_ptr(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
-			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component on @a entity.
+			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component or exact pair payload.
 			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
 			//! \param entity Entity being mutated.
-			//! \param component Component entity being mutated.
+			//! \param component Component entity or exact relationship pair being mutated.
 			//! \return Raw mutable payload view, or invalid view when the component is absent or unsupported.
 			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity entity, Entity component) {
-				if (component == EntityBad || component.pair() || !valid(entity))
-					return {};
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_supported(*pItem))
+				if (component == EntityBad || !valid(entity))
 					return {};
 
 				const auto& ec = fetch(entity);
 				if (is_req_del(ec))
+					return {};
+
+				const auto* pItem = component_item(entity, component);
+				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
 
 				const auto compIdx = ec.pChunk->comp_idx(component);
@@ -64249,7 +64261,7 @@ namespace gaia {
 			//! Creates a read-only cursor over a chunk-backed AoS runtime component on @a entity.
 			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
 			//! \param entity Entity being read.
-			//! \param component Component entity being read.
+			//! \param component Component entity or exact relationship pair being read.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
@@ -64257,21 +64269,21 @@ namespace gaia {
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
-			//! \param component Component entity being mutated.
+			//! \param component Component entity or exact relationship pair being mutated.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor_mut(Entity entity, Entity component);
 
 			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
 			//! \param entity Entity receiving the component.
-			//! \param component Runtime component entity.
+			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
 			//! \param size Payload byte count. Must match the registered component size.
 			//! \return True when the component was added and initialized.
 			bool add_raw(Entity entity, Entity component, const void* data, uint32_t size) {
-				if (component == EntityBad || component.pair() || !valid(entity))
+				if (component == EntityBad || !valid(entity))
 					return false;
 
-				const auto* pItem = comp_cache().find(component);
+				const auto* pItem = component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
 					return false;
 				if (has_direct(entity, component))
@@ -64299,25 +64311,21 @@ namespace gaia {
 
 			//! Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.
 			//! \param entity Entity whose component is being replaced.
-			//! \param component Runtime component entity.
+			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
 			//! \param size Payload byte count. Must match the registered component size.
 			//! \return True when the component was updated.
 			bool set_raw(Entity entity, Entity component, const void* data, uint32_t size) {
-				if (component == EntityBad || component.pair())
-					return false;
-
-				const auto* pItem = comp_cache().find(component);
-				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
+				if (component == EntityBad)
 					return false;
 
 				const auto payload = mut_raw(entity, component);
-				if (!payload.valid())
+				if (!payload.valid() || payload.size != size || (size != 0 && data == nullptr))
 					return false;
 				if (size != 0)
 					memcpy(payload.data, data, size);
 
-				modify_raw(entity, component);
+				finish_write(entity, component);
 				return true;
 			}
 
@@ -70426,35 +70434,33 @@ namespace gaia {
 			//! \return Resolved entity or EntityBad on failure.
 			Entity name_to_entity(std::span<const char> exprRaw) const {
 				auto expr = util::trim(exprRaw);
+				if (expr.empty())
+					return EntityBad;
 
 				if (expr[0] == '(') {
-					if (expr.back() != ')') {
-						GAIA_ASSERT2(false, "Expression '(' not terminated");
+					if (expr.size() < 5 || expr.back() != ')')
 						return EntityBad;
-					}
 
 					const auto idStr = expr.subspan(1, expr.size() - 2);
 					const auto commaIdx = core::get_index(idStr, ',');
+					if (commaIdx == BadIndex)
+						return EntityBad;
 
 					const auto first = name_to_entity(idStr.subspan(0, commaIdx));
-					if (first == EntityBad)
+					if (first == EntityBad || first.pair())
 						return EntityBad;
 					const auto second = name_to_entity(idStr.subspan(commaIdx + 1));
-					if (second == EntityBad)
+					if (second == EntityBad || second.pair())
 						return EntityBad;
 
 					return ecs::Pair(first, second);
 				}
 
-				{
-					auto idStr = util::trim(expr);
+				// Wildcard character
+				if (expr.size() == 1 && expr[0] == '*')
+					return All;
 
-					// Wildcard character
-					if (idStr.size() == 1 && idStr[0] == '*')
-						return All;
-
-					return get_inter(idStr.data(), (uint32_t)idStr.size());
-				}
+				return get_inter(expr.data(), (uint32_t)expr.size());
 			}
 
 			//! Resolves a textual id expression with `%e` placeholders to an entity.
@@ -74532,10 +74538,40 @@ namespace gaia {
 		}
 
 		//! Serializes world state into a JSON document.
-		//! Components with runtime fields are emitted as structured JSON objects.
-		//! Components with no runtime fields fallback to raw serialized bytes.
-		//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
+		//! Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and
+		//! target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime
+		//! field types are unsupported (those fields are emitted as null).
 		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
+			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
+				if (!component.pair()) {
+					const auto componentName = comp_cache().symbol_name(item);
+					if (componentName.empty())
+						return false;
+					writer.key(componentName.data(), componentName.size());
+					return true;
+				}
+
+				const auto relation = pair_rel(*this, component);
+				auto relationName = symbol(relation);
+				if (relationName.empty())
+					relationName = name(relation);
+				const auto target = pair_tgt(*this, component);
+				auto targetName = symbol(target);
+				if (targetName.empty())
+					targetName = name(target);
+				if (relationName.empty() || targetName.empty())
+					return false;
+
+				util::str pairName;
+				pairName.append("(");
+				pairName.append(relationName.data(), relationName.size());
+				pairName.append(",");
+				pairName.append(targetName.data(), targetName.size());
+				pairName.append(")");
+				writer.key(pairName.data(), pairName.size());
+				return true;
+			};
+
 			auto write_raw_component = [&](const ComponentCacheItem& item, const uint8_t* pData, uint32_t from, uint32_t to,
 																		 uint32_t cap) {
 				ser::ser_buffer_binary raw;
@@ -74641,8 +74677,12 @@ namespace gaia {
 									GAIA_FOR_((uint32_t)recs.size(), j) {
 										const auto& rec = recs[j];
 										const auto& item = *rec.pItem;
-										const auto name = symbol(item.entity);
-										writer.key(name.data(), name.size());
+										const auto component = pChunk->ids_view()[j];
+										if (!write_component_key(component, item)) {
+											writer.key("<unnamed>");
+											if (component.pair() && !includeBinarySnapshot)
+												ok = false;
+										}
 
 										// Tags have no associated payload.
 										if (rec.comp.size() == 0) {
@@ -74650,7 +74690,7 @@ namespace gaia {
 											continue;
 										}
 
-										const auto row = item.entity.kind() == EntityKind::EK_Uni ? 0U : i;
+										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
 
 										if (item.field_count() != 0 && rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
@@ -74808,35 +74848,21 @@ namespace gaia {
 			struct CompDataLoc {
 				uint8_t* pBase = nullptr;
 				uint32_t row = 0;
-				uint32_t cap = 0;
-				bool valid = false;
 			};
 
-			auto locate_component_data = [&](Entity entity, const ComponentCacheItem& item) -> CompDataLoc {
+			auto locate_component_data = [&](Entity entity, Entity component) {
 				CompDataLoc loc{};
-				if (!has(entity))
-					return loc;
-
 				auto& ec = fetch(entity);
-				const auto compIdx = core::get_index(ec.pChunk->ids_view(), item.entity);
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
 				if (compIdx == BadIndex)
 					return loc;
 
 				loc.pBase = ec.pChunk->comp_ptr_mut(compIdx, 0);
-				loc.row = item.entity.kind() == EntityKind::EK_Uni ? 0U : ec.row;
-				loc.cap = ec.pChunk->capacity();
-				loc.valid = true;
+				loc.row = component.kind() == EntityKind::EK_Uni ? 0U : ec.row;
 				return loc;
 			};
 
-			auto has_direct_component = [&](Entity entity, Entity componentEntity) -> bool {
-				if (!has(entity))
-					return false;
-				const auto& ec = fetch(entity);
-				return core::get_index(ec.pChunk->ids_view(), componentEntity) != BadIndex;
-			};
-
-			auto parse_and_apply_component_value = [&](Entity entity, const ComponentCacheItem& item,
+			auto parse_and_apply_component_value = [&](Entity entity, Entity component, const ComponentCacheItem& item,
 																								 ser::json_str_view compPath) -> bool {
 				jp.ws();
 				if (jp.eof())
@@ -74861,11 +74887,15 @@ namespace gaia {
 					return true;
 				}
 
-				if (!has_direct_component(entity, item.entity))
-					add(entity, item.entity);
+				if (!has_direct(entity, component)) {
+					if (component.pair())
+						add(entity, Pair(pair_rel(*this, component), pair_tgt(*this, component)));
+					else
+						add(entity, component);
+				}
 
-				auto loc = locate_component_data(entity, item);
-				if (!loc.valid) {
+				const auto loc = locate_component_data(entity, component);
+				if (loc.pBase == nullptr) {
 					warn(
 							ser::JsonDiagReason::MissingComponentStorage, compPath,
 							"Component storage is unavailable on the target entity.");
@@ -74937,13 +74967,23 @@ namespace gaia {
 					if (!jp.expect(':'))
 						return false;
 
-					const bool isInternalComp = compName.size() >= 10 && memcmp(compName.data(), "gaia::ecs::", 10) == 0;
-					if (isPair || isInternalComp) {
+					const auto componentName = util::str_view(compName.data(), compName.size());
+					const bool nameIsInternal = ComponentCache::is_internal_symbol(componentName);
+					const auto componentEntity = nameIsInternal ? EntityBad : name_to_entity({compName.data(), compName.size()});
+					const ComponentCacheItem* pItem = nullptr;
+					if (componentEntity.pair())
+						pItem = comp_cache().find_pair_payload(componentEntity);
+					else if (componentEntity != EntityBad)
+						pItem = comp_cache().find(componentEntity);
+					const auto itemName = pItem != nullptr ? comp_cache().symbol_name(*pItem) : util::str_view{};
+					const bool itemIsInternal = ComponentCache::is_internal_symbol(itemName);
+					const auto relationName =
+							componentEntity.pair() ? symbol(pair_rel(*this, componentEntity)) : util::str_view{};
+					const bool relationIsInternal = ComponentCache::is_internal_symbol(relationName);
+					if (isPair || nameIsInternal || itemIsInternal || relationIsInternal) {
 						if (!jp.skip_value())
 							return false;
 					} else {
-						const auto componentEntity = get(compName.data(), (uint32_t)compName.size());
-						const auto* pItem = componentEntity != EntityBad ? comp_cache().find(componentEntity) : nullptr;
 						if (pItem == nullptr) {
 							warn(
 									ser::JsonDiagReason::UnknownComponent, compName,
@@ -74972,7 +75012,7 @@ namespace gaia {
 								}
 							}
 
-							if (!parse_and_apply_component_value(entity, *pItem, compName))
+							if (!parse_and_apply_component_value(entity, componentEntity, *pItem, compName))
 								return false;
 						}
 					}
