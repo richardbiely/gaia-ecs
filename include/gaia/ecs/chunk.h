@@ -1317,6 +1317,8 @@ namespace gaia {
 				// Update indices and chunks in entity container.
 				core::swap(ecA.row, ecB.row);
 				core::swap(ecA.pChunk, ecB.pChunk);
+				ecA.pEntity = &ecA.pChunk->entity_view()[ecA.row];
+				ecB.pEntity = &ecB.pChunk->entity_view()[ecB.row];
 			}
 
 			//! Enables or disables the entity on a given row in the chunk.
