@@ -149,6 +149,57 @@ namespace gaia {
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
 			cnt::darray<RuntimeConstant> m_constants;
 
+			//! Returns the physical SoA field-array cardinality for this component.
+			//! \param capacity Capacity of the containing chunk.
+			//! \return One for unique components, otherwise @a capacity.
+			GAIA_NODISCARD uint32_t soa_capacity(uint32_t capacity) const noexcept {
+				return entity.kind() == EntityKind::EK_Uni ? 1U : capacity;
+			}
+
+			//! Moves the bytes of one type-erased SoA value between storage blocks.
+			//! \param pDst Destination SoA storage base.
+			//! \param pSrc Source SoA storage base.
+			//! \param idxDst Destination value index.
+			//! \param idxSrc Source value index.
+			//! \param capDst Number of values reserved in each destination field array.
+			//! \param capSrc Number of values reserved in each source field array.
+			void move_soa_element(
+					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t capDst,
+					uint32_t capSrc) const noexcept {
+				capDst = soa_capacity(capDst);
+				capSrc = soa_capacity(capSrc);
+				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
+				GAIA_FOR(comp.soa()) {
+					auto* pD = mem::data_view_policy_soa_erased::set(pDst, comp.alig(), fieldSizes, i, idxDst, capDst);
+					const auto* pS = mem::data_view_policy_soa_erased::get(pSrc, comp.alig(), fieldSizes, i, idxSrc, capSrc);
+					memmove(pD, pS, soaSizes[i]);
+				}
+			}
+
+			//! Swaps the bytes of two type-erased SoA values between storage blocks.
+			//! \param pLeft Left SoA storage base.
+			//! \param pRight Right SoA storage base.
+			//! \param idxLeft Left value index.
+			//! \param idxRight Right value index.
+			//! \param capLeft Number of values reserved in each left field array.
+			//! \param capRight Number of values reserved in each right field array.
+			void swap_soa_elements(
+					void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t capLeft,
+					uint32_t capRight) const noexcept {
+				capLeft = soa_capacity(capLeft);
+				capRight = soa_capacity(capRight);
+				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
+				GAIA_FOR(comp.soa()) {
+					auto* pL = mem::data_view_policy_soa_erased::set(pLeft, comp.alig(), fieldSizes, i, idxLeft, capLeft);
+					auto* pR = mem::data_view_policy_soa_erased::set(pRight, comp.alig(), fieldSizes, i, idxRight, capRight);
+					GAIA_FOR_(soaSizes[i], j) {
+						const auto value = pL[j];
+						pL[j] = pR[j];
+						pR[j] = value;
+					}
+				}
+			}
+
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
 			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
@@ -169,8 +220,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void
 			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -180,7 +231,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -193,8 +248,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void ctor_copy(
 					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -204,7 +259,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -224,8 +283,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void
 			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -235,7 +294,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -248,8 +311,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
 				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
@@ -258,7 +321,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -271,8 +338,8 @@ namespace gaia {
 			//! \param pRight Right component storage base pointer.
 			//! \param idxLeft Left value index.
 			//! \param idxRight Right value index.
-			//! \param sizeDst Left value stride in bytes.
-			//! \param sizeSrc Right value stride in bytes.
+			//! \param sizeDst Left storage capacity.
+			//! \param sizeSrc Right storage capacity.
 			void
 			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pLeft != nullptr && pRight != nullptr);
@@ -281,7 +348,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					swap_soa_elements(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* l = (uint8_t*)pLeft + ((uintptr_t)comp.size() * idxLeft);
@@ -685,6 +756,17 @@ namespace gaia {
 				GAIA_ASSERT((desc.size == 0 && desc.alig == 0) || (desc.alig > 0 && desc.alig < Component::MaxAlignment));
 				GAIA_ASSERT(desc.alig == 0 || (desc.alig & (desc.alig - 1)) == 0);
 				GAIA_ASSERT(desc.soa <= meta::StructToTupleMaxTypes);
+				GAIA_ASSERT(desc.soa == 0 || desc.pSoaSizes != nullptr);
+#if GAIA_ASSERT_ENABLED
+				if (desc.soa > 0) {
+					uint32_t soaSize = 0;
+					GAIA_FOR(desc.soa) {
+						GAIA_ASSERT(desc.pSoaSizes[i] != 0);
+						soaSize += desc.pSoaSizes[i];
+					}
+					GAIA_ASSERT(soaSize <= desc.size);
+				}
+#endif
 
 				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
@@ -693,7 +775,7 @@ namespace gaia {
 															? desc.hashLookup
 															: ComponentLookupHash{core::calculate_hash64(desc.name.data(), desc.name.size())};
 
-				if (desc.soa > 0 && desc.pSoaSizes != nullptr) {
+				if (desc.soa > 0) {
 					GAIA_FOR(desc.soa) cci->soaSizes[i] = desc.pSoaSizes[i];
 				}
 

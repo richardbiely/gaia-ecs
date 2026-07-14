@@ -3978,11 +3978,13 @@ if (cursor.field("seconds")) {
 }
 ```
 
-`get_raw(...)` and `mut_raw(...)` return byte views for table or sparse AoS runtime components and tags. Sparse runtime components can keep normal fragmenting membership or use `ecs::DontFragment`. Runtime-sized sparse payloads use aligned store-local pages and recycle released slots. `mut_raw(...)` is a silent write path. Call `modify_raw(...)` after direct byte writes when set hooks or `OnSet` observers must run. `set_raw(...)` copies a full payload and emits the write notification for you.
+`get_raw(...)` and `mut_raw(...)` access a complete AoS runtime component as bytes. They work with components in archetype/chunk or sparse storage. `mut_raw(...)` does not emit write notifications. Call `modify_raw(...)` afterwards when set hooks or `OnSet` observers must run. `set_raw(...)` copies the complete value and emits the notification for you.
 
-`ComponentCursor` primitive accessors such as `f32(...)` write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. `get_raw(...)` and `set_raw(...)` remain available for exact raw field copies and replacement.
+Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. The field index follows the field order used when the component was registered. These APIs currently support archetype/chunk components, but not sparse components or relationships. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
 
-Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use `acc(entity).get_raw(component)` for read-only payload access. Use `acc_mut(entity).mut_raw(component)` for silent writes, `acc_mut(entity).modify_raw(component)` to finish a silent write, and `acc_mut(entity).set_raw(component, data, size)` to replace a full payload.
+`ComponentCursor` selects reflected fields for both AoS and SoA components. Primitive setters such as `f32(...)` emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` before reading or writing an element.
+
+The entity-scoped forms are `acc(entity).get_raw_field(...)` and `acc_mut(entity).mut_raw_field(...)`.
 
 ### Data on runtime relationships
 

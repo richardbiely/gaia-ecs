@@ -188,7 +188,8 @@ namespace gaia {
 			DataStorageType storageType = DataStorageType::Table;
 			//! Number of SoA elements, 0 means AoS.
 			uint32_t soa = 0;
-			//! Per-element SoA sizes when \ref soa is non-zero.
+			//! Per-element SoA sizes when @a soa is non-zero. The array must contain @a soa non-zero entries and
+			//! their sum must not exceed @a size.
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};

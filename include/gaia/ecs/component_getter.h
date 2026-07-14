@@ -48,6 +48,12 @@ namespace gaia {
 			//! \param component Runtime component entity.
 			//! \return Raw payload view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawView get_raw(Entity component) const;
+
+			//! Returns one read-only SoA field value for a runtime component on this entity.
+			//! \param component Runtime component entity.
+			//! \param fieldIdx SoA field array index.
+			//! \return Raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw_field(Entity component, uint32_t fieldIdx) const;
 		};
 	} // namespace ecs
 } // namespace gaia

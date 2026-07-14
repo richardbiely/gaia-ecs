@@ -38,16 +38,24 @@ namespace gaia {
 				}
 			}
 
-			//----------------------------------------------------------------------
-			// Byte offset of a member of SoA-organized data
-			//----------------------------------------------------------------------
-
+			//! Advances across one field array in SoA storage.
+			//! \param address Current field-array address.
+			//! \param alig Alignment shared by the field arrays.
+			//! \param itemSize Byte size of one field value.
+			//! \param cnt Number of values reserved in the field array.
+			//! \return Address immediately after the aligned field array.
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
 				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
 			}
 
+			//! Advances across one typed field array in SoA storage.
+			//! \tparam T Field value type.
+			//! \tparam Alignment Alignment shared by the field arrays.
+			//! \param address Current field-array address.
+			//! \param cnt Number of values reserved in the field array.
+			//! \return Address immediately after the aligned field array.
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
 				const auto padding = mem::padding<Alignment>(address);
@@ -228,6 +236,46 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
 
+		//! Type-erased policy for addressing one field value in SoA storage.
+		//! The field arrays use the same alignment and capacity rules as data_view_policy_soa.
+		struct data_view_policy_soa_erased {
+			//! Returns one read-only field value from type-erased SoA storage.
+			//! \param pData Base address of the SoA storage.
+			//! \param alignment Alignment shared by all field arrays.
+			//! \param fieldSizes Byte size of each field value in storage order.
+			//! \param fieldIdx Field array index.
+			//! \param row Value index inside the selected field array.
+			//! \param capacity Number of values reserved in every field array.
+			//! \return Pointer to the selected field value.
+			GAIA_NODISCARD static const uint8_t*
+			get(const void* pData, uint32_t alignment, std::span<const uint8_t> fieldSizes, uint32_t fieldIdx, uint32_t row,
+					uint32_t capacity) noexcept {
+				GAIA_ASSERT(pData != nullptr);
+				GAIA_ASSERT(alignment != 0 && fieldIdx < fieldSizes.size() && row < capacity);
+
+				auto address = (uintptr_t)pData;
+				GAIA_FOR(fieldIdx) {
+					address = detail::get_aligned_byte_offset(address, alignment, fieldSizes[i], capacity);
+				}
+				address += mem::padding(address, alignment);
+				return (const uint8_t*)address + ((uintptr_t)fieldSizes[fieldIdx] * row);
+			}
+
+			//! Returns one mutable field value from type-erased SoA storage.
+			//! \param pData Base address of the SoA storage.
+			//! \param alignment Alignment shared by all field arrays.
+			//! \param fieldSizes Byte size of each field value in storage order.
+			//! \param fieldIdx Field array index.
+			//! \param row Value index inside the selected field array.
+			//! \param capacity Number of values reserved in every field array.
+			//! \return Pointer to the selected field value.
+			GAIA_NODISCARD static uint8_t*
+			set(void* pData, uint32_t alignment, std::span<const uint8_t> fieldSizes, uint32_t fieldIdx, uint32_t row,
+					uint32_t capacity) noexcept {
+				return const_cast<uint8_t*>(get(pData, alignment, fieldSizes, fieldIdx, row, capacity));
+			}
+		};
+
 		//! View policy for accessing and storing data in the SoA way.
 		//! Good for SIMD processing.
 		//!
@@ -372,10 +420,8 @@ namespace gaia {
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static size_t
 			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
-				// Align the address for the first type
-				address = mem::align<Alignment>(address);
-				// Offset and align the rest
-				((address = mem::align<Alignment>(address + (sizeof(value_type<Ids>) * cnt))), ...);
+				((address = detail::get_aligned_byte_offset(address, Alignment, sizeof(value_type<Ids>), cnt)), ...);
+				address += mem::padding(address, Alignment);
 				return address;
 			}
 

@@ -437,8 +437,7 @@ namespace gaia {
 						currOff = mem::align(currOff, alig);
 						ofs[compIdx] = (ChunkDataOffset)currOff;
 
-						// Make sure the following component list is properly aligned
-						currOff += comp.size() * count;
+						currOff = pItems[i]->calc_new_mem_offset(currOff, count);
 					}
 				}
 			}

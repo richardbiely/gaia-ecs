@@ -104,6 +104,13 @@ namespace gaia {
 			//! \return Mutable raw payload view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity component);
 
+			//! Returns one mutable SoA field value without finishing the component write.
+			//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+			//! \param component Runtime component entity.
+			//! \param fieldIdx SoA field array index.
+			//! \return Mutable raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw_field(Entity component, uint32_t fieldIdx);
+
 			//! Replaces a runtime component payload and emits normal post-write set notifications.
 			//! \param component Runtime component entity.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
@@ -111,7 +118,7 @@ namespace gaia {
 			//! \return ComponentSetter.
 			ComponentSetter& set_raw(Entity component, const void* data, uint32_t size);
 
-			//! Marks a raw payload returned by mut_raw(component) as modified.
+			//! Marks a raw payload or SoA field returned by a mutable raw view as modified.
 			//! \param component Runtime component entity.
 			//! \return ComponentSetter.
 			ComponentSetter& modify_raw(Entity component);

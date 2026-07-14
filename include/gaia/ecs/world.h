@@ -396,6 +396,14 @@ namespace gaia {
 				return item.comp.soa() == 0;
 			}
 
+			//! Checks whether @a component can expose direct SoA field views in table storage.
+			//! \param item Physical component payload metadata.
+			//! \param component Component id being accessed.
+			//! \return True when the component uses supported non-pair table SoA storage.
+			GAIA_NODISCARD static bool soa_field_supported(const ComponentCacheItem& item, Entity component) noexcept {
+				return !component.pair() && item.comp.soa() != 0 && item.comp.storage_type() == DataStorageType::Table;
+			}
+
 			//! Validates raw payload arguments against the registered component metadata.
 			GAIA_NODISCARD static bool
 			raw_component_payload_args_valid(const ComponentCacheItem& item, const void* data, uint32_t size) noexcept {
@@ -1139,10 +1147,10 @@ namespace gaia {
 			}
 
 			//! Adds or returns a sparse value through the store's erased payload interface.
-			//! @tparam T Expected payload type.
-			//! @param component Sparse component entity.
-			//! @param entity Entity owning the value.
-			//! @return Mutable typed payload reference.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Mutable typed payload reference.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sparse_component_add_value(Entity component, Entity entity) {
 				using U = typename actual_type_t<T>::Type;
@@ -1157,10 +1165,10 @@ namespace gaia {
 			}
 
 			//! Returns a mutable sparse value through the store's erased payload interface.
-			//! @tparam T Expected payload type.
-			//! @param component Sparse component entity.
-			//! @param entity Entity owning the value.
-			//! @return Mutable typed payload reference.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Mutable typed payload reference.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sparse_component_mut_value(Entity component, Entity entity) {
 				using U = typename actual_type_t<T>::Type;
@@ -1170,10 +1178,10 @@ namespace gaia {
 			}
 
 			//! Returns a read-only sparse value through the store's erased payload interface.
-			//! @tparam T Expected payload type.
-			//! @param component Sparse component entity.
-			//! @param entity Entity owning the value.
-			//! @return Read-only typed payload reference.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Read-only typed payload reference.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sparse_component_get_value(Entity component, Entity entity) const {
 				using U = typename actual_type_t<T>::Type;
@@ -5627,14 +5635,77 @@ namespace gaia {
 				return {ec.pChunk->comp_ptr_mut(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
-			//! Creates a read-only cursor over an AoS runtime component on @a entity.
-			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
+			//! Returns one read-only field value from a directly addressed SoA field array.
+			//! The field index follows the registered SoA field order. Inherited ids resolve to the owning entity.
+			//! \param entity Entity being read.
+			//! \param component Runtime component entity being read.
+			//! \param fieldIdx SoA field array index.
+			//! \return Raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw_field(Entity entity, Entity component, uint32_t fieldIdx) const {
+				if (component == EntityBad || !valid(entity))
+					return {};
+
+				const auto owner = id_owner_inter(entity, component);
+				if (owner == EntityBad)
+					return {};
+
+				const auto* pItem = component_item(owner, component);
+				if (pItem == nullptr || !soa_field_supported(*pItem, component) || fieldIdx >= pItem->comp.soa() ||
+						pItem->soaSizes[fieldIdx] == 0)
+					return {};
+
+				const auto& ec = fetch(owner);
+				const auto compIdx = ec.pChunk->comp_idx(component);
+				if (compIdx == ComponentIndexBad)
+					return {};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
+				const auto* pData = mem::data_view_policy_soa_erased::get(
+						ec.pChunk->comp_ptr(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
+				return {pData, pItem->soaSizes[fieldIdx], ComponentRawViewFlag_Valid};
+			}
+
+			//! Returns one mutable field value from a directly owned SoA field array.
+			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
+			//! \param entity Entity being mutated.
+			//! \param component Runtime component entity being mutated.
+			//! \param fieldIdx SoA field array index.
+			//! \return Mutable raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw_field(Entity entity, Entity component, uint32_t fieldIdx) {
+				if (component == EntityBad || !valid(entity))
+					return {};
+
+				const auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return {};
+
+				const auto* pItem = component_item(entity, component);
+				if (pItem == nullptr || !soa_field_supported(*pItem, component) || fieldIdx >= pItem->comp.soa() ||
+						pItem->soaSizes[fieldIdx] == 0)
+					return {};
+
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				if (compIdx == BadIndex)
+					return {};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
+				auto* pData = mem::data_view_policy_soa_erased::set(
+						ec.pChunk->comp_ptr_mut(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
+				return {pData, pItem->soaSizes[fieldIdx], ComponentRawViewFlag_Valid};
+			}
+
+			//! Creates a read-only cursor over a runtime component on @a entity.
+			//! Inherited ids resolve like get_raw(). SoA roots expose fields without pretending the root is contiguous.
 			//! \param entity Entity being read.
 			//! \param component Component entity or exact relationship pair being read.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
-			//! Creates a mutable cursor over a directly owned AoS runtime component on @a entity.
+			//! Creates a mutable cursor over a directly owned runtime component on @a entity.
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
@@ -5713,12 +5784,20 @@ namespace gaia {
 				return true;
 			}
 
-			//! Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.
+			//! Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side effects.
 			//! \param entity Entity whose raw component payload was mutated.
 			//! \param component Runtime component entity previously passed to mut_raw().
 			void modify_raw(Entity entity, Entity component) {
-				if (!mut_raw(entity, component).valid())
-					return;
+				if (!mut_raw(entity, component).valid()) {
+					if (component == EntityBad || !valid(entity))
+						return;
+
+					const auto& ec = fetch(entity);
+					const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
+					if (pItem == nullptr || !soa_field_supported(*pItem, component) ||
+							core::get_index(ec.pChunk->ids_view(), component) == BadIndex)
+						return;
+				}
 				finish_write(entity, component);
 			}
 
@@ -11902,11 +11981,40 @@ namespace gaia {
 			}
 		};
 
+		inline ComponentRawView
+		world_get_raw_field(const World& world, Entity entity, Entity component, uint32_t fieldIdx) {
+			return world.get_raw_field(entity, component, fieldIdx);
+		}
+
+		inline ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx) {
+			return world.mut_raw_field(entity, component, fieldIdx);
+		}
+
 		inline ComponentCursor World::cursor(Entity entity, Entity component) const {
+			if (component != EntityBad && valid(entity)) {
+				const auto owner = id_owner_inter(entity, component);
+				if (owner != EntityBad) {
+					const auto* pItem = component_item(owner, component);
+					if (pItem != nullptr && soa_field_supported(*pItem, component)) {
+						const auto& ec = fetch(owner);
+						if (ec.pChunk->comp_idx(component) != ComponentIndexBad)
+							return ComponentCursor::from_soa(*this, comp_cache(), owner, component, pItem->comp.size());
+					}
+				}
+			}
+
 			return ComponentCursor::from_raw(comp_cache(), component, get_raw(entity, component));
 		}
 
 		inline ComponentCursor World::cursor_mut(Entity entity, Entity component) {
+			if (component != EntityBad && valid(entity)) {
+				const auto& ec = fetch(entity);
+				const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
+				if (pItem != nullptr && soa_field_supported(*pItem, component) &&
+						core::get_index(ec.pChunk->ids_view(), component) != BadIndex)
+					return ComponentCursor::from_soa(*this, comp_cache(), entity, component, pItem->comp.size());
+			}
+
 			return ComponentCursor::from_raw(*this, comp_cache(), entity, component, mut_raw(entity, component));
 		}
 
@@ -13899,10 +14007,22 @@ namespace gaia {
 			return m_pWorld->get_raw(m_entity, component);
 		}
 
+		inline ComponentRawView ComponentGetter::get_raw_field(Entity component, uint32_t fieldIdx) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return m_pWorld->get_raw_field(m_entity, component, fieldIdx);
+		}
+
 		inline ComponentRawMutView ComponentSetter::mut_raw(Entity component) {
 			GAIA_ASSERT(m_pWorld != nullptr);
 			GAIA_ASSERT(m_entity != EntityBad);
 			return const_cast<World*>(m_pWorld)->mut_raw(m_entity, component);
+		}
+
+		inline ComponentRawMutView ComponentSetter::mut_raw_field(Entity component, uint32_t fieldIdx) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return const_cast<World*>(m_pWorld)->mut_raw_field(m_entity, component, fieldIdx);
 		}
 
 		inline ComponentSetter& ComponentSetter::set_raw(Entity component, const void* data, uint32_t size) {

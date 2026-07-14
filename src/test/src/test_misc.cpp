@@ -901,6 +901,214 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(cc.get(item.entity).entity == item.entity);
 	}
 
+	SUBCASE("runtime SoA fields expose non-contiguous views and cursors") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, //
+				{util::str_view("score"), ecs::F64, 8, 0} //
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_SoA_Fields");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 2;
+		auto& runtimeComp = wld.add(desc);
+
+		auto entity = ecs::EntityBad;
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		entity = wld.add();
+		wld.add(entity, runtimeComp.entity);
+		CHECK_FALSE(wld.get_raw(entity, runtimeComp.entity).valid());
+		CHECK_FALSE(wld.mut_raw(entity, runtimeComp.entity).valid());
+
+		auto health = wld.mut_raw_field(entity, runtimeComp.entity, 0);
+		CHECK(health.valid());
+		CHECK(health.size == sizeof(uint32_t));
+		const uint32_t initialHealth = 42;
+		memcpy(health.data, &initialHealth, sizeof(initialHealth));
+		wld.modify_raw(entity, runtimeComp.entity);
+		CHECK(setHits == 1);
+
+		auto mutableCursor = wld.cursor_mut(entity, runtimeComp.entity);
+		CHECK(mutableCursor.valid());
+		CHECK(mutableCursor.ptr() == nullptr);
+		CHECK(mutableCursor.field_count() == 2);
+		uint8_t rootPayload[16]{};
+		CHECK(mutableCursor.set_raw(rootPayload, sizeof(rootPayload)).status == ecs::CursorStatus::Invalid);
+		CHECK(mutableCursor.field(util::str_view("score")));
+		CHECK(mutableCursor.f64(3.5));
+		CHECK(setHits == 2);
+
+		const auto healthView = wld.get_raw_field(entity, runtimeComp.entity, 0);
+		CHECK(healthView.valid());
+		CHECK(healthView.size == sizeof(uint32_t));
+		CHECK(*(const uint32_t*)healthView.data == initialHealth);
+		const auto scoreView = wld.get_raw_field(entity, runtimeComp.entity, 1);
+		CHECK(scoreView.valid());
+		CHECK(scoreView.size == sizeof(double));
+		CHECK(*(const double*)scoreView.data == doctest::Approx(3.5));
+		CHECK_FALSE(wld.get_raw_field(entity, runtimeComp.entity, 2).valid());
+		CHECK(wld.acc(entity).get_raw_field(runtimeComp.entity, 0).data == healthView.data);
+		CHECK(wld.acc_mut(entity).mut_raw_field(runtimeComp.entity, 1).data == scoreView.data);
+
+		wld.add(runtimeComp.entity, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		const auto inherited = wld.add();
+		wld.as(inherited, entity);
+		CHECK(wld.get_raw_field(inherited, runtimeComp.entity, 0).data == healthView.data);
+		auto inheritedCursor = wld.cursor(inherited, runtimeComp.entity);
+		CHECK(inheritedCursor.valid());
+		CHECK(inheritedCursor.field(1));
+		CHECK(inheritedCursor.f64().value == doctest::Approx(3.5));
+		CHECK_FALSE(wld.mut_raw_field(inherited, runtimeComp.entity, 0).valid());
+		CHECK_FALSE(wld.cursor_mut(inherited, runtimeComp.entity).valid());
+
+		const auto readCursor = wld.cursor(entity, runtimeComp.entity);
+		CHECK(readCursor.valid());
+		CHECK(readCursor.ptr() == nullptr);
+		auto scoreCursor = readCursor;
+		CHECK(scoreCursor.field(1));
+		CHECK(scoreCursor.f64().value == doctest::Approx(3.5));
+
+		const auto copy = wld.copy(entity);
+		CHECK(*(const uint32_t*)wld.get_raw_field(copy, runtimeComp.entity, 0).data == initialHealth);
+		CHECK(*(const double*)wld.get_raw_field(copy, runtimeComp.entity, 1).data == doctest::Approx(3.5));
+
+		wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
+		CHECK(*(const uint32_t*)wld.get_raw_field(entity, runtimeComp.entity, 0).data == initialHealth);
+		CHECK(*(const double*)wld.get_raw_field(entity, runtimeComp.entity, 1).data == doctest::Approx(3.5));
+	}
+
+	SUBCASE("runtime SoA field access rejects sparse storage and pairs") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t)};
+		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("value"), ecs::U32, 0, 0}};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_SoA_Sparse_Unsupported");
+		desc.size = sizeof(uint32_t);
+		desc.alig = alignof(uint32_t);
+		desc.soa = 1;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 1;
+		desc.storageType = ecs::DataStorageType::Sparse;
+		auto& sparseComp = wld.add(desc);
+
+		desc.name = util::str_view("Runtime_Component_SoA_Sparse_DontFragment_Unsupported");
+		auto& sparseDontFragmentComp = wld.add(desc);
+		wld.add(sparseDontFragmentComp.entity, ecs::DontFragment);
+
+		const auto sparseEntity = wld.add();
+		wld.add(sparseEntity, sparseComp.entity);
+		CHECK_FALSE(wld.get_raw_field(sparseEntity, sparseComp.entity, 0).valid());
+		CHECK_FALSE(wld.mut_raw_field(sparseEntity, sparseComp.entity, 0).valid());
+		CHECK_FALSE(wld.cursor(sparseEntity, sparseComp.entity).valid());
+		CHECK_FALSE(wld.cursor_mut(sparseEntity, sparseComp.entity).valid());
+
+		const auto sparseDontFragmentEntity = wld.add();
+		wld.add(sparseDontFragmentEntity, sparseDontFragmentComp.entity);
+		CHECK_FALSE(wld.get_raw_field(sparseDontFragmentEntity, sparseDontFragmentComp.entity, 0).valid());
+		CHECK_FALSE(wld.mut_raw_field(sparseDontFragmentEntity, sparseDontFragmentComp.entity, 0).valid());
+		CHECK_FALSE(wld.cursor(sparseDontFragmentEntity, sparseDontFragmentComp.entity).valid());
+		CHECK_FALSE(wld.cursor_mut(sparseDontFragmentEntity, sparseDontFragmentComp.entity).valid());
+
+		desc.name = util::str_view("Runtime_Component_SoA_Relationship_Unsupported");
+		desc.storageType = ecs::DataStorageType::Table;
+		auto& relation = wld.add(desc);
+		const auto target = wld.add();
+		const auto source = wld.add();
+		const auto relationPair = ecs::Pair(relation.entity, target);
+		const auto pair = (ecs::Entity)relationPair;
+		wld.add(source, relationPair);
+		CHECK_FALSE(wld.get_raw_field(source, pair, 0).valid());
+		CHECK_FALSE(wld.mut_raw_field(source, pair, 0).valid());
+		CHECK_FALSE(wld.cursor(source, pair).valid());
+		CHECK_FALSE(wld.cursor_mut(source, pair).valid());
+
+		const auto& typedSoa = wld.add<PositionSoA>();
+		CHECK(typedSoa.func_move_ctor != nullptr);
+		CHECK(typedSoa.func_copy_ctor != nullptr);
+		CHECK(typedSoa.func_copy != nullptr);
+		CHECK(typedSoa.func_move != nullptr);
+		CHECK(typedSoa.func_swap != nullptr);
+	}
+
+	SUBCASE("runtime unique SoA fields use one physical value per chunk") {
+		TestWorld twld;
+		auto& cc = wld.comp_cache_mut();
+		constexpr uint8_t SoaSizes[] = {4, 1, 2};
+		const auto componentEntity = wld.add(ecs::EntityKind::EK_Uni);
+		const auto& runtimeComp = add_runtime_component(
+				cc, componentEntity, "Runtime_Component_Unique_SoA_Access", 32, ecs::DataStorageType::Table, 8, 3, SoaSizes);
+
+		const auto entity = wld.add();
+		wld.add(entity, runtimeComp.entity);
+		auto value32 = wld.mut_raw_field(entity, runtimeComp.entity, 0);
+		auto value8 = wld.mut_raw_field(entity, runtimeComp.entity, 1);
+		auto value16 = wld.mut_raw_field(entity, runtimeComp.entity, 2);
+		CHECK(value32.valid());
+		CHECK(value8.valid());
+		CHECK(value16.valid());
+		if (value32.valid() && value8.valid() && value16.valid()) {
+			const auto& ec = wld.fetch(entity);
+			const auto compIdx = ec.pChunk->comp_idx(runtimeComp.entity);
+			const std::span<const uint8_t> fieldSizes{SoaSizes};
+			CHECK(
+					value32.data == mem::data_view_policy_soa_erased::set(
+															ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 0, 0, 1));
+			CHECK(
+					value8.data == mem::data_view_policy_soa_erased::set(
+														 ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 1, 0, 1));
+			CHECK(
+					value16.data == mem::data_view_policy_soa_erased::set(
+															ec.pChunk->comp_ptr_mut(compIdx), runtimeComp.comp.alig(), fieldSizes, 2, 0, 1));
+
+			*(uint32_t*)value32.data = 0x12345678U;
+			*(uint8_t*)value8.data = 0x5aU;
+			*(uint16_t*)value16.data = 0x4321U;
+			CHECK(*(const uint32_t*)wld.get_raw_field(entity, runtimeComp.entity, 0).data == 0x12345678U);
+			CHECK(*(const uint8_t*)wld.get_raw_field(entity, runtimeComp.entity, 1).data == 0x5aU);
+			CHECK(*(const uint16_t*)wld.get_raw_field(entity, runtimeComp.entity, 2).data == 0x4321U);
+
+			alignas(8) uint8_t src[32]{};
+			alignas(8) uint8_t dst[32]{};
+			*(uint32_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 0, 0, 1) = 0x87654321U;
+			*(uint8_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 1, 0, 1) = 0xa5U;
+			*(uint16_t*)mem::data_view_policy_soa_erased::set(src, 8, fieldSizes, 2, 0, 1) = 0x1234U;
+			runtimeComp.ctor_copy(dst, src, 0, 0, 64, 64);
+			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 0, 0, 1) == 0x87654321U);
+			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 1, 0, 1) == 0xa5U);
+			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(dst, 8, fieldSizes, 2, 0, 1) == 0x1234U);
+
+			alignas(8) uint8_t other[32]{};
+			*(uint32_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 0, 0, 1) = 0x0badc0deU;
+			*(uint8_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 1, 0, 1) = 0x3cU;
+			*(uint16_t*)mem::data_view_policy_soa_erased::set(other, 8, fieldSizes, 2, 0, 1) = 0xabcdU;
+			runtimeComp.swap(src, other, 0, 0, 64, 64);
+			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 0, 0, 1) == 0x0badc0deU);
+			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 1, 0, 1) == 0x3cU);
+			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(src, 8, fieldSizes, 2, 0, 1) == 0xabcdU);
+			CHECK(*(const uint32_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 0, 0, 1) == 0x87654321U);
+			CHECK(*(const uint8_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 1, 0, 1) == 0xa5U);
+			CHECK(*(const uint16_t*)mem::data_view_policy_soa_erased::get(other, 8, fieldSizes, 2, 0, 1) == 0x1234U);
+		}
+	}
+
 	SUBCASE("typed/runtime registration sync component record") {
 		TestWorld twld;
 

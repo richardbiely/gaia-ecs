@@ -1963,6 +1963,49 @@ TEST_CASE("Containers - alignment check") {
 	}
 }
 
+TEST_CASE("Data layout - erased SoA field addressing matches typed policy") {
+	constexpr uint32_t Capacity = 7;
+	constexpr uint32_t Row = 3;
+	using Policy = mem::auto_view_policy<DummySoA>;
+	constexpr uint32_t Bytes = Policy::get_min_byte_size(0, Capacity);
+	mem::raw_data_holder<DummySoA, Bytes> storage{};
+	std::span<uint8_t> data{storage.data, Capacity};
+	const uint8_t fieldSizes[] = {
+			(uint8_t)sizeof(float), (uint8_t)sizeof(float), (uint8_t)sizeof(bool), (uint8_t)sizeof(float)};
+	const std::span<const uint8_t> sizes{fieldSizes};
+
+	auto x = Policy::set<0>(data);
+	auto y = Policy::set<1>(data);
+	auto b = Policy::set<2>(data);
+	auto w = Policy::set<3>(data);
+	CHECK(
+			mem::data_view_policy_soa_erased::set(storage.data, Policy::Alignment, sizes, 0, Row, Capacity) ==
+			(uint8_t*)&x[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::set(storage.data, Policy::Alignment, sizes, 1, Row, Capacity) ==
+			(uint8_t*)&y[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::set(storage.data, Policy::Alignment, sizes, 2, Row, Capacity) ==
+			(uint8_t*)&b[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::set(storage.data, Policy::Alignment, sizes, 3, Row, Capacity) ==
+			(uint8_t*)&w[Row]);
+
+	const auto* pStorage = (const uint8_t*)storage.data;
+	CHECK(
+			mem::data_view_policy_soa_erased::get(pStorage, Policy::Alignment, sizes, 0, Row, Capacity) ==
+			(const uint8_t*)&x[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::get(pStorage, Policy::Alignment, sizes, 1, Row, Capacity) ==
+			(const uint8_t*)&y[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::get(pStorage, Policy::Alignment, sizes, 2, Row, Capacity) ==
+			(const uint8_t*)&b[Row]);
+	CHECK(
+			mem::data_view_policy_soa_erased::get(pStorage, Policy::Alignment, sizes, 3, Row, Capacity) ==
+			(const uint8_t*)&w[Row]);
+}
+
 TEST_CASE("Containers - sringbuffer") {
 	{
 		cnt::sarray<uint32_t, 5> comparearr = {0, 1, 2, 3, 4};

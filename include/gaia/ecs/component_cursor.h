@@ -12,6 +12,10 @@
 namespace gaia {
 	namespace ecs {
 		class World;
+		//! Finishes a cursor write through the owning world.
+		//! \param world World owning the component value.
+		//! \param term Written component or relationship id.
+		//! \param entity Entity owning the written value.
 		void world_finish_write(World& world, Entity term, Entity entity);
 
 		//! Flags describing the state of a raw component byte view.
@@ -69,6 +73,21 @@ namespace gaia {
 			}
 		};
 		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
+
+		//! Resolves one read-only SoA field for cursor traversal.
+		//! \param world World containing the component value.
+		//! \param entity Entity owning or inheriting the component value.
+		//! \param component Runtime component entity.
+		//! \param fieldIdx SoA field array index.
+		//! \return Read-only field view, or an invalid view when unavailable.
+		ComponentRawView world_get_raw_field(const World& world, Entity entity, Entity component, uint32_t fieldIdx);
+		//! Resolves one mutable SoA field for cursor traversal.
+		//! \param world World containing the component value.
+		//! \param entity Entity directly owning the component value.
+		//! \param component Runtime component entity.
+		//! \param fieldIdx SoA field array index.
+		//! \return Mutable field view, or an invalid view when unavailable.
+		ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx);
 
 		//! Result status for ComponentCursor operations.
 		enum class CursorStatus : uint8_t { Ok, Invalid, ReadOnly, TypeMismatch, OutOfRange };
@@ -188,6 +207,44 @@ namespace gaia {
 				cursor.m_stack[0].elemCount = 1;
 				cursor.m_stack[0].writable = true;
 				cursor.m_valid = true;
+				return cursor;
+			}
+
+			//! Creates a read-only cursor over a non-contiguous SoA component value.
+			//! \param world World owning the SoA storage.
+			//! \param components Component metadata registry used for field/type lookup.
+			//! \param entity Entity owning the resolved component value.
+			//! \param component Component/type entity represented by the cursor.
+			//! \param size Logical AoS value size represented by the SoA fields.
+			//! \return Cursor positioned at the non-contiguous root component scope.
+			GAIA_NODISCARD static ComponentCursor
+			from_soa(const World& world, const ComponentCache& components, Entity entity, Entity component, uint32_t size) {
+				ComponentCursor cursor{};
+				cursor.m_readWorld = &world;
+				cursor.m_components = &components;
+				cursor.m_entity = entity;
+				cursor.m_rootType = component;
+				cursor.m_stack[0].type = component;
+				cursor.m_stack[0].size = size;
+				cursor.m_stack[0].elemSize = size;
+				cursor.m_stack[0].elemCount = 1;
+				cursor.m_rootSoa = true;
+				cursor.m_valid = true;
+				return cursor;
+			}
+
+			//! Creates a mutable cursor over a non-contiguous SoA component value.
+			//! \param world World owning the SoA storage.
+			//! \param components Component metadata registry used for field/type lookup.
+			//! \param entity Entity owning the component value.
+			//! \param component Component/type entity represented by the cursor.
+			//! \param size Logical AoS value size represented by the SoA fields.
+			//! \return Cursor positioned at the non-contiguous writable root component scope.
+			GAIA_NODISCARD static ComponentCursor
+			from_soa(World& world, const ComponentCache& components, Entity entity, Entity component, uint32_t size) {
+				auto cursor = from_soa((const World&)world, components, entity, component, size);
+				cursor.m_world = &world;
+				cursor.m_stack[0].writable = true;
 				return cursor;
 			}
 
@@ -312,7 +369,7 @@ namespace gaia {
 					return field_opaque(index);
 
 				const RuntimeField* pField = pItem->field(index);
-				return pField != nullptr ? descend(*pField) : false;
+				return pField != nullptr ? descend(*pField, index) : false;
 			}
 
 			//! Descends into the reflected field named @a name.
@@ -329,7 +386,14 @@ namespace gaia {
 					return field_opaque(name);
 
 				const RuntimeField* pField = pItem->field(name);
-				return pField != nullptr ? descend(*pField) : false;
+				if (pField == nullptr)
+					return false;
+
+				uint32_t index = 0;
+				const auto fieldCount = pItem->field_count();
+				while (index < fieldCount && pItem->field(index) != pField)
+					++index;
+				return index < fieldCount && descend(*pField, index);
 			}
 
 			//! Descends into element @a index of the current fixed inline or named array scope.
@@ -746,12 +810,17 @@ namespace gaia {
 			};
 
 			World* m_world = nullptr;
+			//! World used to resolve read-only fields for a non-contiguous SoA root.
+			const World* m_readWorld = nullptr;
 			const ComponentCache* m_components = nullptr;
+			//! Entity owning the root component value.
 			Entity m_entity = EntityBad;
 			Entity m_rootType = EntityBad;
 			Scope m_stack[MaxDepth]{};
 			uint32_t m_depth = 0;
 			bool m_valid = false;
+			//! True when the root component is represented by separate SoA field arrays.
+			bool m_rootSoa = false;
 
 			GAIA_NODISCARD const ComponentCacheItem* current_item() const noexcept {
 				if (!m_valid || m_components == nullptr)
@@ -936,7 +1005,7 @@ namespace gaia {
 				return {CursorStatus::Ok};
 			}
 
-			bool descend(const RuntimeField& field) noexcept {
+			bool descend(const RuntimeField& field, uint32_t fieldIdx = UINT32_MAX) noexcept {
 				if (!m_valid || m_components == nullptr || m_depth + 1 >= MaxDepth)
 					return false;
 
@@ -977,10 +1046,28 @@ namespace gaia {
 				next.opaqueValueDepth = m_stack[m_depth].opaqueValueDepth;
 				next.opaqueToken = m_stack[m_depth].opaqueToken;
 				next.writable = m_stack[m_depth].writable;
-				if (m_stack[m_depth].data != nullptr)
-					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
-				if (m_stack[m_depth].mutData != nullptr)
-					next.mutData = (uint8_t*)m_stack[m_depth].mutData + field.offset;
+				if (m_rootSoa && m_depth == 0) {
+					if (fieldIdx == UINT32_MAX || m_readWorld == nullptr)
+						return false;
+
+					if (m_world != nullptr) {
+						const auto view = world_mut_raw_field(*m_world, m_entity, m_rootType, fieldIdx);
+						if (!view.valid() || view.size != next.size)
+							return false;
+						next.data = view.data;
+						next.mutData = view.data;
+					} else {
+						const auto view = world_get_raw_field(*m_readWorld, m_entity, m_rootType, fieldIdx);
+						if (!view.valid() || view.size != next.size)
+							return false;
+						next.data = view.data;
+					}
+				} else {
+					if (m_stack[m_depth].data != nullptr)
+						next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
+					if (m_stack[m_depth].mutData != nullptr)
+						next.mutData = (uint8_t*)m_stack[m_depth].mutData + field.offset;
+				}
 
 				m_stack[++m_depth] = next;
 				return true;
