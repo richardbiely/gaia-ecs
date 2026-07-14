@@ -69,6 +69,165 @@ namespace gaia {
 				return out.elemCount != 0 && runtime_json_type_size(out.pType, out.type, out.elemSize);
 			}
 
+			//! Reads an integer runtime value as its width-preserving unsigned bit pattern.
+			//! \param pData Runtime value bytes.
+			//! \param type Reflected integer storage type.
+			//! \param valueSize Size of @a pData in bytes.
+			//! \param out Receives the normalized bit pattern.
+			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			GAIA_NODISCARD inline bool runtime_json_integer_bits(
+					const uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t& out) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+					case ser::serialization_type_id::u8: {
+						if (valueSize != sizeof(uint8_t))
+							return false;
+						uint8_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s16:
+					case ser::serialization_type_id::u16: {
+						if (valueSize != sizeof(uint16_t))
+							return false;
+						uint16_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s32:
+					case ser::serialization_type_id::u32: {
+						if (valueSize != sizeof(uint32_t))
+							return false;
+						uint32_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s64:
+					case ser::serialization_type_id::u64: {
+						if (valueSize != sizeof(uint64_t))
+							return false;
+						memcpy(&out, pData, sizeof(out));
+						return true;
+					}
+					default:
+						return false;
+				}
+			}
+
+			//! Normalizes a registered runtime constant to its underlying integer width.
+			//! \param type Reflected integer storage type.
+			//! \param value Registered constant value.
+			//! \param out Receives the normalized bit pattern.
+			//! \return True when @a type is a supported integer type.
+			GAIA_NODISCARD inline bool
+			runtime_json_constant_bits(ser::serialization_type_id type, int64_t value, uint64_t& out) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+						if (value < INT8_MIN || value > INT8_MAX)
+							return false;
+						out = (uint8_t)value;
+						return true;
+					case ser::serialization_type_id::u8:
+						if (value < 0 || value > UINT8_MAX)
+							return false;
+						out = (uint8_t)value;
+						return true;
+					case ser::serialization_type_id::s16:
+						if (value < INT16_MIN || value > INT16_MAX)
+							return false;
+						out = (uint16_t)value;
+						return true;
+					case ser::serialization_type_id::u16:
+						if (value < 0 || value > UINT16_MAX)
+							return false;
+						out = (uint16_t)value;
+						return true;
+					case ser::serialization_type_id::s32:
+						if (value < INT32_MIN || value > INT32_MAX)
+							return false;
+						out = (uint32_t)value;
+						return true;
+					case ser::serialization_type_id::u32:
+						if (value < 0 || (uint64_t)value > UINT32_MAX)
+							return false;
+						out = (uint32_t)value;
+						return true;
+					case ser::serialization_type_id::s64:
+						out = (uint64_t)value;
+						return true;
+					case ser::serialization_type_id::u64:
+						if (value < 0)
+							return false;
+						out = (uint64_t)value;
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			//! Writes a width-preserving integer bit pattern to runtime value bytes.
+			//! \param pData Destination runtime value bytes.
+			//! \param type Reflected integer storage type.
+			//! \param valueSize Size of @a pData in bytes.
+			//! \param value Normalized bit pattern to write.
+			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			GAIA_NODISCARD inline bool runtime_json_write_integer_bits(
+					uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t value) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+					case ser::serialization_type_id::u8: {
+						if (valueSize != sizeof(uint8_t))
+							return false;
+						const auto narrowed = (uint8_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s16:
+					case ser::serialization_type_id::u16: {
+						if (valueSize != sizeof(uint16_t))
+							return false;
+						const auto narrowed = (uint16_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s32:
+					case ser::serialization_type_id::u32: {
+						if (valueSize != sizeof(uint32_t))
+							return false;
+						const auto narrowed = (uint32_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s64:
+					case ser::serialization_type_id::u64:
+						if (valueSize != sizeof(uint64_t))
+							return false;
+						memcpy(pData, &value, sizeof(value));
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			//! \return Whether @a item is represented by one direct semantic JSON value rather than a keyed field object.
+			GAIA_NODISCARD inline bool runtime_json_is_direct_value(const ComponentCacheItem& item) noexcept {
+				switch (item.typeKind) {
+					case RuntimeTypeKind::Primitive:
+					case RuntimeTypeKind::Enum:
+					case RuntimeTypeKind::Bitmask:
+					case RuntimeTypeKind::Array:
+					case RuntimeTypeKind::Vector:
+						return true;
+					case RuntimeTypeKind::Opaque:
+						return item.opaque_adapter() != nullptr;
+					default:
+						return false;
+				}
+			}
+
 			GAIA_NODISCARD inline ser::json_str
 			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
 				if (parent.empty())
@@ -121,11 +280,11 @@ namespace gaia {
 
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& writer, uint32_t depth);
+					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth);
 
 			inline bool write_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field,
-					const uint8_t* pBase, ser::ser_json& writer, uint32_t depth) {
+					const uint8_t* pBase, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				RuntimeJsonFieldLayout layout{};
 				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					writer.value_null();
@@ -142,14 +301,14 @@ namespace gaia {
 				const auto* pFieldData = pBase + field.offset;
 				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return write_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, depth + 1);
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, policy, depth + 1);
 
 				bool ok = true;
 				writer.begin_array();
 				GAIA_FOR(layout.elemCount) {
 					const auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
 					ok = write_runtime_json_value(
-									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, depth + 1) &&
+									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, policy, depth + 1) &&
 							 ok;
 				}
 				writer.end_array();
@@ -158,7 +317,7 @@ namespace gaia {
 
 			inline bool write_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, const uint8_t* pData, ser::ser_json& writer,
-					uint32_t depth) {
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
@@ -171,7 +330,7 @@ namespace gaia {
 					GAIA_ASSERT(pField != nullptr);
 					const auto& field = *pField;
 					writer.key(field.name);
-					ok = write_runtime_json_field(pCache, item, field, pData, writer, depth + 1) && ok;
+					ok = write_runtime_json_field(pCache, item, field, pData, writer, policy, depth + 1) && ok;
 				}
 				writer.end_object();
 				return ok;
@@ -179,7 +338,7 @@ namespace gaia {
 
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& writer, uint32_t depth) {
+					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
@@ -200,7 +359,8 @@ namespace gaia {
 					writer.begin_array();
 					GAIA_FOR(elemCount) {
 						const auto* pElemData = pData + (uintptr_t)elemSize * i;
-						ok = write_runtime_json_value(pCache, pElementType, elementType, pElemData, elemSize, writer, depth + 1) &&
+						ok = write_runtime_json_value(
+										 pCache, pElementType, elementType, pElemData, elemSize, writer, policy, depth + 1) &&
 								 ok;
 					}
 					writer.end_array();
@@ -235,7 +395,7 @@ namespace gaia {
 						if (element.type == EntityBad)
 							element.type = elementType;
 						ok = write_runtime_json_value(
-										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer,
+										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer, policy,
 										 depth + 1) &&
 								 ok;
 					}
@@ -265,11 +425,12 @@ namespace gaia {
 						return false;
 					}
 					return write_runtime_json_value(
-							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, depth + 1);
+							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, policy,
+							depth + 1);
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
-					return write_runtime_json_struct(pCache, *pType, pData, writer, depth + 1);
+					return write_runtime_json_struct(pCache, *pType, pData, writer, policy, depth + 1);
 
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				if (pType != nullptr) {
@@ -282,13 +443,57 @@ namespace gaia {
 					return false;
 				}
 
+				uint64_t valueBits = 0;
+				if (pType != nullptr && policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum &&
+						runtime_json_integer_bits(pData, type, valueSize, valueBits)) {
+					GAIA_FOR(pType->constant_count()) {
+						const auto* pConstant = pType->constant(i);
+						GAIA_ASSERT(pConstant != nullptr);
+						uint64_t constantBits = 0;
+						if (runtime_json_constant_bits(type, pConstant->value, constantBits) && constantBits == valueBits) {
+							writer.value_string(pConstant->name);
+							return true;
+						}
+					}
+				}
+
+				if (pType != nullptr && policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
+						runtime_json_integer_bits(pData, type, valueSize, valueBits)) {
+					uint64_t remaining = valueBits;
+					GAIA_FOR(pType->constant_count()) {
+						const auto* pConstant = pType->constant(i);
+						GAIA_ASSERT(pConstant != nullptr);
+						uint64_t flagBits = 0;
+						if (runtime_json_constant_bits(type, pConstant->value, flagBits) && flagBits != 0 &&
+								(flagBits & (flagBits - 1)) == 0 && (remaining & flagBits) == flagBits)
+							remaining &= ~flagBits;
+					}
+
+					if (remaining == 0) {
+						writer.begin_array();
+						remaining = valueBits;
+						GAIA_FOR(pType->constant_count()) {
+							const auto* pConstant = pType->constant(i);
+							GAIA_ASSERT(pConstant != nullptr);
+							uint64_t flagBits = 0;
+							if (runtime_json_constant_bits(type, pConstant->value, flagBits) && flagBits != 0 &&
+									(flagBits & (flagBits - 1)) == 0 && (remaining & flagBits) == flagBits) {
+								writer.value_string(pConstant->name);
+								remaining &= ~flagBits;
+							}
+						}
+						writer.end_array();
+						return true;
+					}
+				}
+
 				return ser::detail::write_runtime_field_json(writer, pData, type, valueSize);
 			}
 
 			inline bool read_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					uint32_t depth, bool& ok);
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok);
 
 			inline void warn_runtime_json(
 					ser::JsonDiagnostics& diagnostics, ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
@@ -297,7 +502,8 @@ namespace gaia {
 
 			inline bool read_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field, uint8_t* pBase,
-					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
 				RuntimeJsonFieldLayout layout{};
 				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					ok = false;
@@ -320,7 +526,7 @@ namespace gaia {
 				auto* pFieldData = pBase + field.offset;
 				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return read_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path,
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, policy,
 							depth + 1, ok);
 
 				if (!reader.expect('['))
@@ -332,7 +538,7 @@ namespace gaia {
 					const auto elemPath = make_runtime_json_element_path(path, i);
 					auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
 					if (!read_runtime_json_value(
-									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath,
+									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath, policy,
 									depth + 1, ok))
 						return false;
 				}
@@ -341,7 +547,8 @@ namespace gaia {
 
 			inline bool read_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, uint8_t* pData, ser::ser_json& reader,
-					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, const ser::RuntimeJsonPolicy& policy,
+					uint32_t depth, bool& ok) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					ok = false;
 					warn_runtime_json(
@@ -384,7 +591,7 @@ namespace gaia {
 						if (!reader.skip_value())
 							return false;
 					} else if (!read_runtime_json_field(
-												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, depth + 1, ok))
+												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, policy, depth + 1, ok))
 						return false;
 
 					reader.ws();
@@ -401,7 +608,7 @@ namespace gaia {
 			inline bool read_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					uint32_t depth, bool& ok) {
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					ok = false;
 					warn_runtime_json(
@@ -432,8 +639,8 @@ namespace gaia {
 						const auto elemPath = make_runtime_json_element_path(path, i);
 						auto* pElemData = pData + (uintptr_t)elemSize * i;
 						if (!read_runtime_json_value(
-										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1,
-										ok))
+										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, policy,
+										depth + 1, ok))
 							return false;
 					}
 					return reader.expect(']');
@@ -481,7 +688,7 @@ namespace gaia {
 						const auto elemPath = make_runtime_json_element_path(path, i);
 						if (!read_runtime_json_value(
 										pCache, pElementType, element.type, (uint8_t*)element.mutData, element.size, reader, diagnostics,
-										elemPath, depth + 1, ok))
+										elemPath, policy, depth + 1, ok))
 							return false;
 					}
 					return reader.expect(']');
@@ -519,7 +726,7 @@ namespace gaia {
 					}
 					const bool parsed = read_runtime_json_value(
 							pCache, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, reader, diagnostics,
-							path, depth + 1, ok);
+							path, policy, depth + 1, ok);
 					if (parsed && adapter->commit != nullptr && ok) {
 						if (!adapter->commit(adapter->ctx, opaque, projected)) {
 							ok = false;
@@ -531,7 +738,7 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
-					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, depth + 1, ok);
+					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, policy, depth + 1, ok);
 
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				if (pType != nullptr) {
@@ -548,6 +755,79 @@ namespace gaia {
 					return reader.skip_value();
 				}
 
+				reader.ws();
+				if (pType != nullptr && policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum && !reader.eof() &&
+						reader.peek() == '"') {
+					ser::json_str_view symbol;
+					if (!reader.parse_string_view(symbol))
+						return false;
+
+					const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+					uint64_t constantBits = 0;
+					if (pConstant == nullptr || !runtime_json_constant_bits(type, pConstant->value, constantBits) ||
+							!runtime_json_write_integer_bits(pData, type, valueSize, constantBits)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+								"Runtime enum symbol is unknown or incompatible with its underlying type.");
+					}
+					return true;
+				}
+
+				if (pType != nullptr && policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
+						!reader.eof() && reader.peek() == '[') {
+					if (!reader.expect('['))
+						return false;
+
+					uint64_t valueBits = 0;
+					bool symbolsOk = true;
+					reader.ws();
+					if (!reader.consume(']')) {
+						while (true) {
+							ser::json_str_view symbol;
+							if (!reader.parse_string_view(symbol))
+								return false;
+
+							if (symbolsOk) {
+								const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+								uint64_t flagBits = 0;
+								if (pConstant == nullptr) {
+									symbolsOk = false;
+									ok = false;
+									warn_runtime_json(
+											diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+											"Runtime bitmask symbol is unknown.");
+								} else if (
+										!runtime_json_constant_bits(type, pConstant->value, flagBits) || flagBits == 0 ||
+										(flagBits & (flagBits - 1)) != 0 || (valueBits & flagBits) != 0) {
+									symbolsOk = false;
+									ok = false;
+									warn_runtime_json(
+											diagnostics, ser::JsonDiagReason::InvalidRuntimeConstant, path,
+											"Runtime bitmask symbol is not a distinct one-bit flag.");
+								} else {
+									valueBits |= flagBits;
+								}
+							}
+
+							reader.ws();
+							if (reader.consume(','))
+								continue;
+							if (reader.consume(']'))
+								break;
+							return false;
+						}
+					}
+
+					if (symbolsOk && !runtime_json_write_integer_bits(pData, type, valueSize, valueBits)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime bitmask symbols are incompatible with the underlying field size.");
+					}
+					return true;
+				}
+
 				bool fieldOk = true;
 				if (!ser::detail::read_runtime_field_json(reader, pData, type, valueSize, fieldOk))
 					return false;
@@ -562,18 +842,28 @@ namespace gaia {
 		} // namespace detail
 
 		//! Serializes a single component instance into key/value JSON using runtime field metadata in @a item.
-		//! Returns false when some field types are unsupported or out of bounds (those are emitted as null).
-		inline bool component_to_json(const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer) {
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to one component value.
+		//! \param writer Destination JSON writer.
+		//! \param policy Explicit symbolic presentation policy.
+		//! \return False when some field types are unsupported or out of bounds. Those fields are emitted as null.
+		inline bool component_to_json(
+				const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer,
+				const ser::RuntimeJsonPolicy& policy = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
 
 			return detail::write_runtime_json_value(
 					item.owner_cache(), &item, item.entity, reinterpret_cast<const uint8_t*>(pComponentData), item.comp.size(),
-					writer, 0);
+					writer, policy, 0);
 		}
 
 		//! Convenience overload returning JSON as a string.
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to one component value.
+		//! \param ok Receives whether the component value was serialized completely.
+		//! \return The serialized JSON value.
 		inline ser::json_str component_to_json(const ComponentCacheItem& item, const void* pComponentData, bool& ok) {
 			ser::ser_json writer;
 			ok = component_to_json(item, pComponentData, writer);
@@ -586,11 +876,12 @@ namespace gaia {
 		//! \param pComponentData Pointer to destination component memory for exactly one component instance.
 		//! \param reader JSON parser positioned at the beginning of the component JSON value.
 		//! \param diagnostics Receives structured warnings/errors for lossy or unsupported payload content.
+		//! \param policy Explicit symbolic import policy.
 		//! \param componentPath Logical component path used in diagnostics.
-		//! \return false only when JSON is malformed for the expected component payload shape.
+		//! \return False only when JSON is malformed for the expected component payload shape.
 		inline bool json_to_component(
 				const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics,
-				ser::json_str_view componentPath = {}) {
+				const ser::RuntimeJsonPolicy& policy = {}, ser::json_str_view componentPath = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
@@ -601,11 +892,11 @@ namespace gaia {
 				return true;
 			}
 
-			if (item.typeKind == RuntimeTypeKind::Opaque && item.opaque_adapter() != nullptr) {
+			if (detail::runtime_json_is_direct_value(item)) {
 				bool ok = true;
 				return detail::read_runtime_json_value(
 						item.owner_cache(), &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(),
-						reader, diagnostics, componentPath, 0, ok);
+						reader, diagnostics, componentPath, policy, 0, ok);
 			}
 
 			bool rawFound = false;
@@ -654,7 +945,7 @@ namespace gaia {
 					} else {
 						fieldFound = true;
 						if (!detail::read_runtime_json_field(
-										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, 0, ok))
+										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, policy, 0, ok))
 							return false;
 					}
 				} else {
@@ -697,7 +988,12 @@ namespace gaia {
 			return true;
 		}
 
-		//! Compatibility overload preserving the previous bool-based best-effort status.
+		//! Convenience overload reporting best-effort status as a boolean.
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to destination component memory.
+		//! \param reader JSON parser positioned at the component value.
+		//! \param ok Receives whether import completed without diagnostics.
+		//! \return False only when the JSON shape is malformed.
 		inline bool
 		json_to_component(const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, bool& ok) {
 			ser::JsonDiagnostics diagnostics;
@@ -710,7 +1006,8 @@ namespace gaia {
 		//! Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and
 		//! target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime
 		//! field types are unsupported (those fields are emitted as null).
-		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
+		inline bool
+		World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags, const ser::RuntimeJsonPolicy& policy) const {
 			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
 				if (!component.pair()) {
 					const auto componentName = comp_cache().symbol_name(item);
@@ -861,9 +1158,10 @@ namespace gaia {
 
 										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
 
-										if (item.field_count() != 0 && rec.comp.soa() == 0) {
+										if ((item.field_count() != 0 || detail::runtime_json_is_direct_value(item)) &&
+												rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
-											ok = ecs::component_to_json(item, pCompData, writer) && ok;
+											ok = ecs::component_to_json(item, pCompData, writer, policy) && ok;
 										} else {
 											if (allowRawFallback)
 												write_raw_component(item, rec.pData, row, row + 1, pChunk->capacity());
@@ -898,7 +1196,8 @@ namespace gaia {
 		}
 
 		//! Loads world state from JSON previously emitted by save_json().
-		inline bool World::load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics) {
+		inline bool World::load_json(
+				const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy) {
 			diagnostics.clear();
 			if (json == nullptr)
 				return false;
@@ -1037,18 +1336,6 @@ namespace gaia {
 				if (jp.eof())
 					return false;
 
-				// Tag values are currently ignored by semantic loader.
-				const char next = jp.peek();
-				if (next == 't' || next == 'f') {
-					bool tagValue = false;
-					if (!jp.parse_bool(tagValue))
-						return false;
-					warn(
-							ser::JsonDiagReason::TagValueIgnored, compPath,
-							"Tag-like boolean component payload is ignored in semantic mode.");
-					return true;
-				}
-
 				if (jp.parse_null()) {
 					warn(
 							ser::JsonDiagReason::NullComponentPayload, compPath,
@@ -1072,7 +1359,7 @@ namespace gaia {
 				}
 
 				auto* pRowData = loc.pBase + (uintptr_t)item.comp.size() * loc.row;
-				if (!ecs::json_to_component(item, pRowData, jp, diagnostics, compPath))
+				if (!ecs::json_to_component(item, pRowData, jp, diagnostics, policy, compPath))
 					return false;
 				return true;
 			};
@@ -1353,8 +1640,9 @@ namespace gaia {
 			return parsed && !diagnostics.has_issues();
 		}
 
-		inline bool World::load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics) {
-			return load_json(json.data(), json.size(), diagnostics);
+		inline bool
+		World::load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy) {
+			return load_json(json.data(), json.size(), diagnostics, policy);
 		}
 
 		inline bool World::load_json(ser::json_str_view json) {

@@ -27,6 +27,15 @@ namespace gaia {
 			Default = BinarySnapshot | RawFallback
 		};
 
+		//! Explicit presentation and import policy for runtime values in semantic JSON.
+		//! Numeric enum and bitmask payloads are the default; symbolic behavior must be requested.
+		struct RuntimeJsonPolicy final {
+			//! Emits enum constants by name and accepts named enum values during import.
+			bool symbolicEnums = false;
+			//! Emits bitmask values as arrays of flag names and accepts those arrays during import.
+			bool symbolicBitmasks = false;
+		};
+
 		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
 		enum class JsonDiagReason : uint8_t {
 			None,
@@ -44,7 +53,9 @@ namespace gaia {
 			MissingArchetypesSection,
 			MissingFormatField,
 			UnsupportedFormatVersion,
-			InvalidJson
+			InvalidJson,
+			UnknownRuntimeConstant,
+			InvalidRuntimeConstant
 		};
 
 		struct JsonDiagnostic {
@@ -442,6 +453,120 @@ namespace gaia {
 				return view.size() == literalLen && memcmp(view.data(), literal, literalLen) == 0;
 			}
 
+			//! Scans an integer JSON token without converting through floating point.
+			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through @a integerToken as
+			//! non-integers and are not consumed.
+			//! \param negative Receives whether the token has a leading minus sign.
+			//! \param magnitude Receives the unsigned magnitude, saturated to UINT64_MAX on overflow.
+			//! \param overflow Receives whether the magnitude exceeds UINT64_MAX.
+			//! \param adjusted Receives whether a negative exponent discarded non-zero fractional digits.
+			//! \param integerToken Receives whether the token represents an integer without a decimal point.
+			//! \return False when the input does not begin with a numeric token.
+			bool
+			parse_integer_token(bool& negative, uint64_t& magnitude, bool& overflow, bool& adjusted, bool& integerToken) {
+				ws();
+				negative = false;
+				magnitude = 0;
+				overflow = false;
+				adjusted = false;
+				integerToken = false;
+				if (m_it == nullptr || m_end == nullptr || m_it >= m_end)
+					return false;
+
+				const char* p = m_it;
+				if (*p == '-') {
+					negative = true;
+					++p;
+				}
+				if (p >= m_end || *p < '0' || *p > '9')
+					return false;
+				const char* digitsBegin = p;
+				if (*p == '0' && p + 1 < m_end && p[1] >= '0' && p[1] <= '9')
+					return false;
+
+				constexpr uint64_t MaxValue = (std::numeric_limits<uint64_t>::max)();
+				while (p < m_end && *p >= '0' && *p <= '9') {
+					const auto digit = (uint64_t)(*p - '0');
+					if (magnitude > (MaxValue - digit) / 10)
+						overflow = true;
+					else if (!overflow)
+						magnitude = magnitude * 10 + digit;
+					++p;
+				}
+				const char* digitsEnd = p;
+
+				if (p < m_end && *p == '.') {
+					const char* decimalIt = p + 1;
+					if (decimalIt >= m_end || *decimalIt < '0' || *decimalIt > '9')
+						return false;
+					while (decimalIt < m_end && *decimalIt >= '0' && *decimalIt <= '9')
+						++decimalIt;
+					if (decimalIt < m_end && (*decimalIt == 'e' || *decimalIt == 'E')) {
+						++decimalIt;
+						if (decimalIt < m_end && (*decimalIt == '+' || *decimalIt == '-'))
+							++decimalIt;
+						if (decimalIt >= m_end || *decimalIt < '0' || *decimalIt > '9')
+							return false;
+					}
+					return true;
+				}
+				if (p < m_end && (*p == 'e' || *p == 'E')) {
+					const char* exponentIt = p + 1;
+					bool negativeExponent = false;
+					if (exponentIt < m_end && (*exponentIt == '+' || *exponentIt == '-')) {
+						negativeExponent = *exponentIt == '-';
+						++exponentIt;
+					}
+					if (exponentIt >= m_end || *exponentIt < '0' || *exponentIt > '9')
+						return false;
+
+					uint32_t exponent = 0;
+					bool exponentOverflow = false;
+					while (exponentIt < m_end && *exponentIt >= '0' && *exponentIt <= '9') {
+						const auto digit = (uint32_t)(*exponentIt - '0');
+						if (exponent > (UINT32_MAX - digit) / 10)
+							exponentOverflow = true;
+						else if (!exponentOverflow)
+							exponent = exponent * 10 + digit;
+						++exponentIt;
+					}
+
+					if (negativeExponent && (exponentOverflow || exponent != 0)) {
+						const auto digitCount = (uint32_t)(digitsEnd - digitsBegin);
+						const auto keptCount = exponentOverflow || exponent >= digitCount ? 0U : digitCount - exponent;
+						magnitude = 0;
+						overflow = false;
+						for (uint32_t i = 0; i < keptCount; ++i) {
+							const auto digit = (uint64_t)(digitsBegin[i] - '0');
+							if (magnitude > (MaxValue - digit) / 10)
+								overflow = true;
+							else if (!overflow)
+								magnitude = magnitude * 10 + digit;
+						}
+						for (uint32_t i = keptCount; i < digitCount; ++i)
+							adjusted = adjusted || digitsBegin[i] != '0';
+					} else if (exponentOverflow || exponent > 19) {
+						overflow = magnitude != 0;
+					} else {
+						while (exponent-- > 0) {
+							if (magnitude > MaxValue / 10) {
+								overflow = true;
+								break;
+							}
+							magnitude *= 10;
+						}
+					}
+					p = exponentIt;
+				}
+
+				if (overflow)
+					magnitude = MaxValue;
+
+				integerToken = true;
+				m_it = p;
+				return true;
+			}
+
 			bool parse_number(double& value) {
 				ws();
 				if (m_it == nullptr || m_end == nullptr || m_it >= m_end)
@@ -544,6 +669,53 @@ namespace gaia {
 
 			template <typename TInt>
 			inline bool read_runtime_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+				bool negative = false;
+				uint64_t magnitude = 0;
+				bool overflow = false;
+				bool adjusted = false;
+				bool integerToken = false;
+				if (!reader.parse_integer_token(negative, magnitude, overflow, adjusted, integerToken))
+					return false;
+
+				if (integerToken) {
+					if (adjusted)
+						ok = false;
+					TInt value = 0;
+					if constexpr (std::is_signed_v<TInt>) {
+						constexpr auto MaxPositive = (uint64_t)(std::numeric_limits<TInt>::max)();
+						constexpr auto MaxNegative = MaxPositive + 1;
+						if (negative) {
+							if (overflow || magnitude > MaxNegative) {
+								value = (std::numeric_limits<TInt>::lowest)();
+								ok = false;
+							} else if (magnitude == MaxNegative) {
+								value = (std::numeric_limits<TInt>::lowest)();
+							} else {
+								value = (TInt) - (int64_t)magnitude;
+							}
+						} else if (overflow || magnitude > MaxPositive) {
+							value = (std::numeric_limits<TInt>::max)();
+							ok = false;
+						} else {
+							value = (TInt)magnitude;
+						}
+					} else {
+						constexpr auto MaxValue = (uint64_t)(std::numeric_limits<TInt>::max)();
+						if (negative) {
+							if (overflow || magnitude != 0)
+								ok = false;
+						} else if (overflow || magnitude > MaxValue) {
+							value = (std::numeric_limits<TInt>::max)();
+							ok = false;
+						} else {
+							value = (TInt)magnitude;
+						}
+					}
+
+					copy_field_bytes(pFieldData, size, value);
+					return true;
+				}
+
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -564,6 +736,13 @@ namespace gaia {
 				if (clamped < minVal) {
 					clamped = minVal;
 					ok = false;
+				} else if constexpr (sizeof(TInt) == sizeof(uint64_t)) {
+					if (clamped >= maxVal) {
+						const TInt v = (std::numeric_limits<TInt>::max)();
+						copy_field_bytes(pFieldData, size, v);
+						ok = false;
+						return true;
+					}
 				} else if (clamped > maxVal) {
 					clamped = maxVal;
 					ok = false;

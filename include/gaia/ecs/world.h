@@ -8468,28 +8468,41 @@ namespace gaia {
 			//! Serializes world state into a JSON document.
 			//! Components with runtime fields are emitted as structured JSON objects.
 			//! Components with no runtime fields fallback to raw serialized bytes.
-			//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
-			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
+			//! \param writer Destination JSON writer.
+			//! \param flags World JSON sections and fallback behavior.
+			//! \param policy Symbolic enum and bitmask presentation policy.
+			//! \return False when some runtime field types are unsupported.
+			bool save_json(
+					ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default,
+					const ser::RuntimeJsonPolicy& policy = {}) const;
 
 			//! Convenience overload returning JSON as a string.
+			//! \param ok Receives whether all requested component values were serialized.
+			//! \param flags World JSON sections and fallback behavior.
+			//! \return The serialized JSON document.
 			ser::json_str save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Loads world state from JSON previously emitted by save_json().
-			//! Returns true when JSON shape is valid and parsing succeeds.
-			//! Non-fatal semantic issues are reported through @a diagnostics.
-			bool load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics);
-
+			//! \param json JSON buffer.
+			//! \param len JSON buffer length.
+			//! \param diagnostics Receives non-fatal semantic issues.
+			//! \param policy Symbolic enum and bitmask import policy.
+			//! \return True when JSON shape is valid and parsing succeeds.
+			bool load_json(
+					const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {});
 			//! Loads world state from a raw JSON buffer and discards non-fatal diagnostics.
 			//! \param json JSON buffer
 			//! \param len JSON buffer length
 			//! \return True when loading succeeds. False otherwise.
 			bool load_json(const char* json, uint32_t len);
 
-			//! Loads world state from a JSON string view and reports non-fatal diagnostics.
-			//! \param json JSON view
-			//! \param diagnostics Output diagnostics
+			//! Loads world state from a JSON view with an explicit runtime value import policy.
+			//! \param json JSON view.
+			//! \param diagnostics Output diagnostics.
+			//! \param policy Symbolic enum and bitmask import policy.
 			//! \return True when loading succeeds. False otherwise.
-			bool load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics);
+			bool
+			load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {});
 
 			//! Loads world state from a JSON string view and discards non-fatal diagnostics.
 			//! \param json JSON view

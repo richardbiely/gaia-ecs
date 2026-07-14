@@ -596,6 +596,266 @@ TEST_CASE("Serialization - json runtime fields") {
 		CHECK(out.mode == value.mode);
 	}
 
+	SUBCASE("runtime enum and bitmask symbols require an explicit json policy") {
+		TestWorld twld;
+
+		const ecs::RuntimeConstantDesc modeConstants[] = {
+				{util::str_view("Idle"), 0}, //
+				{util::str_view("Move"), 1}, //
+				{util::str_view("Jump"), 2} //
+		};
+		ecs::ComponentDesc modeDesc{};
+		modeDesc.name = runtime_component_name_view("Runtime_Type_Json_Symbolic_Mode");
+		modeDesc.size = (uint32_t)sizeof(uint32_t);
+		modeDesc.alig = (uint32_t)alignof(uint32_t);
+		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.underlyingType = ecs::U32;
+		modeDesc.constants = modeConstants;
+		modeDesc.constantCount = 3;
+		auto& modeType = wld.add(modeDesc);
+
+		const ecs::RuntimeConstantDesc flagConstants[] = {
+				{util::str_view("Static"), 1}, //
+				{util::str_view("Dynamic"), 2}, //
+				{util::str_view("Trigger"), 4} //
+		};
+		ecs::ComponentDesc flagsDesc{};
+		flagsDesc.name = runtime_component_name_view("Runtime_Type_Json_Symbolic_Flags");
+		flagsDesc.size = (uint32_t)sizeof(uint32_t);
+		flagsDesc.alig = (uint32_t)alignof(uint32_t);
+		flagsDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		flagsDesc.underlyingType = ecs::U32;
+		flagsDesc.constants = flagConstants;
+		flagsDesc.constantCount = 3;
+		auto& flagsType = wld.add(flagsDesc);
+
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("mode"), modeType.entity, 0, 0}, //
+				{util::str_view("flags"), flagsType.entity, 4, 0} //
+		};
+		ecs::ComponentDesc componentDesc{};
+		componentDesc.name = runtime_component_name_view("Runtime_Component_Json_Symbolic");
+		componentDesc.size = (uint32_t)(sizeof(uint32_t) * 2);
+		componentDesc.alig = (uint32_t)alignof(uint32_t);
+		componentDesc.fields = fields;
+		componentDesc.fieldCount = 2;
+		auto& component = wld.add(componentDesc);
+
+		uint32_t value[] = {2, 1 | 4};
+		ser::ser_json numericWriter;
+		CHECK(ecs::component_to_json(component, value, numericWriter));
+		CHECK(numericWriter.str() == "{\"mode\":2,\"flags\":5}");
+
+		ser::RuntimeJsonPolicy policy{};
+		policy.symbolicEnums = true;
+		ser::ser_json enumWriter;
+		CHECK(ecs::component_to_json(component, value, enumWriter, policy));
+		CHECK(enumWriter.str() == "{\"mode\":\"Jump\",\"flags\":5}");
+
+		policy.symbolicBitmasks = true;
+		ser::ser_json symbolicWriter;
+		CHECK(ecs::component_to_json(component, value, symbolicWriter, policy));
+		CHECK(symbolicWriter.str() == "{\"mode\":\"Jump\",\"flags\":[\"Static\",\"Trigger\"]}");
+
+		uint32_t directMode = 2;
+		ser::ser_json directNumericModeWriter;
+		CHECK(ecs::component_to_json(modeType, &directMode, directNumericModeWriter));
+		CHECK(directNumericModeWriter.str() == "2");
+		uint32_t directNumericModeOut = 0;
+		ser::ser_json directNumericModeReader(
+				directNumericModeWriter.str().data(), (uint32_t)directNumericModeWriter.str().size());
+		ser::JsonDiagnostics directNumericModeDiagnostics;
+		CHECK(
+				ecs::json_to_component(modeType, &directNumericModeOut, directNumericModeReader, directNumericModeDiagnostics));
+		CHECK_FALSE(directNumericModeDiagnostics.has_issues());
+		CHECK(directNumericModeOut == directMode);
+
+		ser::ser_json directModeWriter;
+		CHECK(ecs::component_to_json(modeType, &directMode, directModeWriter, policy));
+		CHECK(directModeWriter.str() == "\"Jump\"");
+		uint32_t directModeOut = 0;
+		ser::ser_json directModeReader(directModeWriter.str().data(), (uint32_t)directModeWriter.str().size());
+		ser::JsonDiagnostics directModeDiagnostics;
+		CHECK(ecs::json_to_component(modeType, &directModeOut, directModeReader, directModeDiagnostics, policy));
+		CHECK_FALSE(directModeDiagnostics.has_issues());
+		CHECK(directModeOut == directMode);
+
+		uint32_t directFlags = 1 | 4;
+		ser::ser_json directFlagsWriter;
+		CHECK(ecs::component_to_json(flagsType, &directFlags, directFlagsWriter, policy));
+		CHECK(directFlagsWriter.str() == "[\"Static\",\"Trigger\"]");
+		uint32_t directFlagsOut = 0;
+		ser::ser_json directFlagsReader(directFlagsWriter.str().data(), (uint32_t)directFlagsWriter.str().size());
+		ser::JsonDiagnostics directFlagsDiagnostics;
+		CHECK(ecs::json_to_component(flagsType, &directFlagsOut, directFlagsReader, directFlagsDiagnostics, policy));
+		CHECK_FALSE(directFlagsDiagnostics.has_issues());
+		CHECK(directFlagsOut == directFlags);
+
+		const ecs::RuntimeConstantDesc wideEnumConstants[] = {
+				{util::str_view("Zero"), 0} //
+		};
+		ecs::ComponentDesc wideEnumDesc{};
+		wideEnumDesc.name = runtime_component_name_view("Runtime_Json_Wide_Enum");
+		wideEnumDesc.size = (uint32_t)sizeof(int64_t);
+		wideEnumDesc.alig = (uint32_t)alignof(int64_t);
+		wideEnumDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		wideEnumDesc.underlyingType = ecs::S64;
+		wideEnumDesc.constants = wideEnumConstants;
+		wideEnumDesc.constantCount = 1;
+		auto& wideEnumType = wld.add(wideEnumDesc);
+		const int64_t wideEnum = -9007199254740993LL;
+		ser::ser_json wideEnumWriter;
+		CHECK(ecs::component_to_json(wideEnumType, &wideEnum, wideEnumWriter, policy));
+		CHECK(wideEnumWriter.str() == "-9007199254740993");
+		int64_t wideEnumOut = 0;
+		ser::ser_json wideEnumReader(wideEnumWriter.str().data(), (uint32_t)wideEnumWriter.str().size());
+		ser::JsonDiagnostics wideEnumDiagnostics;
+		CHECK(ecs::json_to_component(wideEnumType, &wideEnumOut, wideEnumReader, wideEnumDiagnostics, policy));
+		CHECK_FALSE(wideEnumDiagnostics.has_issues());
+		CHECK(wideEnumOut == wideEnum);
+		int64_t wideEnumMaxOut = 0;
+		ser::ser_json wideEnumMaxReader("9223372036854775807e0");
+		wideEnumDiagnostics.clear();
+		CHECK(ecs::json_to_component(wideEnumType, &wideEnumMaxOut, wideEnumMaxReader, wideEnumDiagnostics, policy));
+		CHECK_FALSE(wideEnumDiagnostics.has_issues());
+		CHECK(wideEnumMaxOut == INT64_MAX);
+		int64_t wideEnumNegativeExponentOut = 0;
+		ser::ser_json wideEnumNegativeExponentReader("90071992547409930e-1");
+		wideEnumDiagnostics.clear();
+		CHECK(
+				ecs::json_to_component(
+						wideEnumType, &wideEnumNegativeExponentOut, wideEnumNegativeExponentReader, wideEnumDiagnostics, policy));
+		CHECK_FALSE(wideEnumDiagnostics.has_issues());
+		CHECK(wideEnumNegativeExponentOut == 9007199254740993LL);
+		int64_t wideEnumFractionalExponentOut = 0;
+		ser::ser_json wideEnumFractionalExponentReader("15e-1");
+		wideEnumDiagnostics.clear();
+		CHECK(
+				ecs::json_to_component(
+						wideEnumType, &wideEnumFractionalExponentOut, wideEnumFractionalExponentReader, wideEnumDiagnostics,
+						policy));
+		CHECK(wideEnumDiagnostics.hasWarnings);
+		CHECK_FALSE(wideEnumDiagnostics.hasErrors);
+		CHECK(wideEnumFractionalExponentOut == 1);
+
+		int64_t malformedIntegerOut = 7;
+		ser::ser_json leadingZeroReader("01");
+		wideEnumDiagnostics.clear();
+		CHECK_FALSE(
+				ecs::json_to_component(wideEnumType, &malformedIntegerOut, leadingZeroReader, wideEnumDiagnostics, policy));
+		CHECK(malformedIntegerOut == 7);
+		ser::ser_json negativeLeadingZeroReader("-01");
+		CHECK_FALSE(
+				ecs::json_to_component(
+						wideEnumType, &malformedIntegerOut, negativeLeadingZeroReader, wideEnumDiagnostics, policy));
+		CHECK(malformedIntegerOut == 7);
+		ser::ser_json exponentLeadingZeroReader("00e0");
+		CHECK_FALSE(
+				ecs::json_to_component(
+						wideEnumType, &malformedIntegerOut, exponentLeadingZeroReader, wideEnumDiagnostics, policy));
+		CHECK(malformedIntegerOut == 7);
+		ser::ser_json missingFractionReader("1.");
+		CHECK_FALSE(
+				ecs::json_to_component(wideEnumType, &malformedIntegerOut, missingFractionReader, wideEnumDiagnostics, policy));
+		CHECK(malformedIntegerOut == 7);
+		ser::ser_json missingExponentReader("1e");
+		CHECK_FALSE(
+				ecs::json_to_component(wideEnumType, &malformedIntegerOut, missingExponentReader, wideEnumDiagnostics, policy));
+		CHECK(malformedIntegerOut == 7);
+
+		const ecs::RuntimeConstantDesc wideBitmaskConstants[] = {
+				{util::str_view("Known"), 1} //
+		};
+		ecs::ComponentDesc wideBitmaskDesc{};
+		wideBitmaskDesc.name = runtime_component_name_view("Runtime_Json_Wide_Bitmask");
+		wideBitmaskDesc.size = (uint32_t)sizeof(uint64_t);
+		wideBitmaskDesc.alig = (uint32_t)alignof(uint64_t);
+		wideBitmaskDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		wideBitmaskDesc.underlyingType = ecs::U64;
+		wideBitmaskDesc.constants = wideBitmaskConstants;
+		wideBitmaskDesc.constantCount = 1;
+		auto& wideBitmaskType = wld.add(wideBitmaskDesc);
+		const uint64_t wideBitmask = (UINT64_C(1) << 54) | UINT64_C(1);
+		ser::ser_json wideBitmaskWriter;
+		CHECK(ecs::component_to_json(wideBitmaskType, &wideBitmask, wideBitmaskWriter, policy));
+		CHECK(wideBitmaskWriter.str() == "18014398509481985");
+		uint64_t wideBitmaskOut = 0;
+		ser::ser_json wideBitmaskReader(wideBitmaskWriter.str().data(), (uint32_t)wideBitmaskWriter.str().size());
+		ser::JsonDiagnostics wideBitmaskDiagnostics;
+		CHECK(ecs::json_to_component(wideBitmaskType, &wideBitmaskOut, wideBitmaskReader, wideBitmaskDiagnostics, policy));
+		CHECK_FALSE(wideBitmaskDiagnostics.has_issues());
+		CHECK(wideBitmaskOut == wideBitmask);
+		uint64_t wideBitmaskMaxOut = 0;
+		ser::ser_json wideBitmaskMaxReader("18446744073709551615e0");
+		wideBitmaskDiagnostics.clear();
+		CHECK(
+				ecs::json_to_component(
+						wideBitmaskType, &wideBitmaskMaxOut, wideBitmaskMaxReader, wideBitmaskDiagnostics, policy));
+		CHECK_FALSE(wideBitmaskDiagnostics.has_issues());
+		CHECK(wideBitmaskMaxOut == UINT64_MAX);
+		uint64_t wideBitmaskDecimalOut = 0;
+		ser::ser_json wideBitmaskDecimalReader("18446744073709551615.0");
+		wideBitmaskDiagnostics.clear();
+		CHECK(
+				ecs::json_to_component(
+						wideBitmaskType, &wideBitmaskDecimalOut, wideBitmaskDecimalReader, wideBitmaskDiagnostics, policy));
+		CHECK(wideBitmaskDiagnostics.hasWarnings);
+		CHECK_FALSE(wideBitmaskDiagnostics.hasErrors);
+		CHECK(wideBitmaskDecimalOut == UINT64_MAX);
+
+		uint32_t zeroValue[] = {0, 0};
+		ser::ser_json zeroWriter;
+		CHECK(ecs::component_to_json(component, zeroValue, zeroWriter, policy));
+		CHECK(zeroWriter.str() == "{\"mode\":\"Idle\",\"flags\":[]}");
+		uint32_t zeroOut[] = {2, 7};
+		ser::ser_json zeroReader(zeroWriter.str().data(), (uint32_t)zeroWriter.str().size());
+		ser::JsonDiagnostics zeroDiagnostics;
+		CHECK(ecs::json_to_component(component, zeroOut, zeroReader, zeroDiagnostics, policy));
+		CHECK_FALSE(zeroDiagnostics.has_issues());
+		CHECK(zeroOut[0] == 0);
+		CHECK(zeroOut[1] == 0);
+
+		uint32_t out[] = {0, 0};
+		ser::ser_json symbolicReader(symbolicWriter.str().data(), (uint32_t)symbolicWriter.str().size());
+		ser::JsonDiagnostics diagnostics;
+		CHECK(ecs::json_to_component(component, out, symbolicReader, diagnostics, policy));
+		CHECK_FALSE(diagnostics.has_issues());
+		CHECK(out[0] == 2);
+		CHECK(out[1] == (1 | 4));
+
+		uint32_t unknownValue[] = {99, 8};
+		ser::ser_json unknownWriter;
+		CHECK(ecs::component_to_json(component, unknownValue, unknownWriter, policy));
+		CHECK(unknownWriter.str() == "{\"mode\":99,\"flags\":8}");
+
+		uint32_t rejected[] = {1, 2};
+		ser::ser_json unknownReader("{\"mode\":\"Fly\",\"flags\":[\"Static\",\"Missing\"]}");
+		diagnostics.clear();
+		CHECK(ecs::json_to_component(component, rejected, unknownReader, diagnostics, policy));
+		CHECK(diagnostics.hasWarnings);
+		CHECK_FALSE(diagnostics.hasErrors);
+		CHECK(diagnostics.items.size() == 2);
+		CHECK(diagnostics.items[0].reason == ser::JsonDiagReason::UnknownRuntimeConstant);
+		CHECK(diagnostics.items[1].reason == ser::JsonDiagReason::UnknownRuntimeConstant);
+		CHECK(rejected[0] == 1);
+		CHECK(rejected[1] == 2);
+
+		uint32_t duplicate[] = {0, 2};
+		ser::ser_json duplicateReader("{\"mode\":\"Idle\",\"flags\":[\"Static\",\"Static\"]}");
+		diagnostics.clear();
+		CHECK(ecs::json_to_component(component, duplicate, duplicateReader, diagnostics, policy));
+		CHECK(diagnostics.hasWarnings);
+		CHECK_FALSE(diagnostics.hasErrors);
+		CHECK(diagnostics.items.size() == 1);
+		CHECK(diagnostics.items[0].reason == ser::JsonDiagReason::InvalidRuntimeConstant);
+		CHECK(duplicate[0] == 0);
+		CHECK(duplicate[1] == 2);
+
+		ser::ser_json strictReader(symbolicWriter.str().data(), (uint32_t)symbolicWriter.str().size());
+		bool strictOk = true;
+		CHECK_FALSE(ecs::json_to_component(component, out, strictReader, strictOk));
+	}
+
 	SUBCASE("recursive named runtime arrays are emitted and loaded as nested arrays") {
 		struct Vec3 {
 			float x, y, z;
@@ -980,7 +1240,7 @@ TEST_CASE("Serialization - json runtime fields") {
 		JsonDiagComp out{};
 		ser::ser_json reader("{\"value\":-2,\"name\":\"abcdef\",\"unknown\":1}");
 		ser::JsonDiagnostics diagnostics;
-		CHECK(ecs::json_to_component(item, &out, reader, diagnostics, "Runtime_Component_Json_Diagnostics"));
+		CHECK(ecs::json_to_component(item, &out, reader, diagnostics, {}, "Runtime_Component_Json_Diagnostics"));
 		CHECK(diagnostics.hasWarnings);
 
 		bool hasUnknownField = false;
@@ -1992,6 +2252,13 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 	CHECK(json.find("\"samples\":[{\"x\":4,\"y\":5.5,\"z\":6.25},{\"x\":-7,\"y\":8,\"z\":9.5}]") != BadIndex);
 	CHECK(json.find("\"mode\":2") != BadIndex);
 
+	ser::RuntimeJsonPolicy policy{};
+	policy.symbolicEnums = true;
+	ser::ser_json symbolicWriter;
+	CHECK(wld.save_json(symbolicWriter, ser::JsonSaveFlags::RawFallback, policy));
+	const auto& symbolicJson = symbolicWriter.str();
+	CHECK(symbolicJson.find("\"mode\":\"Jump\"") != BadIndex);
+
 	TestWorld twldOut;
 	auto& compOut = register_component(twldOut.m_w);
 	CHECK(twldOut.m_w.load_json(json));
@@ -2015,6 +2282,19 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 	CHECK(loadedComp.samples[1].y == value.samples[1].y);
 	CHECK(loadedComp.samples[1].z == value.samples[1].z);
 	CHECK(loadedComp.mode == value.mode);
+
+	TestWorld twldSymbolic;
+	auto& symbolicComp = register_component(twldSymbolic.m_w);
+	ser::JsonDiagnostics diagnostics;
+	CHECK(twldSymbolic.m_w.load_json(symbolicJson, diagnostics, policy));
+	CHECK_FALSE(diagnostics.has_issues());
+	const auto symbolicEntity = twldSymbolic.m_w.get("SemanticNestedEntity");
+	CHECK(symbolicEntity != ecs::EntityBad);
+	const auto symbolicPayload = twldSymbolic.m_w.get_raw(symbolicEntity, symbolicComp.entity);
+	CHECK(symbolicPayload.valid());
+	RuntimeTransformComp symbolicValue{};
+	memcpy(&symbolicValue, symbolicPayload.data, sizeof(symbolicValue));
+	CHECK(symbolicValue.mode == value.mode);
 }
 
 TEST_CASE("Serialization - world json runtime-created components") {
@@ -2090,6 +2370,129 @@ TEST_CASE("Serialization - world json runtime-created components") {
 		++hits;
 	});
 	CHECK(hits == 1);
+}
+
+TEST_CASE("Serialization - world json direct runtime enum and bitmask components") {
+	const ecs::RuntimeConstantDesc modeConstants[] = {
+			{util::str_view("Idle"), 0}, //
+			{util::str_view("Move"), 1}, //
+			{util::str_view("Jump"), 2} //
+	};
+	const ecs::RuntimeConstantDesc flagConstants[] = {
+			{util::str_view("Static"), 1}, //
+			{util::str_view("Dynamic"), 2}, //
+			{util::str_view("Trigger"), 4} //
+	};
+
+	auto register_types = [&](ecs::World& world, ecs::ComponentCacheItem*& modeType,
+														ecs::ComponentCacheItem*& flagsType) {
+		ecs::ComponentDesc modeDesc{};
+		modeDesc.name = runtime_component_name_view("Runtime_Direct_Json_Mode");
+		modeDesc.size = (uint32_t)sizeof(uint32_t);
+		modeDesc.alig = (uint32_t)alignof(uint32_t);
+		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.underlyingType = ecs::U32;
+		modeDesc.constants = modeConstants;
+		modeDesc.constantCount = 3;
+		modeType = &world.add(modeDesc);
+
+		ecs::ComponentDesc flagsDesc{};
+		flagsDesc.name = runtime_component_name_view("Runtime_Direct_Json_Flags");
+		flagsDesc.size = (uint32_t)sizeof(uint32_t);
+		flagsDesc.alig = (uint32_t)alignof(uint32_t);
+		flagsDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		flagsDesc.underlyingType = ecs::U32;
+		flagsDesc.constants = flagConstants;
+		flagsDesc.constantCount = 3;
+		flagsType = &world.add(flagsDesc);
+	};
+
+	TestWorld twld;
+	ecs::ComponentCacheItem* modeType = nullptr;
+	ecs::ComponentCacheItem* flagsType = nullptr;
+	register_types(wld, modeType, flagsType);
+	const auto entity = wld.add();
+	wld.name(entity, "DirectRuntimeJsonEntity");
+	const uint32_t mode = 2;
+	const uint32_t flags = 1 | 4;
+	CHECK(wld.add_raw(entity, modeType->entity, &mode, sizeof(mode)));
+	CHECK(wld.add_raw(entity, flagsType->entity, &flags, sizeof(flags)));
+	ser::ser_json numericWriter;
+	CHECK(wld.save_json(numericWriter, ser::JsonSaveFlags::RawFallback));
+	CHECK(numericWriter.str().find("\"Runtime_Direct_Json_Mode\":2") != BadIndex);
+	CHECK(numericWriter.str().find("\"Runtime_Direct_Json_Flags\":5") != BadIndex);
+
+	ser::RuntimeJsonPolicy policy{};
+	policy.symbolicEnums = true;
+	policy.symbolicBitmasks = true;
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback, policy));
+	const auto& json = writer.str();
+	CHECK(json.find("\"Runtime_Direct_Json_Mode\":\"Jump\"") != BadIndex);
+	CHECK(json.find("\"Runtime_Direct_Json_Flags\":[\"Static\",\"Trigger\"]") != BadIndex);
+
+	TestWorld twldOut;
+	ecs::ComponentCacheItem* modeTypeOut = nullptr;
+	ecs::ComponentCacheItem* flagsTypeOut = nullptr;
+	register_types(twldOut.m_w, modeTypeOut, flagsTypeOut);
+	ser::JsonDiagnostics diagnostics;
+	CHECK(twldOut.m_w.load_json(json, diagnostics, policy));
+	CHECK_FALSE(diagnostics.has_issues());
+	const auto loaded = twldOut.m_w.get("DirectRuntimeJsonEntity");
+	CHECK(loaded != ecs::EntityBad);
+	const auto loadedMode = twldOut.m_w.get_raw(loaded, modeTypeOut->entity);
+	const auto loadedFlags = twldOut.m_w.get_raw(loaded, flagsTypeOut->entity);
+	CHECK(loadedMode.valid());
+	CHECK(loadedFlags.valid());
+	CHECK(*(const uint32_t*)loadedMode.data == mode);
+	CHECK(*(const uint32_t*)loadedFlags.data == flags);
+}
+
+TEST_CASE("Serialization - world json opaque boolean component") {
+	ecs::RuntimeOpaqueAdapter adapter{};
+	adapter.project = [](void*, const ecs::RuntimeOpaqueScope& opaque, ecs::RuntimeOpaqueValue& value) {
+		if (opaque.size != sizeof(bool) || opaque.data == nullptr)
+			return false;
+		value.type = ecs::Bool;
+		value.data = opaque.data;
+		value.mutData = opaque.mutData;
+		value.size = (uint32_t)sizeof(bool);
+		return true;
+	};
+
+	auto register_type = [&](ecs::World& world) -> ecs::ComponentCacheItem& {
+		ecs::ComponentDesc desc{};
+		desc.name = runtime_component_name_view("Runtime_Json_Opaque_Bool");
+		desc.size = (uint32_t)sizeof(bool);
+		desc.alig = (uint32_t)alignof(bool);
+		desc.typeKind = ecs::RuntimeTypeKind::Opaque;
+		desc.opaqueAsType = ecs::Bool;
+		desc.opaqueAdapter = &adapter;
+		return world.add(desc);
+	};
+
+	TestWorld twld;
+	auto& type = register_type(wld);
+	const auto entity = wld.add();
+	wld.name(entity, "OpaqueBooleanEntity");
+	const bool value = false;
+	CHECK(wld.add_raw(entity, type.entity, &value, sizeof(value)));
+
+	ser::ser_json writer;
+	CHECK(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+	CHECK(writer.str().find("\"Runtime_Json_Opaque_Bool\":false") != BadIndex);
+
+	TestWorld twldOut;
+	auto& typeOut = register_type(twldOut.m_w);
+	ser::JsonDiagnostics diagnostics;
+	CHECK(twldOut.m_w.load_json(writer.str(), diagnostics));
+	CHECK_FALSE(diagnostics.has_issues());
+	const auto loaded = twldOut.m_w.get("OpaqueBooleanEntity");
+	CHECK(loaded != ecs::EntityBad);
+	const auto loadedValue = twldOut.m_w.get_raw(loaded, typeOut.entity);
+	CHECK(loadedValue.valid());
+	if (loadedValue.valid())
+		CHECK_FALSE(*(const bool*)loadedValue.data);
 }
 
 TEST_CASE("Serialization - world + query") {

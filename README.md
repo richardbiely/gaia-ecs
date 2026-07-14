@@ -3952,7 +3952,26 @@ if (run != nullptr) {
 }
 ```
 
-Bitmask types use the same constant descriptor shape with `ecs::RuntimeTypeKind::Bitmask`; each constant value describes one named flag. Combining or decomposing flag sets is intentionally left to tooling policy, while Gaia-ECS owns the stable reflected names and values.
+Bitmask types use the same constant descriptor shape with `ecs::RuntimeTypeKind::Bitmask`; each one-bit constant value describes one named flag.
+
+Semantic JSON uses numeric enum and bitmask values by default. Pass an explicit `ser::RuntimeJsonPolicy` when a user-facing document should use enum names and arrays of bitmask flag names:
+
+```cpp
+ser::RuntimeJsonPolicy policy{};
+policy.symbolicEnums = true;
+policy.symbolicBitmasks = true;
+
+ser::ser_json writer;
+ecs::component_to_json(actorCI, actorPayload, writer, policy);
+
+ser::JsonDiagnostics diagnostics;
+ser::ser_json reader(writer.str().data(), (uint32_t)writer.str().size());
+ecs::json_to_component(actorCI, actorPayload, reader, diagnostics, policy);
+```
+
+Known enum values are written as strings such as `"Run"`. Bitmasks composed entirely from registered one-bit constants are written as arrays such as `["Static","Trigger"]`. Direct runtime enum and bitmask components use the same representation as reflected fields. Values that cannot be represented without losing bits stay numeric, including the full signed and unsigned 64-bit integer range. Import accepts numeric values in either mode, preserves exact integral exponent forms, reports truncated fractional values, and rejects malformed JSON number grammar before mutation. An unknown symbolic name adds an `UnknownRuntimeConstant` warning and leaves that value unchanged. Symbolic bitmask input accepts each registered one-bit name at most once; zero, composite, repeated, or overlapping flags add an `InvalidRuntimeConstant` warning and leave the bitmask unchanged.
+
+The same policy can be passed to `World::save_json(...)` and `World::load_json(...)`. Use `ser::JsonSaveFlags::RawFallback` without `BinarySnapshot` when the symbolic semantic document will be edited and loaded again; a binary snapshot takes precedence over semantic component values during load.
 
 ### Raw access and cursors
 
