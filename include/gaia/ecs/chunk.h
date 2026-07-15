@@ -398,7 +398,7 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.count);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_raw<T>(comp_ptr(compIdx), capacity())[row];
-				else if constexpr (entity_kind_v<T> == EntityKind::EK_Gen) {
+				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen) {
 					if constexpr (sizeof(RetValueType) <= 8)
 						return view_raw<T>(comp_ptr(compIdx, row), 1)[0];
 					else
@@ -418,7 +418,7 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.capacity);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), capacity())[row];
-				else if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen)
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, row), 1)[0];
 				else
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), 1)[0];
@@ -1532,11 +1532,12 @@ namespace gaia {
 			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
@@ -1596,11 +1597,12 @@ namespace gaia {
 			decltype(auto) sset(uint16_t row, Entity type) {
 				static_assert(core::is_raw_v<T>);
 
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				return comp_mut_idx<T, false>(row, compIdx);
@@ -1619,7 +1621,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
 				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+						actual_type_t<T>::Kind == EntityKind::EK_Gen,
+						"Get providing a row can only be used with generic components");
 
 				return comp_inter<T>(row);
 			}
@@ -1631,7 +1634,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get_idx(uint16_t row, uint32_t compIdx) const {
 				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+						actual_type_t<T>::Kind == EntityKind::EK_Gen,
+						"Get providing a row can only be used with generic components");
 
 				return comp_inter_idx<T>(row, compIdx);
 			}
@@ -1643,12 +1647,13 @@ namespace gaia {
 			//! \warning It is expected the component is present. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Get providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				GAIA_ASSERT(row < m_header.count);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Get providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
@@ -1659,7 +1664,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
 				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
+						actual_type_t<T>::Kind != EntityKind::EK_Gen,
 						"Get not providing a row can only be used with non-generic components");
 
 				return comp_inter<T>(0);
@@ -1671,7 +1676,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get_idx(uint32_t compIdx) const {
 				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
+						actual_type_t<T>::Kind != EntityKind::EK_Gen,
 						"Get not providing a row can only be used with non-generic components");
 
 				return comp_inter_idx<T>(0, compIdx);

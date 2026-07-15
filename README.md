@@ -824,6 +824,8 @@ w.observer()
 
 Changing a relation target is structural (changes the entity shape). Replacing `(HomeOf, A)` with `(HomeOf, B)` triggers `OnDel` for the old pair and `OnAdd` for the new pair. It does not trigger `OnSet`.
 
+If a relation pair carries a payload, writing that existing payload can trigger `OnSet`. Exact pairs and wildcard pairs such as `(HomeOf, *)`, `(*, target)`, or `(*, *)` can observe those value writes.
+
 Wildcard pair observers can match more changes than exact-pair observers. Their cost depends on how often those changes happen, which is normal for event reactions.
 
 ### Bulk editing

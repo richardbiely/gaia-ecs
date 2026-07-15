@@ -299,6 +299,17 @@ namespace gaia {
 				return is_wildcard(endpoint) || is_variable(endpoint);
 			}
 
+			//! Splits a concrete pair term into normalized relation and target endpoints.
+			//! \param term Pair term to split.
+			//! \param rel Destination relation entity.
+			//! \param tgt Destination target entity.
+			static void pair_endpoint_entities(Entity term, Entity& rel, Entity& tgt) {
+				GAIA_ASSERT(term.pair());
+				const auto relKind = term.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
+				rel = Entity((EntityId)term.id(), 0, false, false, relKind);
+				tgt = Entity((EntityId)term.gen(), 0, false, false, term.kind());
+			}
+
 			GAIA_NODISCARD static bool is_observer_term_globally_dynamic(Entity term) {
 				if (term == EntityBad || term == All)
 					return true;
@@ -328,10 +339,23 @@ namespace gaia {
 				return !m_observer_map_del.empty() || !m_observer_map_del_is.empty() || !m_diff_index_del.empty();
 			}
 
+			//! Returns whether an OnSet observer may observe writes for the given changed term.
+			//! \param term Exact changed term.
+			//! \return True if an exact or wildcard-pair OnSet observer is registered.
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;
-				return m_observer_map_set.find(EntityLookupKey(term)) != m_observer_map_set.end();
+
+				if (observer_map_has_observers(m_observer_map_set, EntityLookupKey(term)))
+					return true;
+				if (!term.pair())
+					return false;
+
+				Entity rel, tgt;
+				pair_endpoint_entities(term, rel, tgt);
+				return observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(rel, All))) ||
+							 observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(All, tgt))) ||
+							 observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(All, All)));
 			}
 
 			void add_diff_observer_term(World& world, Entity observer, Entity term, const QueryTermOptions& options);

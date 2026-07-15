@@ -13,6 +13,7 @@ struct AutoRegObserverProbe {
 };
 
 struct ErasedPairRelationTag {};
+struct ErasedPairTargetTag {};
 struct ErasedPairPayload {
 	float x;
 	float y;
@@ -2847,11 +2848,67 @@ TEST_CASE("Erased pair access preserves compile-time target-owned payload metada
 	CHECK(wld.get<PairType>(source).x == doctest::Approx(4.0f));
 	CHECK(wld.get<PairType>(source).y == doctest::Approx(5.0f));
 
+	uint32_t exactSetCalls = 0;
+	const auto onExactSet = wld.observer()
+															.event(ecs::ObserverEvent::OnSet)
+															.all(pair)
+															.on_each([&](ecs::Entity entity) {
+																CHECK(entity == source);
+																++exactSetCalls;
+															})
+															.entity();
+	(void)onExactSet;
+	uint32_t relationWildcardSetCalls = 0;
+	const auto onRelationWildcardSet = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all(ecs::Pair(relation, ecs::All))
+																				 .on_each([&](ecs::Entity entity) {
+																					 CHECK(entity == source);
+																					 ++relationWildcardSetCalls;
+																				 })
+																				 .entity();
+	(void)onRelationWildcardSet;
+	uint32_t targetWildcardSetCalls = 0;
+	const auto onTargetWildcardSet = wld.observer()
+																			 .event(ecs::ObserverEvent::OnSet)
+																			 .all(ecs::Pair(ecs::All, target))
+																			 .on_each([&](ecs::Entity entity) {
+																				 CHECK(entity == source);
+																				 ++targetWildcardSetCalls;
+																			 })
+																			 .entity();
+	(void)onTargetWildcardSet;
+	uint32_t anyPairSetCalls = 0;
+	const auto onAnyPairSet = wld.observer()
+																.event(ecs::ObserverEvent::OnSet)
+																.all(ecs::Pair(ecs::All, ecs::All))
+																.on_each([&](ecs::Entity entity) {
+																	CHECK(entity == source);
+																	++anyPairSetCalls;
+																})
+																.entity();
+	(void)onAnyPairSet;
+	wld.modify_raw(source, pair);
+	CHECK(exactSetCalls == 1);
+	CHECK(relationWildcardSetCalls == 1);
+	CHECK(targetWildcardSetCalls == 1);
+	CHECK(anyPairSetCalls == 1);
+
 	auto cursor = wld.cursor(source, pair);
 	CHECK(cursor.valid());
 	CHECK(cursor.type() == pair);
 	CHECK(cursor.size() == sizeof(ErasedPairPayload));
 	CHECK(((const ErasedPairPayload*)cursor.ptr())->x == doctest::Approx(4.0f));
+
+	auto query = wld.query().all(pair);
+	CHECK(query.count() == 1);
+	query.each([&](ecs::Iter& it) {
+		const auto raw = it.view_raw(0);
+		CHECK(raw.size() == it.size());
+		if (raw.size() == 0)
+			return;
+		CHECK(((const ErasedPairPayload*)raw[0].data)->y == doctest::Approx(5.0f));
+	});
 
 	const auto rawSource = wld.add();
 	const ErasedPairPayload rawInitial{6.0f, 7.0f};
@@ -2861,6 +2918,120 @@ TEST_CASE("Erased pair access preserves compile-time target-owned payload metada
 		return;
 	CHECK(wld.get<PairType>(rawSource).x == doctest::Approx(6.0f));
 	CHECK(wld.get<PairType>(rawSource).y == doctest::Approx(7.0f));
+
+	using UniquePairType = ecs::pair<ErasedPairRelationTag, ecs::uni<ErasedPairPayload>>;
+	const auto uniqueRelation = wld.add<UniquePairType::rel>().entity;
+	const auto uniqueTarget = wld.add<UniquePairType::tgt>().entity;
+	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTarget);
+	CHECK(wld.comp_cache().find_pair_payload(uniquePair)->entity == uniqueTarget);
+	const auto uniqueSourceA = wld.add();
+	const auto uniqueSourceB = wld.add();
+	wld.add<UniquePairType>(uniqueSourceA, {8.0f, 9.0f});
+	wld.add<UniquePairType>(uniqueSourceB, {10.0f, 11.0f});
+	CHECK(wld.get<UniquePairType>(uniqueSourceA).x == doctest::Approx(10.0f));
+	CHECK(wld.get<UniquePairType>(uniqueSourceB).y == doctest::Approx(11.0f));
+}
+
+TEST_CASE("Erased pair access preserves compile-time relation-owned payload metadata") {
+	using PairType = ecs::pair<ErasedPairPayload, ErasedPairTargetTag>;
+
+	TestWorld twld;
+	const auto source = wld.add();
+	wld.add<PairType>(source, {1.0f, 2.0f});
+
+	const auto relation = wld.add<PairType::rel>().entity;
+	const auto target = wld.add<PairType::tgt>().entity;
+	const auto pair = (ecs::Entity)ecs::Pair(relation, target);
+	CHECK(wld.comp_cache().find_pair_payload(pair)->entity == relation);
+
+	const auto initial = wld.get_raw(source, pair);
+	CHECK(initial.valid());
+	CHECK(initial.size == sizeof(ErasedPairPayload));
+	if (initial.size != sizeof(ErasedPairPayload))
+		return;
+	CHECK(((const ErasedPairPayload*)initial.data)->x == doctest::Approx(1.0f));
+
+	auto mutableView = wld.mut_raw(source, pair);
+	CHECK(mutableView.valid());
+	CHECK(mutableView.size == sizeof(ErasedPairPayload));
+	if (mutableView.size != sizeof(ErasedPairPayload))
+		return;
+	((ErasedPairPayload*)mutableView.data)->y = 3.0f;
+	wld.modify_raw(source, pair);
+	CHECK(wld.get<PairType>(source).y == doctest::Approx(3.0f));
+
+	const ErasedPairPayload replacement{4.0f, 5.0f};
+	CHECK(wld.set_raw(source, pair, &replacement, sizeof(replacement)));
+	CHECK(wld.get<PairType>(source).x == doctest::Approx(4.0f));
+	CHECK(wld.get<PairType>(source).y == doctest::Approx(5.0f));
+
+	uint32_t exactSetCalls = 0;
+	const auto onExactSet = wld.observer()
+															.event(ecs::ObserverEvent::OnSet)
+															.all(pair)
+															.on_each([&](ecs::Entity entity) {
+																CHECK(entity == source);
+																++exactSetCalls;
+															})
+															.entity();
+	(void)onExactSet;
+	uint32_t relationWildcardSetCalls = 0;
+	const auto onRelationWildcardSet = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all(ecs::Pair(relation, ecs::All))
+																				 .on_each([&](ecs::Entity entity) {
+																					 CHECK(entity == source);
+																					 ++relationWildcardSetCalls;
+																				 })
+																				 .entity();
+	(void)onRelationWildcardSet;
+	uint32_t targetWildcardSetCalls = 0;
+	const auto onTargetWildcardSet = wld.observer()
+																			 .event(ecs::ObserverEvent::OnSet)
+																			 .all(ecs::Pair(ecs::All, target))
+																			 .on_each([&](ecs::Entity entity) {
+																				 CHECK(entity == source);
+																				 ++targetWildcardSetCalls;
+																			 })
+																			 .entity();
+	(void)onTargetWildcardSet;
+	uint32_t anyPairSetCalls = 0;
+	const auto onAnyPairSet = wld.observer()
+																.event(ecs::ObserverEvent::OnSet)
+																.all(ecs::Pair(ecs::All, ecs::All))
+																.on_each([&](ecs::Entity entity) {
+																	CHECK(entity == source);
+																	++anyPairSetCalls;
+																})
+																.entity();
+	(void)onAnyPairSet;
+	wld.modify_raw(source, pair);
+	CHECK(exactSetCalls == 1);
+	CHECK(relationWildcardSetCalls == 1);
+	CHECK(targetWildcardSetCalls == 1);
+	CHECK(anyPairSetCalls == 1);
+
+	auto query = wld.query().all(pair);
+	CHECK(query.count() == 1);
+	query.each([&](ecs::Iter& it) {
+		const auto raw = it.view_raw(0);
+		CHECK(raw.size() == it.size());
+		if (raw.size() == 0)
+			return;
+		CHECK(((const ErasedPairPayload*)raw[0].data)->x == doctest::Approx(4.0f));
+	});
+
+	using UniquePairType = ecs::pair<ecs::uni<ErasedPairPayload>, ErasedPairTargetTag>;
+	const auto uniqueRelation = wld.add<UniquePairType::rel>().entity;
+	const auto uniqueTarget = wld.add<UniquePairType::tgt>().entity;
+	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTarget);
+	CHECK(wld.comp_cache().find_pair_payload(uniquePair)->entity == uniqueRelation);
+	const auto uniqueSourceA = wld.add();
+	const auto uniqueSourceB = wld.add();
+	wld.add<UniquePairType>(uniqueSourceA, {8.0f, 9.0f});
+	wld.add<UniquePairType>(uniqueSourceB, {10.0f, 11.0f});
+	CHECK(wld.get<UniquePairType>(uniqueSourceA).x == doctest::Approx(10.0f));
+	CHECK(wld.get<UniquePairType>(uniqueSourceB).y == doctest::Approx(11.0f));
 }
 
 TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
@@ -2988,6 +3159,74 @@ TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
 		++targetWildcardRows;
 	});
 	CHECK(targetWildcardRows == 2);
+
+	uint32_t targetWildcardSetRows = 0;
+	const auto onTargetWildcardSet = wld.observer()
+																			 .event(ecs::ObserverEvent::OnSet)
+																			 .all(ecs::Pair(ecs::All, targetItem.entity))
+																			 .on_each([&](ecs::Entity entity) {
+																				 const bool expectedEntity = entity == source || entity == taggedSource;
+																				 CHECK(expectedEntity);
+																				 ++targetWildcardSetRows;
+																			 })
+																			 .entity();
+	(void)onTargetWildcardSet;
+	wld.modify_raw(source, pair);
+	wld.modify_raw(taggedSource, taggedPair);
+	CHECK(targetWildcardSetRows == 2);
+	CHECK(setObserverCalls == 4);
+
+	uint32_t relationWildcardSetRows = 0;
+	const auto onRelationWildcardSet = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all(ecs::Pair(relation, ecs::All))
+																				 .on_each([&](ecs::Entity entity) {
+																					 CHECK(entity == source);
+																					 ++relationWildcardSetRows;
+																				 })
+																				 .entity();
+	(void)onRelationWildcardSet;
+	wld.modify_raw(source, pair);
+	CHECK(relationWildcardSetRows == 1);
+	CHECK(targetWildcardSetRows == 3);
+	CHECK(setObserverCalls == 5);
+
+	uint32_t anyPairSetRows = 0;
+	const auto onAnyPairSet = wld.observer()
+																.event(ecs::ObserverEvent::OnSet)
+																.all(ecs::Pair(ecs::All, ecs::All))
+																.on_each([&](ecs::Entity entity) {
+																	const bool expectedEntity = entity == source || entity == taggedSource;
+																	CHECK(expectedEntity);
+																	++anyPairSetRows;
+																})
+																.entity();
+	(void)onAnyPairSet;
+	wld.modify_raw(source, pair);
+	wld.modify_raw(taggedSource, taggedPair);
+	CHECK(anyPairSetRows == 2);
+	CHECK(relationWildcardSetRows == 2);
+	CHECK(targetWildcardSetRows == 5);
+	CHECK(setObserverCalls == 6);
+
+	auto& uniqueTargetItem = add_runtime_component(
+			wld, "Runtime_Pair_Target_Unique", PayloadSize, ecs::DataStorageType::Table, alignof(float), 0, nullptr,
+			ecs::ComponentLookupHash{}, ecs::EntityKind::EK_Uni, fields, 2);
+	const auto uniqueRelation = wld.add();
+	const auto uniquePair = (ecs::Entity)ecs::Pair(uniqueRelation, uniqueTargetItem.entity);
+	const auto uniqueSourceA = wld.add();
+	const auto uniqueSourceB = wld.add();
+	float uniqueInitialA[] = {10.0f, 11.0f};
+	float uniqueInitialB[] = {12.0f, 13.0f};
+	CHECK(wld.comp_cache().find_pair_payload(uniquePair) == &uniqueTargetItem);
+	CHECK(wld.add_raw(uniqueSourceA, uniquePair, uniqueInitialA, sizeof(uniqueInitialA)));
+	CHECK(wld.add_raw(uniqueSourceB, uniquePair, uniqueInitialB, sizeof(uniqueInitialB)));
+	const auto uniqueViewA = wld.get_raw(uniqueSourceA, uniquePair);
+	const auto uniqueViewB = wld.get_raw(uniqueSourceB, uniquePair);
+	CHECK(uniqueViewA.valid());
+	CHECK(uniqueViewB.valid());
+	CHECK(read_f32(uniqueViewA.data, XOffset) == doctest::Approx(12.0f));
+	CHECK(read_f32(uniqueViewB.data, YOffset) == doctest::Approx(13.0f));
 }
 
 TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
@@ -3140,6 +3379,45 @@ TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 	CHECK(setHookCalls == 3);
 #endif
 
+	uint32_t relationWildcardSetCalls = 0;
+	const auto onRelationWildcardSet = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all(ecs::Pair(relation.entity, ecs::All))
+																				 .on_each([&](ecs::Entity entity) {
+																					 CHECK(entity == source);
+																					 ++relationWildcardSetCalls;
+																				 })
+																				 .entity();
+	(void)onRelationWildcardSet;
+	uint32_t targetWildcardSetCalls = 0;
+	const auto onTargetWildcardSet = wld.observer()
+																			 .event(ecs::ObserverEvent::OnSet)
+																			 .all(ecs::Pair(ecs::All, target))
+																			 .on_each([&](ecs::Entity entity) {
+																				 CHECK(entity == source);
+																				 ++targetWildcardSetCalls;
+																			 })
+																			 .entity();
+	(void)onTargetWildcardSet;
+	uint32_t anyPairSetCalls = 0;
+	const auto onAnyPairSet = wld.observer()
+																.event(ecs::ObserverEvent::OnSet)
+																.all(ecs::Pair(ecs::All, ecs::All))
+																.on_each([&](ecs::Entity entity) {
+																	CHECK(entity == source);
+																	++anyPairSetCalls;
+																})
+																.entity();
+	(void)onAnyPairSet;
+	wld.modify_raw(source, pair);
+	CHECK(relationWildcardSetCalls == 1);
+	CHECK(targetWildcardSetCalls == 1);
+	CHECK(anyPairSetCalls == 1);
+	CHECK(setObserverCalls == 4);
+#if GAIA_ENABLE_SET_HOOKS
+	CHECK(setHookCalls == 4);
+#endif
+
 	float otherInitial[] = {10.0f, 11.0f, 12.0f};
 	const bool otherAdded = wld.add_raw(otherSource, otherPair, otherInitial, sizeof(otherInitial));
 	CHECK(otherAdded);
@@ -3161,7 +3439,7 @@ TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 		++wildcardRows;
 	});
 	CHECK(wildcardRows == 2);
-	CHECK(setObserverCalls == 3);
+	CHECK(setObserverCalls == 4);
 
 	const auto uniqueTarget = wld.add<ecs::uni<Position>>().entity;
 	const auto uniquePair = (ecs::Entity)ecs::Pair(relation.entity, uniqueTarget);
@@ -3293,6 +3571,47 @@ TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
 	CHECK(wld.comp_cache().find_pair_payload(targetOwnedPair) == &targetItem);
 	wld.add(targetSource, targetOwnedPairDesc);
 
+	uint32_t targetOwnedExactSetCalls = 0;
+	const auto targetOwnedExactSet = wld.observer()
+																			 .event(ecs::ObserverEvent::OnSet)
+																			 .all(targetOwnedPair)
+																			 .on_each([&](ecs::Entity entity) {
+																				 CHECK(entity == targetSource);
+																				 ++targetOwnedExactSetCalls;
+																			 })
+																			 .entity();
+	(void)targetOwnedExactSet;
+	uint32_t targetOwnedRelationWildcardSetCalls = 0;
+	const auto targetOwnedRelationWildcardSet = wld.observer()
+																									.event(ecs::ObserverEvent::OnSet)
+																									.all(ecs::Pair(targetRelation, ecs::All))
+																									.on_each([&](ecs::Entity entity) {
+																										CHECK(entity == targetSource);
+																										++targetOwnedRelationWildcardSetCalls;
+																									})
+																									.entity();
+	(void)targetOwnedRelationWildcardSet;
+	uint32_t targetOwnedTargetWildcardSetCalls = 0;
+	const auto targetOwnedTargetWildcardSet = wld.observer()
+																								.event(ecs::ObserverEvent::OnSet)
+																								.all(ecs::Pair(ecs::All, targetItem.entity))
+																								.on_each([&](ecs::Entity entity) {
+																									CHECK(entity == targetSource);
+																									++targetOwnedTargetWildcardSetCalls;
+																								})
+																								.entity();
+	(void)targetOwnedTargetWildcardSet;
+	uint32_t targetOwnedAnyPairSetCalls = 0;
+	const auto targetOwnedAnyPairSet = wld.observer()
+																				 .event(ecs::ObserverEvent::OnSet)
+																				 .all(ecs::Pair(ecs::All, ecs::All))
+																				 .on_each([&](ecs::Entity entity) {
+																					 CHECK(entity == targetSource);
+																					 ++targetOwnedAnyPairSetCalls;
+																				 })
+																				 .entity();
+	(void)targetOwnedAnyPairSet;
+
 	CHECK_FALSE(wld.get_raw(targetSource, targetOwnedPair).valid());
 	CHECK_FALSE(wld.mut_raw(targetSource, targetOwnedPair).valid());
 
@@ -3302,6 +3621,15 @@ TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
 	if (!targetXMut.valid())
 		return;
 	*(float*)targetXMut.data = 4.5f;
+	CHECK(targetOwnedExactSetCalls == 0);
+	CHECK(targetOwnedRelationWildcardSetCalls == 0);
+	CHECK(targetOwnedTargetWildcardSetCalls == 0);
+	CHECK(targetOwnedAnyPairSetCalls == 0);
+	wld.modify_raw(targetSource, targetOwnedPair);
+	CHECK(targetOwnedExactSetCalls == 1);
+	CHECK(targetOwnedRelationWildcardSetCalls == 1);
+	CHECK(targetOwnedTargetWildcardSetCalls == 1);
+	CHECK(targetOwnedAnyPairSetCalls == 1);
 
 	const auto targetXRead = wld.get_raw_field(targetSource, targetOwnedPair, 0);
 	CHECK(targetXRead.valid());
@@ -3315,6 +3643,10 @@ TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
 	CHECK(targetCursor.type() == targetOwnedPair);
 	CHECK(targetCursor.field(util::str_view("count")));
 	CHECK(targetCursor.u32(42));
+	CHECK(targetOwnedExactSetCalls == 2);
+	CHECK(targetOwnedRelationWildcardSetCalls == 2);
+	CHECK(targetOwnedTargetWildcardSetCalls == 2);
+	CHECK(targetOwnedAnyPairSetCalls == 2);
 	const auto targetCountRead = wld.get_raw_field(targetSource, targetOwnedPair, 1);
 	CHECK(targetCountRead.valid());
 	if (targetCountRead.valid())

@@ -549,13 +549,21 @@ namespace gaia {
 			if (targets.empty())
 				return;
 
-			const auto itObservers = registry.m_observer_map_set.find(EntityLookupKey(term));
-			if (itObservers == registry.m_observer_map_set.end() || itObservers->second.empty())
-				return;
-
 			registry.m_relevant_observers_tmp.clear();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
+			if (term.pair()) {
+				Entity rel, tgt;
+				pair_endpoint_entities(term, rel, tgt);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(rel, All), matchStamp);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(All, tgt), matchStamp);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(All, All), matchStamp);
+			}
+			if (registry.m_relevant_observers_tmp.empty())
+				return;
 
 			for (auto* pObs: registry.m_relevant_observers_tmp) {
 				auto& obs = *pObs;

@@ -3607,8 +3607,8 @@ namespace gaia {
 				builder.commit();
 
 				const auto& ec = m_recs.entities[entity.id()];
-				// Make sure the idx is 0 for unique entities
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
+				// Make sure the idx is 0 for unique payload storage.
+				const auto idx = uint16_t(ec.row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
 				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
 				notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
@@ -14073,7 +14073,8 @@ namespace gaia {
 				}
 			}
 
-			return m_pChunk->template get<T>(m_row, type);
+			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			return m_pChunk->template get<T>(row, type);
 		}
 
 		template <typename T>
@@ -14093,7 +14094,8 @@ namespace gaia {
 					return world.template sparse_component_mut_value<FT>(type, m_entity);
 			}
 
-			return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
+			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			return const_cast<Chunk*>(m_pChunk)->template sset<T>(row, type);
 		}
 
 		template <typename T>
