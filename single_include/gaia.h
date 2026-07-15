@@ -5749,16 +5749,24 @@ namespace gaia {
 				}
 			}
 
-			//----------------------------------------------------------------------
-			// Byte offset of a member of SoA-organized data
-			//----------------------------------------------------------------------
-
+			//! Advances across one field array in SoA storage.
+			//! \param address Current field-array address.
+			//! \param alig Alignment shared by the field arrays.
+			//! \param itemSize Byte size of one field value.
+			//! \param cnt Number of values reserved in the field array.
+			//! \return Address immediately after the aligned field array.
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t alig, size_t itemSize, size_t cnt) {
 				const auto padding = mem::padding(address, alig);
 				address += padding + itemSize * cnt;
 				return address;
 			}
 
+			//! Advances across one typed field array in SoA storage.
+			//! \tparam T Field value type.
+			//! \tparam Alignment Alignment shared by the field arrays.
+			//! \param address Current field-array address.
+			//! \param cnt Number of values reserved in the field array.
+			//! \return Address immediately after the aligned field array.
 			template <typename T, size_t Alignment>
 			constexpr size_t get_aligned_byte_offset(uintptr_t address, size_t cnt) {
 				const auto padding = mem::padding<Alignment>(address);
@@ -5939,6 +5947,46 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_set<DataLayout::AoS, ValueType>: data_view_policy_aos_set<ValueType> {};
 
+		//! Type-erased policy for addressing one field value in SoA storage.
+		//! The field arrays use the same alignment and capacity rules as data_view_policy_soa.
+		struct data_view_policy_soa_erased {
+			//! Returns one read-only field value from type-erased SoA storage.
+			//! \param pData Base address of the SoA storage.
+			//! \param alignment Alignment shared by all field arrays.
+			//! \param fieldSizes Byte size of each field value in storage order.
+			//! \param fieldIdx Field array index.
+			//! \param row Value index inside the selected field array.
+			//! \param capacity Number of values reserved in every field array.
+			//! \return Pointer to the selected field value.
+			GAIA_NODISCARD static const uint8_t*
+			get(const void* pData, uint32_t alignment, std::span<const uint8_t> fieldSizes, uint32_t fieldIdx, uint32_t row,
+					uint32_t capacity) noexcept {
+				GAIA_ASSERT(pData != nullptr);
+				GAIA_ASSERT(alignment != 0 && fieldIdx < fieldSizes.size() && row < capacity);
+
+				auto address = (uintptr_t)pData;
+				GAIA_FOR(fieldIdx) {
+					address = detail::get_aligned_byte_offset(address, alignment, fieldSizes[i], capacity);
+				}
+				address += mem::padding(address, alignment);
+				return (const uint8_t*)address + ((uintptr_t)fieldSizes[fieldIdx] * row);
+			}
+
+			//! Returns one mutable field value from type-erased SoA storage.
+			//! \param pData Base address of the SoA storage.
+			//! \param alignment Alignment shared by all field arrays.
+			//! \param fieldSizes Byte size of each field value in storage order.
+			//! \param fieldIdx Field array index.
+			//! \param row Value index inside the selected field array.
+			//! \param capacity Number of values reserved in every field array.
+			//! \return Pointer to the selected field value.
+			GAIA_NODISCARD static uint8_t*
+			set(void* pData, uint32_t alignment, std::span<const uint8_t> fieldSizes, uint32_t fieldIdx, uint32_t row,
+					uint32_t capacity) noexcept {
+				return const_cast<uint8_t*>(get(pData, alignment, fieldSizes, fieldIdx, row, capacity));
+			}
+		};
+
 		//! View policy for accessing and storing data in the SoA way.
 		//! Good for SIMD processing.
 		//!
@@ -6083,10 +6131,8 @@ namespace gaia {
 			template <size_t... Ids>
 			GAIA_NODISCARD constexpr static size_t
 			get_aligned_byte_offset_seq(uintptr_t address, size_t cnt, std::index_sequence<Ids...> /*no_name*/) {
-				// Align the address for the first type
-				address = mem::align<Alignment>(address);
-				// Offset and align the rest
-				((address = mem::align<Alignment>(address + (sizeof(value_type<Ids>) * cnt))), ...);
+				((address = detail::get_aligned_byte_offset(address, Alignment, sizeof(value_type<Ids>), cnt)), ...);
+				address += mem::padding(address, Alignment);
 				return address;
 			}
 
@@ -23406,6 +23452,15 @@ namespace gaia {
 			Default = BinarySnapshot | RawFallback
 		};
 
+		//! Explicit presentation and import policy for runtime values in semantic JSON.
+		//! Numeric enum and bitmask payloads are the default; symbolic behavior must be requested.
+		struct RuntimeJsonPolicy final {
+			//! Emits enum constants by name and accepts named enum values during import.
+			bool symbolicEnums = false;
+			//! Emits bitmask values as arrays of flag names and accepts those arrays during import.
+			bool symbolicBitmasks = false;
+		};
+
 		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
 		enum class JsonDiagReason : uint8_t {
 			None,
@@ -23423,7 +23478,9 @@ namespace gaia {
 			MissingArchetypesSection,
 			MissingFormatField,
 			UnsupportedFormatVersion,
-			InvalidJson
+			InvalidJson,
+			UnknownRuntimeConstant,
+			InvalidRuntimeConstant
 		};
 
 		struct JsonDiagnostic {
@@ -23821,6 +23878,120 @@ namespace gaia {
 				return view.size() == literalLen && memcmp(view.data(), literal, literalLen) == 0;
 			}
 
+			//! Scans an integer JSON token without converting through floating point.
+			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through @a integerToken as
+			//! non-integers and are not consumed.
+			//! \param negative Receives whether the token has a leading minus sign.
+			//! \param magnitude Receives the unsigned magnitude, saturated to UINT64_MAX on overflow.
+			//! \param overflow Receives whether the magnitude exceeds UINT64_MAX.
+			//! \param adjusted Receives whether a negative exponent discarded non-zero fractional digits.
+			//! \param integerToken Receives whether the token represents an integer without a decimal point.
+			//! \return False when the input does not begin with a numeric token.
+			bool
+			parse_integer_token(bool& negative, uint64_t& magnitude, bool& overflow, bool& adjusted, bool& integerToken) {
+				ws();
+				negative = false;
+				magnitude = 0;
+				overflow = false;
+				adjusted = false;
+				integerToken = false;
+				if (m_it == nullptr || m_end == nullptr || m_it >= m_end)
+					return false;
+
+				const char* p = m_it;
+				if (*p == '-') {
+					negative = true;
+					++p;
+				}
+				if (p >= m_end || *p < '0' || *p > '9')
+					return false;
+				const char* digitsBegin = p;
+				if (*p == '0' && p + 1 < m_end && p[1] >= '0' && p[1] <= '9')
+					return false;
+
+				constexpr uint64_t MaxValue = (std::numeric_limits<uint64_t>::max)();
+				while (p < m_end && *p >= '0' && *p <= '9') {
+					const auto digit = (uint64_t)(*p - '0');
+					if (magnitude > (MaxValue - digit) / 10)
+						overflow = true;
+					else if (!overflow)
+						magnitude = magnitude * 10 + digit;
+					++p;
+				}
+				const char* digitsEnd = p;
+
+				if (p < m_end && *p == '.') {
+					const char* decimalIt = p + 1;
+					if (decimalIt >= m_end || *decimalIt < '0' || *decimalIt > '9')
+						return false;
+					while (decimalIt < m_end && *decimalIt >= '0' && *decimalIt <= '9')
+						++decimalIt;
+					if (decimalIt < m_end && (*decimalIt == 'e' || *decimalIt == 'E')) {
+						++decimalIt;
+						if (decimalIt < m_end && (*decimalIt == '+' || *decimalIt == '-'))
+							++decimalIt;
+						if (decimalIt >= m_end || *decimalIt < '0' || *decimalIt > '9')
+							return false;
+					}
+					return true;
+				}
+				if (p < m_end && (*p == 'e' || *p == 'E')) {
+					const char* exponentIt = p + 1;
+					bool negativeExponent = false;
+					if (exponentIt < m_end && (*exponentIt == '+' || *exponentIt == '-')) {
+						negativeExponent = *exponentIt == '-';
+						++exponentIt;
+					}
+					if (exponentIt >= m_end || *exponentIt < '0' || *exponentIt > '9')
+						return false;
+
+					uint32_t exponent = 0;
+					bool exponentOverflow = false;
+					while (exponentIt < m_end && *exponentIt >= '0' && *exponentIt <= '9') {
+						const auto digit = (uint32_t)(*exponentIt - '0');
+						if (exponent > (UINT32_MAX - digit) / 10)
+							exponentOverflow = true;
+						else if (!exponentOverflow)
+							exponent = exponent * 10 + digit;
+						++exponentIt;
+					}
+
+					if (negativeExponent && (exponentOverflow || exponent != 0)) {
+						const auto digitCount = (uint32_t)(digitsEnd - digitsBegin);
+						const auto keptCount = exponentOverflow || exponent >= digitCount ? 0U : digitCount - exponent;
+						magnitude = 0;
+						overflow = false;
+						for (uint32_t i = 0; i < keptCount; ++i) {
+							const auto digit = (uint64_t)(digitsBegin[i] - '0');
+							if (magnitude > (MaxValue - digit) / 10)
+								overflow = true;
+							else if (!overflow)
+								magnitude = magnitude * 10 + digit;
+						}
+						for (uint32_t i = keptCount; i < digitCount; ++i)
+							adjusted = adjusted || digitsBegin[i] != '0';
+					} else if (exponentOverflow || exponent > 19) {
+						overflow = magnitude != 0;
+					} else {
+						while (exponent-- > 0) {
+							if (magnitude > MaxValue / 10) {
+								overflow = true;
+								break;
+							}
+							magnitude *= 10;
+						}
+					}
+					p = exponentIt;
+				}
+
+				if (overflow)
+					magnitude = MaxValue;
+
+				integerToken = true;
+				m_it = p;
+				return true;
+			}
+
 			bool parse_number(double& value) {
 				ws();
 				if (m_it == nullptr || m_end == nullptr || m_it >= m_end)
@@ -23923,6 +24094,53 @@ namespace gaia {
 
 			template <typename TInt>
 			inline bool read_runtime_field_json_int(ser_json& reader, uint8_t* pFieldData, uint32_t size, bool& ok) {
+				bool negative = false;
+				uint64_t magnitude = 0;
+				bool overflow = false;
+				bool adjusted = false;
+				bool integerToken = false;
+				if (!reader.parse_integer_token(negative, magnitude, overflow, adjusted, integerToken))
+					return false;
+
+				if (integerToken) {
+					if (adjusted)
+						ok = false;
+					TInt value = 0;
+					if constexpr (std::is_signed_v<TInt>) {
+						constexpr auto MaxPositive = (uint64_t)(std::numeric_limits<TInt>::max)();
+						constexpr auto MaxNegative = MaxPositive + 1;
+						if (negative) {
+							if (overflow || magnitude > MaxNegative) {
+								value = (std::numeric_limits<TInt>::lowest)();
+								ok = false;
+							} else if (magnitude == MaxNegative) {
+								value = (std::numeric_limits<TInt>::lowest)();
+							} else {
+								value = (TInt) - (int64_t)magnitude;
+							}
+						} else if (overflow || magnitude > MaxPositive) {
+							value = (std::numeric_limits<TInt>::max)();
+							ok = false;
+						} else {
+							value = (TInt)magnitude;
+						}
+					} else {
+						constexpr auto MaxValue = (uint64_t)(std::numeric_limits<TInt>::max)();
+						if (negative) {
+							if (overflow || magnitude != 0)
+								ok = false;
+						} else if (overflow || magnitude > MaxValue) {
+							value = (std::numeric_limits<TInt>::max)();
+							ok = false;
+						} else {
+							value = (TInt)magnitude;
+						}
+					}
+
+					copy_field_bytes(pFieldData, size, value);
+					return true;
+				}
+
 				double d = 0.0;
 				if (!reader.parse_number(d))
 					return false;
@@ -23943,6 +24161,13 @@ namespace gaia {
 				if (clamped < minVal) {
 					clamped = minVal;
 					ok = false;
+				} else if constexpr (sizeof(TInt) == sizeof(uint64_t)) {
+					if (clamped >= maxVal) {
+						const TInt v = (std::numeric_limits<TInt>::max)();
+						copy_field_bytes(pFieldData, size, v);
+						ok = false;
+						return true;
+					}
 				} else if (clamped > maxVal) {
 					clamped = maxVal;
 					ok = false;
@@ -29935,7 +30160,8 @@ namespace gaia {
 			DataStorageType storageType = DataStorageType::Table;
 			//! Number of SoA elements, 0 means AoS.
 			uint32_t soa = 0;
-			//! Per-element SoA sizes when \ref soa is non-zero.
+			//! Per-element SoA sizes when @a soa is non-zero. The array must contain @a soa non-zero entries and
+			//! their sum must not exceed @a size.
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};
@@ -30321,6 +30547,8 @@ namespace gaia {
 			using FuncSwap = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
 			//! Compares two component values for equality.
 			using FuncCmp = bool(const void*, const void*);
+			//! Creates the typed sparse store selected by compile-time component registration.
+			using FuncCreateSparseStore = void(World&, Entity);
 
 			//! Saves a contiguous range of component values through a serializer.
 			using FuncSave = void(ser::serializer&, const void*, uint32_t, uint32_t, uint32_t);
@@ -30368,6 +30596,8 @@ namespace gaia {
 			FuncSwap* func_swap{};
 			//! Equality callback for this component type.
 			FuncCmp* func_cmp{};
+			//! Typed sparse-store factory. Null for runtime-created components.
+			mutable FuncCreateSparseStore* func_create_sparse_store{};
 			//! Serialization callback for saving component values.
 			FuncSave* func_save{};
 			//! Serialization callback for loading component values.
@@ -30413,6 +30643,57 @@ namespace gaia {
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
 			cnt::darray<RuntimeConstant> m_constants;
 
+			//! Returns the physical SoA field-array cardinality for this component.
+			//! \param capacity Capacity of the containing chunk.
+			//! \return One for unique components, otherwise @a capacity.
+			GAIA_NODISCARD uint32_t soa_capacity(uint32_t capacity) const noexcept {
+				return entity.kind() == EntityKind::EK_Uni ? 1U : capacity;
+			}
+
+			//! Moves the bytes of one type-erased SoA value between storage blocks.
+			//! \param pDst Destination SoA storage base.
+			//! \param pSrc Source SoA storage base.
+			//! \param idxDst Destination value index.
+			//! \param idxSrc Source value index.
+			//! \param capDst Number of values reserved in each destination field array.
+			//! \param capSrc Number of values reserved in each source field array.
+			void move_soa_element(
+					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t capDst,
+					uint32_t capSrc) const noexcept {
+				capDst = soa_capacity(capDst);
+				capSrc = soa_capacity(capSrc);
+				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
+				GAIA_FOR(comp.soa()) {
+					auto* pD = mem::data_view_policy_soa_erased::set(pDst, comp.alig(), fieldSizes, i, idxDst, capDst);
+					const auto* pS = mem::data_view_policy_soa_erased::get(pSrc, comp.alig(), fieldSizes, i, idxSrc, capSrc);
+					memmove(pD, pS, soaSizes[i]);
+				}
+			}
+
+			//! Swaps the bytes of two type-erased SoA values between storage blocks.
+			//! \param pLeft Left SoA storage base.
+			//! \param pRight Right SoA storage base.
+			//! \param idxLeft Left value index.
+			//! \param idxRight Right value index.
+			//! \param capLeft Number of values reserved in each left field array.
+			//! \param capRight Number of values reserved in each right field array.
+			void swap_soa_elements(
+					void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t capLeft,
+					uint32_t capRight) const noexcept {
+				capLeft = soa_capacity(capLeft);
+				capRight = soa_capacity(capRight);
+				const std::span<const uint8_t> fieldSizes{soaSizes, comp.soa()};
+				GAIA_FOR(comp.soa()) {
+					auto* pL = mem::data_view_policy_soa_erased::set(pLeft, comp.alig(), fieldSizes, i, idxLeft, capLeft);
+					auto* pR = mem::data_view_policy_soa_erased::set(pRight, comp.alig(), fieldSizes, i, idxRight, capRight);
+					GAIA_FOR_(soaSizes[i], j) {
+						const auto value = pL[j];
+						pL[j] = pR[j];
+						pR[j] = value;
+					}
+				}
+			}
+
 			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
 			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
@@ -30433,8 +30714,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void
 			ctor_move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -30444,7 +30725,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -30457,8 +30742,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void ctor_copy(
 					void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -30468,7 +30753,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -30488,8 +30777,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void
 			copy(void* pDst, const void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
@@ -30499,7 +30788,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -30512,8 +30805,8 @@ namespace gaia {
 			//! \param pSrc Source component storage base pointer.
 			//! \param idxDst Destination value index.
 			//! \param idxSrc Source value index.
-			//! \param sizeDst Destination value stride in bytes.
-			//! \param sizeSrc Source value stride in bytes.
+			//! \param sizeDst Destination storage capacity.
+			//! \param sizeSrc Source storage capacity.
 			void move(void* pDst, void* pSrc, uint32_t idxDst, uint32_t idxSrc, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pSrc != nullptr && pDst != nullptr);
 				GAIA_ASSERT(pSrc != pDst || idxSrc != idxDst);
@@ -30522,7 +30815,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					move_soa_element(pDst, pSrc, idxDst, idxSrc, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* pD = (uint8_t*)pDst + ((uintptr_t)comp.size() * idxDst);
@@ -30535,8 +30832,8 @@ namespace gaia {
 			//! \param pRight Right component storage base pointer.
 			//! \param idxLeft Left value index.
 			//! \param idxRight Right value index.
-			//! \param sizeDst Left value stride in bytes.
-			//! \param sizeSrc Right value stride in bytes.
+			//! \param sizeDst Left storage capacity.
+			//! \param sizeSrc Right storage capacity.
 			void
 			swap(void* pLeft, void* pRight, uint32_t idxLeft, uint32_t idxRight, uint32_t sizeDst, uint32_t sizeSrc) const {
 				GAIA_ASSERT(pLeft != nullptr && pRight != nullptr);
@@ -30545,7 +30842,11 @@ namespace gaia {
 					return;
 				}
 
-				if (comp.soa() != 0 || comp.size() == 0)
+				if (comp.soa() != 0) {
+					swap_soa_elements(pLeft, pRight, idxLeft, idxRight, sizeDst, sizeSrc);
+					return;
+				}
+				if (comp.size() == 0)
 					return;
 
 				auto* l = (uint8_t*)pLeft + ((uintptr_t)comp.size() * idxLeft);
@@ -30947,7 +31248,19 @@ namespace gaia {
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
 				GAIA_ASSERT(desc.size < Component::MaxComponentSizeInBytes);
 				GAIA_ASSERT((desc.size == 0 && desc.alig == 0) || (desc.alig > 0 && desc.alig < Component::MaxAlignment));
+				GAIA_ASSERT(desc.alig == 0 || (desc.alig & (desc.alig - 1)) == 0);
 				GAIA_ASSERT(desc.soa <= meta::StructToTupleMaxTypes);
+				GAIA_ASSERT(desc.soa == 0 || desc.pSoaSizes != nullptr);
+#if GAIA_ASSERT_ENABLED
+				if (desc.soa > 0) {
+					uint32_t soaSize = 0;
+					GAIA_FOR(desc.soa) {
+						GAIA_ASSERT(desc.pSoaSizes[i] != 0);
+						soaSize += desc.pSoaSizes[i];
+					}
+					GAIA_ASSERT(soaSize <= desc.size);
+				}
+#endif
 
 				auto* cci = new ComponentCacheItem();
 				cci->entity = entity;
@@ -30956,7 +31269,7 @@ namespace gaia {
 															? desc.hashLookup
 															: ComponentLookupHash{core::calculate_hash64(desc.name.data(), desc.name.size())};
 
-				if (desc.soa > 0 && desc.pSoaSizes != nullptr) {
+				if (desc.soa > 0) {
 					GAIA_FOR(desc.soa) cci->soaSizes[i] = desc.pSoaSizes[i];
 				}
 
@@ -32741,7 +33054,7 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.count);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_raw<T>(comp_ptr(compIdx), capacity())[row];
-				else if constexpr (entity_kind_v<T> == EntityKind::EK_Gen) {
+				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen) {
 					if constexpr (sizeof(RetValueType) <= 8)
 						return view_raw<T>(comp_ptr(compIdx, row), 1)[0];
 					else
@@ -32761,7 +33074,7 @@ namespace gaia {
 				GAIA_ASSERT(row < m_header.capacity);
 				if constexpr (mem::is_soa_layout_v<U>)
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), capacity())[row];
-				else if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+				else if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen)
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, row), 1)[0];
 				else
 					return view_mut_raw<T>(comp_ptr_mut_gen<WorldVersionUpdateWanted>(compIdx, 0), 1)[0];
@@ -33875,11 +34188,12 @@ namespace gaia {
 			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				// Update the world version
 				::gaia::ecs::update_version(m_header.worldVersion);
@@ -33939,11 +34253,12 @@ namespace gaia {
 			decltype(auto) sset(uint16_t row, Entity type) {
 				static_assert(core::is_raw_v<T>);
 
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Set providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Set providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 
 				GAIA_ASSERT(row < m_header.capacity);
 				return comp_mut_idx<T, false>(row, compIdx);
@@ -33962,7 +34277,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
 				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+						actual_type_t<T>::Kind == EntityKind::EK_Gen,
+						"Get providing a row can only be used with generic components");
 
 				return comp_inter<T>(row);
 			}
@@ -33974,7 +34290,8 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get_idx(uint16_t row, uint32_t compIdx) const {
 				static_assert(
-						entity_kind_v<T> == EntityKind::EK_Gen, "Get providing a row can only be used with generic components");
+						actual_type_t<T>::Kind == EntityKind::EK_Gen,
+						"Get providing a row can only be used with generic components");
 
 				return comp_inter_idx<T>(row, compIdx);
 			}
@@ -33986,12 +34303,13 @@ namespace gaia {
 			//! \warning It is expected the component is present. Undefined behavior otherwise.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row, Entity type) const {
-				GAIA_ASSERT2(
-						type.kind() == EntityKind::EK_Gen || row == 0,
-						"Get providing a row can only be used with generic components");
-				GAIA_ASSERT(type.kind() == entity_kind_v<T>);
 				GAIA_ASSERT(row < m_header.count);
 				const uint32_t compIdx = comp_idx(type);
+				GAIA_ASSERT2(
+						actual_type_t<T>::Kind == EntityKind::EK_Gen || row == 0,
+						"Get providing a row can only be used with generic components");
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem != nullptr);
+				GAIA_ASSERT(m_records.pRecords[compIdx].pItem->entity.kind() == actual_type_t<T>::Kind);
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
@@ -34002,7 +34320,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
 				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
+						actual_type_t<T>::Kind != EntityKind::EK_Gen,
 						"Get not providing a row can only be used with non-generic components");
 
 				return comp_inter<T>(0);
@@ -34014,7 +34332,7 @@ namespace gaia {
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get_idx(uint32_t compIdx) const {
 				static_assert(
-						entity_kind_v<T> != EntityKind::EK_Gen,
+						actual_type_t<T>::Kind != EntityKind::EK_Gen,
 						"Get not providing a row can only be used with non-generic components");
 
 				return comp_inter_idx<T>(0, compIdx);
@@ -34746,8 +35064,7 @@ namespace gaia {
 						currOff = mem::align(currOff, alig);
 						ofs[compIdx] = (ChunkDataOffset)currOff;
 
-						// Make sure the following component list is properly aligned
-						currOff += comp.size() * count;
+						currOff = pItems[i]->calc_new_mem_offset(currOff, count);
 					}
 				}
 			}
@@ -35673,6 +35990,10 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
+		//! Finishes a cursor write through the owning world.
+		//! \param world World owning the component value.
+		//! \param term Written component or relationship id.
+		//! \param entity Entity owning the written value.
 		void world_finish_write(World& world, Entity term, Entity entity);
 
 		//! Flags describing the state of a raw component byte view.
@@ -35730,6 +36051,34 @@ namespace gaia {
 			}
 		};
 		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
+
+		//! Resolves raw read-only bytes for iterator entity-backed access.
+		//! \param world World containing the component value.
+		//! \param entity Entity owning or inheriting the component value.
+		//! \param component Runtime component entity or exact relationship pair.
+		//! \return Raw payload view, or an invalid view when unavailable.
+		ComponentRawView world_get_raw(const World& world, Entity entity, Entity component);
+		//! Resolves raw mutable bytes for iterator entity-backed access.
+		//! \param world World containing the component value.
+		//! \param entity Entity directly owning the component value.
+		//! \param component Runtime component entity or exact relationship pair.
+		//! \return Mutable payload view, or an invalid view when unavailable.
+		ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component);
+
+		//! Resolves one read-only SoA field for cursor traversal.
+		//! \param world World containing the component value.
+		//! \param entity Entity owning or inheriting the component value.
+		//! \param component Runtime component entity.
+		//! \param fieldIdx SoA field array index.
+		//! \return Read-only field view, or an invalid view when unavailable.
+		ComponentRawView world_get_raw_field(const World& world, Entity entity, Entity component, uint32_t fieldIdx);
+		//! Resolves one mutable SoA field for cursor traversal.
+		//! \param world World containing the component value.
+		//! \param entity Entity directly owning the component value.
+		//! \param component Runtime component entity.
+		//! \param fieldIdx SoA field array index.
+		//! \return Mutable field view, or an invalid view when unavailable.
+		ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx);
 
 		//! Result status for ComponentCursor operations.
 		enum class CursorStatus : uint8_t { Ok, Invalid, ReadOnly, TypeMismatch, OutOfRange };
@@ -35849,6 +36198,44 @@ namespace gaia {
 				cursor.m_stack[0].elemCount = 1;
 				cursor.m_stack[0].writable = true;
 				cursor.m_valid = true;
+				return cursor;
+			}
+
+			//! Creates a read-only cursor over a non-contiguous SoA component value.
+			//! \param world World owning the SoA storage.
+			//! \param components Component metadata registry used for field/type lookup.
+			//! \param entity Entity owning the resolved component value.
+			//! \param component Component/type entity represented by the cursor.
+			//! \param size Logical AoS value size represented by the SoA fields.
+			//! \return Cursor positioned at the non-contiguous root component scope.
+			GAIA_NODISCARD static ComponentCursor
+			from_soa(const World& world, const ComponentCache& components, Entity entity, Entity component, uint32_t size) {
+				ComponentCursor cursor{};
+				cursor.m_readWorld = &world;
+				cursor.m_components = &components;
+				cursor.m_entity = entity;
+				cursor.m_rootType = component;
+				cursor.m_stack[0].type = component;
+				cursor.m_stack[0].size = size;
+				cursor.m_stack[0].elemSize = size;
+				cursor.m_stack[0].elemCount = 1;
+				cursor.m_rootSoa = true;
+				cursor.m_valid = true;
+				return cursor;
+			}
+
+			//! Creates a mutable cursor over a non-contiguous SoA component value.
+			//! \param world World owning the SoA storage.
+			//! \param components Component metadata registry used for field/type lookup.
+			//! \param entity Entity owning the component value.
+			//! \param component Component/type entity represented by the cursor.
+			//! \param size Logical AoS value size represented by the SoA fields.
+			//! \return Cursor positioned at the non-contiguous writable root component scope.
+			GAIA_NODISCARD static ComponentCursor
+			from_soa(World& world, const ComponentCache& components, Entity entity, Entity component, uint32_t size) {
+				auto cursor = from_soa((const World&)world, components, entity, component, size);
+				cursor.m_world = &world;
+				cursor.m_stack[0].writable = true;
 				return cursor;
 			}
 
@@ -35973,7 +36360,7 @@ namespace gaia {
 					return field_opaque(index);
 
 				const RuntimeField* pField = pItem->field(index);
-				return pField != nullptr ? descend(*pField) : false;
+				return pField != nullptr ? descend(*pField, index) : false;
 			}
 
 			//! Descends into the reflected field named @a name.
@@ -35990,7 +36377,14 @@ namespace gaia {
 					return field_opaque(name);
 
 				const RuntimeField* pField = pItem->field(name);
-				return pField != nullptr ? descend(*pField) : false;
+				if (pField == nullptr)
+					return false;
+
+				uint32_t index = 0;
+				const auto fieldCount = pItem->field_count();
+				while (index < fieldCount && pItem->field(index) != pField)
+					++index;
+				return index < fieldCount && descend(*pField, index);
 			}
 
 			//! Descends into element @a index of the current fixed inline or named array scope.
@@ -36407,12 +36801,17 @@ namespace gaia {
 			};
 
 			World* m_world = nullptr;
+			//! World used to resolve read-only fields for a non-contiguous SoA root.
+			const World* m_readWorld = nullptr;
 			const ComponentCache* m_components = nullptr;
+			//! Entity owning the root component value.
 			Entity m_entity = EntityBad;
 			Entity m_rootType = EntityBad;
 			Scope m_stack[MaxDepth]{};
 			uint32_t m_depth = 0;
 			bool m_valid = false;
+			//! True when the root component is represented by separate SoA field arrays.
+			bool m_rootSoa = false;
 
 			GAIA_NODISCARD const ComponentCacheItem* current_item() const noexcept {
 				if (!m_valid || m_components == nullptr)
@@ -36597,7 +36996,7 @@ namespace gaia {
 				return {CursorStatus::Ok};
 			}
 
-			bool descend(const RuntimeField& field) noexcept {
+			bool descend(const RuntimeField& field, uint32_t fieldIdx = UINT32_MAX) noexcept {
 				if (!m_valid || m_components == nullptr || m_depth + 1 >= MaxDepth)
 					return false;
 
@@ -36638,10 +37037,28 @@ namespace gaia {
 				next.opaqueValueDepth = m_stack[m_depth].opaqueValueDepth;
 				next.opaqueToken = m_stack[m_depth].opaqueToken;
 				next.writable = m_stack[m_depth].writable;
-				if (m_stack[m_depth].data != nullptr)
-					next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
-				if (m_stack[m_depth].mutData != nullptr)
-					next.mutData = (uint8_t*)m_stack[m_depth].mutData + field.offset;
+				if (m_rootSoa && m_depth == 0) {
+					if (fieldIdx == UINT32_MAX || m_readWorld == nullptr)
+						return false;
+
+					if (m_world != nullptr) {
+						const auto view = world_mut_raw_field(*m_world, m_entity, m_rootType, fieldIdx);
+						if (!view.valid() || view.size != next.size)
+							return false;
+						next.data = view.data;
+						next.mutData = view.data;
+					} else {
+						const auto view = world_get_raw_field(*m_readWorld, m_entity, m_rootType, fieldIdx);
+						if (!view.valid() || view.size != next.size)
+							return false;
+						next.data = view.data;
+					}
+				} else {
+					if (m_stack[m_depth].data != nullptr)
+						next.data = (const uint8_t*)m_stack[m_depth].data + field.offset;
+					if (m_stack[m_depth].mutData != nullptr)
+						next.mutData = (uint8_t*)m_stack[m_depth].mutData + field.offset;
+				}
 
 				m_stack[++m_depth] = next;
 				return true;
@@ -37273,6 +37690,13 @@ namespace gaia {
 				return is_variable(EntityId(term.id.id())) || is_variable(EntityId(term.id.gen()));
 
 			return is_variable(EntityId(term.id.id()));
+		}
+
+		//! Checks whether a query term may map to a column owned by the currently iterated archetype.
+		//! \param term Query term.
+		//! \return True for non-variable self-source terms without traversal.
+		GAIA_NODISCARD inline bool query_term_maps_to_current_archetype(const QueryTerm& term) {
+			return term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term);
 		}
 
 		//! Returns whether a term shape can resolve through inherited-id matching.
@@ -38411,7 +38835,7 @@ namespace gaia {
 				uint32_t offset = 0;
 			};
 
-			//! Read-only raw byte view for a directly chunk-backed AoS iterator term.
+			//! Read-only raw byte view over one contiguous directly chunk-backed iterator value range.
 			struct RawTermViewGet {
 				const uint8_t* pData = nullptr;
 				uint32_t elemSize = 0;
@@ -38424,6 +38848,7 @@ namespace gaia {
 						return {};
 					if (elemSize == 0)
 						return {nullptr, 0, ComponentRawViewFlag_Valid};
+
 					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
 				}
 
@@ -38445,7 +38870,50 @@ namespace gaia {
 						return {};
 					if (elemSize == 0)
 						return {nullptr, 0, ComponentRawViewFlag_Valid};
+
 					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			//! Read-only raw byte view resolved by entity id.
+			//! Used when runtime payloads may live outside the current chunk column.
+			struct RawTermViewGetEntity {
+				const Entity* pEntities = nullptr;
+				const World* pWorld = nullptr;
+				Entity component = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD ComponentRawView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
+						return {};
+
+					return world_get_raw(*pWorld, pEntities[idx], component);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			//! Mutable raw byte view resolved by entity id.
+			//! Used when runtime payloads may live outside the current chunk column.
+			struct RawTermViewSetEntity {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				Entity component = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD ComponentRawMutView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
+						return {};
+
+					return world_mut_raw(*pWorld, pEntities[idx], component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -39439,9 +39907,21 @@ namespace gaia {
 					return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), writeIm);
 				}
 
+				//! Returns an empty mutable AoS fallback view after access or tracking validation fails.
+				template <typename U>
+				GAIA_NODISCARD static auto entity_view_set_empty(bool writeIm) {
+					return EntityTermViewSet<U>::entity(nullptr, nullptr, EntityBad, 0, writeIm);
+				}
+
 				template <typename U>
 				GAIA_NODISCARD auto entity_soa_view_set(Entity termId, bool writeIm) {
 					return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), writeIm};
+				}
+
+				//! Returns an empty mutable SoA fallback view after access or tracking validation fails.
+				template <typename U>
+				GAIA_NODISCARD static auto entity_soa_view_set_empty(bool writeIm) {
+					return SoATermViewSet<U>{nullptr, 0, nullptr, nullptr, EntityBad, 0, 0, writeIm};
 				}
 
 				void set_group_id(GroupId groupId) {
@@ -39505,24 +39985,55 @@ namespace gaia {
 					m_touchedCompIndices[m_touchedCompCnt++] = compIdx;
 				}
 
-				void touch_term(Entity term) {
+				GAIA_NODISCARD bool touch_term(Entity term) {
 					GAIA_ASSERT(term != EntityBad);
 					GAIA_FOR(m_touchedTermCnt) {
 						if (m_touchedTerms[i] == term)
-							return;
+							return true;
 					}
 
-					GAIA_ASSERT(m_touchedTermCnt < ChunkHeader::MAX_COMPONENTS);
+					if (m_touchedTermCnt >= ChunkHeader::MAX_COMPONENTS)
+						return false;
+
 					m_touchedTerms[m_touchedTermCnt++] = term;
+					return true;
 				}
 
-				void touch_term_desc(const IterTermDesc& desc) {
+				GAIA_NODISCARD bool touch_term_desc(const IterTermDesc& desc) {
 					if (desc.isEntity)
-						return;
+						return true;
 					if (desc.usesSparseStorage)
-						touch_term(desc.termId);
-					else
-						touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
+						return touch_term(desc.termId);
+					touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
+					return true;
+				}
+
+				//! Tracks a raw component write through the same storage identity used by direct iterator views.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when the component was tracked.
+				GAIA_NODISCARD bool touch_raw_component(Entity component) {
+					if (!world_component_uses_sparse_storage(*world(), component)) {
+						const auto compIdx = core::get_index(m_pChunk->ids_view(), component);
+						if (compIdx != BadIndex) {
+							touch_comp_idx((uint8_t)compIdx);
+							return true;
+						}
+					}
+
+					return touch_term(component);
+				}
+
+				//! Checks direct ownership for every currently iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when every row exposes mutable payload storage.
+				GAIA_NODISCARD bool owns_raw_component(Entity component) {
+					const auto* pEntities = entity_snapshot();
+					GAIA_FOR(size()) {
+						if (!world_mut_raw(*world(), pEntities[i], component).valid())
+							return false;
+					}
+
+					return true;
 				}
 
 				GAIA_NODISCARD RawTermViewGet raw_term_view(uint32_t termIdx) const {
@@ -39546,6 +40057,74 @@ namespace gaia {
 					const auto row = (uint32_t)(from() * (1U - (uint32_t)term.kind()));
 					const auto* pData = elemSize != 0 ? m_pChunk->comp_ptr(compIdx, row) : nullptr;
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
+				}
+
+				//! Resolves one directly stored generic table runtime SoA field.
+				//! Exact relationship pairs use the same contiguous chunk storage contract as component terms.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \param compIdx Receives the chunk component index.
+				//! \param pItem Receives the component metadata.
+				//! \return True when the term and field support direct iterator access.
+				GAIA_NODISCARD bool raw_term_field_info(
+						uint32_t termIdx, uint32_t fieldIdx, uint8_t& compIdx, const ComponentCacheItem*& pItem) const {
+					if (m_pCompIndices == nullptr || m_pChunk == nullptr || size() == 0)
+						return false;
+
+					compIdx = m_pCompIndices[termIdx];
+					if (compIdx == 0xFF)
+						return false;
+
+					const auto recs = m_pChunk->comp_rec_view();
+					if (compIdx >= recs.size())
+						return false;
+
+					const auto& rec = recs[compIdx];
+					pItem = rec.pItem;
+					return pItem != nullptr && pItem->entity.kind() == EntityKind::EK_Gen &&
+								 rec.comp.storage_type() == DataStorageType::Table && rec.comp.soa() != 0 &&
+								 fieldIdx < rec.comp.soa() && pItem->soaSizes[fieldIdx] != 0;
+				}
+
+				//! Builds a read-only raw view over one directly stored runtime SoA field array.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous field view, or an empty view when the term or field is unsupported.
+				GAIA_NODISCARD RawTermViewGet raw_term_field_view(uint32_t termIdx, uint32_t fieldIdx) const {
+					uint8_t compIdx;
+					const ComponentCacheItem* pItem;
+					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
+						return {};
+
+					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
+					const auto* pData = mem::data_view_policy_soa_erased::get(
+							m_pChunk->comp_ptr(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
+					return {pData, pItem->soaSizes[fieldIdx], size(), ComponentRawViewFlag_Valid};
+				}
+
+				//! Builds a mutable raw view over one directly stored runtime SoA field array.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \param trackWrite True to finish writes after the iterator callback.
+				//! \return Contiguous mutable field view, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet raw_term_field_view_mut(uint32_t termIdx, uint32_t fieldIdx, bool trackWrite) {
+					uint8_t compIdx;
+					const ComponentCacheItem* pItem;
+					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
+						return {};
+
+					if (trackWrite) {
+						touch_comp_idx(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
+					}
+
+					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
+					auto* pData = mem::data_view_policy_soa_erased::set(
+							m_pChunk->comp_ptr_mut(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
+					return {pData, pItem->soaSizes[fieldIdx], size(), ComponentRawViewFlag_Valid};
 				}
 
 				GAIA_NODISCARD RawTermViewSet raw_term_view_mut(uint32_t termIdx, bool trackWrite) {
@@ -39577,11 +40156,61 @@ namespace gaia {
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
 				}
 
+				//! Builds a mutable entity-resolved raw view.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \param trackWrite True to finish writes after the iterator callback.
+				//! \return Entity-resolved mutable view, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity raw_term_view_any_mut(Entity component, bool trackWrite) {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
+						return {};
+
+					if (!owns_raw_component(component))
+						return {};
+					if (trackWrite && !touch_raw_component(component))
+						return {};
+
+					const auto* pEntities = entity_snapshot();
+					return {pEntities, world(), component, size()};
+				}
+
 				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw view. Rows return invalid payloads when the term is unsupported.
 				GAIA_NODISCARD RawTermViewGet view_raw(uint32_t termIdx) const {
 					return raw_term_view(termIdx);
+				}
+
+				//! Returns a read-only raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
+				//! Field-address resolution scans the preceding runtime field sizes once when the view is created.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewGet view_raw_field(uint32_t termIdx, uint32_t fieldIdx) const {
+					return raw_term_field_view(termIdx, fieldIdx);
+				}
+
+				//! Returns a mutable raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
+				//! Writes are finished after the iterator callback through normal touched-write tracking.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet view_raw_field_mut(uint32_t termIdx, uint32_t fieldIdx) {
+					return raw_term_field_view_mut(termIdx, fieldIdx, true);
+				}
+
+				//! Returns a mutable runtime SoA field view without marking the term modified.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
+				//! Pair with modify_raw(termIdx) when set hooks or `OnSet` observers should run.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet sview_raw_field_mut(uint32_t termIdx, uint32_t fieldIdx) {
+					return raw_term_field_view_mut(termIdx, fieldIdx, false);
 				}
 
 				//! Returns a mutable raw byte view for a directly chunk-backed AoS component or exact pair query term.
@@ -39600,6 +40229,41 @@ namespace gaia {
 					return raw_term_view_mut(termIdx, false);
 				}
 
+				//! Returns a read-only raw byte view resolved separately for each iterated entity.
+				//! Use this for sparse or inherited AoS runtime payloads that are not contiguous in the current chunk.
+				//! \warning @a component must be present on every iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
+						return {};
+
+					const auto* pEntities = m_pChunk->entity_view().data() + from();
+					if (!world_get_raw(*world(), pEntities[0], component).valid())
+						return {};
+
+					return {pEntities, world(), component, size()};
+				}
+
+				//! Returns a mutable raw byte view resolved separately for each iterated entity.
+				//! Writes are finished after the iterator callback through normal touched-write tracking.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity view_raw_any_mut(Entity component) {
+					return raw_term_view_any_mut(component, true);
+				}
+
+				//! Returns a mutable entity-resolved raw byte view without marking the component modified.
+				//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity sview_raw_any_mut(Entity component) {
+					return raw_term_view_any_mut(component, false);
+				}
+
 				//! Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.
 				//! \param termIdx Query term index.
 				void modify_raw(uint32_t termIdx) {
@@ -39610,12 +40274,27 @@ namespace gaia {
 					if (compIdx == 0xFF || compIdx >= m_pChunk->comp_rec_view().size())
 						return;
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
-					if (rec.comp.soa() != 0)
-						return;
+					if (rec.comp.soa() != 0) {
+						uint8_t fieldCompIdx;
+						const ComponentCacheItem* pItem;
+						if (!raw_term_field_info(termIdx, 0, fieldCompIdx, pItem))
+							return;
+					}
 
 					touch_comp_idx(compIdx);
+				}
+
+				//! Marks an entity-resolved raw component view as modified.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when the component was eligible and tracked.
+				GAIA_NODISCARD bool modify_raw(Entity component) {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0 || !owns_raw_component(component))
+						return false;
+
+					return touch_raw_component(component);
 				}
 
 				//! Returns a read-only entity or component view that can resolve sparse storage or inherited data.
@@ -40273,7 +40952,9 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>) {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-					self.touch_term_desc(desc);
+					const bool tracked = self.touch_term_desc(desc);
+					GAIA_ASSERT(tracked);
+					(void)tracked;
 					if (self.m_writeIm)
 						return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
@@ -40282,11 +40963,13 @@ namespace gaia {
 					const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
 					if (id != EntityBad) {
-						self.touch_term(id);
+						if (!self.touch_term(id))
+							return self.template entity_view_set_empty<U>(self.m_writeIm);
 						return self.template entity_view_set<U>(id, self.m_writeIm);
 					}
 
-					self.touch_term_desc(desc);
+					if (!self.touch_term_desc(desc))
+						return self.template entity_view_set_empty<U>(self.m_writeIm);
 					auto* pData =
 							reinterpret_cast<U*>((self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																									 : self.m_pChunk->template sview_mut<T>(self.from(), self.to()))
@@ -40300,12 +40983,16 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 				const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-				self.touch_term_desc(desc);
+				const bool tracked = self.touch_term_desc(desc);
 				if constexpr (mem::is_soa_layout_v<U>) {
+					if (!tracked)
+						return SoATermViewSetPointer<U>{};
 					auto view = self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																		 : self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 					return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), self.from(), self.size()};
 				} else {
+					if (!tracked)
+						return EntityTermViewSetPointer<U>{};
 					auto* pData =
 							reinterpret_cast<U*>((self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																									 : self.m_pChunk->template sview_mut<T>(self.from(), self.to()))
@@ -40344,7 +41031,8 @@ namespace gaia {
 					if (compIdx == 0xFF) {
 						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						GAIA_ASSERT(desc.termId != EntityBad);
-						self.touch_term(desc.termId);
+						if (!self.touch_term(desc.termId))
+							return self.template entity_soa_view_set_empty<U>(self.m_writeIm);
 						return self.template entity_soa_view_set<U>(desc.termId, self.m_writeIm);
 					}
 
@@ -40365,13 +41053,15 @@ namespace gaia {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
 					if (desc.usesSparseStorage) {
-						self.touch_term(desc.termId);
+						if (!self.touch_term(desc.termId))
+							return self.template entity_view_set_empty<U>(self.m_writeIm);
 						return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
 					}
 
 					if (compIdx == 0xFF) {
 						GAIA_ASSERT(desc.termId != EntityBad);
-						self.touch_term(desc.termId);
+						if (!self.touch_term(desc.termId))
+							return self.template entity_view_set_empty<U>(self.m_writeIm);
 						return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
 					}
 					GAIA_ASSERT(compIdx < self.m_pChunk->comp_rec_view().size());
@@ -40516,7 +41206,7 @@ namespace gaia {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				verify_comp<T>();
 
-				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
+				if constexpr (actual_type_t<T>::Kind == EntityKind::EK_Gen)
 					return m_pChunk->template get<T>(m_row);
 				else
 					return m_pChunk->template get<T>();
@@ -40532,6 +41222,12 @@ namespace gaia {
 			//! \param component Runtime component entity.
 			//! \return Raw payload view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawView get_raw(Entity component) const;
+
+			//! Returns one read-only SoA field value for a runtime component on this entity.
+			//! \param component Runtime component entity.
+			//! \param fieldIdx SoA field array index.
+			//! \return Raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw_field(Entity component, uint32_t fieldIdx) const;
 		};
 	} // namespace ecs
 } // namespace gaia
@@ -40556,7 +41252,8 @@ namespace gaia {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				GAIA_ASSERT(m_entity != EntityBad);
 				GAIA_ASSERT(m_pChunk != nullptr);
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
+				const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(row);
 			}
 
 			//! Sets the value of the component \tparam T and then emits the normal post-write set notifications.
@@ -40598,7 +41295,8 @@ namespace gaia {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				GAIA_ASSERT(m_entity != EntityBad);
 				GAIA_ASSERT(m_pChunk != nullptr);
-				return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row);
+				const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+				return const_cast<Chunk*>(m_pChunk)->template sset<T>(row);
 			}
 
 			//! Sets the value of the component without triggering a world version update.
@@ -40635,6 +41333,13 @@ namespace gaia {
 			//! \return Mutable raw payload view, or an invalid view when unavailable.
 			GAIA_NODISCARD ComponentRawMutView mut_raw(Entity component);
 
+			//! Returns one mutable SoA field value without finishing the component write.
+			//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+			//! \param component Runtime component entity.
+			//! \param fieldIdx SoA field array index.
+			//! \return Mutable raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw_field(Entity component, uint32_t fieldIdx);
+
 			//! Replaces a runtime component payload and emits normal post-write set notifications.
 			//! \param component Runtime component entity.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
@@ -40642,7 +41347,7 @@ namespace gaia {
 			//! \return ComponentSetter.
 			ComponentSetter& set_raw(Entity component, const void* data, uint32_t size);
 
-			//! Marks a raw payload returned by mut_raw(component) as modified.
+			//! Marks a raw payload or SoA field returned by a mutable raw view as modified.
 			//! \param component Runtime component entity.
 			//! \return ComponentSetter.
 			ComponentSetter& modify_raw(Entity component);
@@ -47044,6 +47749,12 @@ namespace gaia {
 					const auto& term = terms[i];
 					const auto fieldIdx = term.fieldIndex;
 					const auto queryId = term.id;
+					//! Component-index mappings describe columns owned by the currently iterated rows.
+					//! Terms resolved from another source must use entity-resolved accessors even when
+					//! the current archetype happens to contain the same component id.
+					if (!query_term_maps_to_current_archetype(term))
+						continue;
+
 					if (!queryId.pair() && world_component_uses_sparse_storage(*world(), queryId)) {
 #if GAIA_ASSERT_ENABLED
 						// Verify that the component is indeed not present on the archetype, otherwise our matching logic is flawed.
@@ -54036,6 +54747,9 @@ namespace gaia {
 								pIndices[fieldIdx] = indicesView[fieldIdx];
 								continue;
 							}
+							if (!query_term_maps_to_current_archetype(term))
+								continue;
+
 							if (!queryId.pair() && world_component_uses_sparse_storage(world, queryId)) {
 #if GAIA_ASSERT_ENABLED
 								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
@@ -54117,7 +54831,7 @@ namespace gaia {
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.id != desc.id)
 							continue;
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						if (!query_term_maps_to_current_archetype(term))
 							return false;
 						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
 								is_non_fragmenting_direct_term(world, term))
@@ -58115,6 +58829,17 @@ namespace gaia {
 				return is_wildcard(endpoint) || is_variable(endpoint);
 			}
 
+			//! Splits a concrete pair term into normalized relation and target endpoints.
+			//! \param term Pair term to split.
+			//! \param rel Destination relation entity.
+			//! \param tgt Destination target entity.
+			static void pair_endpoint_entities(Entity term, Entity& rel, Entity& tgt) {
+				GAIA_ASSERT(term.pair());
+				const auto relKind = term.entity() ? EntityKind::EK_Uni : EntityKind::EK_Gen;
+				rel = Entity((EntityId)term.id(), 0, false, false, relKind);
+				tgt = Entity((EntityId)term.gen(), 0, false, false, term.kind());
+			}
+
 			GAIA_NODISCARD static bool is_observer_term_globally_dynamic(Entity term) {
 				if (term == EntityBad || term == All)
 					return true;
@@ -58144,10 +58869,23 @@ namespace gaia {
 				return !m_observer_map_del.empty() || !m_observer_map_del_is.empty() || !m_diff_index_del.empty();
 			}
 
+			//! Returns whether an OnSet observer may observe writes for the given changed term.
+			//! \param term Exact changed term.
+			//! \return True if an exact or wildcard-pair OnSet observer is registered.
 			GAIA_NODISCARD bool has_on_set_observers(Entity term) const {
 				if (!m_hasOnSetObservers)
 					return false;
-				return m_observer_map_set.find(EntityLookupKey(term)) != m_observer_map_set.end();
+
+				if (observer_map_has_observers(m_observer_map_set, EntityLookupKey(term)))
+					return true;
+				if (!term.pair())
+					return false;
+
+				Entity rel, tgt;
+				pair_endpoint_entities(term, rel, tgt);
+				return observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(rel, All))) ||
+							 observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(All, tgt))) ||
+							 observer_map_has_observers(m_observer_map_set, EntityLookupKey(Pair(All, All)));
 			}
 
 			void add_diff_observer_term(World& world, Entity observer, Entity term, const QueryTermOptions& options);
@@ -58405,7 +59143,9 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+#include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace gaia {
 	namespace ecs {
@@ -58417,6 +59157,14 @@ namespace gaia {
 			//! Sparse component value.
 			T value{};
 		};
+
+		//! Runtime sparse component record owning one aligned payload allocation.
+		struct RuntimeSparseComponentRecord {
+			//! Entity owning the sparse value.
+			Entity entity;
+			//! Aligned runtime payload bytes. Null for tags.
+			void* pData = nullptr;
+		};
 	} // namespace ecs
 
 	namespace cnt {
@@ -58426,13 +59174,27 @@ namespace gaia {
 				return (sparse_id)item.entity.id();
 			}
 		};
+
+		template <>
+		struct to_sparse_id<ecs::RuntimeSparseComponentRecord> {
+			static sparse_id get(const ecs::RuntimeSparseComponentRecord& item) noexcept {
+				return (sparse_id)item.entity.id();
+			}
+		};
 	} // namespace cnt
 
 	namespace ecs {
 		namespace detail {
 			//! Type-erased sparse component store callbacks.
 			struct SparseComponentStoreErased {
+				//! Concrete sparse store instance.
 				void* pStore = nullptr;
+				//! Adds or returns one entity payload.
+				void* (*func_add)(void*, Entity) = nullptr;
+				//! Returns one mutable entity payload.
+				void* (*func_mut)(void*, Entity) = nullptr;
+				//! Returns one read-only entity payload.
+				const void* (*func_get)(const void*, Entity) = nullptr;
 				void (*func_del)(void*, Entity) = nullptr;
 				bool (*func_has)(const void*, Entity) = nullptr;
 				bool (*func_copy_entity)(void*, Entity, Entity) = nullptr;
@@ -58441,6 +59203,167 @@ namespace gaia {
 				bool (*func_for_each_entity)(const void*, void*, bool (*)(void*, Entity)) = nullptr;
 				void (*func_clear_store)(void*) = nullptr;
 				void (*func_del_store)(void*) = nullptr;
+			};
+
+			//! Runtime-sized sparse component values stored outside archetype rows.
+			struct RuntimeSparseComponentStore final {
+				GAIA_USE_SMALLBLOCK(RuntimeSparseComponentStore)
+				//! Target upper bound for one payload page.
+				static constexpr uint32_t PayloadPageBytes = 16U * 1024U;
+				//! Maximum number of payload slots reserved by one page.
+				static constexpr uint32_t MaxPayloadsPerPage = 256U;
+
+				//! Entity-to-payload sparse index.
+				cnt::sparse_storage<RuntimeSparseComponentRecord> data;
+				//! Aligned pages owning runtime payload slots.
+				cnt::darray<void*> payloadPages;
+				//! Registered runtime component metadata.
+				const ComponentCacheItem* pItem = nullptr;
+				//! Intrusive free-list head stored in released payload slots.
+				void* pFreePayload = nullptr;
+				//! Aligned byte stride between payload slots.
+				uint32_t payloadStride = 0;
+				//! Alignment used for payload pages and slots.
+				uint32_t payloadAlignment = 0;
+				//! Number of slots in each payload page.
+				uint32_t payloadsPerPage = 0;
+				//! Next unused slot in the current payload page.
+				uint32_t nextPayload = 0;
+
+				explicit RuntimeSparseComponentStore(const ComponentCacheItem& item): pItem(&item) {
+					const auto size = item.comp.size();
+					if (size == 0)
+						return;
+
+					const auto itemAlignment = item.comp.alig();
+					payloadAlignment = itemAlignment < alignof(void*) ? (uint32_t)alignof(void*) : itemAlignment;
+					const auto payloadSize = size < sizeof(void*) ? (uint32_t)sizeof(void*) : size;
+					payloadStride = mem::align(payloadSize, payloadAlignment);
+					payloadsPerPage = PayloadPageBytes / payloadStride;
+					if (payloadsPerPage == 0)
+						payloadsPerPage = 1;
+					else if (payloadsPerPage > MaxPayloadsPerPage)
+						payloadsPerPage = MaxPayloadsPerPage;
+					nextPayload = payloadsPerPage;
+				}
+
+				static cnt::sparse_id sid(Entity entity) {
+					return (cnt::sparse_id)entity.id();
+				}
+
+				//! Allocates one stable payload slot from the free list or current page.
+				GAIA_NODISCARD void* alloc_payload() {
+					if (pFreePayload != nullptr) {
+						auto* pData = pFreePayload;
+						memcpy(&pFreePayload, pData, sizeof(pFreePayload));
+						return pData;
+					}
+
+					if (nextPayload == payloadsPerPage) {
+						const auto pageBytes = payloadStride * payloadsPerPage;
+						auto* pPage = payloadAlignment <= alignof(std::max_align_t)
+															? mem::mem_alloc("Runtime sparse payload page", pageBytes)
+															: mem::mem_alloc_alig("Runtime sparse payload page", pageBytes, payloadAlignment);
+						GAIA_ASSERT(pPage != nullptr);
+						payloadPages.push_back(pPage);
+						nextPayload = 0;
+					}
+
+					auto* pData = (uint8_t*)payloadPages.back() + ((uintptr_t)payloadStride * nextPayload);
+					++nextPayload;
+					return pData;
+				}
+
+				//! Returns one destroyed payload slot to the intrusive free list.
+				void free_payload(void* pData) {
+					memcpy(pData, &pFreePayload, sizeof(pFreePayload));
+					pFreePayload = pData;
+				}
+
+				//! Releases every owned payload page after all live values are destroyed.
+				void free_payload_pages() {
+					for (auto* pPage: payloadPages) {
+						if (payloadAlignment <= alignof(std::max_align_t))
+							mem::mem_free("Runtime sparse payload page", pPage);
+						else
+							mem::mem_free_alig("Runtime sparse payload page", pPage);
+					}
+					payloadPages.clear();
+					pFreePayload = nullptr;
+					nextPayload = payloadsPerPage;
+				}
+
+				void* add(Entity entity) {
+					const auto sparseId = sid(entity);
+					if (data.has(sparseId))
+						return data[sparseId].pData;
+
+					void* pData = nullptr;
+					const auto size = pItem->comp.size();
+					if (size != 0) {
+						pData = alloc_payload();
+						GAIA_ASSERT(pData != nullptr);
+						if (pItem->func_ctor != nullptr)
+							pItem->func_ctor(pData, 1);
+					}
+
+					data.add(RuntimeSparseComponentRecord{entity, pData});
+					return pData;
+				}
+
+				void* mut(Entity entity) {
+					GAIA_ASSERT(data.has(sid(entity)));
+					return data[sid(entity)].pData;
+				}
+
+				const void* get(Entity entity) const {
+					GAIA_ASSERT(data.has(sid(entity)));
+					return data[sid(entity)].pData;
+				}
+
+				void del_entity(Entity entity) {
+					const auto sparseId = sid(entity);
+					if (data.empty() || !data.has(sparseId))
+						return;
+
+					auto* pData = data[sparseId].pData;
+					if (pData != nullptr) {
+						pItem->dtor(pData);
+						free_payload(pData);
+					}
+					data.del(sparseId);
+				}
+
+				bool has(Entity entity) const {
+					return !data.empty() && data.has(sid(entity));
+				}
+
+				bool copy_entity(Entity dstEntity, Entity srcEntity) {
+					if (!has(srcEntity))
+						return false;
+
+					auto* pDst = add(dstEntity);
+					const auto* pSrc = get(srcEntity);
+					if (pDst != nullptr)
+						pItem->copy(pDst, pSrc, 0, 0, pItem->comp.size(), pItem->comp.size());
+					return true;
+				}
+
+				uint32_t count() const {
+					return (uint32_t)data.size();
+				}
+
+				void collect_entities(cnt::darray<Entity>& out) const {
+					out.reserve(out.size() + (uint32_t)data.size());
+					for (const auto& item: data)
+						out.push_back(item.entity);
+				}
+
+				void clear_store() {
+					while (!data.empty())
+						del_entity(data.begin()->entity);
+					free_payload_pages();
+				}
 			};
 
 			//! Typed sparse component values stored outside archetype rows.
@@ -58485,6 +59408,13 @@ namespace gaia {
 					return data.has(sid(entity));
 				}
 
+				bool copy_entity(Entity dstEntity, Entity srcEntity) {
+					if (!has(srcEntity))
+						return false;
+					add(dstEntity) = get(srcEntity);
+					return true;
+				}
+
 				uint32_t count() const {
 					return (uint32_t)data.size();
 				}
@@ -58500,43 +59430,55 @@ namespace gaia {
 				}
 			};
 
-			template <typename T>
-			static SparseComponentStoreErased make_sparse_component_store_erased(SparseComponentStore<T>* pStore) {
+			template <typename Store>
+			static SparseComponentStoreErased make_sparse_component_store_erased(Store* pStore) {
 				SparseComponentStoreErased store{};
 				store.pStore = pStore;
+				store.func_add = [](void* pStoreRaw, Entity entity) {
+					if constexpr (std::is_pointer_v<decltype(static_cast<Store*>(pStoreRaw)->add(entity))>)
+						return static_cast<Store*>(pStoreRaw)->add(entity);
+					else
+						return (void*)&static_cast<Store*>(pStoreRaw)->add(entity);
+				};
+				store.func_mut = [](void* pStoreRaw, Entity entity) {
+					if constexpr (std::is_pointer_v<decltype(static_cast<Store*>(pStoreRaw)->mut(entity))>)
+						return static_cast<Store*>(pStoreRaw)->mut(entity);
+					else
+						return (void*)&static_cast<Store*>(pStoreRaw)->mut(entity);
+				};
+				store.func_get = [](const void* pStoreRaw, Entity entity) {
+					if constexpr (std::is_pointer_v<decltype(static_cast<const Store*>(pStoreRaw)->get(entity))>)
+						return static_cast<const Store*>(pStoreRaw)->get(entity);
+					else
+						return (const void*)&static_cast<const Store*>(pStoreRaw)->get(entity);
+				};
 				store.func_del = [](void* pStoreRaw, Entity entity) {
-					static_cast<SparseComponentStore<T>*>(pStoreRaw)->del_entity(entity);
+					static_cast<Store*>(pStoreRaw)->del_entity(entity);
 				};
 				store.func_has = [](const void* pStoreRaw, Entity entity) {
-					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->has(entity);
+					return static_cast<const Store*>(pStoreRaw)->has(entity);
 				};
 				store.func_copy_entity = [](void* pStoreRaw, Entity dstEntity, Entity srcEntity) {
-					auto* pStore = static_cast<SparseComponentStore<T>*>(pStoreRaw);
-					if (!pStore->has(srcEntity))
-						return false;
-
-					auto& dst = pStore->add(dstEntity);
-					dst = pStore->get(srcEntity);
-					return true;
+					return static_cast<Store*>(pStoreRaw)->copy_entity(dstEntity, srcEntity);
 				};
 				store.func_count = [](const void* pStoreRaw) {
-					return static_cast<const SparseComponentStore<T>*>(pStoreRaw)->count();
+					return static_cast<const Store*>(pStoreRaw)->count();
 				};
 				store.func_collect_entities = [](const void* pStoreRaw, cnt::darray<Entity>& out) {
-					static_cast<const SparseComponentStore<T>*>(pStoreRaw)->collect_entities(out);
+					static_cast<const Store*>(pStoreRaw)->collect_entities(out);
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-					for (const auto& item: static_cast<const SparseComponentStore<T>*>(pStoreRaw)->data) {
+					for (const auto& item: static_cast<const Store*>(pStoreRaw)->data) {
 						if (!func(pCtx, item.entity))
 							return false;
 					}
 					return true;
 				};
 				store.func_clear_store = [](void* pStoreRaw) {
-					static_cast<SparseComponentStore<T>*>(pStoreRaw)->clear_store();
+					static_cast<Store*>(pStoreRaw)->clear_store();
 				};
 				store.func_del_store = [](void* pStoreRaw) {
-					delete static_cast<SparseComponentStore<T>*>(pStoreRaw);
+					delete static_cast<Store*>(pStoreRaw);
 				};
 				return store;
 			}
@@ -58854,6 +59796,7 @@ namespace gaia {
 
 			using NonFragmentingRelationStore = detail::NonFragmentingRelationStore;
 			using SparseComponentStoreErased = detail::SparseComponentStoreErased;
+			using RuntimeSparseComponentStore = detail::RuntimeSparseComponentStore;
 			template <typename T>
 			using SparseComponentStore = detail::SparseComponentStore<T>;
 			using CopyIterGroupState = detail::CopyIterGroupState;
@@ -59123,9 +60066,16 @@ namespace gaia {
 				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem : nullptr;
 			}
 
-			//! Checks whether @a item can expose a direct raw byte view in the first runtime-component slice.
+			//! Checks whether @a item can expose a direct raw byte view.
 			GAIA_NODISCARD static bool raw_component_supported(const ComponentCacheItem& item) noexcept {
-				return item.comp.storage_type() == DataStorageType::Table && item.comp.soa() == 0;
+				return item.comp.soa() == 0;
+			}
+
+			//! Checks whether @a item can expose direct SoA field views in table storage.
+			//! \param item Physical component payload metadata.
+			//! \return True when the payload uses supported table SoA storage.
+			GAIA_NODISCARD static bool soa_field_supported(const ComponentCacheItem& item) noexcept {
+				return item.comp.soa() != 0 && item.comp.storage_type() == DataStorageType::Table;
 			}
 
 			//! Validates raw payload arguments against the registered component metadata.
@@ -59144,7 +60094,7 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object))
-						return sparse_component_store_mut<FT>(object).mut(entity);
+						return sparse_component_mut_value<FT>(object, entity);
 				}
 
 				const auto& ec = m_recs.entities[entity.id()];
@@ -59152,7 +60102,7 @@ namespace gaia {
 			}
 
 			//! Finishes a deferred raw write on @a term attached to @a entity.
-			//! Ensures direct owned storage exists when needed, updates the chunk-backed version state,
+			//! Ensures direct owned storage exists when needed, updates version state for table storage,
 			//! and emits `OnSet` for the completed write.
 			//! \param entity Entity
 			//! \param term Component entity or pair
@@ -59210,7 +60160,7 @@ namespace gaia {
 				::gaia::ecs::update_version(m_worldVersion);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(term)) {
-						sparse_component_store_mut<FT>(term).add(entity) = value;
+						sparse_component_add_value<FT>(term, entity) = value;
 						finish_write(entity, term);
 						return;
 					}
@@ -59689,11 +60639,18 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD SparseStorageMode sparse_storage_mode(Entity component) const {
-				if (!component_uses_sparse_storage(component))
+				if (!valid(component) || component.pair() || component.entity())
 					return SparseStorageMode::None;
 
-				return component_is_non_fragmenting(component) ? SparseStorageMode::NonFragmenting
-																											 : SparseStorageMode::Fragmenting;
+				const auto* pItem = comp_cache().find(component);
+				if (pItem == nullptr || component.kind() != EntityKind::EK_Gen || pItem->comp.soa() != 0 ||
+						!gaia::ecs::component_uses_sparse_storage(pItem->comp))
+					return SparseStorageMode::None;
+
+				if ((fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0)
+					return SparseStorageMode::NonFragmenting;
+
+				return SparseStorageMode::Fragmenting;
 			}
 
 			GAIA_NODISCARD bool
@@ -59808,11 +60765,11 @@ namespace gaia {
 				if constexpr (!supports_sparse_component_storage<T>())
 					return false;
 				else {
-					if (object.pair())
+					if (!valid(object) || object.pair())
 						return false;
 
 					const auto* pItem = comp_cache().find(object);
-					if (pItem == nullptr || pItem->entity != object || sparse_storage_mode(object) == SparseStorageMode::None)
+					if (pItem == nullptr || pItem->entity != object || !gaia::ecs::component_uses_sparse_storage(pItem->comp))
 						return false;
 
 					using U = typename actual_type_t<T>::Type;
@@ -59861,6 +60818,77 @@ namespace gaia {
 				auto* pStore = new SparseComponentStore<T>();
 				m_sparseComponentsByComp.emplace(key, make_sparse_component_store_erased(pStore));
 				return *pStore;
+			}
+
+			//! Adds or returns a sparse value through the store's erased payload interface.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Mutable typed payload reference.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sparse_component_add_value(Entity component, Entity entity) {
+				using U = typename actual_type_t<T>::Type;
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				if (it == m_sparseComponentsByComp.end()) {
+					const auto* pItem = comp_cache().find(component);
+					GAIA_ASSERT(pItem != nullptr);
+					auto& store = sparse_component_store_erased_mut(component, *pItem);
+					return *(U*)store.func_add(store.pStore, entity);
+				}
+				return *(U*)it->second.func_add(it->second.pStore, entity);
+			}
+
+			//! Returns a mutable sparse value through the store's erased payload interface.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Mutable typed payload reference.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sparse_component_mut_value(Entity component, Entity entity) {
+				using U = typename actual_type_t<T>::Type;
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+				return *(U*)it->second.func_mut(it->second.pStore, entity);
+			}
+
+			//! Returns a read-only sparse value through the store's erased payload interface.
+			//! \tparam T Expected payload type.
+			//! \param component Sparse component entity.
+			//! \param entity Entity owning the value.
+			//! \return Read-only typed payload reference.
+			template <typename T>
+			GAIA_NODISCARD decltype(auto) sparse_component_get_value(Entity component, Entity entity) const {
+				using U = typename actual_type_t<T>::Type;
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				GAIA_ASSERT(it != m_sparseComponentsByComp.end());
+				return *(const U*)it->second.func_get(it->second.pStore, entity);
+			}
+
+			//! Returns the erased sparse store for @a component, or nullptr when absent.
+			//! \param component Sparse component entity.
+			//! \return Erased sparse store, or nullptr when no values have been stored.
+			GAIA_NODISCARD const SparseComponentStoreErased* sparse_component_store_erased(Entity component) const {
+				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
+				return it != m_sparseComponentsByComp.end() ? &it->second : nullptr;
+			}
+
+			//! Returns the erased sparse store for @a component, creating runtime-sized storage when absent.
+			//! \param component Sparse component entity.
+			//! \param item Runtime component metadata controlling payload size, alignment, and lifecycle.
+			//! \return Mutable erased sparse store.
+			GAIA_NODISCARD SparseComponentStoreErased&
+			sparse_component_store_erased_mut(Entity component, const ComponentCacheItem& item) {
+				const auto key = EntityLookupKey(component);
+				const auto it = m_sparseComponentsByComp.find(key);
+				if (it != m_sparseComponentsByComp.end())
+					return it->second;
+				if (item.func_create_sparse_store != nullptr) {
+					item.func_create_sparse_store(*this, component);
+					return m_sparseComponentsByComp.find(key)->second;
+				}
+
+				auto* pStore = new RuntimeSparseComponentStore(item);
+				return m_sparseComponentsByComp.emplace(key, make_sparse_component_store_erased(pStore)).first->second;
 			}
 
 			//! Finishes adding a sparse component after its payload has been created.
@@ -62100,7 +63128,14 @@ namespace gaia {
 				(void)current_scope_path(scopePath);
 
 				const auto& item = comp_cache_mut().add<FT>(entity, scopePath.view());
+				item.func_create_sparse_store = [](World& world, Entity component) {
+					(void)world.sparse_component_store_mut<FT>(component);
+				};
 				finalize_component_registration(item, false);
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (item.comp.storage_type() == DataStorageType::Sparse)
+						(void)sparse_component_store_mut<FT>(item.entity);
+				}
 
 				return item;
 			}
@@ -62189,7 +63224,7 @@ namespace gaia {
 					if (can_use_sparse_component_storage<FT>(object)) {
 						const auto mode = sparse_storage_mode(object);
 						if (mode != SparseStorageMode::None) {
-							auto& data = sparse_component_store_mut<FT>(object).add(entity);
+							auto& data = sparse_component_add_value<FT>(object, entity);
 							data = GAIA_FWD(value);
 							finish_sparse_component_add_inter(entity, object, mode);
 							return;
@@ -62247,8 +63282,8 @@ namespace gaia {
 				builder.commit();
 
 				const auto& ec = m_recs.entities[entity.id()];
-				// Make sure the idx is 0 for unique entities
-				const auto idx = uint16_t(ec.row * (1U - (uint32_t)object.kind()));
+				// Make sure the idx is 0 for unique payload storage.
+				const auto idx = uint16_t(ec.row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
 				ComponentSetter{*this, ec.pChunk, entity, idx}.sset<T>(GAIA_FWD(value));
 				notify_add_single(entity, object);
 #if GAIA_OBSERVERS_ENABLED
@@ -63909,7 +64944,7 @@ namespace gaia {
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (const auto* pItem = comp_cache().template find<FT>();
 							pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						if (sparse_component_store<FT>(pItem->entity) != nullptr)
+						if (sparse_component_store_erased(pItem->entity) != nullptr)
 							del(entity, pItem->entity);
 						return;
 					}
@@ -64008,7 +65043,7 @@ namespace gaia {
 					const auto* pItem = comp_cache().template find<T>();
 					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
 #if GAIA_ASSERT_ENABLED
-						auto* pStore = sparse_component_store<typename component_type_t<T>::TypeFull>(pItem->entity);
+						auto* pStore = sparse_component_store_erased(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, pItem->entity));
 #endif
@@ -64069,7 +65104,7 @@ namespace gaia {
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object)) {
 #if GAIA_ASSERT_ENABLED
-						auto* pStore = sparse_component_store<FT>(object);
+						auto* pStore = sparse_component_store_erased(object);
 						GAIA_ASSERT(pStore != nullptr);
 						GAIA_ASSERT(has_direct_sparse_component_inter(entity, object));
 #endif
@@ -64171,7 +65206,7 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object))
-						return sparse_component_store_mut<FT>(object).mut(entity);
+						return sparse_component_mut_value<FT>(object, entity);
 				}
 				return acc_mut(entity).smut<T>(object);
 			}
@@ -64199,8 +65234,8 @@ namespace gaia {
 				return sset<T>(entity, object);
 			}
 
-			//! Returns raw read-only bytes for a chunk-backed AoS component or exact pair payload on @a entity.
-			//! Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.
+			//! Returns raw read-only bytes for an AoS component or exact pair payload on @a entity.
+			//! Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view.
 			//! \param entity Entity being read.
 			//! \param component Component entity or exact relationship pair being read.
 			//! \return Raw payload view, or invalid view when the component cannot be resolved.
@@ -64215,6 +65250,14 @@ namespace gaia {
 				const auto* pItem = component_item(owner, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
+				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
+					if (component.pair())
+						return {};
+					const auto* pStore = sparse_component_store_erased(component);
+					if (pStore == nullptr || !pStore->func_has(pStore->pStore, owner))
+						return {};
+					return {pStore->func_get(pStore->pStore, owner), pItem->comp.size(), ComponentRawViewFlag_Valid};
+				}
 
 				const auto& ec = fetch(owner);
 				const auto compIdx = ec.pChunk->comp_idx(component);
@@ -64229,7 +65272,7 @@ namespace gaia {
 				return {ec.pChunk->comp_ptr(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
-			//! Returns raw mutable bytes for a directly owned chunk-backed AoS component or exact pair payload.
+			//! Returns raw mutable bytes for a directly owned AoS component or exact pair payload.
 			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
 			//! \param entity Entity being mutated.
 			//! \param component Component entity or exact relationship pair being mutated.
@@ -64245,9 +65288,17 @@ namespace gaia {
 				const auto* pItem = component_item(entity, component);
 				if (pItem == nullptr || !raw_component_supported(*pItem))
 					return {};
+				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
+					if (component.pair())
+						return {};
+					const auto* pStore = sparse_component_store_erased(component);
+					if (pStore == nullptr || !pStore->func_has(pStore->pStore, entity))
+						return {};
+					return {pStore->func_mut(pStore->pStore, entity), pItem->comp.size(), ComponentRawViewFlag_Valid};
+				}
 
-				const auto compIdx = ec.pChunk->comp_idx(component);
-				if (compIdx == ComponentIndexBad)
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				if (compIdx == BadIndex)
 					return {};
 
 				const auto size = pItem->comp.size();
@@ -64258,14 +65309,77 @@ namespace gaia {
 				return {ec.pChunk->comp_ptr_mut(compIdx, row), size, ComponentRawViewFlag_Valid};
 			}
 
-			//! Creates a read-only cursor over a chunk-backed AoS runtime component on @a entity.
-			//! Inherited ids resolve like get_raw(). The returned cursor is invalid when raw access is unsupported.
+			//! Returns one read-only field value from a directly addressed SoA field array.
+			//! The field index follows the registered SoA field order. Inherited ids resolve to the owning entity.
+			//! \param entity Entity being read.
+			//! \param component Runtime component entity being read.
+			//! \param fieldIdx SoA field array index.
+			//! \return Raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawView get_raw_field(Entity entity, Entity component, uint32_t fieldIdx) const {
+				if (component == EntityBad || !valid(entity))
+					return {};
+
+				const auto owner = id_owner_inter(entity, component);
+				if (owner == EntityBad)
+					return {};
+
+				const auto* pItem = component_item(owner, component);
+				if (pItem == nullptr || !soa_field_supported(*pItem) || fieldIdx >= pItem->comp.soa() ||
+						pItem->soaSizes[fieldIdx] == 0)
+					return {};
+
+				const auto& ec = fetch(owner);
+				const auto compIdx = ec.pChunk->comp_idx(component);
+				if (compIdx == ComponentIndexBad)
+					return {};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
+				const auto* pData = mem::data_view_policy_soa_erased::get(
+						ec.pChunk->comp_ptr(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
+				return {pData, pItem->soaSizes[fieldIdx], ComponentRawViewFlag_Valid};
+			}
+
+			//! Returns one mutable field value from a directly owned SoA field array.
+			//! This is a silent write path. Pair with modify_raw() to emit set hooks and `OnSet` observers.
+			//! \param entity Entity being mutated.
+			//! \param component Runtime component entity being mutated.
+			//! \param fieldIdx SoA field array index.
+			//! \return Mutable raw field value view, or an invalid view when unavailable.
+			GAIA_NODISCARD ComponentRawMutView mut_raw_field(Entity entity, Entity component, uint32_t fieldIdx) {
+				if (component == EntityBad || !valid(entity))
+					return {};
+
+				const auto& ec = fetch(entity);
+				if (is_req_del(ec))
+					return {};
+
+				const auto* pItem = component_item(entity, component);
+				if (pItem == nullptr || !soa_field_supported(*pItem) || fieldIdx >= pItem->comp.soa() ||
+						pItem->soaSizes[fieldIdx] == 0)
+					return {};
+
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				if (compIdx == BadIndex)
+					return {};
+
+				const auto row = uint32_t(ec.row * (1U - (uint32_t)component.kind()));
+				const auto capacity = pItem->entity.kind() == EntityKind::EK_Uni ? 1U : ec.pChunk->capacity();
+				const std::span<const uint8_t> fieldSizes{pItem->soaSizes, pItem->comp.soa()};
+				auto* pData = mem::data_view_policy_soa_erased::set(
+						ec.pChunk->comp_ptr_mut(compIdx), pItem->comp.alig(), fieldSizes, fieldIdx, row, capacity);
+				return {pData, pItem->soaSizes[fieldIdx], ComponentRawViewFlag_Valid};
+			}
+
+			//! Creates a read-only cursor over a runtime component on @a entity.
+			//! Inherited ids resolve like get_raw(). SoA roots expose fields without pretending the root is contiguous.
 			//! \param entity Entity being read.
 			//! \param component Component entity or exact relationship pair being read.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
-			//! Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on @a entity.
+			//! Creates a mutable cursor over a directly owned runtime component on @a entity.
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
@@ -64273,7 +65387,7 @@ namespace gaia {
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor_mut(Entity entity, Entity component);
 
-			//! Adds a chunk-backed AoS component and initializes its raw payload before `OnAdd` observers run.
+			//! Adds an AoS component and initializes its raw payload before `OnAdd` observers run.
 			//! \param entity Entity receiving the component.
 			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
@@ -64286,8 +65400,23 @@ namespace gaia {
 				const auto* pItem = component.pair() ? comp_cache().find_pair_payload(component) : comp_cache().find(component);
 				if (pItem == nullptr || !raw_component_payload_args_valid(*pItem, data, size))
 					return false;
+
 				if (has_direct(entity, component))
 					return false;
+				if (pItem->comp.storage_type() == DataStorageType::Sparse) {
+					if (component.pair())
+						return false;
+					const auto mode = sparse_storage_mode(component);
+					if (mode == SparseStorageMode::None)
+						return false;
+
+					auto& store = sparse_component_store_erased_mut(component, *pItem);
+					auto* pPayload = store.func_add(store.pStore, entity);
+					if (size != 0)
+						memcpy(pPayload, data, size);
+					finish_sparse_component_add_inter(entity, component, mode);
+					return true;
+				}
 
 				EntityBuilder eb(*this, entity);
 #if GAIA_OBSERVERS_ENABLED
@@ -64309,7 +65438,7 @@ namespace gaia {
 				return payload.valid();
 			}
 
-			//! Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.
+			//! Replaces raw bytes for a directly owned AoS component and finishes the write.
 			//! \param entity Entity whose component is being replaced.
 			//! \param component Runtime component entity or exact relationship pair.
 			//! \param data Payload bytes. Must be non-null when the component size is non-zero.
@@ -64329,12 +65458,20 @@ namespace gaia {
 				return true;
 			}
 
-			//! Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.
+			//! Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side effects.
 			//! \param entity Entity whose raw component payload was mutated.
 			//! \param component Runtime component entity previously passed to mut_raw().
 			void modify_raw(Entity entity, Entity component) {
-				if (!mut_raw(entity, component).valid())
-					return;
+				if (!mut_raw(entity, component).valid()) {
+					if (component == EntityBad || !valid(entity))
+						return;
+
+					const auto& ec = fetch(entity);
+					const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
+					if (pItem == nullptr || !soa_field_supported(*pItem) ||
+							core::get_index(ec.pChunk->ids_view(), component) == BadIndex)
+						return;
+				}
 				finish_write(entity, component);
 			}
 
@@ -64374,10 +65511,10 @@ namespace gaia {
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					const auto* pItem = comp_cache().template find<FT>();
 					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						const auto* pStore = sparse_component_store<FT>(pItem->entity);
-						GAIA_ASSERT(pStore != nullptr);
 						const auto owner = id_owner_inter(entity, compEntity);
 						GAIA_ASSERT(owner != EntityBad);
+						const auto* pStore = sparse_component_store<FT>(pItem->entity);
+						GAIA_ASSERT(pStore != nullptr);
 						return pStore->get(owner);
 					}
 				}
@@ -64393,11 +65530,9 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (can_use_sparse_component_storage<FT>(object)) {
-						const auto* pStore = sparse_component_store<FT>(object);
-						GAIA_ASSERT(pStore != nullptr);
 						const auto owner = id_owner_inter(entity, object);
 						GAIA_ASSERT(owner != EntityBad);
-						return pStore->get(owner);
+						return sparse_component_get_value<FT>(object, owner);
 					}
 				}
 
@@ -67007,28 +68142,41 @@ namespace gaia {
 			//! Serializes world state into a JSON document.
 			//! Components with runtime fields are emitted as structured JSON objects.
 			//! Components with no runtime fields fallback to raw serialized bytes.
-			//! Returns false when some runtime field types are unsupported (those fields are emitted as null).
-			bool save_json(ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
+			//! \param writer Destination JSON writer.
+			//! \param flags World JSON sections and fallback behavior.
+			//! \param policy Symbolic enum and bitmask presentation policy.
+			//! \return False when some runtime field types are unsupported.
+			bool save_json(
+					ser::ser_json& writer, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default,
+					const ser::RuntimeJsonPolicy& policy = {}) const;
 
 			//! Convenience overload returning JSON as a string.
+			//! \param ok Receives whether all requested component values were serialized.
+			//! \param flags World JSON sections and fallback behavior.
+			//! \return The serialized JSON document.
 			ser::json_str save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
 			//! Loads world state from JSON previously emitted by save_json().
-			//! Returns true when JSON shape is valid and parsing succeeds.
-			//! Non-fatal semantic issues are reported through @a diagnostics.
-			bool load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics);
-
+			//! \param json JSON buffer.
+			//! \param len JSON buffer length.
+			//! \param diagnostics Receives non-fatal semantic issues.
+			//! \param policy Symbolic enum and bitmask import policy.
+			//! \return True when JSON shape is valid and parsing succeeds.
+			bool load_json(
+					const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {});
 			//! Loads world state from a raw JSON buffer and discards non-fatal diagnostics.
 			//! \param json JSON buffer
 			//! \param len JSON buffer length
 			//! \return True when loading succeeds. False otherwise.
 			bool load_json(const char* json, uint32_t len);
 
-			//! Loads world state from a JSON string view and reports non-fatal diagnostics.
-			//! \param json JSON view
-			//! \param diagnostics Output diagnostics
+			//! Loads world state from a JSON view with an explicit runtime value import policy.
+			//! \param json JSON view.
+			//! \param diagnostics Output diagnostics.
+			//! \param policy Symbolic enum and bitmask import policy.
 			//! \return True when loading succeeds. False otherwise.
-			bool load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics);
+			bool
+			load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {});
 
 			//! Loads world state from a JSON string view and discards non-fatal diagnostics.
 			//! \param json JSON view
@@ -70520,11 +71668,48 @@ namespace gaia {
 			}
 		};
 
+		inline ComponentRawView world_get_raw(const World& world, Entity entity, Entity component) {
+			return world.get_raw(entity, component);
+		}
+
+		inline ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component) {
+			return world.mut_raw(entity, component);
+		}
+
+		inline ComponentRawView
+		world_get_raw_field(const World& world, Entity entity, Entity component, uint32_t fieldIdx) {
+			return world.get_raw_field(entity, component, fieldIdx);
+		}
+
+		inline ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx) {
+			return world.mut_raw_field(entity, component, fieldIdx);
+		}
+
 		inline ComponentCursor World::cursor(Entity entity, Entity component) const {
+			if (component != EntityBad && valid(entity)) {
+				const auto owner = id_owner_inter(entity, component);
+				if (owner != EntityBad) {
+					const auto* pItem = component_item(owner, component);
+					if (pItem != nullptr && soa_field_supported(*pItem)) {
+						const auto& ec = fetch(owner);
+						if (ec.pChunk->comp_idx(component) != ComponentIndexBad)
+							return ComponentCursor::from_soa(*this, comp_cache(), owner, component, pItem->comp.size());
+					}
+				}
+			}
+
 			return ComponentCursor::from_raw(comp_cache(), component, get_raw(entity, component));
 		}
 
 		inline ComponentCursor World::cursor_mut(Entity entity, Entity component) {
+			if (component != EntityBad && valid(entity)) {
+				const auto& ec = fetch(entity);
+				const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
+				if (pItem != nullptr && soa_field_supported(*pItem) &&
+						core::get_index(ec.pChunk->ids_view(), component) != BadIndex)
+					return ComponentCursor::from_soa(*this, comp_cache(), entity, component, pItem->comp.size());
+			}
+
 			return ComponentCursor::from_raw(*this, comp_cache(), entity, component, mut_raw(entity, component));
 		}
 
@@ -71290,13 +72475,21 @@ namespace gaia {
 			if (targets.empty())
 				return;
 
-			const auto itObservers = registry.m_observer_map_set.find(EntityLookupKey(term));
-			if (itObservers == registry.m_observer_map_set.end() || itObservers->second.empty())
-				return;
-
 			registry.m_relevant_observers_tmp.clear();
 			const auto matchStamp = ++registry.m_current_match_stamp;
 			SharedDispatch::collect_from_map<false>(registry, world, registry.m_observer_map_set, term, matchStamp);
+			if (term.pair()) {
+				Entity rel, tgt;
+				pair_endpoint_entities(term, rel, tgt);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(rel, All), matchStamp);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(All, tgt), matchStamp);
+				SharedDispatch::collect_from_map<false>(
+						registry, world, registry.m_observer_map_set, Pair(All, All), matchStamp);
+			}
+			if (registry.m_relevant_observers_tmp.empty())
+				return;
 
 			for (auto* pObs: registry.m_relevant_observers_tmp) {
 				auto& obs = *pObs;
@@ -72024,6 +73217,10 @@ namespace gaia {
 	#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
 			const auto& termIds = queryTermIds;
+			const auto terms = queryInfo.ctx().data.terms_view();
+			const QueryTerm* termsByField[MAX_ITEMS_IN_QUERY]{};
+			for (const auto& term: terms)
+				termsByField[term.fieldIndex] = &term;
 
 			const Archetype* pCachedArchetype = nullptr;
 			uint8_t cachedIndices[ChunkHeader::MAX_COMPONENTS];
@@ -72046,6 +73243,10 @@ namespace gaia {
 						}
 					} else {
 						GAIA_FOR(queryIdCnt) {
+							const auto* pTerm = termsByField[i];
+							if (pTerm == nullptr || !query_term_maps_to_current_archetype(*pTerm))
+								continue;
+
 							const auto queryId = termIds[i];
 							auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
 							if (compIdx == BadIndex)
@@ -73900,6 +75101,165 @@ namespace gaia {
 				return out.elemCount != 0 && runtime_json_type_size(out.pType, out.type, out.elemSize);
 			}
 
+			//! Reads an integer runtime value as its width-preserving unsigned bit pattern.
+			//! \param pData Runtime value bytes.
+			//! \param type Reflected integer storage type.
+			//! \param valueSize Size of @a pData in bytes.
+			//! \param out Receives the normalized bit pattern.
+			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			GAIA_NODISCARD inline bool runtime_json_integer_bits(
+					const uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t& out) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+					case ser::serialization_type_id::u8: {
+						if (valueSize != sizeof(uint8_t))
+							return false;
+						uint8_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s16:
+					case ser::serialization_type_id::u16: {
+						if (valueSize != sizeof(uint16_t))
+							return false;
+						uint16_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s32:
+					case ser::serialization_type_id::u32: {
+						if (valueSize != sizeof(uint32_t))
+							return false;
+						uint32_t value = 0;
+						memcpy(&value, pData, sizeof(value));
+						out = value;
+						return true;
+					}
+					case ser::serialization_type_id::s64:
+					case ser::serialization_type_id::u64: {
+						if (valueSize != sizeof(uint64_t))
+							return false;
+						memcpy(&out, pData, sizeof(out));
+						return true;
+					}
+					default:
+						return false;
+				}
+			}
+
+			//! Normalizes a registered runtime constant to its underlying integer width.
+			//! \param type Reflected integer storage type.
+			//! \param value Registered constant value.
+			//! \param out Receives the normalized bit pattern.
+			//! \return True when @a type is a supported integer type.
+			GAIA_NODISCARD inline bool
+			runtime_json_constant_bits(ser::serialization_type_id type, int64_t value, uint64_t& out) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+						if (value < INT8_MIN || value > INT8_MAX)
+							return false;
+						out = (uint8_t)value;
+						return true;
+					case ser::serialization_type_id::u8:
+						if (value < 0 || value > UINT8_MAX)
+							return false;
+						out = (uint8_t)value;
+						return true;
+					case ser::serialization_type_id::s16:
+						if (value < INT16_MIN || value > INT16_MAX)
+							return false;
+						out = (uint16_t)value;
+						return true;
+					case ser::serialization_type_id::u16:
+						if (value < 0 || value > UINT16_MAX)
+							return false;
+						out = (uint16_t)value;
+						return true;
+					case ser::serialization_type_id::s32:
+						if (value < INT32_MIN || value > INT32_MAX)
+							return false;
+						out = (uint32_t)value;
+						return true;
+					case ser::serialization_type_id::u32:
+						if (value < 0 || (uint64_t)value > UINT32_MAX)
+							return false;
+						out = (uint32_t)value;
+						return true;
+					case ser::serialization_type_id::s64:
+						out = (uint64_t)value;
+						return true;
+					case ser::serialization_type_id::u64:
+						if (value < 0)
+							return false;
+						out = (uint64_t)value;
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			//! Writes a width-preserving integer bit pattern to runtime value bytes.
+			//! \param pData Destination runtime value bytes.
+			//! \param type Reflected integer storage type.
+			//! \param valueSize Size of @a pData in bytes.
+			//! \param value Normalized bit pattern to write.
+			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			GAIA_NODISCARD inline bool runtime_json_write_integer_bits(
+					uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t value) noexcept {
+				switch (type) {
+					case ser::serialization_type_id::s8:
+					case ser::serialization_type_id::u8: {
+						if (valueSize != sizeof(uint8_t))
+							return false;
+						const auto narrowed = (uint8_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s16:
+					case ser::serialization_type_id::u16: {
+						if (valueSize != sizeof(uint16_t))
+							return false;
+						const auto narrowed = (uint16_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s32:
+					case ser::serialization_type_id::u32: {
+						if (valueSize != sizeof(uint32_t))
+							return false;
+						const auto narrowed = (uint32_t)value;
+						memcpy(pData, &narrowed, sizeof(narrowed));
+						return true;
+					}
+					case ser::serialization_type_id::s64:
+					case ser::serialization_type_id::u64:
+						if (valueSize != sizeof(uint64_t))
+							return false;
+						memcpy(pData, &value, sizeof(value));
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			//! \return Whether @a item is represented by one direct semantic JSON value rather than a keyed field object.
+			GAIA_NODISCARD inline bool runtime_json_is_direct_value(const ComponentCacheItem& item) noexcept {
+				switch (item.typeKind) {
+					case RuntimeTypeKind::Primitive:
+					case RuntimeTypeKind::Enum:
+					case RuntimeTypeKind::Bitmask:
+					case RuntimeTypeKind::Array:
+					case RuntimeTypeKind::Vector:
+						return true;
+					case RuntimeTypeKind::Opaque:
+						return item.opaque_adapter() != nullptr;
+					default:
+						return false;
+				}
+			}
+
 			GAIA_NODISCARD inline ser::json_str
 			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
 				if (parent.empty())
@@ -73952,11 +75312,11 @@ namespace gaia {
 
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& writer, uint32_t depth);
+					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth);
 
 			inline bool write_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field,
-					const uint8_t* pBase, ser::ser_json& writer, uint32_t depth) {
+					const uint8_t* pBase, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				RuntimeJsonFieldLayout layout{};
 				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					writer.value_null();
@@ -73973,14 +75333,14 @@ namespace gaia {
 				const auto* pFieldData = pBase + field.offset;
 				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return write_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, depth + 1);
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, policy, depth + 1);
 
 				bool ok = true;
 				writer.begin_array();
 				GAIA_FOR(layout.elemCount) {
 					const auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
 					ok = write_runtime_json_value(
-									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, depth + 1) &&
+									 pCache, layout.pType, layout.type, pElemData, layout.elemSize, writer, policy, depth + 1) &&
 							 ok;
 				}
 				writer.end_array();
@@ -73989,7 +75349,7 @@ namespace gaia {
 
 			inline bool write_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, const uint8_t* pData, ser::ser_json& writer,
-					uint32_t depth) {
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
@@ -74002,7 +75362,7 @@ namespace gaia {
 					GAIA_ASSERT(pField != nullptr);
 					const auto& field = *pField;
 					writer.key(field.name);
-					ok = write_runtime_json_field(pCache, item, field, pData, writer, depth + 1) && ok;
+					ok = write_runtime_json_field(pCache, item, field, pData, writer, policy, depth + 1) && ok;
 				}
 				writer.end_object();
 				return ok;
@@ -74010,7 +75370,7 @@ namespace gaia {
 
 			inline bool write_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, const uint8_t* pData,
-					uint32_t valueSize, ser::ser_json& writer, uint32_t depth) {
+					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					writer.value_null();
 					return false;
@@ -74031,7 +75391,8 @@ namespace gaia {
 					writer.begin_array();
 					GAIA_FOR(elemCount) {
 						const auto* pElemData = pData + (uintptr_t)elemSize * i;
-						ok = write_runtime_json_value(pCache, pElementType, elementType, pElemData, elemSize, writer, depth + 1) &&
+						ok = write_runtime_json_value(
+										 pCache, pElementType, elementType, pElemData, elemSize, writer, policy, depth + 1) &&
 								 ok;
 					}
 					writer.end_array();
@@ -74066,7 +75427,7 @@ namespace gaia {
 						if (element.type == EntityBad)
 							element.type = elementType;
 						ok = write_runtime_json_value(
-										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer,
+										 pCache, pElementType, element.type, (const uint8_t*)element.data, element.size, writer, policy,
 										 depth + 1) &&
 								 ok;
 					}
@@ -74096,11 +75457,12 @@ namespace gaia {
 						return false;
 					}
 					return write_runtime_json_value(
-							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, depth + 1);
+							pCache, pSemanticType, projected.type, (const uint8_t*)projected.data, projected.size, writer, policy,
+							depth + 1);
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
-					return write_runtime_json_struct(pCache, *pType, pData, writer, depth + 1);
+					return write_runtime_json_struct(pCache, *pType, pData, writer, policy, depth + 1);
 
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				if (pType != nullptr) {
@@ -74113,13 +75475,57 @@ namespace gaia {
 					return false;
 				}
 
+				uint64_t valueBits = 0;
+				if (pType != nullptr && policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum &&
+						runtime_json_integer_bits(pData, type, valueSize, valueBits)) {
+					GAIA_FOR(pType->constant_count()) {
+						const auto* pConstant = pType->constant(i);
+						GAIA_ASSERT(pConstant != nullptr);
+						uint64_t constantBits = 0;
+						if (runtime_json_constant_bits(type, pConstant->value, constantBits) && constantBits == valueBits) {
+							writer.value_string(pConstant->name);
+							return true;
+						}
+					}
+				}
+
+				if (pType != nullptr && policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
+						runtime_json_integer_bits(pData, type, valueSize, valueBits)) {
+					uint64_t remaining = valueBits;
+					GAIA_FOR(pType->constant_count()) {
+						const auto* pConstant = pType->constant(i);
+						GAIA_ASSERT(pConstant != nullptr);
+						uint64_t flagBits = 0;
+						if (runtime_json_constant_bits(type, pConstant->value, flagBits) && flagBits != 0 &&
+								(flagBits & (flagBits - 1)) == 0 && (remaining & flagBits) == flagBits)
+							remaining &= ~flagBits;
+					}
+
+					if (remaining == 0) {
+						writer.begin_array();
+						remaining = valueBits;
+						GAIA_FOR(pType->constant_count()) {
+							const auto* pConstant = pType->constant(i);
+							GAIA_ASSERT(pConstant != nullptr);
+							uint64_t flagBits = 0;
+							if (runtime_json_constant_bits(type, pConstant->value, flagBits) && flagBits != 0 &&
+									(flagBits & (flagBits - 1)) == 0 && (remaining & flagBits) == flagBits) {
+								writer.value_string(pConstant->name);
+								remaining &= ~flagBits;
+							}
+						}
+						writer.end_array();
+						return true;
+					}
+				}
+
 				return ser::detail::write_runtime_field_json(writer, pData, type, valueSize);
 			}
 
 			inline bool read_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					uint32_t depth, bool& ok);
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok);
 
 			inline void warn_runtime_json(
 					ser::JsonDiagnostics& diagnostics, ser::JsonDiagReason reason, ser::json_str_view path, const char* message) {
@@ -74128,7 +75534,8 @@ namespace gaia {
 
 			inline bool read_runtime_json_field(
 					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field, uint8_t* pBase,
-					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
 				RuntimeJsonFieldLayout layout{};
 				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
 					ok = false;
@@ -74151,7 +75558,7 @@ namespace gaia {
 				auto* pFieldData = pBase + field.offset;
 				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
 					return read_runtime_json_value(
-							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path,
+							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, policy,
 							depth + 1, ok);
 
 				if (!reader.expect('['))
@@ -74163,7 +75570,7 @@ namespace gaia {
 					const auto elemPath = make_runtime_json_element_path(path, i);
 					auto* pElemData = pFieldData + (uintptr_t)layout.elemSize * i;
 					if (!read_runtime_json_value(
-									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath,
+									pCache, layout.pType, layout.type, pElemData, layout.elemSize, reader, diagnostics, elemPath, policy,
 									depth + 1, ok))
 						return false;
 				}
@@ -74172,7 +75579,8 @@ namespace gaia {
 
 			inline bool read_runtime_json_struct(
 					const ComponentCache* pCache, const ComponentCacheItem& item, uint8_t* pData, ser::ser_json& reader,
-					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, uint32_t depth, bool& ok) {
+					ser::JsonDiagnostics& diagnostics, ser::json_str_view path, const ser::RuntimeJsonPolicy& policy,
+					uint32_t depth, bool& ok) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					ok = false;
 					warn_runtime_json(
@@ -74215,7 +75623,7 @@ namespace gaia {
 						if (!reader.skip_value())
 							return false;
 					} else if (!read_runtime_json_field(
-												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, depth + 1, ok))
+												 pCache, item, *pField, pData, reader, diagnostics, fieldPath, policy, depth + 1, ok))
 						return false;
 
 					reader.ws();
@@ -74232,7 +75640,7 @@ namespace gaia {
 			inline bool read_runtime_json_value(
 					const ComponentCache* pCache, const ComponentCacheItem* pType, Entity typeEntity, uint8_t* pData,
 					uint32_t valueSize, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
-					uint32_t depth, bool& ok) {
+					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
 				if (depth >= RuntimeJsonMaxDepth) {
 					ok = false;
 					warn_runtime_json(
@@ -74263,8 +75671,8 @@ namespace gaia {
 						const auto elemPath = make_runtime_json_element_path(path, i);
 						auto* pElemData = pData + (uintptr_t)elemSize * i;
 						if (!read_runtime_json_value(
-										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, depth + 1,
-										ok))
+										pCache, pElementType, elementType, pElemData, elemSize, reader, diagnostics, elemPath, policy,
+										depth + 1, ok))
 							return false;
 					}
 					return reader.expect(']');
@@ -74312,7 +75720,7 @@ namespace gaia {
 						const auto elemPath = make_runtime_json_element_path(path, i);
 						if (!read_runtime_json_value(
 										pCache, pElementType, element.type, (uint8_t*)element.mutData, element.size, reader, diagnostics,
-										elemPath, depth + 1, ok))
+										elemPath, policy, depth + 1, ok))
 							return false;
 					}
 					return reader.expect(']');
@@ -74350,7 +75758,7 @@ namespace gaia {
 					}
 					const bool parsed = read_runtime_json_value(
 							pCache, pSemanticType, projected.type, (uint8_t*)projected.mutData, projected.size, reader, diagnostics,
-							path, depth + 1, ok);
+							path, policy, depth + 1, ok);
 					if (parsed && adapter->commit != nullptr && ok) {
 						if (!adapter->commit(adapter->ctx, opaque, projected)) {
 							ok = false;
@@ -74362,7 +75770,7 @@ namespace gaia {
 				}
 
 				if (pType != nullptr && pType->typeKind == RuntimeTypeKind::Struct)
-					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, depth + 1, ok);
+					return read_runtime_json_struct(pCache, *pType, pData, reader, diagnostics, path, policy, depth + 1, ok);
 
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
 				if (pType != nullptr) {
@@ -74379,6 +75787,79 @@ namespace gaia {
 					return reader.skip_value();
 				}
 
+				reader.ws();
+				if (pType != nullptr && policy.symbolicEnums && pType->typeKind == RuntimeTypeKind::Enum && !reader.eof() &&
+						reader.peek() == '"') {
+					ser::json_str_view symbol;
+					if (!reader.parse_string_view(symbol))
+						return false;
+
+					const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+					uint64_t constantBits = 0;
+					if (pConstant == nullptr || !runtime_json_constant_bits(type, pConstant->value, constantBits) ||
+							!runtime_json_write_integer_bits(pData, type, valueSize, constantBits)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+								"Runtime enum symbol is unknown or incompatible with its underlying type.");
+					}
+					return true;
+				}
+
+				if (pType != nullptr && policy.symbolicBitmasks && pType->typeKind == RuntimeTypeKind::Bitmask &&
+						!reader.eof() && reader.peek() == '[') {
+					if (!reader.expect('['))
+						return false;
+
+					uint64_t valueBits = 0;
+					bool symbolsOk = true;
+					reader.ws();
+					if (!reader.consume(']')) {
+						while (true) {
+							ser::json_str_view symbol;
+							if (!reader.parse_string_view(symbol))
+								return false;
+
+							if (symbolsOk) {
+								const auto* pConstant = pType->constant(util::str_view(symbol.data(), (uint32_t)symbol.size()));
+								uint64_t flagBits = 0;
+								if (pConstant == nullptr) {
+									symbolsOk = false;
+									ok = false;
+									warn_runtime_json(
+											diagnostics, ser::JsonDiagReason::UnknownRuntimeConstant, path,
+											"Runtime bitmask symbol is unknown.");
+								} else if (
+										!runtime_json_constant_bits(type, pConstant->value, flagBits) || flagBits == 0 ||
+										(flagBits & (flagBits - 1)) != 0 || (valueBits & flagBits) != 0) {
+									symbolsOk = false;
+									ok = false;
+									warn_runtime_json(
+											diagnostics, ser::JsonDiagReason::InvalidRuntimeConstant, path,
+											"Runtime bitmask symbol is not a distinct one-bit flag.");
+								} else {
+									valueBits |= flagBits;
+								}
+							}
+
+							reader.ws();
+							if (reader.consume(','))
+								continue;
+							if (reader.consume(']'))
+								break;
+							return false;
+						}
+					}
+
+					if (symbolsOk && !runtime_json_write_integer_bits(pData, type, valueSize, valueBits)) {
+						ok = false;
+						warn_runtime_json(
+								diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+								"Runtime bitmask symbols are incompatible with the underlying field size.");
+					}
+					return true;
+				}
+
 				bool fieldOk = true;
 				if (!ser::detail::read_runtime_field_json(reader, pData, type, valueSize, fieldOk))
 					return false;
@@ -74393,18 +75874,28 @@ namespace gaia {
 		} // namespace detail
 
 		//! Serializes a single component instance into key/value JSON using runtime field metadata in @a item.
-		//! Returns false when some field types are unsupported or out of bounds (those are emitted as null).
-		inline bool component_to_json(const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer) {
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to one component value.
+		//! \param writer Destination JSON writer.
+		//! \param policy Explicit symbolic presentation policy.
+		//! \return False when some field types are unsupported or out of bounds. Those fields are emitted as null.
+		inline bool component_to_json(
+				const ComponentCacheItem& item, const void* pComponentData, ser::ser_json& writer,
+				const ser::RuntimeJsonPolicy& policy = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
 
 			return detail::write_runtime_json_value(
 					item.owner_cache(), &item, item.entity, reinterpret_cast<const uint8_t*>(pComponentData), item.comp.size(),
-					writer, 0);
+					writer, policy, 0);
 		}
 
 		//! Convenience overload returning JSON as a string.
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to one component value.
+		//! \param ok Receives whether the component value was serialized completely.
+		//! \return The serialized JSON value.
 		inline ser::json_str component_to_json(const ComponentCacheItem& item, const void* pComponentData, bool& ok) {
 			ser::ser_json writer;
 			ok = component_to_json(item, pComponentData, writer);
@@ -74417,11 +75908,12 @@ namespace gaia {
 		//! \param pComponentData Pointer to destination component memory for exactly one component instance.
 		//! \param reader JSON parser positioned at the beginning of the component JSON value.
 		//! \param diagnostics Receives structured warnings/errors for lossy or unsupported payload content.
+		//! \param policy Explicit symbolic import policy.
 		//! \param componentPath Logical component path used in diagnostics.
-		//! \return false only when JSON is malformed for the expected component payload shape.
+		//! \return False only when JSON is malformed for the expected component payload shape.
 		inline bool json_to_component(
 				const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, ser::JsonDiagnostics& diagnostics,
-				ser::json_str_view componentPath = {}) {
+				const ser::RuntimeJsonPolicy& policy = {}, ser::json_str_view componentPath = {}) {
 			GAIA_ASSERT(pComponentData != nullptr);
 			if (pComponentData == nullptr)
 				return false;
@@ -74432,11 +75924,11 @@ namespace gaia {
 				return true;
 			}
 
-			if (item.typeKind == RuntimeTypeKind::Opaque && item.opaque_adapter() != nullptr) {
+			if (detail::runtime_json_is_direct_value(item)) {
 				bool ok = true;
 				return detail::read_runtime_json_value(
 						item.owner_cache(), &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(),
-						reader, diagnostics, componentPath, 0, ok);
+						reader, diagnostics, componentPath, policy, 0, ok);
 			}
 
 			bool rawFound = false;
@@ -74485,7 +75977,7 @@ namespace gaia {
 					} else {
 						fieldFound = true;
 						if (!detail::read_runtime_json_field(
-										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, 0, ok))
+										item.owner_cache(), item, *pField, pBase, reader, diagnostics, fieldPath, policy, 0, ok))
 							return false;
 					}
 				} else {
@@ -74528,7 +76020,12 @@ namespace gaia {
 			return true;
 		}
 
-		//! Compatibility overload preserving the previous bool-based best-effort status.
+		//! Convenience overload reporting best-effort status as a boolean.
+		//! \param item Component metadata and optional runtime fields.
+		//! \param pComponentData Pointer to destination component memory.
+		//! \param reader JSON parser positioned at the component value.
+		//! \param ok Receives whether import completed without diagnostics.
+		//! \return False only when the JSON shape is malformed.
 		inline bool
 		json_to_component(const ComponentCacheItem& item, void* pComponentData, ser::ser_json& reader, bool& ok) {
 			ser::JsonDiagnostics diagnostics;
@@ -74541,7 +76038,8 @@ namespace gaia {
 		//! Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and
 		//! target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime
 		//! field types are unsupported (those fields are emitted as null).
-		inline bool World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags) const {
+		inline bool
+		World::save_json(ser::ser_json& writer, ser::JsonSaveFlags flags, const ser::RuntimeJsonPolicy& policy) const {
 			auto write_component_key = [&](Entity component, const ComponentCacheItem& item) {
 				if (!component.pair()) {
 					const auto componentName = comp_cache().symbol_name(item);
@@ -74692,9 +76190,10 @@ namespace gaia {
 
 										const auto row = component.kind() == EntityKind::EK_Uni ? 0U : i;
 
-										if (item.field_count() != 0 && rec.comp.soa() == 0) {
+										if ((item.field_count() != 0 || detail::runtime_json_is_direct_value(item)) &&
+												rec.comp.soa() == 0) {
 											const auto* pCompData = pChunk->comp_ptr(j, row);
-											ok = ecs::component_to_json(item, pCompData, writer) && ok;
+											ok = ecs::component_to_json(item, pCompData, writer, policy) && ok;
 										} else {
 											if (allowRawFallback)
 												write_raw_component(item, rec.pData, row, row + 1, pChunk->capacity());
@@ -74729,7 +76228,8 @@ namespace gaia {
 		}
 
 		//! Loads world state from JSON previously emitted by save_json().
-		inline bool World::load_json(const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics) {
+		inline bool World::load_json(
+				const char* json, uint32_t len, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy) {
 			diagnostics.clear();
 			if (json == nullptr)
 				return false;
@@ -74868,18 +76368,6 @@ namespace gaia {
 				if (jp.eof())
 					return false;
 
-				// Tag values are currently ignored by semantic loader.
-				const char next = jp.peek();
-				if (next == 't' || next == 'f') {
-					bool tagValue = false;
-					if (!jp.parse_bool(tagValue))
-						return false;
-					warn(
-							ser::JsonDiagReason::TagValueIgnored, compPath,
-							"Tag-like boolean component payload is ignored in semantic mode.");
-					return true;
-				}
-
 				if (jp.parse_null()) {
 					warn(
 							ser::JsonDiagReason::NullComponentPayload, compPath,
@@ -74903,7 +76391,7 @@ namespace gaia {
 				}
 
 				auto* pRowData = loc.pBase + (uintptr_t)item.comp.size() * loc.row;
-				if (!ecs::json_to_component(item, pRowData, jp, diagnostics, compPath))
+				if (!ecs::json_to_component(item, pRowData, jp, diagnostics, policy, compPath))
 					return false;
 				return true;
 			};
@@ -75184,8 +76672,9 @@ namespace gaia {
 			return parsed && !diagnostics.has_issues();
 		}
 
-		inline bool World::load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics) {
-			return load_json(json.data(), json.size(), diagnostics);
+		inline bool
+		World::load_json(ser::json_str_view json, ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy) {
+			return load_json(json.data(), json.size(), diagnostics, policy);
 		}
 
 		inline bool World::load_json(ser::json_str_view json) {
@@ -76795,10 +78284,22 @@ namespace gaia {
 			return m_pWorld->get_raw(m_entity, component);
 		}
 
+		inline ComponentRawView ComponentGetter::get_raw_field(Entity component, uint32_t fieldIdx) const {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return m_pWorld->get_raw_field(m_entity, component, fieldIdx);
+		}
+
 		inline ComponentRawMutView ComponentSetter::mut_raw(Entity component) {
 			GAIA_ASSERT(m_pWorld != nullptr);
 			GAIA_ASSERT(m_entity != EntityBad);
 			return const_cast<World*>(m_pWorld)->mut_raw(m_entity, component);
+		}
+
+		inline ComponentRawMutView ComponentSetter::mut_raw_field(Entity component, uint32_t fieldIdx) {
+			GAIA_ASSERT(m_pWorld != nullptr);
+			GAIA_ASSERT(m_entity != EntityBad);
+			return const_cast<World*>(m_pWorld)->mut_raw_field(m_entity, component, fieldIdx);
 		}
 
 		inline ComponentSetter& ComponentSetter::set_raw(Entity component, const void* data, uint32_t size) {
@@ -76825,14 +78326,12 @@ namespace gaia {
 			using FT = typename component_type_t<T>::TypeFull;
 			if constexpr (World::template supports_sparse_component_storage<FT>()) {
 				if (m_pWorld->template can_use_sparse_component_storage<FT>(type)) {
-					const auto* pStore = m_pWorld->template sparse_component_store<FT>(type);
-					GAIA_ASSERT(pStore != nullptr);
-					GAIA_ASSERT(pStore->has(m_entity));
-					return pStore->get(m_entity);
+					return m_pWorld->template sparse_component_get_value<FT>(type, m_entity);
 				}
 			}
 
-			return m_pChunk->template get<T>(m_row, type);
+			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			return m_pChunk->template get<T>(row, type);
 		}
 
 		template <typename T>
@@ -76849,10 +78348,11 @@ namespace gaia {
 			if constexpr (World::template supports_sparse_component_storage<FT>()) {
 				auto& world = *const_cast<World*>(m_pWorld);
 				if (world.template can_use_sparse_component_storage<FT>(type))
-					return world.template sparse_component_store_mut<FT>(type).mut(m_entity);
+					return world.template sparse_component_mut_value<FT>(type, m_entity);
 			}
 
-			return const_cast<Chunk*>(m_pChunk)->template sset<T>(m_row, type);
+			const auto row = (uint16_t)(m_row * (actual_type_t<T>::Kind == EntityKind::EK_Gen));
+			return const_cast<Chunk*>(m_pChunk)->template sset<T>(row, type);
 		}
 
 		template <typename T>

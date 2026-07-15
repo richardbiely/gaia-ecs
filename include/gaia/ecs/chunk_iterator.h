@@ -1311,6 +1311,7 @@ namespace gaia {
 				}
 
 				//! Resolves one directly stored generic table runtime SoA field.
+				//! Exact relationship pairs use the same contiguous chunk storage contract as component terms.
 				//! \param termIdx Query term index.
 				//! \param fieldIdx SoA field array index.
 				//! \param compIdx Receives the chunk component index.
@@ -1329,10 +1330,9 @@ namespace gaia {
 					if (compIdx >= recs.size())
 						return false;
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = recs[compIdx];
 					pItem = rec.pItem;
-					return !term.pair() && pItem != nullptr && pItem->entity.kind() == EntityKind::EK_Gen &&
+					return pItem != nullptr && pItem->entity.kind() == EntityKind::EK_Gen &&
 								 rec.comp.storage_type() == DataStorageType::Table && rec.comp.soa() != 0 &&
 								 fieldIdx < rec.comp.soa() && pItem->soaSizes[fieldIdx] != 0;
 				}
@@ -1432,8 +1432,9 @@ namespace gaia {
 				}
 
 				//! Returns a read-only raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
 				//! Field-address resolution scans the preceding runtime field sizes once when the view is created.
-				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
 				//! \param termIdx Query term index.
 				//! \param fieldIdx SoA field array index.
 				//! \return Contiguous field view for the current iterator range, or an empty view when unsupported.
@@ -1442,8 +1443,9 @@ namespace gaia {
 				}
 
 				//! Returns a mutable raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
 				//! Writes are finished after the iterator callback through normal touched-write tracking.
-				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
 				//! \param termIdx Query term index.
 				//! \param fieldIdx SoA field array index.
 				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.
@@ -1452,8 +1454,9 @@ namespace gaia {
 				}
 
 				//! Returns a mutable runtime SoA field view without marking the term modified.
+				//! Exact relationship pairs are supported when their resolved payload metadata uses table SoA storage.
 				//! Pair with modify_raw(termIdx) when set hooks or `OnSet` observers should run.
-				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! Sparse, wildcard, non-self-source, inherited, and unique terms return an empty view.
 				//! \param termIdx Query term index.
 				//! \param fieldIdx SoA field array index.
 				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.

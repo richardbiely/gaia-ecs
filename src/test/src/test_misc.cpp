@@ -1190,6 +1190,187 @@ TEST_CASE("Component cache - runtime registration") {
 		wld.enable(entityA, true);
 	}
 
+	SUBCASE("runtime SoA pair fields expose contiguous iterator field views") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, //
+				{util::str_view("score"), ecs::F64, 8, 0} //
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Relation_SoA_Iter_Field_Mutation");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 2;
+		auto& relation = wld.add(desc);
+
+		const auto target = wld.add();
+		const ecs::Pair pair(relation.entity, target);
+		const auto pairEntity = (ecs::Entity)pair;
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		wld.add(entityA, pair);
+		wld.add(entityB, pair);
+		*(uint32_t*)wld.mut_raw_field(entityA, pairEntity, 0).data = 11;
+		*(uint32_t*)wld.mut_raw_field(entityB, pairEntity, 0).data = 22;
+		*(double*)wld.mut_raw_field(entityA, pairEntity, 1).data = 1.5;
+		*(double*)wld.mut_raw_field(entityB, pairEntity, 1).data = 2.5;
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(pairEntity)
+													 .on_each([&](ecs::Entity) {
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto q = wld.query().all(pairEntity);
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw(0).size() == 0);
+			const auto health = it.view_raw_field(0, 0);
+			CHECK(health.size() == it.size());
+			if (health.size() != it.size())
+				return;
+			CHECK(health[0].valid());
+			CHECK(health[0].size == sizeof(uint32_t));
+			CHECK((const uint8_t*)health[1].data - (const uint8_t*)health[0].data == sizeof(uint32_t));
+			CHECK(*(const uint32_t*)health[0].data == 11);
+			CHECK(*(const uint32_t*)health[1].data == 22);
+
+			auto score = it.view_raw_field_mut(0, 1);
+			CHECK(score.size() == it.size());
+			if (score.size() != it.size())
+				return;
+			CHECK(score[0].size == sizeof(double));
+			GAIA_FOR(it.size()) {
+				*(double*)score[i].data += 10.0;
+			}
+		});
+		CHECK(setHits == 2);
+		CHECK(*(const double*)wld.get_raw_field(entityA, pairEntity, 1).data == doctest::Approx(11.5));
+		CHECK(*(const double*)wld.get_raw_field(entityB, pairEntity, 1).data == doctest::Approx(12.5));
+
+		setHits = 0;
+		q.each([&](ecs::Iter& it) {
+			auto health = it.sview_raw_field_mut(0, 0);
+			CHECK(health.size() == it.size());
+			if (health.size() != it.size())
+				return;
+			GAIA_FOR(it.size()) {
+				*(uint32_t*)health[i].data += 1;
+			}
+			CHECK(setHits == 0);
+			it.modify_raw(0);
+		});
+		CHECK(setHits == 2);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityA, pairEntity, 0).data == 12);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityB, pairEntity, 0).data == 23);
+
+		ecs::ComponentDesc targetDesc = desc;
+		targetDesc.name = util::str_view("Runtime_Target_SoA_Iter_Field_Mutation");
+		auto& targetPayload = wld.add(targetDesc);
+		ecs::ComponentDesc relationTagDesc{};
+		relationTagDesc.name = util::str_view("Runtime_Relation_Tag_SoA_Iter_Target_Payload");
+		relationTagDesc.size = 0;
+		relationTagDesc.alig = 1;
+		auto& relationTag = wld.add(relationTagDesc);
+		const ecs::Pair targetOwnedPair(relationTag.entity, targetPayload.entity);
+		const auto targetOwnedPairEntity = (ecs::Entity)targetOwnedPair;
+		const auto targetOwnedEntityA = wld.add();
+		const auto targetOwnedEntityB = wld.add();
+		wld.add(targetOwnedEntityA, targetOwnedPair);
+		wld.add(targetOwnedEntityB, targetOwnedPair);
+		*(uint32_t*)wld.mut_raw_field(targetOwnedEntityA, targetOwnedPairEntity, 0).data = 31;
+		*(uint32_t*)wld.mut_raw_field(targetOwnedEntityB, targetOwnedPairEntity, 0).data = 42;
+		*(double*)wld.mut_raw_field(targetOwnedEntityA, targetOwnedPairEntity, 1).data = 3.25;
+		*(double*)wld.mut_raw_field(targetOwnedEntityB, targetOwnedPairEntity, 1).data = 4.5;
+
+		uint32_t targetOwnedSetHits = 0;
+		const auto targetOwnedOnSet = wld.observer()
+																			.event(ecs::ObserverEvent::OnSet)
+																			.all(targetOwnedPairEntity)
+																			.on_each([&](ecs::Entity) {
+																				++targetOwnedSetHits;
+																			})
+																			.entity();
+		(void)targetOwnedOnSet;
+
+		wld.query().all(targetOwnedPairEntity).each([&](ecs::Iter& it) {
+			const auto health = it.view_raw_field(0, 0);
+			CHECK(health.size() == it.size());
+			if (health.size() != it.size())
+				return;
+			CHECK((const uint8_t*)health[1].data - (const uint8_t*)health[0].data == sizeof(uint32_t));
+			CHECK(*(const uint32_t*)health[0].data == 31);
+			CHECK(*(const uint32_t*)health[1].data == 42);
+
+			auto score = it.view_raw_field_mut(0, 1);
+			CHECK(score.size() == it.size());
+			if (score.size() != it.size())
+				return;
+			GAIA_FOR(it.size()) {
+				*(double*)score[i].data += 20.0;
+			}
+		});
+		CHECK(targetOwnedSetHits == 2);
+		CHECK(
+				*(const double*)wld.get_raw_field(targetOwnedEntityA, targetOwnedPairEntity, 1).data == doctest::Approx(23.25));
+		CHECK(
+				*(const double*)wld.get_raw_field(targetOwnedEntityB, targetOwnedPairEntity, 1).data == doctest::Approx(24.5));
+
+		targetOwnedSetHits = 0;
+		wld.query().all(targetOwnedPairEntity).each([&](ecs::Iter& it) {
+			auto health = it.sview_raw_field_mut(0, 0);
+			CHECK(health.size() == it.size());
+			if (health.size() != it.size())
+				return;
+			GAIA_FOR(it.size()) {
+				*(uint32_t*)health[i].data += 2;
+			}
+			CHECK(targetOwnedSetHits == 0);
+			it.modify_raw(0);
+		});
+		CHECK(targetOwnedSetHits == 2);
+		CHECK(*(const uint32_t*)wld.get_raw_field(targetOwnedEntityA, targetOwnedPairEntity, 0).data == 33);
+		CHECK(*(const uint32_t*)wld.get_raw_field(targetOwnedEntityB, targetOwnedPairEntity, 0).data == 44);
+
+		auto checkWildcard = [&](ecs::Entity wildcardPair, uint32_t expectedRows) {
+			uint32_t rows = 0;
+			wld.query().all(wildcardPair).each([&](ecs::Iter& it) {
+				rows += it.size();
+				CHECK(it.view_raw_field(0, 0).size() == 0);
+				CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+				CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+			});
+			CHECK(rows == expectedRows);
+		};
+
+		checkWildcard(ecs::Pair(relation.entity, ecs::All), 2);
+		checkWildcard(ecs::Pair(ecs::All, target), 2);
+		checkWildcard(ecs::Pair(relationTag.entity, ecs::All), 2);
+		checkWildcard(ecs::Pair(ecs::All, targetPayload.entity), 2);
+
+		uint32_t anyPairRows = 0;
+		wld.query().all(ecs::Pair(ecs::All, ecs::All)).each([&](ecs::Iter& it) {
+			const auto entities = it.view<ecs::Entity>();
+			GAIA_FOR(it.size()) {
+				const auto entity = entities[i];
+				if (entity == entityA || entity == entityB || entity == targetOwnedEntityA || entity == targetOwnedEntityB)
+					++anyPairRows;
+			}
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+		});
+		CHECK(anyPairRows == 4);
+	}
+
 	SUBCASE("runtime SoA iterator field views reject non-self sources") {
 		TestWorld twld;
 		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
@@ -1363,9 +1544,12 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(wld.cursor(source, pair).valid());
 		CHECK(wld.cursor_mut(source, pair).valid());
 		wld.query().all(pair).each([&](ecs::Iter& it) {
-			CHECK(it.view_raw_field(0, 0).size() == 0);
-			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
-			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.view_raw_field(0, 0).size() == 1);
+			CHECK(it.view_raw_field(0, 0)[0].valid());
+			CHECK(it.view_raw_field_mut(0, 0).size() == 1);
+			CHECK(it.view_raw_field_mut(0, 0)[0].valid());
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 1);
+			CHECK(it.sview_raw_field_mut(0, 0)[0].valid());
 		});
 
 		const auto& typedSoa = wld.add<PositionSoA>();

@@ -1899,11 +1899,11 @@ Runtime-created components use erased raw byte views during iterator callbacks:
 * `view_raw(termIdx)` - read-only raw payload rows for a directly chunk-backed term
 * `view_raw_mut(termIdx)` - mutable raw payload rows with normal post-callback set side effects
 * `sview_raw_mut(termIdx)` - silent mutable raw payload rows. Pair with `modify_raw(termIdx)` when set side effects should run.
-* `view_raw_field(termIdx, fieldIdx)` - one read-only contiguous field array for a directly stored generic table SoA term
+* `view_raw_field(termIdx, fieldIdx)` - one read-only contiguous field array for a directly stored generic table SoA term or exact pair
 * `view_raw_field_mut(termIdx, fieldIdx)` - mutable contiguous SoA field values with normal post-callback set side effects
 * `sview_raw_field_mut(termIdx, fieldIdx)` - silent mutable SoA field values. Pair with `modify_raw(termIdx)` when set side effects should run.
 
-The runtime SoA iterator accessors resolve the field array once and then index contiguous field values. Multiple tracked fields of the same component produce one component write per visible row after the callback. Sparse, relationship, explicit-source, traversed, inherited, and unique SoA terms return an empty view.
+The runtime SoA iterator accessors resolve the field array once and then index contiguous field values. Exact relation pairs are supported when their relation or target metadata owns a table SoA payload. Multiple tracked fields of the same component or pair produce one write per visible row after the callback. Sparse, wildcard-pair, explicit-source, traversed, inherited, and unique SoA terms return an empty view.
 
 Use plain `view*` whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the `*_any` variant explicitly.
 
@@ -4006,7 +4006,7 @@ if (cursor.field("seconds")) {
 
 `get_raw(...)` and `mut_raw(...)` access a complete AoS runtime component as bytes. They work with components in archetype/chunk or sparse storage. `mut_raw(...)` does not emit write notifications. Call `modify_raw(...)` afterwards when set hooks or `OnSet` observers must run. `set_raw(...)` copies the complete value and emits the notification for you.
 
-Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports archetype/chunk components and exact relationship pairs with table SoA payloads, but not sparse components. Iterator field views are narrower and support directly stored generic table components only. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
+Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports archetype/chunk components and exact relationship pairs with table SoA payloads, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
 
 `ComponentCursor` selects reflected fields for both AoS and SoA components. Primitive setters such as `f32(...)` emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` before reading or writing an element.
 
@@ -4094,8 +4094,8 @@ The mutable `view_raw_any_mut(component)` path emits normal write notifications 
 every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A
 later mutable view is invalid, and `modify_raw(component)` returns false when that limit or the ownership requirement
 is not satisfied.
-Directly stored generic table runtime SoA terms use `view_raw_field(termIdx, fieldIdx)` for a contiguous read-only
-field array. See [Iteration](#iteration) for the supported storage and ownership contracts.
+Directly stored generic table runtime SoA component and exact-pair terms use `view_raw_field(termIdx, fieldIdx)` for a
+contiguous read-only field array. See [Iteration](#iteration) for the supported storage and ownership contracts.
 
 ## Multithreading
 
