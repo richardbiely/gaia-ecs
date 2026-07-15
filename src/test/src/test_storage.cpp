@@ -1,5 +1,40 @@
 #include "test_common.h"
 
+namespace {
+	template <uint32_t Idx>
+	struct SparseTouchProbe {
+		uint32_t value = 0;
+	};
+
+	template <uint32_t Idx, uint32_t Count>
+	void add_sparse_touch_probes(ecs::World& world, ecs::Entity entity) {
+		using Probe = SparseTouchProbe<Idx>;
+		const auto& item = world.add<Probe>();
+		world.add(item.entity, ecs::Sparse);
+		world.add(item.entity, ecs::DontFragment);
+		world.add<Probe>(entity);
+		if constexpr (Idx + 1 < Count)
+			add_sparse_touch_probes<Idx + 1, Count>(world, entity);
+	}
+
+	template <uint32_t Idx, uint32_t Count>
+	void write_sparse_touch_probes(ecs::Iter& it) {
+		using Probe = SparseTouchProbe<Idx>;
+		auto view = it.view_any_mut<Probe>();
+		if constexpr (Idx < ecs::ChunkHeader::MAX_COMPONENTS) {
+			CHECK(view.size() == 1);
+			view[0].value = Idx + 1;
+		} else {
+			CHECK(view.size() == 0);
+			if (view.size() != 0)
+				view[0].value = Idx + 1;
+		}
+
+		if constexpr (Idx + 1 < Count)
+			write_sparse_touch_probes<Idx + 1, Count>(it);
+	}
+} // namespace
+
 TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") {
 	SparseTestWorld twld;
 
@@ -30,6 +65,24 @@ TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") 
 	CHECK_FALSE(wld.has<PositionSparse>(e));
 	CHECK_FALSE(wld.has(e, compItem.entity));
 	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
+}
+
+TEST_CASE("Typed sparse mutable views reject touched-term capacity exhaustion") {
+	TestWorld twld;
+
+	constexpr uint32_t ProbeCount = ecs::ChunkHeader::MAX_COMPONENTS + 1;
+	const auto entity = wld.add();
+	wld.add<Position>(entity);
+	add_sparse_touch_probes<0, ProbeCount>(wld, entity);
+
+	wld.query().all<Position>().each([&](ecs::Iter& it) {
+		write_sparse_touch_probes<0, ProbeCount>(it);
+	});
+
+	CHECK(
+			wld.get<SparseTouchProbe<ecs::ChunkHeader::MAX_COMPONENTS - 1>>(entity).value ==
+			ecs::ChunkHeader::MAX_COMPONENTS);
+	CHECK(wld.get<SparseTouchProbe<ecs::ChunkHeader::MAX_COMPONENTS>>(entity).value == 0);
 }
 
 TEST_CASE("Builder handles sticky traits and non-fragmenting relation ids") {

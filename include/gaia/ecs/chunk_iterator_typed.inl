@@ -133,7 +133,9 @@ namespace gaia {
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					if constexpr (mem::is_soa_layout_v<U>) {
 						const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-						self.touch_term_desc(desc);
+						const bool tracked = self.touch_term_desc(desc);
+						GAIA_ASSERT(tracked);
+						(void)tracked;
 						if (self.m_writeIm)
 							return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 						return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
@@ -142,11 +144,13 @@ namespace gaia {
 						const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
 						if (id != EntityBad) {
-							self.touch_term(id);
+							if (!self.touch_term(id))
+								return self.template entity_view_set_empty<U>(self.m_writeIm);
 							return self.template entity_view_set<U>(id, self.m_writeIm);
 						}
 
-						self.touch_term_desc(desc);
+						if (!self.touch_term_desc(desc))
+							return self.template entity_view_set_empty<U>(self.m_writeIm);
 						auto* pData =
 								reinterpret_cast<U*>((self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																										 : self.m_pChunk->template sview_mut<T>(self.from(), self.to()))
@@ -160,12 +164,16 @@ namespace gaia {
 					using U = typename actual_type_t<T>::Type;
 					static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via view_mut is forbidden");
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
-					self.touch_term_desc(desc);
+					const bool tracked = self.touch_term_desc(desc);
 					if constexpr (mem::is_soa_layout_v<U>) {
+						if (!tracked)
+							return SoATermViewSetPointer<U>{};
 						auto view = self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																			 : self.m_pChunk->template sview_mut<T>(self.from(), self.to());
 						return SoATermViewSetPointer<U>{(uint8_t*)view.data(), (uint32_t)view.size(), self.from(), self.size()};
 					} else {
+						if (!tracked)
+							return EntityTermViewSetPointer<U>{};
 						auto* pData =
 								reinterpret_cast<U*>((self.m_writeIm ? self.m_pChunk->template view_mut<T>(self.from(), self.to())
 																										 : self.m_pChunk->template sview_mut<T>(self.from(), self.to()))
@@ -204,7 +212,8 @@ namespace gaia {
 						if (compIdx == 0xFF) {
 							const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 							GAIA_ASSERT(desc.termId != EntityBad);
-							self.touch_term(desc.termId);
+							if (!self.touch_term(desc.termId))
+								return self.template entity_soa_view_set_empty<U>(self.m_writeIm);
 							return self.template entity_soa_view_set<U>(desc.termId, self.m_writeIm);
 						}
 
@@ -225,13 +234,15 @@ namespace gaia {
 						const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 						const auto compIdx = self.m_pCompIndices[termIdx];
 						if (desc.usesSparseStorage) {
-							self.touch_term(desc.termId);
+							if (!self.touch_term(desc.termId))
+								return self.template entity_view_set_empty<U>(self.m_writeIm);
 							return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
 						}
 
 						if (compIdx == 0xFF) {
 							GAIA_ASSERT(desc.termId != EntityBad);
-							self.touch_term(desc.termId);
+							if (!self.touch_term(desc.termId))
+								return self.template entity_view_set_empty<U>(self.m_writeIm);
 							return self.template entity_view_set<U>(desc.termId, self.m_writeIm);
 						}
 						GAIA_ASSERT(compIdx < self.m_pChunk->comp_rec_view().size());

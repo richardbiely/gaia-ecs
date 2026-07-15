@@ -1978,6 +1978,12 @@ namespace gaia {
 					const auto& term = terms[i];
 					const auto fieldIdx = term.fieldIndex;
 					const auto queryId = term.id;
+					//! Component-index mappings describe columns owned by the currently iterated rows.
+					//! Terms resolved from another source must use entity-resolved accessors even when
+					//! the current archetype happens to contain the same component id.
+					if (!query_term_maps_to_current_archetype(term))
+						continue;
+
 					if (!queryId.pair() && world_component_uses_sparse_storage(*world(), queryId)) {
 #if GAIA_ASSERT_ENABLED
 						// Verify that the component is indeed not present on the archetype, otherwise our matching logic is flawed.

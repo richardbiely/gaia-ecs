@@ -74,6 +74,19 @@ namespace gaia {
 		};
 		static_assert(sizeof(ComponentRawMutView) == 16, "ComponentRawMutView must stay compact");
 
+		//! Resolves raw read-only bytes for iterator entity-backed access.
+		//! \param world World containing the component value.
+		//! \param entity Entity owning or inheriting the component value.
+		//! \param component Runtime component entity or exact relationship pair.
+		//! \return Raw payload view, or an invalid view when unavailable.
+		ComponentRawView world_get_raw(const World& world, Entity entity, Entity component);
+		//! Resolves raw mutable bytes for iterator entity-backed access.
+		//! \param world World containing the component value.
+		//! \param entity Entity directly owning the component value.
+		//! \param component Runtime component entity or exact relationship pair.
+		//! \return Mutable payload view, or an invalid view when unavailable.
+		ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component);
+
 		//! Resolves one read-only SoA field for cursor traversal.
 		//! \param world World containing the component value.
 		//! \param entity Entity owning or inheriting the component value.

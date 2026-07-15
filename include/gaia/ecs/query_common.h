@@ -640,6 +640,13 @@ namespace gaia {
 			return is_variable(EntityId(term.id.id()));
 		}
 
+		//! Checks whether a query term may map to a column owned by the currently iterated archetype.
+		//! \param term Query term.
+		//! \return True for non-variable self-source terms without traversal.
+		GAIA_NODISCARD inline bool query_term_maps_to_current_archetype(const QueryTerm& term) {
+			return term.src == EntityBad && term.entTrav == EntityBad && !term_has_variables(term);
+		}
+
 		//! Returns whether a term shape can resolve through inherited-id matching.
 		//! This ignores mutable world metadata such as the current OnInstantiate policy.
 		//! \param term Query term.

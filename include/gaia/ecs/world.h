@@ -396,12 +396,11 @@ namespace gaia {
 				return item.comp.soa() == 0;
 			}
 
-			//! Checks whether @a component can expose direct SoA field views in table storage.
+			//! Checks whether @a item can expose direct SoA field views in table storage.
 			//! \param item Physical component payload metadata.
-			//! \param component Component id being accessed.
-			//! \return True when the component uses supported non-pair table SoA storage.
-			GAIA_NODISCARD static bool soa_field_supported(const ComponentCacheItem& item, Entity component) noexcept {
-				return !component.pair() && item.comp.soa() != 0 && item.comp.storage_type() == DataStorageType::Table;
+			//! \return True when the payload uses supported table SoA storage.
+			GAIA_NODISCARD static bool soa_field_supported(const ComponentCacheItem& item) noexcept {
+				return item.comp.soa() != 0 && item.comp.storage_type() == DataStorageType::Table;
 			}
 
 			//! Validates raw payload arguments against the registered component metadata.
@@ -5623,8 +5622,8 @@ namespace gaia {
 					return {pStore->func_mut(pStore->pStore, entity), pItem->comp.size(), ComponentRawViewFlag_Valid};
 				}
 
-				const auto compIdx = ec.pChunk->comp_idx(component);
-				if (compIdx == ComponentIndexBad)
+				const auto compIdx = core::get_index(ec.pChunk->ids_view(), component);
+				if (compIdx == BadIndex)
 					return {};
 
 				const auto size = pItem->comp.size();
@@ -5650,7 +5649,7 @@ namespace gaia {
 					return {};
 
 				const auto* pItem = component_item(owner, component);
-				if (pItem == nullptr || !soa_field_supported(*pItem, component) || fieldIdx >= pItem->comp.soa() ||
+				if (pItem == nullptr || !soa_field_supported(*pItem) || fieldIdx >= pItem->comp.soa() ||
 						pItem->soaSizes[fieldIdx] == 0)
 					return {};
 
@@ -5682,7 +5681,7 @@ namespace gaia {
 					return {};
 
 				const auto* pItem = component_item(entity, component);
-				if (pItem == nullptr || !soa_field_supported(*pItem, component) || fieldIdx >= pItem->comp.soa() ||
+				if (pItem == nullptr || !soa_field_supported(*pItem) || fieldIdx >= pItem->comp.soa() ||
 						pItem->soaSizes[fieldIdx] == 0)
 					return {};
 
@@ -5794,7 +5793,7 @@ namespace gaia {
 
 					const auto& ec = fetch(entity);
 					const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
-					if (pItem == nullptr || !soa_field_supported(*pItem, component) ||
+					if (pItem == nullptr || !soa_field_supported(*pItem) ||
 							core::get_index(ec.pChunk->ids_view(), component) == BadIndex)
 						return;
 				}
@@ -11994,6 +11993,14 @@ namespace gaia {
 			}
 		};
 
+		inline ComponentRawView world_get_raw(const World& world, Entity entity, Entity component) {
+			return world.get_raw(entity, component);
+		}
+
+		inline ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component) {
+			return world.mut_raw(entity, component);
+		}
+
 		inline ComponentRawView
 		world_get_raw_field(const World& world, Entity entity, Entity component, uint32_t fieldIdx) {
 			return world.get_raw_field(entity, component, fieldIdx);
@@ -12008,7 +12015,7 @@ namespace gaia {
 				const auto owner = id_owner_inter(entity, component);
 				if (owner != EntityBad) {
 					const auto* pItem = component_item(owner, component);
-					if (pItem != nullptr && soa_field_supported(*pItem, component)) {
+					if (pItem != nullptr && soa_field_supported(*pItem)) {
 						const auto& ec = fetch(owner);
 						if (ec.pChunk->comp_idx(component) != ComponentIndexBad)
 							return ComponentCursor::from_soa(*this, comp_cache(), owner, component, pItem->comp.size());
@@ -12023,7 +12030,7 @@ namespace gaia {
 			if (component != EntityBad && valid(entity)) {
 				const auto& ec = fetch(entity);
 				const auto* pItem = !is_req_del(ec) ? component_item(entity, component) : nullptr;
-				if (pItem != nullptr && soa_field_supported(*pItem, component) &&
+				if (pItem != nullptr && soa_field_supported(*pItem) &&
 						core::get_index(ec.pChunk->ids_view(), component) != BadIndex)
 					return ComponentCursor::from_soa(*this, comp_cache(), entity, component, pItem->comp.size());
 			}

@@ -4907,6 +4907,9 @@ namespace gaia {
 								pIndices[fieldIdx] = indicesView[fieldIdx];
 								continue;
 							}
+							if (!query_term_maps_to_current_archetype(term))
+								continue;
+
 							if (!queryId.pair() && world_component_uses_sparse_storage(world, queryId)) {
 #if GAIA_ASSERT_ENABLED
 								const auto compIdx = core::get_index_unsafe(ec.pArchetype->ids_view(), queryId);
@@ -4988,7 +4991,7 @@ namespace gaia {
 					for (const auto& term: queryInfo.ctx().data.terms_view()) {
 						if (term.id != desc.id)
 							continue;
-						if (term.src != EntityBad || term.entTrav != EntityBad || term_has_variables(term))
+						if (!query_term_maps_to_current_archetype(term))
 							return false;
 						if (uses_non_direct_is_matching(term) || uses_inherited_id_matching(world, term) ||
 								is_non_fragmenting_direct_term(world, term))

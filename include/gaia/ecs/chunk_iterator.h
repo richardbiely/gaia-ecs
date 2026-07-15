@@ -86,7 +86,7 @@ namespace gaia {
 				uint32_t offset = 0;
 			};
 
-			//! Read-only raw byte view for a directly chunk-backed AoS iterator term.
+			//! Read-only raw byte view over one contiguous directly chunk-backed iterator value range.
 			struct RawTermViewGet {
 				const uint8_t* pData = nullptr;
 				uint32_t elemSize = 0;
@@ -99,6 +99,7 @@ namespace gaia {
 						return {};
 					if (elemSize == 0)
 						return {nullptr, 0, ComponentRawViewFlag_Valid};
+
 					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
 				}
 
@@ -120,7 +121,50 @@ namespace gaia {
 						return {};
 					if (elemSize == 0)
 						return {nullptr, 0, ComponentRawViewFlag_Valid};
+
 					return {pData + (uintptr_t)elemSize * idx, elemSize, ComponentRawViewFlag_Valid};
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			//! Read-only raw byte view resolved by entity id.
+			//! Used when runtime payloads may live outside the current chunk column.
+			struct RawTermViewGetEntity {
+				const Entity* pEntities = nullptr;
+				const World* pWorld = nullptr;
+				Entity component = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD ComponentRawView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
+						return {};
+
+					return world_get_raw(*pWorld, pEntities[idx], component);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+			};
+
+			//! Mutable raw byte view resolved by entity id.
+			//! Used when runtime payloads may live outside the current chunk column.
+			struct RawTermViewSetEntity {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				Entity component = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD ComponentRawMutView operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
+						return {};
+
+					return world_mut_raw(*pWorld, pEntities[idx], component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -1114,9 +1158,21 @@ namespace gaia {
 					return EntityTermViewSet<U>::entity(entity_snapshot(), world(), termId, size(), writeIm);
 				}
 
+				//! Returns an empty mutable AoS fallback view after access or tracking validation fails.
+				template <typename U>
+				GAIA_NODISCARD static auto entity_view_set_empty(bool writeIm) {
+					return EntityTermViewSet<U>::entity(nullptr, nullptr, EntityBad, 0, writeIm);
+				}
+
 				template <typename U>
 				GAIA_NODISCARD auto entity_soa_view_set(Entity termId, bool writeIm) {
 					return SoATermViewSet<U>{nullptr, 0, entity_snapshot(), world(), termId, 0, size(), writeIm};
+				}
+
+				//! Returns an empty mutable SoA fallback view after access or tracking validation fails.
+				template <typename U>
+				GAIA_NODISCARD static auto entity_soa_view_set_empty(bool writeIm) {
+					return SoATermViewSet<U>{nullptr, 0, nullptr, nullptr, EntityBad, 0, 0, writeIm};
 				}
 
 				void set_group_id(GroupId groupId) {
@@ -1180,24 +1236,55 @@ namespace gaia {
 					m_touchedCompIndices[m_touchedCompCnt++] = compIdx;
 				}
 
-				void touch_term(Entity term) {
+				GAIA_NODISCARD bool touch_term(Entity term) {
 					GAIA_ASSERT(term != EntityBad);
 					GAIA_FOR(m_touchedTermCnt) {
 						if (m_touchedTerms[i] == term)
-							return;
+							return true;
 					}
 
-					GAIA_ASSERT(m_touchedTermCnt < ChunkHeader::MAX_COMPONENTS);
+					if (m_touchedTermCnt >= ChunkHeader::MAX_COMPONENTS)
+						return false;
+
 					m_touchedTerms[m_touchedTermCnt++] = term;
+					return true;
 				}
 
-				void touch_term_desc(const IterTermDesc& desc) {
+				GAIA_NODISCARD bool touch_term_desc(const IterTermDesc& desc) {
 					if (desc.isEntity)
-						return;
+						return true;
 					if (desc.usesSparseStorage)
-						touch_term(desc.termId);
-					else
-						touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
+						return touch_term(desc.termId);
+					touch_comp_idx((uint8_t)m_pChunk->comp_idx(desc.termId));
+					return true;
+				}
+
+				//! Tracks a raw component write through the same storage identity used by direct iterator views.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when the component was tracked.
+				GAIA_NODISCARD bool touch_raw_component(Entity component) {
+					if (!world_component_uses_sparse_storage(*world(), component)) {
+						const auto compIdx = core::get_index(m_pChunk->ids_view(), component);
+						if (compIdx != BadIndex) {
+							touch_comp_idx((uint8_t)compIdx);
+							return true;
+						}
+					}
+
+					return touch_term(component);
+				}
+
+				//! Checks direct ownership for every currently iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when every row exposes mutable payload storage.
+				GAIA_NODISCARD bool owns_raw_component(Entity component) {
+					const auto* pEntities = entity_snapshot();
+					GAIA_FOR(size()) {
+						if (!world_mut_raw(*world(), pEntities[i], component).valid())
+							return false;
+					}
+
+					return true;
 				}
 
 				GAIA_NODISCARD RawTermViewGet raw_term_view(uint32_t termIdx) const {
@@ -1221,6 +1308,74 @@ namespace gaia {
 					const auto row = (uint32_t)(from() * (1U - (uint32_t)term.kind()));
 					const auto* pData = elemSize != 0 ? m_pChunk->comp_ptr(compIdx, row) : nullptr;
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
+				}
+
+				//! Resolves one directly stored generic table runtime SoA field.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \param compIdx Receives the chunk component index.
+				//! \param pItem Receives the component metadata.
+				//! \return True when the term and field support direct iterator access.
+				GAIA_NODISCARD bool raw_term_field_info(
+						uint32_t termIdx, uint32_t fieldIdx, uint8_t& compIdx, const ComponentCacheItem*& pItem) const {
+					if (m_pCompIndices == nullptr || m_pChunk == nullptr || size() == 0)
+						return false;
+
+					compIdx = m_pCompIndices[termIdx];
+					if (compIdx == 0xFF)
+						return false;
+
+					const auto recs = m_pChunk->comp_rec_view();
+					if (compIdx >= recs.size())
+						return false;
+
+					const auto term = m_pChunk->ids_view()[compIdx];
+					const auto& rec = recs[compIdx];
+					pItem = rec.pItem;
+					return !term.pair() && pItem != nullptr && pItem->entity.kind() == EntityKind::EK_Gen &&
+								 rec.comp.storage_type() == DataStorageType::Table && rec.comp.soa() != 0 &&
+								 fieldIdx < rec.comp.soa() && pItem->soaSizes[fieldIdx] != 0;
+				}
+
+				//! Builds a read-only raw view over one directly stored runtime SoA field array.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous field view, or an empty view when the term or field is unsupported.
+				GAIA_NODISCARD RawTermViewGet raw_term_field_view(uint32_t termIdx, uint32_t fieldIdx) const {
+					uint8_t compIdx;
+					const ComponentCacheItem* pItem;
+					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
+						return {};
+
+					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
+					const auto* pData = mem::data_view_policy_soa_erased::get(
+							m_pChunk->comp_ptr(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
+					return {pData, pItem->soaSizes[fieldIdx], size(), ComponentRawViewFlag_Valid};
+				}
+
+				//! Builds a mutable raw view over one directly stored runtime SoA field array.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \param trackWrite True to finish writes after the iterator callback.
+				//! \return Contiguous mutable field view, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet raw_term_field_view_mut(uint32_t termIdx, uint32_t fieldIdx, bool trackWrite) {
+					uint8_t compIdx;
+					const ComponentCacheItem* pItem;
+					if (!raw_term_field_info(termIdx, fieldIdx, compIdx, pItem))
+						return {};
+
+					if (trackWrite) {
+						touch_comp_idx(compIdx);
+						if (m_writeIm)
+							m_pChunk->update_world_version(compIdx);
+					}
+
+					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
+					const std::span<const uint8_t> fieldSizes{pItem->soaSizes, rec.comp.soa()};
+					auto* pData = mem::data_view_policy_soa_erased::set(
+							m_pChunk->comp_ptr_mut(compIdx), rec.comp.alig(), fieldSizes, fieldIdx, from(), m_pChunk->capacity());
+					return {pData, pItem->soaSizes[fieldIdx], size(), ComponentRawViewFlag_Valid};
 				}
 
 				GAIA_NODISCARD RawTermViewSet raw_term_view_mut(uint32_t termIdx, bool trackWrite) {
@@ -1252,11 +1407,58 @@ namespace gaia {
 					return {pData, elemSize, size(), ComponentRawViewFlag_Valid};
 				}
 
+				//! Builds a mutable entity-resolved raw view.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \param trackWrite True to finish writes after the iterator callback.
+				//! \return Entity-resolved mutable view, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity raw_term_view_any_mut(Entity component, bool trackWrite) {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
+						return {};
+
+					if (!owns_raw_component(component))
+						return {};
+					if (trackWrite && !touch_raw_component(component))
+						return {};
+
+					const auto* pEntities = entity_snapshot();
+					return {pEntities, world(), component, size()};
+				}
+
 				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
 				//! \param termIdx Query term index.
 				//! \return Indexable raw view. Rows return invalid payloads when the term is unsupported.
 				GAIA_NODISCARD RawTermViewGet view_raw(uint32_t termIdx) const {
 					return raw_term_view(termIdx);
+				}
+
+				//! Returns a read-only raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Field-address resolution scans the preceding runtime field sizes once when the view is created.
+				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewGet view_raw_field(uint32_t termIdx, uint32_t fieldIdx) const {
+					return raw_term_field_view(termIdx, fieldIdx);
+				}
+
+				//! Returns a mutable raw view over one contiguous field array of a directly stored runtime SoA term.
+				//! Writes are finished after the iterator callback through normal touched-write tracking.
+				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet view_raw_field_mut(uint32_t termIdx, uint32_t fieldIdx) {
+					return raw_term_field_view_mut(termIdx, fieldIdx, true);
+				}
+
+				//! Returns a mutable runtime SoA field view without marking the term modified.
+				//! Pair with modify_raw(termIdx) when set hooks or `OnSet` observers should run.
+				//! Sparse, relationship, non-self-source, inherited, and unique terms return an empty view.
+				//! \param termIdx Query term index.
+				//! \param fieldIdx SoA field array index.
+				//! \return Contiguous mutable field view for the current iterator range, or an empty view when unsupported.
+				GAIA_NODISCARD RawTermViewSet sview_raw_field_mut(uint32_t termIdx, uint32_t fieldIdx) {
+					return raw_term_field_view_mut(termIdx, fieldIdx, false);
 				}
 
 				//! Returns a mutable raw byte view for a directly chunk-backed AoS component or exact pair query term.
@@ -1275,6 +1477,41 @@ namespace gaia {
 					return raw_term_view_mut(termIdx, false);
 				}
 
+				//! Returns a read-only raw byte view resolved separately for each iterated entity.
+				//! Use this for sparse or inherited AoS runtime payloads that are not contiguous in the current chunk.
+				//! \warning @a component must be present on every iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
+						return {};
+
+					const auto* pEntities = m_pChunk->entity_view().data() + from();
+					if (!world_get_raw(*world(), pEntities[0], component).valid())
+						return {};
+
+					return {pEntities, world(), component, size()};
+				}
+
+				//! Returns a mutable raw byte view resolved separately for each iterated entity.
+				//! Writes are finished after the iterator callback through normal touched-write tracking.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity view_raw_any_mut(Entity component) {
+					return raw_term_view_any_mut(component, true);
+				}
+
+				//! Returns a mutable entity-resolved raw byte view without marking the component modified.
+				//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
+				GAIA_NODISCARD RawTermViewSetEntity sview_raw_any_mut(Entity component) {
+					return raw_term_view_any_mut(component, false);
+				}
+
 				//! Marks a raw iterator term written through sview_raw_mut(termIdx) as modified.
 				//! \param termIdx Query term index.
 				void modify_raw(uint32_t termIdx) {
@@ -1285,12 +1522,27 @@ namespace gaia {
 					if (compIdx == 0xFF || compIdx >= m_pChunk->comp_rec_view().size())
 						return;
 
-					const auto term = m_pChunk->ids_view()[compIdx];
 					const auto& rec = m_pChunk->comp_rec_view()[compIdx];
-					if (rec.comp.soa() != 0)
-						return;
+					if (rec.comp.soa() != 0) {
+						uint8_t fieldCompIdx;
+						const ComponentCacheItem* pItem;
+						if (!raw_term_field_info(termIdx, 0, fieldCompIdx, pItem))
+							return;
+					}
 
 					touch_comp_idx(compIdx);
+				}
+
+				//! Marks an entity-resolved raw component view as modified.
+				//! \warning @a component must be directly owned by every iterated entity.
+				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
+				//! \param component Runtime component entity or exact relationship pair.
+				//! \return True when the component was eligible and tracked.
+				GAIA_NODISCARD bool modify_raw(Entity component) {
+					if (component == EntityBad || m_pChunk == nullptr || size() == 0 || !owns_raw_component(component))
+						return false;
+
+					return touch_raw_component(component);
 				}
 
 				//! Returns a read-only entity or component view that can resolve sparse storage or inherited data.

@@ -51,11 +51,15 @@ namespace gaia {
 	#endif
 
 			auto* pWorld = iter.world();
-#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+	#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
 			pWorld->observer_callback_enter();
-#endif
+	#endif
 			const auto queryIdCnt = (uint32_t)plan.termCount;
 			const auto& termIds = queryTermIds;
+			const auto terms = queryInfo.ctx().data.terms_view();
+			const QueryTerm* termsByField[MAX_ITEMS_IN_QUERY]{};
+			for (const auto& term: terms)
+				termsByField[term.fieldIndex] = &term;
 
 			const Archetype* pCachedArchetype = nullptr;
 			uint8_t cachedIndices[ChunkHeader::MAX_COMPONENTS];
@@ -78,6 +82,10 @@ namespace gaia {
 						}
 					} else {
 						GAIA_FOR(queryIdCnt) {
+							const auto* pTerm = termsByField[i];
+							if (pTerm == nullptr || !query_term_maps_to_current_archetype(*pTerm))
+								continue;
+
 							const auto queryId = termIds[i];
 							auto compIdx = world_component_index_comp_idx(*pWorld, *ec.pArchetype, queryId);
 							if (compIdx == BadIndex)
@@ -96,9 +104,9 @@ namespace gaia {
 				observer_finish_iter_writes(iter);
 				iter.clear_touched_writes();
 			}
-#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
+	#if GAIA_OBSERVERS_ENABLED && GAIA_ASSERT_ENABLED
 			pWorld->observer_callback_leave();
-#endif
+	#endif
 		}
 
 		class ObserverBuilder {

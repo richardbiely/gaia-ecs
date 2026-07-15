@@ -993,7 +993,319 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(*(const double*)wld.get_raw_field(entity, runtimeComp.entity, 1).data == doctest::Approx(3.5));
 	}
 
-	SUBCASE("runtime SoA field access rejects sparse storage and pairs") {
+	SUBCASE("runtime SoA fields expose contiguous iterator field views") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, //
+				{util::str_view("score"), ecs::F64, 8, 0} //
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_SoA_Iter_Fields");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 2;
+		auto& runtimeComp = wld.add(desc);
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		wld.add(entityA, runtimeComp.entity);
+		wld.add(entityB, runtimeComp.entity);
+
+		*(uint32_t*)wld.mut_raw_field(entityA, runtimeComp.entity, 0).data = 11;
+		*(uint32_t*)wld.mut_raw_field(entityB, runtimeComp.entity, 0).data = 22;
+		*(double*)wld.mut_raw_field(entityA, runtimeComp.entity, 1).data = 1.5;
+		*(double*)wld.mut_raw_field(entityB, runtimeComp.entity, 1).data = 2.5;
+
+		auto q = wld.query().all(runtimeComp.entity);
+		wld.enable(entityA, false);
+		uint32_t enabledRows = 0;
+		q.each(
+				[&](ecs::Iter& it) {
+					const auto health = it.view_raw_field(0, 0);
+					CHECK(health.size() == 1);
+					CHECK(*(const uint32_t*)health[0].data == 22);
+					enabledRows += it.size();
+				},
+				ecs::Constraints::EnabledOnly);
+		CHECK(enabledRows == 1);
+		wld.enable(entityA, true);
+
+		wld.add(runtimeComp.entity, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+		const auto inherited = wld.add();
+		wld.as(inherited, entityA);
+
+		uint32_t directRows = 0;
+		uint32_t inheritedBatches = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto entities = it.view<ecs::Entity>();
+			if (entities[0] == inherited) {
+				CHECK(it.view_raw_field(0, 0).size() == 0);
+				CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+				CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+				++inheritedBatches;
+				return;
+			}
+
+			CHECK(it.size() == 2);
+			CHECK(it.view_raw(0).size() == 0);
+			directRows += it.size();
+
+			const auto health = it.view_raw_field(0, 0);
+			CHECK(health.size() == it.size());
+			CHECK(health[0].valid());
+			CHECK(health[1].valid());
+			CHECK(health[0].size == sizeof(uint32_t));
+			CHECK((const uint8_t*)health[1].data - (const uint8_t*)health[0].data == sizeof(uint32_t));
+			CHECK(*(const uint32_t*)health[0].data == 11);
+			CHECK(*(const uint32_t*)health[1].data == 22);
+
+			const auto score = it.view_raw_field(0, 1);
+			CHECK(score.size() == it.size());
+			CHECK(score[0].size == sizeof(double));
+			CHECK((const uint8_t*)score[1].data - (const uint8_t*)score[0].data == sizeof(double));
+			CHECK(*(const double*)score[0].data == doctest::Approx(1.5));
+			CHECK(*(const double*)score[1].data == doctest::Approx(2.5));
+
+			CHECK(it.view_raw_field(0, 2).size() == 0);
+		});
+		CHECK(directRows == 2);
+		CHECK(inheritedBatches == 1);
+	}
+
+	SUBCASE("runtime SoA iterator field mutation tracks component writes") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, //
+				{util::str_view("score"), ecs::F64, 8, 0} //
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_SoA_Iter_Field_Mutation");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 2;
+		auto& runtimeComp = wld.add(desc);
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		wld.add(entityA, runtimeComp.entity);
+		wld.add(entityB, runtimeComp.entity);
+		*(uint32_t*)wld.mut_raw_field(entityA, runtimeComp.entity, 0).data = 11;
+		*(uint32_t*)wld.mut_raw_field(entityB, runtimeComp.entity, 0).data = 22;
+		*(double*)wld.mut_raw_field(entityA, runtimeComp.entity, 1).data = 1.5;
+		*(double*)wld.mut_raw_field(entityB, runtimeComp.entity, 1).data = 2.5;
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity) {
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_field_mut(0, 2).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 2).size() == 0);
+		});
+		CHECK(setHits == 0);
+
+		q.each([&](ecs::Iter& it) {
+			auto health = it.view_raw_field_mut(0, 0);
+			auto score = it.view_raw_field_mut(0, 1);
+			CHECK(health.size() == it.size());
+			CHECK(score.size() == it.size());
+			GAIA_FOR(it.size()) {
+				*(uint32_t*)health[i].data += 100;
+				*(double*)score[i].data += 10.0;
+			}
+		});
+		CHECK(setHits == 2);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityA, runtimeComp.entity, 0).data == 111);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityB, runtimeComp.entity, 0).data == 122);
+		CHECK(*(const double*)wld.get_raw_field(entityA, runtimeComp.entity, 1).data == doctest::Approx(11.5));
+		CHECK(*(const double*)wld.get_raw_field(entityB, runtimeComp.entity, 1).data == doctest::Approx(12.5));
+
+		setHits = 0;
+		q.each([&](ecs::Iter& it) {
+			auto health = it.sview_raw_field_mut(0, 0);
+			GAIA_FOR(it.size()) {
+				*(uint32_t*)health[i].data += 1;
+			}
+		});
+		CHECK(setHits == 0);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityA, runtimeComp.entity, 0).data == 112);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityB, runtimeComp.entity, 0).data == 123);
+
+		q.each([&](ecs::Iter& it) {
+			auto score = it.sview_raw_field_mut(0, 1);
+			GAIA_FOR(it.size()) {
+				*(double*)score[i].data += 1.0;
+			}
+			CHECK(setHits == 0);
+			it.modify_raw(0);
+		});
+		CHECK(setHits == 2);
+
+		setHits = 0;
+		q.each([&](ecs::Iter& it) {
+			auto health = it.view_raw_field_mut(0, 0);
+			auto score = it.view_raw_field_mut(0, 1);
+			GAIA_FOR(it.size()) {
+				*(uint32_t*)health[i].data += 1;
+				*(double*)score[i].data += 1.0;
+			}
+			it.modify_raw(0);
+		});
+		CHECK(setHits == 2);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityA, runtimeComp.entity, 0).data == 113);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityB, runtimeComp.entity, 0).data == 124);
+		CHECK(*(const double*)wld.get_raw_field(entityA, runtimeComp.entity, 1).data == doctest::Approx(13.5));
+		CHECK(*(const double*)wld.get_raw_field(entityB, runtimeComp.entity, 1).data == doctest::Approx(14.5));
+
+		wld.enable(entityA, false);
+		setHits = 0;
+		q.each(
+				[&](ecs::Iter& it) {
+					auto health = it.view_raw_field_mut(0, 0);
+					CHECK(health.size() == 1);
+					*(uint32_t*)health[0].data += 1000;
+				},
+				ecs::Constraints::EnabledOnly);
+		CHECK(setHits == 1);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityA, runtimeComp.entity, 0).data == 113);
+		CHECK(*(const uint32_t*)wld.get_raw_field(entityB, runtimeComp.entity, 0).data == 1124);
+		wld.enable(entityA, true);
+	}
+
+	SUBCASE("runtime SoA iterator field views reject non-self sources") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldDesc fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, //
+				{util::str_view("score"), ecs::F64, 8, 0} //
+		};
+
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Component_SoA_Iter_NonSelf");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = SoaSizes;
+		desc.fields = fields;
+		desc.fieldCount = 2;
+		auto& runtimeComp = wld.add(desc);
+
+		const auto source = wld.add();
+		const auto directRow = wld.add();
+		const auto traversedRow = wld.add();
+		wld.add<Position>(directRow);
+		wld.add<Position>(traversedRow);
+		wld.add(source, runtimeComp.entity);
+		wld.add(directRow, runtimeComp.entity);
+		wld.add(traversedRow, runtimeComp.entity);
+		wld.add(traversedRow, ecs::Pair(ecs::ChildOf, source));
+
+		*(uint32_t*)wld.mut_raw_field(source, runtimeComp.entity, 0).data = 111;
+		*(uint32_t*)wld.mut_raw_field(directRow, runtimeComp.entity, 0).data = 222;
+		*(uint32_t*)wld.mut_raw_field(traversedRow, runtimeComp.entity, 0).data = 333;
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity) {
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		uint32_t explicitBatches = 0;
+		auto explicitSource = wld.query().all<Position>().all(runtimeComp.entity, ecs::QueryTermOptions{}.src(source));
+		explicitSource.each([&](ecs::Iter& it) {
+			++explicitBatches;
+			CHECK(it.view_raw_field(1, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(1, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(1, 0).size() == 0);
+			it.modify_raw(1);
+		});
+		CHECK(explicitBatches == 2);
+		CHECK(setHits == 0);
+
+		uint32_t traversalBatches = 0;
+		auto traversedSource =
+				wld.query().all<Position>().all(runtimeComp.entity, ecs::QueryTermOptions{}.trav_up(ecs::ChildOf));
+		traversedSource.each([&](ecs::Iter& it) {
+			++traversalBatches;
+			CHECK(it.view_raw_field(1, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(1, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(1, 0).size() == 0);
+			it.modify_raw(1);
+		});
+		CHECK(traversalBatches == 2);
+		CHECK(setHits == 0);
+
+		const auto observerOnlyTag = wld.add();
+		wld.add(traversedRow, observerOnlyTag);
+		uint32_t observerBatches = 0;
+		const auto traversedObserver = wld.observer()
+																			 .event(ecs::ObserverEvent::OnAdd)
+																			 .all<Position>()
+																			 .all(runtimeComp.entity, ecs::QueryTermOptions{}.trav_up(ecs::ChildOf))
+																			 .on_each([&](ecs::Iter& it) {
+																				 ++observerBatches;
+																				 CHECK(it.view_raw_field(1, 0).size() == 0);
+																				 CHECK(it.view_raw_field_mut(1, 0).size() == 0);
+																				 CHECK(it.sview_raw_field_mut(1, 0).size() == 0);
+																				 it.modify_raw(1);
+																			 })
+																			 .entity();
+		(void)traversedObserver;
+
+		const auto observerTarget = wld.copy_ext(traversedRow);
+		CHECK(observerBatches == 1);
+		CHECK(setHits == 0);
+		CHECK(*(const uint32_t*)wld.get_raw_field(observerTarget, runtimeComp.entity, 0).data == 333);
+
+		CHECK(*(const uint32_t*)wld.get_raw_field(source, runtimeComp.entity, 0).data == 111);
+		CHECK(*(const uint32_t*)wld.get_raw_field(directRow, runtimeComp.entity, 0).data == 222);
+		CHECK(*(const uint32_t*)wld.get_raw_field(traversedRow, runtimeComp.entity, 0).data == 333);
+	}
+
+	SUBCASE("runtime unique SoA iterator field views are rejected") {
+		TestWorld twld;
+		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t), sizeof(uint8_t)};
+		auto& cc = wld.comp_cache_mut();
+		const auto componentEntity = wld.add(ecs::EntityKind::EK_Uni);
+		auto& runtimeComp = add_runtime_component(
+				cc, componentEntity, "Runtime_Unique_Component_SoA_Iter_Fields", 8, ecs::DataStorageType::Table, 4, 2,
+				SoaSizes);
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		wld.add(entityA, runtimeComp.entity);
+		wld.add(entityB, runtimeComp.entity);
+
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+		});
+	}
+
+	SUBCASE("runtime SoA field access rejects sparse storage and supports table pairs") {
 		TestWorld twld;
 		constexpr uint8_t SoaSizes[] = {sizeof(uint32_t)};
 		const ecs::RuntimeFieldDesc fields[] = {{util::str_view("value"), ecs::U32, 0, 0}};
@@ -1018,6 +1330,11 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.get_raw_field(sparseEntity, sparseComp.entity, 0).valid());
 		CHECK_FALSE(wld.mut_raw_field(sparseEntity, sparseComp.entity, 0).valid());
 		CHECK_FALSE(wld.cursor(sparseEntity, sparseComp.entity).valid());
+		wld.query().all(sparseComp.entity).each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+		});
 		CHECK_FALSE(wld.cursor_mut(sparseEntity, sparseComp.entity).valid());
 
 		const auto sparseDontFragmentEntity = wld.add();
@@ -1026,8 +1343,13 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK_FALSE(wld.mut_raw_field(sparseDontFragmentEntity, sparseDontFragmentComp.entity, 0).valid());
 		CHECK_FALSE(wld.cursor(sparseDontFragmentEntity, sparseDontFragmentComp.entity).valid());
 		CHECK_FALSE(wld.cursor_mut(sparseDontFragmentEntity, sparseDontFragmentComp.entity).valid());
+		wld.query().all(sparseDontFragmentComp.entity).each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+		});
 
-		desc.name = util::str_view("Runtime_Component_SoA_Relationship_Unsupported");
+		desc.name = util::str_view("Runtime_Component_SoA_Relationship_Supported");
 		desc.storageType = ecs::DataStorageType::Table;
 		auto& relation = wld.add(desc);
 		const auto target = wld.add();
@@ -1035,10 +1357,15 @@ TEST_CASE("Component cache - runtime registration") {
 		const auto relationPair = ecs::Pair(relation.entity, target);
 		const auto pair = (ecs::Entity)relationPair;
 		wld.add(source, relationPair);
-		CHECK_FALSE(wld.get_raw_field(source, pair, 0).valid());
-		CHECK_FALSE(wld.mut_raw_field(source, pair, 0).valid());
-		CHECK_FALSE(wld.cursor(source, pair).valid());
-		CHECK_FALSE(wld.cursor_mut(source, pair).valid());
+		CHECK(wld.get_raw_field(source, pair, 0).valid());
+		CHECK(wld.mut_raw_field(source, pair, 0).valid());
+		CHECK(wld.cursor(source, pair).valid());
+		CHECK(wld.cursor_mut(source, pair).valid());
+		wld.query().all(pair).each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
+		});
 
 		const auto& typedSoa = wld.add<PositionSoA>();
 		CHECK(typedSoa.func_move_ctor != nullptr);
@@ -1756,6 +2083,9 @@ TEST_CASE("Component cache - runtime registration") {
 		q.each([&](ecs::Iter& it) {
 			const auto raw = it.view_raw(0);
 			CHECK(raw.size() == it.size());
+			CHECK(it.view_raw_field(0, 0).size() == 0);
+			CHECK(it.view_raw_field_mut(0, 0).size() == 0);
+			CHECK(it.sview_raw_field_mut(0, 0).size() == 0);
 			GAIA_FOR(it.size()) {
 				const auto payload = raw[i];
 				CHECK(payload.valid());
@@ -1811,6 +2141,192 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK((zA == doctest::Approx(20.0f) || zA == doctest::Approx(21.0f)));
 		CHECK((zB == doctest::Approx(20.0f) || zB == doctest::Approx(21.0f)));
 		CHECK(zA != zB);
+
+		setHits = 0;
+		q.each([&](ecs::Iter& it) {
+			auto direct = it.view_raw_mut(0);
+			auto resolved = it.view_raw_any_mut(runtimeComp.entity);
+			CHECK(direct.size() == resolved.size());
+			CHECK(direct[0].data == resolved[0].data);
+		});
+		CHECK(setHits == 2);
+	}
+
+	SUBCASE("runtime sparse components expose entity-resolved raw iterator views") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_Sparse_View", RuntimePayloadSize, ecs::DataStorageType::Sparse,
+				RuntimePayloadAlign, RuntimeXYZFields, RuntimeXYZFieldCount);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		uint8_t payloadA[RuntimePayloadSize]{};
+		uint8_t payloadB[RuntimePayloadSize]{};
+		write_xyz(payloadA, 1.0f, 2.0f, 3.0f);
+		write_xyz(payloadB, 4.0f, 5.0f, 6.0f);
+		CHECK(wld.add_raw(entityA, runtimeComp.entity, payloadA, RuntimePayloadSize));
+		CHECK(wld.add_raw(entityB, runtimeComp.entity, payloadB, RuntimePayloadSize));
+
+		float xSum = 0.0f;
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw(0).size() == 0);
+			const auto raw = it.view_raw_any(runtimeComp.entity);
+			CHECK(raw.size() == it.size());
+			GAIA_FOR(it.size()) {
+				const auto payload = raw[i];
+				CHECK(payload.valid());
+				CHECK(payload.size == RuntimePayloadSize);
+				xSum += read_f32(payload.data, RuntimeXOffset);
+			}
+		});
+		CHECK(xSum == doctest::Approx(5.0f));
+
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(runtimeComp.entity)
+													 .on_each([&](ecs::Entity) {
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		q.each([&](ecs::Iter& it) {
+			auto raw = it.view_raw_any_mut(runtimeComp.entity);
+			GAIA_FOR(it.size()) {
+				auto payload = raw[i];
+				CHECK(payload.valid());
+				write_f32(payload.data, RuntimeYOffset, 10.0f + (float)i);
+			}
+		});
+		CHECK(setHits == 2);
+
+		setHits = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto hitsBefore = setHits;
+			auto raw = it.sview_raw_any_mut(runtimeComp.entity);
+			GAIA_FOR(it.size()) {
+				auto payload = raw[i];
+				CHECK(payload.valid());
+				write_f32(payload.data, RuntimeZOffset, 20.0f + (float)i);
+			}
+			CHECK(setHits == hitsBefore);
+			CHECK(it.modify_raw(runtimeComp.entity));
+		});
+		CHECK(setHits == 2);
+	}
+
+	SUBCASE("entity-resolved mutable raw views reject partial sparse ownership") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_Partial_Sparse_View", RuntimePayloadSize, ecs::DataStorageType::Sparse,
+				RuntimePayloadAlign, RuntimeXYZFields, RuntimeXYZFieldCount);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+
+		const auto entityA = wld.add();
+		const auto entityB = wld.add();
+		wld.add<Position>(entityA);
+		wld.add<Position>(entityB);
+		uint8_t payload[RuntimePayloadSize]{};
+		CHECK(wld.add_raw(entityA, runtimeComp.entity, payload, RuntimePayloadSize));
+
+		auto q = wld.query().all<Position>();
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw_any_mut(runtimeComp.entity).size() == 0);
+			CHECK_FALSE(it.modify_raw(runtimeComp.entity));
+		});
+		CHECK_FALSE(wld.mut_raw(entityB, runtimeComp.entity).valid());
+	}
+
+	SUBCASE("entity-resolved mutable raw views cap tracked sparse components safely") {
+		TestWorld twld;
+
+		constexpr uint32_t ComponentCount = ecs::ChunkHeader::MAX_COMPONENTS + 1;
+		ecs::Entity components[ComponentCount]{};
+		const auto entity = wld.add();
+		wld.add<Position>(entity);
+		uint32_t payload = 0;
+		GAIA_FOR(ComponentCount) {
+			char name[64]{};
+			GAIA_STRFMT(name, sizeof(name), "Runtime_Component_Query_Iter_Sparse_View_%u", i);
+			auto& component =
+					add_runtime_component(wld, name, sizeof(payload), ecs::DataStorageType::Sparse, alignof(uint32_t));
+			wld.add(component.entity, ecs::DontFragment);
+			components[i] = component.entity;
+			CHECK(wld.add_raw(entity, component.entity, &payload, sizeof(payload)));
+		}
+
+		auto q = wld.query().all<Position>();
+		q.each([&](ecs::Iter& it) {
+			GAIA_FOR(ecs::ChunkHeader::MAX_COMPONENTS) {
+				CHECK(it.view_raw_any_mut(components[i]).size() == 1);
+			}
+			CHECK(it.view_raw_any_mut(components[ComponentCount - 1]).size() == 0);
+			CHECK_FALSE(it.modify_raw(components[ComponentCount - 1]));
+		});
+	}
+
+	SUBCASE("fragmenting runtime sparse components expose entity-resolved raw iterator views") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_Fragmenting_Sparse_View", RuntimePayloadSize, ecs::DataStorageType::Sparse,
+				RuntimePayloadAlign, RuntimeXYZFields, RuntimeXYZFieldCount);
+		const auto entity = wld.add();
+		uint8_t payload[RuntimePayloadSize]{};
+		write_xyz(payload, 7.0f, 8.0f, 9.0f);
+		CHECK(wld.add_raw(entity, runtimeComp.entity, payload, RuntimePayloadSize));
+
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			CHECK(it.view_raw(0).size() == 0);
+			const auto raw = it.view_raw_any(runtimeComp.entity);
+			CHECK(raw.size() == 1);
+			CHECK(raw[0].valid());
+			CHECK(read_f32(raw[0].data, RuntimeXOffset) == doctest::Approx(7.0f));
+		});
+	}
+
+	SUBCASE("entity-resolved raw iterator views read inherited runtime payloads") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_Inherited_View", RuntimePayloadSize, ecs::DataStorageType::Table,
+				RuntimePayloadAlign, RuntimeXYZFields, RuntimeXYZFieldCount);
+		wld.add(runtimeComp.entity, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+		const auto base = wld.add();
+		uint8_t payload[RuntimePayloadSize]{};
+		write_xyz(payload, 3.0f, 4.0f, 5.0f);
+		CHECK(wld.add_raw(base, runtimeComp.entity, payload, RuntimePayloadSize));
+
+		const auto derived = wld.add();
+		wld.as(derived, base);
+
+		uint32_t rows = 0;
+		float xSum = 0.0f;
+		auto q = wld.query().all(runtimeComp.entity);
+		q.each([&](ecs::Iter& it) {
+			const auto entities = it.view<ecs::Entity>();
+			const auto raw = it.view_raw_any(runtimeComp.entity);
+			GAIA_FOR(it.size()) {
+				const auto value = raw[i];
+				CHECK(value.valid());
+				xSum += read_f32(value.data, RuntimeXOffset);
+				++rows;
+			}
+			if (entities[0] == derived) {
+				CHECK(it.sview_raw_any_mut(runtimeComp.entity).size() == 0);
+				CHECK_FALSE(it.modify_raw(runtimeComp.entity));
+			}
+		});
+		CHECK(rows == 2);
+		CHECK(xSum == doctest::Approx(6.0f));
+		CHECK_FALSE(wld.mut_raw(derived, runtimeComp.entity).valid());
 	}
 
 	SUBCASE("runtime raw payload access supports tags") {
@@ -2347,6 +2863,133 @@ TEST_CASE("Erased pair access preserves compile-time target-owned payload metada
 	CHECK(wld.get<PairType>(rawSource).y == doctest::Approx(7.0f));
 }
 
+TEST_CASE("Runtime pair payloads use target metadata across erased APIs") {
+	constexpr uint32_t PayloadSize = sizeof(float) * 2;
+	constexpr uint32_t XOffset = 0;
+	constexpr uint32_t YOffset = sizeof(float);
+	const ecs::RuntimeFieldDesc fields[] = {
+			{util::str_view("x"), ecs::F32, XOffset, 0}, {util::str_view("y"), ecs::F32, YOffset, 0}};
+
+	auto write_f32 = [](void* data, uint32_t offset, float value) {
+		memcpy((uint8_t*)data + offset, &value, sizeof(value));
+	};
+	auto read_f32 = [](const void* data, uint32_t offset) {
+		float value = 0.0f;
+		memcpy(&value, (const uint8_t*)data + offset, sizeof(value));
+		return value;
+	};
+
+	TestWorld twld;
+	ecs::ComponentDesc desc{};
+	desc.name = util::str_view("Runtime_Pair_Target");
+	desc.size = PayloadSize;
+	desc.alig = alignof(float);
+	desc.storageType = ecs::DataStorageType::Table;
+	desc.typeKind = ecs::RuntimeTypeKind::Struct;
+	desc.fields = fields;
+	desc.fieldCount = 2;
+	auto& targetItem = wld.add(desc);
+
+	const auto relation = wld.add();
+	const auto source = wld.add();
+	const auto pair = (ecs::Entity)ecs::Pair(relation, targetItem.entity);
+	CHECK(wld.comp_cache().find(pair) == nullptr);
+	CHECK(wld.comp_cache().find_pair_payload(pair) == &targetItem);
+
+	ecs::ComponentDesc relationTagDesc{};
+	relationTagDesc.name = util::str_view("Runtime_Pair_Relation_Tag_Target_Payload");
+	relationTagDesc.size = 0;
+	relationTagDesc.alig = 1;
+	relationTagDesc.storageType = ecs::DataStorageType::Table;
+	auto& relationTag = wld.add(relationTagDesc);
+	const auto taggedSource = wld.add();
+	const auto taggedPair = (ecs::Entity)ecs::Pair(relationTag.entity, targetItem.entity);
+	CHECK(wld.comp_cache().find_pair_payload(taggedPair) == &targetItem);
+	float taggedInitial[] = {7.0f, 8.0f};
+	CHECK(wld.add_raw(taggedSource, taggedPair, taggedInitial, sizeof(taggedInitial)));
+	const auto taggedView = wld.get_raw(taggedSource, taggedPair);
+	CHECK(taggedView.valid());
+	if (taggedView.valid())
+		CHECK(read_f32(taggedView.data, YOffset) == doctest::Approx(8.0f));
+
+	float initial[] = {1.0f, 2.0f};
+	CHECK(wld.add_raw(source, pair, initial, sizeof(initial)));
+
+	const auto initialView = wld.get_raw(source, pair);
+	CHECK(initialView.valid());
+	CHECK(initialView.size == PayloadSize);
+	if (!initialView.valid())
+		return;
+	CHECK(read_f32(initialView.data, XOffset) == doctest::Approx(1.0f));
+
+	uint32_t setObserverCalls = 0;
+	const auto onSet = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all(pair)
+												 .on_each([&](ecs::Entity entity) {
+													 CHECK(entity == source);
+													 ++setObserverCalls;
+												 })
+												 .entity();
+	(void)onSet;
+
+	auto mutableView = wld.mut_raw(source, pair);
+	CHECK(mutableView.valid());
+	CHECK(mutableView.size == PayloadSize);
+	if (!mutableView.valid())
+		return;
+	write_f32(mutableView.data, YOffset, 3.0f);
+	CHECK(setObserverCalls == 0);
+	wld.modify_raw(source, pair);
+	CHECK(setObserverCalls == 1);
+
+	auto cursor = wld.cursor_mut(source, pair);
+	CHECK(cursor.valid());
+	CHECK(cursor.type() == pair);
+	CHECK(cursor.field(util::str_view("x")));
+	CHECK(cursor.f32(4.0f));
+	CHECK(setObserverCalls == 2);
+
+	float replacement[] = {5.0f, 6.0f};
+	CHECK(wld.set_raw(source, pair, replacement, sizeof(replacement)));
+	CHECK(setObserverCalls == 3);
+
+	auto readCursor = wld.cursor(source, pair);
+	CHECK(readCursor.valid());
+	CHECK(readCursor.type() == pair);
+	CHECK(readCursor.field(util::str_view("y")));
+	const auto y = readCursor.f32();
+	CHECK(y);
+	if (y)
+		CHECK(y.value == doctest::Approx(6.0f));
+
+	auto exactQuery = wld.query().all(pair);
+	CHECK(exactQuery.count() == 1);
+	exactQuery.each([&](ecs::Iter& it) {
+		const auto raw = it.view_raw(0);
+		CHECK(raw.size() == it.size());
+		if (raw.size() != it.size() || raw.size() == 0)
+			return;
+		CHECK(raw[0].valid());
+		CHECK(read_f32(raw[0].data, YOffset) == doctest::Approx(6.0f));
+	});
+
+	uint32_t relationWildcardRows = 0;
+	wld.query().all(ecs::Pair(relation, ecs::All)).each([&](ecs::Entity entity) {
+		CHECK(entity == source);
+		++relationWildcardRows;
+	});
+	CHECK(relationWildcardRows == 1);
+
+	uint32_t targetWildcardRows = 0;
+	wld.query().all(ecs::Pair(ecs::All, targetItem.entity)).each([&](ecs::Entity entity) {
+		const bool expectedEntity = entity == source || entity == taggedSource;
+		CHECK(expectedEntity);
+		++targetWildcardRows;
+	});
+	CHECK(targetWildcardRows == 2);
+}
+
 TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 	constexpr uint32_t PayloadSize = sizeof(float) * 3;
 	constexpr uint32_t XOffset = 0;
@@ -2547,6 +3190,135 @@ TEST_CASE("Runtime pair payloads use relation metadata across erased APIs") {
 	CHECK(delHookCalls == 1);
 #endif
 	CHECK(dtorCalls >= 1);
+}
+
+TEST_CASE("Runtime pair SoA fields expose direct field views and cursors") {
+	constexpr uint32_t XOffset = 0;
+	constexpr uint32_t CountOffset = sizeof(float);
+	const uint8_t soaSizes[] = {sizeof(float), sizeof(uint32_t)};
+	const ecs::RuntimeFieldDesc fields[] = {
+			{util::str_view("x"), ecs::F32, XOffset, 0}, {util::str_view("count"), ecs::U32, CountOffset, 0}};
+
+	TestWorld twld;
+	ecs::ComponentDesc desc{};
+	desc.name = util::str_view("Runtime_Pair_SoA_Relation");
+	desc.size = sizeof(float) + sizeof(uint32_t);
+	desc.alig = alignof(float);
+	desc.storageType = ecs::DataStorageType::Table;
+	desc.soa = 2;
+	desc.pSoaSizes = soaSizes;
+	desc.typeKind = ecs::RuntimeTypeKind::Struct;
+	desc.fields = fields;
+	desc.fieldCount = 2;
+	auto& relation = wld.add(desc);
+
+	const auto source = wld.add();
+	const auto target = wld.add();
+	const auto pairDesc = ecs::Pair(relation.entity, target);
+	const auto pair = (ecs::Entity)pairDesc;
+	wld.add(source, pairDesc);
+
+	CHECK_FALSE(wld.get_raw(source, pair).valid());
+	CHECK_FALSE(wld.mut_raw(source, pair).valid());
+
+	auto xMut = wld.mut_raw_field(source, pair, 0);
+	CHECK(xMut.valid());
+	CHECK(xMut.size == sizeof(float));
+	if (!xMut.valid())
+		return;
+	*(float*)xMut.data = 1.25f;
+
+	auto countMut = wld.mut_raw_field(source, pair, 1);
+	CHECK(countMut.valid());
+	CHECK(countMut.size == sizeof(uint32_t));
+	if (!countMut.valid())
+		return;
+	*(uint32_t*)countMut.data = 7;
+
+	uint32_t setObserverCalls = 0;
+	const auto onSet = wld.observer()
+												 .event(ecs::ObserverEvent::OnSet)
+												 .all(pair)
+												 .on_each([&](ecs::Entity entity) {
+													 CHECK(entity == source);
+													 ++setObserverCalls;
+												 })
+												 .entity();
+	(void)onSet;
+
+	wld.modify_raw(source, pair);
+	CHECK(setObserverCalls == 1);
+
+	const auto xRead = wld.get_raw_field(source, pair, 0);
+	CHECK(xRead.valid());
+	CHECK(xRead.size == sizeof(float));
+	if (!xRead.valid())
+		return;
+	CHECK(*(const float*)xRead.data == doctest::Approx(1.25f));
+
+	const auto countRead = wld.get_raw_field(source, pair, 1);
+	CHECK(countRead.valid());
+	CHECK(countRead.size == sizeof(uint32_t));
+	if (!countRead.valid())
+		return;
+	CHECK(*(const uint32_t*)countRead.data == 7);
+	CHECK_FALSE(wld.get_raw_field(source, pair, 2).valid());
+
+	auto cursor = wld.cursor_mut(source, pair);
+	CHECK(cursor.valid());
+	CHECK(cursor.type() == pair);
+	CHECK(cursor.field(util::str_view("x")));
+	CHECK(cursor.f32(2.5f));
+	CHECK(setObserverCalls == 2);
+
+	auto readCursor = wld.cursor(source, pair);
+	CHECK(readCursor.valid());
+	CHECK(readCursor.type() == pair);
+	CHECK(readCursor.field(util::str_view("x")));
+	const auto x = readCursor.f32();
+	CHECK(x);
+	if (x)
+		CHECK(x.value == doctest::Approx(2.5f));
+
+	CHECK(wld.acc(source).get_raw_field(pair, 1).valid());
+	CHECK(wld.acc_mut(source).mut_raw_field(pair, 1).valid());
+
+	ecs::ComponentDesc targetDesc = desc;
+	targetDesc.name = util::str_view("Runtime_Pair_SoA_Target");
+	auto& targetItem = wld.add(targetDesc);
+	const auto targetRelation = wld.add();
+	const auto targetSource = wld.add();
+	const auto targetOwnedPairDesc = ecs::Pair(targetRelation, targetItem.entity);
+	const auto targetOwnedPair = (ecs::Entity)targetOwnedPairDesc;
+	CHECK(wld.comp_cache().find_pair_payload(targetOwnedPair) == &targetItem);
+	wld.add(targetSource, targetOwnedPairDesc);
+
+	CHECK_FALSE(wld.get_raw(targetSource, targetOwnedPair).valid());
+	CHECK_FALSE(wld.mut_raw(targetSource, targetOwnedPair).valid());
+
+	auto targetXMut = wld.mut_raw_field(targetSource, targetOwnedPair, 0);
+	CHECK(targetXMut.valid());
+	CHECK(targetXMut.size == sizeof(float));
+	if (!targetXMut.valid())
+		return;
+	*(float*)targetXMut.data = 4.5f;
+
+	const auto targetXRead = wld.get_raw_field(targetSource, targetOwnedPair, 0);
+	CHECK(targetXRead.valid());
+	CHECK(targetXRead.size == sizeof(float));
+	if (!targetXRead.valid())
+		return;
+	CHECK(*(const float*)targetXRead.data == doctest::Approx(4.5f));
+
+	auto targetCursor = wld.cursor_mut(targetSource, targetOwnedPair);
+	CHECK(targetCursor.valid());
+	CHECK(targetCursor.type() == targetOwnedPair);
+	CHECK(targetCursor.field(util::str_view("count")));
+	CHECK(targetCursor.u32(42));
+	const auto targetCountRead = wld.get_raw_field(targetSource, targetOwnedPair, 1);
+	CHECK(targetCountRead.valid());
+	if (targetCountRead.valid())
+		CHECK(*(const uint32_t*)targetCountRead.data == 42);
 }
 
 TEST_CASE("ArchetypeGraph") {
