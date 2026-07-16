@@ -17,5 +17,6 @@ var searchData=
   ['ordered_5fentities_5fwalk_14',['ordered_entities_walk',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aba4be36607ba7d6e7cd106ae829c9464',1,'gaia::ecs::detail::QueryImpl']]],
   ['override_15',['override',['../classgaia_1_1ecs_1_1World.html#a3eccffaf8ea84a8b48570cf51942b412',1,'gaia::ecs::World::override(Entity entity, Entity object)'],['../classgaia_1_1ecs_1_1World.html#ae56af7740b2ac71c9da4e9fcf0b24371',1,'gaia::ecs::World::override(Entity entity, Pair pair)'],['../classgaia_1_1ecs_1_1World.html#a7864c6b86a27ad684b329112c704eeb2',1,'gaia::ecs::World::override(Entity entity)'],['../classgaia_1_1ecs_1_1World.html#a6c9e02f1da8a2e64fdf59c18d2c6c674',1,'gaia::ecs::World::override(Entity entity, Entity object)']]],
   ['owned_5fquery_5finfo_16',['owned_query_info',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a32d00d9ea44f0cedfdb5d74ace558c0a',1,'gaia::ecs::detail::QueryImplStorage']]],
-  ['owner_5fcache_17',['owner_cache',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a8fb0beba5b1edf5221c36a9cfa8c2fcb',1,'gaia::ecs::ComponentCacheItem']]]
+  ['owner_5fcache_17',['owner_cache',['../structgaia_1_1ecs_1_1ComponentCacheItem.html#a8fb0beba5b1edf5221c36a9cfa8c2fcb',1,'gaia::ecs::ComponentCacheItem']]],
+  ['owns_5fraw_5fcomponent_18',['owns_raw_component',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a995e3ed1d9c611805663c608d4664ede',1,'gaia::ecs::detail::ChunkIterImpl']]]
 ];

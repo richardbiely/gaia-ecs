@@ -115,6 +115,7 @@ var NAVTREE =
         [ "Dynamic vectors", "index.html#dynamic-vectors", null ],
         [ "Enum and bitmask metadata", "index.html#enum-and-bitmask-metadata", null ],
         [ "Raw access and cursors", "index.html#raw-access-and-cursors", null ],
+        [ "Data on runtime relationships", "index.html#data-on-runtime-relationships", null ],
         [ "Querying runtime components", "index.html#querying-runtime-components", null ]
       ] ],
       [ "Multithreading", "index.html#multithreading", [
@@ -186,15 +187,16 @@ var NAVTREEINDEX =
 [
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a3d335eb23e50fe3c322bf300c6eec3de",
-"classgaia_1_1ecs_1_1World.html#a604f2f6b57a16b579f703c89a762089d",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd",
-"classgaia_1_1ser_1_1ser__json.html#ad67d06481931cbc3b0b9cbf7937c84d0",
-"index.html#multi-variable-queries",
-"structgaia_1_1core_1_1detail_1_1is__direct__hash__key.html",
-"structgaia_1_1ecs_1_1ComponentCursor.html#af3478e1fefecc1d80cc10fad506ff907",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e",
-"structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ab93fff139859202473638a9e7e3468c3",
-"structgaia_1_1mem_1_1data__view__policy__soa__set_1_1accessor.html"
+"classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1e9d7148bed62fd3f2ef3bae43d33d28",
+"classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a0d1389b747a6a4183f530e39fc273d09",
+"index.html#documentation",
+"structgaia_1_1cnt_1_1paged__ilist.html#ae9b31f2956212823e45f92b44a9ae6da",
+"structgaia_1_1ecs_1_1ComponentCursor.html#a5e4ddd2d4ced16eca0c89c4a25fbcc49",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7a44050adc01a9484c9930620df2ec0e",
+"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#af9c9dbd63feec06e22e97a015d29864b",
+"structgaia_1_1mem_1_1MemoryPage.html#a416a68101bcbb9ce631dbe94e338fe40",
+"system_8inl_source.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

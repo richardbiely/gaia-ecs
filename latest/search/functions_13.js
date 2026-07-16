@@ -13,13 +13,14 @@ var searchData=
   ['test_10',['test',['../classgaia_1_1cnt_1_1dbitset.html#a9f81d6c302ed69e443f44af3b410034c',1,'gaia::cnt::dbitset::test()'],['../classgaia_1_1cnt_1_1bitset.html#a4e50629ed221b79f1dd587ac45f59f4e',1,'gaia::cnt::bitset::test()']]],
   ['to_11',['to',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a0e72dfecb6331a8efb2ee059f5c8f943',1,'gaia::ecs::detail::ChunkIterImpl']]],
   ['token_12',['token',['../classgaia_1_1ecs_1_1SchedJob.html#a507e59dc3c311e6b9a67a581fcdef70c',1,'gaia::ecs::SchedJob']]],
-  ['try_5fadd_13',['try_add',['../structgaia_1_1ecs_1_1PairRecords.html#ad0a87fe48e9c637119df38c11f40522e',1,'gaia::ecs::PairRecords']]],
-  ['try_5fdel_5ffrom_5fcache_14',['try_del_from_cache',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae06ddc6fe2fada3924f58bfb8196cc76',1,'gaia::ecs::detail::QueryImplStorage']]],
-  ['try_5fget_15',['try_get',['../classgaia_1_1ecs_1_1QueryCache.html#a7f27d5a772f3ab74636d9f4fd0f6c886',1,'gaia::ecs::QueryCache::try_get(QueryHandle handle)'],['../classgaia_1_1ecs_1_1QueryCache.html#ad444c9da065d8eb3712cee5f67f23b28',1,'gaia::ecs::QueryCache::try_get(QueryHandle handle) const'],['../classgaia_1_1ecs_1_1World.html#afeff330baf6d4e6d46bd9a1a9a0f04ed',1,'gaia::ecs::World::try_get()']]],
-  ['try_5findices_5fmapping_5fview_16',['try_indices_mapping_view',['../classgaia_1_1ecs_1_1QueryInfo.html#a4e59c3aa36b574dd5e0816064524770f',1,'gaia::ecs::QueryInfo']]],
-  ['try_5finherited_5fdata_5fview_17',['try_inherited_data_view',['../classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc',1,'gaia::ecs::QueryInfo']]],
-  ['try_5fquery_5finfo_5ffast_18',['try_query_info_fast',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a47190411c7c31d3831164ca031729215',1,'gaia::ecs::detail::QueryImplStorage']]],
-  ['try_5fupdate_5ffree_5fchunk_5fidx_19',['try_update_free_chunk_idx',['../classgaia_1_1ecs_1_1Archetype.html#ac90c91f695fb7fdc57c7ce20c235d21f',1,'gaia::ecs::Archetype::try_update_free_chunk_idx()'],['../classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116',1,'gaia::ecs::Archetype::try_update_free_chunk_idx(Chunk &amp;chunkThatRemovedEntity)']]],
-  ['type_20',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]],
-  ['type_5fkind_21',['type_kind',['../structgaia_1_1ecs_1_1ComponentCursor.html#a09e1ca6d2458fac980ce05139fa9a5dd',1,'gaia::ecs::ComponentCursor']]]
+  ['touch_5fraw_5fcomponent_13',['touch_raw_component',['../classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a8319d03d71b7aedf6406e3a245ec0d58',1,'gaia::ecs::detail::ChunkIterImpl']]],
+  ['try_5fadd_14',['try_add',['../structgaia_1_1ecs_1_1PairRecords.html#ad0a87fe48e9c637119df38c11f40522e',1,'gaia::ecs::PairRecords']]],
+  ['try_5fdel_5ffrom_5fcache_15',['try_del_from_cache',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#ae06ddc6fe2fada3924f58bfb8196cc76',1,'gaia::ecs::detail::QueryImplStorage']]],
+  ['try_5fget_16',['try_get',['../classgaia_1_1ecs_1_1QueryCache.html#a7f27d5a772f3ab74636d9f4fd0f6c886',1,'gaia::ecs::QueryCache::try_get(QueryHandle handle)'],['../classgaia_1_1ecs_1_1QueryCache.html#ad444c9da065d8eb3712cee5f67f23b28',1,'gaia::ecs::QueryCache::try_get(QueryHandle handle) const'],['../classgaia_1_1ecs_1_1World.html#afeff330baf6d4e6d46bd9a1a9a0f04ed',1,'gaia::ecs::World::try_get()']]],
+  ['try_5findices_5fmapping_5fview_17',['try_indices_mapping_view',['../classgaia_1_1ecs_1_1QueryInfo.html#a4e59c3aa36b574dd5e0816064524770f',1,'gaia::ecs::QueryInfo']]],
+  ['try_5finherited_5fdata_5fview_18',['try_inherited_data_view',['../classgaia_1_1ecs_1_1QueryInfo.html#af6fde1c2623424314ecab27e4ee11dbc',1,'gaia::ecs::QueryInfo']]],
+  ['try_5fquery_5finfo_5ffast_19',['try_query_info_fast',['../structgaia_1_1ecs_1_1detail_1_1QueryImplStorage.html#a47190411c7c31d3831164ca031729215',1,'gaia::ecs::detail::QueryImplStorage']]],
+  ['try_5fupdate_5ffree_5fchunk_5fidx_20',['try_update_free_chunk_idx',['../classgaia_1_1ecs_1_1Archetype.html#ac90c91f695fb7fdc57c7ce20c235d21f',1,'gaia::ecs::Archetype::try_update_free_chunk_idx()'],['../classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116',1,'gaia::ecs::Archetype::try_update_free_chunk_idx(Chunk &amp;chunkThatRemovedEntity)']]],
+  ['type_21',['type',['../structgaia_1_1ecs_1_1ComponentCursor.html#a80e4ec29561c51006d94633126378b3f',1,'gaia::ecs::ComponentCursor']]],
+  ['type_5fkind_22',['type_kind',['../structgaia_1_1ecs_1_1ComponentCursor.html#a09e1ca6d2458fac980ce05139fa9a5dd',1,'gaia::ecs::ComponentCursor']]]
 ];

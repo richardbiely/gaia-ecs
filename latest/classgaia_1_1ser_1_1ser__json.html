@@ -215,6 +215,9 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>parse_string</b> (<a 
 <tr class="memitem:a96314a775da67c2a2d583313a0bb7cf9" id="r_a96314a775da67c2a2d583313a0bb7cf9"><td class="memItemLeft" align="right" valign="top"><a id="a96314a775da67c2a2d583313a0bb7cf9" name="a96314a775da67c2a2d583313a0bb7cf9"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>parse_string_eq</b> (const char *literal)</td></tr>
 <tr class="separator:a96314a775da67c2a2d583313a0bb7cf9"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a172b5cb18bf8166ed7edf85a52cd90e2" id="r_a172b5cb18bf8166ed7edf85a52cd90e2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ser_1_1ser__json.html#a172b5cb18bf8166ed7edf85a52cd90e2">parse_integer_token</a> (bool &amp;negative, uint64_t &amp;magnitude, bool &amp;overflow, bool &amp;adjusted, bool &amp;integerToken)</td></tr>
+<tr class="memdesc:a172b5cb18bf8166ed7edf85a52cd90e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Scans an integer JSON token without converting through floating point. Integral exponents are folded into the magnitude. Decimal tokens are reported through <em>integerToken</em> as non-integers and are not consumed.  <br /></td></tr>
+<tr class="separator:a172b5cb18bf8166ed7edf85a52cd90e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a06e1e7b5c9f277743102123e0def2eb3" id="r_a06e1e7b5c9f277743102123e0def2eb3"><td class="memItemLeft" align="right" valign="top"><a id="a06e1e7b5c9f277743102123e0def2eb3" name="a06e1e7b5c9f277743102123e0def2eb3"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>parse_number</b> (double &amp;value)</td></tr>
 <tr class="separator:a06e1e7b5c9f277743102123e0def2eb3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -234,7 +237,75 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>skip_value</b> ()</td
 <li>write mode: emits JSON text into an internal string</li>
 <li>read mode: parses JSON text from a provided input buffer It intentionally stays low-level and allocation-light (no DOM tree). </li>
 </ul>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a172b5cb18bf8166ed7edf85a52cd90e2" name="a172b5cb18bf8166ed7edf85a52cd90e2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a172b5cb18bf8166ed7edf85a52cd90e2">&#9670;&#160;</a></span>parse_integer_token()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ser::ser_json::parse_integer_token </td>
+          <td>(</td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>negative</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint64_t &amp;&#160;</td>
+          <td class="paramname"><em>magnitude</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>overflow</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>adjusted</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>integerToken</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Scans an integer JSON token without converting through floating point. Integral exponents are folded into the magnitude. Decimal tokens are reported through <em>integerToken</em> as non-integers and are not consumed. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">negative</td><td>Receives whether the token has a leading minus sign. </td></tr>
+    <tr><td class="paramname">magnitude</td><td>Receives the unsigned magnitude, saturated to UINT64_MAX on overflow. </td></tr>
+    <tr><td class="paramname">overflow</td><td>Receives whether the magnitude exceeds UINT64_MAX. </td></tr>
+    <tr><td class="paramname">adjusted</td><td>Receives whether a negative exponent discarded non-zero fractional digits. </td></tr>
+    <tr><td class="paramname">integerToken</td><td>Receives whether the token represents an integer without a decimal point. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>False when the input does not begin with a numeric token. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ser/<a class="el" href="ser__json_8h_source.html">ser_json.h</a></li>
 </ul>
 </div><!-- contents -->

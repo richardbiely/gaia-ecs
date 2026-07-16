@@ -145,6 +145,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a8aee578057c7cfb8b70053e0d2ab8aba" id="r_a8aee578057c7cfb8b70053e0d2ab8aba"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#a8aee578057c7cfb8b70053e0d2ab8aba">find</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const noexcept</td></tr>
 <tr class="memdesc:a8aee578057c7cfb8b70053e0d2ab8aba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Searches for the component cache item.  <br /></td></tr>
 <tr class="separator:a8aee578057c7cfb8b70053e0d2ab8aba"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abe6e7d5164b482d20dcdc184a02c262b" id="r_abe6e7d5164b482d20dcdc184a02c262b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#abe6e7d5164b482d20dcdc184a02c262b">find_pair_payload</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1pair.html">pair</a>) const noexcept</td></tr>
+<tr class="memdesc:abe6e7d5164b482d20dcdc184a02c262b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resolves payload metadata for a relationship pair. A non-empty relation wins. Otherwise a non-empty target supplies the payload metadata.  <br /></td></tr>
+<tr class="separator:abe6e7d5164b482d20dcdc184a02c262b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a60039efac0c49d5e8fc900718d7ac0ec" id="r_a60039efac0c49d5e8fc900718d7ac0ec"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html#a60039efac0c49d5e8fc900718d7ac0ec">find</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) noexcept</td></tr>
 <tr class="memdesc:a60039efac0c49d5e8fc900718d7ac0ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Searches for the component cache item.  <br /></td></tr>
 <tr class="separator:a60039efac0c49d5e8fc900718d7ac0ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -379,6 +382,41 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache item if found, nullptr otherwise. </dd></dl>
+
+</div>
+</div>
+<a id="abe6e7d5164b482d20dcdc184a02c262b" name="abe6e7d5164b482d20dcdc184a02c262b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abe6e7d5164b482d20dcdc184a02c262b">&#9670;&#160;</a></span>find_pair_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> * gaia::ecs::ComponentCache::find_pair_payload </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>pair</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Resolves payload metadata for a relationship pair. A non-empty relation wins. Otherwise a non-empty target supplies the payload metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pair</td><td>Exact relationship pair. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache item if either endpoint has metadata, nullptr otherwise. </dd></dl>
 
 </div>
 </div>

@@ -2,6 +2,7 @@ var structgaia_1_1ecs_1_1ComponentCacheItem =
 [
     [ "FuncCmp", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a16c845d2287f59c5221fc6815a231339", null ],
     [ "FuncCopy", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a16f995ccabd046f88dfc3e78fca49d09", null ],
+    [ "FuncCreateSparseStore", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a5f3c7a8a7d6c27ad9ff6065cb4066864", null ],
     [ "FuncCtor", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a0aefe3776b91214f960ba38a09e659b9", null ],
     [ "FuncDtor", "structgaia_1_1ecs_1_1ComponentCacheItem.html#ae0203322316f6c5fc5ce574bb8e77d82", null ],
     [ "FuncFrom", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a2df3b0e9b72010d34393eb3212dd5a50", null ],
@@ -59,6 +60,7 @@ var structgaia_1_1ecs_1_1ComponentCacheItem =
     [ "func_cmp", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a5ecc46c19437b060c44582e4fa8c1c06", null ],
     [ "func_copy", "structgaia_1_1ecs_1_1ComponentCacheItem.html#ab80bb997b553e6c8a828917bc045cd1d", null ],
     [ "func_copy_ctor", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a0192ad08d3f5560eff52f93f96d46e30", null ],
+    [ "func_create_sparse_store", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a67299d737d90bac1ea92cfcacada2810", null ],
     [ "func_ctor", "structgaia_1_1ecs_1_1ComponentCacheItem.html#a9db9c0f427f0c1766d0e4512fd945109", null ],
     [ "func_dtor", "structgaia_1_1ecs_1_1ComponentCacheItem.html#adf54bf32193e73a58f1b00b3bedd68c8", null ],
     [ "func_load", "structgaia_1_1ecs_1_1ComponentCacheItem.html#ac90106b3351412223e1f28086dc22d2f", null ],

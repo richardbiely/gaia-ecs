@@ -147,6 +147,9 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:acb7a7a99336b874300c48e10066eca09" id="r_acb7a7a99336b874300c48e10066eca09"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#acb7a7a99336b874300c48e10066eca09">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
 <tr class="memdesc:acb7a7a99336b874300c48e10066eca09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a raw byte view for a runtime component on this entity.  <br /></td></tr>
 <tr class="separator:acb7a7a99336b874300c48e10066eca09"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad1dd78bf7ed9d6a05eb953dd8400804b" id="r_ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#ad1dd78bf7ed9d6a05eb953dd8400804b">get_raw_field</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t fieldIdx) const</td></tr>
+<tr class="memdesc:ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns one read-only SoA field value for a runtime component on this entity.  <br /></td></tr>
+<tr class="separator:ad1dd78bf7ed9d6a05eb953dd8400804b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
@@ -268,6 +271,52 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Raw payload view, or an invalid view when unavailable. </dd></dl>
+
+</div>
+</div>
+<a id="ad1dd78bf7ed9d6a05eb953dd8400804b" name="ad1dd78bf7ed9d6a05eb953dd8400804b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad1dd78bf7ed9d6a05eb953dd8400804b">&#9670;&#160;</a></span>get_raw_field()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> gaia::ecs::ComponentGetter::get_raw_field </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>fieldIdx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns one read-only SoA field value for a runtime component on this entity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">fieldIdx</td><td>SoA field array index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Raw field value view, or an invalid view when unavailable. </dd></dl>
 
 </div>
 </div>

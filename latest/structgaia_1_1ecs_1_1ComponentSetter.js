@@ -4,6 +4,7 @@ var structgaia_1_1ecs_1_1ComponentSetter =
     [ "mut", "structgaia_1_1ecs_1_1ComponentSetter.html#a1067a5493d60d91fd1df03acad388103", null ],
     [ "mut", "structgaia_1_1ecs_1_1ComponentSetter.html#a15db43efd6c499598e32cc6c6a9566aa", null ],
     [ "mut_raw", "structgaia_1_1ecs_1_1ComponentSetter.html#a298ca25d1075f22d7abf6c1e65077778", null ],
+    [ "mut_raw_field", "structgaia_1_1ecs_1_1ComponentSetter.html#a437e9161b124b742f342394483877867", null ],
     [ "set", "structgaia_1_1ecs_1_1ComponentSetter.html#aba6f271bfc60972b7a00f453d009c0b0", null ],
     [ "set", "structgaia_1_1ecs_1_1ComponentSetter.html#a5828bfb5dc6c3b7c347f2c52b544ba71", null ],
     [ "set_raw", "structgaia_1_1ecs_1_1ComponentSetter.html#acacc2cd2f670f4d35983fe386b2410b5", null ],

@@ -25,6 +25,8 @@ var structgaia_1_1ecs_1_1ComponentCursor =
     [ "field_count", "structgaia_1_1ecs_1_1ComponentCursor.html#a4ada4b547b5e93bdd155960293e4fd48", null ],
     [ "from_raw", "structgaia_1_1ecs_1_1ComponentCursor.html#a445d01b89b315383c3888464b04fde84", null ],
     [ "from_raw", "structgaia_1_1ecs_1_1ComponentCursor.html#ac3eb3e8879b702ca8a4f3160f6a58b1b", null ],
+    [ "from_soa", "structgaia_1_1ecs_1_1ComponentCursor.html#a8cfac2a61877d72eb7cbf14a5c9b6ea8", null ],
+    [ "from_soa", "structgaia_1_1ecs_1_1ComponentCursor.html#a03baf757791f6e0b43413c3301811cf5", null ],
     [ "get_raw", "structgaia_1_1ecs_1_1ComponentCursor.html#a43cf0f37edc75e3439402870ae947e4b", null ],
     [ "mut_ptr", "structgaia_1_1ecs_1_1ComponentCursor.html#a172398e9dce973ec7c5bdfa397a6b90d", null ],
     [ "opaque_as_type", "structgaia_1_1ecs_1_1ComponentCursor.html#af6e5399e0b0ed3d4ebb81411d6145f49", null ],

@@ -158,6 +158,10 @@ using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSwap</b> = void(
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCmp</b> = bool(const void *, const void *)</td></tr>
 <tr class="memdesc:a16c845d2287f59c5221fc6815a231339"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares two component values for equality. <br /></td></tr>
 <tr class="separator:a16c845d2287f59c5221fc6815a231339"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5f3c7a8a7d6c27ad9ff6065cb4066864" id="r_a5f3c7a8a7d6c27ad9ff6065cb4066864"><td class="memItemLeft" align="right" valign="top"><a id="a5f3c7a8a7d6c27ad9ff6065cb4066864" name="a5f3c7a8a7d6c27ad9ff6065cb4066864"></a>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncCreateSparseStore</b> = void(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>)</td></tr>
+<tr class="memdesc:a5f3c7a8a7d6c27ad9ff6065cb4066864"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates the typed sparse store selected by compile-time component registration. <br /></td></tr>
+<tr class="separator:a5f3c7a8a7d6c27ad9ff6065cb4066864"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acef402b4ab2e7a141d87b927f7c6b98e" id="r_acef402b4ab2e7a141d87b927f7c6b98e"><td class="memItemLeft" align="right" valign="top"><a id="acef402b4ab2e7a141d87b927f7c6b98e" name="acef402b4ab2e7a141d87b927f7c6b98e"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>FuncSave</b> = void(<a class="el" href="structgaia_1_1ser_1_1serializer.html">ser::serializer</a> &amp;, const void *, uint32_t, uint32_t, uint32_t)</td></tr>
 <tr class="memdesc:acef402b4ab2e7a141d87b927f7c6b98e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Saves a contiguous range of component values through a serializer. <br /></td></tr>
@@ -358,6 +362,10 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>soaSizes</b> [meta
 <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a16c845d2287f59c5221fc6815a231339">FuncCmp</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_cmp</b> {}</td></tr>
 <tr class="memdesc:a5ecc46c19437b060c44582e4fa8c1c06"><td class="mdescLeft">&#160;</td><td class="mdescRight">Equality callback for this component type. <br /></td></tr>
 <tr class="separator:a5ecc46c19437b060c44582e4fa8c1c06"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a67299d737d90bac1ea92cfcacada2810" id="r_a67299d737d90bac1ea92cfcacada2810"><td class="memItemLeft" align="right" valign="top"><a id="a67299d737d90bac1ea92cfcacada2810" name="a67299d737d90bac1ea92cfcacada2810"></a>
+<a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#a5f3c7a8a7d6c27ad9ff6065cb4066864">FuncCreateSparseStore</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_create_sparse_store</b> {}</td></tr>
+<tr class="memdesc:a67299d737d90bac1ea92cfcacada2810"><td class="mdescLeft">&#160;</td><td class="mdescRight">Typed sparse-store factory. Null for runtime-created components. <br /></td></tr>
+<tr class="separator:a67299d737d90bac1ea92cfcacada2810"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad03cb09ad09432651582e021195882f0" id="r_ad03cb09ad09432651582e021195882f0"><td class="memItemLeft" align="right" valign="top"><a id="ad03cb09ad09432651582e021195882f0" name="ad03cb09ad09432651582e021195882f0"></a>
 <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html#acef402b4ab2e7a141d87b927f7c6b98e">FuncSave</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>func_save</b> {}</td></tr>
 <tr class="memdesc:ad03cb09ad09432651582e021195882f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serialization callback for saving component values. <br /></td></tr>
@@ -700,8 +708,8 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentCache</b></
     <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
     <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
     <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
-    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
-    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination storage capacity. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source storage capacity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -862,8 +870,8 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
     <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
     <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
-    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
-    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination storage capacity. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source storage capacity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -935,8 +943,8 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
     <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
     <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
-    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
-    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination storage capacity. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source storage capacity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1438,8 +1446,8 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramname">pSrc</td><td>Source component storage base pointer. </td></tr>
     <tr><td class="paramname">idxDst</td><td>Destination value index. </td></tr>
     <tr><td class="paramname">idxSrc</td><td>Source value index. </td></tr>
-    <tr><td class="paramname">sizeDst</td><td>Destination value stride in bytes. </td></tr>
-    <tr><td class="paramname">sizeSrc</td><td>Source value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Destination storage capacity. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Source storage capacity. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1742,8 +1750,8 @@ template&lt;typename T &gt; </div>
     <tr><td class="paramname">pRight</td><td>Right component storage base pointer. </td></tr>
     <tr><td class="paramname">idxLeft</td><td>Left value index. </td></tr>
     <tr><td class="paramname">idxRight</td><td>Right value index. </td></tr>
-    <tr><td class="paramname">sizeDst</td><td>Left value stride in bytes. </td></tr>
-    <tr><td class="paramname">sizeSrc</td><td>Right value stride in bytes. </td></tr>
+    <tr><td class="paramname">sizeDst</td><td>Left storage capacity. </td></tr>
+    <tr><td class="paramname">sizeSrc</td><td>Right storage capacity. </td></tr>
   </table>
   </dd>
 </dl>

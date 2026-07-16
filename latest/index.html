@@ -217,6 +217,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#dynamic-vectors">Dynamic vectors</a></li>
 <li><a class="el" href="index.html#enum-and-bitmask-metadata">Enum and bitmask metadata</a></li>
 <li><a class="el" href="index.html#raw-access-and-cursors">Raw access and cursors</a></li>
+<li><a class="el" href="index.html#data-on-runtime-relationships">Data on runtime relationships</a></li>
 <li><a class="el" href="index.html#querying-runtime-components">Querying runtime components</a></li>
 </ul>
 </li>
@@ -800,6 +801,7 @@ Observers for relation pairs</h4>
 <div class="line">    <span class="comment">// React only to HomeOf(specificHome).</span></div>
 <div class="line">  });</div>
 </div><!-- fragment --><p>Changing a relation target is structural (changes the entity shape). Replacing <code>(HomeOf, A)</code> with <code>(HomeOf, B)</code> triggers <code>OnDel</code> for the old pair and <code>OnAdd</code> for the new pair. It does not trigger <code>OnSet</code>.</p>
+<p>If a relation pair carries a payload, writing that existing payload can trigger <code>OnSet</code>. Exact pairs and wildcard pairs such as <code>(HomeOf, *)</code>, <code>(*, target)</code>, or <code>(*, *)</code> can observe those value writes.</p>
 <p>Wildcard pair observers can match more changes than exact-pair observers. Their cost depends on how often those changes happen, which is normal for event reactions.</p>
 <h3><a class="anchor" id="bulk-editing"></a>
 Bulk editing</h3>
@@ -1681,11 +1683,15 @@ Iterating over components not present in the query is not supported and results 
 <li><code>view</code>, <code>view_mut</code>, <code>sview_mut</code>, <code>view_auto</code>, <code>sview_auto</code> - the fast path for terms stored directly in the current chunk</li>
 <li><code>view_any</code>, <code>view_any_mut</code>, <code>sview_any_mut</code>, <code>view_auto_any</code>, <code>sview_auto_any</code> - fallback accessors for inherited prefab data, sparse storage, and other terms that may resolve through another entity</li>
 </ul>
-<p>Runtime-created table AoS components use the same iterator naming with erased raw byte views:</p><ul>
+<p>Runtime-created components use erased raw byte views during iterator callbacks:</p><ul>
 <li><code>view_raw(termIdx)</code> - read-only raw payload rows for a directly chunk-backed term</li>
 <li><code>view_raw_mut(termIdx)</code> - mutable raw payload rows with normal post-callback set side effects</li>
 <li><code>sview_raw_mut(termIdx)</code> - silent mutable raw payload rows. Pair with <code>modify_raw(termIdx)</code> when set side effects should run.</li>
+<li><code>view_raw_field(termIdx, fieldIdx)</code> - one read-only contiguous field array for a directly stored generic table SoA term or exact pair</li>
+<li><code>view_raw_field_mut(termIdx, fieldIdx)</code> - mutable contiguous SoA field values with normal post-callback set side effects</li>
+<li><code>sview_raw_field_mut(termIdx, fieldIdx)</code> - silent mutable SoA field values. Pair with <code>modify_raw(termIdx)</code> when set side effects should run.</li>
 </ul>
+<p>The runtime SoA iterator accessors resolve the field array once and then index contiguous field values. Exact relation pairs are supported when their relation or target metadata owns a table SoA payload. Multiple tracked fields of the same component or pair produce one write per visible row after the callback. Sparse, wildcard-pair, explicit-source, traversed, inherited, and unique SoA terms return an empty view.</p>
 <p>Use plain <code>view*</code> whenever the queried term is known to be chunk-backed. If a term may be inherited or otherwise entity-backed, use the <code>*_any</code> variant explicitly.</p>
 <p>Iterator behavior can be controlled via <code>Constraints</code>.</p>
 <p><code>Constraints</code> decide which subset of rows inside the current chunk the iterator exposes:</p><ul>
@@ -3320,7 +3326,20 @@ Enum and bitmask metadata</h3>
 <div class="line"><span class="keywordflow">if</span> (run != <span class="keyword">nullptr</span>) {</div>
 <div class="line">  <span class="comment">// run-&gt;value == 2</span></div>
 <div class="line">}</div>
-</div><!-- fragment --><p>Bitmask types use the same constant descriptor shape with <code>ecs::RuntimeTypeKind::Bitmask</code>; each constant value describes one named flag. Combining or decomposing flag sets is intentionally left to tooling policy, while Gaia-ECS owns the stable reflected names and values.</p>
+</div><!-- fragment --><p>Bitmask types use the same constant descriptor shape with <code>ecs::RuntimeTypeKind::Bitmask</code>; each one-bit constant value describes one named flag.</p>
+<p>Semantic JSON uses numeric enum and bitmask values by default. Pass an explicit <code>ser::RuntimeJsonPolicy</code> when a user-facing document should use enum names and arrays of bitmask flag names:</p>
+<div class="fragment"><div class="line">ser::RuntimeJsonPolicy policy{};</div>
+<div class="line">policy.symbolicEnums = <span class="keyword">true</span>;</div>
+<div class="line">policy.symbolicBitmasks = <span class="keyword">true</span>;</div>
+<div class="line"> </div>
+<div class="line">ser::ser_json writer;</div>
+<div class="line">ecs::component_to_json(actorCI, actorPayload, writer, policy);</div>
+<div class="line"> </div>
+<div class="line">ser::JsonDiagnostics diagnostics;</div>
+<div class="line">ser::ser_json reader(writer.str().data(), (uint32_t)writer.str().size());</div>
+<div class="line">ecs::json_to_component(actorCI, actorPayload, reader, diagnostics, policy);</div>
+</div><!-- fragment --><p>Known enum values are written as strings such as <code>"Run"</code>. Bitmasks composed entirely from registered one-bit constants are written as arrays such as <code>["Static","Trigger"]</code>. Direct runtime enum and bitmask components use the same representation as reflected fields. Values that cannot be represented without losing bits stay numeric, including the full signed and unsigned 64-bit integer range. Import accepts numeric values in either mode, preserves exact integral exponent forms, reports truncated fractional values, and rejects malformed JSON number grammar before mutation. An unknown symbolic name adds an <code>UnknownRuntimeConstant</code> warning and leaves that value unchanged. Symbolic bitmask input accepts each registered one-bit name at most once; zero, composite, repeated, or overlapping flags add an <code>InvalidRuntimeConstant</code> warning and leave the bitmask unchanged.</p>
+<p>The same policy can be passed to <code>World::save_json(...)</code> and <code>World::load_json(...)</code>. Use <code>ser::JsonSaveFlags::RawFallback</code> without <code>BinarySnapshot</code> when the symbolic semantic document will be edited and loaded again; a binary snapshot takes precedence over semantic component values during load.</p>
 <h3><a class="anchor" id="raw-access-and-cursors"></a>
 Raw access and cursors</h3>
 <p>Once the component is registered, you can add and edit it without a C++ component type:</p>
@@ -3341,9 +3360,54 @@ Raw access and cursors</h3>
 <div class="line">    <span class="comment">// updated.value contains the current seconds value.</span></div>
 <div class="line">  }</div>
 <div class="line">}</div>
-</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> return byte views for table AoS runtime components and tags. <code>mut_raw(...)</code> is a silent write path. Call <code>modify_raw(...)</code> after direct byte writes when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies a full payload and emits the write notification for you.</p>
-<p><code>ComponentCursor</code> primitive accessors such as <code>f32(...)</code> write the selected field and finish the component write automatically. Fixed arrays and adapted dynamic vectors use <code>count()</code> and <code>elem(index)</code> to select elements before reading or writing fields. Adapted opaque values project their semantic type before field traversal. <code>get_raw(...)</code> and <code>set_raw(...)</code> remain available for exact raw field copies and replacement.</p>
-<p>Entity-scoped accessors expose the same runtime raw operations on a bound entity. Use <code>acc(entity).get_raw(component)</code> for read-only payload access. Use <code>acc_mut(entity).mut_raw(component)</code> for silent writes, <code>acc_mut(entity).modify_raw(component)</code> to finish a silent write, and <code>acc_mut(entity).set_raw(component, data, size)</code> to replace a full payload.</p>
+</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> access a complete AoS runtime component as bytes. They work with components in archetype/chunk or sparse storage. <code>mut_raw(...)</code> does not emit write notifications. Call <code>modify_raw(...)</code> afterwards when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies the complete value and emits the notification for you.</p>
+<p>Runtime SoA components store each field separately. Use <code>get_raw_field(entity, component, fieldIndex)</code> to read one field and <code>mut_raw_field(...)</code> to edit one. Iterator callbacks can use <code>view_raw_field(termIdx, fieldIdx)</code> and <code>view_raw_field_mut(...)</code> for the current contiguous field range without resolving each entity separately. <code>sview_raw_field_mut(...)</code> stays silent until paired with <code>modify_raw(termIdx)</code>. The field index follows the field order used when the component was registered. Entity-scoped field access supports archetype/chunk components and exact relationship pairs with table SoA payloads, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call <code>modify_raw(...)</code> after editing through <code>mut_raw_field(...)</code> when write notifications are required.</p>
+<p><code>ComponentCursor</code> selects reflected fields for both AoS and SoA components. Primitive setters such as <code>f32(...)</code> emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use <code>count()</code> and <code>elem(index)</code> before reading or writing an element.</p>
+<p>The entity-scoped forms are <code>acc(entity).get_raw_field(...)</code> and <code>acc_mut(entity).mut_raw_field(...)</code>.</p>
+<h3><a class="anchor" id="data-on-runtime-relationships"></a>
+Data on runtime relationships</h3>
+<p>A runtime relationship can store data for each target.</p>
+<p>For example, an <code>Affinity</code> relationship can store a different score for every person an entity knows: </p><div class="fragment"><div class="line"><span class="keyword">struct </span>Affinity {</div>
+<div class="line">  <span class="keywordtype">float</span> score;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc affinityFields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;score&quot;</span>, 5), ecs::F32, 0, 0}</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentDesc affinityDesc{};</div>
+<div class="line">affinityDesc.name = util::str_view(<span class="stringliteral">&quot;Affinity&quot;</span>, 8);</div>
+<div class="line">affinityDesc.size = <span class="keyword">sizeof</span>(Affinity);</div>
+<div class="line">affinityDesc.alig = <span class="keyword">alignof</span>(Affinity);</div>
+<div class="line">affinityDesc.storageType = ecs::DataStorageType::Table;</div>
+<div class="line">affinityDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">affinityDesc.fields = affinityFields;</div>
+<div class="line">affinityDesc.fieldCount = 1;</div>
+<div class="line"> </div>
+<div class="line">ecs::ComponentCacheItem&amp; affinity = w.add(affinityDesc);</div>
+</div><!-- fragment --><p>Create the exact relationship by combining the relation and target. Pass that pair to the same raw and cursor APIs used for runtime components:</p>
+<div class="fragment"><div class="line">ecs::Entity alice = w.add();</div>
+<div class="line">ecs::Entity bob = w.add();</div>
+<div class="line">w.name(bob, <span class="stringliteral">&quot;Bob&quot;</span>);</div>
+<div class="line">ecs::Entity affinityToBob = (ecs::Entity)ecs::Pair(affinity.entity, bob);</div>
+<div class="line"> </div>
+<div class="line">Affinity initial{0.75f};</div>
+<div class="line"><span class="keywordflow">if</span> (w.add_raw(alice, affinityToBob, &amp;initial, <span class="keyword">sizeof</span>(initial))) {</div>
+<div class="line">  ecs::ComponentCursor cursor = w.cursor_mut(alice, affinityToBob);</div>
+<div class="line">  <span class="keywordflow">if</span> (cursor.field(util::str_view(<span class="stringliteral">&quot;score&quot;</span>, 5))) {</div>
+<div class="line">    <span class="keyword">auto</span> score = cursor.f32();</div>
+<div class="line">    <span class="keywordflow">if</span> (score) {</div>
+<div class="line">      <span class="comment">// score.value == 0.75f</span></div>
+<div class="line">    }</div>
+<div class="line">    (void)cursor.f32(0.9f);</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --><p>The relation defines the stored data. The target identifies which relationship the value belongs to.</p>
+<p>Queries can match one exact relationship or every target of the same relation:</p>
+<div class="fragment"><div class="line"><span class="keyword">auto</span> affinityForBob = w.query().all(affinityToBob);</div>
+<div class="line"><span class="keyword">auto</span> affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));</div>
+</div><!-- fragment --><p>Use an exact pair when reading or writing its value because a wildcard query can match several targets. Adding, removing, and changing relationship data triggers the same lifecycle hooks and <code>OnSet</code> notifications as component data.</p>
+<p>Semantic JSON writes the relationship as <code>(Relation,Target)</code>, such as <code>(Affinity,Bob)</code>. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with archetype/chunk AoS and table SoA storage, not sparse components.</p>
 <h3><a class="anchor" id="querying-runtime-components"></a>
 Querying runtime components</h3>
 <p>Runtime component entities can be used directly in queries. Read payload bytes through raw views when iterating matching entities.</p>
@@ -3354,7 +3418,7 @@ Querying runtime components</h3>
 <div class="line">    <span class="comment">// raw.data points at the component bytes for this entity.</span></div>
 <div class="line">  }</div>
 <div class="line">});</div>
-</div><!-- fragment --><p>Iterator callbacks can also use the runtime component name and request an erased byte view through iterator raw access; see <a class="el" href="index.html#iteration">Iteration</a>.</p>
+</div><!-- fragment --><p>Iterator callbacks can use <code>view_raw(termIdx)</code> for directly chunk-backed AoS payloads. Use <code>view_raw_any(component)</code> when sparse or inherited runtime payloads must be resolved separately for each entity. Each indexed access performs a world lookup, and the returned entity-resolved view is valid only during the callback. The mutable <code>view_raw_any_mut(component)</code> path emits normal write notifications after the callback. <code>sview_raw_any_mut(component)</code> stays silent until <code>modify_raw(component)</code> returns true. Both mutable paths require every iterated entity to own the component directly. A callback can track up to 32 distinct sparse components. A later mutable view is invalid, and <code>modify_raw(component)</code> returns false when that limit or the ownership requirement is not satisfied. Directly stored generic table runtime SoA component and exact-pair terms use <code>view_raw_field(termIdx, fieldIdx)</code> for a contiguous read-only field array. See <a class="el" href="index.html#iteration">Iteration</a> for the supported storage and ownership contracts.</p>
 <h2><a class="anchor" id="multithreading"></a>
 Multithreading</h2>
 <h3><a class="anchor" id="jobs"></a>

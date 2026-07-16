@@ -234,6 +234,24 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse
 <tr class="memitem:acc6a248f4752be72856a38ace5289368"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStore.html">SparseComponentStore</a>&lt; T &gt; &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#acc6a248f4752be72856a38ace5289368">sparse_component_store_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
 <tr class="memdesc:acc6a248f4752be72856a38ace5289368"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the sparse component store for <em>component</em>, creating it if needed.  <br /></td></tr>
 <tr class="separator:acc6a248f4752be72856a38ace5289368"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4bc85ea89d4fe026111fa24cb42f79a7" id="r_a4bc85ea89d4fe026111fa24cb42f79a7"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a4bc85ea89d4fe026111fa24cb42f79a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4bc85ea89d4fe026111fa24cb42f79a7">sparse_component_add_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:a4bc85ea89d4fe026111fa24cb42f79a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds or returns a sparse value through the store's erased payload interface.  <br /></td></tr>
+<tr class="separator:a4bc85ea89d4fe026111fa24cb42f79a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad234cc1bae1da1b2d1f63f22847f585f" id="r_ad234cc1bae1da1b2d1f63f22847f585f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:ad234cc1bae1da1b2d1f63f22847f585f"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad234cc1bae1da1b2d1f63f22847f585f">sparse_component_mut_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:ad234cc1bae1da1b2d1f63f22847f585f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable sparse value through the store's erased payload interface.  <br /></td></tr>
+<tr class="separator:ad234cc1bae1da1b2d1f63f22847f585f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7921a3944257d9dee186158880ad7581" id="r_a7921a3944257d9dee186158880ad7581"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a7921a3944257d9dee186158880ad7581"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a7921a3944257d9dee186158880ad7581">sparse_component_get_value</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memdesc:a7921a3944257d9dee186158880ad7581"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only sparse value through the store's erased payload interface.  <br /></td></tr>
+<tr class="separator:a7921a3944257d9dee186158880ad7581"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a116371a8869ff53d26d9ac8690d8b43f" id="r_a116371a8869ff53d26d9ac8690d8b43f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a116371a8869ff53d26d9ac8690d8b43f">sparse_component_store_erased</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a116371a8869ff53d26d9ac8690d8b43f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the erased sparse store for <em>component</em>, or nullptr when absent.  <br /></td></tr>
+<tr class="separator:a116371a8869ff53d26d9ac8690d8b43f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab0a54a02981bc401e0e96516d2848a01" id="r_ab0a54a02981bc401e0e96516d2848a01"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ab0a54a02981bc401e0e96516d2848a01">sparse_component_store_erased_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;item)</td></tr>
+<tr class="memdesc:ab0a54a02981bc401e0e96516d2848a01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the erased sparse store for <em>component</em>, creating runtime-sized storage when absent.  <br /></td></tr>
+<tr class="separator:ab0a54a02981bc401e0e96516d2848a01"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aee0bad5be7e54b944d747912905b9ccc" id="r_aee0bad5be7e54b944d747912905b9ccc"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aee0bad5be7e54b944d747912905b9ccc">finish_sparse_component_add_inter</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object, SparseStorageMode mode)</td></tr>
 <tr class="memdesc:aee0bad5be7e54b944d747912905b9ccc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finishes adding a sparse component after its payload has been created. Fragmenting components also add the id directly to the entity archetype.  <br /></td></tr>
 <tr class="separator:aee0bad5be7e54b944d747912905b9ccc"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -508,25 +526,31 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memdesc:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable reference or proxy to the component associated with <em>object</em> on <em>entity</em>. This is a silent raw write path. Call <code>modify&lt;T, true&gt;(entity, object)</code> when you need hooks or <code>OnSet</code>. <br /></td></tr>
 <tr class="separator:a22a240d3c0c6d76724c96b62ed8c0f2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6a639ee981edef57b4c783bc37dce52c" id="r_a6a639ee981edef57b4c783bc37dce52c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c">get_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a6a639ee981edef57b4c783bc37dce52c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw read-only bytes for a chunk-backed AoS component on <em>entity</em>. Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view.  <br /></td></tr>
+<tr class="memdesc:a6a639ee981edef57b4c783bc37dce52c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw read-only bytes for an AoS component or exact pair payload on <em>entity</em>. Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view.  <br /></td></tr>
 <tr class="separator:a6a639ee981edef57b4c783bc37dce52c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad5846aed1543b377ffba04f97d546055" id="r_ad5846aed1543b377ffba04f97d546055"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055">mut_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:ad5846aed1543b377ffba04f97d546055"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw mutable bytes for a directly owned chunk-backed AoS component on <em>entity</em>. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="memdesc:ad5846aed1543b377ffba04f97d546055"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns raw mutable bytes for a directly owned AoS component or exact pair payload. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers.  <br /></td></tr>
 <tr class="separator:ad5846aed1543b377ffba04f97d546055"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad83ecaf0f0318d13caf25c6036a82b99" id="r_ad83ecaf0f0318d13caf25c6036a82b99"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad83ecaf0f0318d13caf25c6036a82b99">get_raw_field</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t fieldIdx) const</td></tr>
+<tr class="memdesc:ad83ecaf0f0318d13caf25c6036a82b99"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns one read-only field value from a directly addressed SoA field array. The field index follows the registered SoA field order. Inherited ids resolve to the owning entity.  <br /></td></tr>
+<tr class="separator:ad83ecaf0f0318d13caf25c6036a82b99"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a10a6834afc269990c625872ee99c1fce" id="r_a10a6834afc269990c625872ee99c1fce"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a10a6834afc269990c625872ee99c1fce">mut_raw_field</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t fieldIdx)</td></tr>
+<tr class="memdesc:a10a6834afc269990c625872ee99c1fce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns one mutable field value from a directly owned SoA field array. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers.  <br /></td></tr>
+<tr class="separator:a10a6834afc269990c625872ee99c1fce"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4504bee3c0f44295d492cdb54d8a008e" id="r_a4504bee3c0f44295d492cdb54d8a008e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4504bee3c0f44295d492cdb54d8a008e">cursor</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
-<tr class="memdesc:a4504bee3c0f44295d492cdb54d8a008e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor over a chunk-backed AoS runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for a chunk-backed AoS component on entity. Inherited ids resolve to the ...">get_raw()</a>. The returned cursor is invalid when raw access is unsupported.  <br /></td></tr>
+<tr class="memdesc:a4504bee3c0f44295d492cdb54d8a008e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor over a runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for an AoS component or exact pair payload on entity. Inherited ids resol...">get_raw()</a>. SoA roots expose fields without pretending the root is contiguous.  <br /></td></tr>
 <tr class="separator:a4504bee3c0f44295d492cdb54d8a008e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a613e6099c54153a6340c1efa389c2b8f" id="r_a613e6099c54153a6340c1efa389c2b8f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a613e6099c54153a6340c1efa389c2b8f">cursor_mut</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:a613e6099c54153a6340c1efa389c2b8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically.  <br /></td></tr>
+<tr class="memdesc:a613e6099c54153a6340c1efa389c2b8f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a directly owned runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically.  <br /></td></tr>
 <tr class="separator:a613e6099c54153a6340c1efa389c2b8f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20fc4b3bad2ca1d55175c6345db01091" id="r_a20fc4b3bad2ca1d55175c6345db01091"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a20fc4b3bad2ca1d55175c6345db01091">add_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>)</td></tr>
-<tr class="memdesc:a20fc4b3bad2ca1d55175c6345db01091"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a chunk-backed AoS component and initializes its raw payload before <code>OnAdd</code> observers run.  <br /></td></tr>
+<tr class="memdesc:a20fc4b3bad2ca1d55175c6345db01091"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds an AoS component and initializes its raw payload before <code>OnAdd</code> observers run.  <br /></td></tr>
 <tr class="separator:a20fc4b3bad2ca1d55175c6345db01091"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae3fd7de744b420dd6679140fa1aae5a0" id="r_ae3fd7de744b420dd6679140fa1aae5a0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae3fd7de744b420dd6679140fa1aae5a0">set_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, const void *data, uint32_t <a class="el" href="classgaia_1_1ecs_1_1World.html#ada278978c1e139aa66c90b8795753651">size</a>)</td></tr>
-<tr class="memdesc:ae3fd7de744b420dd6679140fa1aae5a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write.  <br /></td></tr>
+<tr class="memdesc:ae3fd7de744b420dd6679140fa1aae5a0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces raw bytes for a directly owned AoS component and finishes the write.  <br /></td></tr>
 <tr class="separator:ae3fd7de744b420dd6679140fa1aae5a0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae60547230db361cd1ea1540c0fce6e63" id="r_ae60547230db361cd1ea1540c0fce6e63"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63">modify_raw</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
-<tr class="memdesc:ae60547230db361cd1ea1540c0fce6e63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a raw payload returned by <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a> as modified and emits normal set side effects.  <br /></td></tr>
+<tr class="memdesc:ae60547230db361cd1ea1540c0fce6e63"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side effects.  <br /></td></tr>
 <tr class="separator:ae60547230db361cd1ea1540c0fce6e63"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7472812c1291e7d4478ce27e9fbad80a" id="r_a7472812c1291e7d4478ce27e9fbad80a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a7472812c1291e7d4478ce27e9fbad80a">acc</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a7472812c1291e7d4478ce27e9fbad80a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Starts a bulk get operation on an entity.  <br /></td></tr>
@@ -825,23 +849,21 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>save</b> ()</td></tr>
 <tr class="memdesc:a8f132200305c56733e0bb939ffecff65"><td class="mdescLeft">&#160;</td><td class="mdescRight">Saves contents of the world to a buffer. The buffer is reset, not appended. NOTE: In order for custom version of save to be used for a given component, it needs to have either of the following functions defined: 1) member function: "void save(bin_stream&amp; s)" 2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::save_v, bin_stream&amp; s,
       const YourType&amp; data)". <br /></td></tr>
 <tr class="separator:a8f132200305c56733e0bb939ffecff65"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a183ac00ba291233426d49b07139870a7" id="r_a183ac00ba291233426d49b07139870a7"><td class="memItemLeft" align="right" valign="top"><a id="a183ac00ba291233426d49b07139870a7" name="a183ac00ba291233426d49b07139870a7"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>save_json</b> (<a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;writer, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const</td></tr>
-<tr class="memdesc:a183ac00ba291233426d49b07139870a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime field types are unsupported (those fields are emitted as null). <br /></td></tr>
-<tr class="separator:a183ac00ba291233426d49b07139870a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0147a79e662e91c818df2ffb7e5e64a2" id="r_a0147a79e662e91c818df2ffb7e5e64a2"><td class="memItemLeft" align="right" valign="top"><a id="a0147a79e662e91c818df2ffb7e5e64a2" name="a0147a79e662e91c818df2ffb7e5e64a2"></a>
-<a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a>&#160;</td><td class="memItemRight" valign="bottom"><b>save_json</b> (bool &amp;ok, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const</td></tr>
-<tr class="memdesc:a0147a79e662e91c818df2ffb7e5e64a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convenience overload returning JSON as a string. <br /></td></tr>
+<tr class="memitem:a224ff329b562863f1f37d06f09c03cb0" id="r_a224ff329b562863f1f37d06f09c03cb0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a224ff329b562863f1f37d06f09c03cb0">save_json</a> (<a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;writer, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default, const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;policy={}) const</td></tr>
+<tr class="memdesc:a224ff329b562863f1f37d06f09c03cb0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Components with no runtime fields fallback to raw serialized bytes.  <br /></td></tr>
+<tr class="separator:a224ff329b562863f1f37d06f09c03cb0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0147a79e662e91c818df2ffb7e5e64a2" id="r_a0147a79e662e91c818df2ffb7e5e64a2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0147a79e662e91c818df2ffb7e5e64a2">save_json</a> (bool &amp;ok, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const</td></tr>
+<tr class="memdesc:a0147a79e662e91c818df2ffb7e5e64a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convenience overload returning JSON as a string.  <br /></td></tr>
 <tr class="separator:a0147a79e662e91c818df2ffb7e5e64a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2fe1090b1cbe781833375a5e52995320" id="r_a2fe1090b1cbe781833375a5e52995320"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a2fe1090b1cbe781833375a5e52995320">load_json</a> (const char *json, uint32_t len, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics)</td></tr>
-<tr class="memdesc:a2fe1090b1cbe781833375a5e52995320"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a183ac00ba291233426d49b07139870a7" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>. Returns true when JSON shape is valid and parsing succeeds. Non-fatal semantic issues are reported through <em>diagnostics</em>.  <br /></td></tr>
-<tr class="separator:a2fe1090b1cbe781833375a5e52995320"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ae26133b8439b9c8f488c1ebf58989a02" id="r_ae26133b8439b9c8f488c1ebf58989a02"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae26133b8439b9c8f488c1ebf58989a02">load_json</a> (const char *json, uint32_t len, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics, const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;policy={})</td></tr>
+<tr class="memdesc:ae26133b8439b9c8f488c1ebf58989a02"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a224ff329b562863f1f37d06f09c03cb0" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>.  <br /></td></tr>
+<tr class="separator:ae26133b8439b9c8f488c1ebf58989a02"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5a81ff38e50558e4f91d91ee6f27fc65" id="r_a5a81ff38e50558e4f91d91ee6f27fc65"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5a81ff38e50558e4f91d91ee6f27fc65">load_json</a> (const char *json, uint32_t len)</td></tr>
 <tr class="memdesc:a5a81ff38e50558e4f91d91ee6f27fc65"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from a raw JSON buffer and discards non-fatal diagnostics.  <br /></td></tr>
 <tr class="separator:a5a81ff38e50558e4f91d91ee6f27fc65"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a52ac717ca4eb6a24ab006e79261bc986" id="r_a52ac717ca4eb6a24ab006e79261bc986"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a52ac717ca4eb6a24ab006e79261bc986">load_json</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a> json, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics)</td></tr>
-<tr class="memdesc:a52ac717ca4eb6a24ab006e79261bc986"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from a JSON string view and reports non-fatal diagnostics.  <br /></td></tr>
-<tr class="separator:a52ac717ca4eb6a24ab006e79261bc986"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afc4e8db2932550fe183b6c7a4fc20512" id="r_afc4e8db2932550fe183b6c7a4fc20512"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afc4e8db2932550fe183b6c7a4fc20512">load_json</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a> json, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics, const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;policy={})</td></tr>
+<tr class="memdesc:afc4e8db2932550fe183b6c7a4fc20512"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from a JSON view with an explicit runtime value import policy.  <br /></td></tr>
+<tr class="separator:afc4e8db2932550fe183b6c7a4fc20512"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84ee2d1b5371ee39e14bf958ac170e91" id="r_a84ee2d1b5371ee39e14bf958ac170e91"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a84ee2d1b5371ee39e14bf958ac170e91">load_json</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a> json)</td></tr>
 <tr class="memdesc:a84ee2d1b5371ee39e14bf958ac170e91"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from a JSON string view and discards non-fatal diagnostics.  <br /></td></tr>
 <tr class="separator:a84ee2d1b5371ee39e14bf958ac170e91"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -946,7 +968,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> (<a class=
 <tr class="memdesc:aef67861c095799464689a3b78502343f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the query argument for <em>entity</em> using explicit term id <em>id</em> and raw mutable access. Mutable references materialize an override when inherited data must become direct.  <br /></td></tr>
 <tr class="separator:aef67861c095799464689a3b78502343f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a43053a2f5325c0d8fdb34a7bfdcb2300" id="r_a43053a2f5325c0d8fdb34a7bfdcb2300"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a43053a2f5325c0d8fdb34a7bfdcb2300">world_finish_write</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> term, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
-<tr class="memdesc:a43053a2f5325c0d8fdb34a7bfdcb2300"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a write to <em>term</em> on <em>entity</em>.  <br /></td></tr>
+<tr class="memdesc:a43053a2f5325c0d8fdb34a7bfdcb2300"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finishes a cursor write through the owning world.  <br /></td></tr>
 <tr class="separator:a43053a2f5325c0d8fdb34a7bfdcb2300"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7aae35834ed5e240c529e04c94cb9856" id="r_a7aae35834ed5e240c529e04c94cb9856"><td class="memItemLeft" align="right" valign="top"><a id="a7aae35834ed5e240c529e04c94cb9856" name="a7aae35834ed5e240c529e04c94cb9856"></a>
 uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>world_rel_version</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> <a class="el" href="classgaia_1_1ecs_1_1World.html#ae95487cebd86bb0a206a3275531b3865">relation</a>)</td></tr>
@@ -1558,11 +1580,11 @@ template&lt;typename Func  = TFunc_Void_With_Entity&gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Adds a chunk-backed AoS component and initializes its raw payload before <code>OnAdd</code> observers run. </p>
+<p>Adds an AoS component and initializes its raw payload before <code>OnAdd</code> observers run. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> receiving the component. </td></tr>
-    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity or exact relationship pair. </td></tr>
     <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
     <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
   </table>
@@ -2668,11 +2690,11 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 </table>
 </div><div class="memdoc">
 
-<p>Creates a read-only cursor over a chunk-backed AoS runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for a chunk-backed AoS component on entity. Inherited ids resolve to the ...">get_raw()</a>. The returned cursor is invalid when raw access is unsupported. </p>
+<p>Creates a read-only cursor over a runtime component on <em>entity</em>. Inherited ids resolve like <a class="el" href="classgaia_1_1ecs_1_1World.html#a6a639ee981edef57b4c783bc37dce52c" title="Returns raw read-only bytes for an AoS component or exact pair payload on entity. Inherited ids resol...">get_raw()</a>. SoA roots expose fields without pretending the root is contiguous. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being read. </td></tr>
   </table>
   </dd>
 </dl>
@@ -2714,11 +2736,11 @@ If <a class="el" href="structgaia_1_1ecs_1_1EntityDesc.html" title="Component us
 </table>
 </div><div class="memdoc">
 
-<p>Creates a mutable cursor over a directly owned chunk-backed AoS runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically. </p>
+<p>Creates a mutable cursor over a directly owned runtime component on <em>entity</em>. Direct writes through mut_ptr() are silent and must be paired with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a>. Writes through <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ae5d954df5878702e0e223d2b24048772" title="Writes exact bytes to the current cursor position.">ComponentCursor::set_raw()</a> finishes the root component write automatically. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being mutated. </td></tr>
   </table>
   </dd>
 </dl>
@@ -3894,15 +3916,68 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 </table>
 </div><div class="memdoc">
 
-<p>Returns raw read-only bytes for a chunk-backed AoS component on <em>entity</em>. Inherited ids resolve to the owning entity. Sparse, SoA, and unsupported components return an invalid view. </p>
+<p>Returns raw read-only bytes for an AoS component or exact pair payload on <em>entity</em>. Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being read. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being read. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Raw payload view, or invalid view when the component cannot be resolved. </dd></dl>
+
+</div>
+</div>
+<a id="ad83ecaf0f0318d13caf25c6036a82b99" name="ad83ecaf0f0318d13caf25c6036a82b99"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad83ecaf0f0318d13caf25c6036a82b99">&#9670;&#160;</a></span>get_raw_field()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> gaia::ecs::World::get_raw_field </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>fieldIdx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns one read-only field value from a directly addressed SoA field array. The field index follows the registered SoA field order. Inherited ids resolve to the owning entity. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being read. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity being read. </td></tr>
+    <tr><td class="paramname">fieldIdx</td><td>SoA field array index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Raw field value view, or an invalid view when unavailable. </dd></dl>
 
 </div>
 </div>
@@ -4757,8 +4832,8 @@ template&lt;typename TSerializer &gt; </div>
 
 </div>
 </div>
-<a id="a2fe1090b1cbe781833375a5e52995320" name="a2fe1090b1cbe781833375a5e52995320"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a2fe1090b1cbe781833375a5e52995320">&#9670;&#160;</a></span>load_json() <span class="overload">[2/4]</span></h2>
+<a id="ae26133b8439b9c8f488c1ebf58989a02" name="ae26133b8439b9c8f488c1ebf58989a02"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae26133b8439b9c8f488c1ebf58989a02">&#9670;&#160;</a></span>load_json() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4782,7 +4857,13 @@ template&lt;typename TSerializer &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;&#160;</td>
-          <td class="paramname"><em>diagnostics</em>&#160;</td>
+          <td class="paramname"><em>diagnostics</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;&#160;</td>
+          <td class="paramname"><em>policy</em> = <code>{}</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -4797,8 +4878,17 @@ template&lt;typename TSerializer &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a183ac00ba291233426d49b07139870a7" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>. Returns true when JSON shape is valid and parsing succeeds. Non-fatal semantic issues are reported through <em>diagnostics</em>. </p>
-<p>Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a183ac00ba291233426d49b07139870a7" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>. </p>
+<p>Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a224ff329b562863f1f37d06f09c03cb0" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">json</td><td>JSON buffer. </td></tr>
+    <tr><td class="paramname">len</td><td>JSON buffer length. </td></tr>
+    <tr><td class="paramname">diagnostics</td><td>Receives non-fatal semantic issues. </td></tr>
+    <tr><td class="paramname">policy</td><td>Symbolic enum and bitmask import policy. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when JSON shape is valid and parsing succeeds. </dd></dl>
 
 </div>
 </div>
@@ -4837,8 +4927,8 @@ template&lt;typename TSerializer &gt; </div>
 
 </div>
 </div>
-<a id="a52ac717ca4eb6a24ab006e79261bc986" name="a52ac717ca4eb6a24ab006e79261bc986"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a52ac717ca4eb6a24ab006e79261bc986">&#9670;&#160;</a></span>load_json() <span class="overload">[4/4]</span></h2>
+<a id="afc4e8db2932550fe183b6c7a4fc20512" name="afc4e8db2932550fe183b6c7a4fc20512"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afc4e8db2932550fe183b6c7a4fc20512">&#9670;&#160;</a></span>load_json() <span class="overload">[4/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -4856,7 +4946,13 @@ template&lt;typename TSerializer &gt; </div>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;&#160;</td>
-          <td class="paramname"><em>diagnostics</em>&#160;</td>
+          <td class="paramname"><em>diagnostics</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;&#160;</td>
+          <td class="paramname"><em>policy</em> = <code>{}</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -4871,11 +4967,12 @@ template&lt;typename TSerializer &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Loads world state from a JSON string view and reports non-fatal diagnostics. </p>
+<p>Loads world state from a JSON view with an explicit runtime value import policy. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">json</td><td>JSON view </td></tr>
-    <tr><td class="paramname">diagnostics</td><td>Output diagnostics </td></tr>
+    <tr><td class="paramname">json</td><td>JSON view. </td></tr>
+    <tr><td class="paramname">diagnostics</td><td>Output diagnostics. </td></tr>
+    <tr><td class="paramname">policy</td><td>Symbolic enum and bitmask import policy. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5063,11 +5160,11 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Marks a raw payload returned by <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a> as modified and emits normal set side effects. </p>
+<p>Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side effects. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose raw component payload was mutated. </td></tr>
-    <tr><td class="paramname">component</td><td>Runtime component entity previously passed to <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned chunk-backed AoS component on entity....">mut_raw()</a>. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity previously passed to <a class="el" href="classgaia_1_1ecs_1_1World.html#ad5846aed1543b377ffba04f97d546055" title="Returns raw mutable bytes for a directly owned AoS component or exact pair payload....">mut_raw()</a>. </td></tr>
   </table>
   </dd>
 </dl>
@@ -5202,15 +5299,68 @@ Undefined behavior if entity changes archetype after <a class="el" href="structg
 </table>
 </div><div class="memdoc">
 
-<p>Returns raw mutable bytes for a directly owned chunk-backed AoS component on <em>entity</em>. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload returned by mut_raw() as modified and emits normal set side effects.">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
+<p>Returns raw mutable bytes for a directly owned AoS component or exact pair payload. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
-    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair being mutated. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Raw mutable payload view, or invalid view when the component is absent or unsupported. </dd></dl>
+
+</div>
+</div>
+<a id="a10a6834afc269990c625872ee99c1fce" name="a10a6834afc269990c625872ee99c1fce"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a10a6834afc269990c625872ee99c1fce">&#9670;&#160;</a></span>mut_raw_field()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a> gaia::ecs::World::mut_raw_field </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>fieldIdx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns one mutable field value from a directly owned SoA field array. This is a silent write path. Pair with <a class="el" href="classgaia_1_1ecs_1_1World.html#ae60547230db361cd1ea1540c0fce6e63" title="Marks a raw payload or SoA field returned by a mutable raw view as modified and emits normal set side...">modify_raw()</a> to emit set hooks and <code>OnSet</code> observers. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being mutated. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity being mutated. </td></tr>
+    <tr><td class="paramname">fieldIdx</td><td>SoA field array index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable raw field value view, or an invalid view when unavailable. </dd></dl>
 
 </div>
 </div>
@@ -6410,6 +6560,106 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="a0147a79e662e91c818df2ffb7e5e64a2" name="a0147a79e662e91c818df2ffb7e5e64a2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0147a79e662e91c818df2ffb7e5e64a2">&#9670;&#160;</a></span>save_json() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a> gaia::ecs::World::save_json </td>
+          <td>(</td>
+          <td class="paramtype">bool &amp;&#160;</td>
+          <td class="paramname"><em>ok</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">ser::JsonSaveFlags&#160;</td>
+          <td class="paramname"><em>flags</em> = <code>ser::JsonSaveFlags::Default</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Convenience overload returning JSON as a string. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ok</td><td>Receives whether all requested component values were serialized. </td></tr>
+    <tr><td class="paramname">flags</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> JSON sections and fallback behavior. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The serialized JSON document. </dd></dl>
+
+</div>
+</div>
+<a id="a224ff329b562863f1f37d06f09c03cb0" name="a224ff329b562863f1f37d06f09c03cb0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a224ff329b562863f1f37d06f09c03cb0">&#9670;&#160;</a></span>save_json() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::save_json </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;&#160;</td>
+          <td class="paramname"><em>writer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">ser::JsonSaveFlags&#160;</td>
+          <td class="paramname"><em>flags</em> = <code>ser::JsonSaveFlags::Default</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;&#160;</td>
+          <td class="paramname"><em>policy</em> = <code>{}</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Components with no runtime fields fallback to raw serialized bytes. </p>
+<p>Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime field types are unsupported (those fields are emitted as null).</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">writer</td><td>Destination JSON writer. </td></tr>
+    <tr><td class="paramname">flags</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> JSON sections and fallback behavior. </td></tr>
+    <tr><td class="paramname">policy</td><td>Symbolic enum and bitmask presentation policy. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>False when some runtime field types are unsupported. </dd></dl>
+
+</div>
+</div>
 <a id="a6df17ebf7874a9623f695475b3255875" name="a6df17ebf7874a9623f695475b3255875"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a6df17ebf7874a9623f695475b3255875">&#9670;&#160;</a></span>sched()</h2>
 
@@ -6825,11 +7075,11 @@ Undefined behavior if <em>entity</em> changes archetype before the proxy writes 
 </table>
 </div><div class="memdoc">
 
-<p>Replaces raw bytes for a directly owned chunk-backed AoS component and finishes the write. </p>
+<p>Replaces raw bytes for a directly owned AoS component and finishes the write. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component is being replaced. </td></tr>
-    <tr><td class="paramname">component</td><td>Runtime component entity. </td></tr>
+    <tr><td class="paramname">component</td><td>Runtime component entity or exact relationship pair. </td></tr>
     <tr><td class="paramname">data</td><td>Payload bytes. Must be non-null when the component size is non-zero. </td></tr>
     <tr><td class="paramname">size</td><td>Payload byte count. Must match the registered component size. </td></tr>
   </table>
@@ -7190,6 +7440,168 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="a4bc85ea89d4fe026111fa24cb42f79a7" name="a4bc85ea89d4fe026111fa24cb42f79a7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4bc85ea89d4fe026111fa24cb42f79a7">&#9670;&#160;</a></span>sparse_component_add_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sparse_component_add_value </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds or returns a sparse value through the store's erased payload interface. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Expected payload type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable typed payload reference. </dd></dl>
+
+</div>
+</div>
+<a id="a7921a3944257d9dee186158880ad7581" name="a7921a3944257d9dee186158880ad7581"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7921a3944257d9dee186158880ad7581">&#9670;&#160;</a></span>sparse_component_get_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sparse_component_get_value </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only sparse value through the store's erased payload interface. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Expected payload type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read-only typed payload reference. </dd></dl>
+
+</div>
+</div>
+<a id="ad234cc1bae1da1b2d1f63f22847f585f" name="ad234cc1bae1da1b2d1f63f22847f585f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad234cc1bae1da1b2d1f63f22847f585f">&#9670;&#160;</a></span>sparse_component_mut_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) gaia::ecs::World::sparse_component_mut_value </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable sparse value through the store's erased payload interface. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Expected payload type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the value. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable typed payload reference. </dd></dl>
+
+</div>
+</div>
 <a id="a8ca38f2da646e973096e8e51ea8968fa" name="a8ca38f2da646e973096e8e51ea8968fa"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8ca38f2da646e973096e8e51ea8968fa">&#9670;&#160;</a></span>sparse_component_store() <span class="overload">[1/2]</span></h2>
 
@@ -7273,6 +7685,87 @@ template&lt;typename T &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Pointer to the sparse store, or nullptr when absent. </dd></dl>
+
+</div>
+</div>
+<a id="a116371a8869ff53d26d9ac8690d8b43f" name="a116371a8869ff53d26d9ac8690d8b43f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a116371a8869ff53d26d9ac8690d8b43f">&#9670;&#160;</a></span>sparse_component_store_erased()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> * gaia::ecs::World::sparse_component_store_erased </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the erased sparse store for <em>component</em>, or nullptr when absent. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Erased sparse store, or nullptr when no values have been stored. </dd></dl>
+
+</div>
+</div>
+<a id="ab0a54a02981bc401e0e96516d2848a01" name="ab0a54a02981bc401e0e96516d2848a01"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab0a54a02981bc401e0e96516d2848a01">&#9670;&#160;</a></span>sparse_component_store_erased_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1detail_1_1SparseComponentStoreErased.html">SparseComponentStoreErased</a> &amp; gaia::ecs::World::sparse_component_store_erased_mut </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;&#160;</td>
+          <td class="paramname"><em>item</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the erased sparse store for <em>component</em>, creating runtime-sized storage when absent. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Sparse component entity. </td></tr>
+    <tr><td class="paramname">item</td><td>Runtime component metadata controlling payload size, alignment, and lifecycle. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable erased sparse store. </dd></dl>
 
 </div>
 </div>
@@ -8312,9 +8805,13 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Finalizes a write to <em>term</em> on <em>entity</em>. </p>
+<p>Finishes a cursor write through the owning world. </p>
+<p>Finalizes a write to <em>term</em> on <em>entity</em>.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> owning the component value. </td></tr>
+    <tr><td class="paramname">term</td><td>Written component or relationship id. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the written value.</td></tr>
     <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> owning the entity. </td></tr>
     <tr><td class="paramname">term</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> or pair id that was written. </td></tr>
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> that was written. </td></tr>
