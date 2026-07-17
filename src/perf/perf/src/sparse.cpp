@@ -6,7 +6,6 @@ void setup_sparse_component_entities(ecs::World& w, cnt::darray<ecs::Entity>& en
 	entities.clear();
 	entities.reserve(count);
 
-	register_sparse_position(w);
 	const auto& comp = w.add<PositionSparse>();
 	if constexpr (DontFragment)
 		w.add(comp.entity, ecs::DontFragment);
@@ -156,6 +155,126 @@ void BM_Query_DirectSparse_Each(picobench::state& state) {
 }
 
 template <bool DontFragment>
+void BM_Query_SparsePayload_Read(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) w.add<PositionSparse>(entities[i], {(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all<PositionSparse>();
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const PositionSparse& p) {
+			sum += (uint64_t)(p.x + p.y + p.z);
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_Query_SparsePayload_IterRead(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) w.add<PositionSparse>(entities[i], {(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all<PositionSparse>();
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto view = it.view_any<PositionSparse>();
+			GAIA_EACH(view) sum += (uint64_t)(view[i].x + view[i].y + view[i].z);
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_Query_SparsePayload_IterWrite(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) w.add<PositionSparse>(entities[i], {(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all<PositionSparse&>();
+	float total = 0.0f;
+	for (auto _: state) {
+		(void)_;
+		q.each([&](ecs::Iter& it) {
+			auto view = it.view_any_mut<PositionSparse>();
+			GAIA_EACH(view) {
+				view[i].x += 1.0f;
+				total += view[i].x;
+			}
+		});
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_Query_SparsePayload_Write(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) w.add<PositionSparse>(entities[i], {(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all<PositionSparse&>();
+	for (auto _: state) {
+		(void)_;
+		q.each([](PositionSparse& p) {
+			p.x += 1.0f;
+		});
+	}
+	dont_optimize(w.get<PositionSparse>(entities[0]).x);
+}
+
+template <bool DontFragment>
+void BM_Query_MixedSparsePayload_Read(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	setup_sparse_component_entities<DontFragment>(w, entities, n);
+
+	GAIA_FOR(n) {
+		const auto e = entities[i];
+		w.add<Position>(e, {(float)i, (float)(i + 1U), (float)(i + 2U)});
+		if ((i & 1U) == 0)
+			w.add<PositionSparse>(e, {(float)i, (float)(i + 1U), (float)(i + 2U)});
+	}
+
+	auto q = w.query().all<Position>().all<PositionSparse>();
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](const Position& p, const PositionSparse& sparse) {
+			sum += (uint64_t)(p.x + sparse.x);
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
 void BM_Query_DirectSparse_Or(picobench::state& state) {
 	const uint32_t n = (uint32_t)state.user_data();
 
@@ -224,9 +343,9 @@ void setup_runtime_sparse_component_entities(
 	desc.name = "Runtime_Sparse_Position";
 	desc.size = (uint32_t)sizeof(Position);
 	desc.alig = (uint32_t)alignof(Position);
-	desc.storageType = ecs::DataStorageType::Sparse;
 	const auto& comp = w.add(desc);
 	component = comp.entity;
+	w.add(component, ecs::Sparse);
 	if constexpr (DontFragment)
 		w.add(component, ecs::DontFragment);
 
@@ -250,7 +369,7 @@ void BM_RuntimeSparseComponent_Add(picobench::state& state) {
 
 		state.start_timer();
 		for (auto e: entities)
-			w.add(e, component, Position{1.0f, 2.0f, 3.0f});
+			w.add(e, component);
 		state.stop_timer();
 	}
 }
@@ -322,6 +441,94 @@ void BM_RuntimeSparseComponent_DeleteEntity(picobench::state& state) {
 	}
 }
 
+template <bool DontFragment>
+void BM_RuntimeSparsePayload_Read(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	ecs::Entity component = ecs::EntityBad;
+	setup_runtime_sparse_component_entities<DontFragment>(w, entities, n, component);
+	GAIA_FOR(n) w.add(entities[i], component, Position{(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	auto q = w.query().all(component);
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto view = it.view_raw_any(component);
+			GAIA_FOR(it.size()) {
+				const auto* p = reinterpret_cast<const Position*>(view[i].data);
+				sum += (uint64_t)(p->x + p->y + p->z);
+			}
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_RuntimeSparsePayload_Write(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	ecs::Entity component = ecs::EntityBad;
+	setup_runtime_sparse_component_entities<DontFragment>(w, entities, n, component);
+	GAIA_FOR(n) w.add(entities[i], component, Position{(float)i, (float)(i + 1U), (float)(i + 2U)});
+
+	ecs::QueryTermOptions writeOptions;
+	writeOptions.write();
+	auto q = w.query().all(component, writeOptions);
+	float total = 0.0f;
+	for (auto _: state) {
+		(void)_;
+		q.each([&](ecs::Iter& it) {
+			auto view = it.view_raw_any_mut(component);
+			GAIA_FOR(it.size()) {
+				auto* p = reinterpret_cast<Position*>(view[i].data);
+				p->x += 1.0f;
+				total += p->x;
+			}
+		});
+	}
+	dont_optimize(total);
+}
+
+template <bool DontFragment>
+void BM_RuntimeMixedSparsePayload_Read(picobench::state& state) {
+	const uint32_t n = (uint32_t)state.user_data();
+
+	ecs::World w;
+	cnt::darray<ecs::Entity> entities;
+	ecs::Entity component = ecs::EntityBad;
+	setup_runtime_sparse_component_entities<DontFragment>(w, entities, n, component);
+	GAIA_FOR(n) {
+		const auto entity = entities[i];
+		w.add<Position>(entity, {(float)i, (float)(i + 1U), (float)(i + 2U)});
+		if ((i & 1U) == 0)
+			w.add(entity, component, Position{(float)i, (float)(i + 1U), (float)(i + 2U)});
+	}
+
+	auto q = w.query().all<Position>().all(component);
+	uint64_t total = 0;
+	for (auto _: state) {
+		(void)_;
+		uint64_t sum = 0;
+		q.each([&](ecs::Iter& it) {
+			const auto dense = it.view_any<Position>();
+			const auto sparse = it.view_raw_any(component);
+			GAIA_FOR(it.size()) {
+				const auto* p = reinterpret_cast<const Position*>(sparse[i].data);
+				sum += (uint64_t)(dense[i].x + p->x);
+			}
+		});
+		total += sum;
+	}
+	dont_optimize(total);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void register_sparse(PerfRunMode mode) {
@@ -377,6 +584,46 @@ void register_sparse(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag query each 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_Read<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse frag payload read 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_Read<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse dontfrag payload read 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_IterRead<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse frag iter payload read 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_IterRead<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse dontfrag iter payload read 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_IterWrite<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse frag iter payload write 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_IterWrite<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse dontfrag iter payload write 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_Write<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse frag payload write 10K");
+	PICOBENCH_REG(BM_Query_SparsePayload_Write<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse dontfrag payload write 10K");
+	PICOBENCH_REG(BM_Query_MixedSparsePayload_Read<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse frag mixed payload read 10K");
+	PICOBENCH_REG(BM_Query_MixedSparsePayload_Read<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("sparse dontfrag mixed payload read 10K");
 	PICOBENCH_REG(BM_Query_DirectSparse_Or<false>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
@@ -393,20 +640,60 @@ void register_sparse(PerfRunMode mode) {
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("sparse dontfrag query or each 10K");
+	PICOBENCH_REG(BM_RuntimeSparseComponent_Add<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag add 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Add<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag add 10K");
+	PICOBENCH_REG(BM_RuntimeSparseComponent_Set<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag set 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Set<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag set 10K");
+	PICOBENCH_REG(BM_RuntimeSparseComponent_Del<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag del 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_Del<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag del 10K");
+	PICOBENCH_REG(BM_RuntimeSparseComponent_DeleteEntity<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag del entity 10K");
 	PICOBENCH_REG(BM_RuntimeSparseComponent_DeleteEntity<true>)
 			.PICO_SETTINGS_FOCUS()
 			.user_data(NEntitiesFew)
 			.label("runtime sparse dontfrag del entity 10K");
+	PICOBENCH_REG(BM_RuntimeSparsePayload_Read<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag payload read 10K");
+	PICOBENCH_REG(BM_RuntimeSparsePayload_Read<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse dontfrag payload read 10K");
+	PICOBENCH_REG(BM_RuntimeSparsePayload_Write<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag payload write 10K");
+	PICOBENCH_REG(BM_RuntimeSparsePayload_Write<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse dontfrag payload write 10K");
+	PICOBENCH_REG(BM_RuntimeMixedSparsePayload_Read<false>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse frag mixed payload read 10K");
+	PICOBENCH_REG(BM_RuntimeMixedSparsePayload_Read<true>)
+			.PICO_SETTINGS_FOCUS()
+			.user_data(NEntitiesFew)
+			.label("runtime sparse dontfrag mixed payload read 10K");
 }

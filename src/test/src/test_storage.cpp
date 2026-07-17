@@ -3,6 +3,7 @@
 namespace {
 	template <uint32_t Idx>
 	struct SparseTouchProbe {
+		GAIA_STORAGE(Sparse);
 		uint32_t value = 0;
 	};
 
@@ -10,7 +11,6 @@ namespace {
 	void add_sparse_touch_probes(ecs::World& world, ecs::Entity entity) {
 		using Probe = SparseTouchProbe<Idx>;
 		const auto& item = world.add<Probe>();
-		world.add(item.entity, ecs::Sparse);
 		world.add(item.entity, ecs::DontFragment);
 		world.add<Probe>(entity);
 		if constexpr (Idx + 1 < Count)
@@ -113,39 +113,6 @@ TEST_CASE("Builder handles sticky traits and non-fragmenting relation ids") {
 	CHECK(wld.fetch(child).pArchetype == pArchetypeBefore);
 }
 
-TEST_CASE("DontFragment table component uses sparse storage") {
-	TestWorld twld;
-
-	const auto& compItem = wld.add<Position>();
-	wld.add(compItem.entity, ecs::DontFragment);
-	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
-	CHECK(wld.component_uses_sparse_storage(compItem.entity));
-
-	const auto e = wld.add();
-	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;
-
-	wld.add<Position>(e);
-	CHECK(wld.has<Position>(e));
-	CHECK(wld.has(e, compItem.entity));
-	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
-	CHECK_FALSE(wld.fetch(e).pArchetype->has(compItem.entity));
-
-	{
-		auto pos = wld.set<Position>(e);
-		pos = {1.0f, 2.0f, 3.0f};
-	}
-
-	const auto& posConst = wld.get<Position>(e);
-	CHECK(posConst.x == doctest::Approx(1.0f));
-	CHECK(posConst.y == doctest::Approx(2.0f));
-	CHECK(posConst.z == doctest::Approx(3.0f));
-
-	wld.del<Position>(e);
-	CHECK_FALSE(wld.has<Position>(e));
-	CHECK_FALSE(wld.has(e, compItem.entity));
-	CHECK(wld.fetch(e).pArchetype == pArchetypeBefore);
-}
-
 TEST_CASE("Sparse DontFragment component runtime object add with value") {
 	SparseTestWorld twld;
 
@@ -194,34 +161,156 @@ TEST_CASE("Sparse DontFragment component direct query terms are evaluated as ent
 	expect_exact_entities(qOr, {eA, eC});
 }
 
-TEST_CASE("DontFragment table component direct query terms are evaluated as entity filters") {
-	TestWorld twld;
+TEST_CASE("Sparse DontFragment typed callbacks bind direct payloads per entity") {
+	SparseTestWorld twld;
 
-	const auto& compItem = wld.add<Position>();
+	const auto& compItem = wld.add<PositionSparse>();
 	wld.add(compItem.entity, ecs::DontFragment);
 
 	const auto eA = wld.add();
 	const auto eB = wld.add();
 	const auto eC = wld.add();
+	for (const auto entity: {eA, eB, eC})
+		wld.add<Position>(entity, {1.0f, 2.0f, 3.0f});
 
-	wld.add<Rotation>(eA);
-	wld.add<Rotation>(eB);
-	wld.add<Rotation>(eC);
-	wld.add<Scale>(eC);
+	auto q = wld.query().all<Position&>().all<PositionSparse&>();
+	uint32_t hits = 0;
+	q.each([&](Position& pos, PositionSparse& sparse) {
+		pos.x += sparse.x;
+		sparse.y += 10.0f;
+		++hits;
+	});
+	CHECK(hits == 0);
 
-	wld.add<Position>(eA);
+	wld.add<PositionSparse>(eA, {4.0f, 5.0f, 6.0f});
+	wld.add<PositionSparse>(eC, {7.0f, 8.0f, 9.0f});
 
-	auto qAll = wld.query().all<Rotation>().all<Position>();
-	CHECK(qAll.count() == 1);
-	expect_exact_entities(qAll, {eA});
+	q.each([&](Position& pos, PositionSparse& sparse) {
+		pos.x += sparse.x;
+		sparse.y += 10.0f;
+		++hits;
+	});
+	CHECK(hits == 2);
+	CHECK(wld.get<Position>(eA).x == doctest::Approx(5.0f));
+	CHECK(wld.get<Position>(eB).x == doctest::Approx(1.0f));
+	CHECK(wld.get<Position>(eC).x == doctest::Approx(8.0f));
+	CHECK(wld.get<PositionSparse>(eA).y == doctest::Approx(15.0f));
+	CHECK(wld.get<PositionSparse>(eC).y == doctest::Approx(18.0f));
 
-	auto qNo = wld.query().all<Rotation>().no<Position>();
-	CHECK(qNo.count() == 2);
-	expect_exact_entities(qNo, {eB, eC});
+	float sum = 0.0f;
+	wld.query().all<PositionSparse>().each([&](const PositionSparse& sparse) {
+		sum += sparse.x;
+	});
+	CHECK(sum == doctest::Approx(11.0f));
+}
 
-	auto qOr = wld.query().or_<Position>().or_<Scale>();
-	CHECK(qOr.count() == 2);
-	expect_exact_entities(qOr, {eA, eC});
+TEST_CASE("Typed systems bind sparse callback payloads per run") {
+	SUBCASE("Fragmenting") {
+		SparseTestWorld twld;
+		uint32_t hits = 0;
+		wld.system().all<PositionSparse&>().on_each([&](PositionSparse& sparse) {
+			sparse.x += 4.0f;
+			++hits;
+		});
+		wld.systems_run();
+		CHECK(hits == 0);
+
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+		wld.systems_run();
+		CHECK(hits == 1);
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(5.0f));
+
+		wld.del<PositionSparse>(entity);
+		wld.systems_run();
+		CHECK(hits == 1);
+
+		wld.add<PositionSparse>(entity, {2.0f, 3.0f, 4.0f});
+		wld.systems_run();
+		CHECK(hits == 2);
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(6.0f));
+	}
+
+	SUBCASE("DontFragment") {
+		SparseTestWorld twld;
+		const auto& compItem = wld.add<PositionSparse>();
+		wld.add(compItem.entity, ecs::DontFragment);
+		uint32_t hits = 0;
+		wld.system().all<PositionSparse&>().on_each([&](PositionSparse& sparse) {
+			sparse.x += 4.0f;
+			++hits;
+		});
+		wld.systems_run();
+		CHECK(hits == 0);
+
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+		wld.systems_run();
+		CHECK(hits == 1);
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(5.0f));
+
+		wld.del<PositionSparse>(entity);
+		wld.systems_run();
+		CHECK(hits == 1);
+
+		wld.add<PositionSparse>(entity, {2.0f, 3.0f, 4.0f});
+		wld.systems_run();
+		CHECK(hits == 2);
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(6.0f));
+	}
+}
+
+TEST_CASE("Mutable sparse iterator views keep inherited rows stable and notify after writes") {
+	SparseTestWorld twld;
+
+	const auto parent = wld.add();
+	wld.add<PositionSparse>(parent, {100.0f, 0.0f, 0.0f});
+	const auto sparseId = wld.add<PositionSparse>().entity;
+	wld.add(sparseId, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+	const auto direct = wld.add();
+	wld.add<Position>(direct);
+	wld.add<PositionSparse>(direct, {1.0f, 0.0f, 0.0f});
+
+	constexpr uint32_t ChildCount = 3;
+	ecs::Entity children[ChildCount];
+	GAIA_FOR(ChildCount) {
+		children[i] = wld.add();
+		wld.add<Position>(children[i]);
+		wld.as(children[i], parent);
+		CHECK_FALSE(wld.has_direct(children[i], sparseId));
+	}
+
+	uint32_t setHits = 0;
+	const auto observer = wld.observer()
+														.event(ecs::ObserverEvent::OnSet)
+														.all<PositionSparse>()
+														.on_each([&](ecs::Entity entity) {
+															CHECK(entity != parent);
+															CHECK(wld.get<PositionSparse>(entity).x >= 10.0f);
+															++setHits;
+														})
+														.entity();
+	(void)observer;
+
+	wld.query().all<Position>().all<PositionSparse&>().each([&](ecs::Iter& it) {
+		const auto entities = it.view<ecs::Entity>();
+		auto sparse = it.view_any_mut<PositionSparse>();
+		GAIA_EACH(it) {
+			if (entities[i] == direct)
+				sparse[i].x = 11.0f;
+			else
+				sparse[i].x = 200.0f + (float)i;
+		}
+	});
+
+	CHECK(setHits == ChildCount + 1);
+	CHECK(wld.get<PositionSparse>(direct).x == doctest::Approx(11.0f));
+	CHECK(wld.get<PositionSparse>(parent).x == doctest::Approx(100.0f));
+	GAIA_FOR(ChildCount) {
+		CHECK(wld.has_direct(children[i], sparseId));
+		CHECK(wld.get<PositionSparse>(children[i]).x >= 200.0f);
+	}
 }
 
 TEST_CASE("Sparse DontFragment component can change directly during serial query iteration") {
@@ -324,7 +413,7 @@ TEST_CASE("Sparse component default add still makes direct storage") {
 	CHECK(pos.z == doctest::Approx(4.0f));
 }
 
-TEST_CASE("Table component can opt into sparse storage via trait") {
+TEST_CASE("Compile-time table component storage is authoritative") {
 	TestWorld twld;
 
 	const auto& compItem = wld.add<Position>();
@@ -332,12 +421,11 @@ TEST_CASE("Table component can opt into sparse storage via trait") {
 	CHECK_FALSE(wld.has(compItem.entity, ecs::Sparse));
 
 	wld.add(compItem.entity, ecs::Sparse);
-	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
-	CHECK(wld.has(compItem.entity, ecs::Sparse));
-	CHECK(wld.component_uses_sparse_storage(compItem.entity));
-	wld.del(compItem.entity, ecs::Sparse);
-	CHECK(wld.has(compItem.entity, ecs::Sparse));
-	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Sparse);
+	CHECK(compItem.comp.storage_type() == ecs::DataStorageType::Table);
+	CHECK_FALSE(wld.has(compItem.entity, ecs::Sparse));
+	CHECK_FALSE(wld.component_uses_sparse_storage(compItem.entity));
+	wld.add(compItem.entity, ecs::DontFragment);
+	CHECK_FALSE(wld.has(compItem.entity, ecs::DontFragment));
 
 	const auto e = wld.add();
 	const auto* pArchetypeBefore = wld.fetch(e).pArchetype;

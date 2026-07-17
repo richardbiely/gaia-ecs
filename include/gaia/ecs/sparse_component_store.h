@@ -188,7 +188,7 @@ namespace gaia {
 
 				void del_entity(Entity entity) {
 					const auto sparseId = sid(entity);
-					if (data.empty() || !data.has(sparseId))
+					if (!data.has(sparseId))
 						return;
 
 					auto* pData = data[sparseId].pData;
@@ -200,7 +200,7 @@ namespace gaia {
 				}
 
 				bool has(Entity entity) const {
-					return !data.empty() && data.has(sid(entity));
+					return data.has(sid(entity));
 				}
 
 				bool copy_entity(Entity dstEntity, Entity srcEntity) {
@@ -219,6 +219,8 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
+					if (data.empty())
+						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -263,13 +265,11 @@ namespace gaia {
 
 				void del_entity(Entity entity) {
 					const auto sparseId = sid(entity);
-					if (!data.empty() && data.has(sparseId))
+					if (data.has(sparseId))
 						data.del(sparseId);
 				}
 
 				bool has(Entity entity) const {
-					if (data.empty())
-						return false;
 					return data.has(sid(entity));
 				}
 
@@ -285,6 +285,8 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
+					if (data.empty())
+						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -333,7 +335,10 @@ namespace gaia {
 					static_cast<const Store*>(pStoreRaw)->collect_entities(out);
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-					for (const auto& item: static_cast<const Store*>(pStoreRaw)->data) {
+					const auto& data = static_cast<const Store*>(pStoreRaw)->data;
+					if (data.empty())
+						return true;
+					for (const auto& item: data) {
 						if (!func(pCtx, item.entity))
 							return false;
 					}

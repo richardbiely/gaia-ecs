@@ -36,15 +36,11 @@ struct Position {
 };
 
 struct PositionSparse {
+	GAIA_STORAGE(Sparse);
 	float x;
 	float y;
 	float z;
 };
-
-inline void register_sparse_position(ecs::World& world) {
-	const auto& item = world.add<PositionSparse>();
-	world.add(item.entity, ecs::Sparse);
-}
 
 struct Velocity {
 	float x;

@@ -2404,6 +2404,45 @@ TEST_CASE("Component cache - runtime registration") {
 		CHECK(setHits == 2);
 	}
 
+	SUBCASE("runtime sparse raw iterator views resolve inherited payloads") {
+		TestWorld twld;
+
+		auto& runtimeComp = add_runtime_component_with_fields(
+				wld, "Runtime_Component_Query_Iter_Sparse_Inherited_View", RuntimePayloadSize, ecs::DataStorageType::Table,
+				RuntimePayloadAlign, RuntimeXYZFields, RuntimeXYZFieldCount);
+		wld.add(runtimeComp.entity, ecs::Sparse);
+		wld.add(runtimeComp.entity, ecs::DontFragment);
+		wld.add(runtimeComp.entity, ecs::Pair(ecs::OnInstantiate, ecs::Inherit));
+
+		const auto base = wld.add();
+		wld.add<Position>(base);
+		uint8_t payload[RuntimePayloadSize]{};
+		write_xyz(payload, 1.0f, 2.0f, 3.0f);
+		CHECK(wld.add_raw(base, runtimeComp.entity, payload, RuntimePayloadSize));
+		const auto child = wld.add();
+		wld.add<Position>(child);
+		wld.as(child, base);
+		CHECK(wld.has_direct(base, runtimeComp.entity));
+		CHECK_FALSE(wld.has_direct(child, runtimeComp.entity));
+		const auto basePayload = wld.get_raw(base, runtimeComp.entity);
+		CHECK(basePayload.valid());
+
+		uint32_t rows = 0;
+		auto q = wld.query().all<Position>();
+		q.each([&](ecs::Iter& it) {
+			const auto raw = it.view_raw_any(runtimeComp.entity);
+			GAIA_FOR(it.size()) {
+				const auto value = raw[i];
+				CHECK(value.valid());
+				CHECK(value.size == RuntimePayloadSize);
+				CHECK(value.data == basePayload.data);
+				CHECK(read_f32(value.data, RuntimeXOffset) == doctest::Approx(1.0f));
+				++rows;
+			}
+		});
+		CHECK(rows == 2);
+	}
+
 	SUBCASE("entity-resolved mutable raw views reject partial sparse ownership") {
 		TestWorld twld;
 

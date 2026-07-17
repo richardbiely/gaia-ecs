@@ -460,33 +460,21 @@ auto cooldownValue = w.set<Cooldown>(e);
 cooldownValue.value = 1.5f;
 ```
 
-`GAIA_STORAGE(Table)` is the default and usually does not need to be written. The equivalent runtime configuration is applied to the component entity before the component has any instances:
-
-```cpp
-struct Cooldown {
-  float value = 0.0f;
-};
-
-ecs::World w;
-// Register the component
-const auto& cooldown = w.add<Cooldown>();
-// Use sparse storage instead of the default table storage.
-w.add(cooldown.entity, ecs::Sparse);
-```
+`GAIA_STORAGE(Table)` is the default and usually does not need to be written. A typed component's declared policy is authoritative: adding `ecs::Sparse` or `ecs::DontFragment` to a typed table component does not change its storage. Runtime component descriptors can still select their storage mode before instances are attached.
 
 #### Non-fragmenting membership
 
-`ecs::DontFragment` controls archetype membership, not storage mode directly. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Table storage requires the component id to identify an archetype column, so Gaia-ECS automatically uses sparse storage for a `DontFragment` component.
+`ecs::DontFragment` controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Typed non-fragmenting components must declare `GAIA_STORAGE(Sparse)` because table payloads require an archetype column.
 
 ```cpp
 struct Cooldown {
+  GAIA_STORAGE(Sparse);
   float value = 0.0f;
 };
 
 ecs::World w;
 const auto& cooldown = w.add<Cooldown>();
 // Keep Cooldown membership outside archetype identity.
-// Sparse payload storage is implied; adding ecs::Sparse would be redundant.
 w.add(cooldown.entity, ecs::DontFragment);
 
 auto e = w.add();
@@ -497,16 +485,16 @@ cooldownValue.value = 1.5f;
 
 The resulting configurations are:
 
-| Traits | Storage mode | Component id | Add/remove changes archetype |
+| Typed declaration and traits | Storage mode | Component id | Add/remove changes archetype |
 |---|---|---|---|
-| None | `Table` | In archetype | Yes |
-| `Sparse` | `Sparse` | In archetype | Yes |
-| `DontFragment` | `Sparse` (implied) | Outside archetype | No |
+| `GAIA_STORAGE(Table)` | `Table` | In archetype | Yes |
+| `GAIA_STORAGE(Sparse)` | `Sparse` | In archetype | Yes |
+| `GAIA_STORAGE(Sparse)` + `DontFragment` | `Sparse` | Outside archetype | No |
 
 Rule of thumb:
 - Keep hot, common, frequently iterated data in table storage.
 - Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
-- Use `DontFragment` for frequently toggled optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.
+- Use `GAIA_STORAGE(Sparse)` with `DontFragment` for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
@@ -515,10 +503,10 @@ Directly adding or removing an already-registered `DontFragment` component is sa
 SoA components do not support sparse storage and remain in table storage. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` apply only to plain AoS generic components.<br/>
 
 >**NOTE:<br/>** 
-Runtime storage and fragmentation traits must be set before the component has instances attached to entities.<br/>
+Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's `GAIA_STORAGE` policy.<br/>
 
 >**NOTE:<br/>**
-`ecs::Sparse` and `ecs::DontFragment` are sticky component traits. Removing either relation from the component entity does not revert its behavior.<br/>
+Accepted `ecs::Sparse` and `ecs::DontFragment` component traits are sticky. Removing either relation from the component entity does not revert its behavior.<br/>
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).

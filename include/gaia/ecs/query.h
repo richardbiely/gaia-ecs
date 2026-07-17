@@ -2018,7 +2018,7 @@ namespace gaia {
 
 				static void finish_typed_chunk_writes_runtime(
 						World& world, Chunk* pChunk, uint16_t from, uint16_t to, const Entity* pArgIds, const bool* pWriteFlags,
-						uint32_t argCnt, uint32_t firstWriteArg);
+						uint32_t argCnt, uint32_t firstWriteArg, void* const* pSparseStores = nullptr);
 
 				template <typename... T>
 				static void finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to);
@@ -2067,6 +2067,8 @@ namespace gaia {
 					//! Typed dense cached archetype/chunk iteration using mapped component access.
 					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
+					//! Typed cached chunk iteration with compile-time sparse payload access.
+					SparseDense,
 					//! Sorted payload execution that must preserve cache-provided chunk order.
 					Sorted,
 					//! Traversal or inherited payload execution that requires the mapped generic path.
@@ -3490,6 +3492,15 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
 						core::func_type_list<T...>);
 
+				template <bool HasFilters, typename Func, typename... T>
+				void run_query_on_chunks_sparse_typed(
+						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
+						core::func_type_list<T...>);
+
+				template <typename Func, typename... T>
+				void run_query_on_sparse_entities_typed(
+						QueryInfo& queryInfo, const TypedQueryExecState& state, Func& func, core::func_type_list<T...>);
+
 				void run_query_on_chunks_direct(
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, void* pFunc,
 						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
@@ -3498,20 +3509,22 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, void* pFunc,
 						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
 
+				struct TypedQueryErasedOps {
+					void (*runSparsePlan)(QueryImpl&, QueryInfo&, const QueryPlan&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*invokeInherited)(World&, Entity, const Entity*, void*) = nullptr;
+					bool needsInheritedArgIds = false;
+				};
+
 				template <QueryExecType ExecType>
 				void each_inter(
 						QueryInfo& queryInfo, const QueryPlan& plan, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-						bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*));
+						const TypedQueryErasedOps& ops);
 
 				void each_typed_erased(
-						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-						bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*));
+						QueryExecType execType, void* pFunc, const TypedQueryExecState& state, const TypedQueryErasedOps& ops);
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
@@ -4972,6 +4985,7 @@ namespace gaia {
 					Entity id = EntityBad;
 					bool isEntity = false;
 					bool isPair = false;
+					bool usesSparseStorage = false;
 				};
 
 				//! Returns whether a runtime query argument descriptor can use direct chunk access.
@@ -5012,6 +5026,35 @@ namespace gaia {
 							return false;
 					}
 
+					return true;
+				}
+
+				//! Returns whether compile-time sparse arguments can use prepared chunk iteration.
+				GAIA_NODISCARD static bool can_use_sparse_chunk_term_eval_descs(
+						World& world, const QueryInfo& queryInfo, const DirectChunkArgEvalDesc* pDescs, uint32_t descCnt) {
+					if (queryInfo.has_entity_filter_terms())
+						return false;
+
+					GAIA_FOR(descCnt) {
+						const auto& desc = pDescs[i];
+						if (!desc.usesSparseStorage) {
+							if (!can_use_direct_chunk_term_eval_arg(world, queryInfo, desc))
+								return false;
+							continue;
+						}
+						bool found = false;
+						for (const auto& term: queryInfo.ctx().data.terms_view()) {
+							if (term.id != desc.id)
+								continue;
+							found = true;
+							if (!query_term_maps_to_current_archetype(term) || uses_non_direct_is_matching(term) ||
+									uses_inherited_id_matching(world, term) || is_non_fragmenting_direct_term(world, term))
+								return false;
+							break;
+						}
+						if (!found)
+							return false;
+					}
 					return true;
 				}
 

@@ -38807,9 +38807,26 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		class World;
-		void world_finish_write(World& world, Entity term, Entity entity);
+
+		//! Prebound operations for one runtime sparse component store.
+		struct RawSparseStoreOps {
+			const void* pStore = nullptr;
+			const void* (*funcGet)(const void*, Entity) = nullptr;
+			void* (*funcMut)(void*, Entity) = nullptr;
+			bool (*funcHas)(const void*, Entity) = nullptr;
+			uint32_t elemSize = 0;
+		};
+
+		bool world_bind_raw_sparse_store(const World& world, Entity component, RawSparseStoreOps& ops);
+		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 		template <typename T>
-		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+		void* world_typed_sparse_store_ptr(World& world, Entity component);
+		template <typename T>
+		const T& world_typed_sparse_store_get(const void* pStore, Entity entity);
+		template <typename T>
+		T& world_typed_sparse_store_mut(void* pStore, Entity entity);
+		template <typename T>
+		bool world_typed_sparse_store_has(const void* pStore, Entity entity);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_cached_const(
 				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
@@ -38835,6 +38852,7 @@ namespace gaia {
 				Entity termId = EntityBad;
 				bool isEntity = false;
 				bool usesSparseStorage = false;
+				bool storageKnown = false;
 			};
 
 			struct ChunkIterTypedOps {
@@ -38925,13 +38943,20 @@ namespace gaia {
 				const World* pWorld = nullptr;
 				Entity component = EntityBad;
 				uint32_t cnt = 0;
+				RawSparseStoreOps sparse{};
 
 				GAIA_NODISCARD ComponentRawView operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
 						return {};
 
-					return world_get_raw(*pWorld, pEntities[idx], component);
+					const auto entity = pEntities[idx];
+					if (sparse.pStore != nullptr) {
+						if (sparse.funcHas(sparse.pStore, entity))
+							return {sparse.funcGet(sparse.pStore, entity), sparse.elemSize, ComponentRawViewFlag_Valid};
+					}
+
+					return world_get_raw(*pWorld, entity, component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -38946,13 +38971,19 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity component = EntityBad;
 				uint32_t cnt = 0;
+				RawSparseStoreOps sparse{};
 
 				GAIA_NODISCARD ComponentRawMutView operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
 						return {};
 
-					return world_mut_raw(*pWorld, pEntities[idx], component);
+					const auto entity = pEntities[idx];
+					if (sparse.pStore != nullptr)
+						return {
+								sparse.funcMut(const_cast<void*>(sparse.pStore), entity), sparse.elemSize, ComponentRawViewFlag_Valid};
+
+					return world_mut_raw(*pWorld, entity, component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -39058,6 +39089,70 @@ namespace gaia {
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD U* data() noexcept {
+					return nullptr;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					return nullptr;
+				}
+			};
+
+			//! Read-only typed sparse view with a store bound once for the iterator range.
+			template <typename U>
+			struct EntityTermViewGetSparse {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				const void* pStore = nullptr;
+				Entity id = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_get<U>(pStore, entity);
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					return nullptr;
+				}
+			};
+
+			//! Mutable typed sparse view with a store bound once for the iterator range.
+			template <typename U>
+			struct EntityTermViewSetSparse {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				void* pStore = nullptr;
+				Entity id = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_mut<U>(pStore, entity);
+					return world_query_entity_arg_by_id_raw<U&>(*pWorld, entity, id);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_get<U>(pStore, entity);
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -40007,7 +40102,7 @@ namespace gaia {
 							desc.termId = mappedTermId;
 					}
 
-					if (!desc.isEntity && desc.termId != EntityBad)
+					if (!desc.storageKnown && !desc.isEntity && desc.termId != EntityBad)
 						desc.usesSparseStorage = world_component_uses_sparse_storage(*world(), desc.termId);
 
 					return desc;
@@ -40203,13 +40298,19 @@ namespace gaia {
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
-					if (!owns_raw_component(component))
+					const auto* pEntities = entity_snapshot();
+					RawSparseStoreOps sparse{};
+					if (world_bind_raw_sparse_store(*world(), component, sparse)) {
+						GAIA_FOR(size()) {
+							if (!sparse.funcHas(sparse.pStore, pEntities[i]))
+								return {};
+						}
+					} else if (!owns_raw_component(component))
 						return {};
 					if (trackWrite && !touch_raw_component(component))
 						return {};
 
-					const auto* pEntities = entity_snapshot();
-					return {pEntities, world(), component, size()};
+					return {pEntities, world(), component, size(), sparse};
 				}
 
 				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
@@ -40278,10 +40379,12 @@ namespace gaia {
 						return {};
 
 					const auto* pEntities = m_pChunk->entity_view().data() + from();
-					if (!world_get_raw(*world(), pEntities[0], component).valid())
+					RawSparseStoreOps sparse{};
+					if (!world_bind_raw_sparse_store(*world(), component, sparse) &&
+							!world_get_raw(*world(), pEntities[0], component).valid())
 						return {};
 
-					return {pEntities, world(), component, size()};
+					return {pEntities, world(), component, size(), sparse};
 				}
 
 				//! Returns a mutable raw byte view resolved separately for each iterated entity.
@@ -40874,11 +40977,12 @@ namespace gaia {
 					if constexpr (is_pair<FT>::value) {
 						desc.termId = EntityBad;
 						desc.isEntity = false;
+						desc.storageKnown = true;
 					} else {
 						desc.termId = world_query_arg_id<Arg>(*const_cast<World*>(self.world()));
 						desc.isEntity = false;
-						if constexpr (!mem::is_soa_layout_v<Arg>)
-							desc.usesSparseStorage = world_component_uses_sparse_storage(*self.world(), desc.termId);
+						desc.usesSparseStorage = auto_storage_policy_v<Arg> == DataStorageType::Sparse;
+						desc.storageKnown = true;
 					}
 				}
 				return desc;
@@ -40889,7 +40993,13 @@ namespace gaia {
 				using U = typename actual_type_t<T>::Type;
 				if constexpr (std::is_same_v<U, Entity> || mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template view<T>(self.from(), self.to());
-				else {
+				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewGetSparse<U>{
+							self.m_pChunk->entity_view().data() + self.from(), pWorld,
+							world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId, self.size()};
+				} else {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
@@ -40925,6 +41035,12 @@ namespace gaia {
 							EntityBad,
 							self.from(),
 							self.size()};
+				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewGetSparse<U>{
+							self.m_pChunk->entity_view().data() + self.from(), pWorld,
+							world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId, self.size()};
 				} else {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
@@ -40997,6 +41113,14 @@ namespace gaia {
 					if (self.m_writeIm)
 						return self.m_pChunk->template view_mut<T>(self.from(), self.to());
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
+				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
+					if (!self.touch_term(desc.termId))
+						return EntityTermViewSetSparse<U>{};
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewSetSparse<U>{
+							self.entity_snapshot(), pWorld, world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId,
+							self.size()};
 				} else {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
@@ -41088,6 +41212,14 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							self.m_writeIm};
+				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
+					if (!self.touch_term(desc.termId))
+						return EntityTermViewSetSparse<U>{};
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewSetSparse<U>{
+							self.entity_snapshot(), pWorld, world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId,
+							self.size()};
 				} else {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
@@ -41120,7 +41252,13 @@ namespace gaia {
 				static_assert(!std::is_same_v<U, Entity>, "Modifying chunk entities via sview_mut is forbidden");
 				if constexpr (mem::is_soa_layout_v<U>)
 					return self.m_pChunk->template sview_mut<T>(self.from(), self.to());
-				else {
+				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewSetSparse<U>{
+							self.entity_snapshot(), pWorld, world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId,
+							self.size()};
+				} else {
 					const auto desc = ChunkIterTypedOps::template term_desc<T>(self);
 					const auto id = desc.usesSparseStorage ? desc.termId : EntityBad;
 
@@ -41183,6 +41321,12 @@ namespace gaia {
 							self.from(),
 							self.size(),
 							false};
+				} else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
+					auto* pWorld = const_cast<World*>(self.world());
+					return EntityTermViewSetSparse<U>{
+							self.entity_snapshot(), pWorld, world_typed_sparse_store_ptr<U>(*pWorld, desc.termId), desc.termId,
+							self.size()};
 				} else {
 					const auto desc = self.resolved_term_desc(termIdx, ChunkIterTypedOps::template term_desc<T>(self));
 					const auto compIdx = self.m_pCompIndices[termIdx];
@@ -51897,7 +52041,7 @@ namespace gaia {
 
 				static void finish_typed_chunk_writes_runtime(
 						World& world, Chunk* pChunk, uint16_t from, uint16_t to, const Entity* pArgIds, const bool* pWriteFlags,
-						uint32_t argCnt, uint32_t firstWriteArg);
+						uint32_t argCnt, uint32_t firstWriteArg, void* const* pSparseStores = nullptr);
 
 				template <typename... T>
 				static void finish_typed_chunk_writes(World& world, Chunk* pChunk, uint16_t from, uint16_t to);
@@ -51946,6 +52090,8 @@ namespace gaia {
 					//! Typed dense cached archetype/chunk iteration using mapped component access.
 					//! Public Iter callbacks use DirectDense with iterator component-index mapping instead.
 					MappedDense,
+					//! Typed cached chunk iteration with compile-time sparse payload access.
+					SparseDense,
 					//! Sorted payload execution that must preserve cache-provided chunk order.
 					Sorted,
 					//! Traversal or inherited payload execution that requires the mapped generic path.
@@ -53369,6 +53515,15 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
 						core::func_type_list<T...>);
 
+				template <bool HasFilters, typename Func, typename... T>
+				void run_query_on_chunks_sparse_typed(
+						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
+						core::func_type_list<T...>);
+
+				template <typename Func, typename... T>
+				void run_query_on_sparse_entities_typed(
+						QueryInfo& queryInfo, const TypedQueryExecState& state, Func& func, core::func_type_list<T...>);
+
 				void run_query_on_chunks_direct(
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, void* pFunc,
 						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
@@ -53377,20 +53532,22 @@ namespace gaia {
 						QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, void* pFunc,
 						void (*runChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&));
 
+				struct TypedQueryErasedOps {
+					void (*runSparsePlan)(QueryImpl&, QueryInfo&, const QueryPlan&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&) = nullptr;
+					void (*invokeInherited)(World&, Entity, const Entity*, void*) = nullptr;
+					bool needsInheritedArgIds = false;
+				};
+
 				template <QueryExecType ExecType>
 				void each_inter(
 						QueryInfo& queryInfo, const QueryPlan& plan, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-						bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*));
+						const TypedQueryErasedOps& ops);
 
 				void each_typed_erased(
-						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
-						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-						bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*));
+						QueryExecType execType, void* pFunc, const TypedQueryExecState& state, const TypedQueryErasedOps& ops);
 
 				template <QueryExecType ExecType, typename Func>
 				void each_typed_inter(QueryInfo& queryInfo, Func func);
@@ -54851,6 +55008,7 @@ namespace gaia {
 					Entity id = EntityBad;
 					bool isEntity = false;
 					bool isPair = false;
+					bool usesSparseStorage = false;
 				};
 
 				//! Returns whether a runtime query argument descriptor can use direct chunk access.
@@ -54891,6 +55049,35 @@ namespace gaia {
 							return false;
 					}
 
+					return true;
+				}
+
+				//! Returns whether compile-time sparse arguments can use prepared chunk iteration.
+				GAIA_NODISCARD static bool can_use_sparse_chunk_term_eval_descs(
+						World& world, const QueryInfo& queryInfo, const DirectChunkArgEvalDesc* pDescs, uint32_t descCnt) {
+					if (queryInfo.has_entity_filter_terms())
+						return false;
+
+					GAIA_FOR(descCnt) {
+						const auto& desc = pDescs[i];
+						if (!desc.usesSparseStorage) {
+							if (!can_use_direct_chunk_term_eval_arg(world, queryInfo, desc))
+								return false;
+							continue;
+						}
+						bool found = false;
+						for (const auto& term: queryInfo.ctx().data.terms_view()) {
+							if (term.id != desc.id)
+								continue;
+							found = true;
+							if (!query_term_maps_to_current_archetype(term) || uses_non_direct_is_matching(term) ||
+									uses_inherited_id_matching(world, term) || is_non_fragmenting_direct_term(world, term))
+								return false;
+							break;
+						}
+						if (!found)
+							return false;
+					}
 					return true;
 				}
 
@@ -56695,14 +56882,49 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
+
+		template <typename T>
+		void* world_typed_sparse_store_ptr(World& world, Entity component);
+		template <typename T>
+		const T& world_typed_sparse_store_get(const void* pStore, Entity entity);
+		template <typename T>
+		T& world_typed_sparse_store_mut(void* pStore, Entity entity);
+		template <typename T>
+		bool world_typed_sparse_store_has(const void* pStore, Entity entity);
+
+		template <typename T, bool IsEntity = std::is_same_v<typename actual_type_t<T>::Type, Entity>>
+		struct typed_query_arg_uses_sparse_storage: std::false_type {};
+
+		template <typename T>
+		struct typed_query_arg_uses_sparse_storage<T, false>:
+				std::bool_constant<auto_storage_policy_v<typename actual_type_t<T>::Type> == DataStorageType::Sparse> {};
+
+		template <typename... T>
+		inline constexpr bool typed_query_args_use_sparse_storage_v =
+				(typed_query_arg_uses_sparse_storage<T>::value || ...);
+
+		template <typename T>
+		struct typed_query_arg_list_uses_sparse_storage;
+
+		template <typename... T>
+		struct typed_query_arg_list_uses_sparse_storage<core::func_type_list<T...>>:
+				std::bool_constant<typed_query_args_use_sparse_storage_v<T...>> {};
+
+		template <typename T>
+		inline constexpr bool typed_query_arg_list_uses_sparse_storage_v =
+				typed_query_arg_list_uses_sparse_storage<T>::value;
+
 		struct TypedQueryExecState {
 			uint32_t argCount = 0;
 			Entity argIds[MAX_ITEMS_IN_QUERY]{};
 			bool writeFlags[MAX_ITEMS_IN_QUERY]{};
+			void* sparseStores[MAX_ITEMS_IN_QUERY]{};
 			uint32_t firstWriteArg = MAX_ITEMS_IN_QUERY;
 			bool hasWriteArgs = false;
 			bool needsInheritedArgIds = false;
 			bool canUseDirectChunkEval = false;
+			bool canUseSparseChunkEval = false;
 			bool hasInheritedTerms = false;
 		};
 
@@ -56711,6 +56933,7 @@ namespace gaia {
 			bool isWrite = false;
 			bool isEntity = false;
 			bool isPair = false;
+			bool usesSparseStorage = false;
 		};
 
 		template <typename T>
@@ -56719,13 +56942,17 @@ namespace gaia {
 			const bool isWrite =
 					std::is_lvalue_reference_v<T> && !std::is_const_v<std::remove_reference_t<T>> && !std::is_same_v<Arg, Entity>;
 			if constexpr (std::is_same_v<Arg, Entity>)
-				return TypedQueryArgMeta{EntityBad, isWrite, true, false};
+				return TypedQueryArgMeta{EntityBad, isWrite, true, false, false};
 			else {
 				using FT = typename component_type_t<Arg>::TypeFull;
 				if constexpr (is_pair<FT>::value)
-					return TypedQueryArgMeta{EntityBad, isWrite, false, true};
-				else
-					return TypedQueryArgMeta{world_query_arg_id<Arg>(world), isWrite, false, false};
+					return TypedQueryArgMeta{EntityBad, isWrite, false, true, false};
+				else {
+					const auto termId = world_query_arg_id<Arg>(world);
+					constexpr bool UsesSparseStorage =
+							auto_storage_policy_v<typename actual_type_t<Arg>::Type> == DataStorageType::Sparse;
+					return TypedQueryArgMeta{termId, isWrite, false, false, UsesSparseStorage};
+				}
 			}
 		}
 
@@ -56739,6 +56966,22 @@ namespace gaia {
 				}
 			}
 			return (uint32_t)sizeof...(T);
+		}
+
+		template <typename... T, size_t... I>
+		inline void bind_typed_sparse_stores(
+				TypedQueryExecState& state, World& world, core::func_type_list<T...>, std::index_sequence<I...>) {
+			(([&]() {
+				 using U = typename actual_type_t<T>::Type;
+				 if constexpr (!std::is_same_v<U, Entity> && auto_storage_policy_v<U> == DataStorageType::Sparse)
+					 state.sparseStores[I] = world_typed_sparse_store_ptr<U>(world, state.argIds[I]);
+			 }()),
+			 ...);
+		}
+
+		template <typename... T>
+		inline void bind_typed_sparse_stores(TypedQueryExecState& state, World& world, core::func_type_list<T...> types) {
+			bind_typed_sparse_stores(state, world, types, std::index_sequence_for<T...>{});
 		}
 
 #if GAIA_ASSERT_ENABLED
@@ -56777,23 +57020,28 @@ namespace gaia {
 			return &invoke_typed_query_args_by_id_erased<Func, T...>;
 		}
 
-		inline void finish_typed_query_args_by_id(
-				World& world, Entity entity, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt) {
+		inline void finish_typed_query_args_by_id(World& world, Entity entity, const TypedQueryExecState& state) {
+			if (state.firstWriteArg >= state.argCount)
+				return;
+
 			Entity seenTerms[ChunkHeader::MAX_COMPONENTS]{};
 			uint32_t seenCnt = 0;
-			const auto finish_term = [&](Entity term) {
+			const auto finish_term = [&](Entity term, bool sparseStoreBound) {
 				GAIA_FOR(seenCnt) {
 					if (seenTerms[i] == term)
 						return;
 				}
 
 				seenTerms[seenCnt++] = term;
-				world_finish_write(world, term, entity);
+				if (sparseStoreBound)
+					world_notify_on_set_entity(world, term, entity);
+				else
+					world_finish_write(world, term, entity);
 			};
 
-			GAIA_FOR(argCnt) {
-				if (pWriteFlags[i])
-					finish_term(pArgIds[i]);
+			for (uint32_t i = state.firstWriteArg; i < state.argCount; ++i) {
+				if (state.writeFlags[i] && state.argIds[i] != EntityBad)
+					finish_term(state.argIds[i], state.sparseStores[i] != nullptr);
 			}
 		}
 	} // namespace ecs
@@ -56803,10 +57051,10 @@ namespace gaia {
 	namespace ecs {
 		namespace detail {
 			inline TypedQueryExecState build_typed_query_exec_state(
-					[[maybe_unused]] QueryImpl& query, World& world, const QueryInfo& queryInfo, const TypedQueryArgMeta* pMetas,
-					uint32_t argCount) {
+					World& world, const QueryInfo& queryInfo, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
 				TypedQueryExecState state{};
 				QueryImpl::DirectChunkArgEvalDesc directChunkDescs[MAX_ITEMS_IN_QUERY]{};
+				bool hasSparseArgs = false;
 				state.argCount = argCount;
 				GAIA_FOR(argCount) {
 					state.argIds[i] = pMetas[i].termId;
@@ -56817,11 +57065,14 @@ namespace gaia {
 							state.firstWriteArg = (uint32_t)i;
 					}
 					state.needsInheritedArgIds = state.needsInheritedArgIds || !pMetas[i].isEntity;
-					directChunkDescs[i] = {pMetas[i].termId, pMetas[i].isEntity, pMetas[i].isPair};
+					hasSparseArgs = hasSparseArgs || pMetas[i].usesSparseStorage;
+					directChunkDescs[i] = {pMetas[i].termId, pMetas[i].isEntity, pMetas[i].isPair, pMetas[i].usesSparseStorage};
 				}
 
 				state.canUseDirectChunkEval =
 						QueryImpl::can_use_direct_chunk_term_eval_descs(world, queryInfo, directChunkDescs, argCount);
+				state.canUseSparseChunkEval = hasSparseArgs && QueryImpl::can_use_sparse_chunk_term_eval_descs(
+																													 world, queryInfo, directChunkDescs, argCount);
 				if (state.needsInheritedArgIds)
 					state.hasInheritedTerms = queryInfo.has_potential_inherited_id_terms();
 				return state;
@@ -56840,7 +57091,7 @@ namespace gaia {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, world, InputArgs{});
-				const auto state = build_typed_query_exec_state(*this, world, queryInfo, metas, argCount);
+				const auto state = build_typed_query_exec_state(world, queryInfo, metas, argCount);
 				(void)func;
 				return prepare_query_plan(queryInfo, state);
 			}
@@ -56853,7 +57104,7 @@ namespace gaia {
 #endif
 
 			inline void finish_typed_chunk_state(
-					QueryImpl& query, World& world, Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state);
+					World& world, Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state);
 
 			inline void finish_typed_iter_state(QueryImpl& query, Iter& it, const TypedQueryExecState& state);
 
@@ -56885,6 +57136,11 @@ namespace gaia {
 					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, void* pFunc, const TypedQueryExecState& state);
 
 			template <typename Func, typename... T>
+			inline void run_typed_sparse_chunk_rows(
+					Chunk* pChunk, uint16_t from, uint16_t to, Func& func, const TypedQueryExecState& state,
+					core::func_type_list<T...> types);
+
+			template <typename Func, typename... T>
 			GAIA_NODISCARD inline auto typed_run_direct_fast_chunk_ptr(core::func_type_list<T...>) {
 				return &run_typed_chunk_direct_iter_fast_cb<Func, T...>;
 			}
@@ -56897,6 +57153,33 @@ namespace gaia {
 			template <typename Func, typename... T>
 			GAIA_NODISCARD inline auto typed_run_mapped_chunk_ptr(core::func_type_list<T...>) {
 				return &run_typed_chunk_mapped_iter_cb<Func, T...>;
+			}
+
+			template <typename Func, typename... T>
+			inline void run_typed_sparse_plan_cb(
+					QueryImpl& query, QueryInfo& queryInfo, const QueryImpl::QueryPlan& plan, void* pFunc,
+					const TypedQueryExecState& state) {
+				auto& func = *static_cast<Func*>(pFunc);
+				if (plan.mode == QueryImpl::QueryPlanMode::EntitySeed) {
+					query.run_query_on_sparse_entities_typed(queryInfo, state, func, core::func_type_list<T...>{});
+					return;
+				}
+
+				GAIA_ASSERT(plan.mode == QueryImpl::QueryPlanMode::SparseDense);
+				if ((plan.flags & QueryImpl::QueryPlanFlag_Filtered) != 0)
+					query.run_query_on_chunks_sparse_typed<true>(queryInfo, plan, state, func, core::func_type_list<T...>{});
+				else
+					query.run_query_on_chunks_sparse_typed<false>(queryInfo, plan, state, func, core::func_type_list<T...>{});
+			}
+
+			template <typename Func, typename... T>
+			GAIA_NODISCARD inline auto typed_run_sparse_plan_ptr(core::func_type_list<T...>) {
+				using RunSparsePlan =
+						void (*)(QueryImpl&, QueryInfo&, const QueryImpl::QueryPlan&, void*, const TypedQueryExecState&);
+				if constexpr (typed_query_args_use_sparse_storage_v<T...>)
+					return RunSparsePlan(&run_typed_sparse_plan_cb<Func, T...>);
+				else
+					return RunSparsePlan(nullptr);
 			}
 
 			template <typename Func, typename... T>
@@ -56921,6 +57204,19 @@ namespace gaia {
 			inline void run_typed_chunk_mapped_iter_cb(
 					QueryImpl& query, const QueryInfo& queryInfo, Iter& it, void* pFunc, const TypedQueryExecState& state) {
 				auto& func = *static_cast<Func*>(pFunc);
+				if constexpr (typed_query_args_use_sparse_storage_v<T...>) {
+					if (state.canUseSparseChunkEval) {
+						auto boundState = state;
+						auto& world = *const_cast<World*>(queryInfo.world());
+						bind_typed_sparse_stores(boundState, world, core::func_type_list<T...>{});
+						auto* pChunk = const_cast<Chunk*>(it.chunk());
+						run_typed_sparse_chunk_rows(
+								pChunk, it.row_begin(), it.row_end(), func, boundState, core::func_type_list<T...>{});
+						if (boundState.hasWriteArgs)
+							finish_typed_chunk_state(world, pChunk, it.row_begin(), it.row_end(), boundState);
+						return;
+					}
+				}
 				run_typed_chunk_mapped_finish(query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
 
@@ -56936,8 +57232,7 @@ namespace gaia {
 							&invoke_typed_query_row_erased<
 									Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 							core::func_type_list<T...>{});
-					finish_typed_chunk_state(
-							query, *it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+					finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
 				} else
 					run_typed_chunk_unmapped(query, queryInfo, it, func, state, core::func_type_list<T...>{});
 			}
@@ -57014,14 +57309,13 @@ namespace gaia {
 							&invoke_typed_query_row_erased<
 									Func, std::tuple<decltype(std::declval<Iter&>().template view_auto_any<T>())...>, T...>,
 							types);
-					finish_typed_chunk_state(query, world, pChunk, it.row_begin(), it.row_end(), state);
+					finish_typed_chunk_state(world, pChunk, it.row_begin(), it.row_end(), state);
 				} else {
 					run_typed_chunk_views(
 							&queryInfo, it, &func, false,
 							[&](uint32_t row) {
 								finish_typed_chunk_state(
-										query, world, pChunk, (uint16_t)(it.row_begin() + row), (uint16_t)(it.row_begin() + row + 1),
-										state);
+										world, pChunk, (uint16_t)(it.row_begin() + row), (uint16_t)(it.row_begin() + row + 1), state);
 							},
 							&invoke_typed_query_row_erased<
 									Func, std::tuple<decltype(std::declval<Iter&>().template sview_auto<T>())...>, T...>,
@@ -57115,16 +57409,15 @@ namespace gaia {
 			}
 
 			inline void finish_typed_iter_state(QueryImpl& query, Iter& it, const TypedQueryExecState& state) {
-				(void)query;
 				query.finish_typed_iter_writes_runtime(it, state.argIds, state.writeFlags, state.argCount, state.firstWriteArg);
 				it.clear_touched_writes();
 			}
 
 			inline void finish_typed_chunk_state(
-					QueryImpl& query, World& world, Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state) {
-				(void)query;
-				query.finish_typed_chunk_writes_runtime(
-						world, pChunk, from, to, state.argIds, state.writeFlags, state.argCount, state.firstWriteArg);
+					World& world, Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state) {
+				QueryImpl::finish_typed_chunk_writes_runtime(
+						world, pChunk, from, to, state.argIds, state.writeFlags, state.argCount, state.firstWriteArg,
+						state.sparseStores);
 			}
 
 			template <typename InvokeRow, typename OnRowDone>
@@ -57286,20 +57579,25 @@ namespace gaia {
 
 			inline void QueryImpl::finish_typed_chunk_writes_runtime(
 					World& world, Chunk* pChunk, uint16_t from, uint16_t to, const Entity* pArgIds, const bool* pWriteFlags,
-					uint32_t argCnt, uint32_t firstWriteArg) {
+					uint32_t argCnt, uint32_t firstWriteArg, void* const* pSparseStores) {
 				if (firstWriteArg >= argCnt || from >= to)
 					return;
 
 				Entity seenTerms[ChunkHeader::MAX_COMPONENTS]{};
 				uint32_t seenCnt = 0;
 				const auto entities = pChunk->entity_view();
-				const auto finish_term = [&](Entity term) {
+				const auto finish_term = [&](Entity term, bool sparseStoreBound) {
 					GAIA_FOR(seenCnt) {
 						if (seenTerms[i] == term)
 							return;
 					}
 
 					seenTerms[seenCnt++] = term;
+					if (sparseStoreBound) {
+						for (uint16_t row = from; row < to; ++row)
+							world_notify_on_set_entity(world, term, entities[row]);
+						return;
+					}
 					if (!world_component_uses_sparse_storage(world, term)) {
 						const auto compIdx = core::get_index(pChunk->ids_view(), term);
 						if (compIdx != BadIndex) {
@@ -57317,7 +57615,7 @@ namespace gaia {
 						continue;
 					const auto term = pArgIds[i];
 					if (term != EntityBad)
-						finish_term(term);
+						finish_term(term, pSparseStores != nullptr && pSparseStores[i] != nullptr);
 				}
 			}
 
@@ -57552,6 +57850,83 @@ namespace gaia {
 				}
 			}
 
+			template <typename T>
+			struct TypedSparseQueryView {
+				using U = typename actual_type_t<T>::Type;
+				const Entity* pEntities = nullptr;
+				void* pStore = nullptr;
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+						return world_typed_sparse_store_mut<U>(pStore, pEntities[idx]);
+					else
+						return world_typed_sparse_store_get<U>(pStore, pEntities[idx]);
+				}
+			};
+
+			template <typename T>
+			GAIA_NODISCARD inline auto typed_sparse_chunk_view(
+					Chunk* pChunk, uint16_t from, uint16_t to, const TypedQueryExecState& state, uint32_t argIdx) {
+				using U = typename actual_type_t<T>::Type;
+				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+					return TypedSparseQueryView<T>{pChunk->entity_view().data() + from, state.sparseStores[argIdx]};
+				else
+					return pChunk->template sview_auto<T>(from, to);
+			}
+
+			template <typename T, typename View>
+			GAIA_NODISCARD inline decltype(auto) typed_sparse_chunk_arg_at(View& view, uint32_t row, uint16_t from) {
+				using U = typename actual_type_t<T>::Type;
+				if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse)
+					return view[row];
+				else
+					return typed_direct_chunk_arg_at<T>(view, row, from);
+			}
+
+			template <typename Func, typename... T, size_t... I>
+			inline void run_typed_sparse_chunk_rows_impl(
+					Chunk* pChunk, uint16_t from, uint16_t to, Func& func, const TypedQueryExecState& state,
+					core::func_type_list<T...>, std::index_sequence<I...>) {
+				auto views = std::make_tuple(typed_sparse_chunk_view<T>(pChunk, from, to, state, (uint32_t)I)...);
+				const auto cnt = (uint32_t)(to - from);
+				GAIA_FOR(cnt)
+				func(typed_sparse_chunk_arg_at<T>(std::get<I>(views), (uint32_t)i, from)...);
+			}
+
+			template <typename Func, typename... T>
+			inline void run_typed_sparse_chunk_rows(
+					Chunk* pChunk, uint16_t from, uint16_t to, Func& func, const TypedQueryExecState& state,
+					core::func_type_list<T...> types) {
+				run_typed_sparse_chunk_rows_impl(pChunk, from, to, func, state, types, std::index_sequence_for<T...>{});
+			}
+
+			template <typename T>
+			GAIA_NODISCARD inline decltype(auto)
+			typed_sparse_entity_arg(World& world, Entity entity, const TypedQueryExecState& state, uint32_t argIdx) {
+				using U = typename actual_type_t<T>::Type;
+				if constexpr (std::is_same_v<U, Entity>)
+					return entity;
+				else if constexpr (auto_storage_policy_v<U> == DataStorageType::Sparse) {
+					if (world_typed_sparse_store_has<U>(state.sparseStores[argIdx], entity)) {
+						if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+							return world_typed_sparse_store_mut<U>(state.sparseStores[argIdx], entity);
+						else
+							return world_typed_sparse_store_get<U>(state.sparseStores[argIdx], entity);
+					}
+				}
+				if constexpr (core::is_mut_v<typename actual_type_t<T>::TypeOriginal>)
+					return world_query_entity_arg_by_id_raw<T>(world, entity, state.argIds[argIdx]);
+				else
+					return world_query_entity_arg_by_id<T>(world, entity, state.argIds[argIdx]);
+			}
+
+			template <typename Func, typename... T, size_t... I>
+			inline void invoke_typed_sparse_entity(
+					World& world, Entity entity, const TypedQueryExecState& state, Func& func, core::func_type_list<T...>,
+					std::index_sequence<I...>) {
+				func(typed_sparse_entity_arg<T>(world, entity, state, (uint32_t)I)...);
+			}
+
 			//! Selects the prepared execution plan for typed callbacks.
 			//! \param queryInfo Prepared query cache and execution metadata.
 			//! \param state Typed callback execution metadata derived from callback arguments.
@@ -57596,7 +57971,7 @@ namespace gaia {
 					return plan.idxFrom < plan.idxTo;
 				};
 
-				if (state.canUseDirectChunkEval && !canDirectEntitySeed && canDirectChunks) {
+				if ((state.canUseDirectChunkEval || state.canUseSparseChunkEval) && !canDirectEntitySeed && canDirectChunks) {
 					if (!setDenseRange()) {
 						plan.mode = QueryPlanMode::Empty;
 						plan.idxFrom = 0;
@@ -57604,7 +57979,7 @@ namespace gaia {
 						return plan;
 					}
 
-					plan.mode = QueryPlanMode::DirectDense;
+					plan.mode = state.canUseSparseChunkEval ? QueryPlanMode::SparseDense : QueryPlanMode::DirectDense;
 					return plan;
 				}
 
@@ -57654,6 +58029,101 @@ namespace gaia {
 				}
 
 				return plan;
+			}
+
+			template <bool HasFilters, typename Func, typename... T>
+			inline void QueryImpl::run_query_on_chunks_sparse_typed(
+					QueryInfo& queryInfo, const QueryPlan& plan, const TypedQueryExecState& state, Func& func,
+					core::func_type_list<T...> types) {
+				GAIA_ASSERT(plan.mode == QueryPlanMode::SparseDense);
+				auto& world = *queryInfo.world();
+				auto boundState = state;
+				bind_typed_sparse_stores(boundState, world, types);
+				const auto cacheView = queryInfo.cache_archetype_view();
+				if (plan.idxFrom >= plan.idxTo)
+					return;
+
+				if (boundState.hasWriteArgs)
+					::gaia::ecs::update_version(*m_worldVersion);
+
+				const bool canSkipProcessCheck =
+						!queryInfo.result_cache_may_need_prefab_filter() && (plan.flags & QueryPlanFlag_BarrierCache) == 0;
+				lock(*m_storage.world());
+				for (uint32_t i = plan.idxFrom; i < plan.idxTo; ++i) {
+					const auto* pArchetype = cacheView[i];
+					if (canSkipProcessCheck) {
+						if GAIA_UNLIKELY (pArchetype->is_req_del())
+							continue;
+					} else if GAIA_UNLIKELY (!can_process_archetype_inter(queryInfo, *pArchetype, Constraints::EnabledOnly))
+						continue;
+
+					std::span<const uint8_t> indicesView;
+					if constexpr (HasFilters)
+						indicesView = queryInfo.indices_mapping_view(i);
+
+					for (auto* pChunk: pArchetype->chunks()) {
+						const auto from = Iter::start_index(pChunk);
+						const auto to = Iter::end_index(pChunk);
+						if GAIA_UNLIKELY (from == to)
+							continue;
+						if constexpr (HasFilters) {
+							if GAIA_UNLIKELY (!match_filters(*pChunk, queryInfo, m_changedWorldVersion, indicesView))
+								continue;
+						}
+
+						GAIA_PROF_SCOPE(query_func);
+						run_typed_sparse_chunk_rows(pChunk, from, to, func, boundState, types);
+						if (boundState.hasWriteArgs)
+							finish_typed_chunk_state(world, pChunk, from, to, boundState);
+					}
+				}
+
+				unlock(*m_storage.world());
+				commit_cmd_buffer_st(*m_storage.world());
+				commit_cmd_buffer_mt(*m_storage.world());
+				m_changedWorldVersion = *m_worldVersion;
+			}
+
+			template <typename Func, typename... T>
+			inline void QueryImpl::run_query_on_sparse_entities_typed(
+					QueryInfo& queryInfo, const TypedQueryExecState& state, Func& func, core::func_type_list<T...> types) {
+				auto& world = *queryInfo.world();
+				auto boundState = state;
+				bind_typed_sparse_stores(boundState, world, types);
+				if (boundState.hasWriteArgs)
+					::gaia::ecs::update_version(*m_worldVersion);
+
+				auto execEntity = [&](Entity entity) {
+					invoke_typed_sparse_entity(world, entity, boundState, func, types, std::index_sequence_for<T...>{});
+					if (boundState.hasWriteArgs)
+						finish_typed_query_args_by_id(world, entity, boundState);
+				};
+
+				if (boundState.hasWriteArgs) {
+					auto& scratch = direct_query_scratch();
+					const auto seedInfo = build_direct_entity_seed(world, queryInfo, scratch.entities);
+					for (const auto entity: scratch.entities) {
+						if (!match_direct_entity_constraints(world, queryInfo, entity, Constraints::EnabledOnly) ||
+								!match_direct_entity_terms(world, entity, queryInfo, seedInfo))
+							continue;
+						execEntity(entity);
+					}
+				} else {
+					const auto seedPlan = direct_entity_seed_plan(world, queryInfo);
+					if (seedPlan.preferOrSeed) {
+						for_each_direct_or_union(world, queryInfo, Constraints::EnabledOnly, [&](Entity entity) {
+							execEntity(entity);
+							return true;
+						});
+					} else {
+						(void)for_each_direct_all_seed(world, queryInfo, seedPlan, Constraints::EnabledOnly, [&](Entity entity) {
+							execEntity(entity);
+							return true;
+						});
+					}
+				}
+
+				m_changedWorldVersion = *m_worldVersion;
 			}
 
 			//! Runs the prepared direct typed row path for simple cached queries.
@@ -57783,7 +58253,7 @@ namespace gaia {
 						GAIA_PROF_SCOPE(query_func);
 						run_typed_direct_chunk_rows({pChunk, nullptr, nullptr, from, to}, func, state, types);
 						if (state.hasWriteArgs)
-							finish_typed_chunk_state(*this, world, pChunk, from, to, state);
+							finish_typed_chunk_state(world, pChunk, from, to, state);
 					}
 				}
 
@@ -57831,7 +58301,7 @@ namespace gaia {
 						it.set_group_id(0);
 						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
-						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
+						finish_typed_chunk_state(world, pChunk, from, to, state);
 					}
 				}
 
@@ -57890,7 +58360,7 @@ namespace gaia {
 						it.set_group_id(0);
 						it.ctx(m_ctx);
 						runChunk(*this, it, pFunc, state);
-						finish_typed_chunk_state(*this, world, pChunk, from, to, state);
+						finish_typed_chunk_state(world, pChunk, from, to, state);
 					}
 				}
 
@@ -57903,31 +58373,29 @@ namespace gaia {
 			template <QueryExecType ExecType>
 			inline void QueryImpl::each_inter(
 					QueryInfo& queryInfo, const QueryPlan& plan, void* pFunc, const TypedQueryExecState& state,
-					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-					void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-					bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
+					const TypedQueryErasedOps& ops) {
 				if (plan.mode == QueryPlanMode::Empty)
 					return;
 
 				if (plan.mode == QueryPlanMode::EntitySeed) {
 					GAIA_PROF_SCOPE(query_func);
 					each_direct_inter(
-							queryInfo, Constraints::EnabledOnly, pFunc, state, runDirectChunk, needsInheritedArgIds, invokeInherited);
+							queryInfo, Constraints::EnabledOnly, pFunc, state, ops.runDirectChunk, ops.needsInheritedArgIds,
+							ops.invokeInherited);
 					return;
 				}
 
 				if (state.canUseDirectChunkEval) {
 					if constexpr (ExecType == QueryExecType::Default) {
 						if (plan.mode == QueryPlanMode::DirectDense) {
-							run_query_on_chunks_direct(queryInfo, plan, state, pFunc, runDirectFastChunk);
+							run_query_on_chunks_direct(queryInfo, plan, state, pFunc, ops.runDirectFastChunk);
 							return;
 						}
 					}
-					TypedDirectChunkCallback cb{this, pFunc, &state, runDirectChunk};
+					TypedDirectChunkCallback cb{this, pFunc, &state, ops.runDirectChunk};
 					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, cb);
 				} else {
-					TypedMappedChunkCallback cb{this, &queryInfo, pFunc, &state, runMappedChunk};
+					TypedMappedChunkCallback cb{this, &queryInfo, pFunc, &state, ops.runMappedChunk};
 					run_query_on_chunks<ExecType, IterModeEnabled>(queryInfo, cb);
 				}
 			}
@@ -57942,9 +58410,22 @@ namespace gaia {
 				auto& world = *const_cast<World*>(queryInfo.world());
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, world, InputArgs{});
-				const auto state = build_typed_query_exec_state(*this, world, queryInfo, metas, argCount);
+				const auto state = build_typed_query_exec_state(world, queryInfo, metas, argCount);
 				const auto plan = prepare_query_plan(queryInfo, state);
 				if constexpr (ExecType == QueryExecType::Default) {
+					if constexpr (typed_query_arg_list_uses_sparse_storage_v<InputArgs>) {
+						if (plan.mode == QueryPlanMode::EntitySeed) {
+							run_query_on_sparse_entities_typed(queryInfo, state, func, InputArgs{});
+							return;
+						}
+						if (plan.mode == QueryPlanMode::SparseDense) {
+							if ((plan.flags & QueryPlanFlag_Filtered) != 0)
+								run_query_on_chunks_sparse_typed<true>(queryInfo, plan, state, func, InputArgs{});
+							else
+								run_query_on_chunks_sparse_typed<false>(queryInfo, plan, state, func, InputArgs{});
+							return;
+						}
+					}
 					if (plan.mode == QueryPlanMode::DirectDense) {
 						if ((plan.flags & QueryPlanFlag_Filtered) != 0)
 							run_query_on_chunks_direct_typed<true>(queryInfo, plan, state, func, InputArgs{});
@@ -57954,45 +58435,38 @@ namespace gaia {
 					}
 				}
 
-				const auto runDirectFastChunk = typed_run_direct_fast_chunk_ptr<Func>(InputArgs{});
-				const auto runDirectChunk = typed_run_direct_chunk_ptr<Func>(InputArgs{});
-				const auto runMappedChunk = typed_run_mapped_chunk_ptr<Func>(InputArgs{});
-				const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
-				each_inter<ExecType>(
-						queryInfo, plan, &func, state, runDirectFastChunk, runDirectChunk, runMappedChunk,
-						state.needsInheritedArgIds, invokeInherited);
+				TypedQueryErasedOps ops;
+				ops.runDirectFastChunk = typed_run_direct_fast_chunk_ptr<Func>(InputArgs{});
+				ops.runDirectChunk = typed_run_direct_chunk_ptr<Func>(InputArgs{});
+				ops.runMappedChunk = typed_run_mapped_chunk_ptr<Func>(InputArgs{});
+				ops.invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
+				ops.needsInheritedArgIds = state.needsInheritedArgIds;
+				each_inter<ExecType>(queryInfo, plan, &func, state, ops);
 			}
 
 			inline void QueryImpl::each_typed_erased(
-					QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
-					void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-					void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
-					void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&),
-					bool needsInheritedArgIds, void (*invokeInherited)(World&, Entity, const Entity*, void*)) {
+					QueryExecType execType, void* pFunc, const TypedQueryExecState& state, const TypedQueryErasedOps& ops) {
 				auto& queryInfo = fetch();
 				match_all(queryInfo);
 				const auto plan = prepare_query_plan(queryInfo, state);
+				if (execType == QueryExecType::Default && ops.runSparsePlan != nullptr &&
+						(plan.mode == QueryPlanMode::SparseDense || plan.mode == QueryPlanMode::EntitySeed)) {
+					ops.runSparsePlan(*this, queryInfo, plan, pFunc, state);
+					return;
+				}
 
 				switch (execType) {
 					case QueryExecType::Parallel:
-						each_inter<QueryExecType::Parallel>(
-								queryInfo, plan, pFunc, state, runDirectFastChunk, runDirectChunk, runMappedChunk, needsInheritedArgIds,
-								invokeInherited);
+						each_inter<QueryExecType::Parallel>(queryInfo, plan, pFunc, state, ops);
 						break;
 					case QueryExecType::ParallelPerf:
-						each_inter<QueryExecType::ParallelPerf>(
-								queryInfo, plan, pFunc, state, runDirectFastChunk, runDirectChunk, runMappedChunk, needsInheritedArgIds,
-								invokeInherited);
+						each_inter<QueryExecType::ParallelPerf>(queryInfo, plan, pFunc, state, ops);
 						break;
 					case QueryExecType::ParallelEff:
-						each_inter<QueryExecType::ParallelEff>(
-								queryInfo, plan, pFunc, state, runDirectFastChunk, runDirectChunk, runMappedChunk, needsInheritedArgIds,
-								invokeInherited);
+						each_inter<QueryExecType::ParallelEff>(queryInfo, plan, pFunc, state, ops);
 						break;
 					default:
-						each_inter<QueryExecType::Default>(
-								queryInfo, plan, pFunc, state, runDirectFastChunk, runDirectChunk, runMappedChunk, needsInheritedArgIds,
-								invokeInherited);
+						each_inter<QueryExecType::Default>(queryInfo, plan, pFunc, state, ops);
 						break;
 				}
 			}
@@ -58086,7 +58560,7 @@ namespace gaia {
 #endif
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, *it.world(), InputArgs{});
-				const auto state = build_typed_query_exec_state(*this, *it.world(), queryInfo, metas, argCount);
+				const auto state = build_typed_query_exec_state(*it.world(), queryInfo, metas, argCount);
 				it.ctx(m_ctx);
 				each_iter_dispatch(*this, queryInfo, it, func, state, InputArgs{});
 			}
@@ -58099,8 +58573,7 @@ namespace gaia {
 				it.ctx(m_ctx);
 				if (state.canUseDirectChunkEval) {
 					runDirectFastChunk(*this, it, pFunc, state);
-					finish_typed_chunk_state(
-							*this, *it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
+					finish_typed_chunk_state(*it.world(), const_cast<Chunk*>(it.chunk()), it.row_begin(), it.row_end(), state);
 				} else
 					runMappedChunk(*this, queryInfo, it, pFunc, state);
 			}
@@ -58126,7 +58599,7 @@ namespace gaia {
 				auto exec_entity = [&](Entity entity) {
 					if (needsInheritedArgIds && state.hasInheritedTerms) {
 						invokeInherited(world, entity, state.argIds, pFunc);
-						finish_typed_query_args_by_id(world, entity, state.argIds, state.writeFlags, state.argCount);
+						finish_typed_query_args_by_id(world, entity, state);
 						return;
 					}
 
@@ -58226,7 +58699,7 @@ namespace gaia {
 				auto& world = *queryInfo.world();
 				TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 				const auto argCount = init_typed_query_arg_metas(metas, world, InputArgs{});
-				const auto state = build_typed_query_exec_state(*this, world, queryInfo, metas, argCount);
+				const auto state = build_typed_query_exec_state(world, queryInfo, metas, argCount);
 				if (state.canUseDirectChunkEval) {
 					each_walk_dispatch_direct(*this, queryInfo, ordered, constraints, func, state, InputArgs{});
 				} else {
@@ -58259,7 +58732,7 @@ namespace gaia {
 
 				auto& world = *queryInfo.world();
 				const auto meta = typed_query_arg_meta<ContainerItemType>(world);
-				const DirectChunkArgEvalDesc desc{meta.termId, meta.isEntity, meta.isPair};
+				const DirectChunkArgEvalDesc desc{meta.termId, meta.isEntity, meta.isPair, meta.usesSparseStorage};
 				Iter it;
 				it.init_query_state(queryInfo.world(), constraints, false);
 				const bool canUseDirectChunkEval = !UseFilters && !queryInfo.has_entity_filter_terms() &&
@@ -59362,7 +59835,7 @@ namespace gaia {
 
 				void del_entity(Entity entity) {
 					const auto sparseId = sid(entity);
-					if (data.empty() || !data.has(sparseId))
+					if (!data.has(sparseId))
 						return;
 
 					auto* pData = data[sparseId].pData;
@@ -59374,7 +59847,7 @@ namespace gaia {
 				}
 
 				bool has(Entity entity) const {
-					return !data.empty() && data.has(sid(entity));
+					return data.has(sid(entity));
 				}
 
 				bool copy_entity(Entity dstEntity, Entity srcEntity) {
@@ -59393,6 +59866,8 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
+					if (data.empty())
+						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -59437,13 +59912,11 @@ namespace gaia {
 
 				void del_entity(Entity entity) {
 					const auto sparseId = sid(entity);
-					if (!data.empty() && data.has(sparseId))
+					if (data.has(sparseId))
 						data.del(sparseId);
 				}
 
 				bool has(Entity entity) const {
-					if (data.empty())
-						return false;
 					return data.has(sid(entity));
 				}
 
@@ -59459,6 +59932,8 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
+					if (data.empty())
+						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -59507,7 +59982,10 @@ namespace gaia {
 					static_cast<const Store*>(pStoreRaw)->collect_entities(out);
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
-					for (const auto& item: static_cast<const Store*>(pStoreRaw)->data) {
+					const auto& data = static_cast<const Store*>(pStoreRaw)->data;
+					if (data.empty())
+						return true;
+					for (const auto& item: data) {
 						if (!func(pCtx, item.entity))
 							return false;
 					}
@@ -60082,10 +60560,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 
 				const auto& ec = m_recs.entities[entity.id()];
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
@@ -60179,12 +60655,10 @@ namespace gaia {
 				using FT = typename component_type_t<TApi>::TypeFull;
 				::gaia::ecs::update_version(m_worldVersion);
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(term) != SparseStorageMode::None) {
-						sparse_component_store_mut<FT>(term).add(entity) = value;
-						finish_write(entity, term);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					sparse_component_store_mut<FT>(term).add(entity) = value;
+					world_notify_on_set_entity(*this, term, entity);
+					return;
 				}
 
 				const auto& ec = fetch(entity);
@@ -60785,6 +61259,18 @@ namespace gaia {
 				sync_component_record(component, comp);
 			}
 
+			//! Returns whether a runtime storage trait can be attached to \a component.
+			//! Compile-time component storage is authoritative. Runtime component descriptors remain mutable.
+			//! \param component Component entity.
+			//! \return True for runtime components or typed sparse components.
+			GAIA_NODISCARD bool can_add_component_storage_trait(Entity component) const {
+				if (!component.comp())
+					return true;
+
+				const auto& item = comp_cache().get(component);
+				return item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse;
+			}
+
 			//! Sparse storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
@@ -60793,6 +61279,22 @@ namespace gaia {
 			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
+			}
+
+			//! Returns whether \a T has compile-time sparse payload storage.
+			//! \tparam T Component type to inspect.
+			//! \return True when `GAIA_STORAGE(Sparse)` is authoritative for \a T.
+			template <typename T>
+			GAIA_NODISCARD static constexpr bool uses_compile_time_sparse_storage() {
+				using U = typename actual_type_t<T>::Type;
+				return auto_storage_policy_v<U> == DataStorageType::Sparse;
+			}
+
+			//! Returns the fragmentation mode for a component known at compile time to use sparse storage.
+			//! \param component Typed sparse component entity.
+			//! \return Fragmenting or non-fragmenting sparse mode.
+			GAIA_NODISCARD SparseStorageMode compile_time_sparse_storage_mode(Entity component) const {
+				return is_dont_fragment(component) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
 			}
 
 			//! Returns whether @a object is a usable sparse storage target for component type @a T.
@@ -62191,6 +62693,9 @@ namespace gaia {
 					if (has_archetype_id(entity))
 						return false;
 
+					if (is_sticky_component_trait(entity) && !m_world.can_add_component_storage_trait(m_entity))
+						return false;
+
 					try_set_flags(entity, true);
 
 					if (!add_id(entity))
@@ -63235,13 +63740,10 @@ namespace gaia {
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto mode = sparse_storage_mode(item.entity);
-					if (mode != SparseStorageMode::None) {
-						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
-						finish_sparse_component_add_inter(entity, item.entity, mode);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+					return;
 				}
 
 				EntityBuilder(*this, entity).add<T>();
@@ -63298,15 +63800,12 @@ namespace gaia {
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (!is_pair<FT>::value && supports_sparse_component_storage<FT>()) {
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
 					const auto& item = add<FT>();
-					const auto mode = sparse_storage_mode(item.entity);
-					if (mode != SparseStorageMode::None) {
-						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
-						data = GAIA_FWD(value);
-						finish_sparse_component_add_inter(entity, item.entity, mode);
-						return;
-					}
+					auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
+					data = GAIA_FWD(value);
+					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+					return;
 				}
 
 				EntityBuilder builder(*this, entity);
@@ -63350,10 +63849,8 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return override_sparse_component_inter(entity, item.entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return override_sparse_component_inter(entity, item.entity);
 
 				return override_inter(entity, item.entity);
 			}
@@ -64980,13 +65477,11 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (const auto* pItem = comp_cache().template find<FT>();
-							pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						if (sparse_component_store_erased(pItem->entity) != nullptr)
-							del(entity, pItem->entity);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					const auto* pItem = comp_cache().template find<FT>();
+					if (pItem != nullptr)
+						del(entity, pItem->entity);
+					return;
 				}
 
 				EntityBuilder(*this, entity).del<FT>();
@@ -65078,9 +65573,9 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				if constexpr (supports_sparse_component_storage<T>()) {
+				if constexpr (uses_compile_time_sparse_storage<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
+					if (pItem != nullptr) {
 #if GAIA_ASSERT_ENABLED
 						auto* pStore = sparse_component_store_erased(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
@@ -65230,10 +65725,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				return acc_mut(entity).smut<T>();
 			}
 
@@ -65547,15 +66040,12 @@ namespace gaia {
 						return comp_cache().template get<FT>().entity;
 					}
 				}();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						const auto owner = id_owner_inter(entity, compEntity);
-						GAIA_ASSERT(owner != EntityBad);
-						const auto* pStore = sparse_component_store<FT>(pItem->entity);
-						GAIA_ASSERT(pStore != nullptr);
-						return pStore->get(owner);
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					const auto owner = id_owner_inter(entity, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto* pStore = sparse_component_store<FT>(compEntity);
+					GAIA_ASSERT(pStore != nullptr);
+					return pStore->get(owner);
 				}
 
 				const auto owner = id_owner_inter(entity, compEntity);
@@ -65884,13 +66374,6 @@ namespace gaia {
 				}();
 				if (compEntity == EntityBad)
 					return false;
-
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						return id_owner_inter(entity, compEntity) != EntityBad;
-					}
-				}
 
 				return id_owner_inter(entity, compEntity) != EntityBad;
 			}
@@ -71711,6 +72194,22 @@ namespace gaia {
 			return world.get_raw(entity, component);
 		}
 
+		//! Binds one runtime sparse component store for repeated iterator-row access.
+		//! \param world World owning the sparse store.
+		//! \param component Runtime component entity.
+		//! \param[out] ops Bound sparse-store operations.
+		//! \return True when \a component has a sparse store.
+		inline bool world_bind_raw_sparse_store(const World& world, Entity component, RawSparseStoreOps& ops) {
+			const auto* pStore = world.sparse_component_store_erased(component);
+			if (pStore == nullptr)
+				return false;
+
+			const auto* pItem = world.comp_cache().find(component);
+			GAIA_ASSERT(pItem != nullptr);
+			ops = {pStore->pStore, pStore->func_get, pStore->func_mut, pStore->func_has, pItem->comp.size()};
+			return true;
+		}
+
 		inline ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component) {
 			return world.mut_raw(entity, component);
 		}
@@ -73801,7 +74300,7 @@ namespace gaia {
 			auto& queryInfo = ctx.query.fetch();
 			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
 			const auto argCount = init_typed_query_arg_metas(metas, m_world, InputArgs{});
-			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, metas, argCount);
+			const auto execState = detail::build_typed_query_exec_state(m_world, queryInfo, metas, argCount);
 			const auto runDirectChunk = detail::typed_run_direct_chunk_ptr<Func>(InputArgs{});
 			const auto runMappedChunk = detail::typed_run_mapped_chunk_ptr<Func>(InputArgs{});
 			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
@@ -73819,7 +74318,7 @@ namespace gaia {
 				auto& queryInfo = obs.query.fetch();
 				if (execState.hasInheritedTerms) {
 					invokeInherited(world, entity, execState.argIds, &func);
-					finish_typed_query_args_by_id(world, entity, execState.argIds, execState.writeFlags, execState.argCount);
+					finish_typed_query_args_by_id(world, entity, execState);
 					return;
 				}
 
@@ -74661,22 +75160,32 @@ namespace gaia {
 			using InputArgs = decltype(core::func_args(&Func::operator()));
 			auto& queryInfo = ctx.query.fetch();
 			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+
 			const auto argCount = init_typed_query_arg_metas(metas, m_world, InputArgs{});
-			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, metas, argCount);
+			const auto execState = detail::build_typed_query_exec_state(m_world, queryInfo, metas, argCount);
+			const auto runSparsePlan = detail::typed_run_sparse_plan_ptr<Func>(InputArgs{});
 			const auto runDirectFastChunk = detail::typed_run_direct_fast_chunk_ptr<Func>(InputArgs{});
 			const auto runDirectChunk = detail::typed_run_direct_chunk_ptr<Func>(InputArgs{});
 			const auto runMappedChunk = detail::typed_run_mapped_chunk_ptr<Func>(InputArgs{});
 			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
-			const bool hasInheritedTerms = execState.hasInheritedTerms;
-			if (hasInheritedTerms) {
-				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk, invokeInherited](
-																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+
+			detail::QueryImpl::TypedQueryErasedOps ops;
+			ops.runSparsePlan = runSparsePlan;
+			ops.runDirectFastChunk = runDirectFastChunk;
+			ops.runDirectChunk = runDirectChunk;
+			ops.runMappedChunk = runMappedChunk;
+			ops.invokeInherited = invokeInherited;
+			ops.needsInheritedArgIds = execState.needsInheritedArgIds;
+
+			const bool needsTypedEntityAccess =
+					execState.hasInheritedTerms || typed_query_arg_list_uses_sparse_storage_v<InputArgs>;
+			if (needsTypedEntityAccess) {
+				runtime.on_each_func = [func, execState,
+																ops](Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
 					if (mode == SystemRuntimeData::RunMode::DeferredJob)
 						return query.job(func, execType);
 
-					query.each_typed_erased(
-							execType, &func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
-							execState.needsInheritedArgIds, invokeInherited);
+					query.each_typed_erased(execType, &func, execState, ops);
 					return SchedJob{};
 				};
 			} else {
@@ -78108,6 +78617,46 @@ namespace gaia {
 				return world.template mut<Arg>(entity);
 			else
 				return world.template get<Arg>(entity);
+		}
+
+		//! Returns a prebound typed sparse store for prepared query execution.
+		//! \tparam T Sparse component type.
+		//! \param world World owning the sparse store.
+		//! \param component Sparse component entity.
+		//! \return Mutable type-erased sparse-store pointer.
+		template <typename T>
+		inline void* world_typed_sparse_store_ptr(World& world, Entity component) {
+			return &world.template sparse_component_store_mut<T>(component);
+		}
+
+		//! Reads a typed sparse value from a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is read.
+		//! \return Immutable sparse component value.
+		template <typename T>
+		inline const T& world_typed_sparse_store_get(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->get(entity);
+		}
+
+		//! Mutates a typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is mutated.
+		//! \return Mutable sparse component value.
+		template <typename T>
+		inline T& world_typed_sparse_store_mut(void* pStore, Entity entity) {
+			return static_cast<detail::SparseComponentStore<T>*>(pStore)->mut(entity);
+		}
+
+		//! Returns whether a prebound typed sparse store contains an entity.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity to find.
+		//! \return True when the store contains \a entity.
+		template <typename T>
+		inline bool world_typed_sparse_store_has(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->has(entity);
 		}
 
 		//! Returns the component or pair id represented by query argument type @a T.

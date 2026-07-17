@@ -368,10 +368,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 
 				const auto& ec = m_recs.entities[entity.id()];
 				if constexpr (entity_kind_v<T> == EntityKind::EK_Gen)
@@ -465,12 +463,10 @@ namespace gaia {
 				using FT = typename component_type_t<TApi>::TypeFull;
 				::gaia::ecs::update_version(m_worldVersion);
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(term) != SparseStorageMode::None) {
-						sparse_component_store_mut<FT>(term).add(entity) = value;
-						finish_write(entity, term);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					sparse_component_store_mut<FT>(term).add(entity) = value;
+					world_notify_on_set_entity(*this, term, entity);
+					return;
 				}
 
 				const auto& ec = fetch(entity);
@@ -1071,6 +1067,18 @@ namespace gaia {
 				sync_component_record(component, comp);
 			}
 
+			//! Returns whether a runtime storage trait can be attached to \a component.
+			//! Compile-time component storage is authoritative. Runtime component descriptors remain mutable.
+			//! \param component Component entity.
+			//! \return True for runtime components or typed sparse components.
+			GAIA_NODISCARD bool can_add_component_storage_trait(Entity component) const {
+				if (!component.comp())
+					return true;
+
+				const auto& item = comp_cache().get(component);
+				return item.func_create_sparse_store == nullptr || item.comp.storage_type() == DataStorageType::Sparse;
+			}
+
 			//! Sparse storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
@@ -1079,6 +1087,22 @@ namespace gaia {
 			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
 				return !is_pair<T>::value && entity_kind_v<T> == EntityKind::EK_Gen && !mem::is_soa_layout_v<U>;
+			}
+
+			//! Returns whether \a T has compile-time sparse payload storage.
+			//! \tparam T Component type to inspect.
+			//! \return True when `GAIA_STORAGE(Sparse)` is authoritative for \a T.
+			template <typename T>
+			GAIA_NODISCARD static constexpr bool uses_compile_time_sparse_storage() {
+				using U = typename actual_type_t<T>::Type;
+				return auto_storage_policy_v<U> == DataStorageType::Sparse;
+			}
+
+			//! Returns the fragmentation mode for a component known at compile time to use sparse storage.
+			//! \param component Typed sparse component entity.
+			//! \return Fragmenting or non-fragmenting sparse mode.
+			GAIA_NODISCARD SparseStorageMode compile_time_sparse_storage_mode(Entity component) const {
+				return is_dont_fragment(component) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
 			}
 
 			//! Returns whether @a object is a usable sparse storage target for component type @a T.
@@ -2477,6 +2501,9 @@ namespace gaia {
 					if (has_archetype_id(entity))
 						return false;
 
+					if (is_sticky_component_trait(entity) && !m_world.can_add_component_storage_trait(m_entity))
+						return false;
+
 					try_set_flags(entity, true);
 
 					if (!add_id(entity))
@@ -3521,13 +3548,10 @@ namespace gaia {
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto mode = sparse_storage_mode(item.entity);
-					if (mode != SparseStorageMode::None) {
-						(void)sparse_component_store_mut<FT>(item.entity).add(entity);
-						finish_sparse_component_add_inter(entity, item.entity, mode);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					(void)sparse_component_store_mut<FT>(item.entity).add(entity);
+					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+					return;
 				}
 
 				EntityBuilder(*this, entity).add<T>();
@@ -3584,15 +3608,12 @@ namespace gaia {
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
-				if constexpr (!is_pair<FT>::value && supports_sparse_component_storage<FT>()) {
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
 					const auto& item = add<FT>();
-					const auto mode = sparse_storage_mode(item.entity);
-					if (mode != SparseStorageMode::None) {
-						auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
-						data = GAIA_FWD(value);
-						finish_sparse_component_add_inter(entity, item.entity, mode);
-						return;
-					}
+					auto& data = sparse_component_store_mut<FT>(item.entity).add(entity);
+					data = GAIA_FWD(value);
+					finish_sparse_component_add_inter(entity, item.entity, compile_time_sparse_storage_mode(item.entity));
+					return;
 				}
 
 				EntityBuilder builder(*this, entity);
@@ -3636,10 +3657,8 @@ namespace gaia {
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return override_sparse_component_inter(entity, item.entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return override_sparse_component_inter(entity, item.entity);
 
 				return override_inter(entity, item.entity);
 			}
@@ -5266,13 +5285,11 @@ namespace gaia {
 				using CT = component_type_t<T>;
 				using FT = typename CT::TypeFull;
 
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (const auto* pItem = comp_cache().template find<FT>();
-							pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						if (sparse_component_store_erased(pItem->entity) != nullptr)
-							del(entity, pItem->entity);
-						return;
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					const auto* pItem = comp_cache().template find<FT>();
+					if (pItem != nullptr)
+						del(entity, pItem->entity);
+					return;
 				}
 
 				EntityBuilder(*this, entity).del<FT>();
@@ -5364,9 +5381,9 @@ namespace gaia {
 			void modify(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
-				if constexpr (supports_sparse_component_storage<T>()) {
+				if constexpr (uses_compile_time_sparse_storage<T>()) {
 					const auto* pItem = comp_cache().template find<T>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
+					if (pItem != nullptr) {
 #if GAIA_ASSERT_ENABLED
 						auto* pStore = sparse_component_store_erased(pItem->entity);
 						GAIA_ASSERT(pStore != nullptr);
@@ -5516,10 +5533,8 @@ namespace gaia {
 				static_assert(!is_pair<T>::value);
 				using FT = typename component_type_t<T>::TypeFull;
 				const auto& item = add<FT>();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					if (sparse_storage_mode(item.entity) != SparseStorageMode::None)
-						return sparse_component_store_mut<FT>(item.entity).mut(entity);
-				}
+				if constexpr (uses_compile_time_sparse_storage<FT>())
+					return sparse_component_store_mut<FT>(item.entity).mut(entity);
 				return acc_mut(entity).smut<T>();
 			}
 
@@ -5833,15 +5848,12 @@ namespace gaia {
 						return comp_cache().template get<FT>().entity;
 					}
 				}();
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						const auto owner = id_owner_inter(entity, compEntity);
-						GAIA_ASSERT(owner != EntityBad);
-						const auto* pStore = sparse_component_store<FT>(pItem->entity);
-						GAIA_ASSERT(pStore != nullptr);
-						return pStore->get(owner);
-					}
+				if constexpr (uses_compile_time_sparse_storage<FT>()) {
+					const auto owner = id_owner_inter(entity, compEntity);
+					GAIA_ASSERT(owner != EntityBad);
+					const auto* pStore = sparse_component_store<FT>(compEntity);
+					GAIA_ASSERT(pStore != nullptr);
+					return pStore->get(owner);
 				}
 
 				const auto owner = id_owner_inter(entity, compEntity);
@@ -6170,13 +6182,6 @@ namespace gaia {
 				}();
 				if (compEntity == EntityBad)
 					return false;
-
-				if constexpr (supports_sparse_component_storage<FT>()) {
-					const auto* pItem = comp_cache().template find<FT>();
-					if (pItem != nullptr && sparse_storage_mode(pItem->entity) != SparseStorageMode::None) {
-						return id_owner_inter(entity, compEntity) != EntityBad;
-					}
-				}
 
 				return id_owner_inter(entity, compEntity) != EntityBad;
 			}
@@ -11997,6 +12002,22 @@ namespace gaia {
 			return world.get_raw(entity, component);
 		}
 
+		//! Binds one runtime sparse component store for repeated iterator-row access.
+		//! \param world World owning the sparse store.
+		//! \param component Runtime component entity.
+		//! \param[out] ops Bound sparse-store operations.
+		//! \return True when \a component has a sparse store.
+		inline bool world_bind_raw_sparse_store(const World& world, Entity component, RawSparseStoreOps& ops) {
+			const auto* pStore = world.sparse_component_store_erased(component);
+			if (pStore == nullptr)
+				return false;
+
+			const auto* pItem = world.comp_cache().find(component);
+			GAIA_ASSERT(pItem != nullptr);
+			ops = {pStore->pStore, pStore->func_get, pStore->func_mut, pStore->func_has, pItem->comp.size()};
+			return true;
+		}
+
 		inline ComponentRawMutView world_mut_raw(World& world, Entity entity, Entity component) {
 			return world.mut_raw(entity, component);
 		}
@@ -13812,6 +13833,46 @@ namespace gaia {
 				return world.template mut<Arg>(entity);
 			else
 				return world.template get<Arg>(entity);
+		}
+
+		//! Returns a prebound typed sparse store for prepared query execution.
+		//! \tparam T Sparse component type.
+		//! \param world World owning the sparse store.
+		//! \param component Sparse component entity.
+		//! \return Mutable type-erased sparse-store pointer.
+		template <typename T>
+		inline void* world_typed_sparse_store_ptr(World& world, Entity component) {
+			return &world.template sparse_component_store_mut<T>(component);
+		}
+
+		//! Reads a typed sparse value from a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is read.
+		//! \return Immutable sparse component value.
+		template <typename T>
+		inline const T& world_typed_sparse_store_get(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->get(entity);
+		}
+
+		//! Mutates a typed sparse value in a prebound store.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity whose value is mutated.
+		//! \return Mutable sparse component value.
+		template <typename T>
+		inline T& world_typed_sparse_store_mut(void* pStore, Entity entity) {
+			return static_cast<detail::SparseComponentStore<T>*>(pStore)->mut(entity);
+		}
+
+		//! Returns whether a prebound typed sparse store contains an entity.
+		//! \tparam T Sparse component type.
+		//! \param pStore Prebound sparse store.
+		//! \param entity Entity to find.
+		//! \return True when the store contains \a entity.
+		template <typename T>
+		inline bool world_typed_sparse_store_has(const void* pStore, Entity entity) {
+			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->has(entity);
 		}
 
 		//! Returns the component or pair id represented by query argument type @a T.

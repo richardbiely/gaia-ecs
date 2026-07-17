@@ -19,9 +19,26 @@
 namespace gaia {
 	namespace ecs {
 		class World;
-		void world_finish_write(World& world, Entity term, Entity entity);
+
+		//! Prebound operations for one runtime sparse component store.
+		struct RawSparseStoreOps {
+			const void* pStore = nullptr;
+			const void* (*funcGet)(const void*, Entity) = nullptr;
+			void* (*funcMut)(void*, Entity) = nullptr;
+			bool (*funcHas)(const void*, Entity) = nullptr;
+			uint32_t elemSize = 0;
+		};
+
+		bool world_bind_raw_sparse_store(const World& world, Entity component, RawSparseStoreOps& ops);
+		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 		template <typename T>
-		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
+		void* world_typed_sparse_store_ptr(World& world, Entity component);
+		template <typename T>
+		const T& world_typed_sparse_store_get(const void* pStore, Entity entity);
+		template <typename T>
+		T& world_typed_sparse_store_mut(void* pStore, Entity entity);
+		template <typename T>
+		bool world_typed_sparse_store_has(const void* pStore, Entity entity);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_cached_const(
 				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
@@ -47,6 +64,7 @@ namespace gaia {
 				Entity termId = EntityBad;
 				bool isEntity = false;
 				bool usesSparseStorage = false;
+				bool storageKnown = false;
 			};
 
 			struct ChunkIterTypedOps {
@@ -137,13 +155,20 @@ namespace gaia {
 				const World* pWorld = nullptr;
 				Entity component = EntityBad;
 				uint32_t cnt = 0;
+				RawSparseStoreOps sparse{};
 
 				GAIA_NODISCARD ComponentRawView operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
 						return {};
 
-					return world_get_raw(*pWorld, pEntities[idx], component);
+					const auto entity = pEntities[idx];
+					if (sparse.pStore != nullptr) {
+						if (sparse.funcHas(sparse.pStore, entity))
+							return {sparse.funcGet(sparse.pStore, entity), sparse.elemSize, ComponentRawViewFlag_Valid};
+					}
+
+					return world_get_raw(*pWorld, entity, component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -158,13 +183,19 @@ namespace gaia {
 				World* pWorld = nullptr;
 				Entity component = EntityBad;
 				uint32_t cnt = 0;
+				RawSparseStoreOps sparse{};
 
 				GAIA_NODISCARD ComponentRawMutView operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					if (pEntities == nullptr || pWorld == nullptr || component == EntityBad || idx >= cnt)
 						return {};
 
-					return world_mut_raw(*pWorld, pEntities[idx], component);
+					const auto entity = pEntities[idx];
+					if (sparse.pStore != nullptr)
+						return {
+								sparse.funcMut(const_cast<void*>(sparse.pStore), entity), sparse.elemSize, ComponentRawViewFlag_Valid};
+
+					return world_mut_raw(*pWorld, entity, component);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -270,6 +301,70 @@ namespace gaia {
 				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
 					GAIA_ASSERT(idx < cnt);
 					return world_query_entity_arg_by_id<const U&>(*pWorld, pEntities[idx], id);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD U* data() noexcept {
+					return nullptr;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					return nullptr;
+				}
+			};
+
+			//! Read-only typed sparse view with a store bound once for the iterator range.
+			template <typename U>
+			struct EntityTermViewGetSparse {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				const void* pStore = nullptr;
+				Entity id = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_get<U>(pStore, entity);
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
+				}
+
+				GAIA_NODISCARD constexpr size_t size() const noexcept {
+					return cnt;
+				}
+
+				GAIA_NODISCARD const U* data() const noexcept {
+					return nullptr;
+				}
+			};
+
+			//! Mutable typed sparse view with a store bound once for the iterator range.
+			template <typename U>
+			struct EntityTermViewSetSparse {
+				const Entity* pEntities = nullptr;
+				World* pWorld = nullptr;
+				void* pStore = nullptr;
+				Entity id = EntityBad;
+				uint32_t cnt = 0;
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_mut<U>(pStore, entity);
+					return world_query_entity_arg_by_id_raw<U&>(*pWorld, entity, id);
+				}
+
+				GAIA_NODISCARD decltype(auto) operator[](size_t idx) const {
+					GAIA_ASSERT(idx < cnt);
+					const auto entity = pEntities[idx];
+					if (world_typed_sparse_store_has<U>(pStore, entity))
+						return world_typed_sparse_store_get<U>(pStore, entity);
+					return world_query_entity_arg_by_id<const U&>(*pWorld, entity, id);
 				}
 
 				GAIA_NODISCARD constexpr size_t size() const noexcept {
@@ -1219,7 +1314,7 @@ namespace gaia {
 							desc.termId = mappedTermId;
 					}
 
-					if (!desc.isEntity && desc.termId != EntityBad)
+					if (!desc.storageKnown && !desc.isEntity && desc.termId != EntityBad)
 						desc.usesSparseStorage = world_component_uses_sparse_storage(*world(), desc.termId);
 
 					return desc;
@@ -1415,13 +1510,19 @@ namespace gaia {
 					if (component == EntityBad || m_pChunk == nullptr || size() == 0)
 						return {};
 
-					if (!owns_raw_component(component))
+					const auto* pEntities = entity_snapshot();
+					RawSparseStoreOps sparse{};
+					if (world_bind_raw_sparse_store(*world(), component, sparse)) {
+						GAIA_FOR(size()) {
+							if (!sparse.funcHas(sparse.pStore, pEntities[i]))
+								return {};
+						}
+					} else if (!owns_raw_component(component))
 						return {};
 					if (trackWrite && !touch_raw_component(component))
 						return {};
 
-					const auto* pEntities = entity_snapshot();
-					return {pEntities, world(), component, size()};
+					return {pEntities, world(), component, size(), sparse};
 				}
 
 				//! Returns a read-only raw byte view for a directly chunk-backed AoS component or exact pair query term.
@@ -1490,10 +1591,12 @@ namespace gaia {
 						return {};
 
 					const auto* pEntities = m_pChunk->entity_view().data() + from();
-					if (!world_get_raw(*world(), pEntities[0], component).valid())
+					RawSparseStoreOps sparse{};
+					if (!world_bind_raw_sparse_store(*world(), component, sparse) &&
+							!world_get_raw(*world(), pEntities[0], component).valid())
 						return {};
 
-					return {pEntities, world(), component, size()};
+					return {pEntities, world(), component, size(), sparse};
 				}
 
 				//! Returns a mutable raw byte view resolved separately for each iterated entity.

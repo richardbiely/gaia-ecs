@@ -162,22 +162,32 @@ namespace gaia {
 			using InputArgs = decltype(core::func_args(&Func::operator()));
 			auto& queryInfo = ctx.query.fetch();
 			TypedQueryArgMeta metas[MAX_ITEMS_IN_QUERY]{};
+
 			const auto argCount = init_typed_query_arg_metas(metas, m_world, InputArgs{});
-			const auto execState = detail::build_typed_query_exec_state(ctx.query, m_world, queryInfo, metas, argCount);
+			const auto execState = detail::build_typed_query_exec_state(m_world, queryInfo, metas, argCount);
+			const auto runSparsePlan = detail::typed_run_sparse_plan_ptr<Func>(InputArgs{});
 			const auto runDirectFastChunk = detail::typed_run_direct_fast_chunk_ptr<Func>(InputArgs{});
 			const auto runDirectChunk = detail::typed_run_direct_chunk_ptr<Func>(InputArgs{});
 			const auto runMappedChunk = detail::typed_run_mapped_chunk_ptr<Func>(InputArgs{});
 			const auto invokeInherited = typed_invoke_inherited_ptr<Func>(InputArgs{});
-			const bool hasInheritedTerms = execState.hasInheritedTerms;
-			if (hasInheritedTerms) {
-				runtime.on_each_func = [func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk, invokeInherited](
-																	 Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
+
+			detail::QueryImpl::TypedQueryErasedOps ops;
+			ops.runSparsePlan = runSparsePlan;
+			ops.runDirectFastChunk = runDirectFastChunk;
+			ops.runDirectChunk = runDirectChunk;
+			ops.runMappedChunk = runMappedChunk;
+			ops.invokeInherited = invokeInherited;
+			ops.needsInheritedArgIds = execState.needsInheritedArgIds;
+
+			const bool needsTypedEntityAccess =
+					execState.hasInheritedTerms || typed_query_arg_list_uses_sparse_storage_v<InputArgs>;
+			if (needsTypedEntityAccess) {
+				runtime.on_each_func = [func, execState,
+																ops](Query& query, QueryExecType execType, SystemRuntimeData::RunMode mode) mutable {
 					if (mode == SystemRuntimeData::RunMode::DeferredJob)
 						return query.job(func, execType);
 
-					query.each_typed_erased(
-							execType, &func, execState, runDirectFastChunk, runDirectChunk, runMappedChunk,
-							execState.needsInheritedArgIds, invokeInherited);
+					query.each_typed_erased(execType, &func, execState, ops);
 					return SchedJob{};
 				};
 			} else {
