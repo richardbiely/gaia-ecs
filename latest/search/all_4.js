@@ -186,6 +186,6 @@ var searchData=
   ['dying_183',['dying',['../classgaia_1_1ecs_1_1Chunk.html#aa4c4ad0d7c2b58350dfec6347384cff9',1,'gaia::ecs::Chunk::dying()'],['../classgaia_1_1ecs_1_1Archetype.html#aaab1a34284bd02774a88db4ac20c5f15',1,'gaia::ecs::Archetype::dying()']]],
   ['dyn_5fsingleton_184',['dyn_singleton',['../classgaia_1_1core_1_1dyn__singleton.html',1,'gaia::core']]],
   ['dynamic_20vectors_185',['Dynamic vectors',['../index.html#dynamic-vectors',1,'']]],
-  ['dynamiccachekind_186',['dynamiccachekind',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data::dynamicCacheKind'],['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6',1,'gaia::ecs::QueryCtx::DynamicCacheKind']]],
+  ['dynamiccachekind_186',['dynamiccachekind',['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6',1,'gaia::ecs::QueryCtx::DynamicCacheKind'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a94125c6fa03139fe79a66e81a31381e6',1,'gaia::ecs::QueryCtx::Data::dynamicCacheKind']]],
   ['dynamiccachestate_187',['DynamicCacheState',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html',1,'gaia::ecs::QueryInfo::QueryState']]]
 ];

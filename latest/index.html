@@ -116,7 +116,7 @@ $(document).ready(function(){initNavTree('index.html',''); initResizable(); });
 <p><b>Gaia-ECS</b> is a fast, ergonomic C++17 ECS framework designed to be the option you can actually learn in an afternoon without reading a manual the size of a novel. You get complex queries with relationship traversal, per-component AoS/SoA layouts, integrated serialization, and multithreading with job dependencies — all behind an API that stays out of your way.</p>
 <p><em><b>Highlights:</b></em></p><ul>
 <li>Clean, safe API — no boilerplate, no footguns</li>
-<li>Hybrid storage model — archetype/chunk storage for fast iteration, sparse storage for low-cost frequent modification</li>
+<li>Hybrid storage model — table storage for fast iteration, sparse storage for low-cost frequent modification</li>
 <li>Expressive queries: <a class="el" href="index.html#relationships">relationships</a>, wildcards, hierarchy traversal (DFS/BFS), variables</li>
 <li>Per-component <a class="el" href="index.html#data-layouts">AoS or SoA data layout</a> with minimal code changes</li>
 <li>Integrated <a class="el" href="index.html#compile-time-serialization">compile-time</a> and <a class="el" href="index.html#runtime-serialization">runtime</a> serialization</li>
@@ -146,7 +146,7 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#add-or-remove-component">Add or remove component</a></li>
 <li><a class="el" href="index.html#component-presence">Component presence</a></li>
 <li><a class="el" href="index.html#component-scope">Component scope</a></li>
-<li><a class="el" href="index.html#non-fragmenting-and-sparse-components">Non-fragmenting and sparse components</a></li>
+<li><a class="el" href="index.html#storage-modes-and-non-fragmenting-membership">Storage modes and non-fragmenting membership</a></li>
 <li><a class="el" href="index.html#name-entity">Name entity</a></li>
 <li><a class="el" href="index.html#component-hooks">Component hooks</a></li>
 <li><a class="el" href="index.html#bulk-editing">Bulk editing</a></li>
@@ -277,7 +277,7 @@ ECS</h2>
 <p>A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.</p>
 <h2><a class="anchor" id="implementation"></a>
 Implementation</h2>
-<p><b>Gaia-ECS</b> is a hybrid ECS combining archetype-based storage with sparse storage. Unique combinations of components are grouped into archetypes — think of them as <a href="https://en.wikipedia.org/wiki/Table_(database)">database tables</a> where components are columns and entities are rows.</p>
+<p><b>Gaia-ECS</b> supports table storage and sparse storage for components. Table storage is implemented with archetypes: unique combinations of components are grouped into archetypes — think of them as <a href="https://en.wikipedia.org/wiki/Table_(database)">database tables</a> where components are columns and entities are rows.</p>
 <p>Each archetype is made up of chunks: fixed-size allocation blocks selected per archetype from a small set of size classes. Compact archetypes use small cache-friendly chunks, while wider dense archetypes can use larger chunks to reduce per-chunk iteration overhead. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.</p>
 <p>The main strengths of this layout are fast iteration, predictable memory usage, and natural parallelism. The tradeoff is that adding or removing fragmenting ids requires moving data between archetypes — mitigated here by an archetype graph and support for batched component changes.</p>
 <p>Gaia-ECS also supports selected component data living outside chunk columns when a different tradeoff is needed. That keeps the main archetype path optimized for dense iteration while still allowing more dynamic, optional, or less cache-sensitive data to use a different storage path.</p>
@@ -496,68 +496,71 @@ Component scope</h3>
 <div class="line"><span class="keyword">const</span> <span class="keyword">auto</span> velocityComp = w.get(<span class="stringliteral">&quot;gameplay.render.Velocity&quot;</span>);</div>
 <div class="line"><span class="comment">// returns: the component entity registered under &quot;gameplay.render.Velocity&quot;</span></div>
 </div><!-- fragment --><p><code>World::module(...)</code> only creates or finds the scope hierarchy. <code>World::scope(...)</code> is the step that makes registration and relative lookup happen inside that scope.</p>
-<h3><a class="anchor" id="non-fragmenting-and-sparse-components"></a>
-Non-fragmenting and sparse components</h3>
-<p>By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.</p>
-<p>If this is undesired, there is also an option to use sparse storage and optional non-fragmenting membership. The two traits are:</p>
+<h3><a class="anchor" id="storage-modes-and-non-fragmenting-membership"></a>
+Storage modes and non-fragmenting membership</h3>
+<p>Gaia-ECS provides two component storage modes:</p>
 <ul>
-<li><code>ecs::Sparse</code></li>
-<li><code>ecs::DontFragment</code></li>
+<li><b>Table storage</b> is the default. Internally, the payload is stored in an archetype chunk, providing fast sequential iteration. Its memory address can change when the entity moves between archetypes.</li>
+<li><b>Sparse storage</b> stores the payload in a separate sparse store. It provides a stable memory address, but does not provide the sequential access of table storage.</li>
 </ul>
-<p>To use sparse storage with non-fragmenting membership:</p>
+<p>Storage mode only determines where the payload lives. It does not determine whether the component id participates in archetype identity. A component using sparse storage still changes the entity's archetype when it is added or removed.</p>
+<h4><a class="anchor" id="selecting-a-storage-mode"></a>
+Selecting a storage mode</h4>
+<p>For a typed C++ component, the storage policy can be declared with <code>GAIA_STORAGE</code>:</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>Cooldown {</div>
+<div class="line">  GAIA_STORAGE(Sparse);</div>
+<div class="line">  <span class="keywordtype">float</span> value = 0.0f;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::World w;</div>
+<div class="line"><span class="keyword">auto</span> e = w.add();</div>
+<div class="line">w.add&lt;Cooldown&gt;(e);</div>
+<div class="line"><span class="keyword">auto</span> cooldownValue = w.set&lt;Cooldown&gt;(e);</div>
+<div class="line">cooldownValue.value = 1.5f;</div>
+</div><!-- fragment --><p><code>GAIA_STORAGE(Table)</code> is the default and usually does not need to be written. A typed component's declared policy is authoritative: adding <code>ecs::Sparse</code> or <code>ecs::DontFragment</code> to a typed table component does not change its storage. Runtime component descriptors can still select their storage mode before instances are attached.</p>
+<h4><a class="anchor" id="non-fragmenting-membership"></a>
+Non-fragmenting membership</h4>
+<p><code>ecs::DontFragment</code> controls archetype membership, not payload storage. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Typed non-fragmenting components must declare <code>GAIA_STORAGE(Sparse)</code> because table payloads require an archetype column.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Cooldown {</div>
+<div class="line">  GAIA_STORAGE(Sparse);</div>
 <div class="line">  <span class="keywordtype">float</span> value = 0.0f;</div>
 <div class="line">};</div>
 <div class="line"> </div>
 <div class="line">ecs::World w;</div>
 <div class="line"><span class="keyword">const</span> <span class="keyword">auto</span>&amp; cooldown = w.add&lt;Cooldown&gt;();</div>
-<div class="line"><span class="comment">// Store this component&#39;s data in sparse storage instead of archetype chunks.</span></div>
-<div class="line">w.add(cooldown.entity, ecs::Sparse);</div>
-<div class="line"><span class="comment">// Make sure this component is not a part of the archetype id-wise.</span></div>
-<div class="line"><span class="comment">// This means that adding or removing it won&#39;t make the parent entity change its archetype.</span></div>
+<div class="line"><span class="comment">// Keep Cooldown membership outside archetype identity.</span></div>
 <div class="line">w.add(cooldown.entity, ecs::DontFragment);</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">auto</span> e = w.add();</div>
 <div class="line">w.add&lt;Cooldown&gt;(e);</div>
 <div class="line"><span class="keyword">auto</span> cooldownValue = w.set&lt;Cooldown&gt;(e);</div>
 <div class="line">cooldownValue.value = 1.5f;</div>
-</div><!-- fragment --><p>That gives three practical outcomes:</p>
-<ul>
-<li>default:<ul>
-<li>payload stored in chunks (memory address can change)</li>
-<li>the id lives in the archetype (add/del fragments)</li>
-<li>best for core simulation data, dense iteration, and structural queries</li>
-</ul>
-</li>
-<li><code>Sparse</code>:<ul>
-<li>payload stored in sparse storage (stable memory address)</li>
-<li>the id lives in the archetype (add/del fragments)</li>
-<li>good when the payload should stay out of chunks but the component should remain structurally visible</li>
-</ul>
-</li>
-<li><code>DontFragment</code>:<ul>
-<li>payload stored in sparse storage (stable memory address)</li>
-<li>the id does not live in the archetype (add/del does not fragment)</li>
-<li>this is effectively <code>Sparse</code> plus "do not participate in archetype identity"</li>
-<li>the usual choice for optional, state-like, or frequently toggled data</li>
-</ul>
-</li>
-</ul>
+</div><!-- fragment --><p>The resulting configurations are:</p>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">Typed declaration and traits   </th><th class="markdownTableHeadNone">Storage mode   </th><th class="markdownTableHeadNone">Component id   </th><th class="markdownTableHeadNone">Add/remove changes archetype    </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(Table)</code>   </td><td class="markdownTableBodyNone"><code>Table</code>   </td><td class="markdownTableBodyNone">In archetype   </td><td class="markdownTableBodyNone">Yes    </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(Sparse)</code>   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">In archetype   </td><td class="markdownTableBodyNone">Yes    </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone"><code>GAIA_STORAGE(Sparse)</code> + <code>DontFragment</code>   </td><td class="markdownTableBodyNone"><code>Sparse</code>   </td><td class="markdownTableBodyNone">Outside archetype   </td><td class="markdownTableBodyNone">No   </td></tr>
+</table>
 <p>Rule of thumb:</p><ul>
-<li>keep hot, common, frequently iterated data fragmenting and archetype-stored</li>
-<li>use plain <code>Sparse</code> when the payload should use sparse storage but the component should still participate in structural matching</li>
-<li>use <code>DontFragment</code> for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data</li>
-<li>avoid sparse storage for components like <code>Position</code> or <code>Velocity</code> which benefit greatly from sequential archetype access, unless profiling clearly justifies it</li>
+<li>Keep hot, common, frequently iterated data in table storage.</li>
+<li>Use <code>Sparse</code> when the payload needs a stable address, but the component should still participate in archetype identity.</li>
+<li>Use <code>GAIA_STORAGE(Sparse)</code> with <code>DontFragment</code> for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.</li>
+<li>Avoid sparse storage for components such as <code>Position</code> or <code>Velocity</code> that benefit from sequential table access, unless profiling justifies it.</li>
 </ul>
-<p>Because <code>DontFragment</code> components live outside archetype identity, adding or removing an already-registered <code>DontFragment</code> component from an existing entity does not move that entity to another archetype. This makes direct add/remove safe during serial query iteration. If the active query also filters on the same component, later rows are matched against the current world state, not a snapshot taken before the query started.</p>
+<p>Directly adding or removing an already-registered <code>DontFragment</code> component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.</p>
 <p>&gt;<b>NOTE:<br  />
-</b> SoA components do not support sparse storage and stay archetype-stored. <code>ecs::Sparse</code> applies only to plain AoS generic components.<br  />
+</b> SoA components do not support sparse storage and remain in table storage. <code>GAIA_STORAGE(Sparse)</code> and <code>ecs::Sparse</code> apply only to plain AoS generic components.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
-</b> Changing the storage mode is only supported before the component has instances attached to entities.<br  />
+</b> Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's <code>GAIA_STORAGE</code> policy.<br  />
 </p>
 <p>&gt;<b>NOTE:<br  />
-</b> <code>ecs::Sparse</code> and <code>ecs::DontFragment</code> are sticky component traits. Once set on a component entity, removing the relation later does not revert the storage or fragmentation behavior. <code>ecs::DontFragment</code> also implies sparse storage, so adding both traits is redundant.<br  />
+</b> Once a component is marked <code>ecs::Sparse</code> or <code>ecs::DontFragment</code>, it stays that way. Both entities carry the <a class="el" href="index.html#entity-dependencies">ecs::Requires trait</a>.<br  />
 </p>
 <h3><a class="anchor" id="component-presence"></a>
 Component presence</h3>
@@ -2158,8 +2161,17 @@ Relations</h3>
 <div class="line">});</div>
 </div><!-- fragment --><h3><a class="anchor" id="entity-dependencies"></a>
 Entity dependencies</h3>
-<p>Defining dependencies among entities is made possible via the (Requires, target) relationship.</p>
-<p>When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.</p>
+<p><code>ecs::Requires</code> can be used on its own or as a relationship.</p>
+<p>Add it directly to an id when that id must stay attached:</p>
+<div class="fragment"><div class="line">ecs::World w;</div>
+<div class="line">ecs::Entity requiredTag = w.add();</div>
+<div class="line">ecs::Entity e = w.add();</div>
+<div class="line"> </div>
+<div class="line">w.add(requiredTag, ecs::Requires);</div>
+<div class="line">w.add(e, requiredTag);</div>
+<div class="line">w.del(e, requiredTag); <span class="comment">// does nothing</span></div>
+</div><!-- fragment --><p>Gaia uses this form for <code>ecs::Sparse</code> and <code>ecs::DontFragment</code>.</p>
+<p>Use <code>(Requires, target)</code> when one id depends on another. Adding the first id also adds its dependencies, and those dependencies cannot be removed while they are still needed.</p>
 <div class="fragment"><div class="line">ecs::World w;</div>
 <div class="line">ecs::Entity rabbit = w.add();</div>
 <div class="line">ecs::Entity animal = w.add();</div>
@@ -2168,20 +2180,16 @@ Entity dependencies</h3>
 <div class="line">w.add(carrot, ecs::Pair(ecs::Requires, herbivore));</div>
 <div class="line">w.add(herbivore, ecs::Pair(ecs::Requires, animal));</div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Carrot depends on herbivore so the later is added as well.</span></div>
-<div class="line"><span class="comment">// At the same time, herbivore depends on animal so animal is added, too.</span></div>
+<div class="line"><span class="comment">// Adding carrot also adds herbivore and animal.</span></div>
 <div class="line">w.add(rabbit, carrot);</div>
-<div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> isHerbivore = w.has(rabbit, herbivore)); <span class="comment">// true</span></div>
+<div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> isHerbivore = w.has(rabbit, herbivore); <span class="comment">// true</span></div>
 <div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> isAnimal = w.has(rabbit, animal); <span class="comment">// true</span></div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Animal will not be removed from rabbit because of the dependency chain.</span></div>
-<div class="line"><span class="comment">// Carrot depends on herbivore which depends on animal.</span></div>
+<div class="line"><span class="comment">// Both dependencies stay while carrot is present.</span></div>
 <div class="line">w.del(rabbit, animal); <span class="comment">// does nothing</span></div>
-<div class="line"><span class="comment">// Herbivore will not be removed from rabbit because of the dependency chain.</span></div>
-<div class="line"><span class="comment">// Carrot depends on herbivore.</span></div>
 <div class="line">w.del(rabbit, herbivore); <span class="comment">// does nothing</span></div>
 <div class="line"> </div>
-<div class="line"><span class="comment">// Carrot can be deleted. It requires that herbivore is present which is true.</span></div>
+<div class="line"><span class="comment">// Carrot itself can still be removed.</span></div>
 <div class="line">w.del(rabbit, carrot); <span class="comment">// removes carrot from rabbit</span></div>
 </div><!-- fragment --><h3><a class="anchor" id="combination-constraints"></a>
 Combination constraints</h3>
@@ -3360,8 +3368,8 @@ Raw access and cursors</h3>
 <div class="line">    <span class="comment">// updated.value contains the current seconds value.</span></div>
 <div class="line">  }</div>
 <div class="line">}</div>
-</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> access a complete AoS runtime component as bytes. They work with components in archetype/chunk or sparse storage. <code>mut_raw(...)</code> does not emit write notifications. Call <code>modify_raw(...)</code> afterwards when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies the complete value and emits the notification for you.</p>
-<p>Runtime SoA components store each field separately. Use <code>get_raw_field(entity, component, fieldIndex)</code> to read one field and <code>mut_raw_field(...)</code> to edit one. Iterator callbacks can use <code>view_raw_field(termIdx, fieldIdx)</code> and <code>view_raw_field_mut(...)</code> for the current contiguous field range without resolving each entity separately. <code>sview_raw_field_mut(...)</code> stays silent until paired with <code>modify_raw(termIdx)</code>. The field index follows the field order used when the component was registered. Entity-scoped field access supports archetype/chunk components and exact relationship pairs with table SoA payloads, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call <code>modify_raw(...)</code> after editing through <code>mut_raw_field(...)</code> when write notifications are required.</p>
+</div><!-- fragment --><p><code>get_raw(...)</code> and <code>mut_raw(...)</code> access a complete AoS runtime component as bytes. They work with components in table or sparse storage. <code>mut_raw(...)</code> does not emit write notifications. Call <code>modify_raw(...)</code> afterwards when set hooks or <code>OnSet</code> observers must run. <code>set_raw(...)</code> copies the complete value and emits the notification for you.</p>
+<p>Runtime SoA components store each field separately. Use <code>get_raw_field(entity, component, fieldIndex)</code> to read one field and <code>mut_raw_field(...)</code> to edit one. Iterator callbacks can use <code>view_raw_field(termIdx, fieldIdx)</code> and <code>view_raw_field_mut(...)</code> for the current contiguous field range without resolving each entity separately. <code>sview_raw_field_mut(...)</code> stays silent until paired with <code>modify_raw(termIdx)</code>. The field index follows the field order used when the component was registered. Entity-scoped field access supports generic components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call <code>modify_raw(...)</code> after editing through <code>mut_raw_field(...)</code> when write notifications are required.</p>
 <p><code>ComponentCursor</code> selects reflected fields for both AoS and SoA components. Primitive setters such as <code>f32(...)</code> emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use <code>count()</code> and <code>elem(index)</code> before reading or writing an element.</p>
 <p>The entity-scoped forms are <code>acc(entity).get_raw_field(...)</code> and <code>acc_mut(entity).mut_raw_field(...)</code>.</p>
 <h3><a class="anchor" id="data-on-runtime-relationships"></a>
@@ -3407,7 +3415,7 @@ Data on runtime relationships</h3>
 <div class="fragment"><div class="line"><span class="keyword">auto</span> affinityForBob = w.query().all(affinityToBob);</div>
 <div class="line"><span class="keyword">auto</span> affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));</div>
 </div><!-- fragment --><p>Use an exact pair when reading or writing its value because a wildcard query can match several targets. Adding, removing, and changing relationship data triggers the same lifecycle hooks and <code>OnSet</code> notifications as component data.</p>
-<p>Semantic JSON writes the relationship as <code>(Relation,Target)</code>, such as <code>(Affinity,Bob)</code>. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with archetype/chunk AoS and table SoA storage, not sparse components.</p>
+<p>Semantic JSON writes the relationship as <code>(Relation,Target)</code>, such as <code>(Affinity,Bob)</code>. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with AoS and SoA payloads in table storage, not sparse storage.</p>
 <h3><a class="anchor" id="querying-runtime-components"></a>
 Querying runtime components</h3>
 <p>Runtime component entities can be used directly in queries. Read payload bytes through raw views when iterating matching entities.</p>

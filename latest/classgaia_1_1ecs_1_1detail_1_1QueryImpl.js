@@ -18,6 +18,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "TypedIterErasedCallback", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedIterErasedCallback.html", null ],
     [ "TypedJobCallback", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback.html", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedJobCallback" ],
     [ "TypedMappedChunkCallback", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html", null ],
+    [ "TypedQueryErasedOps", "structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryErasedOps.html", null ],
     [ "ExecPayloadKind", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd", [
       [ "Plain", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbda4cd8413207629a963225f4314b53adcd", null ],
       [ "Grouped", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbda68226392277631695fda5bbc5b9d45de", null ],
@@ -38,6 +39,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
       [ "EntitySeed", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa469e2ac2307cba7cabc60710a69986c", null ],
       [ "DirectDense", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50", null ],
       [ "MappedDense", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1", null ],
+      [ "SparseDense", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a85df6056a02c261f3008b49e34c4d2bd", null ],
       [ "Sorted", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033", null ],
       [ "Traversal", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4adf452b81ce9b2f01e414b843bb08d33c", null ]
     ] ],
@@ -64,6 +66,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "can_use_direct_entity_seed_eval", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a3b4232e48f09a26784e3f2c258fd84fc", null ],
     [ "can_use_direct_seed_run_cache", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ada2b6e7441076ec0ac79113bf1f2e4e3", null ],
     [ "can_use_direct_target_eval", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ab4ce325216e3cc2a58dcd9656afecd68", null ],
+    [ "can_use_sparse_chunk_term_eval_descs", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a965e3543e2a60ddb4ce2d5a33ba3c93c", null ],
     [ "changed", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aca61ae31f97ef9503ff11c032601e82e", null ],
     [ "changed", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aba72673ea40a476e6335302bd877ad12", null ],
     [ "chunk_effective_range", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a06b4e5733b6a7cc04bc3ee94cc6080a7", null ],
@@ -87,6 +90,7 @@ var classgaia_1_1ecs_1_1detail_1_1QueryImpl =
     [ "each", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4", null ],
     [ "each", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a8b5642e9a3f1492cdcbd9aafa4593612", null ],
     [ "each_arch", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a39f9d1a71d4a4e02aa08d01422e57762", null ],
+    [ "each_direct_entities_iter", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1e054dc9701feffa89cb7cb83a79fc3b", null ],
     [ "each_direct_inter", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af8d1e2337fca718523beb8d989600241", null ],
     [ "each_direct_iter_inter", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a640392c8b7cd541098bfd29494f99ea9", null ],
     [ "each_entity_enabled", "classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ac6f8e44b7b89e24a5be83859dd825b3d", null ],

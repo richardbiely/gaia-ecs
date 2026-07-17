@@ -18,5 +18,6 @@ var structgaia_1_1ecs_1_1detail_1_1ComponentDesc =
     [ "make", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584", null ],
     [ "name", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad89d35d4747405f171441e85fa476602", null ],
     [ "size", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a6ab728f59781dcd4188a4c370cc19e5e", null ],
-    [ "soa", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a", null ]
+    [ "soa", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a", null ],
+    [ "storage_type", "structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad78f1987c21ae1409e610546d25cde0d", null ]
 ];

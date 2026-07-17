@@ -165,6 +165,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedMappedChunkCallback.html">TypedMappedChunkCallback</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryErasedOps.html">TypedQueryErasedOps</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
@@ -181,6 +183,7 @@ Public Types</h2></td></tr>
 , <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50">DirectDense</a>
 , <br />
 &#160;&#160;<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1">MappedDense</a>
+, <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a85df6056a02c261f3008b49e34c4d2bd">SparseDense</a>
 , <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033">Sorted</a>
 , <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ad1e79b5af228c9fb3ba9e22fbdd5bbe4adf452b81ce9b2f01e414b843bb08d33c">Traversal</a>
 <br />
@@ -336,19 +339,27 @@ template&lt;bool HasFilters, QueryExecType ExecType, typename Func &gt; </td></t
 <tr class="memitem:a9b2150b9bfd712679c78ca4ff3c8277a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9b2150b9bfd712679c78ca4ff3c8277a">run_query_on_chunks_direct_typed</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, Func &amp;func, <a class="el" href="structgaia_1_1core_1_1func__type__list.html">core::func_type_list</a>&lt; T... &gt;)</td></tr>
 <tr class="memdesc:a9b2150b9bfd712679c78ca4ff3c8277a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs the prepared direct typed row path for simple cached queries.  <br /></td></tr>
 <tr class="separator:a9b2150b9bfd712679c78ca4ff3c8277a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8fc6c0259eb879bf8e0947e2fc65d753" id="r_a8fc6c0259eb879bf8e0947e2fc65d753"><td class="memTemplParams" colspan="2"><a id="a8fc6c0259eb879bf8e0947e2fc65d753" name="a8fc6c0259eb879bf8e0947e2fc65d753"></a>
+template&lt;bool HasFilters, typename Func , typename... T&gt; </td></tr>
+<tr class="memitem:a8fc6c0259eb879bf8e0947e2fc65d753"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>run_query_on_chunks_sparse_typed</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, Func &amp;func, <a class="el" href="structgaia_1_1core_1_1func__type__list.html">core::func_type_list</a>&lt; T... &gt;)</td></tr>
+<tr class="separator:a8fc6c0259eb879bf8e0947e2fc65d753"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af0d19f1cb803dc7eeab0a7b1bbf92897" id="r_af0d19f1cb803dc7eeab0a7b1bbf92897"><td class="memTemplParams" colspan="2"><a id="af0d19f1cb803dc7eeab0a7b1bbf92897" name="af0d19f1cb803dc7eeab0a7b1bbf92897"></a>
+template&lt;typename Func , typename... T&gt; </td></tr>
+<tr class="memitem:af0d19f1cb803dc7eeab0a7b1bbf92897"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>run_query_on_sparse_entities_typed</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, Func &amp;func, <a class="el" href="structgaia_1_1core_1_1func__type__list.html">core::func_type_list</a>&lt; T... &gt;)</td></tr>
+<tr class="separator:af0d19f1cb803dc7eeab0a7b1bbf92897"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab6ab9c0e8327eef194a43d9362ae1925" id="r_ab6ab9c0e8327eef194a43d9362ae1925"><td class="memItemLeft" align="right" valign="top"><a id="ab6ab9c0e8327eef194a43d9362ae1925" name="ab6ab9c0e8327eef194a43d9362ae1925"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>run_query_on_chunks_direct</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void *pFunc, void(*runChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;))</td></tr>
 <tr class="separator:ab6ab9c0e8327eef194a43d9362ae1925"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7255c47e7077e13b3d73c12675b503f5" id="r_a7255c47e7077e13b3d73c12675b503f5"><td class="memItemLeft" align="right" valign="top"><a id="a7255c47e7077e13b3d73c12675b503f5" name="a7255c47e7077e13b3d73c12675b503f5"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>run_query_on_chunks_direct_iter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void *pFunc, void(*runChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;))</td></tr>
 <tr class="separator:a7255c47e7077e13b3d73c12675b503f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a621a5306159916b0f1149ca1b474480f" id="r_a621a5306159916b0f1149ca1b474480f"><td class="memTemplParams" colspan="2"><a id="a621a5306159916b0f1149ca1b474480f" name="a621a5306159916b0f1149ca1b474480f"></a>
+<tr class="memitem:ab1e14a4646043c97f020009f08b20ac2" id="r_ab1e14a4646043c97f020009f08b20ac2"><td class="memTemplParams" colspan="2"><a id="ab1e14a4646043c97f020009f08b20ac2" name="ab1e14a4646043c97f020009f08b20ac2"></a>
 template&lt;QueryExecType ExecType&gt; </td></tr>
-<tr class="memitem:a621a5306159916b0f1149ca1b474480f"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void(*runDirectFastChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), void(*runDirectChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), void(*runMappedChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), bool needsInheritedArgIds, void(*invokeInherited)(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *, void *))</td></tr>
-<tr class="separator:a621a5306159916b0f1149ca1b474480f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a29eb450795b8bee90f93f419a0073451" id="r_a29eb450795b8bee90f93f419a0073451"><td class="memItemLeft" align="right" valign="top"><a id="a29eb450795b8bee90f93f419a0073451" name="a29eb450795b8bee90f93f419a0073451"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>each_typed_erased</b> (QueryExecType execType, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void(*runDirectFastChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), void(*runDirectChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), void(*runMappedChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), bool needsInheritedArgIds, void(*invokeInherited)(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *, void *))</td></tr>
-<tr class="separator:a29eb450795b8bee90f93f419a0073451"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab1e14a4646043c97f020009f08b20ac2"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1QueryPlan.html">QueryPlan</a> &amp;plan, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryErasedOps.html">TypedQueryErasedOps</a> &amp;ops)</td></tr>
+<tr class="separator:ab1e14a4646043c97f020009f08b20ac2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a977c57e7027747eb95ecfbb6c058d93a" id="r_a977c57e7027747eb95ecfbb6c058d93a"><td class="memItemLeft" align="right" valign="top"><a id="a977c57e7027747eb95ecfbb6c058d93a" name="a977c57e7027747eb95ecfbb6c058d93a"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>each_typed_erased</b> (QueryExecType execType, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1TypedQueryErasedOps.html">TypedQueryErasedOps</a> &amp;ops)</td></tr>
+<tr class="separator:a977c57e7027747eb95ecfbb6c058d93a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab19a50ab7ce73bb377221a45460ca4c7" id="r_ab19a50ab7ce73bb377221a45460ca4c7"><td class="memTemplParams" colspan="2"><a id="ab19a50ab7ce73bb377221a45460ca4c7" name="ab19a50ab7ce73bb377221a45460ca4c7"></a>
 template&lt;QueryExecType ExecType, typename Func &gt; </td></tr>
 <tr class="memitem:ab19a50ab7ce73bb377221a45460ca4c7"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_typed_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Func func)</td></tr>
@@ -402,17 +413,16 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:a7b832682deae065bc273b53ce406e77c"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_chunk_runs_iter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1BfsChunkRun.html">detail::BfsChunkRun</a> &gt; runs, Constraints constraints, Func func)</td></tr>
 <tr class="separator:a7b832682deae065bc273b53ce406e77c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1e054dc9701feffa89cb7cb83a79fc3b" id="r_a1e054dc9701feffa89cb7cb83a79fc3b"><td class="memTemplParams" colspan="2"><a id="a1e054dc9701feffa89cb7cb83a79fc3b" name="a1e054dc9701feffa89cb7cb83a79fc3b"></a>
-template&lt;typename Func &gt; </td></tr>
-<tr class="memitem:a1e054dc9701feffa89cb7cb83a79fc3b"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>each_direct_entities_iter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; entities, Constraints constraints, Func func)</td></tr>
+<tr class="memitem:a1e054dc9701feffa89cb7cb83a79fc3b" id="r_a1e054dc9701feffa89cb7cb83a79fc3b"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
+<tr class="memitem:a1e054dc9701feffa89cb7cb83a79fc3b"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1e054dc9701feffa89cb7cb83a79fc3b">each_direct_entities_iter</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; entities, Constraints constraints, Func func)</td></tr>
+<tr class="memdesc:a1e054dc9701feffa89cb7cb83a79fc3b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Invokes an iterator callback over an ordered direct-entity sequence. param Func Callback type invocable with <code><a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a>&amp;</code>.  <br /></td></tr>
 <tr class="separator:a1e054dc9701feffa89cb7cb83a79fc3b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a640392c8b7cd541098bfd29494f99ea9" id="r_a640392c8b7cd541098bfd29494f99ea9"><td class="memTemplParams" colspan="2">template&lt;typename Func &gt; </td></tr>
 <tr class="memitem:a640392c8b7cd541098bfd29494f99ea9"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a640392c8b7cd541098bfd29494f99ea9">each_direct_iter_inter</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints, Func func)</td></tr>
 <tr class="memdesc:a640392c8b7cd541098bfd29494f99ea9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs an iterator-based <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a> callback over directly seeded entities using one-row chunk views.  <br /></td></tr>
 <tr class="separator:a640392c8b7cd541098bfd29494f99ea9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af8d1e2337fca718523beb8d989600241" id="r_af8d1e2337fca718523beb8d989600241"><td class="memItemLeft" align="right" valign="top"><a id="af8d1e2337fca718523beb8d989600241" name="af8d1e2337fca718523beb8d989600241"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>each_direct_inter</b> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void(*runDirectChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), bool needsInheritedArgIds, void(*invokeInherited)(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *, void *))</td></tr>
-<tr class="memdesc:af8d1e2337fca718523beb8d989600241"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs a typed <a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a9172840a29b328cd834eea73309527f4" title="Iterates query matches using the default execution mode.">each()</a> callback over directly seeded entities. <br /></td></tr>
+<tr class="memitem:af8d1e2337fca718523beb8d989600241" id="r_af8d1e2337fca718523beb8d989600241"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af8d1e2337fca718523beb8d989600241">each_direct_inter</a> (<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, Constraints constraints, void *pFunc, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;state, void(*runDirectChunk)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;), bool needsInheritedArgIds, void(*invokeInherited)(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *, void *))</td></tr>
+<tr class="memdesc:af8d1e2337fca718523beb8d989600241"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runs an erased typed callback over entities selected by a direct sparse or target-term seed.  <br /></td></tr>
 <tr class="separator:af8d1e2337fca718523beb8d989600241"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab14af6327e26ceab45b4eb5d9e98f1f3" id="r_ab14af6327e26ceab45b4eb5d9e98f1f3"><td class="memTemplParams" colspan="2"><a id="ab14af6327e26ceab45b4eb5d9e98f1f3" name="ab14af6327e26ceab45b4eb5d9e98f1f3"></a>
 template&lt;bool UseFilters, typename ContainerOut &gt; </td></tr>
@@ -763,9 +773,9 @@ Static Public Member Functions</h2></td></tr>
 template&lt;typename TIter &gt; </td></tr>
 <tr class="memitem:a6e252afec4f90642acd12f4286d34b2c"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>finish_iter_writes</b> (TIter &amp;it)</td></tr>
 <tr class="separator:a6e252afec4f90642acd12f4286d34b2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab17098b49ce692b92faff1814a6967b8" id="r_ab17098b49ce692b92faff1814a6967b8"><td class="memItemLeft" align="right" valign="top"><a id="ab17098b49ce692b92faff1814a6967b8" name="ab17098b49ce692b92faff1814a6967b8"></a>
-static void&#160;</td><td class="memItemRight" valign="bottom"><b>finish_typed_chunk_writes_runtime</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t from, uint16_t to, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *pArgIds, const bool *pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg)</td></tr>
-<tr class="separator:ab17098b49ce692b92faff1814a6967b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abfd7e0e1051a5045bcdcfe41e216d15e" id="r_abfd7e0e1051a5045bcdcfe41e216d15e"><td class="memItemLeft" align="right" valign="top"><a id="abfd7e0e1051a5045bcdcfe41e216d15e" name="abfd7e0e1051a5045bcdcfe41e216d15e"></a>
+static void&#160;</td><td class="memItemRight" valign="bottom"><b>finish_typed_chunk_writes_runtime</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t from, uint16_t to, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *pArgIds, const bool *pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg, void *const *pSparseStores=nullptr)</td></tr>
+<tr class="separator:abfd7e0e1051a5045bcdcfe41e216d15e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad8d09f97cab1feeb4ea35c662491256d" id="r_ad8d09f97cab1feeb4ea35c662491256d"><td class="memTemplParams" colspan="2"><a id="ad8d09f97cab1feeb4ea35c662491256d" name="ad8d09f97cab1feeb4ea35c662491256d"></a>
 template&lt;typename... T&gt; </td></tr>
 <tr class="memitem:ad8d09f97cab1feeb4ea35c662491256d"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>finish_typed_chunk_writes</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t from, uint16_t to)</td></tr>
@@ -929,6 +939,9 @@ static void&#160;</td><td class="memItemRight" valign="bottom"><b>init_direct_en
 <tr class="memitem:a816537a33833148bd543e11a90e9a486" id="r_a816537a33833148bd543e11a90e9a486"><td class="memItemLeft" align="right" valign="top"><a id="a816537a33833148bd543e11a90e9a486" name="a816537a33833148bd543e11a90e9a486"></a>
 static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>can_use_direct_chunk_term_eval_descs</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectChunkArgEvalDesc.html">DirectChunkArgEvalDesc</a> *pDescs, uint32_t descCnt)</td></tr>
 <tr class="separator:a816537a33833148bd543e11a90e9a486"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a965e3543e2a60ddb4ce2d5a33ba3c93c" id="r_a965e3543e2a60ddb4ce2d5a33ba3c93c"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a965e3543e2a60ddb4ce2d5a33ba3c93c">can_use_sparse_chunk_term_eval_descs</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;queryInfo, const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectChunkArgEvalDesc.html">DirectChunkArgEvalDesc</a> *pDescs, uint32_t descCnt)</td></tr>
+<tr class="memdesc:a965e3543e2a60ddb4ce2d5a33ba3c93c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether typed arguments can use direct chunk evaluation when sparse terms are present.  <br /></td></tr>
+<tr class="separator:a965e3543e2a60ddb4ce2d5a33ba3c93c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -1040,6 +1053,8 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>SystemBuilder</b></t
 <tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4aa2a007e1aadb91e8f5c05b04bfc37e50"></a>DirectDense&#160;</td><td class="fielddoc"><p>Direct cached archetype/chunk iteration with query-term indices matching storage layout. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4ac06e1a773ffa78a669c0e231a5e82eb1"></a>MappedDense&#160;</td><td class="fielddoc"><p>Typed dense cached archetype/chunk iteration using mapped component access. Public <a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a> callbacks use DirectDense with iterator component-index mapping instead. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a85df6056a02c261f3008b49e34c4d2bd" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a85df6056a02c261f3008b49e34c4d2bd"></a>SparseDense&#160;</td><td class="fielddoc"><p>Typed cached chunk iteration with compile-time sparse payload access. </p>
 </td></tr>
 <tr><td class="fieldname"><a id="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033" name="ad1e79b5af228c9fb3ba9e22fbdd5bbe4a4a1c2d294b4e16ce4e9b563011068033"></a>Sorted&#160;</td><td class="fielddoc"><p>Sorted payload execution that must preserve cache-provided chunk order. </p>
 </td></tr>
@@ -1792,6 +1807,66 @@ template&lt;typename Container &gt; </div>
 
 </div>
 </div>
+<a id="a965e3543e2a60ddb4ce2d5a33ba3c93c" name="a965e3543e2a60ddb4ce2d5a33ba3c93c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a965e3543e2a60ddb4ce2d5a33ba3c93c">&#9670;&#160;</a></span>can_use_sparse_chunk_term_eval_descs()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD bool gaia::ecs::detail::QueryImpl::can_use_sparse_chunk_term_eval_descs </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1detail_1_1QueryImpl_1_1DirectChunkArgEvalDesc.html">DirectChunkArgEvalDesc</a> *&#160;</td>
+          <td class="paramname"><em>pDescs</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>descCnt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether typed arguments can use direct chunk evaluation when sparse terms are present. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> used to resolve component storage and inherited term metadata. </td></tr>
+    <tr><td class="paramname">queryInfo</td><td>Prepared query terms and filter metadata. </td></tr>
+    <tr><td class="paramname">pDescs</td><td>Typed argument descriptors to validate. </td></tr>
+    <tr><td class="paramname">descCnt</td><td>Number of descriptors in <code>pDescs</code>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if every descriptor can be evaluated from the current chunk or its sparse side store. </dd></dl>
+
+</div>
+</div>
 <a id="aca61ae31f97ef9503ff11c032601e82e" name="aca61ae31f97ef9503ff11c032601e82e"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aca61ae31f97ef9503ff11c032601e82e">&#9670;&#160;</a></span>changed() <span class="overload">[1/2]</span></h2>
 
@@ -2431,6 +2506,149 @@ template&lt;typename Func &gt; </div>
   </dd>
 </dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html#a37ead354644dab779beb409ba286d8df" title="Returns the user-owned context pointer supplied by the caller driving this iteration.">Iter::ctx() const</a> </dd></dl>
+
+</div>
+</div>
+<a id="a1e054dc9701feffa89cb7cb83a79fc3b" name="a1e054dc9701feffa89cb7cb83a79fc3b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1e054dc9701feffa89cb7cb83a79fc3b">&#9670;&#160;</a></span>each_direct_entities_iter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Func &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::QueryImpl::each_direct_entities_iter </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td>
+          <td class="paramname"><em>entities</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Constraints&#160;</td>
+          <td class="paramname"><em>constraints</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Func&#160;</td>
+          <td class="paramname"><em>func</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Invokes an iterator callback over an ordered direct-entity sequence. param Func Callback type invocable with <code><a class="el" href="classgaia_1_1ecs_1_1Iter.html" title="Iterator for iterating entity subsets selected by Constraints. Disabled entities always precede enabl...">Iter</a>&amp;</code>. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">queryInfo</td><td>Prepared query cache and term metadata. </td></tr>
+    <tr><td class="paramname">entities</td><td>Entities in the order in which the callback must observe them. </td></tr>
+    <tr><td class="paramname">constraints</td><td>Entity-row constraints represented by each iterator view. </td></tr>
+    <tr><td class="paramname">func</td><td>Callback invoked for cached chunk runs or one-row direct-entity views. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>Completes and clears tracked iterator writes after every callback invocation. </dd></dl>
+
+</div>
+</div>
+<a id="af8d1e2337fca718523beb8d989600241" name="af8d1e2337fca718523beb8d989600241"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af8d1e2337fca718523beb8d989600241">&#9670;&#160;</a></span>each_direct_inter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::detail::QueryImpl::each_direct_inter </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryInfo</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Constraints&#160;</td>
+          <td class="paramname"><em>constraints</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pFunc</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;&#160;</td>
+          <td class="paramname"><em>state</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void(*)(<a class="el" href="classgaia_1_1ecs_1_1detail_1_1QueryImpl.html">QueryImpl</a> &amp;, <a class="el" href="classgaia_1_1ecs_1_1Iter.html">Iter</a> &amp;, void *, const <a class="el" href="structgaia_1_1ecs_1_1TypedQueryExecState.html">TypedQueryExecState</a> &amp;)&#160;</td>
+          <td class="paramname"><em>runDirectChunk</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>needsInheritedArgIds</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void(*)(<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *, void *)&#160;</td>
+          <td class="paramname"><em>invokeInherited</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Runs an erased typed callback over entities selected by a direct sparse or target-term seed. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">queryInfo</td><td>Prepared query cache and term metadata. </td></tr>
+    <tr><td class="paramname">constraints</td><td>Constraints applied while selecting direct entities and constructing iterator views. </td></tr>
+    <tr><td class="paramname">pFunc</td><td>Opaque storage for the typed callback object. </td></tr>
+    <tr><td class="paramname">state</td><td>Prepared typed-argument bindings and write metadata. </td></tr>
+    <tr><td class="paramname">runDirectChunk</td><td>Executes <code>pFunc</code> for a prepared direct chunk or entity iterator. </td></tr>
+    <tr><td class="paramname">needsInheritedArgIds</td><td>Whether inherited arguments require per-entity id resolution. </td></tr>
+    <tr><td class="paramname">invokeInherited</td><td>Executes <code>pFunc</code> with inherited argument ids resolved for one entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>Writable execution snapshots seed entities before invoking callbacks so structural changes cannot invalidate traversal. </dd></dl>
 
 </div>
 </div>

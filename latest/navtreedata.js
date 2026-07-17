@@ -38,7 +38,10 @@ var NAVTREE =
         [ "Name entity", "index.html#name-entity", null ],
         [ "Names and lookup", "index.html#names-and-lookup", null ],
         [ "Component scope", "index.html#component-scope", null ],
-        [ "Non-fragmenting and sparse components", "index.html#non-fragmenting-and-sparse-components", null ],
+        [ "Storage modes and non-fragmenting membership", "index.html#storage-modes-and-non-fragmenting-membership", [
+          [ "Selecting a storage mode", "index.html#selecting-a-storage-mode", null ],
+          [ "Non-fragmenting membership", "index.html#non-fragmenting-membership", null ]
+        ] ],
         [ "Component presence", "index.html#component-presence", null ],
         [ "Add or remove component", "index.html#add-or-remove-component", null ],
         [ "Component hooks", "index.html#component-hooks", null ],
@@ -187,16 +190,16 @@ var NAVTREEINDEX =
 [
 "annotated.html",
 "classgaia_1_1ecs_1_1ComponentCache.html#a3d335eb23e50fe3c322bf300c6eec3de",
-"classgaia_1_1ecs_1_1World.html#a5c1a734a5b62a131335bfc9cb25da752",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1e9d7148bed62fd3f2ef3bae43d33d28",
-"classgaia_1_1ser_1_1detail_1_1ser__buffer__binary__impl.html#a0d1389b747a6a4183f530e39fc273d09",
-"index.html#documentation",
-"structgaia_1_1cnt_1_1paged__ilist.html#ae9b31f2956212823e45f92b44a9ae6da",
-"structgaia_1_1ecs_1_1ComponentCursor.html#a5e4ddd2d4ced16eca0c89c4a25fbcc49",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7a44050adc01a9484c9930620df2ec0e",
-"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#af9c9dbd63feec06e22e97a015d29864b",
-"structgaia_1_1mem_1_1MemoryPage.html#a416a68101bcbb9ce631dbe94e338fe40",
-"system_8inl_source.html"
+"classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1c385740f47a2b4e3c2de1077c0d8bbc",
+"classgaia_1_1ser_1_1bin__stream.html#a7d711c63ffa10942b8325674dfbf1c1a",
+"index.html#customization",
+"structgaia_1_1cnt_1_1paged__ilist.html#a4dc27bfd8cea462fec86cd98ea7e1659",
+"structgaia_1_1ecs_1_1ComponentCursor.html#a39b0ce5116fb98f14ff9464c260f3bce",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a57980e9a61a38fdce9bd4e28ef3d5fd1",
+"structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html",
+"structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#ac1a4c6a2898d6c651df56c02f4dbb050",
+"structrobin__hood_1_1detail_1_1has__is__transparent.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

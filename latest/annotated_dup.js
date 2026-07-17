@@ -155,6 +155,8 @@ var annotated_dup =
         [ "detail", null, [
           [ "actual_type", "structgaia_1_1ecs_1_1detail_1_1actual__type.html", null ],
           [ "actual_type< T, std::enable_if_t< is_pair< T >::value > >", "structgaia_1_1ecs_1_1detail_1_1actual__type_3_01T_00_01std_1_1enable__if__t_3_01is__pair_3_01T_01_4_1_1value_01_4_01_4.html", null ],
+          [ "auto_storage_policy_inter", "structgaia_1_1ecs_1_1detail_1_1auto__storage__policy__inter.html", null ],
+          [ "auto_storage_policy_inter< T, std::void_t< decltype(T::gaia_Data_Storage)> >", "structgaia_1_1ecs_1_1detail_1_1auto__storage__policy__inter_3_01T_00_01std_1_1void__t_3_01decltyd11926ce3dc9e83e7763dd866a1ac7ea.html", null ],
           [ "BfsChunkRun", "structgaia_1_1ecs_1_1detail_1_1BfsChunkRun.html", null ],
           [ "ChunkIterImpl", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl.html", "classgaia_1_1ecs_1_1detail_1_1ChunkIterImpl" ],
           [ "ChunkIterTypedOps", "structgaia_1_1ecs_1_1detail_1_1ChunkIterTypedOps.html", null ],
@@ -168,9 +170,11 @@ var annotated_dup =
           [ "EntityTermViewGet", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewGet.html", null ],
           [ "EntityTermViewGetEntity", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewGetEntity.html", null ],
           [ "EntityTermViewGetPointer", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewGetPointer.html", null ],
+          [ "EntityTermViewGetSparse", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewGetSparse.html", null ],
           [ "EntityTermViewSet", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewSet.html", null ],
           [ "EntityTermViewSetEntity", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewSetEntity.html", null ],
           [ "EntityTermViewSetPointer", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewSetPointer.html", null ],
+          [ "EntityTermViewSetSparse", "structgaia_1_1ecs_1_1detail_1_1EntityTermViewSetSparse.html", null ],
           [ "ExtractComponentType_NoEntityKind", "structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html", "structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind" ],
           [ "ExtractComponentType_WithEntityKind", "structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html", "structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind" ],
           [ "has_entity_kind", "structgaia_1_1ecs_1_1detail_1_1has__entity__kind.html", null ],
@@ -222,7 +226,8 @@ var annotated_dup =
           [ "SystemScheduleEdge", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge" ],
           [ "SystemScheduleItem", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem" ],
           [ "SystemScheduleScratch", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html", "structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch" ],
-          [ "TypedDirectChunkRun", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun" ]
+          [ "TypedDirectChunkRun", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun.html", "structgaia_1_1ecs_1_1detail_1_1TypedDirectChunkRun" ],
+          [ "TypedSparseQueryView", "structgaia_1_1ecs_1_1detail_1_1TypedSparseQueryView.html", null ]
         ] ],
         [ "vm", null, [
           [ "detail", null, [
@@ -331,6 +336,7 @@ var annotated_dup =
         [ "QueryMatchScratch", "structgaia_1_1ecs_1_1QueryMatchScratch.html", "structgaia_1_1ecs_1_1QueryMatchScratch" ],
         [ "QueryTerm", "structgaia_1_1ecs_1_1QueryTerm.html", "structgaia_1_1ecs_1_1QueryTerm" ],
         [ "QueryTermOptions", "structgaia_1_1ecs_1_1QueryTermOptions.html", "structgaia_1_1ecs_1_1QueryTermOptions" ],
+        [ "RawSparseStoreOps", "structgaia_1_1ecs_1_1RawSparseStoreOps.html", null ],
         [ "Remove_", "structgaia_1_1ecs_1_1Remove__.html", null ],
         [ "Requires_", "structgaia_1_1ecs_1_1Requires__.html", null ],
         [ "RuntimeConstant", "structgaia_1_1ecs_1_1RuntimeConstant.html", "structgaia_1_1ecs_1_1RuntimeConstant" ],
@@ -353,6 +359,10 @@ var annotated_dup =
         [ "Sparse_", "structgaia_1_1ecs_1_1Sparse__.html", null ],
         [ "SparseComponentRecord", "structgaia_1_1ecs_1_1SparseComponentRecord.html", "structgaia_1_1ecs_1_1SparseComponentRecord" ],
         [ "Traversable_", "structgaia_1_1ecs_1_1Traversable__.html", null ],
+        [ "typed_query_arg_list_uses_sparse_storage", "structgaia_1_1ecs_1_1typed__query__arg__list__uses__sparse__storage.html", null ],
+        [ "typed_query_arg_list_uses_sparse_storage< core::func_type_list< T... > >", "structgaia_1_1ecs_1_1typed__query__arg__list__uses__sparse__storage_3_01core_1_1func__type__list_3_01T_8_8_8_01_4_01_4.html", null ],
+        [ "typed_query_arg_uses_sparse_storage", "structgaia_1_1ecs_1_1typed__query__arg__uses__sparse__storage.html", null ],
+        [ "typed_query_arg_uses_sparse_storage< T, false >", "structgaia_1_1ecs_1_1typed__query__arg__uses__sparse__storage_3_01T_00_01false_01_4.html", null ],
         [ "TypedQueryArgMeta", "structgaia_1_1ecs_1_1TypedQueryArgMeta.html", null ],
         [ "TypedQueryExecState", "structgaia_1_1ecs_1_1TypedQueryExecState.html", null ],
         [ "uni", "structgaia_1_1ecs_1_1uni.html", "structgaia_1_1ecs_1_1uni" ],

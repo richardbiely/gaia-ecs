@@ -218,6 +218,12 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sparse
 <tr class="memitem:a19ae85a92bf78dcf23c711ed26f59a9f" id="r_a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a19ae85a92bf78dcf23c711ed26f59a9f">set_component_sparse_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component)</td></tr>
 <tr class="memdesc:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Latches Sparse storage on a component entity before any instances exist. This moves the payload out of chunks while keeping the id in archetype identity. Only plain generic AoS components are supported.  <br /></td></tr>
 <tr class="separator:a19ae85a92bf78dcf23c711ed26f59a9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9ad825ab4d86476bed484ceb4a4a2fab" id="r_a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a9ad825ab4d86476bed484ceb4a4a2fab">can_add_component_storage_trait</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable.  <br /></td></tr>
+<tr class="separator:a9ad825ab4d86476bed484ceb4a4a2fab"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4d5a3ff19fd06d7ba7f8a9a7a848a26d" id="r_a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD SparseStorageMode&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a4d5a3ff19fd06d7ba7f8a9a7a848a26d">compile_time_sparse_storage_mode</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component) const</td></tr>
+<tr class="memdesc:a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the fragmentation mode for a component known at compile time to use sparse storage.  <br /></td></tr>
+<tr class="separator:a4d5a3ff19fd06d7ba7f8a9a7a848a26d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee" id="r_a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a90f02e266f83fea3f824dbd8082a90ee"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a90f02e266f83fea3f824dbd8082a90ee">can_use_sparse_component_storage</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> object) const</td></tr>
 <tr class="memdesc:a90f02e266f83fea3f824dbd8082a90ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>object</em> is a usable sparse storage target for component type <em>T</em>.  <br /></td></tr>
@@ -914,6 +920,10 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:ad7ea32faaa6320b799383c71c3e6312f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ad7ea32faaa6320b799383c71c3e6312f">supports_sparse_component_storage</a> ()</td></tr>
 <tr class="memdesc:ad7ea32faaa6320b799383c71c3e6312f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sparse storage currently supports only plain generic components. Pairs, unique components and SoA layouts stay on the normal archetype path.  <br /></td></tr>
 <tr class="separator:ad7ea32faaa6320b799383c71c3e6312f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a621c6bb4aca38024f18f3345a7bd6548" id="r_a621c6bb4aca38024f18f3345a7bd6548"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a621c6bb4aca38024f18f3345a7bd6548"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr bool&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a621c6bb4aca38024f18f3345a7bd6548">uses_compile_time_sparse_storage</a> ()</td></tr>
+<tr class="memdesc:a621c6bb4aca38024f18f3345a7bd6548"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether <em>T</em> has compile-time sparse payload storage.  <br /></td></tr>
+<tr class="separator:a621c6bb4aca38024f18f3345a7bd6548"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -2093,6 +2103,41 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="a9ad825ab4d86476bed484ceb4a4a2fab" name="a9ad825ab4d86476bed484ceb4a4a2fab"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9ad825ab4d86476bed484ceb4a4a2fab">&#9670;&#160;</a></span>can_add_component_storage_trait()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::World::can_add_component_storage_trait </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether a runtime storage trait can be attached to <em>component</em>. Compile-time component storage is authoritative. Runtime component descriptors remain mutable. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True for runtime components or typed sparse components. </dd></dl>
+
+</div>
+</div>
 <a id="a90f02e266f83fea3f824dbd8082a90ee" name="a90f02e266f83fea3f824dbd8082a90ee"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a90f02e266f83fea3f824dbd8082a90ee">&#9670;&#160;</a></span>can_use_sparse_component_storage()</h2>
 
@@ -2418,6 +2463,41 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 
 <p>Returns mutable access to the world component cache. </p>
 <dl class="section return"><dt>Returns</dt><dd><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> cache owned by this world. </dd></dl>
+
+</div>
+</div>
+<a id="a4d5a3ff19fd06d7ba7f8a9a7a848a26d" name="a4d5a3ff19fd06d7ba7f8a9a7a848a26d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4d5a3ff19fd06d7ba7f8a9a7a848a26d">&#9670;&#160;</a></span>compile_time_sparse_storage_mode()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD SparseStorageMode gaia::ecs::World::compile_time_sparse_storage_mode </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the fragmentation mode for a component known at compile time to use sparse storage. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">component</td><td>Typed sparse component entity. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Fragmenting or non-fragmenting sparse mode. </dd></dl>
 
 </div>
 </div>
@@ -8319,6 +8399,42 @@ template&lt;typename Func &gt; </div>
 
 <p>Provides an uncached query set up to work with the parent world. Uncached queries keep only a local immutable plan and rebuild transient matches on demand. </p>
 <dl class="section return"><dt>Returns</dt><dd>Valid query object </dd></dl>
+
+</div>
+</div>
+<a id="a621c6bb4aca38024f18f3345a7bd6548" name="a621c6bb4aca38024f18f3345a7bd6548"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a621c6bb4aca38024f18f3345a7bd6548">&#9670;&#160;</a></span>uses_compile_time_sparse_storage()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD constexpr bool gaia::ecs::World::uses_compile_time_sparse_storage </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether <em>T</em> has compile-time sparse payload storage. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to inspect. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <code>GAIA_STORAGE(Sparse)</code> is authoritative for <em>T</em>. </dd></dl>
 
 </div>
 </div>

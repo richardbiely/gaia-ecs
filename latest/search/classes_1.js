@@ -22,6 +22,8 @@ var searchData=
   ['archetypelookupkey_19',['ArchetypeLookupKey',['../classgaia_1_1ecs_1_1ArchetypeLookupKey.html',1,'gaia::ecs']]],
   ['archetypelookupview_20',['ArchetypeLookupView',['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html',1,'gaia::ecs::vm']]],
   ['archetypematchstamps_21',['ArchetypeMatchStamps',['../structgaia_1_1ecs_1_1ArchetypeMatchStamps.html',1,'gaia::ecs']]],
-  ['auto_5fview_5fpolicy_5finter_22',['auto_view_policy_inter',['../structgaia_1_1mem_1_1detail_1_1auto__view__policy__inter.html',1,'gaia::mem::detail']]],
-  ['auto_5fview_5fpolicy_5finter_3c_20t_2c_20std_3a_3avoid_5ft_3c_20decltype_28t_3a_3agaia_5fdata_5flayout_29_3e_20_3e_23',['auto_view_policy_inter&lt; T, std::void_t&lt; decltype(T::gaia_Data_Layout)&gt; &gt;',['../structgaia_1_1mem_1_1detail_1_1auto__view__policy__inter_3_01T_00_01std_1_1void__t_3_01decltype_cfe7737336f7c33243e15d4959d4722b.html',1,'gaia::mem::detail']]]
+  ['auto_5fstorage_5fpolicy_5finter_22',['auto_storage_policy_inter',['../structgaia_1_1ecs_1_1detail_1_1auto__storage__policy__inter.html',1,'gaia::ecs::detail']]],
+  ['auto_5fstorage_5fpolicy_5finter_3c_20t_2c_20std_3a_3avoid_5ft_3c_20decltype_28t_3a_3agaia_5fdata_5fstorage_29_3e_20_3e_23',['auto_storage_policy_inter&lt; T, std::void_t&lt; decltype(T::gaia_Data_Storage)&gt; &gt;',['../structgaia_1_1ecs_1_1detail_1_1auto__storage__policy__inter_3_01T_00_01std_1_1void__t_3_01decltyd11926ce3dc9e83e7763dd866a1ac7ea.html',1,'gaia::ecs::detail']]],
+  ['auto_5fview_5fpolicy_5finter_24',['auto_view_policy_inter',['../structgaia_1_1mem_1_1detail_1_1auto__view__policy__inter.html',1,'gaia::mem::detail']]],
+  ['auto_5fview_5fpolicy_5finter_3c_20t_2c_20std_3a_3avoid_5ft_3c_20decltype_28t_3a_3agaia_5fdata_5flayout_29_3e_20_3e_25',['auto_view_policy_inter&lt; T, std::void_t&lt; decltype(T::gaia_Data_Layout)&gt; &gt;',['../structgaia_1_1mem_1_1detail_1_1auto__view__policy__inter_3_01T_00_01std_1_1void__t_3_01decltype_cfe7737336f7c33243e15d4959d4722b.html',1,'gaia::mem::detail']]]
 ];
