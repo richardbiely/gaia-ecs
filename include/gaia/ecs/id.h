@@ -28,6 +28,10 @@ namespace gaia {
 			Count = 2
 		};
 
+//! Declares the storage mode used when registering a typed C++ component.
+//! \param storage_name `DataStorageType` enumerator name such as `Table` or `Sparse`.
+#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Data_Storage = ::gaia::ecs::DataStorageType::storage_name
+
 		// ------------------------------------------------------------------------------------
 		// Component
 		// ------------------------------------------------------------------------------------

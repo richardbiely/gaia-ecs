@@ -3456,7 +3456,7 @@ namespace gaia {
 				item.func_create_sparse_store = [](World& world, Entity component) {
 					(void)world.sparse_component_store_mut<FT>(component);
 				};
-				finalize_component_registration(item, false);
+				finalize_component_registration(item, item.comp.storage_type() == DataStorageType::Sparse);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (item.comp.storage_type() == DataStorageType::Sparse)
 						(void)sparse_component_store_mut<FT>(item.entity);

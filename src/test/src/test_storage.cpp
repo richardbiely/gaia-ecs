@@ -272,7 +272,7 @@ TEST_CASE("Sparse DontFragment component can change directly during serial query
 	CHECK(posB.z == doctest::Approx(6.0f));
 }
 
-TEST_CASE("Sparse component uses sparse storage and still fragments") {
+TEST_CASE("Compile-time sparse component uses sparse storage and still fragments") {
 	SparseTestWorld twld;
 
 	const auto& compItem = wld.add<PositionSparse>();

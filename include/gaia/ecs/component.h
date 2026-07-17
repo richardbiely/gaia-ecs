@@ -41,6 +41,22 @@ namespace gaia {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 
+		namespace detail {
+			template <typename, typename = void>
+			struct auto_storage_policy_inter {
+				static constexpr DataStorageType data_storage_type = DataStorageType::Table;
+			};
+			template <typename T>
+			struct auto_storage_policy_inter<T, std::void_t<decltype(T::gaia_Data_Storage)>> {
+				static constexpr DataStorageType data_storage_type = T::gaia_Data_Storage;
+			};
+		} // namespace detail
+
+		//! Returns the storage mode requested by a C++ component type.
+		//! \tparam T Component payload type.
+		template <typename T>
+		inline constexpr DataStorageType auto_storage_policy_v = detail::auto_storage_policy_inter<T>::data_storage_type;
+
 		//----------------------------------------------------------------------
 		// Component verification
 		//----------------------------------------------------------------------

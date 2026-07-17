@@ -73,12 +73,6 @@ ecs::Query make_query(ecs::World& world) {
 	return make_query<use_cached_query_v<TQuery>>(world);
 }
 
-template <typename T>
-void register_sparse_test_component(ecs::World& world) {
-	const auto& item = world.add<T>();
-	world.add(item.entity, ecs::Sparse);
-}
-
 inline util::str_view runtime_component_name_view(const char* name) {
 	GAIA_ASSERT(name != nullptr);
 	return util::str_view(name, (uint32_t)GAIA_STRLEN(name, ecs::ComponentCacheItem::MaxNameLength));
@@ -209,11 +203,12 @@ struct Position {
 	float x, y, z;
 };
 struct PositionSparse {
+	GAIA_STORAGE(Sparse);
 	float x, y, z;
 };
 struct SparseTestWorld: TestWorld {
 	SparseTestWorld() {
-		register_sparse_test_component<PositionSparse>(m_w);
+		m_w.add<PositionSparse>();
 	}
 };
 struct PositionSoA {

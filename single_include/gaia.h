@@ -28007,6 +28007,10 @@ namespace gaia {
 			Count = 2
 		};
 
+//! Declares the storage mode used when registering a typed C++ component.
+//! \param storage_name `DataStorageType` enumerator name such as `Table` or `Sparse`.
+#define GAIA_STORAGE(storage_name) static constexpr auto gaia_Data_Storage = ::gaia::ecs::DataStorageType::storage_name
+
 		// ------------------------------------------------------------------------------------
 		// Component
 		// ------------------------------------------------------------------------------------
@@ -28789,6 +28793,22 @@ namespace gaia {
 		GAIA_NODISCARD constexpr bool component_uses_sparse_storage(Component component) noexcept {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
+
+		namespace detail {
+			template <typename, typename = void>
+			struct auto_storage_policy_inter {
+				static constexpr DataStorageType data_storage_type = DataStorageType::Table;
+			};
+			template <typename T>
+			struct auto_storage_policy_inter<T, std::void_t<decltype(T::gaia_Data_Storage)>> {
+				static constexpr DataStorageType data_storage_type = T::gaia_Data_Storage;
+			};
+		} // namespace detail
+
+		//! Returns the storage mode requested by a C++ component type.
+		//! \tparam T Component payload type.
+		template <typename T>
+		inline constexpr DataStorageType auto_storage_policy_v = detail::auto_storage_policy_inter<T>::data_storage_type;
 
 		//----------------------------------------------------------------------
 		// Component verification
@@ -30273,6 +30293,25 @@ namespace gaia {
 					}
 				}
 
+				//! Returns the compile-time storage mode requested for the component payload.
+				//! \return Component storage mode.
+				static constexpr DataStorageType storage_type() {
+					constexpr auto storageType = auto_storage_policy_v<U>;
+					static_assert(
+							storageType == DataStorageType::Table || storageType == DataStorageType::Sparse,
+							"Unsupported component storage type");
+					static_assert(
+							storageType != DataStorageType::Sparse || CT::Kind == EntityKind::EK_Gen,
+							"GAIA_STORAGE(Sparse) supports only generic components");
+					static_assert(
+							storageType != DataStorageType::Sparse || !std::is_empty_v<U>,
+							"GAIA_STORAGE(Sparse) requires a non-empty component payload");
+					static_assert(
+							storageType != DataStorageType::Sparse || !mem::is_soa_layout_v<U>,
+							"GAIA_STORAGE(Sparse) is not compatible with SoA layouts");
+					return storageType;
+				}
+
 				//! Builds the optional constructor callback for typed AoS payloads.
 				//! \return Constructor callback, or nullptr when construction is trivial or SoA-managed.
 				static constexpr auto func_ctor() {
@@ -30490,7 +30529,7 @@ namespace gaia {
 					desc.name = descName;
 					desc.size = size();
 					desc.alig = alig();
-					desc.storageType = DataStorageType::Table;
+					desc.storageType = storage_type();
 					desc.soa = soa(soaSizes);
 					desc.pSoaSizes = soaSizes.data();
 					desc.hashLookup = hash_lookup();
@@ -63131,7 +63170,7 @@ namespace gaia {
 				item.func_create_sparse_store = [](World& world, Entity component) {
 					(void)world.sparse_component_store_mut<FT>(component);
 				};
-				finalize_component_registration(item, false);
+				finalize_component_registration(item, item.comp.storage_type() == DataStorageType::Sparse);
 				if constexpr (supports_sparse_component_storage<FT>()) {
 					if (item.comp.storage_type() == DataStorageType::Sparse)
 						(void)sparse_component_store_mut<FT>(item.entity);

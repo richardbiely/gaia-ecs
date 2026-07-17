@@ -24,7 +24,7 @@ You get complex queries with relationship traversal, per-component AoS/SoA layou
 
 ***Highlights:***
 * Clean, safe API — no boilerplate, no footguns
-* Hybrid storage model — archetype/chunk storage for fast iteration, sparse storage for low-cost frequent modification
+* Hybrid storage model — table storage for fast iteration, sparse storage for low-cost frequent modification
 * Expressive queries: [relationships](#relationships), wildcards, hierarchy traversal (DFS/BFS), variables
 * Per-component [AoS or SoA data layout](#data-layouts) with minimal code changes
 * Integrated [compile-time](#compile-time-serialization) and [runtime](#runtime-serialization) serialization
@@ -52,7 +52,7 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
     * [Add or remove component](#add-or-remove-component)
     * [Component presence](#component-presence)
     * [Component scope](#component-scope)
-    * [Non-fragmenting and sparse components](#non-fragmenting-and-sparse-components)
+    * [Storage modes and non-fragmenting membership](#storage-modes-and-non-fragmenting-membership)
     * [Name entity](#name-entity)
     * [Component hooks](#component-hooks)
     * [Bulk editing](#bulk-editing)
@@ -157,7 +157,7 @@ The three building blocks are:
 A vehicle is any entity with Position and Velocity. Add Driving and it's a car. Add Flying and it's a plane. The movement systems only care about the components they need — nothing else.
 
 ## Implementation
-**Gaia-ECS** is a hybrid ECS combining archetype-based storage with sparse storage. Unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
+**Gaia-ECS** supports table storage and sparse storage for components. Table storage is implemented with archetypes: unique combinations of components are grouped into archetypes — think of them as [database tables](https://en.wikipedia.org/wiki/Table_(database)) where components are columns and entities are rows.
 
 Each archetype is made up of chunks: fixed-size allocation blocks selected per archetype from a small set of size classes. Compact archetypes use small cache-friendly chunks, while wider dense archetypes can use larger chunks to reduce per-chunk iteration overhead. Components of the same type are laid out linearly within a chunk, minimizing heap allocations and keeping iteration cache-friendly.
 
@@ -434,16 +434,49 @@ const auto velocityComp = w.get("gameplay.render.Velocity");
 
 `World::module(...)` only creates or finds the scope hierarchy. `World::scope(...)` is the step that makes registration and relative lookup happen inside that scope.
 
-### Non-fragmenting and sparse components
+### Storage modes and non-fragmenting membership
 
-By default, components and relationships are fragmenting. Adding or removing them changes the entity archetype, which is great for structural queries and dense iteration, but it also means more archetype movement and more fragmentation when the data is highly dynamic.
+Gaia-ECS provides two component storage modes:
 
-If this is undesired, there is also an option to use sparse storage and optional non-fragmenting membership. The two traits are:
+- **Table storage** is the default. Internally, the payload is stored in an archetype chunk, providing fast sequential iteration. Its memory address can change when the entity moves between archetypes.
+- **Sparse storage** stores the payload in a separate sparse store. It provides a stable memory address, but does not provide the sequential access of table storage.
 
-- `ecs::Sparse`
-- `ecs::DontFragment`
+Storage mode only determines where the payload lives. It does not determine whether the component id participates in archetype identity. A component using sparse storage still changes the entity's archetype when it is added or removed.
 
-To use sparse storage with non-fragmenting membership:
+#### Selecting a storage mode
+
+For a typed C++ component, the storage policy can be declared with `GAIA_STORAGE`:
+
+```cpp
+struct Cooldown {
+  GAIA_STORAGE(Sparse);
+  float value = 0.0f;
+};
+
+ecs::World w;
+auto e = w.add();
+w.add<Cooldown>(e);
+auto cooldownValue = w.set<Cooldown>(e);
+cooldownValue.value = 1.5f;
+```
+
+`GAIA_STORAGE(Table)` is the default and usually does not need to be written. The equivalent runtime configuration is applied to the component entity before the component has any instances:
+
+```cpp
+struct Cooldown {
+  float value = 0.0f;
+};
+
+ecs::World w;
+// Register the component
+const auto& cooldown = w.add<Cooldown>();
+// Use sparse storage instead of the default table storage.
+w.add(cooldown.entity, ecs::Sparse);
+```
+
+#### Non-fragmenting membership
+
+`ecs::DontFragment` controls archetype membership, not storage mode directly. It keeps the component id outside the entity's archetype, so adding or removing the component does not move the entity between archetypes. Table storage requires the component id to identify an archetype column, so Gaia-ECS automatically uses sparse storage for a `DontFragment` component.
 
 ```cpp
 struct Cooldown {
@@ -452,10 +485,8 @@ struct Cooldown {
 
 ecs::World w;
 const auto& cooldown = w.add<Cooldown>();
-// Store this component's data in sparse storage instead of archetype chunks.
-w.add(cooldown.entity, ecs::Sparse);
-// Make sure this component is not a part of the archetype id-wise.
-// This means that adding or removing it won't make the parent entity change its archetype.
+// Keep Cooldown membership outside archetype identity.
+// Sparse payload storage is implied; adding ecs::Sparse would be redundant.
 w.add(cooldown.entity, ecs::DontFragment);
 
 auto e = w.add();
@@ -464,46 +495,30 @@ auto cooldownValue = w.set<Cooldown>(e);
 cooldownValue.value = 1.5f;
 ```
 
-That gives three practical outcomes:
+The resulting configurations are:
 
-- default:
-  - payload stored in chunks (memory address can change)
-  - the id lives in the archetype (add/del fragments)
-  - best for core simulation data, dense iteration, and structural queries
-
-- `Sparse`:
-  - payload stored in sparse storage (stable memory address)
-  - the id lives in the archetype (add/del fragments)
-  - good when the payload should stay out of chunks but the component should remain structurally visible
-
-- `DontFragment`:
-  - payload stored in sparse storage (stable memory address)
-  - the id does not live in the archetype (add/del does not fragment)
-  - this is effectively `Sparse` plus "do not participate in archetype identity"
-  - the usual choice for optional, state-like, or frequently toggled data
+| Traits | Storage mode | Component id | Add/remove changes archetype |
+|---|---|---|---|
+| None | `Table` | In archetype | Yes |
+| `Sparse` | `Sparse` | In archetype | Yes |
+| `DontFragment` | `Sparse` (implied) | Outside archetype | No |
 
 Rule of thumb:
-- keep hot, common, frequently iterated data fragmenting and archetype-stored
-- use plain `Sparse` when the payload should use sparse storage but the component should still participate in structural matching
-- use `DontFragment` for cooldowns, temporary status effects, optional markers, editor/runtime state, and other frequently changing data
-- avoid sparse storage for components like `Position` or `Velocity` which benefit greatly from sequential archetype access, unless profiling clearly justifies it
+- Keep hot, common, frequently iterated data in table storage.
+- Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
+- Use `DontFragment` for frequently toggled optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.
+- Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
-Because `DontFragment` components live outside archetype identity, adding or removing an already-registered
-`DontFragment` component from an existing entity does not move that entity to another archetype. This makes direct
-add/remove safe during serial query iteration. If the active query also filters on the same component, later rows are
-matched against the current world state, not a snapshot taken before the query started.
+Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
 
 >**NOTE:<br/>** 
-SoA components do not support sparse storage and stay archetype-stored. `ecs::Sparse` applies only to plain AoS generic components.<br/>
+SoA components do not support sparse storage and remain in table storage. `GAIA_STORAGE(Sparse)` and `ecs::Sparse` apply only to plain AoS generic components.<br/>
 
 >**NOTE:<br/>** 
-Changing the storage mode is only supported before the component
-has instances attached to entities.<br/>
+Runtime storage and fragmentation traits must be set before the component has instances attached to entities.<br/>
 
 >**NOTE:<br/>**
-`ecs::Sparse` and `ecs::DontFragment` are sticky component traits. Once set on a component entity, removing the
-relation later does not revert the storage or fragmentation behavior. `ecs::DontFragment` also implies
-sparse storage, so adding both traits is redundant.<br/>
+`ecs::Sparse` and `ecs::DontFragment` are sticky component traits. Removing either relation from the component entity does not revert its behavior.<br/>
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
@@ -4004,9 +4019,9 @@ if (cursor.field("seconds")) {
 }
 ```
 
-`get_raw(...)` and `mut_raw(...)` access a complete AoS runtime component as bytes. They work with components in archetype/chunk or sparse storage. `mut_raw(...)` does not emit write notifications. Call `modify_raw(...)` afterwards when set hooks or `OnSet` observers must run. `set_raw(...)` copies the complete value and emits the notification for you.
+`get_raw(...)` and `mut_raw(...)` access a complete AoS runtime component as bytes. They work with components in table or sparse storage. `mut_raw(...)` does not emit write notifications. Call `modify_raw(...)` afterwards when set hooks or `OnSet` observers must run. `set_raw(...)` copies the complete value and emits the notification for you.
 
-Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports archetype/chunk components and exact relationship pairs with table SoA payloads, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
+Runtime SoA components store each field separately. Use `get_raw_field(entity, component, fieldIndex)` to read one field and `mut_raw_field(...)` to edit one. Iterator callbacks can use `view_raw_field(termIdx, fieldIdx)` and `view_raw_field_mut(...)` for the current contiguous field range without resolving each entity separately. `sview_raw_field_mut(...)` stays silent until paired with `modify_raw(termIdx)`. The field index follows the field order used when the component was registered. Entity-scoped field access supports generic components and exact relationship pairs in table storage, but not sparse components. Iterator field views support directly stored generic table components and exact relationship pair terms with table SoA payloads. Call `modify_raw(...)` after editing through `mut_raw_field(...)` when write notifications are required.
 
 `ComponentCursor` selects reflected fields for both AoS and SoA components. Primitive setters such as `f32(...)` emit the component write notification automatically. Fixed arrays and adapted dynamic vectors use `count()` and `elem(index)` before reading or writing an element.
 
@@ -4070,7 +4085,7 @@ auto affinityForAnyone = w.query().all(ecs::Pair(affinity.entity, ecs::All));
 
 Use an exact pair when reading or writing its value because a wildcard query can match several targets. Adding, removing, and changing relationship data triggers the same lifecycle hooks and `OnSet` notifications as component data.
 
-Semantic JSON writes the relationship as `(Relation,Target)`, such as `(Affinity,Bob)`. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with archetype/chunk AoS and table SoA storage, not sparse components.
+Semantic JSON writes the relationship as `(Relation,Target)`, such as `(Affinity,Bob)`. Register the relation before loading and give each target a stable name before saving. Runtime relationship data currently works with AoS and SoA payloads in table storage, not sparse storage.
 
 ### Querying runtime components
 
