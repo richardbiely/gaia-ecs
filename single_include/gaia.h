@@ -19400,6 +19400,17 @@ namespace gaia {
 
 			constexpr static sparse_id InvalidSparseId = (sparse_id)-1;
 			constexpr static size_type InvalidDenseId = BadIndex - 1;
+			inline constexpr sparse_id EmptyDenseId = InvalidSparseId;
+
+			//! Returns dense data or a valid shared sentinel for an unallocated empty array.
+			//! \tparam Dense Dense sparse-id array type.
+			//! \param dense Dense sparse-id array.
+			//! \return Pointer suitable for constructing an empty or populated iterator range.
+			template <typename Dense>
+			GAIA_NODISCARD auto sparse_dense_data(Dense& dense) noexcept {
+				auto* pData = dense.data();
+				return pData != nullptr ? pData : &EmptyDenseId;
+			}
 
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename>
 			class sparse_page;
@@ -19433,11 +19444,11 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
-			sparse_id* m_pDense;
+			const sparse_id* m_pDense;
 			page_type* m_pPages;
 
 		public:
-			sparse_iterator(sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
+			sparse_iterator(const sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
 			reference operator*() const {
 				const auto sid = *m_pDense;
@@ -19629,11 +19640,10 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
-			value_type* m_pDense;
+			const value_type* m_pDense;
 
 		public:
-			sparse_iterator(value_type* pDense): m_pDense(pDense) {}
-			sparse_iterator(const value_type* pDense): m_pDense(const_cast<value_type*>(pDense)) {}
+			sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
 			value_type operator*() const {
 				const auto sid = *m_pDense;
@@ -19721,10 +19731,10 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
-			value_type* m_pDense;
+			const value_type* m_pDense;
 
 		public:
-			const_sparse_iterator(value_type* pDense): m_pDense(pDense) {}
+			const_sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
 			value_type operator*() const {
 				const auto sid = *m_pDense;
@@ -20621,39 +20631,27 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD auto begin() noexcept {
-				GAIA_ASSERT(!empty());
-
-				return iterator(m_dense.data(), m_pages.data());
+				return iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto cbegin() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto end() noexcept {
-				GAIA_ASSERT(!empty());
-
-				return iterator(m_dense.data() + size(), m_pages.data());
+				return iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data() + size(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto cend() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data() + size(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
@@ -20908,33 +20906,27 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD auto begin() noexcept {
-				GAIA_ASSERT(!empty());
-				return iterator(m_dense.data());
+				return iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data());
+				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto cbegin() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data());
+				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto end() noexcept {
-				GAIA_ASSERT(!empty());
-				return iterator(m_dense.data() + size());
+				return iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data() + size());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD auto cend() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data() + size());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
@@ -55052,7 +55044,12 @@ namespace gaia {
 					return true;
 				}
 
-				//! Returns whether compile-time sparse arguments can use prepared chunk iteration.
+				//! Returns whether typed arguments can use direct chunk evaluation when sparse terms are present.
+				//! \param world World used to resolve component storage and inherited term metadata.
+				//! \param queryInfo Prepared query terms and filter metadata.
+				//! \param pDescs Typed argument descriptors to validate.
+				//! \param descCnt Number of descriptors in \p pDescs.
+				//! \return True if every descriptor can be evaluated from the current chunk or its sparse side store.
 				GAIA_NODISCARD static bool can_use_sparse_chunk_term_eval_descs(
 						World& world, const QueryInfo& queryInfo, const DirectChunkArgEvalDesc* pDescs, uint32_t descCnt) {
 					if (queryInfo.has_entity_filter_terms())
@@ -55081,6 +55078,13 @@ namespace gaia {
 					return true;
 				}
 
+				//! Invokes an iterator callback over an ordered direct-entity sequence.
+				//! 	param Func Callback type invocable with `Iter&`.
+				//! \param queryInfo Prepared query cache and term metadata.
+				//! \param entities Entities in the order in which the callback must observe them.
+				//! \param constraints Entity-row constraints represented by each iterator view.
+				//! \param func Callback invoked for cached chunk runs or one-row direct-entity views.
+				//! \note Completes and clears tracked iterator writes after every callback invocation.
 				template <typename Func>
 				void each_direct_entities_iter(
 						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, Func func) {
@@ -55169,7 +55173,16 @@ namespace gaia {
 					});
 				}
 
-				//! Runs a typed each() callback over directly seeded entities.
+				//! Runs an erased typed callback over entities selected by a direct sparse or target-term seed.
+				//! \param queryInfo Prepared query cache and term metadata.
+				//! \param constraints Constraints applied while selecting direct entities and constructing iterator views.
+				//! \param pFunc Opaque storage for the typed callback object.
+				//! \param state Prepared typed-argument bindings and write metadata.
+				//! \param runDirectChunk Executes \p pFunc for a prepared direct chunk or entity iterator.
+				//! \param needsInheritedArgIds Whether inherited arguments require per-entity id resolution.
+				//! \param invokeInherited Executes \p pFunc with inherited argument ids resolved for one entity.
+				//! \note Writable execution snapshots seed entities before invoking callbacks so structural changes cannot
+				//! invalidate traversal.
 				void each_direct_inter(
 						QueryInfo& queryInfo, Constraints constraints, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
@@ -59866,8 +59879,6 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					if (data.empty())
-						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -59932,8 +59943,6 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					if (data.empty())
-						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -59983,8 +59992,6 @@ namespace gaia {
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
 					const auto& data = static_cast<const Store*>(pStoreRaw)->data;
-					if (data.empty())
-						return true;
 					for (const auto& item: data) {
 						if (!func(pCtx, item.entity))
 							return false;

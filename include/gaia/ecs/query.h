@@ -5029,7 +5029,12 @@ namespace gaia {
 					return true;
 				}
 
-				//! Returns whether compile-time sparse arguments can use prepared chunk iteration.
+				//! Returns whether typed arguments can use direct chunk evaluation when sparse terms are present.
+				//! \param world World used to resolve component storage and inherited term metadata.
+				//! \param queryInfo Prepared query terms and filter metadata.
+				//! \param pDescs Typed argument descriptors to validate.
+				//! \param descCnt Number of descriptors in \p pDescs.
+				//! \return True if every descriptor can be evaluated from the current chunk or its sparse side store.
 				GAIA_NODISCARD static bool can_use_sparse_chunk_term_eval_descs(
 						World& world, const QueryInfo& queryInfo, const DirectChunkArgEvalDesc* pDescs, uint32_t descCnt) {
 					if (queryInfo.has_entity_filter_terms())
@@ -5058,6 +5063,13 @@ namespace gaia {
 					return true;
 				}
 
+				//! Invokes an iterator callback over an ordered direct-entity sequence.
+				//! 	param Func Callback type invocable with `Iter&`.
+				//! \param queryInfo Prepared query cache and term metadata.
+				//! \param entities Entities in the order in which the callback must observe them.
+				//! \param constraints Entity-row constraints represented by each iterator view.
+				//! \param func Callback invoked for cached chunk runs or one-row direct-entity views.
+				//! \note Completes and clears tracked iterator writes after every callback invocation.
 				template <typename Func>
 				void each_direct_entities_iter(
 						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, Func func) {
@@ -5146,7 +5158,16 @@ namespace gaia {
 					});
 				}
 
-				//! Runs a typed each() callback over directly seeded entities.
+				//! Runs an erased typed callback over entities selected by a direct sparse or target-term seed.
+				//! \param queryInfo Prepared query cache and term metadata.
+				//! \param constraints Constraints applied while selecting direct entities and constructing iterator views.
+				//! \param pFunc Opaque storage for the typed callback object.
+				//! \param state Prepared typed-argument bindings and write metadata.
+				//! \param runDirectChunk Executes \p pFunc for a prepared direct chunk or entity iterator.
+				//! \param needsInheritedArgIds Whether inherited arguments require per-entity id resolution.
+				//! \param invokeInherited Executes \p pFunc with inherited argument ids resolved for one entity.
+				//! \note Writable execution snapshots seed entities before invoking callbacks so structural changes cannot
+				//! invalidate traversal.
 				void each_direct_inter(
 						QueryInfo& queryInfo, Constraints constraints, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,

@@ -219,8 +219,6 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					if (data.empty())
-						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -285,8 +283,6 @@ namespace gaia {
 				}
 
 				void collect_entities(cnt::darray<Entity>& out) const {
-					if (data.empty())
-						return;
 					out.reserve(out.size() + (uint32_t)data.size());
 					for (const auto& item: data)
 						out.push_back(item.entity);
@@ -336,8 +332,6 @@ namespace gaia {
 				};
 				store.func_for_each_entity = [](const void* pStoreRaw, void* pCtx, bool (*func)(void*, Entity)) {
 					const auto& data = static_cast<const Store*>(pStoreRaw)->data;
-					if (data.empty())
-						return true;
 					for (const auto& item: data) {
 						if (!func(pCtx, item.entity))
 							return false;

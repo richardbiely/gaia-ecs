@@ -22,6 +22,17 @@ namespace gaia {
 
 			constexpr static sparse_id InvalidSparseId = (sparse_id)-1;
 			constexpr static size_type InvalidDenseId = BadIndex - 1;
+			inline constexpr sparse_id EmptyDenseId = InvalidSparseId;
+
+			//! Returns dense data or a valid shared sentinel for an unallocated empty array.
+			//! \tparam Dense Dense sparse-id array type.
+			//! \param dense Dense sparse-id array.
+			//! \return Pointer suitable for constructing an empty or populated iterator range.
+			template <typename Dense>
+			GAIA_NODISCARD auto sparse_dense_data(Dense& dense) noexcept {
+				auto* pData = dense.data();
+				return pData != nullptr ? pData : &EmptyDenseId;
+			}
 
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename>
 			class sparse_page;
@@ -55,11 +66,11 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, void>;
 
-			sparse_id* m_pDense;
+			const sparse_id* m_pDense;
 			page_type* m_pPages;
 
 		public:
-			sparse_iterator(sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
+			sparse_iterator(const sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
 			reference operator*() const {
 				const auto sid = *m_pDense;
@@ -251,11 +262,10 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
-			value_type* m_pDense;
+			const value_type* m_pDense;
 
 		public:
-			sparse_iterator(value_type* pDense): m_pDense(pDense) {}
-			sparse_iterator(const value_type* pDense): m_pDense(const_cast<value_type*>(pDense)) {}
+			sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
 			value_type operator*() const {
 				const auto sid = *m_pDense;
@@ -343,10 +353,10 @@ namespace gaia {
 
 			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
 
-			value_type* m_pDense;
+			const value_type* m_pDense;
 
 		public:
-			const_sparse_iterator(value_type* pDense): m_pDense(pDense) {}
+			const_sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
 			value_type operator*() const {
 				const auto sid = *m_pDense;
@@ -1243,39 +1253,27 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD auto begin() noexcept {
-				GAIA_ASSERT(!empty());
-
-				return iterator(m_dense.data(), m_pages.data());
+				return iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto cbegin() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto end() noexcept {
-				GAIA_ASSERT(!empty());
-
-				return iterator(m_dense.data() + size(), m_pages.data());
+				return iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data() + size(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD auto cend() const noexcept {
-				GAIA_ASSERT(!empty());
-
-				return const_iterator(m_dense.data() + size(), m_pages.data());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
@@ -1530,33 +1528,27 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD auto begin() noexcept {
-				GAIA_ASSERT(!empty());
-				return iterator(m_dense.data());
+				return iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto begin() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data());
+				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto cbegin() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data());
+				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
 			GAIA_NODISCARD auto end() noexcept {
-				GAIA_ASSERT(!empty());
-				return iterator(m_dense.data() + size());
+				return iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD auto end() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data() + size());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD auto cend() const noexcept {
-				GAIA_ASSERT(!empty());
-				return const_iterator(m_dense.data() + size());
+				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {

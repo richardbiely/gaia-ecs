@@ -1658,6 +1658,45 @@ TEST_CASE("Containers - sparse_storage") {
 	}
 }
 
+template <typename Storage>
+void sparse_storage_test_empty_iteration(Storage& arr) {
+	CHECK(arr.begin() == arr.end());
+	CHECK(arr.end() - arr.begin() == 0);
+	CHECK(arr.begin() + 0 == arr.end());
+
+	const auto& arrConst = arr;
+	CHECK(arrConst.begin() == arrConst.end());
+	CHECK(arrConst.cbegin() == arrConst.cend());
+	CHECK(arrConst.end() - arrConst.begin() == 0);
+	CHECK(arrConst.cend() - arrConst.cbegin() == 0);
+	CHECK(arrConst.cbegin() + 0 == arrConst.cend());
+
+	uint32_t count = 0;
+	for ([[maybe_unused]] const auto& item: arr)
+		++count;
+	CHECK(count == 0);
+}
+
+TEST_CASE("Containers - sparse_storage empty iteration") {
+	SUBCASE("payload storage") {
+		cnt::sparse_storage<SparseTestItem> arr;
+		sparse_storage_test_empty_iteration(arr);
+
+		arr.add(SparseTestItem{1, 1});
+		arr.clear();
+		sparse_storage_test_empty_iteration(arr);
+	}
+
+	SUBCASE("tag storage") {
+		cnt::sparse_storage<Empty> arr;
+		sparse_storage_test_empty_iteration(arr);
+
+		arr.add(1);
+		arr.clear();
+		sparse_storage_test_empty_iteration(arr);
+	}
+}
+
 TEST_CASE("Containers - sparse_storage empty page reuse and cross-page delete remap") {
 	SUBCASE("trivial payload") {
 		cnt::sparse_storage<SparseTestItem> arr;
