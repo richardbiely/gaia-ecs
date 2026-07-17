@@ -35,6 +35,50 @@ namespace {
 	}
 } // namespace
 
+TEST_CASE("Bare Requires prevents direct trait removal") {
+	TestWorld twld;
+
+	const auto requiredTrait = wld.add();
+	const auto removableTrait = wld.add();
+	const auto entity = wld.add();
+	wld.add(requiredTrait, ecs::Requires);
+	wld.add(entity, requiredTrait);
+	wld.add(entity, removableTrait);
+
+	wld.del(entity, requiredTrait);
+	wld.del(entity, removableTrait);
+	CHECK(wld.has_direct(entity, requiredTrait));
+	CHECK_FALSE(wld.has_direct(entity, removableTrait));
+}
+
+TEST_CASE("Bare Requires deletion check ignores unassigned pairs") {
+	TestWorld twld;
+
+	const auto relation = wld.add();
+	const auto target = wld.add();
+	const auto entity = wld.add();
+	wld.del(entity, ecs::Pair(relation, target));
+
+	CHECK(wld.has(entity));
+}
+
+TEST_CASE("Sparse storage traits carry Requires") {
+	SparseTestWorld twld;
+
+	CHECK(wld.has_direct(ecs::Sparse, ecs::Requires));
+	CHECK(wld.has_direct(ecs::DontFragment, ecs::Requires));
+}
+
+TEST_CASE("Required DontFragment cannot be removed from a relation") {
+	SparseTestWorld twld;
+
+	const auto relation = wld.add();
+	wld.add(relation, ecs::Exclusive);
+	wld.add(relation, ecs::DontFragment);
+	wld.del(relation, ecs::DontFragment);
+	CHECK(wld.has_direct(relation, ecs::DontFragment));
+}
+
 TEST_CASE("Sparse DontFragment component and non-fragmenting relation storage") {
 	SparseTestWorld twld;
 

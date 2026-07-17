@@ -506,7 +506,7 @@ SoA components do not support sparse storage and remain in table storage. `GAIA_
 Runtime component storage and fragmentation traits must be set before the component has instances attached to entities. They do not override a typed component's `GAIA_STORAGE` policy.<br/>
 
 >**NOTE:<br/>**
-Accepted `ecs::Sparse` and `ecs::DontFragment` component traits are sticky. Removing either relation from the component entity does not revert its behavior.<br/>
+Once a component is marked `ecs::Sparse` or `ecs::DontFragment`, it stays that way. Both entities carry the [ecs::Requires trait](#entity-dependencies).<br/>
 
 ### Component presence
 Whether or not a certain component is associated with an entity can be checked in two different ways. Either via an instance of a World object or by the means of `Iter` which can be acquired when running [queries](#query).
@@ -2490,9 +2490,23 @@ w.relations(rabbit, salad, [&related_to_salad](ecs::Entity entity) {
 ```
 
 ### Entity dependencies
-Defining dependencies among entities is made possible via the (Requires, target) relationship.
+`ecs::Requires` can be used on its own or as a relationship.
 
-When adding an entity with a dependency to some source it is guaranteed the dependency will always be present on the source as well. It will also be impossible to delete it.
+Add it directly to an id when that id must stay attached:
+
+```cpp
+ecs::World w;
+ecs::Entity requiredTag = w.add();
+ecs::Entity e = w.add();
+
+w.add(requiredTag, ecs::Requires);
+w.add(e, requiredTag);
+w.del(e, requiredTag); // does nothing
+```
+
+Gaia uses this form for `ecs::Sparse` and `ecs::DontFragment`.
+
+Use `(Requires, target)` when one id depends on another. Adding the first id also adds its dependencies, and those dependencies cannot be removed while they are still needed.
 
 ```cpp
 ecs::World w;
@@ -2503,20 +2517,16 @@ ecs::Entity carrot = w.add();
 w.add(carrot, ecs::Pair(ecs::Requires, herbivore));
 w.add(herbivore, ecs::Pair(ecs::Requires, animal));
 
-// Carrot depends on herbivore so the later is added as well.
-// At the same time, herbivore depends on animal so animal is added, too.
+// Adding carrot also adds herbivore and animal.
 w.add(rabbit, carrot);
-const bool isHerbivore = w.has(rabbit, herbivore)); // true
+const bool isHerbivore = w.has(rabbit, herbivore); // true
 const bool isAnimal = w.has(rabbit, animal); // true
 
-// Animal will not be removed from rabbit because of the dependency chain.
-// Carrot depends on herbivore which depends on animal.
+// Both dependencies stay while carrot is present.
 w.del(rabbit, animal); // does nothing
-// Herbivore will not be removed from rabbit because of the dependency chain.
-// Carrot depends on herbivore.
 w.del(rabbit, herbivore); // does nothing
 
-// Carrot can be deleted. It requires that herbivore is present which is true.
+// Carrot itself can still be removed.
 w.del(rabbit, carrot); // removes carrot from rabbit
 ```
 

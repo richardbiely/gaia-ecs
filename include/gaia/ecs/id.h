@@ -600,6 +600,10 @@ namespace gaia {
 		struct GAIA_API Remove_ {};
 		struct GAIA_API Delete_ {};
 		struct GAIA_API Error_ {};
+		//! Marks an id as required.
+		//! Used directly on a non-pair id, it prevents removing that id from its owners. Used as the relation in
+		//! `(Requires, target)`, it adds the target with the requiring id and prevents removing the target while the
+		//! requiring id remains present.
 		struct GAIA_API Requires_ {};
 		struct GAIA_API CantCombine_ {};
 		struct GAIA_API Exclusive_ {};
@@ -645,6 +649,8 @@ namespace gaia {
 		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
+		//! Runtime entity for `Requires_`.
+		//! \see Requires_
 		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);

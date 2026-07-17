@@ -28571,6 +28571,10 @@ namespace gaia {
 		struct GAIA_API Remove_ {};
 		struct GAIA_API Delete_ {};
 		struct GAIA_API Error_ {};
+		//! Marks an id as required.
+		//! Used directly on a non-pair id, it prevents removing that id from its owners. Used as the relation in
+		//! `(Requires, target)`, it adds the target with the requiring id and prevents removing the target while the
+		//! requiring id remains present.
 		struct GAIA_API Requires_ {};
 		struct GAIA_API CantCombine_ {};
 		struct GAIA_API Exclusive_ {};
@@ -28616,6 +28620,8 @@ namespace gaia {
 		inline Entity Delete = Entity(6, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Error = Entity(7, 0, false, false, EntityKind::EK_Gen);
 		// Entity dependencies
+		//! Runtime entity for `Requires_`.
+		//! \see Requires_
 		inline Entity Requires = Entity(8, 0, false, false, EntityKind::EK_Gen);
 		inline Entity CantCombine = Entity(9, 0, false, false, EntityKind::EK_Gen);
 		inline Entity Exclusive = Entity(10, 0, false, false, EntityKind::EK_Gen);
@@ -60766,7 +60772,7 @@ namespace gaia {
 			bool m_hasOnDeleteTargetPolicy = false;
 			//! True once any entity has a CantCombine relation and add paths must inspect combination constraints.
 			bool m_hasCantCombinePolicy = false;
-			//! True once any entity has a Requires relation and add/remove paths must inspect requirements.
+			//! True once any entity has a `(Requires, target)` pair and dependency paths must inspect relation targets.
 			bool m_hasRequiresPolicy = false;
 			//! Relation-target lookup for stored pair records.
 			PairLookup m_pairLookup;
@@ -62700,7 +62706,7 @@ namespace gaia {
 					if (has_archetype_id(entity))
 						return false;
 
-					if (is_sticky_component_trait(entity) && !m_world.can_add_component_storage_trait(m_entity))
+					if (is_component_storage_trait(entity) && !m_world.can_add_component_storage_trait(m_entity))
 						return false;
 
 					try_set_flags(entity, true);
@@ -62942,21 +62948,28 @@ namespace gaia {
 					handle_add<true>(entity);
 				}
 
+				//! Returns whether an id configures component storage or archetype fragmentation.
+				//! \param entity Id to inspect.
+				//! \return True for `Sparse` and `DontFragment`.
+				GAIA_NODISCARD static bool is_component_storage_trait(Entity entity) noexcept {
+					return !entity.pair() && (entity.id() == DontFragment.id() || entity.id() == Sparse.id());
+				}
+
+				//! Returns whether an id can be removed from the entity under construction.
+				//! Bare `Requires` on a non-pair id marks every direct instance as non-removable, while `(Requires, target)`
+				//! protects a target only while another id in the same archetype requires it.
+				//! \param entity Id requested for removal.
+				//! \return True when no direct or dependency requirement protects the id.
 				GAIA_NODISCARD bool can_del(Entity entity) const noexcept {
+					if (!entity.pair() && m_world.has_direct(entity, Requires))
+						return false;
 					if (has_Requires_tgt(entity))
 						return false;
 
 					return true;
 				}
 
-				GAIA_NODISCARD bool is_sticky_component_trait(Entity entity) const noexcept {
-					return !entity.pair() && m_entity.comp() && (entity.id() == DontFragment.id() || entity.id() == Sparse.id());
-				}
-
 				bool del_inter(Entity entity) {
-					if (is_sticky_component_trait(entity))
-						return true;
-
 					if (!can_del(entity))
 						return false;
 
@@ -75356,10 +75369,12 @@ namespace gaia {
 						.add(Acyclic);
 				EntityBuilder(*this, DontFragment) //
 						.add(Core)
+						.add(Requires)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
 				EntityBuilder(*this, Sparse) //
 						.add(Core)
+						.add(Requires)
 						.add(Pair(OnDelete, Error))
 						.add(Acyclic);
 				EntityBuilder(*this, Acyclic) //
