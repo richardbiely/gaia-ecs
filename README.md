@@ -4647,7 +4647,7 @@ Formatting is controlled by `-DGAIA_FORMAT_SINGLE_HEADER=ON/OFF` and defaults to
 If formatting is enabled but `clang-format` is not available the header is still generated, it just skips the formatting pass.
 
 ## Conan
-Gaia-ECS also ships with a Conan 2 recipe in [`pkg/conan`](pkg/conan).
+Gaia-ECS also ships with a Conan 2 recipe in [`pkg/conan`](https://github.com/richardbiely/gaia-ecs/tree/main/pkg/conan).
 
 To validate the package locally:
 ```bash
