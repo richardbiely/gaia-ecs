@@ -25,6 +25,7 @@ namespace gaia {
 			//! Data stored in sparse storage
 			Sparse,
 
+			//! Number of supported storage modes.
 			Count = 2
 		};
 
@@ -123,9 +124,9 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		enum EntityKind : uint8_t {
-			// Generic entity, one per entity
+			//! Generic entity with one value per entity.
 			EK_Gen = 0,
-			// Unique entity, one per chunk
+			//! Unique entity with one value per chunk.
 			EK_Uni
 		};
 
@@ -156,6 +157,7 @@ namespace gaia {
 			using TTypeOriginal = T;
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct has_entity_kind: std::false_type {};
@@ -202,6 +204,7 @@ namespace gaia {
 				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
 			};
 		} // namespace detail
+		//! \endcond
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
@@ -213,15 +216,17 @@ namespace gaia {
 		// Pair helpers
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct pair_base {};
 		} // namespace detail
+		//! \endcond
 
 		//! Wrapper for two types forming a relationship pair.
 		//! Depending on what types are used to form a pair it can contain a value.
 		//! To determine the storage type the following logic is applied:
-		//! If @a Rel is non-empty, the storage type is Rel.
-		//! If @a Rel is empty and @a Tgt is non-empty, the storage type is Tgt.
+		//! If \a Rel is non-empty, the storage type is Rel.
+		//! If \a Rel is empty and \a Tgt is non-empty, the storage type is Tgt.
 		//! \tparam Rel relation part of the relationship
 		//! \tparam Tgt target part of the relationship
 		template <typename Rel, typename Tgt>
@@ -364,6 +369,7 @@ namespace gaia {
 
 		inline static const Entity EntityBad = Entity(IdentifierBad);
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct EntityLoadRemapState {
 				uint32_t savedLastCoreComponentId = 0;
@@ -444,6 +450,7 @@ namespace gaia {
 				return remap_loaded_entity(entity, state.savedLastCoreComponentId, state.currLastCoreComponentId);
 			}
 		} // namespace detail
+		//! \endcond
 
 		template <typename Serializer>
 		inline void Entity::save(Serializer& s) const {
@@ -571,6 +578,7 @@ namespace gaia {
 		// Core components
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, typename U = void>
 			struct actual_type {
@@ -583,6 +591,7 @@ namespace gaia {
 				using type = typename component_type<storage_type>::type;
 			};
 		} // namespace detail
+		//! \endcond
 
 		template <typename T>
 		using actual_type_t = typename detail::actual_type<T>::type;

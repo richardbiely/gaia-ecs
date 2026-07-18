@@ -39,7 +39,7 @@ namespace gaia {
 		};
 
 		//! User-authored runtime field descriptor.
-		//! A count of 0 means scalar; positive values describe a fixed inline array.
+		//! A count of 0 means scalar. Positive values describe a fixed inline array.
 		struct RuntimeFieldDesc final {
 			//! Field symbol.
 			util::str_view name{};
@@ -113,7 +113,7 @@ namespace gaia {
 			bool (*count)(void*, const RuntimeSequenceScope&, uint32_t&) = nullptr;
 			//! Selects one element by index. Required for traversal.
 			bool (*element)(void*, const RuntimeSequenceScope&, uint32_t, RuntimeSequenceElement&) = nullptr;
-			//! Resizes the sequence. Optional; required for JSON load into dynamic sequences.
+			//! Resizes the sequence. Optional. Required for JSON load into dynamic sequences.
 			bool (*resize)(void*, RuntimeSequenceScope&, uint32_t) = nullptr;
 			//! Commits a projected element after cursor writes. Optional for direct element pointers.
 			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
@@ -188,8 +188,8 @@ namespace gaia {
 			DataStorageType storageType = DataStorageType::Table;
 			//! Number of SoA elements, 0 means AoS.
 			uint32_t soa = 0;
-			//! Per-element SoA sizes when @a soa is non-zero. The array must contain @a soa non-zero entries and
-			//! their sum must not exceed @a size.
+			//! Per-element SoA sizes when \a soa is non-zero. The array must contain \a soa non-zero entries and
+			//! their sum must not exceed \a size.
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};

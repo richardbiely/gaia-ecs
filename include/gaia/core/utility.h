@@ -36,6 +36,7 @@ namespace gaia {
 #endif
 
 	namespace core {
+		//! \cond INTERNAL
 		namespace detail {
 			//! Removes reference and pointer qualifiers for internal type traits.
 			//! \tparam T Type to normalize.
@@ -123,36 +124,37 @@ namespace gaia {
 				return il.begin();
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Tag type used to request zero-initialization in APIs that accept marker objects.
 		struct zero_t {
-			//! Creates the zero-initialization tag.
 			explicit constexpr zero_t() = default;
 		};
+
 		//! Shared zero-initialization tag instance.
 		inline constexpr zero_t zero{};
 
-		//! Removes both reference and pointer qualifiers from @a T.
+		//! Removes both reference and pointer qualifiers from \a T.
 		//! \tparam T Type to normalize.
 		template <typename T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
 
-		//! True when @a T is a mutable pointer or reference type.
+		//! True when \a T is a mutable pointer or reference type.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
 
-		//! Decayed value type after removing an optional pointer qualifier from @a T.
+		//! Decayed value type after removing an optional pointer qualifier from \a T.
 		//! \tparam T Type to normalize.
 		template <typename T>
 		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
 
-		//! True when @a T already is a non-array raw value type.
+		//! True when \a T already is a non-array raw value type.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
 
-		//! True when @a T is a complete type at the point of instantiation.
+		//! True when \a T is a complete type at the point of instantiation.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_complete_v = detail::is_complete<T>::value;
@@ -160,7 +162,7 @@ namespace gaia {
 		//! Obtains the actual address of an object, even in the presence of overloaded `operator&`.
 		//! \tparam T Object type.
 		//! \param obj Object to address.
-		//! \return Pointer to @a obj.
+		//! \return Pointer to \a obj.
 		template <typename T>
 		constexpr T* addressof(T& obj) noexcept {
 			return &obj;
@@ -171,10 +173,10 @@ namespace gaia {
 		template <typename T>
 		const T* addressof(const T&&) = delete;
 
-		//! Checks whether @a ptr satisfies the alignment requirements of @a T.
+		//! Checks whether \a ptr satisfies the alignment requirements of \a T.
 		//! \tparam T Pointee type used for alignment validation.
 		//! \param ptr Pointer to validate.
-		//! \return True if @a ptr is aligned for @a T.
+		//! \return True if \a ptr is aligned for \a T.
 		template <typename T>
 		constexpr bool check_alignment(const T* ptr) noexcept {
 			return (reinterpret_cast<uintptr_t>(ptr)) % alignof(T) == 0;
@@ -187,7 +189,7 @@ namespace gaia {
 			//! Guarded lockable object.
 			T& m_ctx;
 
-			//! Acquires the lock represented by @a ctx.
+			//! Acquires the lock represented by \a ctx.
 			//! \param ctx Lockable object to guard for the lifetime of this scope.
 			lock_scope(T& ctx): m_ctx(ctx) {
 				ctx.lock();
@@ -270,10 +272,10 @@ namespace gaia {
 		// Memory size helpers
 		//----------------------------------------------------------------------
 
-		//! Counts how many bits are required to represent @a number.
+		//! Counts how many bits are required to represent \a number.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return Number of bits required to represent @a number.
+		//! \return Number of bits required to represent \a number.
 		template <typename T>
 		constexpr uint32_t count_bits(T number) {
 			uint32_t bits_needed = 0;
@@ -284,10 +286,10 @@ namespace gaia {
 			return bits_needed;
 		}
 
-		//! Checks whether @a number is a power of two.
+		//! Checks whether \a number is a power of two.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return True if @a number has exactly one bit set.
+		//! \return True if \a number has exactly one bit set.
 		template <typename T>
 		constexpr bool is_pow2(T number) {
 			static_assert(std::is_integral<T>::value, "is_pow2 must be used with integer types");
@@ -295,10 +297,10 @@ namespace gaia {
 			return (number & (number - 1)) == 0;
 		}
 
-		//! Returns the highest power of two not greater than @a number.
+		//! Returns the highest power of two not greater than \a number.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return Highest power of two not greater than @a number.
+		//! \return Highest power of two not greater than \a number.
 		template <typename T>
 		constexpr T closest_pow2(T number) {
 			static_assert(std::is_integral<T>::value, "closest_pow2 must be used with integer types");
@@ -325,18 +327,18 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Constructs an object of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Constructs \a cnt objects of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
@@ -347,18 +349,18 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Value-constructs an object of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Value-constructs \a cnt objects of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {
@@ -369,7 +371,7 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type @a T at the given memory address.
+		//! Constructs an object of type \a T at the given memory address.
 		//! \tparam T Type to construct
 		//! \param pData Pointer to the memory where the object should be constructed.
 		//! \warning pData must not be nullptr.
@@ -381,9 +383,9 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs @a cnt objects of type @a T at the memory address @a pData.
+		//! Constructs \a cnt objects of type \a T at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
@@ -394,11 +396,11 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type @a T at the memory address @a pData using forwarded arguments.
+		//! Constructs an object of type \a T at the memory address \a pData using forwarded arguments.
 		//! \tparam T Type to construct.
 		//! \tparam Args Constructor argument types.
-		//! \param pData Pointer to the memory where the object should be constructed; must not be null.
-		//! \param args Arguments forwarded to the constructor of @a T.
+		//! \param pData Pointer to the memory where the object should be constructed. Must not be null.
+		//! \param args Arguments forwarded to the constructor of \a T.
 		template <typename T, typename... Args>
 		void call_ctor(T* pData, Args&&... args) {
 			GAIA_ASSERT(pData != nullptr);
@@ -408,7 +410,7 @@ namespace gaia {
 				(void)::new (pData) T{GAIA_FWD(args)...};
 		}
 
-		//! Destructs an object of type @a T at the given memory address.
+		//! Destructs an object of type \a T at the given memory address.
 		//! \tparam T Type to destruct
 		//! \param pData Pointer to the memory where the object should be destructed.
 		//! \warning pData must not be nullptr.
@@ -420,9 +422,9 @@ namespace gaia {
 			}
 		}
 
-		//! Destructs @a cnt objects of type @a T at the memory address @a pData.
+		//! Destructs \a cnt objects of type \a T at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be destructed; must not be null.
+		//! \param pData Pointer to where the object will be destructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
@@ -437,7 +439,7 @@ namespace gaia {
 		// Element swapping
 		//----------------------------------------------------------------------
 
-		//! Swaps @a left and @a right using move operations.
+		//! Swaps \a left and \a right using move operations.
 		//! \tparam T Value type.
 		//! \param left Left operand.
 		//! \param right Right operand.
@@ -448,7 +450,7 @@ namespace gaia {
 			right = GAIA_MOV(tmp);
 		}
 
-		//! Swaps two elements in a contiguous range when they are out of order according to @a cmpFunc.
+		//! Swaps two elements in a contiguous range when they are out of order according to \a cmpFunc.
 		//! \tparam T Element type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param c Pointer to the first element of the range.
@@ -461,7 +463,7 @@ namespace gaia {
 				core::swap(c[lhs], c[rhs]);
 		}
 
-		//! Swaps @a lhs and @a rhs when they are out of order according to @a cmpFunc.
+		//! Swaps \a lhs and \a rhs when they are out of order according to \a cmpFunc.
 		//! \tparam T Value type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param lhs Left operand.
@@ -473,7 +475,7 @@ namespace gaia {
 				core::swap(lhs, rhs);
 		}
 
-		//! Swaps @a lhs and @a rhs when @a cmpFunc reports the current order should be inverted.
+		//! Swaps \a lhs and \a rhs when \a cmpFunc reports the current order should be inverted.
 		//! \tparam T Value type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param lhs Left operand.
@@ -485,7 +487,7 @@ namespace gaia {
 				core::swap(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for two indexed elements when they are out of order according to @a cmpFunc.
+		//! Invokes \a swapFunc for two indexed elements when they are out of order according to \a cmpFunc.
 		//! \tparam T Element type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -500,7 +502,7 @@ namespace gaia {
 				swapFunc(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for container indices when the elements are out of order according to @a cmpFunc.
+		//! Invokes \a swapFunc for container indices when the elements are out of order according to \a cmpFunc.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -516,7 +518,7 @@ namespace gaia {
 				swapFunc(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for container indices when @a cmpFunc reports the current order should be inverted.
+		//! Invokes \a swapFunc for container indices when \a cmpFunc reports the current order should be inverted.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -536,7 +538,7 @@ namespace gaia {
 		// Value filling
 		//----------------------------------------------------------------------
 
-		//! Assigns @a value to every element in the range [`first`, `last`).
+		//! Assigns \a value to every element in the range [`first`, `last`).
 		//! \tparam ForwardIt Iterator type.
 		//! \tparam T Value type.
 		//! \param first First element in the range.
@@ -589,8 +591,9 @@ namespace gaia {
 		inline constexpr auto is_unique<T, Rest...> =
 				std::bool_constant<(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
+		//! \cond INTERNAL
 		namespace detail {
-			//! Carries @a T as a nested `type` alias.
+			//! Carries \a T as a nested `type` alias.
 			//! \tparam T Type to carry.
 			template <typename T>
 			struct type_identity {
@@ -598,6 +601,7 @@ namespace gaia {
 				using type = T;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Builds a tuple type from the first occurrence of each type in a parameter pack.
 		//! \tparam T Initial accumulator or first type.
@@ -614,7 +618,7 @@ namespace gaia {
 				std::conditional_t<
 						(std::is_same_v<U, Ts> || ...), unique<std::tuple<Ts...>, Us...>, unique<std::tuple<Ts..., U>, Us...>> {};
 
-		//! Tuple type containing only the first occurrence of each type in @a Ts.
+		//! Tuple type containing only the first occurrence of each type in \a Ts.
 		//! \tparam Ts Types to deduplicate.
 		template <typename... Ts>
 		using unique_tuple = typename unique<std::tuple<>, Ts...>::type;
@@ -646,7 +650,7 @@ namespace gaia {
 		//! \tparam Class Member-function class type.
 		//! \tparam Ret Member-function return type.
 		//! \tparam Args Member-function argument types.
-		//! \return Type-list carrier containing @a Args.
+		//! \return Type-list carrier containing \a Args.
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
@@ -664,6 +668,7 @@ namespace gaia {
 			static constexpr bool value = has_mfunc_check_##function_name<T, Args...>;                                       \
 		}
 #else
+		//! \cond INTERNAL
 		namespace detail {
 			//! False branch for member-function detection.
 			//! \tparam Default Fallback type when the operation is unavailable.
@@ -699,6 +704,7 @@ namespace gaia {
 				void operator=(member_func_none&&) = delete;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Detects whether a member-function probe alias can be formed.
 		//! \tparam Op Probe alias template.
@@ -716,16 +722,19 @@ namespace gaia {
 		}
 #endif
 
+		//! \cond INTERNAL
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if_not);
+		//! \endcond
 
 		//----------------------------------------------------------------------
 		// Special function checks
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
-			//! True overload selected when @a T exposes member `operator==`.
+			//! True overload selected when \a T exposes member `operator==`.
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
@@ -738,7 +747,7 @@ namespace gaia {
 			template <typename T, typename... Args>
 			constexpr std::false_type has_mfunc_equals_check(...);
 
-			//! True overload selected when @a T supports free `operator==`.
+			//! True overload selected when \a T supports free `operator==`.
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
@@ -751,8 +760,9 @@ namespace gaia {
 			template <typename T, typename... Args>
 			constexpr std::false_type has_ffunc_equals_check(...);
 		} // namespace detail
+		//! \endcond
 
-		//! Detects whether @a T defines `operator==` as a member function.
+		//! Detects whether \a T defines `operator==` as a member function.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		struct has_func_equals {
@@ -760,7 +770,7 @@ namespace gaia {
 			static constexpr bool value = decltype(detail::has_mfunc_equals_check<T>(0))::value;
 		};
 
-		//! Detects whether @a T supports a free `operator==`.
+		//! Detects whether \a T supports a free `operator==`.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		struct has_ffunc_equals {
@@ -782,13 +792,13 @@ namespace gaia {
 			static constexpr auto size = sizeof...(Type);
 		};
 
-		//! Concatenates two @ref type_list instances.
+		//! Concatenates two \ref type_list instances.
 		//! \tparam TypesA First type-list.
 		//! \tparam TypesB Second type-list.
 		template <typename TypesA, typename TypesB>
 		struct type_list_concat;
 
-		//! Concatenation specialization for two @ref type_list instances.
+		//! Concatenation specialization for two \ref type_list instances.
 		//! \tparam TypesA Types from the first list.
 		//! \tparam TypesB Types from the second list.
 		template <typename... TypesA, typename... TypesB>
@@ -801,6 +811,7 @@ namespace gaia {
 		// Looping
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			//! Expands a compile-time integer sequence into repeated callable invocations.
 			//! \tparam FirstIdx First logical index to expose to the callable.
@@ -859,8 +870,9 @@ namespace gaia {
 					(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
+		//! \endcond
 
-		//! Compile-time for loop. Performs @a Iters iterations.
+		//! Compile-time for loop. Performs \a Iters iterations.
 		//! \tparam Iters Number of iterations.
 		//! \tparam Func Callable type.
 		//! \param func Callable invoked for each iteration.
@@ -884,7 +896,7 @@ namespace gaia {
 		}
 
 		//! Compile-time for loop with adjustable range.
-		//! Iteration starts at @a FirstIdx and ends at @a LastIdx, excluding @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends at \a LastIdx, excluding \a LastIdx.
 		//! \tparam FirstIdx First index to visit.
 		//! \tparam LastIdx One-past-last index.
 		//! \tparam Func Callable type.
@@ -909,7 +921,7 @@ namespace gaia {
 		}
 
 		//! Compile-time for loop with adjustable range and iteration size.
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx using steps of @a Inc.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx using steps of \a Inc.
 		//! \tparam FirstIdx First index to visit.
 		//! \tparam LastIdx One-past-last index.
 		//! \tparam Inc Step size between visits.
@@ -1009,7 +1021,7 @@ namespace gaia {
 
 		//! Compile-time for loop over tuples and other objects implementing
 		//! tuple_size (sarray, std::pair etc).
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx.
 		//! \tparam FirstIdx First tuple index to visit.
 		//! \tparam LastIdx One-past-last tuple index.
 		//! \tparam Tuple Tuple-like object type.
@@ -1037,7 +1049,7 @@ namespace gaia {
 
 		//! Compile-time for loop over tuples and other objects implementing
 		//! tuple_size (sarray, std::pair etc).
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx.
 		//! \tparam FirstIdx First tuple index to visit.
 		//! \tparam LastIdx One-past-last tuple index.
 		//! \tparam Tuple Tuple-like type to inspect.
@@ -1064,7 +1076,7 @@ namespace gaia {
 			detail::each_tuple_impl<FirstIdx, Tuple>(func, std::make_integer_sequence<decltype(FirstIdx), Iters>{});
 		}
 
-		//! Applies @a func to every element in the iterator range [`first`, `last`).
+		//! Applies \a func to every element in the iterator range [`first`, `last`).
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Callable type.
 		//! \param first First element in the range.
@@ -1078,7 +1090,7 @@ namespace gaia {
 			return func;
 		}
 
-		//! Applies @a func to every element in @a arr.
+		//! Applies \a func to every element in \a arr.
 		//! \tparam C Container type.
 		//! \tparam Func Callable type.
 		//! \param arr Container to iterate.
@@ -1093,13 +1105,13 @@ namespace gaia {
 		// Lookups
 		//----------------------------------------------------------------------
 
-		//! Searches the iterator range [`first`, `last`) for the first element equal to @a value.
+		//! Searches the iterator range [`first`, `last`) for the first element equal to \a value.
 		//! \tparam InputIt Iterator type.
 		//! \tparam T Lookup value type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param value Value to find.
-		//! \return Iterator to the first matching element or @a last when no match is found.
+		//! \return Iterator to the first matching element or \a last when no match is found.
 		template <typename InputIt, typename T>
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -1123,7 +1135,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element equal to @a item.
+		//! Searches \a arr for the first element equal to \a item.
 		//! \tparam C Container type.
 		//! \tparam V Lookup value type.
 		//! \param arr Container to inspect.
@@ -1137,13 +1149,13 @@ namespace gaia {
 				return core::find(arr.begin(), arr.end(), item);
 		}
 
-		//! Searches the iterator range [`first`, `last`) for the first element satisfying @a func.
+		//! Searches the iterator range [`first`, `last`) for the first element satisfying \a func.
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Predicate type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param func Predicate used for matching.
-		//! \return Iterator to the first matching element or @a last when no match is found.
+		//! \return Iterator to the first matching element or \a last when no match is found.
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -1167,7 +1179,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element satisfying @a predicate.
+		//! Searches \a arr for the first element satisfying \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
@@ -1181,13 +1193,13 @@ namespace gaia {
 				return core::find_if(arr.begin(), arr.end(), predicate);
 		}
 
-		//! Searches the iterator range [`first`, `last`) for the first element that does not satisfy @a func.
+		//! Searches the iterator range [`first`, `last`) for the first element that does not satisfy \a func.
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Predicate type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param func Predicate used for matching.
-		//! \return Iterator to the first non-matching element or @a last when all elements match.
+		//! \return Iterator to the first non-matching element or \a last when all elements match.
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -1211,7 +1223,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element that does not satisfy @a predicate.
+		//! Searches \a arr for the first element that does not satisfy \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
@@ -1227,24 +1239,24 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
-		//! Checks whether @a arr contains @a item.
+		//! Checks whether \a arr contains \a item.
 		//! \tparam C Container type.
 		//! \tparam V Lookup value type.
 		//! \param arr Container to inspect.
 		//! \param item Value to find.
-		//! \return True if @a item is present.
+		//! \return True if \a item is present.
 		template <typename C, typename V>
 		constexpr bool has(const C& arr, const V& item) {
 			const auto it = find(arr, item);
 			return it != arr.end();
 		}
 
-		//! Checks whether any element in @a arr satisfies @a predicate.
+		//! Checks whether any element in \a arr satisfies \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
-		//! \return True if any element satisfies @a predicate.
+		//! \return True if any element satisfies \a predicate.
 		template <typename UnaryPredicate, typename C>
 		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
@@ -1253,11 +1265,11 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
-		//! Returns the index of @a item in @a arr or @ref BadIndex when the item is not present.
+		//! Returns the index of \a item in \a arr or \ref BadIndex when the item is not present.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param item Value to locate.
-		//! \return Index of @a item or @ref BadIndex when absent.
+		//! \return Index of \a item or \ref BadIndex when absent.
 		template <typename C>
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
@@ -1267,23 +1279,23 @@ namespace gaia {
 			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
-		//! Returns the index of @a item in @a arr without checking whether the item exists.
+		//! Returns the index of \a item in \a arr without checking whether the item exists.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param item Value to locate.
-		//! \return Index of @a item.
-		//! \warning Returns an invalid index when @a item is not present.
+		//! \return Index of \a item.
+		//! \warning Returns an invalid index when \a item is not present.
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
 			return (decltype(BadIndex))core::distance(arr.begin(), find(arr, item));
 		}
 
-		//! Returns the index of the first element satisfying @a predicate or @ref BadIndex when none matches.
+		//! Returns the index of the first element satisfying \a predicate or \ref BadIndex when none matches.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
-		//! \return Index of the first matching element or @ref BadIndex when absent.
+		//! \return Index of the first matching element or \ref BadIndex when absent.
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
@@ -1293,13 +1305,13 @@ namespace gaia {
 			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
-		//! Returns the index of the first element satisfying @a predicate without checking whether a match exists.
+		//! Returns the index of the first element satisfying \a predicate without checking whether a match exists.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
 		//! \return Index of the first matching element.
-		//! \warning Returns an invalid index when no element satisfies @a predicate.
+		//! \warning Returns an invalid index when no element satisfies \a predicate.
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
 			return (decltype(BadIndex))core::distance(arr.begin(), find_if(arr, predicate));
@@ -1309,14 +1321,14 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
-		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! Replaces the item at \a idx in the array \a arr with the last item of the array if possible and
 		//! removes its last item. Use when shifting of the entire array is not wanted.
 		//! \tparam C Container type.
 		//! \param arr Array.
 		//! \param idx Array index.
 		//! \warning If the item order is important and the size of the array changes after calling this function you need
 		//!          to sort the array.
-		//! \warning Does not do bound checks. Undefined behavior when @a idx is out of bounds.
+		//! \warning Does not do bound checks. Undefined behavior when \a idx is out of bounds.
 		template <typename C>
 		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
@@ -1327,7 +1339,7 @@ namespace gaia {
 			arr.pop_back();
 		}
 
-		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! Replaces the item at \a idx in the array \a arr with the last item of the array if possible and
 		//! removes its last item. Use when shifting of the entire array is not wanted.
 		//! \tparam C Container type.
 		//! \param arr Array.
@@ -1405,6 +1417,7 @@ namespace gaia {
 		// Sorting
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			//! Selects the median index among three positions without mutating the range.
 			//! \tparam Container Random-access container or pointer-like range type.
@@ -1475,8 +1488,8 @@ namespace gaia {
 			//! \param low First index in the inclusive range.
 			//! \param high Last index in the inclusive range.
 			//! \param cmpFunc Ordering predicate.
-			//! \note This overload is used by the default sort path because shifting avoids repeated adjacent swaps on random
-			//! data.
+			//! \note This overload is used by the default sort path because shifting avoids repeated adjacent swaps on
+			//! random data.
 			template <typename Container, typename TCmpFunc>
 			void insertion_sort_range(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				for (int i = low + 1; i <= high; ++i) {
@@ -1513,7 +1526,7 @@ namespace gaia {
 				}
 			}
 
-			//! Prepares the default quicksort partition by moving a sampled pivot to @a low.
+			//! Prepares the default quicksort partition by moving a sampled pivot to \a low.
 			//! \tparam Container Random-access container or pointer-like range type.
 			//! \tparam TCmpFunc Strict weak ordering predicate type.
 			//! \tparam TSwapFunc Swap callback type.
@@ -1540,12 +1553,12 @@ namespace gaia {
 				}
 			}
 
-			//! Partitions an inclusive range around the pivot stored at @a low.
+			//! Partitions an inclusive range around the pivot stored at \a low.
 			//! \tparam Container Random-access container or pointer-like range type.
 			//! \tparam TCmpFunc Strict weak ordering predicate type.
 			//! \tparam TSwapFunc Swap callback type.
 			//! \param arr Range being partitioned.
-			//! \param low First index in the partition range; contains the prepared pivot.
+			//! \param low First index in the partition range. Contains the prepared pivot.
 			//! \param high Last index in the partition range.
 			//! \param cmpFunc Ordering predicate.
 			//! \param swapFunc Callback that swaps two indexes.
@@ -1713,7 +1726,7 @@ namespace gaia {
 
 			//! Calculates the introsort recursion-depth budget for a range length.
 			//! \param n Number of elements to sort.
-			//! \return Twice floor(log2(@a n)), matching the usual introsort fallback budget.
+			//! \return Twice floor(log2(\a n)), matching the usual introsort fallback budget.
 			inline uint32_t sort_depth_limit(uint32_t n) {
 				uint32_t depth = 0;
 				while (n > 1) {
@@ -1770,8 +1783,8 @@ namespace gaia {
 			//! \param high Last index in the inclusive range.
 			//! \param cmpFunc Ordering predicate.
 			//! \param depthLimit Remaining recursion-depth budget before heapsort fallback.
-			//! \note Uses pivot-position partitioning and move-based insertion sort because this path owns the element order
-			//! directly.
+			//! \note Uses pivot-position partitioning and move-based insertion sort because this path owns the element
+			//! order directly.
 			template <typename Container, typename TCmpFunc>
 			void quick_sort_impl(Container& arr, int low, int high, TCmpFunc cmpFunc, uint32_t depthLimit) {
 				constexpr int InsertionSortThreshold = 24;
@@ -2892,12 +2905,13 @@ namespace gaia {
 				return n <= 32;
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Forward declaration for the custom-swap quicksort overload.
 		template <typename Container, typename TCmpFunc, typename TSwapFunc>
 		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc);
 
-		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr.
+		//! Recursively quick-sorts the index range [`low`, `high`] in \a arr.
 		//! \tparam Container Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param arr Container to sort.
@@ -2911,7 +2925,7 @@ namespace gaia {
 			detail::quick_sort_impl(arr, low, high, cmpFunc, detail::sort_depth_limit((uint32_t)(high - low + 1)));
 		}
 
-		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr using a custom swap callback.
+		//! Recursively quick-sorts the index range [`low`, `high`] in \a arr using a custom swap callback.
 		//! \tparam Container Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -2949,7 +2963,7 @@ namespace gaia {
 			quick_sort(beg, 0, (int)n - 1, cmpFunc);
 		}
 
-		//! Sorts all elements in @a c using @a cmpFunc.
+		//! Sorts all elements in \a c using \a cmpFunc.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param c Container to sort.
@@ -2959,8 +2973,8 @@ namespace gaia {
 			sort(c.begin(), c.end(), cmpFunc);
 		}
 
-		//! Sorts a range of elements given a comparison function @a cmpFunc.
-		//! If @a cmpFunc returns true it performs @a swapFunc which can perform the sorting.
+		//! Sorts a range of elements given a comparison function \a cmpFunc.
+		//! If \a cmpFunc returns true it performs \a swapFunc which can perform the sorting.
 		//! Sorting networks are used up to 17 elements. Insertion sort is used up to 32 elements.
 		//! For larger ranges, introsort-style quicksort is used with heapsort fallback.
 		//! Use when it is necessary to sort multiple arrays at once.
@@ -2982,7 +2996,7 @@ namespace gaia {
 			quick_sort(beg, 0, (int)n - 1, cmpFunc, swapFunc);
 		}
 
-		//! Sorts all elements in @a c using @a cmpFunc and a custom swap callback.
+		//! Sorts all elements in \a c using \a cmpFunc and a custom swap callback.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.

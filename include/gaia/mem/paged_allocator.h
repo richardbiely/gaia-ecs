@@ -17,6 +17,7 @@
 
 namespace gaia {
 	namespace mem {
+		//! Required alignment of each page block.
 		static constexpr uint32_t MemoryBlockAlignment = 16;
 		//! Size in bytes of one memory block.
 		//! 32 kiB per block by default.
@@ -24,18 +25,29 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
+		//! Common header for allocator pages.
 		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
 
+			//! Creates a page header for a backing allocation.
+			//! \param ptr Backing allocation address.
 			MemoryPageHeader(void* ptr): m_data(ptr) {}
 		};
 
+		//! Fixed-capacity page of equal-sized blocks.
+		//! \tparam T Allocation category used for singleton separation and diagnostics.
+		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize>
 		struct MemoryPage: MemoryPageHeader, cnt::fwd_llist_base<MemoryPage<T, RequestedBlockSize>> {
+			//! Rounds a size up to MemoryBlockAlignment.
+			//! \param num Size in bytes.
+			//! \return Aligned size in bytes.
 			static constexpr uint32_t next_multiple_of_alignment(uint32_t num) {
 				return (num + (MemoryBlockAlignment - 1)) & uint32_t(-(int32_t)MemoryBlockAlignment);
 			}
+			//! Selects and aligns the configured block size.
+			//! \return Block size in bytes.
 			static constexpr uint32_t calculate_block_size() {
 				if constexpr (RequestedBlockSize == 0)
 					return next_multiple_of_alignment(MemoryBlockBytesDefault);
@@ -43,18 +55,26 @@ namespace gaia {
 					return next_multiple_of_alignment(RequestedBlockSize);
 			}
 
+			//! Size of one block in bytes.
 			static constexpr uint32_t MemoryBlockBytes = calculate_block_size();
+			//! Maximum number of blocks in a page.
 			static constexpr uint16_t NBlocks = 48;
+			//! Bits required to encode a block index.
 			static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
+			//! Sentinel terminating the recycled-block list.
 			static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 #if GAIA_DEBUG
 			static constexpr uint8_t FreedBlockPattern = 0xDD;
 			static constexpr uintptr_t FreedPageMarker = ~(uintptr_t)0;
 #endif
+			//! Bytes occupied by the packed block-index array.
 			static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
 
+			//! This page type.
 			using Page = MemoryPage<T, RequestedBlockSize>;
+			//! Packed block-index storage.
 			using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
+			//! View used to read and write packed block indices.
 			using BitView = core::bit_view<NBlocks_Bits>;
 
 			//! Implicit list of blocks
@@ -71,12 +91,17 @@ namespace gaia {
 			//! Free bits to use in the future
 			// uint32_t m_unused : 8;
 
+			//! Creates an empty page over a backing allocation.
+			//! \param ptr Backing allocation address.
 			MemoryPage(void* ptr):
 					MemoryPageHeader(ptr), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
 				// One cacheline long on x86. The point is for this to be as small as possible
 				static_assert(sizeof(MemoryPage) <= 64);
 			}
 
+			//! Writes one link in the packed recycled-block list.
+			//! \param blockIdx Block whose link is updated.
+			//! \param value Linked block index or InvalidBlockId.
 			void write_block_idx(uint32_t blockIdx, uint32_t value) {
 				const uint32_t bitPosition = blockIdx * NBlocks_Bits;
 
@@ -86,6 +111,9 @@ namespace gaia {
 				BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.set(bitPosition, (uint8_t)value);
 			}
 
+			//! Reads one link from the packed recycled-block list.
+			//! \param blockIdx Block whose link is read.
+			//! \return Linked block index or InvalidBlockId.
 			uint8_t read_block_idx(uint32_t blockIdx) const {
 				const uint32_t bitPosition = blockIdx * NBlocks_Bits;
 
@@ -95,6 +123,7 @@ namespace gaia {
 			}
 
 			//! Allocate a new block for this page.
+			//! \return Pointer to the usable block storage.
 			GAIA_NODISCARD void* alloc_block() {
 				auto StoreBlockAddress = [&](uint32_t index) {
 					// Encode info about the block's page in the memory block.
@@ -129,6 +158,7 @@ namespace gaia {
 			}
 
 			//! Release the block allocated by this page.
+			//! \param pBlock Pointer previously returned by alloc_block().
 			void free_block(void* pBlock) {
 				GAIA_ASSERT(m_usedBlocks > 0);
 				GAIA_ASSERT(m_freeBlocks <= NBlocks);
@@ -164,18 +194,25 @@ namespace gaia {
 				--m_usedBlocks;
 			}
 
+			//! Returns the number of live blocks.
+			//! \return Number of allocated blocks.
 			GAIA_NODISCARD uint32_t used_blocks_cnt() const {
 				return m_usedBlocks;
 			}
 
+			//! Reports whether all page blocks are allocated.
+			//! \return True when the page is full.
 			GAIA_NODISCARD bool full() const {
 				return used_blocks_cnt() >= NBlocks;
 			}
 
+			//! Reports whether no page blocks are allocated.
+			//! \return True when the page is empty.
 			GAIA_NODISCARD bool empty() const {
 				return used_blocks_cnt() == 0;
 			}
 
+			//! Verifies page invariants in assertion-enabled builds.
 			void verify() const {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(m_blockCnt <= NBlocks);
@@ -212,6 +249,9 @@ namespace gaia {
 			}
 		};
 
+		//! Lists the non-full and full pages belonging to an allocator.
+		//! \tparam T Allocation category.
+		//! \tparam RequestedBlockSize Requested bytes per block.
 		template <typename T, uint32_t RequestedBlockSize>
 		struct MemoryPageContainer {
 			//! List of available pages
@@ -219,11 +259,14 @@ namespace gaia {
 			//! List of full pages
 			cnt::fwd_llist<MemoryPage<T, RequestedBlockSize>> pagesFull;
 
+			//! Reports whether the container has no pages.
+			//! \return True when both page lists are empty.
 			GAIA_NODISCARD bool empty() const {
 				return pagesFree.empty() && pagesFull.empty();
 			}
 		};
 
+		//! Aggregate statistics for a paged allocator.
 		struct GAIA_API MemoryPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
@@ -235,14 +278,20 @@ namespace gaia {
 			uint32_t num_pages_free;
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t RequestedBlockSize>
 			class PagedAllocatorImpl;
 		}
+		//! \endcond
 
+		//! Shared fixed-block allocator for an allocation category.
+		//! \tparam T Allocation category used for singleton separation and diagnostics.
+		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize = 0>
 		using PagedAllocator = core::dyn_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
 
+		//! \cond INTERNAL
 		namespace detail {
 
 			template <typename T, uint32_t RequestedBlockSize>
@@ -462,5 +511,6 @@ namespace gaia {
 			};
 
 		} // namespace detail
+		//! \endcond
 	} // namespace mem
 } // namespace gaia

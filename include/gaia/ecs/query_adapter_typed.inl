@@ -2,6 +2,7 @@
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 
 		template <typename T>
@@ -164,5 +165,6 @@ namespace gaia {
 					finish_term(state.argIds[i], state.sparseStores[i] != nullptr);
 			}
 		}
+		//! \endcond
 	} // namespace ecs
 } // namespace gaia

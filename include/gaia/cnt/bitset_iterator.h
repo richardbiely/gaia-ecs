@@ -13,7 +13,9 @@ namespace gaia {
 		template <typename TBitset, bool IsFwd, bool IsInverse>
 		class bitset_const_iterator {
 		public:
+			//! Bit-index value type.
 			using value_type = uint32_t;
+			//! Backing-word type used by the parent bit set.
 			using size_type = typename TBitset::size_type;
 
 		private:
@@ -94,6 +96,10 @@ namespace gaia {
 
 		public:
 			bitset_const_iterator() = default;
+
+			//! \param bitset Parent bit set.
+			//! \param pos Initial bit position or boundary.
+			//! \param fwd True to search toward increasing indices. False to search toward decreasing indices.
 			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(&bitset), m_pos(pos) {
 				if (fwd) {
 					if constexpr (!IsFwd) {
@@ -148,18 +154,26 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the current bit index.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type operator*() const {
 				return m_pos;
 			}
 
+			//! Returns the current bit index for arrow-style access.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type operator->() const {
 				return m_pos;
 			}
 
+			//! Returns the current bit index.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type index() const {
 				return m_pos;
 			}
 
+			//! Advances to the next matching bit in the iterator's direction.
+			//! \return This iterator after advancement.
 			bitset_const_iterator& operator++() {
 				if constexpr (!IsFwd) {
 					if (m_pos == (value_type)-1)
@@ -181,27 +195,43 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Advances to the next matching bit in the iterator's direction.
+			//! \return Iterator value before advancement.
 			GAIA_NODISCARD bitset_const_iterator operator++(int) {
 				bitset_const_iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const bitset_const_iterator& other) const {
 				return m_pos == other.m_pos;
 			}
 
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const bitset_const_iterator& other) const {
 				return m_pos != other.m_pos;
 			}
 		};
 
+		//! Forward iterator over set bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_iterator = bitset_const_iterator<TBitset, true, false>;
+		//! Forward iterator over unset bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_iterator_inverse = bitset_const_iterator<TBitset, true, true>;
+		//! Reverse iterator over set bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_reverse_iterator = bitset_const_iterator<TBitset, false, false>;
+		//! Reverse iterator over unset bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_reverse_inverse_iterator = bitset_const_iterator<TBitset, false, true>;
 	} // namespace cnt

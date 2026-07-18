@@ -27,6 +27,7 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
+		//! \cond INTERNAL
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 				const auto s0 = comps.size();
@@ -45,6 +46,7 @@ namespace gaia {
 				return true;
 			}
 		} // namespace detail
+		//! \endcond
 
 		struct ArchetypeChunkPair {
 			Archetype* pArchetype;
@@ -390,7 +392,7 @@ namespace gaia {
 				}
 			}
 
-			//! Estimates whether another entity still fits in the chunk described by @a comps.
+			//! Estimates whether another entity still fits in the chunk described by \a comps.
 			//! \param cc Component metadata cache.
 			//! \param offs Current byte offset inside the chunk payload.
 			//! \param ids Entitiies laid out in the chunk.
@@ -842,7 +844,7 @@ namespace gaia {
 				return m_runtime.observedTermCnt != 0;
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -1086,28 +1088,28 @@ namespace gaia {
 				m_edges.graph.del_edge_left(entity);
 			}
 
-			//! Deletes a cached local "add" edge formed by @a entity.
+			//! Deletes a cached local "add" edge formed by \a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
 			//! \param entity Entity to remove
 			void del_graph_edge_right_local(Entity entity) {
 				m_edges.graph.del_edge_right(entity);
 			}
 
-			//! Deletes a cached local "del" edge formed by @a entity.
+			//! Deletes a cached local "del" edge formed by \a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
 			//! \param entity Entity to remove
 			void del_graph_edge_left_local(Entity entity) {
 				m_edges.graph.del_edge_left(entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! Checks if an archetype graph "add" edge with entity \a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return m_edges.graph.find_edge_right(entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! Checks if an archetype graph "del" edge with entity \a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {

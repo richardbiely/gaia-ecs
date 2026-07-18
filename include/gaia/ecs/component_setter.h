@@ -14,6 +14,11 @@ namespace gaia {
 		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
+			//! Creates a mutable accessor using the ComponentGetter constructor arguments.
+			//! \param world World that owns the entity.
+			//! \param pChunk Chunk containing the entity row.
+			//! \param entity Entity being accessed.
+			//! \param row Entity row within \p pChunk.
 			using ComponentGetter::ComponentGetter;
 
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
@@ -48,11 +53,12 @@ namespace gaia {
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
 			//! Call `World::modify<T, true>(entity, type)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
+			//! \param type Entity associated with the component type.
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut(Entity type);
 
-			//! Sets the value of the component @a type and then emits the normal post-write set notifications.
+			//! Sets the value of the component \a type and then emits the normal post-write set notifications.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component

@@ -16,9 +16,13 @@
 
 namespace gaia {
 	namespace mem {
+		//! Required alignment of returned small-block allocations.
 		static constexpr uint32_t SmallBlockAlignment = (uint32_t)alignof(std::max_align_t);
+		//! Difference in usable bytes between adjacent size classes.
 		static constexpr uint32_t SmallBlockGranularity = SmallBlockAlignment;
+		//! Largest allocation served by the small-block allocator.
 		static constexpr uint32_t SmallBlockMaxSize = 512;
+		//! Number of supported allocation size classes.
 		static constexpr uint32_t SmallBlockSizeTypeCount = SmallBlockMaxSize / SmallBlockGranularity;
 
 		//! Returns the usable block size for the given size class.
@@ -38,6 +42,7 @@ namespace gaia {
 			return (uint8_t)((align(sizeBytes, SmallBlockGranularity) / SmallBlockGranularity) - 1);
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct SmallBlockHeader final {
 				uintptr_t m_pageAddr = 0;
@@ -49,10 +54,13 @@ namespace gaia {
 #endif
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Byte offset from an internal block header to caller-visible storage.
 		static constexpr uint32_t SmallBlockUsableOffset =
 				align((uint32_t)sizeof(detail::SmallBlockHeader), SmallBlockAlignment);
 
+		//! Allocation statistics for one small-block size class.
 		struct GAIA_API SmallBlockAllocatorPageStats final {
 			//! Total allocated memory for this size class.
 			uint64_t mem_total;
@@ -70,10 +78,13 @@ namespace gaia {
 #endif
 		};
 
+		//! Allocation statistics for every small-block size class.
 		struct GAIA_API SmallBlockAllocatorStats final {
+			//! Per-size-class statistics indexed by the value from small_block_size_type().
 			SmallBlockAllocatorPageStats stats[SmallBlockSizeTypeCount];
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			static_assert(sizeof(SmallBlockHeader) <= SmallBlockUsableOffset);
 
@@ -343,9 +354,12 @@ namespace gaia {
 			cnt::fwd_llist<SmallBlockPage> pagesFull;
 		};
 	} // namespace mem
+		//! \endcond
 
+	//! Shared allocator for variable-sized allocations up to SmallBlockMaxSize bytes.
 	using SmallBlockAllocator = core::dyn_singleton<detail::SmallBlockAllocatorImpl>;
 
+	//! \cond INTERNAL
 	namespace detail {
 		//! General-purpose allocator for small, variable-sized allocations up to 512 bytes.
 		class SmallBlockAllocatorImpl final {
@@ -451,6 +465,7 @@ namespace gaia {
 			}
 
 			//! Returns allocator statistics per size class.
+			//! \return Current statistics for every size class.
 			GAIA_NODISCARD SmallBlockAllocatorStats stats() const {
 				SmallBlockAllocatorStats stats{};
 				for (uint32_t sizeType = 0; sizeType < SmallBlockSizeTypeCount; ++sizeType)
@@ -645,6 +660,7 @@ namespace gaia {
 		};
 
 	} // namespace detail
+	//! \endcond
 } // namespace gaia
 } // namespace gaia
 

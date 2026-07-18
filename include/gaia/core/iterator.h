@@ -15,6 +15,7 @@ namespace gaia {
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
 		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct iterator_traits_base {}; // empty for non-iterators
@@ -55,48 +56,76 @@ namespace gaia {
 			template <typename It>
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
 		} // namespace detail
+		//! \endcond
 
+		//! Indicates whether T satisfies Gaia-ECS iterator trait requirements.
+		//! \tparam T Type to inspect.
 		template <typename T, typename = void>
 		[[maybe_unused]] constexpr bool is_iterator_v = false;
 
+		//! Specialization selected for types with a valid iterator category.
+		//! \tparam T Iterator type.
 		template <typename T>
 		[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<detail::iterator_cat_t<T>>> = true;
 
 		template <typename T>
 		struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
 
+		//! Indicates whether an iterator is an input iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_input_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, input_iterator_tag>;
 
+		//! Indicates whether an iterator is a forward iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_fwd_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, forward_iterator_tag>;
 
+		//! Indicates whether an iterator is a reverse iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_rev_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, reverse_iterator_tag>;
 
+		//! Indicates whether an iterator is bidirectional.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_bidi_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, bidirectional_iterator_tag>;
 
+		//! Indicates whether an iterator supports random access.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_random_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, random_access_iterator_tag>;
 
+		//! Reference type yielded by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_ref_t = typename detail::iterator_traits<It>::reference;
 
+		//! Value type yielded by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_value_t = typename detail::iterator_traits<It>::value_type;
 
+		//! Difference type used by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_diff_t = typename detail::iterator_traits<It>::difference_type;
 
+		//! Common difference type shared by a set of iterators.
+		//! \tparam It Iterator types.
 		template <typename... It>
 		using common_diff_t = std::common_type_t<iterator_diff_t<It>...>;
 
+		//! Computes the number of increments from first to last.
+		//! \tparam It Iterator type.
+		//! \param first Beginning iterator.
+		//! \param last Ending iterator.
+		//! \return Distance from first to last in iterator difference units.
 		template <typename It>
 		constexpr iterator_diff_t<It> distance(It first, It last) {
 			if constexpr (std::is_pointer_v<It> || is_random_iter_v<It>)

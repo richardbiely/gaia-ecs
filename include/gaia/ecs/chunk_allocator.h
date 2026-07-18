@@ -15,6 +15,7 @@
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			struct MemoryBlockHeader final {
 				uintptr_t m_pageAddr = 0;
@@ -26,8 +27,11 @@ namespace gaia {
 
 			class ChunkAllocatorImpl;
 		} // namespace detail
+		//! \endcond
 
+		//! Alignment of chunk allocator memory blocks in bytes.
 		static constexpr uint32_t MemoryBlockAlignment = 64;
+		//! Size of the smallest allocator block class in bytes.
 		static constexpr uint32_t MinMemoryBlockSize = 1024 * 8;
 		//! Number of chunk allocator block size classes: 8, 16, 32 and 64 KiB-class blocks.
 		static constexpr uint32_t MemoryBlockSizeClasses = 4;
@@ -37,12 +41,18 @@ namespace gaia {
 		//! Validated against the actual chunk layout in Chunk::chunk_header_size().
 		static constexpr uint32_t MemoryBlockUsableOffset = 40;
 
+		//! Returns the block size represented by an allocator size-class index.
+		//! \param sizeType Size-class index in the range supported by the allocator.
+		//! \return Block size in bytes.
 		constexpr uint16_t mem_block_size(uint32_t sizeType) {
 			constexpr uint16_t sizes[] = {
 					MinMemoryBlockSize, MinMemoryBlockSize * 2, MinMemoryBlockSize * 4, MaxMemoryBlockSize};
 			return sizes[sizeType];
 		}
 
+		//! Selects the smallest allocator size class that can hold a request.
+		//! \param sizeBytes Positive requested block size in bytes.
+		//! \return Allocator size-class index.
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
 			GAIA_ASSERT(sizeBytes > 0);
 			if (sizeBytes <= MinMemoryBlockSize)
@@ -78,6 +88,7 @@ namespace gaia {
 
 		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
 
+		//! \cond INTERNAL
 		namespace detail {
 			static_assert(sizeof(MemoryBlockHeader) <= MemoryBlockUsableOffset);
 
@@ -682,6 +693,7 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
 #endif
 

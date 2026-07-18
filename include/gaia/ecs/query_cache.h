@@ -10,6 +10,7 @@
 #include "gaia/ecs/query_common.h"
 #include "gaia/ecs/query_info.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace cnt {
 		template <>
@@ -177,7 +178,7 @@ namespace gaia {
 				m_queryToArchetype.clear();
 			}
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo* try_get(QueryHandle handle) {
@@ -190,7 +191,7 @@ namespace gaia {
 				return &info;
 			}
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			const QueryInfo* try_get(QueryHandle handle) const {
@@ -265,7 +266,7 @@ namespace gaia {
 			}
 #endif
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo& get(QueryHandle handle) {
@@ -277,7 +278,7 @@ namespace gaia {
 				return info;
 			}
 
-			//! Registers the provided query lookup context @a ctx. If it already exists it is returned.
+			//! Registers the provided query lookup context \a ctx. If it already exists it is returned.
 			//! \param ctx Query context
 			//! \param entityToArchetypeMap Map of all archetypes
 			//! \param allArchetypes Array of all archetypes
@@ -892,3 +893,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

@@ -10,6 +10,7 @@
 #include "gaia/ecs/id.h"
 #include "gaia/util/logging.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -67,26 +68,26 @@ namespace gaia {
 				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
-			//! Deletes the "add" edge formed by the entity @a entity.
+			//! Deletes the "add" edge formed by the entity \a entity.
 			//! \param entity Edge entity.
 			void del_edge_right(Entity entity) {
 				del_edge(m_edgesAdd, entity);
 			}
 
-			//! Deletes the "del" edge formed by the entity @a entity.
+			//! Deletes the "del" edge formed by the entity \a entity.
 			//! \param entity Edge entity.
 			void del_edge_left(Entity entity) {
 				del_edge(m_edgesDel, entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! Checks if an archetype graph "add" edge with entity \a entity exists.
 			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! Checks if an archetype graph "del" edge with entity \a entity exists.
 			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
@@ -119,8 +120,8 @@ namespace gaia {
 							GAIA_LOG_N(
 									"    pair [%u:%u], %.*s -> %.*s, aid:%u",
 									//
-									entity.id(), entity.gen(), (int)name0.size(), name0.empty() ? "" : name0.data(),
-									(int)name1.size(), name1.empty() ? "" : name1.data(), edge.second.id);
+									entity.id(), entity.gen(), (int)name0.size(), name0.empty() ? "" : name0.data(), (int)name1.size(),
+									name1.empty() ? "" : name1.data(), edge.second.id);
 						} else {
 							const auto name = entity_name(world, entity);
 							GAIA_LOG_N(
@@ -147,3 +148,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

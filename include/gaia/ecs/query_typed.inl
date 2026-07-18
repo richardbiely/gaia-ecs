@@ -5,6 +5,7 @@
 namespace gaia {
 	namespace ecs {
 		namespace detail {
+			//! \cond INTERNAL
 			inline TypedQueryExecState build_typed_query_exec_state(
 					World& world, const QueryInfo& queryInfo, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
 				TypedQueryExecState state{};
@@ -643,12 +644,12 @@ namespace gaia {
 
 			//! Returns a typed direct-chunk view element.
 			//! SoA views are chunk-relative, so they need the absolute row offset. AoS views are already sliced.
-			//! \tparam T Typed query argument represented by @a view.
+			//! \tparam T Typed query argument represented by \a view.
 			//! \tparam View Prepared chunk view type.
 			//! \param view Direct chunk view for the argument.
 			//! \param row Row relative to the currently processed chunk range.
 			//! \param from Absolute row offset of the current chunk range.
-			//! \return Reference or value selected from @a view for the current row.
+			//! \return Reference or value selected from \a view for the current row.
 			//! \see run_typed_direct_chunk_rows(const TypedDirectChunkRun&, Func&, const TypedQueryExecState&,
 			//! core::func_type_list<T...>)
 			template <typename T, typename View>
@@ -664,7 +665,7 @@ namespace gaia {
 			//! \tparam Func Callback type.
 			//! \tparam ViewsTuple Tuple type containing prepared direct chunk views.
 			//! \tparam T Typed query argument list.
-			//! \tparam I Tuple indices matching @a T.
+			//! \tparam I Tuple indices matching \a T.
 			//! \param func Callback invoked for the selected row.
 			//! \param views Prepared direct chunk views.
 			//! \param row Row relative to the current chunk range.
@@ -1768,6 +1769,7 @@ namespace gaia {
 					arr_inter<false>(queryInfo, outArray, constraints);
 				}
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia

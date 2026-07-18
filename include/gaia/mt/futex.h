@@ -11,6 +11,7 @@
 namespace gaia {
 	namespace mt {
 		namespace detail {
+			//! \cond INTERNAL
 			inline static constexpr uint32_t WaitMaskAll = 0x7FFFFFFF;
 			inline static constexpr uint32_t WaitMaskAny = ~0u;
 
@@ -38,6 +39,7 @@ namespace gaia {
 			//! Per-thread wait node. A thread can only be waiting on a single futex at a time.
 			//! Do NOT call Futex::wait() from the same thread concurrently (e.g. via fibers or coroutines).
 			inline thread_local FutexWaitNode t_WaitNode;
+			//! \endcond
 
 		} // namespace detail
 
@@ -53,6 +55,7 @@ namespace gaia {
 		//! TODO: Consider using WaitOnAddress for Windows, futex call for Linux etc.
 		//!       The current solution is platform-agnostic but platform-specific solutions might be more performant.
 		struct Futex {
+			//! Outcome of a futex wait attempt.
 			enum class Result {
 				//! Futex value didn't match the expected one
 				Change,
@@ -60,12 +63,13 @@ namespace gaia {
 				WakeUp
 			};
 
-			//! Suspends the caller on the futex while its value remains @a expected.
+			//! Suspends the caller on the futex while its value remains \a expected.
 			//! \param pFutexValue Target futex
 			//! \param expected Expected futex value
 			//! \param waitMask Mask of waiters to wait for
 			//! \warning A thread can only be in one wait() at a time. Do not call this
 			//!          concurrently from the same thread (e.g. via fibers or coroutines).
+			//! \return Change when the value no longer matches. WakeUp after a matching wake.
 			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
 				GAIA_PROF_SCOPE(futex::wait);
 
@@ -93,10 +97,11 @@ namespace gaia {
 				return Result::WakeUp;
 			}
 
-			//! Wakes up to @a wakeCount waiters whose @a waitMask matches @a wakeMask.
+			//! Wakes up to \a wakeCount waiters whose \a waitMask matches \a wakeMask.
 			//! \param pFutexValue Target futex
 			//! \param wakeCount How many waiters are supposed to wake up
 			//! \param wakeMask Mask of callers to wake
+			//! \return Number of waiters that were awakened.
 			static uint32_t
 			wake(const std::atomic_uint32_t* pFutexValue, uint32_t wakeCount, uint32_t wakeMask = detail::WaitMaskAny) {
 				GAIA_PROF_SCOPE(futex::wake);

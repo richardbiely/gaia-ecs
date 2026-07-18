@@ -84,6 +84,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4324)
 
+		//! Process-wide worker pool for dependent frame and background jobs.
 		class GAIA_API ThreadPool final {
 			friend class JobManager;
 
@@ -155,6 +156,8 @@ namespace gaia {
 			ThreadPool& operator=(const ThreadPool&) = delete;
 
 		public:
+			//! Returns the process-wide thread-pool instance.
+			//! \return Singleton thread pool.
 			static ThreadPool& get() {
 				static ThreadPool threadPool;
 				return threadPool;
@@ -170,11 +173,13 @@ namespace gaia {
 			}
 
 			//! Returns the number of frame worker threads
+			//! \return Spawned frame worker count, excluding the main thread.
 			GAIA_NODISCARD uint32_t workers() const {
 				return m_frameWorkersCnt;
 			}
 
 			//! Returns the number of background worker threads
+			//! \return Spawned background worker count.
 			GAIA_NODISCARD uint32_t background_workers() const {
 				return m_backgroundWorkersCnt;
 			}
@@ -183,7 +188,7 @@ namespace gaia {
 			//! \param count Requested frame execution contexts, including the main thread.
 			//!              The number of spawned frame worker threads is one less.
 			//! \param countHighPrio Number of high-priority frame execution contexts.
-			//!                      Values larger than @a count are clamped.
+			//!                      Values larger than \a count are clamped.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_max_workers(uint32_t count, uint32_t countHighPrio) {
 				const auto maxFrameWorkers = MaxWorkers - m_backgroundWorkersCnt;
@@ -318,10 +323,10 @@ namespace gaia {
 				create_background_worker_threads(workerIdx);
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
@@ -329,10 +334,10 @@ namespace gaia {
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
@@ -340,10 +345,10 @@ namespace gaia {
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			//! \warning This must be called from the main thread.
@@ -353,10 +358,10 @@ namespace gaia {
 				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			//! \warning This must be called from the main thread.
@@ -366,7 +371,9 @@ namespace gaia {
 				m_jobManager.dep_refresh(jobsFirst, jobSecond);
 			}
 
-			//! Creates a threadpool job from @a job.
+			//! Creates a threadpool job from \a job.
+			//! \tparam TJob Job descriptor type convertible to Job.
+			//! \param job Job descriptor to allocate.
 			//! \warning Must be used from the main thread.
 			//! \warning Frame jobs should be created before frame work is submitted.
 			//!          It is valid to create new frame jobs while unrelated background jobs are running.
@@ -417,7 +424,8 @@ namespace gaia {
 			}
 
 		public:
-			//! Deletes a job handle @a jobHandle from the threadpool.
+			//! Deletes a job handle \a jobHandle from the threadpool.
+			//! \param jobHandle Completed or clear job to delete.
 			//! \warning Job handle must not be used by any worker thread and can not be used
 			//!          by any active job handles as a dependency.
 			void del([[maybe_unused]] JobHandle jobHandle) {
@@ -437,11 +445,12 @@ namespace gaia {
 				m_jobManager.free_job(jobHandle);
 			}
 
-			//! Pushes @a jobHandles into the internal queue so worker threads
+			//! Pushes \a jobHandles into the internal queue so worker threads
 			//! can pick them up and execute them.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
+			//! \param jobHandles Jobs to submit.
 			void submit(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
 					return;
@@ -468,15 +477,18 @@ namespace gaia {
 				process(std::span(pHandles, cnt), ctx);
 			}
 
-			//! Pushes @a jobHandle into the internal queue so worker threads
+			//! Pushes \a jobHandle into the internal queue so worker threads
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
+			//! \param jobHandle Job to submit.
 			void submit(JobHandle jobHandle) {
 				submit(std::span(&jobHandle, 1));
 			}
 
+			//! Resets completed jobs to the clear reusable state without waiting.
+			//! \param jobHandles Completed jobs to reset.
 			void reset_state(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
 					return;
@@ -489,11 +501,14 @@ namespace gaia {
 				}
 			}
 
+			//! Resets a completed job to the clear reusable state without waiting.
+			//! \param jobHandle Completed job to reset.
 			void reset_state(JobHandle jobHandle) {
 				reset_state(std::span(&jobHandle, 1));
 			}
 
-			//! Waits for @a jobHandles to finish and resets them to a reusable state.
+			//! Waits for \a jobHandles to finish and resets them to a reusable state.
+			//! \param jobHandles Jobs to wait for and reset.
 			//! \warning Handles that were auto-deleted (non-manual jobs) are skipped.
 			void reset(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
@@ -523,7 +538,8 @@ namespace gaia {
 				}
 			}
 
-			//! Waits for @a jobHandle to finish and resets it to a reusable state.
+			//! Waits for \a jobHandle to finish and resets it to a reusable state.
+			//! \param jobHandle Job to wait for and reset.
 			void reset(JobHandle jobHandle) {
 				reset(std::span(&jobHandle, 1));
 			}
@@ -764,8 +780,8 @@ namespace gaia {
 			}
 
 			//! Wait until a job associated with the jobHandle finishes executing.
-			//! Cleans up any job allocations and dependencies associated with @a jobHandle.
-			//! The calling thread participates in frame job processing until @a jobHandle is done.
+			//! Cleans up any job allocations and dependencies associated with \a jobHandle.
+			//! The calling thread participates in frame job processing until \a jobHandle is done.
 			//! For background jobs, the calling thread only runs background work when no
 			//! background workers are configured.
 			//! \param jobHandle Job handle to wait for
@@ -1212,7 +1228,7 @@ namespace gaia {
 						RaiseException(0x406D1388, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
 					} __except (EXCEPTION_EXECUTE_HANDLER) {
 					}
-#endif
+	#endif
 				}
 #elif GAIA_PLATFORM_APPLE
 				char threadName[16]{};
@@ -1326,7 +1342,7 @@ namespace gaia {
 				return try_fetch_prio(ctx, ctx.prio, jobHandle);
 			}
 
-			//! Checks whether @a ctx is allowed to execute @a jobData inline.
+			//! Checks whether \a ctx is allowed to execute \a jobData inline.
 			//! \param ctx Calling worker context. Null when the submission comes from outside worker execution.
 			//! \param jobData Job being considered.
 			//! \return True when inline execution is allowed for forward progress.
@@ -1470,7 +1486,7 @@ namespace gaia {
 				return final_frame_prio(job.priority);
 			}
 
-			//! Checks whether @a jobData is routed through the background worker queue.
+			//! Checks whether \a jobData is routed through the background worker queue.
 			//! \param jobData Job to inspect.
 			//! \return True when the job is a background job.
 			GAIA_NODISCARD static bool is_background(const JobContainer& jobData) {

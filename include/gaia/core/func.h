@@ -5,6 +5,7 @@
 #include <type_traits>
 
 namespace gaia {
+	//! \cond INTERNAL
 	namespace detail {
 		template <class T>
 		struct is_reference_wrapper: std::false_type {};
@@ -36,7 +37,14 @@ namespace gaia {
 			}
 		}
 	} // namespace detail
+	//! \endcond
 
+	//! Invokes a callable or a pointer to member using standard invocation semantics.
+	//! \tparam F Callable type.
+	//! \tparam Args Argument types.
+	//! \param f Callable or pointer to member to invoke.
+	//! \param args Arguments forwarded to the callable.
+	//! \return The result produced by the invocation, preserving its value category.
 	template <class F, class... Args>
 	constexpr decltype(auto) invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
 		if constexpr (std::is_member_pointer_v<std::decay_t<F>>)

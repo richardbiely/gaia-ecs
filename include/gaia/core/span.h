@@ -11,7 +11,9 @@
 	#include <span>
 #else
 	#include "gaia/core/impl/span_impl.h"
+//! \cond INTERNAL
 namespace std {
 	using gaia::core::span;
 }
+//! \endcond
 #endif

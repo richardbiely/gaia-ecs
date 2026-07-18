@@ -17,18 +17,25 @@
 
 namespace gaia {
 	namespace ser {
+		//! Non-owning string view used by JSON APIs.
 		using json_str_view = util::str_view;
+		//! Owning string used by JSON APIs.
 		using json_str = util::str;
 
+		//! Options controlling semantic JSON output and fallback payloads.
 		enum JsonSaveFlags : uint32_t {
+			//! Disables optional snapshot and fallback payloads.
 			None = 0,
-			BinarySnapshot = 1u << 0, // Include binary snapshot
-			RawFallback = 1u << 1, // Allow raw data fallback
+			//! Includes a binary snapshot.
+			BinarySnapshot = 1u << 0,
+			//! Allows raw component data as a fallback.
+			RawFallback = 1u << 1,
+			//! Enables the standard snapshot and raw fallback behavior.
 			Default = BinarySnapshot | RawFallback
 		};
 
 		//! Explicit presentation and import policy for runtime values in semantic JSON.
-		//! Numeric enum and bitmask payloads are the default; symbolic behavior must be requested.
+		//! Numeric enum and bitmask payloads are the default. Symbolic behavior must be requested.
 		struct RuntimeJsonPolicy final {
 			//! Emits enum constants by name and accepts named enum values during import.
 			bool symbolicEnums = false;
@@ -36,43 +43,86 @@ namespace gaia {
 			bool symbolicBitmasks = false;
 		};
 
-		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
+		//! Severity assigned to a JSON diagnostic.
+		enum class JsonDiagSeverity : uint8_t {
+			//! Informational message that does not indicate data loss.
+			Info,
+			//! Recoverable issue or adjusted input.
+			Warning,
+			//! Error that prevents faithful processing.
+			Error
+		};
+		//! Machine-readable reason for a JSON diagnostic.
 		enum class JsonDiagReason : uint8_t {
+			//! No specific reason.
 			None,
+			//! Input contains an unrecognized field.
 			UnknownField,
+			//! Field location exceeds component storage.
 			FieldOutOfBounds,
+			//! Field value was adjusted while loading.
 			FieldValueAdjusted,
+			//! Payload supplied for a tag component was ignored.
 			TagValueIgnored,
+			//! Component payload is null.
 			NullComponentPayload,
+			//! Runtime fields and a raw fallback are both absent.
 			MissingRuntimeFieldsOrRawPayload,
+			//! Raw fallback cannot represent structure-of-arrays storage.
 			SoaRawUnsupported,
+			//! Component identifier is unknown.
 			UnknownComponent,
+			//! Operation does not support a tag component.
 			TagComponentUnsupported,
+			//! An entity name appears more than once.
 			DuplicateEntityName,
+			//! Component storage required by the payload is absent.
 			MissingComponentStorage,
+			//! Document omits the required archetypes section.
 			MissingArchetypesSection,
+			//! Document omits its format identifier.
 			MissingFormatField,
+			//! Document format version is not supported.
 			UnsupportedFormatVersion,
+			//! Input is not valid JSON.
 			InvalidJson,
+			//! Symbolic runtime constant is unknown.
 			UnknownRuntimeConstant,
+			//! Runtime constant is invalid in the current context.
 			InvalidRuntimeConstant
 		};
 
+		//! One structured issue produced while reading or writing JSON.
 		struct JsonDiagnostic {
+			//! Diagnostic severity.
 			JsonDiagSeverity severity = JsonDiagSeverity::Warning;
+			//! Machine-readable reason.
 			JsonDiagReason reason = JsonDiagReason::None;
+			//! Path to the affected JSON value.
 			json_str path;
+			//! Human-readable explanation.
 			json_str message;
 		};
 
+		//! Collection of JSON diagnostics with cached severity flags.
 		struct JsonDiagnostics {
+			//! Maximum path length read from a null-terminated string.
 			static constexpr uint32_t MaxDiagPathLength = 1024;
+			//! Maximum message length read from a null-terminated string.
 			static constexpr uint32_t MaxDiagMessageLength = 2048;
 
+			//! Recorded diagnostics in insertion order.
 			cnt::darray<JsonDiagnostic> items;
+			//! True when at least one warning has been added.
 			bool hasWarnings = false;
+			//! True when at least one error has been added.
 			bool hasErrors = false;
 
+			//! Appends a diagnostic.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Path to the affected value.
+			//! \param message Human-readable explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, json_str_view message) {
 				JsonDiagnostic diag;
 				diag.severity = severity;
@@ -86,14 +136,26 @@ namespace gaia {
 				else if (severity == JsonDiagSeverity::Error)
 					hasErrors = true;
 			}
+			//! Appends a diagnostic with a null-terminated message.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Path to the affected value.
+			//! \param message Null-terminated explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, const char* message) {
 				add(severity, reason, path, json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
 			}
+			//! Appends a diagnostic from null-terminated strings.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Null-terminated path.
+			//! \param message Null-terminated explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, const char* path, const char* message) {
 				add(severity, reason, json_str_view(path, (uint32_t)GAIA_STRLEN(path, MaxDiagPathLength)),
 						json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
 			}
 
+			//! Checks whether warnings or errors were recorded.
+			//! \return True when the collection contains an issue.
 			GAIA_NODISCARD bool has_issues() const {
 				return hasWarnings || hasErrors;
 			}
@@ -171,9 +233,15 @@ namespace gaia {
 
 		public:
 			ser_json() = default;
+
+			//! \param json Input buffer. It must outlive parsing.
+			//! \param len Input length in bytes.
 			ser_json(const char* json, uint32_t len) {
 				reset_input(json, len);
 			}
+			//! Creates a reader over a null-terminated character array.
+			//! \tparam N Array extent including the terminator.
+			//! \param json Input character array. It must outlive parsing.
 			template <size_t N>
 			explicit ser_json(const char (&json)[N]) {
 				static_assert(N > 0);
@@ -181,6 +249,8 @@ namespace gaia {
 			}
 
 			//! Sets an input JSON buffer for parsing.
+			//! \param json Input buffer. It must outlive parsing, or null to clear input.
+			//! \param len Input length in bytes.
 			void reset_input(const char* json, uint32_t len) {
 				if (json == nullptr) {
 					m_it = nullptr;
@@ -191,6 +261,9 @@ namespace gaia {
 				m_it = json;
 				m_end = json + len;
 			}
+			//! Sets input from a null-terminated character array.
+			//! \tparam N Array extent including the terminator.
+			//! \param json Input character array. It must outlive parsing.
 			template <size_t N>
 			void reset_input(const char (&json)[N]) {
 				static_assert(N > 0);
@@ -205,16 +278,19 @@ namespace gaia {
 			}
 
 			//! Returns currently emitted output text.
+			//! \return Reference to the owned output string.
 			GAIA_NODISCARD const json_str& str() const {
 				return m_out;
 			}
 
 			//! Returns true if parser has reached end of input.
+			//! \return True when no unread input remains.
 			GAIA_NODISCARD bool eof() const {
 				return m_it == nullptr || m_end == nullptr || m_it >= m_end;
 			}
 
 			//! Returns next non-consumed character.
+			//! \return Next input character.
 			GAIA_NODISCARD char peek() const {
 				GAIA_ASSERT(m_it != nullptr && m_it < m_end);
 				return *m_it;
@@ -454,7 +530,7 @@ namespace gaia {
 			}
 
 			//! Scans an integer JSON token without converting through floating point.
-			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through @a integerToken as
+			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through \a integerToken as
 			//! non-integers and are not consumed.
 			//! \param negative Receives whether the token has a leading minus sign.
 			//! \param magnitude Receives the unsigned magnitude, saturated to UINT64_MAX on overflow.
@@ -662,6 +738,7 @@ namespace gaia {
 		};
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T>
 			inline void copy_field_bytes(uint8_t* pFieldData, uint32_t size, const T& v) {
 				memcpy(pFieldData, &v, size < sizeof(v) ? size : (uint32_t)sizeof(v));
@@ -952,6 +1029,7 @@ namespace gaia {
 					return false;
 				}
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia

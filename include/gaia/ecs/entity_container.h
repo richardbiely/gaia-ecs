@@ -11,6 +11,7 @@
 #include "gaia/ecs/id.h"
 #include "gaia/mem/smallblock_allocator.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct EntityContainer;
@@ -150,7 +151,7 @@ namespace gaia {
 				m_records = {};
 			}
 
-			//! Checks whether @a entity has a pair record.
+			//! Checks whether \a entity has a pair record.
 			//! \param entity Pair entity.
 			//! \return True when a pair record exists.
 			GAIA_NODISCARD bool contains(Entity entity) const {
@@ -269,7 +270,7 @@ namespace gaia {
 				m_pairRecords.clear();
 			}
 
-			//! Checks whether @a entity has a pair record.
+			//! Checks whether \a entity has a pair record.
 			//! \param entity Pair entity.
 			//! \return True when a pair record exists.
 			GAIA_NODISCARD bool pair_record_contains(Entity entity) const {
@@ -638,3 +639,4 @@ namespace gaia {
 		}
 	} // namespace cnt
 } // namespace gaia
+//! \endcond

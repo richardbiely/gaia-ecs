@@ -10,23 +10,38 @@
 
 namespace gaia {
 	namespace ser {
+		//! Type-erased callback that writes raw serialized bytes.
 		using save_raw_fn = void (*)(void*, const void*, uint32_t, serialization_type_id);
+		//! Type-erased callback that reads raw serialized bytes.
 		using load_raw_fn = void (*)(void*, void*, uint32_t, serialization_type_id);
+		//! Type-erased callback that returns the backing data pointer.
 		using data_fn = const char* (*)(const void*);
+		//! Type-erased callback that resets a backend.
 		using reset_fn = void (*)(void*);
+		//! Type-erased callback that returns the current cursor.
 		using tell_fn = uint32_t (*)(const void*);
+		//! Type-erased callback that returns the byte count.
 		using bytes_fn = uint32_t (*)(const void*);
+		//! Type-erased callback that moves the cursor.
 		using seek_fn = void (*)(void*, uint32_t);
 
 		//! Opaque runtime serializer context passed around as a single object.
 		struct serializer_ctx {
+			//! Opaque backend instance.
 			void* user = nullptr;
+			//! Raw-write callback.
 			save_raw_fn save_raw = nullptr;
+			//! Raw-read callback.
 			load_raw_fn load_raw = nullptr;
+			//! Optional backing-data callback.
 			data_fn data = nullptr;
+			//! Optional reset callback.
 			reset_fn reset = nullptr;
+			//! Cursor-query callback.
 			tell_fn tell = nullptr;
+			//! Optional byte-count callback.
 			bytes_fn bytes = nullptr;
+			//! Cursor-movement callback.
 			seek_fn seek = nullptr;
 		};
 
@@ -75,19 +90,27 @@ namespace gaia {
 		//! Runtime serializer type-erased handle.
 		//! Traversal logic is shared with compile-time serialization, while raw I/O is delegated
 		//! through function pointers bound to a concrete serializer instance.
-		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
+		//! This is a binary traversal API. JSON document I/O uses ser::ser_json.
 		struct serializer {
+			//! Bound backend context and callback table.
 			serializer_ctx m_ctx{};
 
 			serializer() = default;
 
+			//! Creates a serializer from an existing callback context.
+			//! \param ctx Backend context to copy.
 			explicit serializer(const serializer_ctx& ctx): m_ctx(ctx) {}
 
+			//! Checks whether mandatory backend callbacks are bound.
+			//! \return True when save, load, tell, and seek are available.
 			GAIA_NODISCARD bool valid() const {
 				return m_ctx.user != nullptr && m_ctx.save_raw != nullptr && m_ctx.load_raw != nullptr &&
 							 m_ctx.tell != nullptr && m_ctx.seek != nullptr;
 			}
 
+			//! Serializes a value through generic traversal.
+			//! \tparam T Value type.
+			//! \param arg Value to serialize.
 			template <typename T>
 			void save(const T& arg) {
 				auto saveTrivial = [](auto& serializer, const auto& value) {
@@ -96,6 +119,9 @@ namespace gaia {
 				detail::save_dispatch(*this, arg, saveTrivial);
 			}
 
+			//! Deserializes a value through generic traversal.
+			//! \tparam T Value type.
+			//! \param[out] arg Destination value.
 			template <typename T>
 			void load(T& arg) {
 				auto loadTrivial = [](auto& serializer, auto& value) {
@@ -124,54 +150,81 @@ namespace gaia {
 			}
 #endif
 
+			//! Writes the object representation of a typed value.
+			//! \tparam T Value type.
+			//! \param value Value to write.
 			template <typename T>
 			void save_raw(const T& value) {
 				save_raw(&value, sizeof(value), ser::type_id<T>());
 			}
 
+			//! Reads an object representation into a typed value.
+			//! \tparam T Value type.
+			//! \param[out] value Destination value.
 			template <typename T>
 			void load_raw(T& value) {
 				load_raw(&value, sizeof(value), ser::type_id<T>());
 			}
 
+			//! Writes raw bytes through the bound backend.
+			//! \param src Source bytes.
+			//! \param size Number of bytes.
+			//! \param id Serialization representation.
 			void save_raw(const void* src, uint32_t size, serialization_type_id id) {
 				GAIA_ASSERT(m_ctx.save_raw != nullptr);
 				m_ctx.save_raw(m_ctx.user, src, size, id);
 			}
 
+			//! Reads raw bytes through the bound backend.
+			//! \param[out] src Destination bytes.
+			//! \param size Number of bytes.
+			//! \param id Serialization representation.
 			void load_raw(void* src, uint32_t size, serialization_type_id id) {
 				GAIA_ASSERT(m_ctx.load_raw != nullptr);
 				m_ctx.load_raw(m_ctx.user, src, size, id);
 			}
 
+			//! Returns the backend data pointer when exposed.
+			//! \return Backing data pointer, or null when unsupported.
 			GAIA_NODISCARD const char* data() const {
 				if (m_ctx.data == nullptr)
 					return nullptr;
 				return m_ctx.data(m_ctx.user);
 			}
 
+			//! Resets the backend when supported.
 			void reset() {
 				if (m_ctx.reset == nullptr)
 					return;
 				m_ctx.reset(m_ctx.user);
 			}
 
+			//! Returns the current backend cursor.
+			//! \return Cursor position in bytes.
 			GAIA_NODISCARD uint32_t tell() const {
 				GAIA_ASSERT(m_ctx.tell != nullptr);
 				return m_ctx.tell(m_ctx.user);
 			}
 
+			//! Returns the backend byte count when exposed.
+			//! \return Byte count, or zero when unsupported.
 			GAIA_NODISCARD uint32_t bytes() const {
 				if (m_ctx.bytes == nullptr)
 					return 0;
 				return m_ctx.bytes(m_ctx.user);
 			}
 
+			//! Moves the backend cursor.
+			//! \param pos Absolute byte position.
 			void seek(uint32_t pos) {
 				GAIA_ASSERT(m_ctx.seek != nullptr);
 				m_ctx.seek(m_ctx.user, pos);
 			}
 
+			//! Creates a callback context bound to a concrete backend.
+			//! \tparam TSerializer Backend type.
+			//! \param obj Backend instance that must outlive the context.
+			//! \return Type-erased callback context.
 			template <typename TSerializer>
 			static serializer_ctx bind_ctx(TSerializer& obj) {
 				static_assert(detail::has_save_raw_ptr<TSerializer>::value, "Serializer must expose save_raw(ptr,size,id)");
@@ -224,6 +277,10 @@ namespace gaia {
 				return ctx;
 			}
 
+			//! Creates a runtime serializer bound to a concrete backend.
+			//! \tparam TSerializer Backend type.
+			//! \param obj Backend instance that must outlive the serializer.
+			//! \return Bound runtime serializer.
 			template <typename TSerializer>
 			static serializer bind(TSerializer& obj) {
 				return serializer(bind_ctx(obj));
@@ -231,11 +288,16 @@ namespace gaia {
 		};
 
 		//! Returns a runtime serializer handle as-is.
+		//! \param s Serializer handle to return.
+		//! \return The supplied serializer handle.
 		inline serializer make_serializer(serializer s) {
 			return s;
 		}
 
 		//! Binds an object exposing save_raw/load_raw/tell/seek into a runtime serializer handle.
+		//! \tparam TSerializer Backend type.
+		//! \param s Backend instance that must outlive the serializer.
+		//! \return Bound runtime serializer.
 		template <typename TSerializer>
 		inline serializer make_serializer(TSerializer& s) {
 			return serializer::bind(s);

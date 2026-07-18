@@ -17,7 +17,8 @@
 
 namespace gaia {
 	namespace mt {
-		//! Packed job state layout used inside @ref JobContainer::state.
+		//! \cond INTERNAL
+		//! Packed job state layout used inside \ref JobContainer::state.
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
 			DEP_BITS = 27,
@@ -135,9 +136,9 @@ namespace gaia {
 				return jc;
 			}
 
-			//! Returns the public handle associated with @a jc.
+			//! Returns the public handle associated with \a jc.
 			//! \param jc Job container to inspect.
-			//! \return Handle referencing @a jc.
+			//! \return Handle referencing \a jc.
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
 				return JobHandle(jc.idx, jc.data.gen, (jc.prio == JobPriority::Low) != 0);
 			}
@@ -150,7 +151,6 @@ namespace gaia {
 			uint32_t m_id = IdMask;
 			uint32_t m_gen = 0;
 
-			//! Creates an invalid callback handle.
 			ParallelCallbackHandle() = default;
 			//! Creates a callback handle from the given identifier and generation.
 			//! \param id Slot identifier.
@@ -184,9 +184,7 @@ namespace gaia {
 			JobArgsFunc callback;
 			std::atomic_uint32_t refs = 0;
 
-			//! Creates an empty callback record.
 			ParallelCallbackRecord() = default;
-			//! Destroys the callback record.
 			~ParallelCallbackRecord() = default;
 
 			ParallelCallbackRecord(const ParallelCallbackRecord&) = delete;
@@ -221,9 +219,9 @@ namespace gaia {
 				return record;
 			}
 
-			//! Returns the public handle associated with @a record.
+			//! Returns the public handle associated with \a record.
 			//! \param record Callback record to inspect.
-			//! \return Handle referencing @a record.
+			//! \return Handle referencing \a record.
 			GAIA_NODISCARD static ParallelCallbackHandle handle(const ParallelCallbackRecord& record) {
 				return ParallelCallbackHandle(record.idx, record.data.gen);
 			}
@@ -241,12 +239,12 @@ namespace gaia {
 			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
 
 		public:
-			//! Returns mutable internal storage for @a jobHandle.
+			//! Returns mutable internal storage for \a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			JobContainer& data(JobHandle jobHandle) {
 				return m_jobData.live_unsafe(jobHandle.id());
 			}
-			//! Returns immutable internal storage for @a jobHandle.
+			//! Returns immutable internal storage for \a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			const JobContainer& data(JobHandle jobHandle) const {
 				return m_jobData.live_unsafe(jobHandle.id());
@@ -283,7 +281,7 @@ namespace gaia {
 				return m_parallelCallbacks.alloc(&ctx);
 			}
 
-			//! Invalidates @a jobHandle by resetting its index in the job pool.
+			//! Invalidates \a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
 			//! \warning Caller must serialize job-pool allocation/free access.
@@ -318,7 +316,7 @@ namespace gaia {
 				finalize(jobData);
 			}
 
-			//! Signals that one dependency edge of @a jobData has completed.
+			//! Signals that one dependency edge of \a jobData has completed.
 			//! \param jobData Job whose dependency counter should be decremented.
 			//! \return True when the job has no remaining dependencies and can be processed.
 			static bool signal_edge(JobContainer& jobData) {
@@ -335,7 +333,7 @@ namespace gaia {
 				return deps == 0;
 			}
 
-			//! Releases heap storage used for the dependency list of @a jobData.
+			//! Releases heap storage used for the dependency list of \a jobData.
 			//! \param jobData Job whose dependency edge storage should be released.
 			static void free_edges(JobContainer& jobData) {
 				// We only allocate an array for 2 and more dependencies
@@ -347,19 +345,19 @@ namespace gaia {
 				// jobData.edges.pDeps = nullptr;
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
@@ -386,10 +384,10 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
@@ -440,7 +438,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Marks a job as executing on the worker identified by @a workerIdx.
+			//! Marks a job as executing on the worker identified by \a workerIdx.
 			//! \param jobData Job to transition.
 			//! \param workerIdx Worker executing the job.
 			static void executing(JobContainer& jobData, uint32_t workerIdx) {
@@ -472,7 +470,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Checks whether the job referenced by @a jobHandle is in the clear state.
+			//! Checks whether the job referenced by \a jobHandle is in the clear state.
 			//! \param jobHandle Handle of the job to inspect.
 			//! \return True when the packed state is zero.
 			GAIA_NODISCARD bool is_clear(JobHandle jobHandle) const {
@@ -481,7 +479,7 @@ namespace gaia {
 				return state == 0;
 			}
 
-			//! Checks whether @a jobData is in the clear state.
+			//! Checks whether \a jobData is in the clear state.
 			//! \param jobData Job to inspect.
 			//! \return True when the packed state is zero.
 			GAIA_NODISCARD static bool is_clear(JobContainer& jobData) {
@@ -489,7 +487,7 @@ namespace gaia {
 				return state == 0;
 			}
 
-			//! Checks whether @a jobData has been submitted but not yet queued for execution.
+			//! Checks whether \a jobData has been submitted but not yet queued for execution.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Submitted.
 			GAIA_NODISCARD static bool submitted(const JobContainer& jobData) {
@@ -497,7 +495,7 @@ namespace gaia {
 				return state == JobState::Submitted;
 			}
 
-			//! Checks whether @a jobData is queued for worker processing.
+			//! Checks whether \a jobData is queued for worker processing.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Processing.
 			GAIA_NODISCARD static bool processing(const JobContainer& jobData) {
@@ -505,7 +503,7 @@ namespace gaia {
 				return state == JobState::Processing;
 			}
 
-			//! Checks whether @a jobData currently is executing or queued for execution.
+			//! Checks whether \a jobData currently is executing or queued for execution.
 			//! \param jobData Job to inspect.
 			//! \return True when the job is busy.
 			GAIA_NODISCARD static bool busy(const JobContainer& jobData) {
@@ -513,7 +511,7 @@ namespace gaia {
 				return state == JobState::Executing || state == JobState::Processing;
 			}
 
-			//! Checks whether @a jobData has finished executing.
+			//! Checks whether \a jobData has finished executing.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Done.
 			GAIA_NODISCARD static bool done(const JobContainer& jobData) {
@@ -521,7 +519,7 @@ namespace gaia {
 				return state == JobState::Done;
 			}
 
-			//! Invokes the shared callback referenced by @a handle.
+			//! Invokes the shared callback referenced by \a handle.
 			//! \param handle Callback handle.
 			//! \param args Arguments forwarded to the callback.
 			void invoke_parallel_callback(ParallelCallbackHandle handle, const JobArgs& args) {
@@ -530,7 +528,7 @@ namespace gaia {
 				record.callback(args);
 			}
 
-			//! Releases one reference to the callback referenced by @a handle.
+			//! Releases one reference to the callback referenced by \a handle.
 			//! \param handle Callback handle.
 			//! \return True when the released reference was the last one.
 			GAIA_NODISCARD bool release_parallel_callback_ref(ParallelCallbackHandle handle) {
@@ -611,5 +609,6 @@ namespace gaia {
 				JobManager::signal_edge(jobData);
 			}
 		} // namespace detail
+		//! \endcond
 	} // namespace mt
 } // namespace gaia

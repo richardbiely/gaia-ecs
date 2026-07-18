@@ -421,31 +421,31 @@ namespace gaia {
 
 			//! Registers a new term to the observer registry and links an observer with it.
 			//! \param world World the observer is triggered for
-			//! \param term Term to add to @a observer
+			//! \param term Term to add to \a observer
 			//! \param observer Observer entity
 			//! \param matchKind Observer match policy used for the registered term.
 			void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic);
 
 			//! Removes a term from the observer registry.
 			//! \param world World the observer is triggered for
-			//! \param term Term to remove from @a observer
+			//! \param term Term to remove from \a observer
 			void del(World& world, Entity term);
 
 			//! Called when components are added to an entity.
 			//! \param world World the observer is triggered for
 			//! \param archetype Archetype we try to match with the observer
-			//! \param entsAdded Span of entities added to the @a archetype
+			//! \param entsAdded Span of entities added to the \a archetype
 			//! \param targets Span on entities for which the observers triggers
 			void on_add(World& world, const Archetype& archetype, EntitySpan entsAdded, EntitySpan targets);
 
 			//! Called when components are removed from an entity.
 			//! \param world World the observer is triggered for
 			//! \param archetype Archetype we try to match with the observer
-			//! \param entsRemoved Span of entities removed from the @a archetype
+			//! \param entsRemoved Span of entities removed from the \a archetype
 			//! \param targets Span on entities for which the observers triggers
 			void on_del(World& world, const Archetype& archetype, EntitySpan entsRemoved, EntitySpan targets);
 
-			//! Dispatches `OnSet` observers for @a term against @a targets.
+			//! Dispatches `OnSet` observers for \a term against \a targets.
 			//! \param world World the observer is triggered for
 			//! \param term Changed term
 			//! \param targets Triggered entities

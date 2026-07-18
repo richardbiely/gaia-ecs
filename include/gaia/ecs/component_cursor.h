@@ -30,7 +30,7 @@ namespace gaia {
 		//! Non-owning read-only view over raw component bytes on an entity.
 		//!
 		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::get_raw(...)`; keeping it out of the view
+		//! omitted because callers already pass it to `World::get_raw(...)`. Keeping it out of the view
 		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
 		//! and `ComponentRawViewFlag_Valid` set.
 		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
@@ -53,7 +53,7 @@ namespace gaia {
 		//! Non-owning mutable view over raw component bytes on an entity.
 		//!
 		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::mut_raw(...)`; keeping it out of the view
+		//! omitted because callers already pass it to `World::mut_raw(...)`. Keeping it out of the view
 		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
 		//! and `ComponentRawViewFlag_Valid` set.
 		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
@@ -103,7 +103,18 @@ namespace gaia {
 		ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx);
 
 		//! Result status for ComponentCursor operations.
-		enum class CursorStatus : uint8_t { Ok, Invalid, ReadOnly, TypeMismatch, OutOfRange };
+		enum class CursorStatus : uint8_t {
+			//! Operation completed successfully.
+			Ok,
+			//! Cursor or selected value is invalid.
+			Invalid,
+			//! Operation requires mutable access but the cursor is read-only.
+			ReadOnly,
+			//! Requested value type does not match the selected field type.
+			TypeMismatch,
+			//! Requested element or field index is outside the valid range.
+			OutOfRange
+		};
 
 		//! Result of reading or writing through a ComponentCursor.
 		//! \tparam T Value type returned by the operation.
@@ -142,22 +153,22 @@ namespace gaia {
 			}
 		};
 
-		//! \return True when @a result has status @a status.
+		//! \return True when \a result has status \a status.
 		GAIA_NODISCARD inline bool operator==(CursorResult<void> result, CursorStatus status) noexcept {
 			return result.status == status;
 		}
 
-		//! \return True when @a result has status @a status.
+		//! \return True when \a result has status \a status.
 		GAIA_NODISCARD inline bool operator==(CursorStatus status, CursorResult<void> result) noexcept {
 			return result.status == status;
 		}
 
-		//! \return True when @a result does not have status @a status.
+		//! \return True when \a result does not have status \a status.
 		GAIA_NODISCARD inline bool operator!=(CursorResult<void> result, CursorStatus status) noexcept {
 			return result.status != status;
 		}
 
-		//! \return True when @a result does not have status @a status.
+		//! \return True when \a result does not have status \a status.
 		GAIA_NODISCARD inline bool operator!=(CursorStatus status, CursorResult<void> result) noexcept {
 			return result.status != status;
 		}
@@ -171,14 +182,13 @@ namespace gaia {
 			//! Maximum nested field depth tracked by the cursor.
 			static constexpr uint32_t MaxDepth = 32;
 
-			//! Creates an invalid cursor.
 			ComponentCursor() = default;
 
 			//! Creates a read-only cursor from a raw component view.
 			//! \param components Component metadata registry used for field/type lookup.
-			//! \param component Component/type entity represented by @a view.
+			//! \param component Component/type entity represented by \a view.
 			//! \param view Raw component view returned by World::get_raw().
-			//! \return Cursor positioned at the root component payload, or invalid cursor when @a view is invalid.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when \a view is invalid.
 			GAIA_NODISCARD static ComponentCursor
 			from_raw(const ComponentCache& components, Entity component, ComponentRawView view) {
 				ComponentCursor cursor{};
@@ -198,10 +208,10 @@ namespace gaia {
 			//! Creates a mutable cursor from a raw component view.
 			//! \param world World owning the mutated chunk storage.
 			//! \param components Component metadata registry used for field/type lookup.
-			//! \param entity Entity whose component payload is represented by @a view.
-			//! \param component Component/type entity represented by @a view.
+			//! \param entity Entity whose component payload is represented by \a view.
+			//! \param component Component/type entity represented by \a view.
 			//! \param view Raw component view returned by World::mut_raw().
-			//! \return Cursor positioned at the root component payload, or invalid cursor when @a view is invalid.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when \a view is invalid.
 			GAIA_NODISCARD static ComponentCursor from_raw(
 					World& world, const ComponentCache& components, Entity entity, Entity component, ComponentRawMutView view) {
 				ComponentCursor cursor{};
@@ -368,7 +378,7 @@ namespace gaia {
 				return result;
 			}
 
-			//! Descends into the reflected field at @a index.
+			//! Descends into the reflected field at \a index.
 			//! \param index Reflected field index on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
@@ -385,7 +395,7 @@ namespace gaia {
 				return pField != nullptr ? descend(*pField, index) : false;
 			}
 
-			//! Descends into the reflected field named @a name.
+			//! Descends into the reflected field named \a name.
 			//! \param name Reflected field name on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(util::str_view name) {
@@ -409,7 +419,7 @@ namespace gaia {
 				return index < fieldCount && descend(*pField, index);
 			}
 
-			//! Descends into element @a index of the current fixed inline or named array scope.
+			//! Descends into element \a index of the current fixed inline or named array scope.
 			//! \param index Element index inside the current field.
 			//! \return True when the cursor moved to the element.
 			bool elem(uint32_t index) noexcept {
@@ -527,7 +537,7 @@ namespace gaia {
 			}
 
 			//! Moves back to the parent cursor scope.
-			//! \return True when the cursor moved to the parent; false at root or when invalid.
+			//! \return True when the cursor moved to the parent. False at root or when invalid.
 			bool parent() noexcept {
 				if (!m_valid || m_depth == 0)
 					return false;
@@ -541,7 +551,7 @@ namespace gaia {
 				return read_primitive<bool>(Bool);
 			}
 
-			//! Writes @a value to the current cursor value as a bool.
+			//! Writes \a value to the current cursor value as a bool.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> b(bool value) noexcept {
@@ -554,7 +564,7 @@ namespace gaia {
 				return read_primitive<char>(Char8);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c8.
+			//! Writes \a value to the current cursor value as a scalar c8.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c8(char value) noexcept {
@@ -627,7 +637,7 @@ namespace gaia {
 				return read_primitive<char16_t>(Char16);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c16.
+			//! Writes \a value to the current cursor value as a scalar c16.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c16(char16_t value) noexcept {
@@ -640,7 +650,7 @@ namespace gaia {
 				return read_primitive<char32_t>(Char32);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c32.
+			//! Writes \a value to the current cursor value as a scalar c32.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c32(char32_t value) noexcept {
@@ -652,7 +662,7 @@ namespace gaia {
 				return read_primitive<int8_t>(S8);
 			}
 
-			//! Writes @a value to the current cursor value as an s8.
+			//! Writes \a value to the current cursor value as an s8.
 			GAIA_NODISCARD CursorResult<void> s8(int8_t value) noexcept {
 				return write_primitive(S8, value);
 			}
@@ -662,7 +672,7 @@ namespace gaia {
 				return read_primitive<uint8_t>(U8);
 			}
 
-			//! Writes @a value to the current cursor value as a u8.
+			//! Writes \a value to the current cursor value as a u8.
 			GAIA_NODISCARD CursorResult<void> u8(uint8_t value) noexcept {
 				return write_primitive(U8, value);
 			}
@@ -672,7 +682,7 @@ namespace gaia {
 				return read_primitive<int16_t>(S16);
 			}
 
-			//! Writes @a value to the current cursor value as an s16.
+			//! Writes \a value to the current cursor value as an s16.
 			GAIA_NODISCARD CursorResult<void> s16(int16_t value) noexcept {
 				return write_primitive(S16, value);
 			}
@@ -682,7 +692,7 @@ namespace gaia {
 				return read_primitive<uint16_t>(U16);
 			}
 
-			//! Writes @a value to the current cursor value as a u16.
+			//! Writes \a value to the current cursor value as a u16.
 			GAIA_NODISCARD CursorResult<void> u16(uint16_t value) noexcept {
 				return write_primitive(U16, value);
 			}
@@ -692,7 +702,7 @@ namespace gaia {
 				return read_primitive<int32_t>(S32);
 			}
 
-			//! Writes @a value to the current cursor value as an s32.
+			//! Writes \a value to the current cursor value as an s32.
 			GAIA_NODISCARD CursorResult<void> s32(int32_t value) noexcept {
 				return write_primitive(S32, value);
 			}
@@ -702,7 +712,7 @@ namespace gaia {
 				return read_primitive<uint32_t>(U32);
 			}
 
-			//! Writes @a value to the current cursor value as a u32.
+			//! Writes \a value to the current cursor value as a u32.
 			GAIA_NODISCARD CursorResult<void> u32(uint32_t value) noexcept {
 				return write_primitive(U32, value);
 			}
@@ -712,7 +722,7 @@ namespace gaia {
 				return read_primitive<int64_t>(S64);
 			}
 
-			//! Writes @a value to the current cursor value as an s64.
+			//! Writes \a value to the current cursor value as an s64.
 			GAIA_NODISCARD CursorResult<void> s64(int64_t value) noexcept {
 				return write_primitive(S64, value);
 			}
@@ -722,7 +732,7 @@ namespace gaia {
 				return read_primitive<uint64_t>(U64);
 			}
 
-			//! Writes @a value to the current cursor value as a u64.
+			//! Writes \a value to the current cursor value as a u64.
 			GAIA_NODISCARD CursorResult<void> u64(uint64_t value) noexcept {
 				return write_primitive(U64, value);
 			}
@@ -732,7 +742,7 @@ namespace gaia {
 				return read_primitive<float>(F32);
 			}
 
-			//! Writes @a value to the current cursor value as an f32.
+			//! Writes \a value to the current cursor value as an f32.
 			GAIA_NODISCARD CursorResult<void> f32(float value) noexcept {
 				return write_primitive(F32, value);
 			}
@@ -742,7 +752,7 @@ namespace gaia {
 				return read_primitive<double>(F64);
 			}
 
-			//! Writes @a value to the current cursor value as an f64.
+			//! Writes \a value to the current cursor value as an f64.
 			GAIA_NODISCARD CursorResult<void> f64(double value) noexcept {
 				return write_primitive(F64, value);
 			}
@@ -778,10 +788,10 @@ namespace gaia {
 			//! Writes exact bytes to the current cursor position.
 			//!
 			//! This is the cursor write path for runtime component data. It performs no type conversion and
-			//! requires @a byteCount to match the current cursor scope size. Use field navigation to choose
+			//! requires \a byteCount to match the current cursor scope size. Use field navigation to choose
 			//! the address being written.
 			//! Successful writes finish the root component write, so normal chunk write tracking and OnSet observers run.
-			//! \param data Bytes to copy. Must be non-null when @a byteCount is non-zero.
+			//! \param data Bytes to copy. Must be non-null when \a byteCount is non-zero.
 			//! \param byteCount Number of bytes to copy.
 			//! \return Ok when bytes were copied, otherwise the reason the write failed.
 			CursorResult<void> set_raw(const void* data, uint32_t byteCount) noexcept {

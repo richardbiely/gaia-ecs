@@ -21,6 +21,10 @@ namespace gaia {
 
 		const ComponentCache& comp_cache(const World& world);
 		ComponentCache& comp_cache_mut(World& world);
+		//! Registers or retrieves metadata for a typed component.
+		//! \tparam T Component type to register.
+		//! \param world World whose component cache owns the registration.
+		//! \return Metadata for the registered component.
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
 
@@ -36,7 +40,10 @@ namespace gaia {
 		Entity pair_rel(const World& world, Entity pair);
 		Entity pair_tgt(const World& world, Entity pair);
 
-		//! Returns whether @a entity currently exists and its generation matches the world's record.
+		//! Returns whether \p entity currently exists and its generation matches the world's record.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity to validate.
+		//! \return True when the entity is alive in the world.
 		bool valid(const World& world, Entity entity);
 
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -47,7 +54,7 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
-		//! Invokes @a func for each live target of @a entity through @a relation.
+		//! Invokes \a func for each live target of \a entity through \a relation.
 		//! This is a small C-style adapter used by header-only query/observer internals.
 		void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
@@ -56,22 +63,29 @@ namespace gaia {
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
 		//! Returns the version that changes when an archetype enters or leaves the deletion-request set.
+		//! \param world World whose archetype deletion state is inspected.
+		//! \return Current archetype deletion-set version.
 		uint32_t world_archetype_delete_version(const World& world);
 		//! Returns the current world structural version.
+		//! \param world World whose version is inspected.
+		//! \return Current structural version.
 		uint32_t world_version(const World& world);
-		//! Returns the current version of @a relation-specific traversal metadata.
+		//! Returns the current version of \p relation-specific traversal metadata.
+		//! \param world World that owns the traversal metadata.
+		//! \param relation Relation whose metadata version is inspected.
+		//! \return Current relation traversal version.
 		uint32_t world_rel_version(const World& world, Entity relation);
-		//! Returns whether @a relation is non-fragmenting.
+		//! Returns whether \a relation is non-fragmenting.
 		bool world_relation_is_non_fragmenting(const World& world, Entity relation);
-		//! Returns whether @a relation is treated as a hierarchy relation by traversal helpers.
+		//! Returns whether \a relation is treated as a hierarchy relation by traversal helpers.
 		bool world_relation_is_hierarchy(const World& world, Entity relation);
-		//! Returns whether @a relation fragments archetypes.
+		//! Returns whether \a relation fragments archetypes.
 		bool world_relation_is_fragmenting(const World& world, Entity relation);
-		//! Returns whether @a relation is both hierarchy-like and fragmenting.
+		//! Returns whether \a relation is both hierarchy-like and fragmenting.
 		bool world_relation_is_fragmenting_hierarchy(const World& world, Entity relation);
-		//! Returns whether @a relation supports cached depth-order traversal.
+		//! Returns whether \a relation supports cached depth-order traversal.
 		bool world_relation_supports_depth_order(const World& world, Entity relation);
-		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
+		//! Returns whether depth-order traversal for \a relation skips disabled subtrees.
 		bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);

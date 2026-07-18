@@ -188,7 +188,6 @@ namespace gaia {
 			}
 
 		public:
-			//! Constructs an empty function wrapper.
 			MoveFunc() = default;
 
 			//! Constructs an empty function wrapper.
@@ -228,11 +227,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Constructs a wrapper from a compatible callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, MoveFunc>>>
 			MoveFunc(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
+			//! Replaces the stored callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return Reference to this wrapper.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, MoveFunc>>>
 			MoveFunc& operator=(F&& f) {
 				destroy();
@@ -259,6 +265,7 @@ namespace gaia {
 
 			//! Executes the stored callable.
 			//! \param args Arguments forwarded to the callable.
+			//! \return Callable result, or no value when R is void.
 			R exec(Args... args) const {
 				GAIA_ASSERT(m_ops != nullptr);
 				if constexpr (std::is_void_v<R>) {
@@ -270,6 +277,7 @@ namespace gaia {
 
 			//! Executes the stored callable.
 			//! \param args Arguments forwarded to the callable.
+			//! \return Callable result, or no value when R is void.
 			R operator()(Args... args) const {
 				if constexpr (std::is_void_v<R>) {
 					exec(GAIA_FWD(args)...);

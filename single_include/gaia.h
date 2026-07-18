@@ -207,10 +207,10 @@
 	#define GAIA_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #endif
 
-//! Checks if endianess was detected correctly at compile-time.
-//! \return True if endianess defined in GAIA_LITTLE_ENDIAN/GAIA_END_ENDIAN is correct. False otherwise.
-//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
 namespace gaia {
+	//! Checks if endianness was detected correctly at compile time.
+	//! \return True if endianess defined in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN is correct. False otherwise.
+	//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
 	inline bool CheckEndianess() {
 		const uint16_t testWord = 0x1234;
 		const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
@@ -644,16 +644,18 @@ namespace gaia {
 #endif
 
 namespace gaia {
-	// The dont_optimize(...) function can be used to prevent a value or
-	// expression from being optimized away by the compiler. This function is
-	// intended to add little to no overhead.
-	// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		asm volatile("" : : "r,m"(value) : "memory");
 	}
 
+	//! Prevents a mutable value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T& value) {
 	#if defined(__clang__)
@@ -670,12 +672,18 @@ namespace gaia {
 	} // namespace detail
 
 	#if defined(_MSC_VER)
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		detail::use_char_pointer(&reinterpret_cast<char const volatile&>(value));
 		::_ReadWriteBarrier();
 	}
 	#else
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		detail::use_char_pointer(&reinterpret_cast<char const volatile&>(value));
@@ -921,6 +929,7 @@ namespace gaia {
 
 namespace gaia {
 
+	//! Cache-locality hint accepted by prefetch().
 	enum PrefetchHint : int {
 		//! Temporal data — prefetch data into all levels of the cache hierarchy
 		PREFETCH_HINT_T0 = 3,
@@ -934,7 +943,9 @@ namespace gaia {
 		PREFETCH_HINT_NTA = 0
 	};
 
-	//! Prefetch intrinsic
+	//! Requests that a memory location be loaded into the cache hierarchy.
+	//! \param x Address to prefetch.
+	//! \param hint Cache-locality hint from PrefetchHint.
 	GAIA_FORCEINLINE void prefetch(const void* x, int hint) {
 #if GAIA_USE_PREFETCH
 	#if GAIA_COMPILER_CLANG
@@ -1039,6 +1050,7 @@ namespace gaia {
 		struct random_access_iterator_tag: bidirectional_iterator_tag {};
 		struct contiguous_iterator_tag: random_access_iterator_tag {};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct iterator_traits_base {}; // empty for non-iterators
@@ -1079,48 +1091,76 @@ namespace gaia {
 			template <typename It>
 			using iterator_cat_t = typename iterator_traits<It>::iterator_category;
 		} // namespace detail
+		//! \endcond
 
+		//! Indicates whether T satisfies Gaia-ECS iterator trait requirements.
+		//! \tparam T Type to inspect.
 		template <typename T, typename = void>
 		[[maybe_unused]] constexpr bool is_iterator_v = false;
 
+		//! Specialization selected for types with a valid iterator category.
+		//! \tparam T Iterator type.
 		template <typename T>
 		[[maybe_unused]] constexpr bool is_iterator_v<T, std::void_t<detail::iterator_cat_t<T>>> = true;
 
 		template <typename T>
 		struct is_iterator: std::bool_constant<is_iterator_v<T>> {};
 
+		//! Indicates whether an iterator is an input iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_input_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, input_iterator_tag>;
 
+		//! Indicates whether an iterator is a forward iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_fwd_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, forward_iterator_tag>;
 
+		//! Indicates whether an iterator is a reverse iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_rev_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, reverse_iterator_tag>;
 
+		//! Indicates whether an iterator is bidirectional.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_bidi_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, bidirectional_iterator_tag>;
 
+		//! Indicates whether an iterator supports random access.
+		//! \tparam It Iterator type.
 		template <typename It>
 		[[maybe_unused]] constexpr bool is_random_iter_v =
 				std::is_convertible_v<detail::iterator_cat_t<It>, random_access_iterator_tag>;
 
+		//! Reference type yielded by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_ref_t = typename detail::iterator_traits<It>::reference;
 
+		//! Value type yielded by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_value_t = typename detail::iterator_traits<It>::value_type;
 
+		//! Difference type used by an iterator.
+		//! \tparam It Iterator type.
 		template <typename It>
 		using iterator_diff_t = typename detail::iterator_traits<It>::difference_type;
 
+		//! Common difference type shared by a set of iterators.
+		//! \tparam It Iterator types.
 		template <typename... It>
 		using common_diff_t = std::common_type_t<iterator_diff_t<It>...>;
 
+		//! Computes the number of increments from first to last.
+		//! \tparam It Iterator type.
+		//! \param first Beginning iterator.
+		//! \param last Ending iterator.
+		//! \return Distance from first to last in iterator difference units.
 		template <typename It>
 		constexpr iterator_diff_t<It> distance(It first, It last) {
 			if constexpr (std::is_pointer_v<It> || is_random_iter_v<It>)
@@ -1158,6 +1198,7 @@ namespace gaia {
 #endif
 
 	namespace core {
+		//! \cond INTERNAL
 		namespace detail {
 			//! Removes reference and pointer qualifiers for internal type traits.
 			//! \tparam T Type to normalize.
@@ -1245,36 +1286,37 @@ namespace gaia {
 				return il.begin();
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Tag type used to request zero-initialization in APIs that accept marker objects.
 		struct zero_t {
-			//! Creates the zero-initialization tag.
 			explicit constexpr zero_t() = default;
 		};
+
 		//! Shared zero-initialization tag instance.
 		inline constexpr zero_t zero{};
 
-		//! Removes both reference and pointer qualifiers from @a T.
+		//! Removes both reference and pointer qualifiers from \a T.
 		//! \tparam T Type to normalize.
 		template <typename T>
 		using rem_rp_t = typename detail::rem_rp<T>::type;
 
-		//! True when @a T is a mutable pointer or reference type.
+		//! True when \a T is a mutable pointer or reference type.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_mut_v = detail::is_mut<T>::value;
 
-		//! Decayed value type after removing an optional pointer qualifier from @a T.
+		//! Decayed value type after removing an optional pointer qualifier from \a T.
 		//! \tparam T Type to normalize.
 		template <typename T>
 		using raw_t = typename std::decay_t<std::remove_pointer_t<T>>;
 
-		//! True when @a T already is a non-array raw value type.
+		//! True when \a T already is a non-array raw value type.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_raw_v = std::is_same_v<T, raw_t<T>> && !std::is_array_v<T>;
 
-		//! True when @a T is a complete type at the point of instantiation.
+		//! True when \a T is a complete type at the point of instantiation.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_complete_v = detail::is_complete<T>::value;
@@ -1282,7 +1324,7 @@ namespace gaia {
 		//! Obtains the actual address of an object, even in the presence of overloaded `operator&`.
 		//! \tparam T Object type.
 		//! \param obj Object to address.
-		//! \return Pointer to @a obj.
+		//! \return Pointer to \a obj.
 		template <typename T>
 		constexpr T* addressof(T& obj) noexcept {
 			return &obj;
@@ -1293,10 +1335,10 @@ namespace gaia {
 		template <typename T>
 		const T* addressof(const T&&) = delete;
 
-		//! Checks whether @a ptr satisfies the alignment requirements of @a T.
+		//! Checks whether \a ptr satisfies the alignment requirements of \a T.
 		//! \tparam T Pointee type used for alignment validation.
 		//! \param ptr Pointer to validate.
-		//! \return True if @a ptr is aligned for @a T.
+		//! \return True if \a ptr is aligned for \a T.
 		template <typename T>
 		constexpr bool check_alignment(const T* ptr) noexcept {
 			return (reinterpret_cast<uintptr_t>(ptr)) % alignof(T) == 0;
@@ -1309,7 +1351,7 @@ namespace gaia {
 			//! Guarded lockable object.
 			T& m_ctx;
 
-			//! Acquires the lock represented by @a ctx.
+			//! Acquires the lock represented by \a ctx.
 			//! \param ctx Lockable object to guard for the lifetime of this scope.
 			lock_scope(T& ctx): m_ctx(ctx) {
 				ctx.lock();
@@ -1392,10 +1434,10 @@ namespace gaia {
 		// Memory size helpers
 		//----------------------------------------------------------------------
 
-		//! Counts how many bits are required to represent @a number.
+		//! Counts how many bits are required to represent \a number.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return Number of bits required to represent @a number.
+		//! \return Number of bits required to represent \a number.
 		template <typename T>
 		constexpr uint32_t count_bits(T number) {
 			uint32_t bits_needed = 0;
@@ -1406,10 +1448,10 @@ namespace gaia {
 			return bits_needed;
 		}
 
-		//! Checks whether @a number is a power of two.
+		//! Checks whether \a number is a power of two.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return True if @a number has exactly one bit set.
+		//! \return True if \a number has exactly one bit set.
 		template <typename T>
 		constexpr bool is_pow2(T number) {
 			static_assert(std::is_integral<T>::value, "is_pow2 must be used with integer types");
@@ -1417,10 +1459,10 @@ namespace gaia {
 			return (number & (number - 1)) == 0;
 		}
 
-		//! Returns the highest power of two not greater than @a number.
+		//! Returns the highest power of two not greater than \a number.
 		//! \tparam T Integral value type.
 		//! \param number Value to inspect.
-		//! \return Highest power of two not greater than @a number.
+		//! \return Highest power of two not greater than \a number.
 		template <typename T>
 		constexpr T closest_pow2(T number) {
 			static_assert(std::is_integral<T>::value, "closest_pow2 must be used with integer types");
@@ -1447,18 +1489,18 @@ namespace gaia {
 		// Element construction / destruction
 		//----------------------------------------------------------------------
 
-		//! Constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Constructs an object of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		template <typename T>
 		void call_ctor_raw(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T;
 		}
 
-		//! Constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Constructs \a cnt objects of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_raw_n(T* pData, size_t cnt) {
@@ -1469,18 +1511,18 @@ namespace gaia {
 			}
 		}
 
-		//! Value-constructs an object of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Value-constructs an object of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		template <typename T>
 		void call_ctor_val(T* pData) {
 			GAIA_ASSERT(pData != nullptr);
 			(void)::new (const_cast<void*>(static_cast<const volatile void*>(core::addressof(*pData)))) T();
 		}
 
-		//! Value-constructs @a cnt objects of type @a T in the uninitialized storage at the memory address @a pData.
+		//! Value-constructs \a cnt objects of type \a T in the uninitialized storage at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_val_n(T* pData, size_t cnt) {
@@ -1491,7 +1533,7 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type @a T at the given memory address.
+		//! Constructs an object of type \a T at the given memory address.
 		//! \tparam T Type to construct
 		//! \param pData Pointer to the memory where the object should be constructed.
 		//! \warning pData must not be nullptr.
@@ -1503,9 +1545,9 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs @a cnt objects of type @a T at the memory address @a pData.
+		//! Constructs \a cnt objects of type \a T at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be constructed; must not be null.
+		//! \param pData Pointer to where the object will be constructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_ctor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
@@ -1516,11 +1558,11 @@ namespace gaia {
 			}
 		}
 
-		//! Constructs an object of type @a T at the memory address @a pData using forwarded arguments.
+		//! Constructs an object of type \a T at the memory address \a pData using forwarded arguments.
 		//! \tparam T Type to construct.
 		//! \tparam Args Constructor argument types.
-		//! \param pData Pointer to the memory where the object should be constructed; must not be null.
-		//! \param args Arguments forwarded to the constructor of @a T.
+		//! \param pData Pointer to the memory where the object should be constructed. Must not be null.
+		//! \param args Arguments forwarded to the constructor of \a T.
 		template <typename T, typename... Args>
 		void call_ctor(T* pData, Args&&... args) {
 			GAIA_ASSERT(pData != nullptr);
@@ -1530,7 +1572,7 @@ namespace gaia {
 				(void)::new (pData) T{GAIA_FWD(args)...};
 		}
 
-		//! Destructs an object of type @a T at the given memory address.
+		//! Destructs an object of type \a T at the given memory address.
 		//! \tparam T Type to destruct
 		//! \param pData Pointer to the memory where the object should be destructed.
 		//! \warning pData must not be nullptr.
@@ -1542,9 +1584,9 @@ namespace gaia {
 			}
 		}
 
-		//! Destructs @a cnt objects of type @a T at the memory address @a pData.
+		//! Destructs \a cnt objects of type \a T at the memory address \a pData.
 		//! \tparam T Type to construct.
-		//! \param pData Pointer to where the object will be destructed; must not be null.
+		//! \param pData Pointer to where the object will be destructed. Must not be null.
 		//! \param cnt Number of objects to construct.
 		template <typename T>
 		void call_dtor_n([[maybe_unused]] T* pData, [[maybe_unused]] size_t cnt) {
@@ -1559,7 +1601,7 @@ namespace gaia {
 		// Element swapping
 		//----------------------------------------------------------------------
 
-		//! Swaps @a left and @a right using move operations.
+		//! Swaps \a left and \a right using move operations.
 		//! \tparam T Value type.
 		//! \param left Left operand.
 		//! \param right Right operand.
@@ -1570,7 +1612,7 @@ namespace gaia {
 			right = GAIA_MOV(tmp);
 		}
 
-		//! Swaps two elements in a contiguous range when they are out of order according to @a cmpFunc.
+		//! Swaps two elements in a contiguous range when they are out of order according to \a cmpFunc.
 		//! \tparam T Element type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param c Pointer to the first element of the range.
@@ -1583,7 +1625,7 @@ namespace gaia {
 				core::swap(c[lhs], c[rhs]);
 		}
 
-		//! Swaps @a lhs and @a rhs when they are out of order according to @a cmpFunc.
+		//! Swaps \a lhs and \a rhs when they are out of order according to \a cmpFunc.
 		//! \tparam T Value type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param lhs Left operand.
@@ -1595,7 +1637,7 @@ namespace gaia {
 				core::swap(lhs, rhs);
 		}
 
-		//! Swaps @a lhs and @a rhs when @a cmpFunc reports the current order should be inverted.
+		//! Swaps \a lhs and \a rhs when \a cmpFunc reports the current order should be inverted.
 		//! \tparam T Value type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param lhs Left operand.
@@ -1607,7 +1649,7 @@ namespace gaia {
 				core::swap(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for two indexed elements when they are out of order according to @a cmpFunc.
+		//! Invokes \a swapFunc for two indexed elements when they are out of order according to \a cmpFunc.
 		//! \tparam T Element type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -1622,7 +1664,7 @@ namespace gaia {
 				swapFunc(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for container indices when the elements are out of order according to @a cmpFunc.
+		//! Invokes \a swapFunc for container indices when the elements are out of order according to \a cmpFunc.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -1638,7 +1680,7 @@ namespace gaia {
 				swapFunc(lhs, rhs);
 		}
 
-		//! Invokes @a swapFunc for container indices when @a cmpFunc reports the current order should be inverted.
+		//! Invokes \a swapFunc for container indices when \a cmpFunc reports the current order should be inverted.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -1658,7 +1700,7 @@ namespace gaia {
 		// Value filling
 		//----------------------------------------------------------------------
 
-		//! Assigns @a value to every element in the range [`first`, `last`).
+		//! Assigns \a value to every element in the range [`first`, `last`).
 		//! \tparam ForwardIt Iterator type.
 		//! \tparam T Value type.
 		//! \param first First element in the range.
@@ -1711,8 +1753,9 @@ namespace gaia {
 		inline constexpr auto is_unique<T, Rest...> =
 				std::bool_constant<(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>>{};
 
+		//! \cond INTERNAL
 		namespace detail {
-			//! Carries @a T as a nested `type` alias.
+			//! Carries \a T as a nested `type` alias.
 			//! \tparam T Type to carry.
 			template <typename T>
 			struct type_identity {
@@ -1720,6 +1763,7 @@ namespace gaia {
 				using type = T;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Builds a tuple type from the first occurrence of each type in a parameter pack.
 		//! \tparam T Initial accumulator or first type.
@@ -1736,7 +1780,7 @@ namespace gaia {
 				std::conditional_t<
 						(std::is_same_v<U, Ts> || ...), unique<std::tuple<Ts...>, Us...>, unique<std::tuple<Ts..., U>, Us...>> {};
 
-		//! Tuple type containing only the first occurrence of each type in @a Ts.
+		//! Tuple type containing only the first occurrence of each type in \a Ts.
 		//! \tparam Ts Types to deduplicate.
 		template <typename... Ts>
 		using unique_tuple = typename unique<std::tuple<>, Ts...>::type;
@@ -1768,7 +1812,7 @@ namespace gaia {
 		//! \tparam Class Member-function class type.
 		//! \tparam Ret Member-function return type.
 		//! \tparam Args Member-function argument types.
-		//! \return Type-list carrier containing @a Args.
+		//! \return Type-list carrier containing \a Args.
 		template <typename Class, typename Ret, typename... Args>
 		func_type_list<Args...> func_args(Ret (Class::*)(Args...) const);
 
@@ -1786,6 +1830,7 @@ namespace gaia {
 			static constexpr bool value = has_mfunc_check_##function_name<T, Args...>;                                       \
 		}
 #else
+		//! \cond INTERNAL
 		namespace detail {
 			//! False branch for member-function detection.
 			//! \tparam Default Fallback type when the operation is unavailable.
@@ -1821,6 +1866,7 @@ namespace gaia {
 				void operator=(member_func_none&&) = delete;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Detects whether a member-function probe alias can be formed.
 		//! \tparam Op Probe alias template.
@@ -1838,16 +1884,19 @@ namespace gaia {
 		}
 #endif
 
+		//! \cond INTERNAL
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(find_if_not);
+		//! \endcond
 
 		//----------------------------------------------------------------------
 		// Special function checks
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
-			//! True overload selected when @a T exposes member `operator==`.
+			//! True overload selected when \a T exposes member `operator==`.
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
@@ -1860,7 +1909,7 @@ namespace gaia {
 			template <typename T, typename... Args>
 			constexpr std::false_type has_mfunc_equals_check(...);
 
-			//! True overload selected when @a T supports free `operator==`.
+			//! True overload selected when \a T supports free `operator==`.
 			//! \tparam T Type to inspect.
 			//! \return `std::true_type` when the expression is valid.
 			template <typename T>
@@ -1873,8 +1922,9 @@ namespace gaia {
 			template <typename T, typename... Args>
 			constexpr std::false_type has_ffunc_equals_check(...);
 		} // namespace detail
+		//! \endcond
 
-		//! Detects whether @a T defines `operator==` as a member function.
+		//! Detects whether \a T defines `operator==` as a member function.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		struct has_func_equals {
@@ -1882,7 +1932,7 @@ namespace gaia {
 			static constexpr bool value = decltype(detail::has_mfunc_equals_check<T>(0))::value;
 		};
 
-		//! Detects whether @a T supports a free `operator==`.
+		//! Detects whether \a T supports a free `operator==`.
 		//! \tparam T Type to inspect.
 		template <typename T>
 		struct has_ffunc_equals {
@@ -1904,13 +1954,13 @@ namespace gaia {
 			static constexpr auto size = sizeof...(Type);
 		};
 
-		//! Concatenates two @ref type_list instances.
+		//! Concatenates two \ref type_list instances.
 		//! \tparam TypesA First type-list.
 		//! \tparam TypesB Second type-list.
 		template <typename TypesA, typename TypesB>
 		struct type_list_concat;
 
-		//! Concatenation specialization for two @ref type_list instances.
+		//! Concatenation specialization for two \ref type_list instances.
 		//! \tparam TypesA Types from the first list.
 		//! \tparam TypesB Types from the second list.
 		template <typename... TypesA, typename... TypesB>
@@ -1923,6 +1973,7 @@ namespace gaia {
 		// Looping
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			//! Expands a compile-time integer sequence into repeated callable invocations.
 			//! \tparam FirstIdx First logical index to expose to the callable.
@@ -1981,8 +2032,9 @@ namespace gaia {
 					(func(std::get<FirstIdx + Is>(tuple)), ...);
 			}
 		} // namespace detail
+		//! \endcond
 
-		//! Compile-time for loop. Performs @a Iters iterations.
+		//! Compile-time for loop. Performs \a Iters iterations.
 		//! \tparam Iters Number of iterations.
 		//! \tparam Func Callable type.
 		//! \param func Callable invoked for each iteration.
@@ -2006,7 +2058,7 @@ namespace gaia {
 		}
 
 		//! Compile-time for loop with adjustable range.
-		//! Iteration starts at @a FirstIdx and ends at @a LastIdx, excluding @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends at \a LastIdx, excluding \a LastIdx.
 		//! \tparam FirstIdx First index to visit.
 		//! \tparam LastIdx One-past-last index.
 		//! \tparam Func Callable type.
@@ -2031,7 +2083,7 @@ namespace gaia {
 		}
 
 		//! Compile-time for loop with adjustable range and iteration size.
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx using steps of @a Inc.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx using steps of \a Inc.
 		//! \tparam FirstIdx First index to visit.
 		//! \tparam LastIdx One-past-last index.
 		//! \tparam Inc Step size between visits.
@@ -2131,7 +2183,7 @@ namespace gaia {
 
 		//! Compile-time for loop over tuples and other objects implementing
 		//! tuple_size (sarray, std::pair etc).
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx.
 		//! \tparam FirstIdx First tuple index to visit.
 		//! \tparam LastIdx One-past-last tuple index.
 		//! \tparam Tuple Tuple-like object type.
@@ -2159,7 +2211,7 @@ namespace gaia {
 
 		//! Compile-time for loop over tuples and other objects implementing
 		//! tuple_size (sarray, std::pair etc).
-		//! Iteration starts at @a FirstIdx and ends before @a LastIdx.
+		//! Iteration starts at \a FirstIdx and ends before \a LastIdx.
 		//! \tparam FirstIdx First tuple index to visit.
 		//! \tparam LastIdx One-past-last tuple index.
 		//! \tparam Tuple Tuple-like type to inspect.
@@ -2186,7 +2238,7 @@ namespace gaia {
 			detail::each_tuple_impl<FirstIdx, Tuple>(func, std::make_integer_sequence<decltype(FirstIdx), Iters>{});
 		}
 
-		//! Applies @a func to every element in the iterator range [`first`, `last`).
+		//! Applies \a func to every element in the iterator range [`first`, `last`).
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Callable type.
 		//! \param first First element in the range.
@@ -2200,7 +2252,7 @@ namespace gaia {
 			return func;
 		}
 
-		//! Applies @a func to every element in @a arr.
+		//! Applies \a func to every element in \a arr.
 		//! \tparam C Container type.
 		//! \tparam Func Callable type.
 		//! \param arr Container to iterate.
@@ -2215,13 +2267,13 @@ namespace gaia {
 		// Lookups
 		//----------------------------------------------------------------------
 
-		//! Searches the iterator range [`first`, `last`) for the first element equal to @a value.
+		//! Searches the iterator range [`first`, `last`) for the first element equal to \a value.
 		//! \tparam InputIt Iterator type.
 		//! \tparam T Lookup value type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param value Value to find.
-		//! \return Iterator to the first matching element or @a last when no match is found.
+		//! \return Iterator to the first matching element or \a last when no match is found.
 		template <typename InputIt, typename T>
 		constexpr InputIt find(InputIt first, InputIt last, const T& value) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -2245,7 +2297,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element equal to @a item.
+		//! Searches \a arr for the first element equal to \a item.
 		//! \tparam C Container type.
 		//! \tparam V Lookup value type.
 		//! \param arr Container to inspect.
@@ -2259,13 +2311,13 @@ namespace gaia {
 				return core::find(arr.begin(), arr.end(), item);
 		}
 
-		//! Searches the iterator range [`first`, `last`) for the first element satisfying @a func.
+		//! Searches the iterator range [`first`, `last`) for the first element satisfying \a func.
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Predicate type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param func Predicate used for matching.
-		//! \return Iterator to the first matching element or @a last when no match is found.
+		//! \return Iterator to the first matching element or \a last when no match is found.
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -2289,7 +2341,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element satisfying @a predicate.
+		//! Searches \a arr for the first element satisfying \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
@@ -2303,13 +2355,13 @@ namespace gaia {
 				return core::find_if(arr.begin(), arr.end(), predicate);
 		}
 
-		//! Searches the iterator range [`first`, `last`) for the first element that does not satisfy @a func.
+		//! Searches the iterator range [`first`, `last`) for the first element that does not satisfy \a func.
 		//! \tparam InputIt Iterator type.
 		//! \tparam Func Predicate type.
 		//! \param first First element in the range.
 		//! \param last One-past-last element in the range.
 		//! \param func Predicate used for matching.
-		//! \return Iterator to the first non-matching element or @a last when all elements match.
+		//! \return Iterator to the first non-matching element or \a last when all elements match.
 		template <typename InputIt, typename Func>
 		constexpr InputIt find_if_not(InputIt first, InputIt last, Func func) {
 			if constexpr (std::is_pointer_v<InputIt>) {
@@ -2333,7 +2385,7 @@ namespace gaia {
 			return last;
 		}
 
-		//! Searches @a arr for the first element that does not satisfy @a predicate.
+		//! Searches \a arr for the first element that does not satisfy \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
@@ -2349,24 +2401,24 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
-		//! Checks whether @a arr contains @a item.
+		//! Checks whether \a arr contains \a item.
 		//! \tparam C Container type.
 		//! \tparam V Lookup value type.
 		//! \param arr Container to inspect.
 		//! \param item Value to find.
-		//! \return True if @a item is present.
+		//! \return True if \a item is present.
 		template <typename C, typename V>
 		constexpr bool has(const C& arr, const V& item) {
 			const auto it = find(arr, item);
 			return it != arr.end();
 		}
 
-		//! Checks whether any element in @a arr satisfies @a predicate.
+		//! Checks whether any element in \a arr satisfies \a predicate.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
-		//! \return True if any element satisfies @a predicate.
+		//! \return True if any element satisfies \a predicate.
 		template <typename UnaryPredicate, typename C>
 		constexpr bool has_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
@@ -2375,11 +2427,11 @@ namespace gaia {
 
 		//----------------------------------------------------------------------
 
-		//! Returns the index of @a item in @a arr or @ref BadIndex when the item is not present.
+		//! Returns the index of \a item in \a arr or \ref BadIndex when the item is not present.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param item Value to locate.
-		//! \return Index of @a item or @ref BadIndex when absent.
+		//! \return Index of \a item or \ref BadIndex when absent.
 		template <typename C>
 		constexpr auto get_index(const C& arr, typename C::const_reference item) {
 			const auto it = find(arr, item);
@@ -2389,23 +2441,23 @@ namespace gaia {
 			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
-		//! Returns the index of @a item in @a arr without checking whether the item exists.
+		//! Returns the index of \a item in \a arr without checking whether the item exists.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param item Value to locate.
-		//! \return Index of @a item.
-		//! \warning Returns an invalid index when @a item is not present.
+		//! \return Index of \a item.
+		//! \warning Returns an invalid index when \a item is not present.
 		template <typename C>
 		constexpr auto get_index_unsafe(const C& arr, typename C::const_reference item) {
 			return (decltype(BadIndex))core::distance(arr.begin(), find(arr, item));
 		}
 
-		//! Returns the index of the first element satisfying @a predicate or @ref BadIndex when none matches.
+		//! Returns the index of the first element satisfying \a predicate or \ref BadIndex when none matches.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
-		//! \return Index of the first matching element or @ref BadIndex when absent.
+		//! \return Index of the first matching element or \ref BadIndex when absent.
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if(const C& arr, UnaryPredicate predicate) {
 			const auto it = find_if(arr, predicate);
@@ -2415,13 +2467,13 @@ namespace gaia {
 			return (decltype(BadIndex))core::distance(arr.begin(), it);
 		}
 
-		//! Returns the index of the first element satisfying @a predicate without checking whether a match exists.
+		//! Returns the index of the first element satisfying \a predicate without checking whether a match exists.
 		//! \tparam UnaryPredicate Predicate type.
 		//! \tparam C Container type.
 		//! \param arr Container to inspect.
 		//! \param predicate Predicate used for matching.
 		//! \return Index of the first matching element.
-		//! \warning Returns an invalid index when no element satisfies @a predicate.
+		//! \warning Returns an invalid index when no element satisfies \a predicate.
 		template <typename UnaryPredicate, typename C>
 		constexpr auto get_index_if_unsafe(const C& arr, UnaryPredicate predicate) {
 			return (decltype(BadIndex))core::distance(arr.begin(), find_if(arr, predicate));
@@ -2431,14 +2483,14 @@ namespace gaia {
 		// Erasure
 		//----------------------------------------------------------------------
 
-		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! Replaces the item at \a idx in the array \a arr with the last item of the array if possible and
 		//! removes its last item. Use when shifting of the entire array is not wanted.
 		//! \tparam C Container type.
 		//! \param arr Array.
 		//! \param idx Array index.
 		//! \warning If the item order is important and the size of the array changes after calling this function you need
 		//!          to sort the array.
-		//! \warning Does not do bound checks. Undefined behavior when @a idx is out of bounds.
+		//! \warning Does not do bound checks. Undefined behavior when \a idx is out of bounds.
 		template <typename C>
 		void swap_erase_unsafe(C& arr, typename C::size_type idx) {
 			GAIA_ASSERT(idx < arr.size());
@@ -2449,7 +2501,7 @@ namespace gaia {
 			arr.pop_back();
 		}
 
-		//! Replaces the item at @a idx in the array @a arr with the last item of the array if possible and
+		//! Replaces the item at \a idx in the array \a arr with the last item of the array if possible and
 		//! removes its last item. Use when shifting of the entire array is not wanted.
 		//! \tparam C Container type.
 		//! \param arr Array.
@@ -2527,6 +2579,7 @@ namespace gaia {
 		// Sorting
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			//! Selects the median index among three positions without mutating the range.
 			//! \tparam Container Random-access container or pointer-like range type.
@@ -2597,8 +2650,8 @@ namespace gaia {
 			//! \param low First index in the inclusive range.
 			//! \param high Last index in the inclusive range.
 			//! \param cmpFunc Ordering predicate.
-			//! \note This overload is used by the default sort path because shifting avoids repeated adjacent swaps on random
-			//! data.
+			//! \note This overload is used by the default sort path because shifting avoids repeated adjacent swaps on
+			//! random data.
 			template <typename Container, typename TCmpFunc>
 			void insertion_sort_range(Container& arr, int low, int high, TCmpFunc cmpFunc) {
 				for (int i = low + 1; i <= high; ++i) {
@@ -2635,7 +2688,7 @@ namespace gaia {
 				}
 			}
 
-			//! Prepares the default quicksort partition by moving a sampled pivot to @a low.
+			//! Prepares the default quicksort partition by moving a sampled pivot to \a low.
 			//! \tparam Container Random-access container or pointer-like range type.
 			//! \tparam TCmpFunc Strict weak ordering predicate type.
 			//! \tparam TSwapFunc Swap callback type.
@@ -2662,12 +2715,12 @@ namespace gaia {
 				}
 			}
 
-			//! Partitions an inclusive range around the pivot stored at @a low.
+			//! Partitions an inclusive range around the pivot stored at \a low.
 			//! \tparam Container Random-access container or pointer-like range type.
 			//! \tparam TCmpFunc Strict weak ordering predicate type.
 			//! \tparam TSwapFunc Swap callback type.
 			//! \param arr Range being partitioned.
-			//! \param low First index in the partition range; contains the prepared pivot.
+			//! \param low First index in the partition range. Contains the prepared pivot.
 			//! \param high Last index in the partition range.
 			//! \param cmpFunc Ordering predicate.
 			//! \param swapFunc Callback that swaps two indexes.
@@ -2835,7 +2888,7 @@ namespace gaia {
 
 			//! Calculates the introsort recursion-depth budget for a range length.
 			//! \param n Number of elements to sort.
-			//! \return Twice floor(log2(@a n)), matching the usual introsort fallback budget.
+			//! \return Twice floor(log2(\a n)), matching the usual introsort fallback budget.
 			inline uint32_t sort_depth_limit(uint32_t n) {
 				uint32_t depth = 0;
 				while (n > 1) {
@@ -2892,8 +2945,8 @@ namespace gaia {
 			//! \param high Last index in the inclusive range.
 			//! \param cmpFunc Ordering predicate.
 			//! \param depthLimit Remaining recursion-depth budget before heapsort fallback.
-			//! \note Uses pivot-position partitioning and move-based insertion sort because this path owns the element order
-			//! directly.
+			//! \note Uses pivot-position partitioning and move-based insertion sort because this path owns the element
+			//! order directly.
 			template <typename Container, typename TCmpFunc>
 			void quick_sort_impl(Container& arr, int low, int high, TCmpFunc cmpFunc, uint32_t depthLimit) {
 				constexpr int InsertionSortThreshold = 24;
@@ -4014,12 +4067,13 @@ namespace gaia {
 				return n <= 32;
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Forward declaration for the custom-swap quicksort overload.
 		template <typename Container, typename TCmpFunc, typename TSwapFunc>
 		void quick_sort(Container& arr, int low, int high, TCmpFunc cmpFunc, TSwapFunc swapFunc);
 
-		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr.
+		//! Recursively quick-sorts the index range [`low`, `high`] in \a arr.
 		//! \tparam Container Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param arr Container to sort.
@@ -4033,7 +4087,7 @@ namespace gaia {
 			detail::quick_sort_impl(arr, low, high, cmpFunc, detail::sort_depth_limit((uint32_t)(high - low + 1)));
 		}
 
-		//! Recursively quick-sorts the index range [`low`, `high`] in @a arr using a custom swap callback.
+		//! Recursively quick-sorts the index range [`low`, `high`] in \a arr using a custom swap callback.
 		//! \tparam Container Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -4071,7 +4125,7 @@ namespace gaia {
 			quick_sort(beg, 0, (int)n - 1, cmpFunc);
 		}
 
-		//! Sorts all elements in @a c using @a cmpFunc.
+		//! Sorts all elements in \a c using \a cmpFunc.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \param c Container to sort.
@@ -4081,8 +4135,8 @@ namespace gaia {
 			sort(c.begin(), c.end(), cmpFunc);
 		}
 
-		//! Sorts a range of elements given a comparison function @a cmpFunc.
-		//! If @a cmpFunc returns true it performs @a swapFunc which can perform the sorting.
+		//! Sorts a range of elements given a comparison function \a cmpFunc.
+		//! If \a cmpFunc returns true it performs \a swapFunc which can perform the sorting.
 		//! Sorting networks are used up to 17 elements. Insertion sort is used up to 32 elements.
 		//! For larger ranges, introsort-style quicksort is used with heapsort fallback.
 		//! Use when it is necessary to sort multiple arrays at once.
@@ -4104,7 +4158,7 @@ namespace gaia {
 			quick_sort(beg, 0, (int)n - 1, cmpFunc, swapFunc);
 		}
 
-		//! Sorts all elements in @a c using @a cmpFunc and a custom swap callback.
+		//! Sorts all elements in \a c using \a cmpFunc and a custom swap callback.
 		//! \tparam C Container type.
 		//! \tparam TCmpFunc Comparison functor type.
 		//! \tparam TSwapFunc Swap callback type.
@@ -4385,7 +4439,9 @@ namespace tracy {
 
 namespace gaia {
 	namespace core {
+		//! Signed type used for span distances.
 		using span_diff_type = size_t;
+		//! Unsigned type used for span sizes and extents.
 		using span_size_type = size_t;
 	} // namespace core
 
@@ -4397,11 +4453,16 @@ namespace gaia {
 	} // namespace cnt
 
 	namespace core {
+		//! Sentinel extent indicating that a span size is stored at runtime.
 		inline constexpr span_size_type DynamicSpanExtent = (span_size_type)-1;
 
+		//! Non-owning view over a contiguous sequence of objects.
+		//! \tparam T Element type.
+		//! \tparam Extent Compile-time element count, or DynamicSpanExtent for a runtime count.
 		template <typename T, span_size_type Extent = DynamicSpanExtent>
 		class span;
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, span_size_type Extent>
 			struct span_storage {
@@ -4462,7 +4523,11 @@ namespace gaia {
 									typename std::remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[],
 									E (*)[]>::value>::type>: std::true_type {};
 		} // namespace detail
+		//! \endcond
 
+		//! Non-owning view over a contiguous sequence of objects.
+		//! \tparam T Element type.
+		//! \tparam Extent Compile-time element count, or DynamicSpanExtent for a runtime count.
 		template <typename T, span_size_type Extent>
 		class span {
 			static_assert(
@@ -4476,36 +4541,60 @@ namespace gaia {
 			using m_datatype = detail::span_storage<T, Extent>;
 
 		public:
+			//! Element type, including const qualification.
 			using element_kind = T;
+			//! Element type without const qualification.
 			using value_type = typename std::remove_cv<T>::type;
+			//! Type used for element counts.
 			using size_type = span_size_type;
+			//! Type used for iterator differences.
 			using difference_type = span_diff_type;
+			//! Pointer to an element.
 			using pointer = element_kind*;
+			//! Pointer to a const element.
 			using const_pointer = const element_kind*;
+			//! Reference to an element.
 			using reference = element_kind&;
+			//! Reference to a const element.
 			using const_reference = const element_kind&;
 
+			//! Mutable iterator type.
 			using iterator = pointer;
+			//! Const iterator type.
 			using const_iterator = const_pointer;
+			//! Gaia-ECS iterator category exposed by span iterators.
 			using iterator_type = core::random_access_iterator_tag;
 
+			//! Compile-time extent of the view.
 			static constexpr size_type extent = Extent;
 
 		private:
 			m_datatype m_data{};
 
 		public:
+			//! Constructs an empty span when its extent permits an empty view.
+			//! \tparam E Extent checked by the constructor constraint.
 			template <span_size_type E = Extent, typename std::enable_if<(E == DynamicSpanExtent || E <= 0), int>::type = 0>
 			constexpr span() noexcept {}
 
+			//! Constructs a view over count elements starting at ptr.
+			//! \param ptr Pointer to the first element.
+			//! \param count Number of elements in the view.
 			constexpr span(pointer ptr, size_type count): m_data(ptr, count) {
 				GAIA_ASSERT(extent == DynamicSpanExtent || extent == count);
 			}
 
+			//! Constructs a view over the half-open range [begin, end).
+			//! \param begin Pointer to the first element.
+			//! \param end Pointer one past the final element.
 			constexpr span(pointer begin, pointer end): m_data(begin, end - begin) {
 				GAIA_ASSERT(extent == DynamicSpanExtent || ((uintptr_t)(end - begin) == (uintptr_t)extent));
 			}
 
+			//! Constructs a view over a compatible built-in array.
+			//! \tparam N Array element count.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param arr Array to view.
 			template <
 					span_size_type N, span_size_type E = Extent,
 					typename std::enable_if<
@@ -4514,6 +4603,10 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(element_kind (&arr)[N]) noexcept: m_data(arr, N) {}
 
+			//! Constructs a dynamic-extent view over a compatible mutable container.
+			//! \tparam Container Container type exposing contiguous data and size.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param cont Container to view.
 			template <
 					typename Container, span_size_type E = Extent,
 					typename std::enable_if<
@@ -4522,6 +4615,10 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
 
+			//! Constructs a dynamic-extent view over a compatible const container.
+			//! \tparam Container Container type exposing contiguous data and size.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param cont Container to view.
 			template <
 					typename Container, span_size_type E = Extent,
 					typename std::enable_if<
@@ -4530,9 +4627,13 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(const Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
 
-			constexpr span(const span& other) noexcept = default;
-			constexpr span& operator=(const span& other) noexcept = default;
+			constexpr span(const span&) noexcept = default;
+			constexpr span& operator=(const span&) noexcept = default;
 
+			//! Constructs a compatible span from another element type or extent.
+			//! \tparam T2 Source element type.
+			//! \tparam Extent2 Source extent.
+			//! \param other Source view.
 			template <
 					typename T2, span_size_type Extent2,
 					typename std::enable_if<
@@ -4543,89 +4644,137 @@ namespace gaia {
 
 			~span() noexcept = default;
 
+			//! Returns a pointer to the first element.
+			//! \return Pointer to the first element, or nullptr for a default-constructed empty span.
 			GAIA_NODISCARD constexpr pointer data() const noexcept {
 				return m_data.beg;
 			}
 
+			//! Returns the number of elements in the view.
+			//! \return Element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return size_type(m_data.end - m_data.beg);
 			}
 
+			//! Checks whether the view is empty.
+			//! \return True when size() is zero.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return m_data.beg == m_data.end;
 			}
 
+			//! Returns the element at index.
+			//! \param index Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr reference operator[](size_type index) const {
 				GAIA_ASSERT((uintptr_t)m_data.beg + index < (uintptr_t)m_data.end);
 				return *(m_data.beg + index);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Beginning iterator.
 			GAIA_NODISCARD constexpr iterator begin() noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Beginning iterator.
 			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns a const iterator to the first element.
+			//! \return Const beginning iterator.
 			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns an iterator one past the final element.
+			//! \return Ending iterator.
 			GAIA_NODISCARD constexpr iterator end() noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns a const iterator one past the final element.
+			//! \return Const ending iterator.
 			GAIA_NODISCARD constexpr const_iterator end() const noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns a const iterator one past the final element.
+			//! \return Const ending iterator.
 			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns the first Count elements with a compile-time extent.
+			//! \tparam Count Number of elements in the result.
+			//! \return Fixed-extent view over the first Count elements.
 			template <span_size_type Count>
 			GAIA_NODISCARD constexpr span<element_kind, Count> first() const {
 				GAIA_ASSERT(Count <= size());
 				return {m_data.beg, Count};
 			}
 
+			//! Returns a dynamic-extent view over the first count elements.
+			//! \param count Number of elements in the result.
+			//! \return View over the requested prefix.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> first(size_type count) const {
 				GAIA_ASSERT(count <= size());
 				return {m_data.beg, count};
 			}
 
+			//! Returns the last Count elements with a compile-time extent.
+			//! \tparam Count Number of elements in the result.
+			//! \return Fixed-extent view over the last Count elements.
 			template <span_size_type Count>
 			GAIA_NODISCARD constexpr span<element_kind, Count> last() const {
 				GAIA_ASSERT(Count <= size());
 				return {m_data.beg + (size() - Count), Count};
 			}
 
+			//! Returns a dynamic-extent view over the last count elements.
+			//! \param count Number of elements in the result.
+			//! \return View over the requested suffix.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> last(size_type count) const {
 				GAIA_ASSERT(count <= size());
 				return {m_data.beg + (size() - count), count};
 			}
 
+			//! Returns the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr reference front() const {
 				GAIA_ASSERT(!empty());
 				return *m_data.beg;
 			}
 
+			//! Returns the final element.
+			//! \return Reference to the final element.
 			GAIA_NODISCARD constexpr reference back() const {
 				GAIA_ASSERT(!empty());
 				return *(m_data.beg + (size() - 1));
 			}
 
+			//! Result type for a compile-time subspan selection.
+			//! \tparam Offset Starting element index.
+			//! \tparam Count Requested element count, or DynamicSpanExtent for the remaining elements.
 			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
 			using subspan_return_t = span<
 					T, Count != DynamicSpanExtent ? Count : (Extent != DynamicSpanExtent ? Extent - Offset : DynamicSpanExtent)>;
 
+			//! Returns a subspan selected with compile-time offset and count.
+			//! \tparam Offset Starting element index.
+			//! \tparam Count Requested element count, or DynamicSpanExtent for the remaining elements.
+			//! \return View over the selected elements.
 			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
 			GAIA_NODISCARD constexpr subspan_return_t<Offset, Count> subspan() const {
 				GAIA_ASSERT(Offset <= size() && (Count == DynamicSpanExtent || Offset + Count <= size()));
 				return {m_data.beg + Offset, Count != DynamicSpanExtent ? Count : size() - Offset};
 			}
 
+			//! Returns a dynamic-extent subspan.
+			//! \param offset Starting element index.
+			//! \param count Requested element count, or DynamicSpanExtent for the remaining elements.
+			//! \return View over the selected elements.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent>
 			subspan(size_type offset, size_type count = DynamicSpanExtent) const {
 				GAIA_ASSERT(offset <= size() && (count == DynamicSpanExtent || offset + count <= size()));
@@ -4633,21 +4782,46 @@ namespace gaia {
 			}
 		};
 
+		//! Deduces a fixed-extent span from a built-in array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(T (&)[N]) -> span<T, N>;
+		span(T (&arr)[N]) -> span<T, N>;
 
+		//! Deduces a fixed-extent span from a mutable Gaia-ECS static array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
+		span(gaia::cnt::sarray<T, N>& arr) -> span<T, N>;
 
+		//! Deduces a fixed-extent const span from a const Gaia-ECS static array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
+		span(const gaia::cnt::sarray<T, N>& arr) -> span<const T, N>;
 
+		//! Deduces a dynamic-extent span from a mutable contiguous container.
+		//! \tparam Container Container type.
+		//! \param cont Container to view.
 		template <typename Container>
-		span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
+		span(Container& cont)
+				-> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
 
+		//! Deduces a dynamic-extent const span from a const contiguous container.
+		//! \tparam Container Container type.
+		//! \param cont Container to view.
 		template <typename Container>
-		span(const Container&) -> span<const typename Container::value_type>;
+		span(const Container& cont) -> span<const typename Container::value_type>;
 
+		//! Returns the element at compile-time index N.
+		//! \tparam N Element index.
+		//! \tparam E Element type.
+		//! \tparam S Span extent.
+		//! \param s Span to access.
+		//! \return Reference to element N.
 		template <span_size_type N, typename E, span_size_type S>
 		constexpr auto get(span<E, S> s) -> decltype(s[N]) {
 			return s[N];
@@ -4655,6 +4829,7 @@ namespace gaia {
 	} // namespace core
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, size_t Extent>
 	struct tuple_size<gaia::core::span<T, Extent>>: public integral_constant<size_t, Extent> {};
@@ -4668,19 +4843,29 @@ namespace std {
 		using type = T;
 	};
 } // end namespace std
+//! \endcond
+//! \cond INTERNAL
 namespace std {
 	using gaia::core::span;
 }
+//! \endcond
 #endif
 
 namespace gaia {
 	namespace core {
+		//! Provides packed access to fixed-width unsigned values stored in a byte span.
+		//! \tparam BlockBits Number of bits occupied by each value.
 		template <uint32_t BlockBits>
 		struct bit_view {
+			//! Largest value representable by one packed block.
 			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
 
+			//! Bytes containing the packed values.
 			std::span<uint8_t> m_data;
 
+			//! Stores a packed value at the specified bit position.
+			//! \param bitPosition Bit offset of the value within m_data.
+			//! \param value Value to store. It must not exceed MaxValue.
 			void set(uint32_t bitPosition, uint8_t value) noexcept {
 				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
 				GAIA_ASSERT(value <= MaxValue);
@@ -4700,6 +4885,9 @@ namespace gaia {
 				}
 			}
 
+			//! Reads a packed value from the specified bit position.
+			//! \param bitPosition Bit offset of the value within m_data.
+			//! \return The decoded value.
 			uint8_t get(uint32_t bitPosition) const noexcept {
 				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
 
@@ -4721,6 +4909,12 @@ namespace gaia {
 			}
 		};
 
+		//! Swaps two individual bits in an integer-like mask.
+		//! \tparam T Mask type supporting shifts and bitwise operators.
+		//! \param mask Mask to modify.
+		//! \param left Position of the first bit.
+		//! \param right Position of the second bit.
+		//! \return No value. Mask is modified in place.
 		template <typename T>
 		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
 			// Swap the bits in the read-write mask
@@ -4742,6 +4936,7 @@ namespace gaia {
 namespace gaia {
 	namespace core {
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct is_direct_hash_key: std::false_type {};
@@ -4763,33 +4958,56 @@ namespace gaia {
 				return lhs;
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Indicates whether a type supplies a hash value directly.
+		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
 
+		//! Wraps an integral value that is already a hash key.
+		//! \tparam T Integral hash storage type.
 		template <typename T>
 		struct direct_hash_key {
+			//! Underlying hash storage type.
 			using Type = T;
 
 			static_assert(std::is_integral_v<T>);
+			//! Marker used by Gaia-ECS hash containers to bypass rehashing.
 			static constexpr bool IsDirectHashKey = true;
 
+			//! Precomputed hash value.
 			T hash;
+			//! Compares two direct hash keys.
+			//! \param other Key to compare with.
+			//! \return True when both wrapped hash values are equal.
 			bool operator==(direct_hash_key other) const {
 				return hash == other.hash;
 			}
+			//! Compares two direct hash keys for inequality.
+			//! \param other Key to compare with.
+			//! \return True when the wrapped hash values differ.
 			bool operator!=(direct_hash_key other) const {
 				return hash != other.hash;
 			}
 		};
 
 		//! Combines values via OR.
+		//! \tparam T Value types accepted by the bitwise OR fold.
+		//! \param t Values to combine.
+		//! \return The bitwise OR of all supplied values.
 		template <typename... T>
 		constexpr auto combine_or([[maybe_unused]] T... t) {
 			return (... | t);
 		}
 
 		//! Combines hashes into another complex one
+		//! \tparam T Hash value type.
+		//! \tparam Rest Additional hash value types.
+		//! \param first First hash value.
+		//! \param next Second hash value.
+		//! \param rest Remaining hash values.
+		//! \return The combined hash value.
 		template <typename T, typename... Rest>
 		constexpr T hash_combine(T first, T next, Rest... rest) {
 			auto h = detail::hash_combine2(first, next);
@@ -4799,13 +5017,18 @@ namespace gaia {
 
 #if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
 
+		//! \cond INTERNAL
 		namespace detail {
 			namespace fnv1a {
 				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
 				constexpr uint64_t prime_64_const = 0x100000001b3;
 			} // namespace fnv1a
 		} // namespace detail
+		//! \endcond
 
+		//! Calculates a 64-bit hash for a null-terminated string.
+		//! \param str Null-terminated string to hash.
+		//! \return The 64-bit string hash.
 		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
@@ -4818,6 +5041,10 @@ namespace gaia {
 			return hash;
 		}
 
+		//! Calculates a 64-bit hash for an explicit character range.
+		//! \param str Pointer to the first character to hash.
+		//! \param length Number of characters to hash.
+		//! \return The 64-bit range hash.
 		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
@@ -4834,6 +5061,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4592)
 
+		//! \cond INTERNAL
 		namespace detail {
 			namespace murmur2a {
 				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
@@ -4905,7 +5133,11 @@ namespace gaia {
 				}
 			} // namespace murmur2a
 		} // namespace detail
+		//! \endcond
 
+		//! Calculates a 64-bit hash for an integer value.
+		//! \param value Integer value to hash.
+		//! \return The mixed 64-bit hash.
 		constexpr uint64_t calculate_hash64(uint64_t value) {
 			value ^= value >> 33U;
 			value *= 0xff51afd7ed558ccdULL;
@@ -4916,6 +5148,9 @@ namespace gaia {
 			return value;
 		}
 
+		//! Calculates a 64-bit hash for a null-terminated string.
+		//! \param str Null-terminated string to hash.
+		//! \return The 64-bit string hash.
 		constexpr uint64_t calculate_hash64(const char* str) {
 			uint64_t length = 0;
 			while (str[length] != '\0')
@@ -4924,6 +5159,10 @@ namespace gaia {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
 
+		//! Calculates a 64-bit hash for an explicit character range.
+		//! \param str Pointer to the first character to hash.
+		//! \param length Number of characters to hash.
+		//! \return The 64-bit range hash.
 		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
@@ -4954,6 +5193,7 @@ namespace gaia {
 		// ...
 		GAIA_MSVC_WARNING_DISABLE(4702) // unreachable code
 
+		//! \cond INTERNAL
 		namespace detail {
 			// Check if type T is constructible via T{Args...}
 			struct any_type {
@@ -4970,16 +5210,28 @@ namespace gaia {
 			template <typename T, typename... TArgs>
 			using is_braces_constructible_t = decltype(detail::is_braces_constructible<T, TArgs...>(0));
 		} // namespace detail
+		//! \endcond
 
 		//----------------------------------------------------------------------
 		// Tuple to struct conversion
 		//----------------------------------------------------------------------
 
+		//! Constructs an aggregate from tuple elements selected by an index sequence.
+		//! \tparam S Aggregate type to construct.
+		//! \tparam Is Tuple element indices.
+		//! \tparam Tuple Tuple type.
+		//! \param tup Tuple supplying the aggregate members.
+		//! \return Aggregate initialized from the selected tuple elements.
 		template <typename S, size_t... Is, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(std::index_sequence<Is...> /*no_name*/, Tuple&& tup) {
 			return {std::get<Is>(GAIA_FWD(tup))...};
 		}
 
+		//! Constructs an aggregate from every element of a tuple.
+		//! \tparam S Aggregate type to construct.
+		//! \tparam Tuple Tuple type.
+		//! \param tup Tuple supplying the aggregate members.
+		//! \return Aggregate initialized from all tuple elements.
 		template <typename S, typename Tuple>
 		GAIA_NODISCARD S tuple_to_struct(Tuple&& tup) {
 			using T = std::remove_reference_t<Tuple>;
@@ -4993,9 +5245,13 @@ namespace gaia {
 
 		//! The number of bits necessary to fit the maximum supported number of members in a struct
 		static constexpr uint32_t StructToTupleMaxTypes_Bits = 4;
+		//! Maximum aggregate member count supported by the reflection helpers.
 		static constexpr uint32_t StructToTupleMaxTypes = (1 << StructToTupleMaxTypes_Bits) - 1;
 
 		//! Converts a struct to a tuple. The struct must support brace-initialization
+		//! \tparam T Aggregate type.
+		//! \param object Aggregate to decompose.
+		//! \return Tuple containing references to the aggregate members.
 		template <typename T>
 		auto struct_to_tuple(T&& object) noexcept {
 			using type = core::raw_t<T>;
@@ -5096,6 +5352,9 @@ namespace gaia {
 		// Struct to tuple conversion
 		//----------------------------------------------------------------------
 
+		//! Returns the supported aggregate member count.
+		//! \tparam T Aggregate type to inspect.
+		//! \return Number of brace-constructible members in T.
 		template <typename T>
 		auto struct_member_count() {
 			using type = core::raw_t<T>;
@@ -5177,6 +5436,12 @@ namespace gaia {
 			GAIA_ASSERT2(false, "Unsupported number of members");
 		}
 
+		//! Invokes a visitor with every aggregate member as an argument.
+		//! \tparam T Aggregate type.
+		//! \tparam Func Visitor type.
+		//! \param object Aggregate whose members are visited.
+		//! \param visitor Callable receiving the aggregate members.
+		//! \return The visitor result when the aggregate is non-empty. Otherwise returns void.
 		template <typename T, typename Func>
 		auto each_member(T&& object, Func&& visitor) {
 			using type = core::raw_t<T>;
@@ -5284,6 +5549,7 @@ namespace gaia {
 		// Type meta data
 		//----------------------------------------------------------------------
 
+		//! Provides compile-time compiler-derived names and hashes for C++ types.
 		struct type_info final {
 		private:
 			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
@@ -5304,11 +5570,17 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the complete compiler function signature containing T.
+			//! \tparam T Type to describe.
+			//! \return Null-terminated compiler signature string.
 			template <typename T>
 			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
 				return GAIA_PRETTY_FUNCTION;
 			}
 
+			//! Extracts the unqualified compiler spelling of T from the function signature.
+			//! \tparam T Type to describe.
+			//! \return Span covering the extracted type name.
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
@@ -5337,6 +5609,9 @@ namespace gaia {
 				return name.subspan(start + 1, end - start - 1);
 			}
 
+			//! Calculates the stable Gaia-ECS hash of the compiler spelling of T.
+			//! \tparam T Type to hash.
+			//! \return 64-bit hash of name<T>().
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto hash() noexcept {
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916
@@ -5387,7 +5662,11 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! Stateless allocator backed by the platform heap.
 		struct DefaultAllocator {
+			//! Allocates an unaligned memory region.
+			//! \param size Number of bytes to allocate.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc(size_t size) {
 				GAIA_ASSERT(size > 0);
 
@@ -5397,6 +5676,10 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates a named unaligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param size Number of bytes to allocate.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc([[maybe_unused]] const char* name, size_t size) {
 				GAIA_ASSERT(size > 0);
 
@@ -5406,6 +5689,10 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates an aligned memory region.
+			//! \param size Number of bytes to allocate.
+			//! \param alig Required byte alignment.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc_alig(size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
@@ -5418,6 +5705,11 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates a named aligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param size Number of bytes to allocate.
+			//! \param alig Required byte alignment.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc_alig([[maybe_unused]] const char* name, size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
@@ -5430,6 +5722,8 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Releases an unaligned memory region.
+			//! \param ptr Pointer returned by alloc().
 			static void free(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -5437,6 +5731,9 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
+			//! Releases a named unaligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer returned by alloc().
 			static void free([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -5444,6 +5741,8 @@ namespace gaia {
 				GAIA_PROF_FREE2(ptr, name);
 			}
 
+			//! Releases an aligned memory region.
+			//! \param ptr Pointer returned by alloc_alig().
 			static void free_alig(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -5451,6 +5750,9 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
+			//! Releases a named aligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer returned by alloc_alig().
 			static void free_alig([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -5459,74 +5761,120 @@ namespace gaia {
 			}
 		};
 
+		//! Provides the shared default allocator instance expected by AllocHelper.
 		struct DefaultAllocatorAdaptor {
+			//! Returns the process-local default allocator.
+			//! \return Default allocator instance.
 			static DefaultAllocator& get() {
 				static DefaultAllocator s_allocator;
 				return s_allocator;
 			}
 		};
 
+		//! Typed allocation facade for allocator adaptors.
 		struct AllocHelper {
+			//! Allocates storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc(uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
 			}
+			//! Allocates named storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc(const char* name, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(name, sizeof(T) * cnt);
 			}
+			//! Allocates aligned storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param alig Required byte alignment.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
 			}
+			//! Allocates named aligned storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param alig Required byte alignment.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc_alig(const char* name, size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(name, sizeof(T) * cnt, alig);
 			}
+			//! Releases storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free(void* ptr) {
 				Adaptor::get().free(ptr);
 			}
+			//! Releases named storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free(const char* name, void* ptr) {
 				Adaptor::get().free(name, ptr);
 			}
+			//! Releases aligned storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free_alig(void* ptr) {
 				Adaptor::get().free_alig(ptr);
 			}
+			//! Releases named aligned storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free_alig(const char* name, void* ptr) {
 				Adaptor::get().free_alig(name, ptr);
 			}
 		};
 
-		//! Allocate @a size bytes of memory using the default allocator.
+		//! Allocate \a size bytes of memory using the default allocator.
 		//! \param size Number of bytes to allocate
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc(size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
+		//! Allocate \a size bytes of memory using the default allocator.
 		//! \param name Allocation name for debug purposes
 		//! \param size Number of bytes to allocate
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc(const char* name, size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(name, size);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
-		//! The memory is aligned to @a alig boundary.
+		//! Allocate \a size bytes of memory using the default allocator.
+		//! The memory is aligned to \a alig boundary.
 		//! \param size Number of bytes to allocate
 		//! \param alig Allocated data alignment
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
-		//! The memory is aligned to @a alig boundary.
+		//! Allocate \a size bytes of memory using the default allocator.
+		//! The memory is aligned to \a alig boundary.
 		//! \param name Allocation name for debug purposes
 		//! \param size Number of bytes to allocate
 		//! \param alig Allocated data alignment
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
@@ -5594,7 +5942,7 @@ namespace gaia {
 			return (uint32_t)(align<alignment>(num) - num);
 		}
 
-		//! Convert form type @a Src to type @a Dst without causing an undefined behavior
+		//! Convert form type \a Src to type \a Dst without causing an undefined behavior
 		//! \tparam Dst Destination data type
 		//! \tparam Src Source data type
 		//! \param src Source
@@ -5614,18 +5962,26 @@ namespace gaia {
 		}
 
 		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		//! \tparam T Stored value type.
 		template <typename T>
 		class unaligned_ref {
 			void* m_p;
 
 		public:
+			//! Creates a reference to potentially unaligned storage.
+			//! \param p Storage address.
 			unaligned_ref(void* p): m_p(p) {}
 
+			//! Stores a value using byte-wise copying.
+			//! \param value Value to store.
+			//! \return This reference.
 			unaligned_ref& operator=(const T& value) {
 				memmove(m_p, (const void*)&value, sizeof(T));
 				return *this;
 			}
 
+			//! Loads a value using byte-wise copying.
+			//! \return Value read from storage.
 			GAIA_NODISCARD operator T() const {
 				T tmp;
 				memmove((void*)&tmp, (const void*)m_p, sizeof(T));
@@ -5724,20 +6080,21 @@ inline void GAIA_MEM_SANI_POP_N(size_t type_size, void* ptr, size_t cap, size_t 
 
 namespace gaia {
 	namespace mem {
+		//! Supported physical layouts for component values.
 		enum class DataLayout : uint8_t {
-			AoS = 0, //< Array Of Structures
-			SoA = 1, //< Structure Of Arrays, 4 packed items, good for SSE and similar
-			SoA8 = 2, //< Structure Of Arrays, 8 packed items, good for AVX and similar
-			SoA16 = 3, //< Structure Of Arrays, 16 packed items, good for AVX512 and similar
+			AoS = 0, //!< Array of structures.
+			SoA = 1, //!< Structure of arrays with four-item packing, suitable for SSE-class SIMD.
+			SoA8 = 2, //!< Structure of arrays with eight-item packing, suitable for AVX-class SIMD.
+			SoA16 = 3, //!< Structure of arrays with sixteen-item packing, suitable for AVX-512-class SIMD.
 
-			Count = 4
+			Count = 4 //!< Number of supported layouts.
 		};
 
 #define GAIA_LAYOUT(layout_name) static constexpr auto gaia_Data_Layout = ::gaia::mem::DataLayout::layout_name
 
 		// Helper templates
+		//! \cond INTERNAL
 		namespace detail {
-			//! Returns the alignment for a given type \tparam T
 			template <typename T>
 			constexpr uint32_t get_alignment() {
 				if constexpr (std::is_empty_v<T>)
@@ -5774,44 +6131,85 @@ namespace gaia {
 				return address;
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Compile-time properties of a data layout.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_layout_properties;
+		//! Properties of array-of-structures storage.
+		//! \tparam TItem Stored item type.
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::AoS, TItem> {
+			//! Physical layout.
 			constexpr static DataLayout Layout = DataLayout::AoS;
+			//! Number of values in one packing group.
 			constexpr static size_t PackSize = 1;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = detail::get_alignment<TItem>();
 		};
+		//! Properties of four-wide structure-of-arrays storage.
+		//! \tparam TItem Stored item type.
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA, TItem> {
+			//! Physical layout.
 			constexpr static DataLayout Layout = DataLayout::SoA;
+			//! Number of values in one packing group.
 			constexpr static size_t PackSize = 4;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = PackSize * 4;
 		};
+		//! Properties of eight-wide structure-of-arrays storage.
+		//! \tparam TItem Stored item type.
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA8, TItem> {
+			//! Physical layout.
 			constexpr static DataLayout Layout = DataLayout::SoA8;
+			//! Number of values in one packing group.
 			constexpr static size_t PackSize = 8;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = PackSize * 4;
 		};
+		//! Properties of sixteen-wide structure-of-arrays storage.
+		//! \tparam TItem Stored item type.
 		template <typename TItem>
 		struct data_layout_properties<DataLayout::SoA16, TItem> {
+			//! Physical layout.
 			constexpr static DataLayout Layout = DataLayout::SoA16;
+			//! Number of values in one packing group.
 			constexpr static size_t PackSize = 16;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = PackSize * 4;
 		};
 
+		//! Storage policy for a selected layout and item type.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy;
 
+		//! Read-only view for a selected layout and item type.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy_get;
+		//! Mutable view for a selected layout and item type.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
 		template <DataLayout TDataLayout, typename TItem>
 		struct data_view_policy_set;
 
+		//! Indexed read-only view metadata.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
+		//! \tparam Ids Selected field index.
 		template <DataLayout TDataLayout, typename TItem, size_t Ids>
 		struct data_view_policy_get_idx;
+		//! Indexed mutable view metadata.
+		//! \tparam TDataLayout Physical data layout.
+		//! \tparam TItem Stored item type.
+		//! \tparam Ids Selected field index.
 		template <DataLayout TDataLayout, typename TItem, size_t Ids>
 		struct data_view_policy_set_idx;
 
@@ -5829,16 +6227,27 @@ namespace gaia {
 		//! Memory organized as: xyz xyz xyz xyz
 		template <typename ValueType>
 		struct data_view_policy_aos {
+			//! Pointer type used to address stored values.
 			using TargetCastType = std::add_pointer_t<ValueType>;
 
+			//! Physical layout.
 			constexpr static DataLayout Layout = data_layout_properties<DataLayout::AoS, ValueType>::Layout;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = data_layout_properties<DataLayout::AoS, ValueType>::Alignment;
 
+			//! Calculates the bytes required for a value range.
+			//! \param addr Starting address used for alignment calculations.
+			//! \param cnt Number of values.
+			//! \return Minimum required byte count.
 			GAIA_NODISCARD static constexpr uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = detail::get_aligned_byte_offset<ValueType, Alignment>(addr, cnt);
 				return (uint32_t)(offset - addr);
 			}
 
+			//! Allocates and default-constructs an AoS value range.
+			//! \tparam Allocator Allocator adaptor type.
+			//! \param cnt Number of values.
+			//! \return Allocated byte buffer.
 			template <typename Allocator>
 			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
@@ -5847,6 +6256,11 @@ namespace gaia {
 				return (uint8_t*)pData;
 			}
 
+			//! Destroys and releases an instrumented AoS value range.
+			//! \tparam Allocator Allocator adaptor type.
+			//! \param pData Allocated buffer, or null.
+			//! \param cap Buffer capacity in values.
+			//! \param cnt Number of live values.
 			template <typename Allocator>
 			static void free(void* pData, size_t cap, size_t cnt) noexcept {
 				if (pData == nullptr)
@@ -5856,6 +6270,10 @@ namespace gaia {
 				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
+			//! Destroys and releases an AoS value range.
+			//! \tparam Allocator Allocator adaptor type.
+			//! \param pData Allocated buffer, or null.
+			//! \param cnt Number of live values.
 			template <typename Allocator>
 			static void free(void* pData, size_t cnt) noexcept {
 				if (pData == nullptr)
@@ -5864,14 +6282,26 @@ namespace gaia {
 				return mem::AllocHelper::free<Allocator>(pData);
 			}
 
+			//! Copies a value from an AoS span.
+			//! \param s Source values.
+			//! \param idx Value index.
+			//! \return Copied value.
 			GAIA_NODISCARD constexpr static ValueType get_value(std::span<const ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
 
+			//! Returns a read-only value reference from an AoS span.
+			//! \param s Source values.
+			//! \param idx Value index.
+			//! \return Reference to the selected value.
 			GAIA_NODISCARD constexpr static const ValueType& get(std::span<const ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
 
+			//! Returns a mutable value reference from an AoS span.
+			//! \param s Destination values.
+			//! \param idx Value index.
+			//! \return Reference to the selected value.
 			GAIA_NODISCARD constexpr static ValueType& set(std::span<ValueType> s, size_t idx) noexcept {
 				return s[idx];
 			}
@@ -5880,29 +6310,46 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy<DataLayout::AoS, ValueType>: data_view_policy_aos<ValueType> {};
 
+		//! Read-only byte view over AoS values.
+		//! \tparam ValueType Stored value type.
 		template <typename ValueType>
 		struct data_view_policy_aos_get {
+			//! Underlying storage policy.
 			using view_policy = data_view_policy_aos<ValueType>;
 
 			//! Raw data pointed to by the view policy
 			std::span<const uint8_t> m_data;
 
+			//! Creates a read-only view over mutable bytes.
+			//! \param data Backing byte span.
 			data_view_policy_aos_get(std::span<uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			//! Creates a read-only view over bytes.
+			//! \param data Backing byte span.
 			data_view_policy_aos_get(std::span<const uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			//! Creates a read-only view over a contiguous container.
+			//! \tparam C Contiguous container type.
+			//! \param c Backing container.
 			template <typename C>
 			data_view_policy_aos_get(const C& c): m_data({(const uint8_t*)c.data(), c.size()}) {
 				static_assert(!std::is_same_v<C, data_view_policy_aos_get>);
 			}
 
+			//! Returns a value by index.
+			//! \param idx Value index.
+			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
 				return ((const ValueType*)m_data.data())[idx];
 			}
 
+			//! Returns the backing byte address.
+			//! \return Read-only byte pointer.
 			GAIA_NODISCARD decltype(auto) data() const noexcept {
 				return (const uint8_t*)m_data.data();
 			}
 
+			//! Returns the backing span size.
+			//! \return Span size in bytes.
 			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
@@ -5911,34 +6358,54 @@ namespace gaia {
 		template <typename ValueType>
 		struct data_view_policy_get<DataLayout::AoS, ValueType>: data_view_policy_aos_get<ValueType> {};
 
+		//! Mutable byte view over AoS values.
+		//! \tparam ValueType Stored value type.
 		template <typename ValueType>
 		struct data_view_policy_aos_set {
+			//! Underlying storage policy.
 			using view_policy = data_view_policy_aos<ValueType>;
 
 			//! Raw data pointed to by the view policy
 			std::span<uint8_t> m_data;
 
+			//! Creates a mutable view over bytes.
+			//! \param data Backing byte span.
 			data_view_policy_aos_set(std::span<uint8_t> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+			//! Creates a mutable view from a byte span.
+			//! \param data Backing byte span whose constness is intentionally erased.
 			data_view_policy_aos_set(std::span<const uint8_t> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+			//! Creates a mutable view over a contiguous container.
+			//! \tparam C Contiguous container type.
+			//! \param c Backing container.
 			template <typename C>
 			data_view_policy_aos_set(const C& c): m_data({(uint8_t*)c.data(), c.size()}) {
 				static_assert(!std::is_same_v<C, data_view_policy_aos_set>);
 			}
 
+			//! Returns a mutable value by index.
+			//! \param idx Value index.
+			//! \return Mutable reference to the value.
 			GAIA_NODISCARD ValueType& operator[](size_t idx) noexcept {
 				GAIA_ASSERT(idx < m_data.size());
 				return ((ValueType*)m_data.data())[idx];
 			}
 
+			//! Returns a read-only value by index.
+			//! \param idx Value index.
+			//! \return Read-only reference to the value.
 			GAIA_NODISCARD const ValueType& operator[](size_t idx) const noexcept {
 				GAIA_ASSERT(idx < m_data.size());
 				return ((const ValueType*)m_data.data())[idx];
 			}
 
+			//! Returns the backing byte address.
+			//! \return Mutable byte pointer.
 			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
+			//! Returns the backing span size.
+			//! \return Span size in bytes.
 			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
@@ -6002,30 +6469,52 @@ namespace gaia {
 		struct data_view_policy_soa {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
+			//! Tuple representation of the reflected value fields.
 			using TTuple = decltype(meta::struct_to_tuple(std::declval<ValueType>()));
+			//! Pointer type used to address SoA storage.
 			using TargetCastType = uint8_t*;
 
+			//! Physical layout.
 			constexpr static DataLayout Layout = data_layout_properties<TDataLayout, ValueType>::Layout;
+			//! Required byte alignment.
 			constexpr static size_t Alignment = data_layout_properties<TDataLayout, ValueType>::Alignment;
+			//! Number of reflected fields.
 			constexpr static size_t TTupleItems = std::tuple_size<TTuple>::value;
 			static_assert(Alignment > 0U, "SoA data can't be zero-aligned");
 
+			//! Type of a reflected field.
+			//! \tparam Item Field index.
 			template <size_t Item>
 			using value_type = typename std::tuple_element<Item, TTuple>::type;
+			//! Const-qualified type of a reflected field.
+			//! \tparam Item Field index.
 			template <size_t Item>
 			using const_value_type = typename std::add_const<value_type<Item>>::type;
 
+			//! Calculates the bytes required for an SoA value range.
+			//! \param addr Starting address used for alignment calculations.
+			//! \param cnt Number of values.
+			//! \return Minimum required byte count.
 			GAIA_NODISCARD constexpr static uint32_t get_min_byte_size(uintptr_t addr, size_t cnt) noexcept {
 				const auto offset = get_aligned_byte_offset<TTupleItems>(addr, cnt);
 				return (uint32_t)(offset - addr);
 			}
 
+			//! Allocates an SoA value range.
+			//! \tparam Allocator Allocator adaptor type.
+			//! \param cnt Number of values.
+			//! \return Allocated byte buffer.
 			template <typename Allocator>
 			GAIA_NODISCARD static uint8_t* alloc(size_t cnt) noexcept {
 				const auto bytes = get_min_byte_size(0, cnt);
 				return mem::AllocHelper::alloc_alig<uint8_t, Allocator>(Alignment, bytes);
 			}
 
+			//! Releases an instrumented SoA value range.
+			//! \tparam Allocator Allocator adaptor type.
+			//! \param pData Allocated buffer, or null.
+			//! \param cap Buffer capacity in values.
+			//! \param cnt Number of live values.
 			template <typename Allocator>
 			static void free(void* pData, size_t cap, size_t cnt) noexcept {
 				if (pData == nullptr)
@@ -6035,6 +6524,10 @@ namespace gaia {
 				return mem::AllocHelper::free_alig<Allocator>(pData);
 			}
 
+			//! Registers a newly allocated SoA range with the memory sanitizer.
+			//! \param pData Backing buffer.
+			//! \param cap Buffer capacity in values.
+			//! \param count Number of live values.
 			static void mem_add_block(void* pData, size_t cap, size_t count) {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
@@ -6047,6 +6540,10 @@ namespace gaia {
 				});
 			}
 
+			//! Unregisters an SoA range from the memory sanitizer.
+			//! \param pData Backing buffer.
+			//! \param cap Buffer capacity in values.
+			//! \param count Number of live values.
 			static void mem_del_block(void* pData, size_t cap, size_t count) {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
@@ -6059,6 +6556,11 @@ namespace gaia {
 				});
 			}
 
+			//! Makes newly appended SoA values addressable by the memory sanitizer.
+			//! \param pData Backing buffer.
+			//! \param cap Buffer capacity in values.
+			//! \param count Current number of live values.
+			//! \param n Number of values being appended.
 			static void mem_push_block(void* pData, size_t cap, size_t count, size_t n) {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
@@ -6071,6 +6573,11 @@ namespace gaia {
 				});
 			}
 
+			//! Poisons removed SoA values for the memory sanitizer.
+			//! \param pData Backing buffer.
+			//! \param cap Buffer capacity in values.
+			//! \param count Current number of live values.
+			//! \param n Number of values being removed.
 			static void mem_pop_block(void* pData, size_t cap, size_t count, size_t n) {
 				meta::each_member(ValueType{}, [&](auto&&... item) {
 					auto address = mem::align<Alignment>((uintptr_t)pData);
@@ -6083,10 +6590,19 @@ namespace gaia {
 				});
 			}
 
+			//! Reconstructs a value from its SoA fields.
+			//! \param s Backing byte span. Its size is the value capacity.
+			//! \param idx Value index.
+			//! \return Reconstructed value.
 			GAIA_NODISCARD constexpr static ValueType get(std::span<const uint8_t> s, size_t idx) noexcept {
 				return get_inter(meta::struct_to_tuple(ValueType{}), s, idx, std::make_index_sequence<TTupleItems>());
 			}
 
+			//! Returns a read-only span over one SoA field.
+			//! \tparam Item Field index.
+			//! \param s Backing byte span. Its size is the value capacity.
+			//! \param idx First value index.
+			//! \return Field span beginning at the requested index.
 			template <size_t Item>
 			GAIA_NODISCARD constexpr static auto get(std::span<const uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
@@ -6094,21 +6610,31 @@ namespace gaia {
 				return std::span{&ref, s.size() - idx};
 			}
 
+			//! Proxy used to read or assign one complete SoA value.
 			class accessor {
 				std::span<uint8_t> m_data;
 				size_t m_idx;
 
 			public:
+				//! Creates a value proxy.
+				//! \param data Backing byte span.
+				//! \param idx Value index.
 				constexpr accessor(std::span<uint8_t> data, size_t idx): m_data(data), m_idx(idx) {}
 
+				//! Assigns a copied value to the selected SoA fields.
+				//! \param val Source value.
 				constexpr void operator=(const ValueType& val) noexcept {
 					set_inter(meta::struct_to_tuple(val), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
+				//! Assigns a moved value to the selected SoA fields.
+				//! \param val Source value.
 				constexpr void operator=(ValueType&& val) noexcept {
 					set_inter(meta::struct_to_tuple(GAIA_MOV(val)), m_data, m_idx, std::make_index_sequence<TTupleItems>());
 				}
 
+				//! Reconstructs the selected value.
+				//! \return Reconstructed value.
 				GAIA_NODISCARD constexpr operator ValueType() const noexcept {
 					return get_inter(
 							meta::struct_to_tuple(ValueType{}), {(const uint8_t*)m_data.data(), m_data.size()}, m_idx,
@@ -6116,10 +6642,19 @@ namespace gaia {
 				}
 			};
 
+			//! Returns a mutable proxy for one complete value.
+			//! \param s Backing byte span. Its size is the value capacity.
+			//! \param idx Value index.
+			//! \return Mutable value proxy.
 			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx) noexcept {
 				return accessor(s, idx);
 			}
 
+			//! Returns a mutable span over one SoA field.
+			//! \tparam Item Field index.
+			//! \param s Backing byte span. Its size is the value capacity.
+			//! \param idx First value index.
+			//! \return Field span beginning at the requested index.
 			template <size_t Item>
 			GAIA_NODISCARD constexpr static auto set(std::span<uint8_t> s, size_t idx = 0) noexcept {
 				const auto offset = get_aligned_byte_offset<Item>((uintptr_t)s.data(), s.size());
@@ -6185,41 +6720,65 @@ namespace gaia {
 		struct data_view_policy<DataLayout::SoA16, ValueType>: //
 			data_view_policy_soa<DataLayout::SoA16, ValueType> {};
 
+		//! Read-only byte view over SoA values.
+		//! \tparam TDataLayout SoA packing layout.
+		//! \tparam ValueType Stored value type.
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa_get {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
+			//! Underlying storage policy.
 			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
+			//! Metadata for a selected field.
+			//! \tparam Item Field index.
 			template <size_t Item>
 			struct data_view_policy_idx_info {
+				//! Const-qualified field type.
 				using const_value_type = typename view_policy::template const_value_type<Item>;
 			};
 
 			//! Raw data pointed to by the view policy
 			std::span<const uint8_t> m_data;
 
+			//! Creates a read-only view over mutable bytes.
+			//! \param data Backing byte span.
 			data_view_policy_soa_get(std::span<uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			//! Creates a read-only view over bytes.
+			//! \param data Backing byte span.
 			data_view_policy_soa_get(std::span<const uint8_t> data): m_data({(const uint8_t*)data.data(), data.size()}) {}
+			//! Creates a read-only view over a contiguous container.
+			//! \tparam C Contiguous container type.
+			//! \param c Backing container.
 			template <typename C>
 			data_view_policy_soa_get(const C& c): m_data({(const uint8_t*)c.data(), c.size()}) {
 				static_assert(!std::is_same_v<C, data_view_policy_soa_get>);
 			}
 
+			//! Reconstructs a value by index.
+			//! \param idx Value index.
+			//! \return Reconstructed value.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_t idx) const noexcept {
 				return view_policy::get(m_data, idx);
 			}
 
+			//! Returns a read-only span over one field.
+			//! \tparam Item Field index.
+			//! \return Field span.
 			template <size_t Item>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
 				auto s = view_policy::template get<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
+			//! Returns the backing byte address.
+			//! \return Read-only byte pointer.
 			GAIA_NODISCARD decltype(auto) data() const noexcept {
 				return (const uint8_t*)m_data.data();
 			}
 
+			//! Returns the backing span size.
+			//! \return Value capacity encoded by the span.
 			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
@@ -6235,63 +6794,101 @@ namespace gaia {
 		struct data_view_policy_get<DataLayout::SoA16, ValueType>: //
 				data_view_policy_soa_get<DataLayout::SoA16, ValueType> {};
 
+		//! Mutable byte view over SoA values.
+		//! \tparam TDataLayout SoA packing layout.
+		//! \tparam ValueType Stored value type.
 		template <DataLayout TDataLayout, typename ValueType>
 		struct data_view_policy_soa_set {
 			static_assert(std::is_copy_assignable_v<ValueType>);
 
+			//! Underlying storage policy.
 			using view_policy = data_view_policy_soa<TDataLayout, ValueType>;
 
+			//! Metadata for a selected field.
+			//! \tparam Item Field index.
 			template <size_t Item>
 			struct data_view_policy_idx_info {
+				//! Mutable field type.
 				using value_type = typename view_policy::template value_type<Item>;
+				//! Const-qualified field type.
 				using const_value_type = typename view_policy::template const_value_type<Item>;
 			};
 
 			//! Raw data pointed to by the view policy
 			std::span<uint8_t> m_data;
 
+			//! Creates a mutable view over bytes.
+			//! \param data Backing byte span.
 			data_view_policy_soa_set(std::span<uint8_t> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+			//! Creates a mutable view from a byte span.
+			//! \param data Backing byte span whose constness is intentionally erased.
 			data_view_policy_soa_set(std::span<const uint8_t> data): m_data({(uint8_t*)data.data(), data.size()}) {}
+			//! Creates a mutable view over a contiguous container.
+			//! \tparam C Contiguous container type.
+			//! \param c Backing container.
 			template <typename C>
 			data_view_policy_soa_set(const C& c): m_data({(uint8_t*)c.data(), c.size()}) {
 				static_assert(!std::is_same_v<C, data_view_policy_soa_set>);
 			}
 
+			//! Proxy used to assign one complete value.
 			struct accessor {
+				//! Backing byte span.
 				std::span<uint8_t> m_data;
+				//! Value index.
 				size_t m_idx;
 
+				//! Assigns a copied value.
+				//! \param val Source value.
 				constexpr void operator=(const ValueType& val) noexcept {
 					view_policy::set(m_data, m_idx) = val;
 				}
+				//! Assigns a moved value.
+				//! \param val Source value.
 				constexpr void operator=(ValueType&& val) noexcept {
 					view_policy::set(m_data, m_idx) = GAIA_FWD(val);
 				}
 			};
 
+			//! Reconstructs a read-only value by index.
+			//! \param idx Value index.
+			//! \return Reconstructed value.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_t idx) const noexcept {
 				return view_policy::get({(const uint8_t*)m_data.data(), m_data.size()}, idx);
 			}
+			//! Returns a mutable proxy by index.
+			//! \param idx Value index.
+			//! \return Mutable value proxy.
 			GAIA_NODISCARD constexpr auto operator[](size_t idx) noexcept {
 				return accessor{m_data, idx};
 			}
 
+			//! Returns a read-only span over one field.
+			//! \tparam Item Field index.
+			//! \return Field span.
 			template <size_t Item>
 			GAIA_NODISCARD constexpr auto get() const noexcept {
 				auto s = view_policy::template get<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
+			//! Returns a mutable span over one field.
+			//! \tparam Item Field index.
+			//! \return Field span.
 			template <size_t Item>
 			GAIA_NODISCARD constexpr auto set() noexcept {
 				auto s = view_policy::template set<Item>(m_data);
 				return std::span(s.data(), s.size());
 			}
 
+			//! Returns the backing byte address.
+			//! \return Mutable byte pointer.
 			GAIA_NODISCARD auto data() const noexcept {
 				return m_data.data();
 			}
 
+			//! Returns the backing span size.
+			//! \return Value capacity encoded by the span.
 			GAIA_NODISCARD auto size() const noexcept {
 				return m_data.size();
 			}
@@ -6311,6 +6908,7 @@ namespace gaia {
 		// Helpers
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct auto_view_policy_inter {
@@ -6327,14 +6925,23 @@ namespace gaia {
 			struct is_soa_layout<T, std::void_t<decltype(T::gaia_Data_Layout)>>:
 					std::bool_constant<!std::is_empty_v<T> && (T::gaia_Data_Layout != DataLayout::AoS)> {};
 		} // namespace detail
+		//! \endcond
 
+		//! Automatically selected storage policy for a type.
+		//! \tparam T Stored type.
 		template <typename T>
 		using auto_view_policy = data_view_policy<detail::auto_view_policy_inter<T>::data_layout_type, T>;
+		//! Automatically selected read-only view for a type.
+		//! \tparam T Stored type.
 		template <typename T>
 		using auto_view_policy_get = data_view_policy_get<detail::auto_view_policy_inter<T>::data_layout_type, T>;
+		//! Automatically selected mutable view for a type.
+		//! \tparam T Stored type.
 		template <typename T>
 		using auto_view_policy_set = data_view_policy_set<detail::auto_view_policy_inter<T>::data_layout_type, T>;
 
+		//! Whether a type selects a non-AoS layout.
+		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_soa_layout_v = detail::is_soa_layout<T>::value;
 
@@ -6346,18 +6953,25 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! Reports whether a type supports a copy operation used by Gaia-ECS storage.
+		//! \tparam T Type to inspect.
+		//! \return True when the type is copyable or copy-constructible.
 		template <typename T>
 		constexpr bool is_copyable() {
 			return std::is_trivially_copyable_v<T> || std::is_trivially_assignable_v<T, T> || //
 						 std::is_copy_assignable_v<T> || std::is_copy_constructible_v<T>;
 		}
 
+		//! Reports whether a type supports a move operation used by Gaia-ECS storage.
+		//! \tparam T Type to inspect.
+		//! \return True when the type is movable or move-constructible.
 		template <typename T>
 		constexpr bool is_movable() {
 			return std::is_trivially_move_assignable_v<T> || std::is_trivially_move_constructible_v<T> || //
 						 std::is_move_assignable_v<T> || std::is_move_constructible_v<T>;
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			void copy_ctor_element_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
@@ -6508,7 +7122,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -6542,7 +7156,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! Handles only the non-overlapping part.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
@@ -6579,7 +7193,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -6604,7 +7218,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -6641,7 +7255,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 			//! Handles only the non-overlapping part.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
@@ -6678,7 +7292,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by one.
+			//! Shift elements at the address pointed to by \a dst to the right by one.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -6703,12 +7317,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 		} // namespace detail
+		//! \endcond
 
 		GAIA_CLANG_WARNING_PUSH()
 		// Memory is aligned so we can silence this warning
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-		//! Copy @a size elements of type @a T from the address pointed to by @a src to @a dst
+		//! Copy \a size elements of type \a T from the address pointed to by \a src to \a dst
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6730,8 +7345,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy one element of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst.
+		//! Copy one element of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6753,8 +7368,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy elements of type @a T from the address pointed to by @a src to @a dst.
-		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Copy elements of type \a T from the address pointed to by \a src to \a dst.
+		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6777,7 +7392,7 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6802,8 +7417,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst.
+		//! Move or copy one elements of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6828,8 +7443,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Move or copy elements of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6855,7 +7470,7 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6894,7 +7509,7 @@ namespace gaia {
 			}
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the left by one element.
+		//! Shift elements at the address pointed to by \a dst to the left by one element.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6913,7 +7528,7 @@ namespace gaia {
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the left by one @a n elements.
+		//! Shift elements at the address pointed to by \a dst to the left by one \a n elements.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6934,7 +7549,7 @@ namespace gaia {
 				detail::shift_elements_left_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the right by one element.
+		//! Shift elements at the address pointed to by \a dst to the right by one element.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6953,7 +7568,7 @@ namespace gaia {
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+		//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -6982,6 +7597,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! \cond INTERNAL
 		namespace detail {
 			template <uint32_t Size, uint32_t Alignment>
 			struct raw_data_holder {
@@ -7013,7 +7629,11 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Inline raw byte storage aligned for the automatically selected layout of a type.
+		//! \tparam T Type whose layout determines the storage alignment.
+		//! \tparam N Storage size in bytes.
 		template <typename T, uint32_t N>
 		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::Alignment>;
 	} // namespace mem
@@ -7026,6 +7646,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Intrusive links maintained for one forward-list node.
+		//! \tparam T Node type.
 		template <class T>
 		struct fwd_llist_link {
 			//! Pointer the the next element
@@ -7036,6 +7658,7 @@ namespace gaia {
 			T** prevs_next = nullptr;
 
 			//! Returns true if the node is linked with another
+			//! \return True when this link participates in a list. False otherwise.
 			GAIA_NODISCARD bool linked() const {
 				return next != nullptr || prevs_next != nullptr;
 			}
@@ -7045,53 +7668,83 @@ namespace gaia {
 		//! or it has to provide get_fwd_llist_link() member functions.
 		template <class T>
 		struct fwd_llist_base {
+			//! Intrusive link storage used by fwd_llist.
 			fwd_llist_link<T> fwd_link_GAIA;
 
+			//! Returns the mutable intrusive link.
+			//! \return Reference to this node's link storage.
 			fwd_llist_link<T>& get_fwd_llist_link() {
 				return fwd_link_GAIA;
 			}
+			//! Returns the immutable intrusive link.
+			//! \return Const reference to this node's link storage.
 			const fwd_llist_link<T>& get_fwd_llist_link() const {
 				return fwd_link_GAIA;
 			}
 		};
 
+		//! Forward iterator over an intrusive fwd_llist.
+		//! \tparam T Node type, optionally const-qualified.
 		template <typename T>
 		struct fwd_llist_iterator {
+			//! Iterator category tag.
 			using iterator_category = core::forward_iterator_tag;
+			//! Node value type.
 			using value_type = T;
+			//! Pointer to a node.
 			using pointer = T*;
+			//! Reference to a node.
 			using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = uint32_t;
+			//! Type used for sizes.
 			using size_type = uint32_t;
+			//! Iterator type.
 			using iterator = fwd_llist_iterator;
 
 		private:
 			T* m_pNode;
 
 		public:
+			//! Constructs an iterator at a node.
+			//! \param pNode Current node, or nullptr for the end sentinel.
 			explicit fwd_llist_iterator(T* pNode): m_pNode(pNode) {}
 
+			//! Dereferences the current node.
+			//! \return Reference to the current node.
 			reference operator*() const {
 				return *m_pNode;
 			}
+			//! Accesses the current node.
+			//! \return Pointer to the current node.
 			pointer operator->() const {
 				return m_pNode;
 			}
 
+			//! Advances to the next linked node.
+			//! \return This iterator after advancement.
 			iterator& operator++() {
 				auto& list = m_pNode->get_fwd_llist_link();
 				m_pNode = list.next;
 				return *this;
 			}
+			//! Advances to the next linked node.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when both iterators refer to the same node.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pNode == other.m_pNode;
 			}
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when the iterators refer to different nodes.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pNode != other.m_pNode;
 			}
@@ -7104,7 +7757,9 @@ namespace gaia {
 		//! Iteration: O(N)
 		template <class T>
 		struct fwd_llist {
+			//! Number of linked nodes.
 			uint32_t count = 0;
+			//! First linked node, or nullptr when empty.
 			T* first = nullptr;
 
 			//! Clears the list.
@@ -7114,6 +7769,7 @@ namespace gaia {
 			}
 
 			//! Links the node in the list.
+			//! \param pNode Unlinked node to insert at the front.
 			void link(T* pNode) {
 				GAIA_ASSERT(pNode != nullptr);
 
@@ -7131,6 +7787,7 @@ namespace gaia {
 			}
 
 			//! Unlinks the node from the list.
+			//! \param pNode Node currently linked in this list.
 			void unlink(T* pNode) {
 				GAIA_ASSERT(pNode != nullptr);
 
@@ -7147,7 +7804,9 @@ namespace gaia {
 				--count;
 			}
 
-			//! Checks if the node \param pNode is linked in the list.
+			//! Checks whether a node is linked in this list.
+			//! \param pNode Node to find.
+			//! \return True when the node belongs to this list. False otherwise.
 			GAIA_NODISCARD bool has(T* pNode) const {
 				GAIA_ASSERT(pNode != nullptr);
 
@@ -7160,36 +7819,50 @@ namespace gaia {
 			}
 
 			//! Returns true if the list is empty. False otherwise.
+			//! \return True when the list has no nodes. False otherwise.
 			GAIA_NODISCARD bool empty() const {
 				GAIA_ASSERT(count == 0);
 				return first == nullptr;
 			}
 
 			//! Returns the number of nodes linked in the list.
+			//! \return Number of linked nodes.
 			GAIA_NODISCARD uint32_t size() const {
 				return count;
 			}
 
+			//! Returns an iterator to the first node.
+			//! \return Mutable iterator to the first node, or end() when empty.
 			fwd_llist_iterator<T> begin() {
 				return fwd_llist_iterator<T>(first);
 			}
 
+			//! Returns an iterator to the first node.
+			//! \return Const iterator to the first node, or end() when empty.
 			fwd_llist_iterator<const T> begin() const {
 				return fwd_llist_iterator((const T*)first);
 			}
 
+			//! Returns an iterator to the first node.
+			//! \return Const iterator to the first node, or cend() when empty.
 			fwd_llist_iterator<const T> cbegin() const {
 				return fwd_llist_iterator((const T*)first);
 			}
 
+			//! Returns the mutable end sentinel.
+			//! \return Mutable end sentinel.
 			fwd_llist_iterator<T> end() {
 				return fwd_llist_iterator<T>(nullptr);
 			}
 
+			//! Returns the const end sentinel.
+			//! \return Const end sentinel.
 			fwd_llist_iterator<const T> end() const {
 				return fwd_llist_iterator((const T*)nullptr);
 			}
 
+			//! Returns the const end sentinel.
+			//! \return Const end sentinel.
 			fwd_llist_iterator<const T> cend() const {
 				return fwd_llist_iterator((const T*)nullptr);
 			}
@@ -7204,10 +7877,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace sarr_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_detail
+		//! \endcond
 
 		//! Fixed-size stack array with AoS storage.
 		//! Interface compatiblity with std::array where it matters.
@@ -7219,22 +7894,36 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
+			//! Type used for iterator differences.
 			using difference_type = sarr_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = pointer;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Size of one element in bytes.
 			static constexpr size_t value_size = sizeof(T);
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
 
+			//! Inline storage backing the container elements.
 			T m_data[N];
 
 			constexpr sarr() noexcept = default;
@@ -7249,6 +7938,10 @@ namespace gaia {
 
 			GAIA_CONSTEXPR_DTOR ~sarr() = default;
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			constexpr sarr(InputIt first, InputIt last) noexcept: sarr() {
 				const auto count = (size_type)core::distance(first, last);
@@ -7266,17 +7959,25 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			constexpr sarr(std::initializer_list<T> il): sarr(il.begin(), il.end()) {}
 
-			constexpr sarr(const sarr& other) = default;
+			constexpr sarr(const sarr&) = default;
 
-			constexpr sarr(sarr&& other) noexcept = default;
+			constexpr sarr(sarr&&) noexcept = default;
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			sarr& operator=(std::initializer_list<T> il) {
 				*this = sarr(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr& operator=(const sarr& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -7286,6 +7987,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr& operator=(sarr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -7299,19 +8003,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return &m_data[0];
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return &m_data[0];
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return m_data[pos];
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return m_data[pos];
@@ -7319,86 +8033,129 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return false;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return N;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				return (reference)*begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				return (reference) operator[](N - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				return (const_reference) operator[](N - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() noexcept {
 				return iterator(&m_data[0]);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator(&m_data[0]);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
 				return const_iterator(&m_data[0]);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
 				return iterator((pointer)&back());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
 				return iterator(&m_data[0] + size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator(&m_data[0] + size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
 				return const_iterator(&m_data[0] + size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
 				return iterator(&m_data[0] - 1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				return const_iterator(&m_data[0] - 1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
 				return const_iterator(&m_data[0] - 1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD constexpr bool operator==(const sarr& other) const {
 				for (size_type i = 0; i < N; ++i)
 					if (!(operator[](i) == other[i]))
@@ -7406,29 +8163,43 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const sarr& other) const {
 				return !operator==(other);
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a fixed-size Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		constexpr sarr<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
+		//! Deduces the fixed-size container element type and extent.
+		//! \tparam T Element type.
+		//! \tparam U Types of the remaining deduction-guide arguments.
 		template <typename T, typename... U>
 		sarr(T, U...) -> sarr<T, 1 + (uint32_t)sizeof...(U)>;
 
 	} // namespace cnt
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::cnt::sarr<T, N>>: std::integral_constant<uint32_t, N> {};
@@ -7438,9 +8209,13 @@ namespace std {
 		using type = T;
 	};
 } // namespace std
+//! \endcond
 
 namespace gaia {
 	namespace cnt {
+		//! Fixed-size contiguous array stored inline.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements and fixed capacity.
 		template <typename T, sarr_detail::size_type N>
 		using sarray = cnt::sarr<T, N>;
 	} // namespace cnt
@@ -7470,6 +8245,8 @@ namespace gaia {
 			dyn_singleton() = default;
 
 		public:
+			//! Returns the process-wide singleton object.
+			//! \return Reference to the singleton instance.
 			static T& get() noexcept {
 				static dyn_singleton<T> singleton;
 				return *singleton.m_obj;
@@ -7498,10 +8275,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_ext_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_detail
+		//! \endcond
 
 		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
 		//! If the number of elements is bellow \tparam N the stack storage is used.
@@ -7512,21 +8291,35 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
+			//! Type used for iterator differences.
 			using difference_type = darr_ext_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = pointer;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Size of one element in bytes.
 			static constexpr size_t value_size = sizeof(T);
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
@@ -7572,16 +8365,26 @@ namespace gaia {
 
 		public:
 			darr_ext() noexcept = default;
+			//! Constructs a value-initialized container.
 			darr_ext(core::zero_t) noexcept {}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			darr_ext(size_type count, const_reference value) {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			darr_ext(size_type count) {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			darr_ext(InputIt first, InputIt last) {
 				const auto count = (size_type)core::distance(first, last);
@@ -7600,10 +8403,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			darr_ext(std::initializer_list<T> il): darr_ext(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext(const darr_ext& other): darr_ext(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -7628,11 +8437,17 @@ namespace gaia {
 				other.m_cap = extent;
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			darr_ext& operator=(std::initializer_list<T> il) {
 				*this = darr_ext(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext& operator=(const darr_ext& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -7643,6 +8458,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext& operator=(darr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -7686,19 +8504,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_pData);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, size()}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, size()}, pos);
@@ -7706,6 +8534,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Ensures storage for at least the requested number of elements.
+			//! \param cap Requested element capacity.
 			void reserve(size_type cap) {
 				if (cap <= m_cap)
 					return;
@@ -7725,6 +8555,8 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			void resize(size_type count) {
 				if (count == m_cnt)
 					return;
@@ -7767,6 +8599,9 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -7781,6 +8616,8 @@ namespace gaia {
 				}
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(const T& arg) {
 				try_grow();
 
@@ -7789,6 +8626,8 @@ namespace gaia {
 				core::call_ctor(ptr, arg);
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(T&& arg) {
 				try_grow();
 
@@ -7797,6 +8636,10 @@ namespace gaia {
 				core::call_ctor(ptr, GAIA_MOV(arg));
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return Reference to the appended element.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
@@ -7807,6 +8650,7 @@ namespace gaia {
 				return (reference)*ptr;
 			}
 
+			//! Removes the last element.
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -7817,7 +8661,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
@@ -7838,7 +8683,8 @@ namespace gaia {
 				return iterator(ptr);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Positing in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
@@ -7860,6 +8706,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -7883,6 +8730,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -7908,10 +8756,12 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
+			//! Removes all elements.
 			void clear() noexcept {
 				resize(0);
 			}
 
+			//! Reduces allocated storage to match the current size when possible.
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
@@ -7940,6 +8790,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -7972,90 +8823,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return m_cap;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference) operator[](m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference) operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(data());
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(data());
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(data());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator((pointer)&back());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(data() + size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(data() + size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(data() + size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(data() - 1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(data() - 1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(data() - 1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const darr_ext& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -8066,18 +8960,28 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const darr_ext& other) const noexcept {
 				return !operator==(other);
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			darr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		darr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
@@ -8089,6 +8993,9 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized contiguous array with embedded storage for the first N elements.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements accommodated by the embedded storage.
 		template <typename T, darr_ext_detail::size_type N>
 		using darray_ext = cnt::darr_ext<T, N>;
 	} // namespace cnt
@@ -8105,9 +9012,17 @@ namespace gaia {
 
 namespace gaia {
 	namespace util {
+		//! Storage type used for log-level bit masks.
 		using LogLevelType = uint8_t;
 
-		enum class LogLevel : LogLevelType { Debug = 0x1, Info = 0x2, Warning = 0x4, Error = 0x8 };
+		//! Severity level associated with a log message.
+		enum class LogLevel : LogLevelType {
+			Debug = 0x1, //!< Diagnostic information.
+			Info = 0x2, //!< General informational message.
+			Warning = 0x4, //!< Recoverable problem or unusual condition.
+			Error = 0x8 //!< Error requiring attention.
+		};
+		//! Bit mask of currently enabled logging levels.
 		inline LogLevelType g_logLevelMask = (LogLevelType)LogLevel::Debug | (LogLevelType)LogLevel::Info |
 																				 (LogLevelType)LogLevel::Warning | (LogLevelType)LogLevel::Error;
 
@@ -8122,14 +9037,20 @@ namespace gaia {
 		}
 
 		//! Returns true if a given logging level is enabled. False otherwise.
+		//! \param level Logging level to query.
+		//! \return True when the level is enabled.
 		inline bool is_logging_enabled(LogLevel level) {
 			return ((LogLevelType)level & g_logLevelMask) != 0;
 		}
 
+		//! Callback receiving a fully formatted log line.
 		using LogLineFunc = void (*)(LogLevel, const char*);
+		//! Callback receiving a printf-style format string and argument list.
 		using LogFunc = void (*)(LogLevel, const char*, va_list);
+		//! Callback used to flush pending log output.
 		using LogFlushFunc = void (*)();
 
+		//! \cond INTERNAL
 		namespace detail {
 			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
 			inline constexpr uint32_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
@@ -8340,6 +9261,7 @@ namespace gaia {
 			inline LogFunc g_log_func = log_default;
 			inline LogFlushFunc g_log_flush_func = log_flush_default;
 		} // namespace detail
+		//! \endcond
 
 		//! Set the default function for handling of logs.
 		//! This will fully override the default implementation or logging from gaia (format of logs, caching, etc.).
@@ -8373,6 +9295,7 @@ namespace gaia {
 			va_end(args);
 		}
 
+		//! Flushes pending log output through the configured flush callback.
 		inline void log_flush() {
 			detail::g_log_flush_func();
 		}
@@ -8417,9 +9340,13 @@ inline bool gaia_is_logging_enabled(gaia::util::LogLevelType level) {
 
 namespace gaia {
 	namespace mem {
+		//! Required alignment of returned small-block allocations.
 		static constexpr uint32_t SmallBlockAlignment = (uint32_t)alignof(std::max_align_t);
+		//! Difference in usable bytes between adjacent size classes.
 		static constexpr uint32_t SmallBlockGranularity = SmallBlockAlignment;
+		//! Largest allocation served by the small-block allocator.
 		static constexpr uint32_t SmallBlockMaxSize = 512;
+		//! Number of supported allocation size classes.
 		static constexpr uint32_t SmallBlockSizeTypeCount = SmallBlockMaxSize / SmallBlockGranularity;
 
 		//! Returns the usable block size for the given size class.
@@ -8439,6 +9366,7 @@ namespace gaia {
 			return (uint8_t)((align(sizeBytes, SmallBlockGranularity) / SmallBlockGranularity) - 1);
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct SmallBlockHeader final {
 				uintptr_t m_pageAddr = 0;
@@ -8450,10 +9378,13 @@ namespace gaia {
 #endif
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Byte offset from an internal block header to caller-visible storage.
 		static constexpr uint32_t SmallBlockUsableOffset =
 				align((uint32_t)sizeof(detail::SmallBlockHeader), SmallBlockAlignment);
 
+		//! Allocation statistics for one small-block size class.
 		struct GAIA_API SmallBlockAllocatorPageStats final {
 			//! Total allocated memory for this size class.
 			uint64_t mem_total;
@@ -8471,10 +9402,13 @@ namespace gaia {
 #endif
 		};
 
+		//! Allocation statistics for every small-block size class.
 		struct GAIA_API SmallBlockAllocatorStats final {
+			//! Per-size-class statistics indexed by the value from small_block_size_type().
 			SmallBlockAllocatorPageStats stats[SmallBlockSizeTypeCount];
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			static_assert(sizeof(SmallBlockHeader) <= SmallBlockUsableOffset);
 
@@ -8744,9 +9678,12 @@ namespace gaia {
 			cnt::fwd_llist<SmallBlockPage> pagesFull;
 		};
 	} // namespace mem
+		//! \endcond
 
+	//! Shared allocator for variable-sized allocations up to SmallBlockMaxSize bytes.
 	using SmallBlockAllocator = core::dyn_singleton<detail::SmallBlockAllocatorImpl>;
 
+	//! \cond INTERNAL
 	namespace detail {
 		//! General-purpose allocator for small, variable-sized allocations up to 512 bytes.
 		class SmallBlockAllocatorImpl final {
@@ -8852,6 +9789,7 @@ namespace gaia {
 			}
 
 			//! Returns allocator statistics per size class.
+			//! \return Current statistics for every size class.
 			GAIA_NODISCARD SmallBlockAllocatorStats stats() const {
 				SmallBlockAllocatorStats stats{};
 				for (uint32_t sizeType = 0; sizeType < SmallBlockSizeTypeCount; ++sizeType)
@@ -9046,6 +9984,7 @@ namespace gaia {
 		};
 
 	} // namespace detail
+	//! \endcond
 } // namespace gaia
 } // namespace gaia
 
@@ -9072,6 +10011,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! \cond INTERNAL
 		namespace detail {
 			struct AllocationInfo {
 				//! Byte offset of the previous allocation
@@ -9083,6 +10023,7 @@ namespace gaia {
 				void (*dtor)(void*, uint32_t);
 			};
 		} // namespace detail
+		//! \endcond
 
 		// MSVC might warn about applying additional padding to an instance of StackAllocator.
 		// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
@@ -9091,6 +10032,7 @@ namespace gaia {
 
 		//! Stack allocator capable of instantiating any default-constructible object on stack.
 		//! Every allocation comes with a 16-bytes long sentinel object.
+		//! \tparam CapacityInBytes Size of the inline allocation buffer in bytes.
 		template <uint32_t CapacityInBytes = 1024>
 		class StackAllocator {
 			using alloc_info = detail::AllocationInfo;
@@ -9120,9 +10062,11 @@ namespace gaia {
 			StackAllocator& operator=(const StackAllocator&) = delete;
 			StackAllocator& operator=(StackAllocator&&) = delete;
 
-			//! Allocates \param cnt objects of type \tparam T inside the buffer.
+			//! Allocates objects inside the buffer.
 			//! No default initialization is done so the object is returned in a non-initialized
 			//! state unless a custom constructor is provided.
+			//! \tparam T Object type.
+			//! \param cnt Number of objects to allocate.
 			//! \return Pointer to the first allocated object
 			template <typename T>
 			GAIA_NODISCARD T* alloc(uint32_t cnt) {
@@ -9208,6 +10152,8 @@ namespace gaia {
 				m_allocs = 0;
 			}
 
+			//! Returns the fixed buffer capacity.
+			//! \return Capacity in bytes.
 			GAIA_NODISCARD constexpr uint32_t capacity() {
 				return CapacityInBytes;
 			}
@@ -9232,7 +10178,9 @@ namespace gaia {
 		template <typename TBitset, bool IsFwd, bool IsInverse>
 		class bitset_const_iterator {
 		public:
+			//! Bit-index value type.
 			using value_type = uint32_t;
+			//! Backing-word type used by the parent bit set.
 			using size_type = typename TBitset::size_type;
 
 		private:
@@ -9313,6 +10261,10 @@ namespace gaia {
 
 		public:
 			bitset_const_iterator() = default;
+
+			//! \param bitset Parent bit set.
+			//! \param pos Initial bit position or boundary.
+			//! \param fwd True to search toward increasing indices. False to search toward decreasing indices.
 			bitset_const_iterator(const TBitset& bitset, value_type pos, bool fwd): m_bitset(&bitset), m_pos(pos) {
 				if (fwd) {
 					if constexpr (!IsFwd) {
@@ -9367,18 +10319,26 @@ namespace gaia {
 				}
 			}
 
+			//! Returns the current bit index.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type operator*() const {
 				return m_pos;
 			}
 
+			//! Returns the current bit index for arrow-style access.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type operator->() const {
 				return m_pos;
 			}
 
+			//! Returns the current bit index.
+			//! \return Current matching bit index.
 			GAIA_NODISCARD value_type index() const {
 				return m_pos;
 			}
 
+			//! Advances to the next matching bit in the iterator's direction.
+			//! \return This iterator after advancement.
 			bitset_const_iterator& operator++() {
 				if constexpr (!IsFwd) {
 					if (m_pos == (value_type)-1)
@@ -9400,27 +10360,43 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Advances to the next matching bit in the iterator's direction.
+			//! \return Iterator value before advancement.
 			GAIA_NODISCARD bitset_const_iterator operator++(int) {
 				bitset_const_iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const bitset_const_iterator& other) const {
 				return m_pos == other.m_pos;
 			}
 
+			//! Compares iterator positions.
+			//! \param other Iterator to compare with.
+			//! \return True when the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const bitset_const_iterator& other) const {
 				return m_pos != other.m_pos;
 			}
 		};
 
+		//! Forward iterator over set bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_iterator = bitset_const_iterator<TBitset, true, false>;
+		//! Forward iterator over unset bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_iterator_inverse = bitset_const_iterator<TBitset, true, true>;
+		//! Reverse iterator over set bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_reverse_iterator = bitset_const_iterator<TBitset, false, false>;
+		//! Reverse iterator over unset bit indices.
+		//! \tparam TBitset Parent bit-set type.
 		template <typename TBitset>
 		using const_reverse_inverse_iterator = bitset_const_iterator<TBitset, false, true>;
 	} // namespace cnt
@@ -9428,9 +10404,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Fixed-size bit set.
+		//! \tparam NBits Number of addressable bits.
 		template <uint32_t NBits>
 		class bitset {
 		public:
+			//! Number of addressable bits.
 			static constexpr uint32_t BitCount = NBits;
 			static_assert(NBits > 0);
 
@@ -9441,9 +10420,12 @@ namespace gaia {
 			};
 
 		public:
+			//! Number of bits stored in each backing word.
 			static constexpr uint32_t BitsPerItem = (NBits / 64) > 0 ? 64 : 32;
+			//! Number of backing words.
 			static constexpr uint32_t Items = (NBits + BitsPerItem - 1) / BitsPerItem;
 
+			//! Unsigned backing-word type.
 			using size_type = typename size_type_selector<BitsPerItem == 32>::type;
 
 		private:
@@ -9458,64 +10440,97 @@ namespace gaia {
 			}
 
 		public:
+			//! Forward iterator over set bit indices.
 			using iter = const_iterator<bitset>;
+			//! Forward iterator over unset bit indices.
 			using iter_inv = const_iterator_inverse<bitset>;
+			//! Reverse iterator over set bit indices.
 			using iter_rev = const_reverse_iterator<bitset>;
+			//! Reverse iterator over unset bit indices.
 			using iter_rev_inv = const_reverse_inverse_iterator<bitset>;
+			//! \cond INTERNAL
 			friend iter;
 			friend iter_inv;
 			friend iter_rev;
 			friend iter_rev_inv;
+			//! \endcond
 
+			//! Returns the mutable backing-word storage.
+			//! \return Pointer to the first backing word.
 			constexpr size_type* data() {
 				return &m_data[0];
 			}
 
+			//! Returns the immutable backing-word storage.
+			//! \return Pointer to the first backing word.
 			constexpr const size_type* data() const {
 				return &m_data[0];
 			}
 
 			//! Returns the number of words used by the bitset internally
+			//! \return Number of backing words.
 			GAIA_NODISCARD constexpr uint32_t items() const {
 				return Items;
 			}
 
+			//! Returns an iterator to the first set bit.
+			//! \return Forward iterator to the first set bit, or end() when none is set.
 			constexpr iter begin() const {
 				return iter(*this, 0, true);
 			}
 
+			//! Returns the forward set-bit sentinel.
+			//! \return Sentinel following the last set bit.
 			constexpr iter end() const {
 				return iter(*this, NBits, false);
 			}
 
+			//! Returns an iterator to the last set bit.
+			//! \return Reverse iterator to the last set bit, or rend() when none is set.
 			constexpr iter_rev rbegin() const {
 				return iter_rev(*this, NBits, false);
 			}
 
+			//! Returns the reverse set-bit sentinel.
+			//! \return Sentinel preceding the first set bit.
 			constexpr iter_rev rend() const {
 				return iter_rev(*this, 0, true);
 			}
 
+			//! Returns an iterator to the first unset bit.
+			//! \return Forward iterator to the first unset bit, or iend() when all bits are set.
 			constexpr iter_inv ibegin() const {
 				return iter_inv(*this, 0, true);
 			}
 
+			//! Returns the forward unset-bit sentinel.
+			//! \return Sentinel following the last unset bit.
 			constexpr iter_inv iend() const {
 				return iter_inv(*this, NBits, false);
 			}
 
+			//! Returns an iterator to the last unset bit.
+			//! \return Reverse iterator to the last unset bit, or riend() when all bits are set.
 			constexpr iter_rev_inv ribegin() const {
 				return iter_rev_inv(*this, NBits, false);
 			}
 
+			//! Returns the reverse unset-bit sentinel.
+			//! \return Sentinel preceding the first unset bit.
 			constexpr iter_rev_inv riend() const {
 				return iter_rev_inv(*this, 0, true);
 			}
 
+			//! Tests a bit.
+			//! \param pos Zero-based bit position, which must be less than NBits.
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD constexpr bool operator[](uint32_t pos) const {
 				return test(pos);
 			}
 
+			//! Compares two bit sets for equality.
+			//! \param other Bit set to compare with.
+			//! \return True when all backing words are equal. False otherwise.
 			GAIA_NODISCARD constexpr bool operator==(const bitset& other) const {
 				GAIA_FOR(Items) {
 					if (m_data[i] != other.m_data[i])
@@ -9524,6 +10539,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares two bit sets for inequality.
+			//! \param other Bit set to compare with.
+			//! \return True when every compared backing word differs. False otherwise.
 			GAIA_NODISCARD constexpr bool operator!=(const bitset& other) const {
 				GAIA_FOR(Items) {
 					if (m_data[i] == other.m_data[i])
@@ -9554,6 +10572,7 @@ namespace gaia {
 			}
 
 			//! Flips all bits
+			//! \return This bit set.
 			constexpr bitset& flip() {
 				if constexpr (HasTrailingBits) {
 					GAIA_FOR(Items - 1) m_data[i] = ~m_data[i];
@@ -9564,7 +10583,8 @@ namespace gaia {
 				return *this;
 			}
 
-			//! Flips the bit at the postion \param pos
+			//! Flips one bit.
+			//! \param pos Zero-based bit position, which must be less than NBits.
 			constexpr void flip(uint32_t pos) {
 				GAIA_ASSERT(pos < NBits);
 				const auto wordIdx = pos / BitsPerItem;
@@ -9572,7 +10592,10 @@ namespace gaia {
 				m_data[wordIdx] ^= ((size_type)1 << bitIdx);
 			}
 
-			//! Flips all bits from \param bitFrom to \param bitTo (including)
+			//! Flips an inclusive range of bits.
+			//! \param bitFrom First bit position to flip.
+			//! \param bitTo Last bit position to flip, inclusive.
+			//! \return This bit set.
 			constexpr bitset& flip(uint32_t bitFrom, uint32_t bitTo) {
 				GAIA_ASSERT(bitFrom <= bitTo);
 				GAIA_ASSERT(bitTo < size());
@@ -9612,19 +10635,23 @@ namespace gaia {
 				GAIA_FOR(Items) m_data[i] = 0;
 			}
 
-			//! Unsets the bit at the postion \param pos
+			//! Unsets one bit.
+			//! \param pos Zero-based bit position, which must be less than NBits.
 			constexpr void reset(uint32_t pos) {
 				GAIA_ASSERT(pos < NBits);
 				m_data[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
 			}
 
-			//! Returns the value of the bit at the position \param pos
+			//! Returns the value of one bit.
+			//! \param pos Zero-based bit position, which must be less than NBits.
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD constexpr bool test(uint32_t pos) const {
 				GAIA_ASSERT(pos < NBits);
 				return (m_data[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
 			}
 
 			//! Checks if all bits are set
+			//! \return True when every bit is set. False otherwise.
 			GAIA_NODISCARD constexpr bool all() const {
 				if constexpr (HasTrailingBits) {
 					GAIA_FOR(Items - 1) {
@@ -9642,6 +10669,7 @@ namespace gaia {
 			}
 
 			//! Checks if any bit is set
+			//! \return True when at least one bit is set. False otherwise.
 			GAIA_NODISCARD constexpr bool any() const {
 				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
@@ -9651,6 +10679,7 @@ namespace gaia {
 			}
 
 			//! Checks if all bits are reset
+			//! \return True when no bit is set. False otherwise.
 			GAIA_NODISCARD constexpr bool none() const {
 				GAIA_FOR(Items) {
 					if (m_data[i] != 0)
@@ -9660,6 +10689,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of set bits
+			//! \return Number of set bits.
 			GAIA_NODISCARD uint32_t count() const {
 				uint32_t total = 0;
 
@@ -9676,6 +10706,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of bits the bitset can hold
+			//! \return NBits.
 			GAIA_NODISCARD constexpr uint32_t size() const {
 				return NBits;
 			}
@@ -9690,29 +10721,43 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace darr_detail
+		//! \endcond
 
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
 		template <typename T, typename Allocator = mem::DefaultAllocatorAdaptor>
 		class darr {
 		public:
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
+			//! Type used for iterator differences.
 			using difference_type = darr_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = pointer;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Size of one element in bytes.
 			static constexpr size_t value_size = sizeof(T);
 
 		private:
@@ -9747,16 +10792,26 @@ namespace gaia {
 
 		public:
 			darr() noexcept = default;
+			//! Constructs a value-initialized container.
 			darr(core::zero_t) noexcept {}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			darr(size_type count, const_reference value) {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			darr(size_type count) {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			darr(InputIt first, InputIt last) {
 				const auto count = (size_type)core::distance(first, last);
@@ -9775,21 +10830,33 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			darr(std::initializer_list<T> il): darr(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			darr(const darr& other): darr(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			darr(darr&& other) noexcept: m_pData(other.m_pData), m_cnt(other.m_cnt), m_cap(other.m_cap) {
 				other.m_pData = nullptr;
 				other.m_cnt = size_type(0);
 				other.m_cap = size_type(0);
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			darr& operator=(std::initializer_list<T> il) {
 				*this = darr(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr& operator=(const darr& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -9800,6 +10867,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr& operator=(darr&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -9825,19 +10895,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_pData);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
@@ -9845,6 +10925,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Ensures storage for at least the requested number of elements.
+			//! \param cap Requested element capacity.
 			void reserve(size_type cap) {
 				if (cap <= m_cap)
 					return;
@@ -9860,6 +10942,8 @@ namespace gaia {
 				m_cap = cap;
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			void resize(size_type count) {
 				if (count == m_cnt)
 					return;
@@ -9910,6 +10994,9 @@ namespace gaia {
 				m_cnt = count;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -9924,6 +11011,8 @@ namespace gaia {
 				}
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(const T& arg) {
 				try_grow();
 
@@ -9932,6 +11021,8 @@ namespace gaia {
 				core::call_ctor(ptr, arg);
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(T&& arg) {
 				try_grow();
 
@@ -9940,6 +11031,10 @@ namespace gaia {
 				core::call_ctor(ptr, GAIA_MOV(arg));
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return Reference to the appended element.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
@@ -9950,6 +11045,7 @@ namespace gaia {
 				return (reference)*ptr;
 			}
 
+			//! Removes the last element.
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -9960,7 +11056,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
@@ -9981,7 +11078,8 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
@@ -10003,6 +11101,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -10026,6 +11125,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -10052,10 +11152,12 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
+			//! Removes all elements.
 			void clear() noexcept {
 				resize(0);
 			}
 
+			//! Reduces allocated storage to match the current size when possible.
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
@@ -10072,6 +11174,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -10103,90 +11206,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return m_cap;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD size_type max_size() const noexcept {
 				return static_cast<size_type>(-1);
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)(operator[](m_cnt - 1));
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference) operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(data());
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return cbegin();
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(data());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator((pointer)&back());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator((const_pointer)&back());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(data() + size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(data() + size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(data() + size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(data() - 1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(data() - 1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(data() - 1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const darr& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -10197,6 +11343,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const darr& other) const noexcept {
 				return !operator==(other);
 			}
@@ -10207,6 +11356,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized contiguous array.
+		//! \tparam T Element type.
 		template <typename T>
 		using darray = cnt::darr<T>;
 	} // namespace cnt
@@ -10219,20 +11370,27 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_ext_soa_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_soa_detail
+		//! \endcond
 
+		//! \cond INTERNAL
 		template <typename T>
 		struct darr_ext_soa_iterator {
+			//! Element type stored by the container.
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
+			//! Type used for iterator differences.
 			using difference_type = darr_ext_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
 			using iterator = darr_ext_soa_iterator;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -10409,6 +11567,7 @@ namespace gaia {
 				return m_idx <= other.m_idx;
 			}
 		};
+		//! \endcond
 
 		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
 		//! If the number of elements is bellow \tparam N the stack storage is used.
@@ -10421,20 +11580,33 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
+			//! Type used for iterator differences.
 			using difference_type = darr_ext_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = darr_ext_soa_iterator<T>;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_darr_ext_soa_iterator<T>;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
@@ -10480,16 +11652,26 @@ namespace gaia {
 
 		public:
 			darr_ext_soa() noexcept = default;
+			//! Constructs a value-initialized container.
 			darr_ext_soa(core::zero_t) noexcept {}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			darr_ext_soa(size_type count, const_reference value) {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			darr_ext_soa(size_type count) {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			darr_ext_soa(InputIt first, InputIt last) {
 				const auto count = (size_type)core::distance(first, last);
@@ -10508,10 +11690,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			darr_ext_soa(std::initializer_list<T> il): darr_ext_soa(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext_soa(const darr_ext_soa& other): darr_ext_soa(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext_soa(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -10536,11 +11724,17 @@ namespace gaia {
 				other.m_cap = extent;
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(std::initializer_list<T> il) {
 				*this = darr_ext_soa(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(const darr_ext_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -10551,6 +11745,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -10595,19 +11792,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_pData);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
@@ -10615,6 +11822,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Ensures storage for at least the requested number of elements.
+			//! \param cap Requested element capacity.
 			void reserve(size_type cap) {
 				if (cap <= m_cap)
 					return;
@@ -10634,6 +11843,8 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			void resize(size_type count) {
 				if (count == m_cnt)
 					return;
@@ -10670,6 +11881,9 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -10684,6 +11898,8 @@ namespace gaia {
 				}
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(const T& arg) {
 				try_grow();
 
@@ -10691,6 +11907,8 @@ namespace gaia {
 				operator[](m_cnt++) = arg;
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(T&& arg) {
 				try_grow();
 
@@ -10698,6 +11916,10 @@ namespace gaia {
 				operator[](m_cnt++) = GAIA_MOV(arg);
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return No value. The deduced return type is void.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
@@ -10706,6 +11928,7 @@ namespace gaia {
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
 			}
 
+			//! Removes the last element.
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -10714,7 +11937,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
@@ -10735,7 +11959,8 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
@@ -10757,6 +11982,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -10777,6 +12003,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -10800,10 +12027,12 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
+			//! Removes all elements.
 			void clear() noexcept {
 				resize(0);
 			}
 
+			//! Reduces allocated storage to match the current size when possible.
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
@@ -10832,6 +12061,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -10860,90 +12090,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return m_cap;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const darr_ext_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -10954,16 +12227,25 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const darr_ext_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
+			//! Returns a mutable view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Mutable view of the selected member.
 			template <size_t Item>
 			auto view_mut() noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template set<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)m_pData), capacity()});
 			}
 
+			//! Returns a read-only view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Read-only view of the selected member.
 			template <size_t Item>
 			auto view() const noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
@@ -10971,13 +12253,20 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			darr_ext_soa<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		darr_ext_soa<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
@@ -10989,6 +12278,9 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized structure-of-arrays container with embedded storage for the first N elements.
+		//! \tparam T Element type described by Gaia-ECS structure-of-arrays reflection metadata.
+		//! \tparam N Number of elements accommodated by the embedded storage.
 		template <typename T, darr_ext_soa_detail::size_type N>
 		using darray_ext_soa = cnt::darr_ext_soa<T, N>;
 	} // namespace cnt
@@ -11001,20 +12293,27 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_soa_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace darr_soa_detail
+		//! \endcond
 
+		//! \cond INTERNAL
 		template <typename T>
 		struct darr_soa_iterator {
+			//! Element type stored by the container.
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
+			//! Type used for iterator differences.
 			using difference_type = darr_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 
 			using iterator = darr_soa_iterator;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -11191,6 +12490,7 @@ namespace gaia {
 				return m_idx <= other.m_idx;
 			}
 		};
+		//! \endcond
 
 		//! Array with variable size of elements of type \tparam T allocated on heap.
 		//! Interface compatiblity with std::vector where it matters.
@@ -11200,17 +12500,28 @@ namespace gaia {
 			static_assert(mem::is_soa_layout_v<T>, "darr_soa can be used only with soa types");
 
 		public:
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
+			//! Type used for iterator differences.
 			using difference_type = darr_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_soa_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = darr_soa_iterator<T>;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_darr_soa_iterator<T>;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -11245,16 +12556,26 @@ namespace gaia {
 
 		public:
 			darr_soa() noexcept = default;
+			//! Constructs a value-initialized container.
 			darr_soa(core::zero_t) noexcept {}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			darr_soa(size_type count, const_reference value) {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			darr_soa(size_type count) {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			darr_soa(InputIt first, InputIt last) {
 				const auto count = (size_type)core::distance(first, last);
@@ -11273,10 +12594,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			darr_soa(std::initializer_list<T> il): darr_soa(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_soa(const darr_soa& other): darr_soa(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_soa(darr_soa&& other) noexcept {
 				// This is a newly constructed object.
 				// It can't have any memory allocated, yet.
@@ -11291,11 +12618,17 @@ namespace gaia {
 				other.m_pData = nullptr;
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			darr_soa& operator=(std::initializer_list<T> il) {
 				*this = darr_soa(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_soa& operator=(const darr_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -11306,6 +12639,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_soa& operator=(darr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -11331,19 +12667,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_pData);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
@@ -11351,6 +12697,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Ensures storage for at least the requested number of elements.
+			//! \param cap Requested element capacity.
 			void reserve(size_type cap) {
 				if (cap <= m_cap)
 					return;
@@ -11367,6 +12715,8 @@ namespace gaia {
 				m_cap = cap;
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			void resize(size_type count) {
 				if (count == m_cnt)
 					return;
@@ -11410,6 +12760,9 @@ namespace gaia {
 				m_cnt = count;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -11424,12 +12777,16 @@ namespace gaia {
 				}
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(const T& arg) {
 				try_grow();
 
 				operator[](m_cnt++) = arg;
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(T&& arg) {
 				try_grow();
 
@@ -11437,6 +12794,10 @@ namespace gaia {
 				operator[](m_cnt++) = GAIA_MOV(arg);
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return No value. The deduced return type is void.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
@@ -11445,6 +12806,7 @@ namespace gaia {
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
 			}
 
+			//! Removes the last element.
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -11453,7 +12815,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
@@ -11474,7 +12837,8 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
@@ -11496,6 +12860,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -11516,6 +12881,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -11539,10 +12905,12 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
+			//! Removes all elements.
 			void clear() noexcept {
 				resize(0);
 			}
 
+			//! Reduces allocated storage to match the current size when possible.
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
@@ -11558,6 +12926,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -11589,90 +12958,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return m_cap;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD size_type max_size() const noexcept {
 				return static_cast<size_type>(-1);
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const darr_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -11683,16 +13095,25 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const darr_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
+			//! Returns a mutable view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Mutable view of the selected member.
 			template <size_t Item>
 			auto view_mut() noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template set<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)m_pData), capacity()});
 			}
 
+			//! Returns a read-only view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Read-only view of the selected member.
 			template <size_t Item>
 			auto view() const noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
@@ -11705,6 +13126,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized structure-of-arrays container.
+		//! \tparam T Element type described by Gaia-ECS structure-of-arrays reflection metadata.
 		template <typename T>
 		using darray_soa = cnt::darr_soa<T>;
 	} // namespace cnt
@@ -11715,6 +13138,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized bit set.
+		//! \tparam Allocator Allocator adaptor used for backing-word storage.
 		template <typename Allocator = mem::DefaultAllocatorAdaptor>
 		class dbitset {
 		private:
@@ -11784,21 +13209,30 @@ namespace gaia {
 			}
 
 		public:
+			//! Forward iterator over set bit indices.
 			using iter = const_iterator<dbitset>;
+			//! Forward iterator over unset bit indices.
 			using iter_inv = const_iterator_inverse<dbitset>;
+			//! Reverse iterator over set bit indices.
 			using iter_rev = const_reverse_iterator<dbitset>;
+			//! Reverse iterator over unset bit indices.
 			using iter_rev_inv = const_reverse_inverse_iterator<dbitset>;
 
+			//! \cond INTERNAL
 			friend iter;
 			friend iter_inv;
 			friend iter_rev;
 			friend iter_rev_inv;
+			//! \endcond
 
+			//! Constructs a bit set with capacity for at least 128 bits and an initial size of one bit.
 			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
 				reserve(128);
 			}
 
+			//! Constructs a bit set with requested initial capacity and a size of one bit.
+			//! \param reserveBits Minimum requested capacity in bits.
 			dbitset(uint32_t reserveBits): m_cnt(1) {
 				reserve(reserveBits);
 			}
@@ -11807,11 +13241,16 @@ namespace gaia {
 				mem::AllocHelper::free<Allocator>((void*)m_pData);
 			}
 
+			//! Copy-constructs a bit set.
+			//! \param other Bit set to copy.
 			dbitset(const dbitset& other) {
 				resize(other.m_cnt);
 				mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
 			}
 
+			//! Copy-assigns a bit set.
+			//! \param other Bit set to copy.
+			//! \return This bit set.
 			dbitset& operator=(const dbitset& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -11820,6 +13259,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs a bit set and leaves the source empty.
+			//! \param other Bit set whose storage is transferred.
 			dbitset(dbitset&& other) noexcept {
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -11830,6 +13271,9 @@ namespace gaia {
 				other.m_cap = 0;
 			}
 
+			//! Move-assigns a bit set and leaves the source empty.
+			//! \param other Bit set whose storage is transferred.
+			//! \return This bit set.
 			dbitset& operator=(dbitset&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -11843,6 +13287,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Reserves storage without changing the current bit count.
+			//! \param bitsWanted Minimum requested capacity in bits.
 			void reserve(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
 				if (bitsWanted < 1)
@@ -11875,6 +13321,8 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 			}
 
+			//! Changes the number of addressable bits.
+			//! \param bitsWanted Requested size in bits. Values below one are clamped to one.
 			void resize(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
 				if (bitsWanted < 1)
@@ -11912,42 +13360,64 @@ namespace gaia {
 				m_cnt = bitsWanted;
 			}
 
+			//! Returns an iterator to the first set bit.
+			//! \return Forward iterator to the first set bit, or end() when none is set.
 			iter begin() const {
 				return iter(*this, 0, true);
 			}
 
+			//! Returns the forward set-bit sentinel.
+			//! \return Sentinel following the last set bit.
 			iter end() const {
 				return iter(*this, size(), false);
 			}
 
+			//! Returns an iterator to the last set bit.
+			//! \return Reverse iterator to the last set bit, or rend() when none is set.
 			iter_rev rbegin() const {
 				return iter_rev(*this, size(), false);
 			}
 
+			//! Returns the reverse set-bit sentinel.
+			//! \return Sentinel preceding the first set bit.
 			iter_rev rend() const {
 				return iter_rev(*this, 0, true);
 			}
 
+			//! Returns an iterator to the first unset bit.
+			//! \return Forward iterator to the first unset bit, or iend() when all bits are set.
 			iter_inv ibegin() const {
 				return iter_inv(*this, 0, true);
 			}
 
+			//! Returns the forward unset-bit sentinel.
+			//! \return Sentinel following the last unset bit.
 			iter_inv iend() const {
 				return iter_inv(*this, size(), false);
 			}
 
+			//! Returns an iterator to the last unset bit.
+			//! \return Reverse iterator to the last unset bit, or riend() when all bits are set.
 			iter_rev_inv ribegin() const {
 				return iter_rev_inv(*this, size(), false);
 			}
 
+			//! Returns the reverse unset-bit sentinel.
+			//! \return Sentinel preceding the first unset bit.
 			iter_rev_inv riend() const {
 				return iter_rev_inv(*this, 0, true);
 			}
 
+			//! Tests a bit.
+			//! \param pos Zero-based bit position, which must be less than size().
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD bool operator[](uint32_t pos) const {
 				return test(pos);
 			}
 
+			//! Compares two bit sets for equality.
+			//! \param other Bit set to compare with.
+			//! \return True when all backing words are equal. False otherwise.
 			GAIA_NODISCARD bool operator==(const dbitset& other) const {
 				const uint32_t item_count = items();
 				GAIA_FOR(item_count) {
@@ -11957,6 +13427,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares two bit sets for inequality.
+			//! \param other Bit set to compare with.
+			//! \return True when every compared backing word differs. False otherwise.
 			GAIA_NODISCARD bool operator!=(const dbitset& other) const {
 				const uint32_t item_count = items();
 				GAIA_FOR(item_count) {
@@ -11982,7 +13455,9 @@ namespace gaia {
 				}
 			}
 
-			//! Sets the bit at the postion \param pos to value \param value
+			//! Sets one bit, growing the bit set when needed.
+			//! \param pos Zero-based bit position.
+			//! \param value Value assigned to the bit.
 			void set(uint32_t pos, bool value = true) {
 				try_grow(pos + 1);
 
@@ -12008,13 +13483,17 @@ namespace gaia {
 				}
 			}
 
-			//! Flips the bit at the postion \param pos
+			//! Flips one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
 			void flip(uint32_t pos) {
 				GAIA_ASSERT(pos < size());
 				m_pData[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
 			}
 
-			//! Flips all bits from \param bitFrom to \param bitTo (including)
+			//! Flips an inclusive range of bits.
+			//! \param bitFrom First bit position to flip.
+			//! \param bitTo Last bit position to flip, inclusive.
+			//! \return This bit set.
 			dbitset& flip(uint32_t bitFrom, uint32_t bitTo) {
 				GAIA_ASSERT(bitFrom <= bitTo);
 				GAIA_ASSERT(bitTo < size());
@@ -12054,19 +13533,23 @@ namespace gaia {
 				GAIA_FOR(item_count) m_pData[i] = 0;
 			}
 
-			//! Unsets the bit at the postion \param pos
+			//! Unsets one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
 			void reset(uint32_t pos) {
 				GAIA_ASSERT(pos < size());
 				m_pData[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
 			}
 
-			//! Returns the value of the bit at the position \param pos
+			//! Returns the value of one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD bool test(uint32_t pos) const {
 				GAIA_ASSERT(pos < size());
 				return (m_pData[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
 			}
 
 			//! Checks if all bits are set
+			//! \return True when every bit is set. False otherwise.
 			GAIA_NODISCARD bool all() const {
 				const auto item_count = items() - 1;
 				const auto lastItemMask = last_item_mask();
@@ -12083,6 +13566,7 @@ namespace gaia {
 			}
 
 			//! Checks if any bit is set
+			//! \return True when at least one bit is set. False otherwise.
 			GAIA_NODISCARD bool any() const {
 				const auto item_count = items();
 				GAIA_FOR(item_count) {
@@ -12093,6 +13577,7 @@ namespace gaia {
 			}
 
 			//! Checks if all bits are reset
+			//! \return True when no bit is set. False otherwise.
 			GAIA_NODISCARD bool none() const {
 				const auto item_count = items();
 				GAIA_FOR(item_count) {
@@ -12103,6 +13588,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of set bits
+			//! \return Number of set bits.
 			GAIA_NODISCARD uint32_t count() const {
 				uint32_t total = 0;
 
@@ -12121,11 +13607,13 @@ namespace gaia {
 			}
 
 			//! Returns the number of bits the dbitset holds
+			//! \return Current number of addressable bits.
 			GAIA_NODISCARD constexpr uint32_t size() const {
 				return m_cnt;
 			}
 
 			//! Returns the number of bits the dbitset can hold
+			//! \return Current capacity in bits.
 			GAIA_NODISCARD constexpr uint32_t capacity() const {
 				return m_cap;
 			}
@@ -12139,9 +13627,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Access policy for implicit-list slot index and generation metadata.
+		//! \tparam TListItem Implicit-list item type.
 		template <typename TListItem>
 		struct ilist_item_traits;
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, typename = void>
 			struct ilist_has_idx_member: std::false_type {};
@@ -12212,7 +13703,10 @@ namespace gaia {
 					T, std::void_t<decltype(ilist_item_traits<T>::set_gen(std::declval<T&>(), std::declval<uint32_t>()))>>:
 					std::true_type {};
 		} // namespace detail
+		//! \endcond
 
+		//! Default access policy for item types exposing idx and gen or data.gen members.
+		//! \tparam TListItem Implicit-list item type.
 		template <typename TListItem>
 		struct ilist_item_traits {
 			static_assert(
@@ -12222,14 +13716,23 @@ namespace gaia {
 					detail::ilist_has_gen_member<TListItem>::value || detail::ilist_has_data_gen_member<TListItem>::value,
 					"ilist item type must expose gen/data.gen or specialize ilist_item_traits");
 
+			//! Returns an item's slot index or free-list link.
+			//! \param item Item whose index is read.
+			//! \return Slot index for a live item or next free slot for a recycled item.
 			GAIA_NODISCARD static uint32_t idx(const TListItem& item) noexcept {
 				return (uint32_t)item.idx;
 			}
 
+			//! Sets an item's slot index or free-list link.
+			//! \param item Item whose index is updated.
+			//! \param value Slot index or next free slot.
 			static void set_idx(TListItem& item, uint32_t value) noexcept {
 				item.idx = value;
 			}
 
+			//! Returns an item's generation.
+			//! \param item Item whose generation is read.
+			//! \return Current generation value.
 			GAIA_NODISCARD static uint32_t gen(const TListItem& item) noexcept {
 				if constexpr (detail::ilist_has_gen_member<TListItem>::value)
 					return (uint32_t)item.gen;
@@ -12237,6 +13740,9 @@ namespace gaia {
 					return (uint32_t)item.data.gen;
 			}
 
+			//! Sets an item's generation.
+			//! \param item Item whose generation is updated.
+			//! \param value New generation value.
 			static void set_gen(TListItem& item, uint32_t value) noexcept {
 				if constexpr (detail::ilist_has_gen_member<TListItem>::value)
 					item.gen = value;
@@ -12245,7 +13751,9 @@ namespace gaia {
 			}
 		};
 
+		//! Basic item metadata supported by ilist.
 		struct ilist_item {
+			//! Generation metadata associated with an item slot.
 			struct ItemData {
 				//! Generation ID
 				uint32_t gen;
@@ -12258,14 +13766,22 @@ namespace gaia {
 			ItemData data;
 
 			ilist_item() = default;
+			//! Constructs item metadata for a slot.
+			//! \param index Slot index.
+			//! \param generation Slot generation.
 			ilist_item(uint32_t index, uint32_t generation): idx(index) {
 				data.gen = generation;
 			}
 
+			//! Copy-constructs item metadata.
+			//! \param other Metadata to copy.
 			ilist_item(const ilist_item& other) {
 				idx = other.idx;
 				data.gen = other.data.gen;
 			}
+			//! Copy-assigns item metadata.
+			//! \param other Metadata to copy.
+			//! \return This item metadata.
 			ilist_item& operator=(const ilist_item& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
@@ -12273,6 +13789,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs item metadata and invalidates the source metadata.
+			//! \param other Metadata to move.
 			ilist_item(ilist_item&& other) {
 				idx = other.idx;
 				data.gen = other.data.gen;
@@ -12280,6 +13798,9 @@ namespace gaia {
 				other.idx = (uint32_t)-1;
 				other.data.gen = (uint32_t)-1;
 			}
+			//! Move-assigns item metadata and invalidates the source metadata.
+			//! \param other Metadata to move.
+			//! \return This item metadata.
 			ilist_item& operator=(ilist_item&& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 				idx = other.idx;
@@ -12291,12 +13812,18 @@ namespace gaia {
 			}
 		};
 
+		//! Contiguous storage adapter used by ilist by default.
+		//! \tparam TListItem Implicit-list item type.
 		template <typename TListItem>
 		struct darray_ilist_storage: public cnt::darray<TListItem> {
+			//! Appends a live item.
+			//! \param container Item to move into storage.
 			void add_item(TListItem&& container) {
 				this->push_back(GAIA_MOV(container));
 			}
 
+			//! Notifies the storage adapter that an item is being recycled.
+			//! \param container Item being recycled. Contiguous storage keeps the slot in place.
 			void del_item([[maybe_unused]] TListItem& container) {}
 		};
 
@@ -12308,19 +13835,30 @@ namespace gaia {
 		//!         and expose a constructor that initializes the slot index and generation.
 		template <typename TListItem, typename TItemHandle, typename TInternalStorage = darray_ilist_storage<TListItem>>
 		struct ilist {
+			//! Underlying slot storage type.
 			using internal_storage = TInternalStorage;
 
+			//! Stored item type.
 			using value_type = TListItem;
+			//! Mutable item reference.
 			using reference = TListItem&;
+			//! Immutable item reference.
 			using const_reference = const TListItem&;
+			//! Mutable item pointer.
 			using pointer = TListItem*;
+			//! Immutable item pointer.
 			using const_pointer = const TListItem*;
+			//! Underlying iterator distance type.
 			using difference_type = typename internal_storage::difference_type;
+			//! Underlying size and index type.
 			using size_type = typename internal_storage::size_type;
 
 			// TODO: replace this iterator with a real list iterator
+			//! Mutable storage iterator.
 			using iterator = typename internal_storage::iterator;
+			//! Immutable storage iterator.
 			using const_iterator = typename internal_storage::const_iterator;
+			//! Underlying iterator category tag.
 			using iterator_category = typename internal_storage::iterator_category;
 
 			static_assert(detail::ilist_traits_has_idx<TListItem>::value, "ilist_item_traits<T> must expose idx(const T&)");
@@ -12345,80 +13883,118 @@ namespace gaia {
 			//! Number of items to recycle
 			size_type m_freeItems = 0;
 
+			//! Returns contiguous item storage.
+			//! \return Pointer to the first slot.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_items.data());
 			}
 
+			//! Returns contiguous item storage.
+			//! \return Const pointer to the first slot.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_items.data());
 			}
 
+			//! Returns an item slot by index.
+			//! \param index Slot index.
+			//! \return Mutable reference to the slot.
 			GAIA_NODISCARD reference operator[](size_type index) {
 				return m_items[index];
 			}
+			//! Returns an item slot by index.
+			//! \param index Slot index.
+			//! \return Immutable reference to the slot.
 			GAIA_NODISCARD const_reference operator[](size_type index) const {
 				return m_items[index];
 			}
 
+			//! Removes all slots and resets the free list.
 			void clear() {
 				m_items.clear();
 				m_nextFreeIdx = (size_type)-1;
 				m_freeItems = 0;
 			}
 
+			//! Returns the free-list head.
+			//! \return Index of the next recyclable slot, or the handle type's invalid id.
 			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
 				return m_nextFreeIdx;
 			}
 
+			//! Returns the number of recyclable slots.
+			//! \return Number of slots linked through the free list.
 			GAIA_NODISCARD size_type get_free_items() const noexcept {
 				return m_freeItems;
 			}
 
+			//! Returns the number of live items.
+			//! \return Total slot count minus recyclable slot count.
 			GAIA_NODISCARD size_type item_count() const noexcept {
 				return size() - m_freeItems;
 			}
 
+			//! Returns the total number of allocated slots.
+			//! \return Live and recyclable slot count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return (size_type)m_items.size();
 			}
 
+			//! Checks whether no slots have been allocated.
+			//! \return True when size() is zero. False otherwise.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns slot capacity.
+			//! \return Number of slots available without growing storage.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return (size_type)m_items.capacity();
 			}
 
+			//! Returns a mutable iterator to the first storage slot.
+			//! \return Mutable iterator to the first slot.
 			GAIA_NODISCARD iterator begin() noexcept {
 				return m_items.begin();
 			}
 
+			//! Returns an immutable iterator to the first storage slot.
+			//! \return Immutable iterator to the first slot.
 			GAIA_NODISCARD const_iterator begin() const noexcept {
 				return m_items.begin();
 			}
 
+			//! Returns an immutable iterator to the first storage slot.
+			//! \return Immutable iterator to the first slot.
 			GAIA_NODISCARD const_iterator cbegin() const noexcept {
 				return m_items.begin();
 			}
 
+			//! Returns the mutable storage end sentinel.
+			//! \return Mutable iterator following the last slot.
 			GAIA_NODISCARD iterator end() noexcept {
 				return m_items.end();
 			}
 
+			//! Returns the immutable storage end sentinel.
+			//! \return Immutable iterator following the last slot.
 			GAIA_NODISCARD const_iterator end() const noexcept {
 				return m_items.end();
 			}
 
+			//! Returns the immutable storage end sentinel.
+			//! \return Immutable iterator following the last slot.
 			GAIA_NODISCARD const_iterator cend() const noexcept {
 				return m_items.end();
 			}
 
+			//! Reserves storage for slots.
+			//! \param cap Minimum requested slot capacity.
 			void reserve(size_type cap) {
 				m_items.reserve(cap);
 			}
 
 			//! Allocates a new item in the list
+			//! \param ctx Context forwarded to TListItem::create().
 			//! \return Handle to the new item
 			GAIA_NODISCARD TItemHandle alloc(void* ctx) {
 				if GAIA_UNLIKELY (m_freeItems == 0U) {
@@ -12477,9 +14053,10 @@ namespace gaia {
 				return {index, ilist_item_traits<TListItem>::gen(m_items[index])};
 			}
 
-			//! Invalidates @a handle.
+			//! Invalidates \a handle.
 			//! Every time an item is deallocated its generation is increased by one.
 			//! \param handle Handle
+			//! \return Reference to the recycled item slot.
 			TListItem& free(TItemHandle handle) {
 				auto& item = m_items[handle.id()];
 				m_items.del_item(item);
@@ -12521,6 +14098,9 @@ namespace gaia {
 			}
 		};
 
+		//! Rebuild policy for implicit-list handles after generation changes.
+		//! \tparam TItemHandle External handle type.
+		//! The second template argument is reserved for specialization detection.
 		template <typename TItemHandle, typename = void>
 		struct ilist_handle_traits {
 			//! Rebuilds a handle after its generation changes.
@@ -12534,13 +14114,15 @@ namespace gaia {
 			}
 		};
 
+		//! Handle rebuild policy preserving priority metadata exposed by prio().
+		//! \tparam TItemHandle External handle type with priority metadata.
 		template <typename TItemHandle>
 		struct ilist_handle_traits<TItemHandle, std::void_t<decltype(std::declval<const TItemHandle&>().prio())>> {
 			//! Rebuilds a handle after its generation changes while preserving packed priority bits.
 			//! \param id Slot index stored in the handle.
 			//! \param gen New slot generation.
 			//! \param prev Previous handle value whose priority bit must be preserved.
-			//! \return Rebuilt handle with the same priority metadata as @a prev.
+			//! \return Rebuilt handle with the same priority metadata as \a prev.
 			static TItemHandle make(uint32_t id, uint32_t gen, const TItemHandle& prev) {
 				return TItemHandle(id, gen, prev.prio());
 			}
@@ -12573,43 +14155,65 @@ namespace gaia {
 			}
 
 		public:
+			//! Stored payload type.
 			using value_type = typename TPagedIList::value_type;
+			//! Reference type selected from iterator constness.
 			using reference =
 					std::conditional_t<IsConst, typename TPagedIList::const_reference, typename TPagedIList::reference>;
+			//! Pointer type selected from iterator constness.
 			using pointer = std::conditional_t<IsConst, typename TPagedIList::const_pointer, typename TPagedIList::pointer>;
+			//! Type used for iterator distances.
 			using difference_type = typename TPagedIList::difference_type;
+			//! Iterator category tag.
 			using iterator_category = core::forward_iterator_tag;
 
 			paged_ilist_iterator() = default;
+
+			//! \param pOwner Owning paged list.
+			//! \param index Initial slot index.
 			paged_ilist_iterator(owner_pointer pOwner, typename TPagedIList::size_type index):
 					m_pOwner(pOwner), m_index(index) {
 				skip_dead();
 			}
 
+			//! Dereferences the current live payload.
+			//! \return Reference to the current payload.
 			GAIA_NODISCARD reference operator*() const {
 				return (*m_pOwner)[m_index];
 			}
 
+			//! Accesses the current live payload.
+			//! \return Pointer to the current payload.
 			GAIA_NODISCARD pointer operator->() const {
 				return &(*m_pOwner)[m_index];
 			}
 
+			//! Advances to the next live payload.
+			//! \return This iterator after advancement.
 			paged_ilist_iterator& operator++() {
 				++m_index;
 				skip_dead();
 				return *this;
 			}
 
+			//! Advances to the next live payload.
+			//! \return Iterator value before advancement.
 			paged_ilist_iterator operator++(int) {
 				auto tmp = *this;
 				++(*this);
 				return tmp;
 			}
 
+			//! Compares iterator positions and owners.
+			//! \param other Iterator to compare with.
+			//! \return True when both iterators have the same owner and slot index.
 			GAIA_NODISCARD bool operator==(const paged_ilist_iterator& other) const {
 				return m_pOwner == other.m_pOwner && m_index == other.m_index;
 			}
 
+			//! Compares iterator positions and owners.
+			//! \param other Iterator to compare with.
+			//! \return True when the iterators differ.
 			GAIA_NODISCARD bool operator!=(const paged_ilist_iterator& other) const {
 				return !(*this == other);
 			}
@@ -12626,13 +14230,21 @@ namespace gaia {
 		//!         count is known and pointer-table relocation must be impossible.
 		template <typename TListItem, typename TItemHandle, uint32_t MaxPages>
 		struct paged_ilist {
+			//! Stored payload type.
 			using value_type = TListItem;
+			//! Mutable payload reference.
 			using reference = TListItem&;
+			//! Immutable payload reference.
 			using const_reference = const TListItem&;
+			//! Mutable payload pointer.
 			using pointer = TListItem*;
+			//! Immutable payload pointer.
 			using const_pointer = const TListItem*;
+			//! Type used for iterator distances.
 			using difference_type = std::ptrdiff_t;
+			//! Type used for slot indices and sizes.
 			using size_type = uint32_t;
+			//! Iterator category tag.
 			using iterator_category = core::forward_iterator_tag;
 
 			static_assert(detail::ilist_traits_has_idx<TListItem>::value, "ilist_item_traits<T> must expose idx(const T&)");
@@ -12804,7 +14416,7 @@ namespace gaia {
 			//! Dynamic page pointer table used when MaxPages is 0.
 			cnt::darray<page_type*> m_pages;
 			//! Fixed page pointer table used when MaxPages is non-zero.
-			//! Page payloads are still allocated lazily; only the pointer table is fixed.
+			//! Page payloads are still allocated lazily. Only the pointer table is fixed.
 			page_type* m_staticPages[StaticPageCount]{};
 			size_type m_size = 0;
 
@@ -12834,9 +14446,9 @@ namespace gaia {
 				return PageCapacity;
 			}
 
-			//! Calculates how many pages are needed to address @a slotCnt slots.
+			//! Calculates how many pages are needed to address \a slotCnt slots.
 			//! \param slotCnt Number of slots that must be addressable.
-			//! \return Number of pages required for @a slotCnt.
+			//! \return Number of pages required for \a slotCnt.
 			GAIA_NODISCARD static constexpr size_type page_count_for_capacity(size_type slotCnt) noexcept {
 				return page_count_for_slots(slotCnt);
 			}
@@ -12928,7 +14540,9 @@ namespace gaia {
 			}
 
 		public:
+			//! Mutable forward iterator over live payloads.
 			using iterator = paged_ilist_iterator<paged_ilist, false>;
+			//! Immutable forward iterator over live payloads.
 			using const_iterator = paged_ilist_iterator<paged_ilist, true>;
 
 			~paged_ilist() {
@@ -12938,6 +14552,8 @@ namespace gaia {
 			paged_ilist() = default;
 			paged_ilist(const paged_ilist&) = delete;
 			paged_ilist& operator=(const paged_ilist&) = delete;
+			//! Move-constructs a paged list and leaves the source empty.
+			//! \param other Paged list whose pages are transferred.
 			paged_ilist(paged_ilist&& other) noexcept:
 					m_size(other.m_size), m_nextFreeIdx(other.m_nextFreeIdx), m_freeItems(other.m_freeItems) {
 				if constexpr (FixedPageTable) {
@@ -12953,6 +14569,9 @@ namespace gaia {
 				other.m_nextFreeIdx = (size_type)-1;
 				other.m_freeItems = 0;
 			}
+			//! Move-assigns a paged list and leaves the source empty.
+			//! \param other Paged list whose pages are transferred.
+			//! \return This paged list.
 			paged_ilist& operator=(paged_ilist&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 				clear_pages();
@@ -12976,14 +14595,21 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Reports that paged storage is not globally contiguous.
+			//! \return Always nullptr. Access payloads by slot or iterator instead.
 			GAIA_NODISCARD pointer data() noexcept {
 				return nullptr;
 			}
 
+			//! Reports that paged storage is not globally contiguous.
+			//! \return Always nullptr. Access payloads by slot or iterator instead.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return nullptr;
 			}
 
+			//! Checks whether a slot contains a live payload.
+			//! \param index Slot index to inspect.
+			//! \return True when index identifies a live payload. False otherwise.
 			GAIA_NODISCARD bool has(size_type index) const noexcept {
 				if (index >= m_size)
 					return false;
@@ -12992,10 +14618,16 @@ namespace gaia {
 				return pPage != nullptr && pPage->aliveMask.test(slot_index(index));
 			}
 
+			//! Checks whether a handle identifies its current live payload.
+			//! \param handle Handle to validate.
+			//! \return True when the slot is live and its stored handle equals handle.
 			GAIA_NODISCARD bool has(TItemHandle handle) const noexcept {
 				return has(handle.id()) && this->handle(handle.id()) == handle;
 			}
 
+			//! Returns the handle metadata stored for a slot.
+			//! \param index Valid slot index.
+			//! \return Stored handle.
 			GAIA_NODISCARD TItemHandle handle(size_type index) const noexcept {
 				GAIA_ASSERT(index < m_size);
 				const auto* pPage = try_page(index);
@@ -13003,10 +14635,16 @@ namespace gaia {
 				return pPage->handles[slot_index(index)];
 			}
 
+			//! Returns a slot's generation.
+			//! \param index Valid slot index.
+			//! \return Generation encoded in the stored handle.
 			GAIA_NODISCARD uint32_t generation(size_type index) const noexcept {
 				return handle(index).gen();
 			}
 
+			//! Returns the free-list link stored for a slot.
+			//! \param index Valid slot index.
+			//! \return Next free slot index or the handle type's invalid id.
 			GAIA_NODISCARD uint32_t next_free(size_type index) const noexcept {
 				GAIA_ASSERT(index < m_size);
 				const auto* pPage = try_page(index);
@@ -13014,16 +14652,23 @@ namespace gaia {
 				return pPage->nextFree[slot_index(index)];
 			}
 
+			//! Returns a live payload by slot index.
+			//! \param index Live slot index.
+			//! \return Mutable reference to the payload.
 			GAIA_NODISCARD reference operator[](size_type index) {
 				GAIA_ASSERT(has(index));
 				return slot_ref(index);
 			}
 
+			//! Returns a live payload by slot index.
+			//! \param index Live slot index.
+			//! \return Immutable reference to the payload.
 			GAIA_NODISCARD const_reference operator[](size_type index) const {
 				GAIA_ASSERT(has(index));
 				return slot_ref(index);
 			}
 
+			//! Destroys all live payloads, releases all pages, and resets slot metadata.
 			void clear() {
 				clear_pages();
 				m_size = 0;
@@ -13031,26 +14676,38 @@ namespace gaia {
 				m_freeItems = 0;
 			}
 
+			//! Returns the free-list head.
+			//! \return Index of the next recyclable slot, or the handle type's invalid id.
 			GAIA_NODISCARD size_type get_next_free_item() const noexcept {
 				return m_nextFreeIdx;
 			}
 
+			//! Returns the number of recyclable slots.
+			//! \return Number of slots linked through the free list.
 			GAIA_NODISCARD size_type get_free_items() const noexcept {
 				return m_freeItems;
 			}
 
+			//! Returns the number of live payloads.
+			//! \return Total slot count minus recyclable slot count.
 			GAIA_NODISCARD size_type item_count() const noexcept {
 				return m_size - m_freeItems;
 			}
 
+			//! Returns the total number of addressable slots in use.
+			//! \return Live and recyclable slot count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_size;
 			}
 
+			//! Checks whether no slots are in use.
+			//! \return True when size() is zero. False otherwise.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return m_size == 0;
 			}
 
+			//! Returns the slot capacity represented by the page table.
+			//! \return Maximum addressable slots without growing the page table.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				if constexpr (FixedPageTable)
 					return MaxPages * PageCapacity;
@@ -13059,33 +14716,44 @@ namespace gaia {
 			}
 
 			//! Returns an iterator over live payload objects only.
+			//! \return Mutable iterator to the first live payload.
 			GAIA_NODISCARD iterator begin() noexcept {
 				return iterator(this, 0);
 			}
 
+			//! Returns an iterator over live payload objects only.
+			//! \return Immutable iterator to the first live payload.
 			GAIA_NODISCARD const_iterator begin() const noexcept {
 				return const_iterator(this, 0);
 			}
 
+			//! Returns an iterator over live payload objects only.
+			//! \return Immutable iterator to the first live payload.
 			GAIA_NODISCARD const_iterator cbegin() const noexcept {
 				return const_iterator(this, 0);
 			}
 
+			//! Returns the mutable end sentinel.
+			//! \return Iterator following the last slot.
 			GAIA_NODISCARD iterator end() noexcept {
 				return iterator(this, m_size);
 			}
 
+			//! Returns the immutable end sentinel.
+			//! \return Iterator following the last slot.
 			GAIA_NODISCARD const_iterator end() const noexcept {
 				return const_iterator(this, m_size);
 			}
 
+			//! Returns the immutable end sentinel.
+			//! \return Iterator following the last slot.
 			GAIA_NODISCARD const_iterator cend() const noexcept {
 				return const_iterator(this, m_size);
 			}
 
-			//! Reserves page-table capacity for at least @a cap slots.
+			//! Reserves page-table capacity for at least \a cap slots.
 			//! \param cap Number of slots that should be addressable without growing the page table.
-			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			//! \note In fixed-page-table mode this only verifies that \a cap fits into MaxPages.
 			//!       Payload pages remain lazily allocated in both modes.
 			void reserve(size_type cap) {
 				const auto pageCnt = page_count_for_slots(cap);
@@ -13096,11 +14764,11 @@ namespace gaia {
 				}
 			}
 
-			//! Ensures the page pointer table can address @a cap slots without resizing later.
+			//! Ensures the page pointer table can address \a cap slots without resizing later.
 			//! \param cap Number of slots that must be addressable.
 			//! \note This is stronger than reserve() in dynamic mode because it resizes the pointer
 			//!       table to contain null page entries. It does not allocate payload pages.
-			//! \note In fixed-page-table mode this only verifies that @a cap fits into MaxPages.
+			//! \note In fixed-page-table mode this only verifies that \a cap fits into MaxPages.
 			void reserve_slot_table(size_type cap) {
 				const auto pageCnt = page_count_for_slots(cap);
 				if constexpr (FixedPageTable) {
@@ -13112,7 +14780,7 @@ namespace gaia {
 
 			//! Returns a live payload slot without consulting list-wide size metadata.
 			//! \param index Slot index to access.
-			//! \return Mutable reference to the live payload at @a index.
+			//! \return Mutable reference to the live payload at \a index.
 			//! \warning This bypasses index < size() checks. Use only when the caller already
 			//!          validated the handle/index through stronger external synchronization.
 			GAIA_NODISCARD reference live_unsafe(size_type index) {
@@ -13125,7 +14793,7 @@ namespace gaia {
 
 			//! Returns a live payload slot without consulting list-wide size metadata.
 			//! \param index Slot index to access.
-			//! \return Immutable reference to the live payload at @a index.
+			//! \return Immutable reference to the live payload at \a index.
 			//! \warning This bypasses index < size() checks. Use only when the caller already
 			//!          validated the handle/index through stronger external synchronization.
 			GAIA_NODISCARD const_reference live_unsafe(size_type index) const {
@@ -13136,12 +14804,18 @@ namespace gaia {
 				return *pPage->ptr(slot);
 			}
 
+			//! Attempts to access a live payload.
+			//! \param index Slot index to inspect.
+			//! \return Pointer to the live payload, or nullptr when the slot is not live.
 			GAIA_NODISCARD pointer try_get(size_type index) noexcept {
 				if (!has(index))
 					return nullptr;
 				return &slot_ref(index);
 			}
 
+			//! Attempts to access a live payload.
+			//! \param index Slot index to inspect.
+			//! \return Const pointer to the live payload, or nullptr when the slot is not live.
 			GAIA_NODISCARD const_pointer try_get(size_type index) const noexcept {
 				if (!has(index))
 					return nullptr;
@@ -13371,6 +15045,13 @@ namespace gaia {
 	#include <type_traits>
 	#include <utility>
 
+//! \file
+//! \brief Compile-time serialization entry points.
+//!
+//! Uses static dispatch and concrete writer/reader types without a virtual interface.
+//! Best suited when the serializer type is known at compile time.
+//! This is a binary traversal API. JSON document I/O uses ser::ser_json.
+
 	#include <type_traits>
 	#include <utility>
 
@@ -13382,42 +15063,62 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
+		//! Runtime identifier describing the representation and alignment of serialized data.
 		enum class serialization_type_id : uint8_t {
-			// Dummy
+			//! Value is intentionally excluded from serialization.
 			ignore = 0,
 
-			// Integer types
+			//! Signed 8-bit integer.
 			s8 = 1,
+			//! Unsigned 8-bit integer.
 			u8 = 2,
+			//! Signed 16-bit integer.
 			s16 = 3,
+			//! Unsigned 16-bit integer.
 			u16 = 4,
+			//! Signed 32-bit integer.
 			s32 = 5,
+			//! Unsigned 32-bit integer.
 			u32 = 6,
+			//! Signed 64-bit integer.
 			s64 = 7,
+			//! Unsigned 64-bit integer.
 			u64 = 8,
 
-			// Boolean
+			//! Boolean value.
 			b = 9,
 
-			// Character types
+			//! 8-bit character.
 			c8 = 10,
+			//! 16-bit character.
 			c16 = 11,
+			//! 32-bit character.
 			c32 = 12,
 
-			// Floating point types
+			//! Reserved 8-bit floating-point representation.
 			f8 = 13,
+			//! Reserved 16-bit floating-point representation.
 			f16 = 14,
+			//! 32-bit floating-point value.
 			f32 = 15,
+			//! 64-bit floating-point value.
 			f64 = 16,
 
-			// Special
+			//! First identifier whose byte size depends on additional metadata.
 			special_begin = 17,
+			//! Trivially copied wrapper whose size is supplied by the caller.
 			trivial_wrapper = special_begin,
+			//! Pointer-like or contiguous value represented by data and size.
 			data_and_size = 18,
 
+			//! Highest valid serialization identifier.
 			Last = data_and_size,
 		};
 
+		//! Resolves the storage size associated with a serialization identifier.
+		//! \param id Serialization representation to inspect.
+		//! \param size Caller-provided size used for trivial wrappers.
+		//! \return Required size and alignment unit in bytes.
 		inline uint32_t serialization_type_size(serialization_type_id id, uint32_t size) {
 			static constexpr uint32_t sizes[] = {
 					// Dummy
@@ -13457,6 +15158,8 @@ namespace gaia {
 			return s;
 		}
 
+		//! Reports whether a type may be serialized by copying its representation.
+		//! \tparam T Type to inspect.
 		template <typename T>
 		struct is_trivially_serializable {
 		private:
@@ -13465,6 +15168,7 @@ namespace gaia {
 			}
 
 		public:
+			//! True when the type can be serialized trivially.
 			static constexpr bool value = update();
 		};
 
@@ -13487,6 +15191,9 @@ namespace gaia {
 						std::is_same<T, double>, //
 						std::is_same<T, long double>> {};
 
+		//! Returns the serialization identifier for an integral type.
+		//! \tparam T Supported integral type.
+		//! \return Matching integral serialization identifier.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
 			static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
@@ -13518,6 +15225,9 @@ namespace gaia {
 			}
 		}
 
+		//! Returns the serialization identifier for a floating-point type.
+		//! \tparam T Supported floating-point type.
+		//! \return Matching floating-point serialization identifier.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
 			static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
@@ -13534,6 +15244,9 @@ namespace gaia {
 			}
 		}
 
+		//! Returns the serialization identifier selected for a C++ type.
+		//! \tparam T Type to classify.
+		//! \return Matching serialization identifier, or ignore when unsupported.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id type_id() {
 			if constexpr (std::is_enum_v<T>)
@@ -13552,9 +15265,7 @@ namespace gaia {
 				return serialization_type_id::ignore;
 		}
 
-		// --------------------
-		// Define function detectors
-		// --------------------
+		//! \cond INTERNAL
 
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
@@ -13588,12 +15299,14 @@ namespace gaia {
 		std::false_type has_tag_load_impl(...);
 		template <typename S, typename T>
 		using has_tag_load = decltype(has_tag_load_impl<S, T>(0));
+		//! \endcond
 	} // namespace ser
 } // namespace gaia
 
 namespace gaia {
 	namespace ser {
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Serializer, typename T, typename SaveTrivial>
 			void save_dispatch(Serializer& s, const T& arg, SaveTrivial&& saveTrivial) {
 				using U = core::raw_t<T>;
@@ -13680,17 +15393,15 @@ namespace gaia {
 				} else
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia
 
 namespace gaia {
 	namespace ser {
-		//! Compile-time serialization entry points.
-		//! Uses static dispatch and concrete writer/reader types (no virtual interface).
-		//! Best suited when the serializer type is known at compile time.
-		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
 				auto saveTrivial = [](auto& writer, const auto& value) {
@@ -13748,10 +15459,14 @@ namespace gaia {
 					return m_pos;
 				}
 			};
+			//! \endcond
 		} // namespace detail
 
-		//! Calculates how many bytes @a data would need when serialized via ser::save.
+		//! Calculates how many bytes \a data would need when serialized via ser::save.
 		//! Useful when a destination storage wants to reserve memory in advance.
+		//! \tparam T Type to measure.
+		//! \param data Value whose serialized size is measured.
+		//! \return Number of bytes produced by serialization.
 		template <typename T>
 		GAIA_NODISCARD uint32_t bytes(const T& data) {
 			detail::size_counter counter;
@@ -13759,7 +15474,7 @@ namespace gaia {
 			return counter.tell();
 		}
 
-		//! Write @a data using @a Writer at compile-time.
+		//! Write \a data using \a Writer at compile-time.
 		//! \tparam Writer Type of writer
 		//! \param writer Writer used for serialization
 		//! \param data Data to serialize
@@ -13770,7 +15485,7 @@ namespace gaia {
 			detail::save_one(writer, data);
 		}
 
-		//! Read @a data using @a Reader at compile-time.
+		//! Read \a data using \a Reader at compile-time.
 		//! \tparam Reader Type of reader
 		//! \param reader Reader used for deserialization
 		//! \param[out] data Data to deserialize
@@ -13784,7 +15499,7 @@ namespace gaia {
 	#if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
-		//! \param writer Writer used to serialize @a data.
+		//! \param writer Writer used to serialize \a data.
 		//!
 		//! \warning Writer has to implement a save function as follows:
 		//! 					template <typename T> void save(const T& arg);
@@ -16217,6 +17932,9 @@ namespace robin_hood {
 
 namespace gaia {
 	namespace cnt {
+		//! Flat hash map used by Gaia-ECS containers.
+		//! \tparam Key Key type.
+		//! \tparam Data Mapped value type.
 		template <typename Key, typename Data>
 		using map = robin_hood::unordered_flat_map<Key, Data>;
 	} // namespace cnt
@@ -16235,6 +17953,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mem {
+		//! Required alignment of each page block.
 		static constexpr uint32_t MemoryBlockAlignment = 16;
 		//! Size in bytes of one memory block.
 		//! 32 kiB per block by default.
@@ -16242,18 +17961,29 @@ namespace gaia {
 		//! Unusable area at the beginning of the allocated block designated for special purposes
 		static constexpr uint32_t MemoryBlockUsableOffset = sizeof(uintptr_t);
 
+		//! Common header for allocator pages.
 		struct GAIA_API MemoryPageHeader {
 			//! Pointer to data managed by page
 			void* m_data;
 
+			//! Creates a page header for a backing allocation.
+			//! \param ptr Backing allocation address.
 			MemoryPageHeader(void* ptr): m_data(ptr) {}
 		};
 
+		//! Fixed-capacity page of equal-sized blocks.
+		//! \tparam T Allocation category used for singleton separation and diagnostics.
+		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize>
 		struct MemoryPage: MemoryPageHeader, cnt::fwd_llist_base<MemoryPage<T, RequestedBlockSize>> {
+			//! Rounds a size up to MemoryBlockAlignment.
+			//! \param num Size in bytes.
+			//! \return Aligned size in bytes.
 			static constexpr uint32_t next_multiple_of_alignment(uint32_t num) {
 				return (num + (MemoryBlockAlignment - 1)) & uint32_t(-(int32_t)MemoryBlockAlignment);
 			}
+			//! Selects and aligns the configured block size.
+			//! \return Block size in bytes.
 			static constexpr uint32_t calculate_block_size() {
 				if constexpr (RequestedBlockSize == 0)
 					return next_multiple_of_alignment(MemoryBlockBytesDefault);
@@ -16261,18 +17991,26 @@ namespace gaia {
 					return next_multiple_of_alignment(RequestedBlockSize);
 			}
 
+			//! Size of one block in bytes.
 			static constexpr uint32_t MemoryBlockBytes = calculate_block_size();
+			//! Maximum number of blocks in a page.
 			static constexpr uint16_t NBlocks = 48;
+			//! Bits required to encode a block index.
 			static constexpr uint16_t NBlocks_Bits = (uint16_t)core::count_bits(NBlocks);
+			//! Sentinel terminating the recycled-block list.
 			static constexpr uint32_t InvalidBlockId = NBlocks + 1;
 #if GAIA_DEBUG
 			static constexpr uint8_t FreedBlockPattern = 0xDD;
 			static constexpr uintptr_t FreedPageMarker = ~(uintptr_t)0;
 #endif
+			//! Bytes occupied by the packed block-index array.
 			static constexpr uint32_t BlockArrayBytes = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8;
 
+			//! This page type.
 			using Page = MemoryPage<T, RequestedBlockSize>;
+			//! Packed block-index storage.
 			using BlockArray = cnt::sarray<uint8_t, BlockArrayBytes>;
+			//! View used to read and write packed block indices.
 			using BitView = core::bit_view<NBlocks_Bits>;
 
 			//! Implicit list of blocks
@@ -16289,12 +18027,17 @@ namespace gaia {
 			//! Free bits to use in the future
 			// uint32_t m_unused : 8;
 
+			//! Creates an empty page over a backing allocation.
+			//! \param ptr Backing allocation address.
 			MemoryPage(void* ptr):
 					MemoryPageHeader(ptr), m_blockCnt(0), m_usedBlocks(0), m_nextFreeBlock(0), m_freeBlocks(0) {
 				// One cacheline long on x86. The point is for this to be as small as possible
 				static_assert(sizeof(MemoryPage) <= 64);
 			}
 
+			//! Writes one link in the packed recycled-block list.
+			//! \param blockIdx Block whose link is updated.
+			//! \param value Linked block index or InvalidBlockId.
 			void write_block_idx(uint32_t blockIdx, uint32_t value) {
 				const uint32_t bitPosition = blockIdx * NBlocks_Bits;
 
@@ -16304,6 +18047,9 @@ namespace gaia {
 				BitView{{(uint8_t*)m_blocks.data(), BlockArrayBytes}}.set(bitPosition, (uint8_t)value);
 			}
 
+			//! Reads one link from the packed recycled-block list.
+			//! \param blockIdx Block whose link is read.
+			//! \return Linked block index or InvalidBlockId.
 			uint8_t read_block_idx(uint32_t blockIdx) const {
 				const uint32_t bitPosition = blockIdx * NBlocks_Bits;
 
@@ -16313,6 +18059,7 @@ namespace gaia {
 			}
 
 			//! Allocate a new block for this page.
+			//! \return Pointer to the usable block storage.
 			GAIA_NODISCARD void* alloc_block() {
 				auto StoreBlockAddress = [&](uint32_t index) {
 					// Encode info about the block's page in the memory block.
@@ -16347,6 +18094,7 @@ namespace gaia {
 			}
 
 			//! Release the block allocated by this page.
+			//! \param pBlock Pointer previously returned by alloc_block().
 			void free_block(void* pBlock) {
 				GAIA_ASSERT(m_usedBlocks > 0);
 				GAIA_ASSERT(m_freeBlocks <= NBlocks);
@@ -16382,18 +18130,25 @@ namespace gaia {
 				--m_usedBlocks;
 			}
 
+			//! Returns the number of live blocks.
+			//! \return Number of allocated blocks.
 			GAIA_NODISCARD uint32_t used_blocks_cnt() const {
 				return m_usedBlocks;
 			}
 
+			//! Reports whether all page blocks are allocated.
+			//! \return True when the page is full.
 			GAIA_NODISCARD bool full() const {
 				return used_blocks_cnt() >= NBlocks;
 			}
 
+			//! Reports whether no page blocks are allocated.
+			//! \return True when the page is empty.
 			GAIA_NODISCARD bool empty() const {
 				return used_blocks_cnt() == 0;
 			}
 
+			//! Verifies page invariants in assertion-enabled builds.
 			void verify() const {
 #if GAIA_ASSERT_ENABLED
 				GAIA_ASSERT(m_blockCnt <= NBlocks);
@@ -16430,6 +18185,9 @@ namespace gaia {
 			}
 		};
 
+		//! Lists the non-full and full pages belonging to an allocator.
+		//! \tparam T Allocation category.
+		//! \tparam RequestedBlockSize Requested bytes per block.
 		template <typename T, uint32_t RequestedBlockSize>
 		struct MemoryPageContainer {
 			//! List of available pages
@@ -16437,11 +18195,14 @@ namespace gaia {
 			//! List of full pages
 			cnt::fwd_llist<MemoryPage<T, RequestedBlockSize>> pagesFull;
 
+			//! Reports whether the container has no pages.
+			//! \return True when both page lists are empty.
 			GAIA_NODISCARD bool empty() const {
 				return pagesFree.empty() && pagesFull.empty();
 			}
 		};
 
+		//! Aggregate statistics for a paged allocator.
 		struct GAIA_API MemoryPageStats final {
 			//! Total allocated memory
 			uint64_t mem_total;
@@ -16453,14 +18214,20 @@ namespace gaia {
 			uint32_t num_pages_free;
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t RequestedBlockSize>
 			class PagedAllocatorImpl;
 		}
+		//! \endcond
 
+		//! Shared fixed-block allocator for an allocation category.
+		//! \tparam T Allocation category used for singleton separation and diagnostics.
+		//! \tparam RequestedBlockSize Requested bytes per block, or zero for the default.
 		template <typename T, uint32_t RequestedBlockSize = 0>
 		using PagedAllocator = core::dyn_singleton<detail::PagedAllocatorImpl<T, RequestedBlockSize>>;
 
+		//! \cond INTERNAL
 		namespace detail {
 
 			template <typename T, uint32_t RequestedBlockSize>
@@ -16680,13 +18447,16 @@ namespace gaia {
 			};
 
 		} // namespace detail
+		//! \endcond
 	} // namespace mem
 } // namespace gaia
 
 namespace gaia {
 	namespace cnt {
+		//! Identifier used to address an element in paged storage.
 		using page_storage_id = uint32_t;
 
+		//! \cond INTERNAL
 		namespace detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
@@ -16698,9 +18468,16 @@ namespace gaia {
 			template <typename T, typename Allocator>
 			class mem_page;
 		} // namespace detail
+		//! \endcond
 
+		//! Customization point for converting a value to its paged-storage identifier.
+		//! The default implementation supports only empty types and returns an invalid identifier.
+		//! \tparam T Value type to convert.
 		template <typename T>
 		struct to_page_storage_id {
+			//! Applies the default conversion for an item.
+			//! \param item Item to convert.
+			//! \return The invalid paged-storage identifier.
 			static page_storage_id get(const T& item) noexcept {
 				(void)item;
 				static_assert(
@@ -16710,6 +18487,7 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator {
@@ -17161,15 +18939,27 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Iterator over elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator {
+			//! Element type.
 			using value_type = T;
+			//! Pointer to an element.
 			using pointer = T*;
+			//! Reference to an element.
 			using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = page_iterator;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -17180,8 +18970,13 @@ namespace gaia {
 			typename page_type::template iterator_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			page_iterator(page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs an iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			page_iterator(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -17207,13 +19002,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element.
+			//! \return Reference to the current element.
 			reference operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element through a pointer.
+			//! \return Pointer to the current element.
 			pointer operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -17238,28 +19039,47 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Read-only iterator over elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct const_page_iterator {
+			//! Element type.
 			using value_type = T;
+			//! Pointer to a read-only element.
 			using pointer = const T*;
+			//! Reference to a read-only element.
 			using reference = const T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = const_page_iterator;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -17270,8 +19090,13 @@ namespace gaia {
 			typename page_type::template iterator_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			const_page_iterator(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs a read-only iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			const_page_iterator(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -17297,13 +19122,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element.
+			//! \return Read-only reference to the current element.
 			reference operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element through a pointer.
+			//! \return Read-only pointer to the current element.
 			pointer operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -17328,28 +19159,45 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Iterator over structure-of-arrays elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator_soa {
+			//! Element view type returned by value.
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = page_iterator_soa;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -17360,8 +19208,13 @@ namespace gaia {
 			typename page_type::template iterator_soa_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			page_iterator_soa(page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs an iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			page_iterator_soa(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -17383,13 +19236,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element view.
+			//! \return View of the current element.
 			value_type operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element view through arrow syntax.
+			//! \return View of the current element.
 			value_type operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -17406,28 +19265,45 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Read-only iterator over structure-of-arrays elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct const_page_iterator_soa {
+			//! Element view type returned by value.
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = const_page_iterator_soa;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -17438,8 +19314,13 @@ namespace gaia {
 			typename page_type::template iterator_soa_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			const_page_iterator_soa(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs a read-only iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast):
 					m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
@@ -17462,13 +19343,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element view.
+			//! \return Read-only view of the current element.
 			value_type operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element view through arrow syntax.
+			//! \return Read-only view of the current element.
 			value_type operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -17485,48 +19372,79 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
-		//! Heap-allocated paged storage for elements of type @a T.
+		//! Heap-allocated paged storage for elements of type \a T.
+		//! \tparam T Element type.
 		template <typename T>
 		class page_storage {
 		public:
+			//! Element type.
 			using value_type = T;
+			//! Reference to an element.
 			using reference = T&;
+			//! Reference to a read-only element.
 			using const_reference = const T&;
+			//! Pointer to an element.
 			using pointer = T*;
+			//! Pointer to a read-only element.
 			using const_pointer = const T*;
+			//! Data-layout access policy for the element type.
 			using view_policy = mem::auto_view_policy<T>;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
 
+			//! Size in bytes of one allocator block.
 			static constexpr uint32_t AllocatorBlockSize = (uint32_t)sizeof(detail::mem_page_data<T>);
+			//! Allocator used for page data.
 			using Allocator = mem::PagedAllocator<T, AllocatorBlockSize>;
 
+			//! Raw page-data type.
 			using page_data_type = detail::mem_page_data<T>;
+			//! Page type used by the storage.
 			using page_type = detail::mem_page<T, Allocator>;
+			//! Maximum number of elements addressable in one page.
 			static constexpr uint32_t PageCapacity = page_type::PageCapacity;
 
+			//! Forward mutable iterator.
 			using iterator = page_iterator<T, Allocator, true>;
+			//! Reverse mutable iterator.
 			using iterator_reverse = page_iterator<T, Allocator, false>;
+			//! Forward mutable iterator for structure-of-arrays elements.
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
+			//! Reverse mutable iterator for structure-of-arrays elements.
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
+			//! Forward read-only iterator.
 			using const_iterator = const_page_iterator<T, Allocator, true>;
+			//! Reverse read-only iterator.
 			using const_iterator_reverse = const_page_iterator<T, Allocator, false>;
+			//! Forward read-only iterator for structure-of-arrays elements.
 			using const_iterator_soa = const_page_iterator_soa<T, Allocator, true>;
+			//! Reverse read-only iterator for structure-of-arrays elements.
 			using const_iterator_soa_reverse = const_page_iterator_soa<T, Allocator, false>;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -17550,11 +19468,16 @@ namespace gaia {
 		public:
 			constexpr page_storage() noexcept = default;
 
+			//! Copy-constructs a storage.
+			//! \param other Storage to copy.
 			page_storage(const page_storage& other) {
 				m_pages = other.m_pages;
 				m_itemCnt = other.m_itemCnt;
 			}
 
+			//! Copy-assigns a storage.
+			//! \param other Storage to copy.
+			//! \return Reference to this storage.
 			page_storage& operator=(const page_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -17563,6 +19486,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs a storage.
+			//! \param other Storage to move from.
 			page_storage(page_storage&& other) noexcept {
 				m_pages = GAIA_MOV(other.m_pages);
 				m_itemCnt = other.m_itemCnt;
@@ -17570,6 +19495,9 @@ namespace gaia {
 				other.m_pages = {};
 			}
 
+			//! Move-assigns a storage.
+			//! \param other Storage to move from.
+			//! \return Reference to this storage.
 			page_storage& operator=(page_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -17587,6 +19515,9 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Accesses an element by identifier.
+			//! \param id Identifier of an existing element.
+			//! \return Mutable element reference or structure-of-arrays view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -17595,6 +19526,9 @@ namespace gaia {
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
 
+			//! Accesses an element by identifier.
+			//! \param id Identifier of an existing element.
+			//! \return Read-only element reference or structure-of-arrays view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -17605,8 +19539,9 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given page @a id exists
+			//! Checks if an item with a given page \a id exists
 			//! \param id Page id
+			//! \return True if an item with \p id exists.
 			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
 				const auto pid = size_type(id >> ToPageIndex);
 				if (pid >= m_pages.size())
@@ -17617,17 +19552,19 @@ namespace gaia {
 				return did < val && m_pages[pid].has_data(did);
 			}
 
-			//! Checks if an item @a arg exists within the storage
+			//! Checks if an item \a arg exists within the storage
 			//! \param arg Data
+			//! \return True if \p arg exists in the storage.
 			GAIA_NODISCARD bool has(const T& arg) const noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
 				return has(id);
 			}
 
-			//! Inserts the item @a arg into the storage.
+			//! Inserts the item \a arg into the storage.
+			//! \tparam TType Type of the forwarded item.
 			//! \param arg Data
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! \return Reference to the inserted record, or nothing for a structure-of-arrays layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
 				const auto id = to_page_storage_id<T>::get(arg);
@@ -17654,9 +19591,9 @@ namespace gaia {
 					return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index @a id.
+			//! Accesses the record at the index \a id for update.
 			//! \param id Page id
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! \return Mutable record reference or structure-of-arrays view.
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
 
@@ -17667,7 +19604,7 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index @a id from the storage.
+			//! Removes the item at the index \a id from the storage.
 			//! \param id Page id
 			void del(page_storage_id id) noexcept {
 				GAIA_ASSERT(!empty());
@@ -17684,113 +19621,153 @@ namespace gaia {
 				--m_itemCnt;
 			}
 
-			//! Removes the item @a arg from the storage.
+			//! Removes the item \a arg from the storage.
 			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				return del(id);
 			}
 
-			//! Clears the storage
+			//! Clears the storage.
 			void clear() {
 				m_pages.resize(0);
 				m_itemCnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of items inserted into the storage.
+			//! \return Number of stored items.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_itemCnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no items.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return m_itemCnt == 0;
 			}
 
+			//! Accesses the first stored element.
+			//! \return Mutable reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Accesses the first stored element.
+			//! \return Read-only reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last stored element.
+			//! \return Mutable reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*rbegin();
 			}
 
+			//! Accesses the last stored element.
+			//! \return Read-only reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*rbegin();
 			}
 
+			//! Returns an iterator to the first stored element.
+			//! \return Mutable iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator to the first stored element.
+			//! \return Read-only iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a read-only iterator to the first stored element.
+			//! \return Read-only iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator past the last stored element.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator past the last stored element.
+			//! \return Read-only end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a read-only iterator past the last stored element.
+			//! \return Read-only end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a reverse iterator to the last stored element.
+			//! \return Mutable reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator to the last stored element.
+			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a read-only reverse iterator to the last stored element.
+			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator before the first stored element.
+			//! \return Mutable reverse end iterator.
 			GAIA_NODISCARD auto rend() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator before the first stored element.
+			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto rend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Returns a read-only reverse iterator before the first stored element.
+			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto crend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Checks whether two storages contain equal elements.
+			//! \param other Storage to compare with.
+			//! \return True if both storages contain equal elements.
 			GAIA_NODISCARD bool operator==(const page_storage& other) const noexcept {
 				return m_pages == other.m_pages;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare with.
+			//! \return True if the storages differ.
 			GAIA_NODISCARD bool operator!=(const page_storage& other) const noexcept {
 				return !operator==(other);
 			}
@@ -17808,10 +19785,12 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace sarr_ext_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_ext_detail
+		//! \endcond
 
 		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
@@ -17820,21 +19799,35 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_aos<T>;
+			//! Type used for iterator differences.
 			using difference_type = sarr_ext_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = pointer;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_pointer;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Size of one element in bytes.
 			static constexpr size_t value_size = sizeof(T);
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
@@ -17843,20 +19836,30 @@ namespace gaia {
 
 		public:
 			constexpr sarr_ext() noexcept = default;
+			//! Constructs a value-initialized container.
 			constexpr sarr_ext(core::zero_t) noexcept {}
 
 			~sarr_ext() {
 				core::call_dtor_n(data(), m_cnt);
 			}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			constexpr sarr_ext(size_type count, const_reference value) noexcept {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			constexpr sarr_ext(size_type count) noexcept {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			constexpr sarr_ext(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)core::distance(first, last);
@@ -17875,10 +19878,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			constexpr sarr_ext(std::initializer_list<T> il): sarr_ext(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			constexpr sarr_ext(const sarr_ext& other): sarr_ext(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			constexpr sarr_ext(sarr_ext&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -17888,11 +19897,17 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			sarr_ext& operator=(std::initializer_list<T> il) {
 				*this = sarr_ext(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr_ext& operator=(const sarr_ext& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -17904,6 +19919,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr_ext& operator=(sarr_ext&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -17921,19 +19939,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return GAIA_ACC((pointer)&m_data[0]);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return GAIA_ACC((const_pointer)&m_data[0]);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
@@ -17941,6 +19969,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
@@ -17948,6 +19978,8 @@ namespace gaia {
 				core::call_ctor(ptr, arg);
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			constexpr void push_back(T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
@@ -17955,6 +19987,10 @@ namespace gaia {
 				core::call_ctor(ptr, GAIA_MOV(arg));
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return Reference to the appended element.
 			template <typename... Args>
 			constexpr decltype(auto) emplace_back(Args&&... args) noexcept {
 				GAIA_ASSERT(size() < N);
@@ -17964,6 +20000,7 @@ namespace gaia {
 				return (reference)*ptr;
 			}
 
+			//! Removes the last element.
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -17973,7 +20010,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) noexcept {
@@ -17994,7 +20032,8 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) noexcept {
@@ -18016,6 +20055,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -18038,6 +20078,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -18062,6 +20103,7 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
+			//! \return Iterator to the element following the removed element or range.
 			//! Removes the element at index \param pos
 			iterator erase_at(size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
@@ -18079,10 +20121,13 @@ namespace gaia {
 				return iterator(&data()[idxSrc]);
 			}
 
+			//! Removes all elements.
 			constexpr void clear() noexcept {
 				resize(0);
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			constexpr void resize(size_type count) noexcept {
 				GAIA_ASSERT(count <= max_size());
 
@@ -18100,6 +20145,9 @@ namespace gaia {
 				m_cnt = count;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			constexpr void resize(size_type count, const_reference value) noexcept {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -18115,6 +20163,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -18145,90 +20194,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return N;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference) operator[](m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference) operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() noexcept {
 				return iterator(data());
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator(data());
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
 				return const_iterator(data());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
 				return iterator((pointer)&back());
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
 				return const_iterator((pointer)&back());
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
 				return const_iterator((pointer)&back());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
 				return iterator(GAIA_ACC((pointer)&m_data[0]) + size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) + size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
 				return iterator(GAIA_ACC((pointer)&m_data[0]) - 1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
 				return const_iterator(GAIA_ACC((const_pointer)&m_data[0]) - 1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD constexpr bool operator==(const sarr_ext& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -18239,18 +20331,28 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext& other) const noexcept {
 				return !operator==(other);
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		constexpr sarr_ext<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
@@ -18260,6 +20362,7 @@ namespace gaia {
 
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::cnt::sarr_ext<T, N>>: std::integral_constant<uint32_t, N> {};
@@ -18269,9 +20372,13 @@ namespace std {
 		using type = T;
 	};
 } // namespace std
+//! \endcond
 
 namespace gaia {
 	namespace cnt {
+		//! Fixed-capacity contiguous array with variable size and inline storage.
+		//! \tparam T Element type.
+		//! \tparam N Maximum number of elements.
 		template <typename T, sarr_ext_detail::size_type N>
 		using sarray_ext = cnt::sarr_ext<T, N>;
 	} // namespace cnt
@@ -18286,20 +20393,26 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace sarr_ext_soa_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_ext_soa_detail
+		//! \endcond
 
+		//! \cond INTERNAL
 		template <typename T>
 		struct sarr_ext_soa_iterator {
+			//! Element type stored by the container.
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
 			using difference_type = sarr_ext_soa_detail::size_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_soa_detail::size_type;
 
 			using iterator = sarr_ext_soa_iterator;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -18476,6 +20589,7 @@ namespace gaia {
 				return m_idx <= other.m_idx;
 			}
 		};
+		//! \endcond
 
 		//! Array of elements of type \tparam T with fixed capacity \tparam N and variable size allocated on stack.
 		//! Interface compatiblity with std::array where it matters.
@@ -18486,20 +20600,33 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
+			//! Type used for iterator differences.
 			using difference_type = sarr_ext_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_ext_soa_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = sarr_ext_soa_iterator<T>;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_sarr_ext_soa_iterator<T>;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
@@ -18508,18 +20635,28 @@ namespace gaia {
 
 		public:
 			constexpr sarr_ext_soa() noexcept = default;
+			//! Constructs a value-initialized container.
 			constexpr sarr_ext_soa(core::zero_t) noexcept {}
 
 			~sarr_ext_soa() = default;
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			constexpr sarr_ext_soa(size_type count, const_reference value) noexcept {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			constexpr sarr_ext_soa(size_type count) noexcept {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			constexpr sarr_ext_soa(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)core::distance(first, last);
@@ -18538,10 +20675,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			constexpr sarr_ext_soa(std::initializer_list<T> il): sarr_ext_soa(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			constexpr sarr_ext_soa(const sarr_ext_soa& other): sarr_ext_soa(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			constexpr sarr_ext_soa(sarr_ext_soa&& other) noexcept: m_cnt(other.m_cnt) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -18550,11 +20693,17 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			sarr_ext_soa& operator=(std::initializer_list<T> il) {
 				*this = sarr_ext_soa(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr_ext_soa& operator=(const sarr_ext_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -18566,6 +20715,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			constexpr sarr_ext_soa& operator=(sarr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -18583,19 +20735,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr pointer data() noexcept {
 				return GAIA_ACC((pointer)&m_data[0]);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD constexpr const_pointer data() const noexcept {
 				return GAIA_ACC((const_pointer)&m_data[0]);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
@@ -18603,18 +20765,26 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			constexpr void push_back(const T& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
 				operator[](m_cnt++) = arg;
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			constexpr void push_back(T&& arg) noexcept {
 				GAIA_ASSERT(size() < N);
 
 				operator[](m_cnt++) = GAIA_MOV(arg);
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return No value. The deduced return type is void.
 			template <typename... Args>
 			constexpr decltype(auto) emplace_back(Args&&... args) noexcept {
 				GAIA_ASSERT(size() < N);
@@ -18622,13 +20792,15 @@ namespace gaia {
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
 			}
 
+			//! Removes the last element.
 			constexpr void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) noexcept {
@@ -18648,7 +20820,8 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) noexcept {
@@ -18669,6 +20842,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			constexpr iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -18688,6 +20862,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -18710,6 +20885,7 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
+			//! \return Iterator to the element following the removed element or range.
 			//! Removes the element at index \param pos
 			iterator erase_at(size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
@@ -18724,16 +20900,22 @@ namespace gaia {
 				return iterator(GAIA_ACC(&m_data[0]), extent, idxSrc);
 			}
 
+			//! Removes all elements.
 			constexpr void clear() noexcept {
 				resize(0);
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			constexpr void resize(size_type count) noexcept {
 				GAIA_ASSERT(count <= max_size());
 
 				m_cnt = count;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			constexpr void resize(size_type count, const_reference value) noexcept {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -18749,6 +20931,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -18779,90 +20962,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return N;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (operator[])(m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD constexpr decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto rbegin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD constexpr auto crbegin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto rend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD constexpr auto crend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD constexpr bool operator==(const sarr_ext_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -18873,16 +21099,25 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const sarr_ext_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
+			//! Returns a mutable view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Mutable view of the selected member.
 			template <size_t Item>
 			auto view_mut() noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template set<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
+			//! Returns a read-only view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Read-only view of the selected member.
 			template <size_t Item>
 			auto view() const noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
@@ -18890,13 +21125,20 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sarr_ext_soa<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		constexpr sarr_ext_soa<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});
@@ -18906,6 +21148,7 @@ namespace gaia {
 
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::cnt::sarr_ext_soa<T, N>>: std::integral_constant<uint32_t, N> {};
@@ -18915,9 +21158,13 @@ namespace std {
 		using type = T;
 	};
 } // namespace std
+//! \endcond
 
 namespace gaia {
 	namespace cnt {
+		//! Fixed-capacity structure-of-arrays container with variable size and inline storage.
+		//! \tparam T Element type described by Gaia-ECS structure-of-arrays reflection metadata.
+		//! \tparam N Maximum number of elements.
 		template <typename T, sarr_ext_soa_detail::size_type N>
 		using sarray_ext_soa = cnt::sarr_ext_soa<T, N>;
 	} // namespace cnt
@@ -18931,20 +21178,27 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace sarr_soa_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace sarr_soa_detail
+		//! \endcond
 
+		//! \cond INTERNAL
 		template <typename T>
 		struct sarr_soa_iterator {
+			//! Element type stored by the container.
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
+			//! Type used for iterator differences.
 			using difference_type = sarr_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_soa_detail::size_type;
 
 			using iterator = sarr_soa_iterator;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -19121,6 +21375,7 @@ namespace gaia {
 				return m_idx <= other.m_idx;
 			}
 		};
+		//! \endcond
 
 		//! Fixed-size stack array with SoA storage.
 		//! Interface compatiblity with std::array where it matters.
@@ -19133,22 +21388,36 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
+			//! Type used for iterator differences.
 			using difference_type = sarr_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = sarr_soa_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = sarr_soa_iterator<T>;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_sarr_soa_iterator<T>;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
+			//! Inline storage backing the container elements.
 			mem::raw_data_holder<T, allocated_bytes> m_data;
 
 			sarr_soa() noexcept = default;
@@ -19163,6 +21432,10 @@ namespace gaia {
 
 			~sarr_soa() = default;
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			sarr_soa(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)core::distance(first, last);
@@ -19180,21 +21453,33 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			sarr_soa(std::initializer_list<T> il): sarr_soa(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			sarr_soa(const sarr_soa& other): sarr_soa(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			sarr_soa(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
 				mem::move_elements<T, true>((uint8_t*)m_data, (uint8_t*)other.m_data, other.size(), 0, extent, other.extent);
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			sarr_soa& operator=(std::initializer_list<T> il) {
 				*this = sarr_soa(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			sarr_soa& operator=(const sarr_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -19205,6 +21490,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			sarr_soa& operator=(sarr_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -19219,19 +21507,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return GAIA_ACC((pointer)&m_data[0]);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return GAIA_ACC((const_pointer)&m_data[0]);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({GAIA_ACC((typename view_policy::TargetCastType) & m_data[0]), extent}, pos);
@@ -19239,86 +21537,129 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return N;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return false;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return N;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				return *begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				return *begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				return (operator[])(N - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				return operator[](N - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, 0);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size() - 1);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator(m_data, extent, size() - 1);
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator(m_data, extent, size() - 1);
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(GAIA_ACC(&m_data[0]), extent, -1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const sarr_soa& other) const {
 				for (size_type i = 0; i < N; ++i)
 					if (!(operator[](i) == other[i]))
@@ -19326,16 +21667,25 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD bool operator!=(const sarr_soa& other) const {
 				return !operator==(other);
 			}
 
+			//! Returns a mutable view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Mutable view of the selected member.
 			template <size_t Item>
 			auto view_mut() noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template set<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)&m_data[0]), extent});
 			}
 
+			//! Returns a read-only view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Read-only view of the selected member.
 			template <size_t Item>
 			auto view() const noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
@@ -19343,24 +21693,35 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			sarr_soa<std::remove_cv_t<T>, N> to_array_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a fixed-size Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		sarr_soa<std::remove_cv_t<T>, N> to_array(T (&a)[N]) {
 			return detail::to_array_impl(a, std::make_index_sequence<N>{});
 		}
 
+		//! Deduces the fixed-size container element type and extent.
+		//! \tparam T Element type.
+		//! \tparam U Types of the remaining deduction-guide arguments.
 		template <typename T, typename... U>
 		sarr_soa(T, U...) -> sarr_soa<T, 1 + (uint32_t)sizeof...(U)>;
 
 	} // namespace cnt
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, uint32_t N>
 	struct tuple_size<gaia::cnt::sarr_soa<T, N>>: std::integral_constant<uint32_t, N> {};
@@ -19370,9 +21731,13 @@ namespace std {
 		using type = T;
 	};
 } // namespace std
+//! \endcond
 
 namespace gaia {
 	namespace cnt {
+		//! Fixed-size structure-of-arrays container stored inline.
+		//! \tparam T Element type described by Gaia-ECS structure-of-arrays reflection metadata.
+		//! \tparam N Number of elements and fixed capacity.
 		template <typename T, sarr_soa_detail::size_type N>
 		using sarray_soa = cnt::sarr_soa<T, N>;
 	} // namespace cnt
@@ -19380,6 +21745,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Flat hash set used by Gaia-ECS containers.
+		//! \tparam Key Key type.
 		template <typename Key>
 		using set = robin_hood::unordered_flat_set<Key>;
 	} // namespace cnt
@@ -19392,15 +21759,18 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! Identifier used to address an element in sparse storage.
 		using sparse_id = uint64_t;
 
 		namespace detail {
+			//! \cond INTERNAL
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 
 			constexpr static sparse_id InvalidSparseId = (sparse_id)-1;
 			constexpr static size_type InvalidDenseId = BadIndex - 1;
 			inline constexpr sparse_id EmptyDenseId = InvalidSparseId;
+			//! \endcond
 
 			//! Returns dense data or a valid shared sentinel for an unallocated empty array.
 			//! \tparam Dense Dense sparse-id array type.
@@ -19412,12 +21782,19 @@ namespace gaia {
 				return pData != nullptr ? pData : &EmptyDenseId;
 			}
 
+			//! \cond INTERNAL
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename>
 			class sparse_page;
+			//! \endcond
 		} // namespace detail
 
 		template <typename T>
+		//! Converts an item to the sparse identifier used by sparse_storage.
+		//! \tparam T Item type. Non-empty types must specialize this conversion.
 		struct to_sparse_id {
+			//! Returns the sparse identifier for an item.
+			//! \param item Item to convert.
+			//! \return Sparse identifier supplied by a specialization.
 			static sparse_id get(const T& item) noexcept {
 				(void)item;
 				static_assert(
@@ -19428,14 +21805,18 @@ namespace gaia {
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
+		//! Mutable random-access iterator over sparse-storage values.
+		//! \tparam T Stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct sparse_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = sparse_iterator;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = T; //!< Stored value type.
+			using pointer = T*; //!< Pointer to a stored value.
+			using reference = T&; //!< Reference to a stored value.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -19448,8 +21829,13 @@ namespace gaia {
 			page_type* m_pPages;
 
 		public:
+			//! Constructs an iterator for a dense position and sparse-page array.
+			//! \param pDense Dense sparse-id position.
+			//! \param pPages Sparse-page array containing the values.
 			sparse_iterator(const sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
+			//! Returns the value at the current position.
+			//! \return Mutable reference to the current value.
 			reference operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -19457,6 +21843,8 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return page.set_data(did);
 			}
+			//! Returns a pointer to the value at the current position.
+			//! \return Pointer to the current value.
 			pointer operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -19464,76 +21852,124 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return &page.set_data(did);
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous value.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous value.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset, m_pPages};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
+		//! Constant random-access iterator over sparse-storage values.
+		//! \tparam T Stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct const_sparse_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = const T*;
-			using reference = const T&;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = const_sparse_iterator;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = T; //!< Stored value type.
+			using pointer = const T*; //!< Pointer to a stored value.
+			using reference = const T&; //!< Reference to a stored value.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = const_sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -19546,8 +21982,13 @@ namespace gaia {
 			const page_type* m_pPages;
 
 		public:
+			//! Constructs a constant iterator for a dense position and sparse-page array.
+			//! \param pDense Dense sparse-id position.
+			//! \param pPages Sparse-page array containing the values.
 			const_sparse_iterator(const sparse_id* pDense, const page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
+			//! Returns the value at the current position.
+			//! \return Constant reference to the current value.
 			reference operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -19555,6 +21996,8 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return page.get_data(did);
 			}
+			//! Returns a pointer to the value at the current position.
+			//! \return Pointer to the current value.
 			pointer operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -19562,76 +22005,124 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return &page.get_data(did);
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous value.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous value.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset, m_pPages};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
+		//! Mutable random-access iterator over sparse identifiers for empty stored types.
+		//! \tparam T Empty stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = sparse_id;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = sparse_id; //!< Sparse identifier value type.
 			// using pointer = sparse_id*; not supported
 			// using reference = sparse_id&; not supported
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = sparse_iterator;
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -19643,86 +22134,140 @@ namespace gaia {
 			const value_type* m_pDense;
 
 		public:
+			//! Constructs an iterator for a dense sparse-id position.
+			//! \param pDense Dense sparse-id position.
 			sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator*() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator->() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
+		//! Constant random-access iterator over sparse identifiers for empty stored types.
+		//! \tparam T Empty stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct const_sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = sparse_id;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = sparse_id; //!< Sparse identifier value type.
 			// using pointer = sparse_id*; not supported
 			// using reference = sparse_id&; not supported
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = const_sparse_iterator;
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = const_sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -19734,78 +22279,129 @@ namespace gaia {
 			const value_type* m_pDense;
 
 		public:
+			//! Constructs a constant iterator for a dense sparse-id position.
+			//! \param pDense Dense sparse-id position.
 			const_sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator*() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator->() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
 			class sparse_page {
 			public:
@@ -20112,7 +22708,7 @@ namespace gaia {
 				}
 			};
 
-			//! Sparse page. Specialized for zero-size @a T
+			//! Sparse page. Specialized for zero-size \a T
 			template <typename T, uint32_t PageCapacity, typename Allocator>
 			class sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 			public:
@@ -20355,27 +22951,31 @@ namespace gaia {
 					return !operator==(other);
 				}
 			};
+			//! \endcond
 		} // namespace detail
 
-		//! Array with variable size of elements of type @a T allocated on heap.
-		//! Allocates enough memory to support @a PageCapacity elements.
-		//! Uses @a Allocator to allocate memory.
+		//! Array with variable size of elements of type \a T allocated on heap.
+		//! Allocates enough memory to support \a PageCapacity elements.
+		//! Uses \a Allocator to allocate memory.
+		//! \tparam T Stored value type.
+		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam Allocator Allocator used by the storage pages.
 		template <
 				typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor, typename = void>
 		class sparse_storage {
 		public:
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
+			using value_type = T; //!< Stored value type.
+			using reference = T&; //!< Mutable value reference.
+			using const_reference = const T&; //!< Constant value reference.
+			using pointer = T*; //!< Mutable value pointer.
+			using const_pointer = const T*; //!< Constant value pointer.
+			using view_policy = mem::data_view_policy_aos<T>; //!< Data access policy.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for sizes and offsets.
 
-			using iterator = sparse_iterator<T, PageCapacity, Allocator>;
-			using const_iterator = const_sparse_iterator<T, PageCapacity, Allocator>;
-			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
+			using iterator = sparse_iterator<T, PageCapacity, Allocator>; //!< Mutable iterator type.
+			using const_iterator = const_sparse_iterator<T, PageCapacity, Allocator>; //!< Constant iterator type.
+			using page_type = detail::sparse_page<T, PageCapacity, Allocator>; //!< Internal sparse-page type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
@@ -20409,6 +23009,8 @@ namespace gaia {
 		public:
 			constexpr sparse_storage() noexcept = default;
 
+			//! Copy-constructs the storage.
+			//! \param other Storage to copy.
 			sparse_storage(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20417,6 +23019,9 @@ namespace gaia {
 				m_cnt = other.m_cnt;
 			}
 
+			//! Copy-assigns the storage.
+			//! \param other Storage to copy.
+			//! \return This storage.
 			sparse_storage& operator=(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20427,6 +23032,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs the storage.
+			//! \param other Storage to move from.
 			sparse_storage(sparse_storage&& other) noexcept {
 				// This is a newly constructed object.
 				// It can't have any memory allocated, yet.
@@ -20441,6 +23048,9 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Move-assigns the storage.
+			//! \param other Storage to move from.
+			//! \return This storage.
 			sparse_storage& operator=(sparse_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20461,6 +23071,9 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns the value associated with a sparse identifier.
+			//! \param sid Sparse identifier to access. It must exist.
+			//! \return Mutable reference to the stored value.
 			GAIA_NODISCARD decltype(auto) operator[](sparse_id sid) noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -20470,6 +23083,9 @@ namespace gaia {
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
 
+			//! Returns the value associated with a sparse identifier.
+			//! \param sid Sparse identifier to access. It must exist.
+			//! \return Constant reference to the stored value.
 			GAIA_NODISCARD decltype(auto) operator[](sparse_id sid) const noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -20481,7 +23097,9 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given sparse id \param sid exists
+			//! Checks whether an item with a sparse identifier exists.
+			//! \param sid Sparse identifier to find.
+			//! \return True if the identifier is present.
 			GAIA_NODISCARD bool has(sparse_id sid) const {
 				if (sid == detail::InvalidSparseId)
 					return false;
@@ -20501,18 +23119,20 @@ namespace gaia {
 				return id != detail::InvalidDenseId;
 			}
 
-			//! Checks if an item @a arg exists within the storage
+			//! Checks if an item \a arg exists within the storage
 			//! \param arg Data
+			//! \return True if the item is present.
 			GAIA_NODISCARD bool has(const T& arg) const {
 				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 				return has(sid);
 			}
 
-			//! Inserts the item @a arg into the storage.
+			//! Inserts the item \a arg into the storage.
 			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
+			//! \tparam TType Inserted value type.
 			decltype(auto) add(TType&& arg) {
 				const auto sid = to_sparse_id<T>::get(arg);
 				if (has(sid)) {
@@ -20533,7 +23153,7 @@ namespace gaia {
 				return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index @a sid.
+			//! Update the record at the index \a sid.
 			//! \param sid Sparse id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(sparse_id sid) {
@@ -20546,7 +23166,7 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index @a sid from the storage.
+			//! Removes the item at the index \a sid from the storage.
 			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
@@ -20576,7 +23196,7 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Removes the item @a arg from the storage.
+			//! Removes the item \a arg from the storage.
 			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto sid = to_sparse_id<T>::get(arg);
@@ -20590,26 +23210,34 @@ namespace gaia {
 				m_cnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of items inserted into the storage.
+			//! \return Number of stored items.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no items.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the first stored value.
+			//! \return Mutable reference to the first value.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Returns the first stored value.
+			//! \return Constant reference to the first value.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Returns the last stored value.
+			//! \return Mutable reference to the last value.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -20620,6 +23248,8 @@ namespace gaia {
 				return (reference)m_pages[pid].set_data(did);
 			}
 
+			//! Returns the last stored value.
+			//! \return Constant reference to the last value.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -20630,30 +23260,45 @@ namespace gaia {
 				return (const_reference)m_pages[pid].get_data(did);
 			}
 
+			//! Returns an iterator to the first value.
+			//! \return Mutable begin iterator.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns an iterator to the first value.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns a constant iterator to the first value.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns an iterator past the last value.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Returns an iterator past the last value.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Returns a constant iterator past the last value.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Checks whether two storages contain equal values at equal sparse identifiers.
+			//! \param other Storage to compare.
+			//! \return True if the storages are equal.
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
 				// The number of items needs to be the same
 				if (m_cnt != other.m_cnt)
@@ -20683,30 +23328,41 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare.
+			//! \return True if the storages are not equal.
 			GAIA_NODISCARD constexpr bool operator!=(const sparse_storage& other) const {
 				return !operator==(other);
 			}
 		};
 
-		//! Array with variable size of elements of type @a T allocated on heap.
-		//! Allocates enough memory to support @a PageCapacity elements.
-		//! Uses @a Allocator to allocate memory.
+		//! Array with variable size of elements of type \a T allocated on heap.
+		//! Allocates enough memory to support \a PageCapacity elements.
+		//! Uses \a Allocator to allocate memory.
 		//! This version is optimized for tags (data of zero size).
+		//! \tparam T Empty stored value type.
+		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam Allocator Allocator used by the storage pages.
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_storage<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 		public:
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
+			using value_type = T; //!< Stored empty value type.
+			using reference = T&; //!< Mutable value reference.
+			using const_reference = const T&; //!< Constant value reference.
+			using pointer = T*; //!< Mutable value pointer.
+			using const_pointer = const T*; //!< Constant value pointer.
+			using view_policy = mem::data_view_policy_aos<T>; //!< Data access policy.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for sizes and offsets.
 
-			using iterator = sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
-			using const_iterator = sparse_iterator<const T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
-			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
+			using iterator =
+					sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Mutable iterator type.
+			using const_iterator =
+					sparse_iterator<const T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Constant
+																																																	 //!< iterator type.
+			using page_type =
+					detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Internal
+																																																 //!< sparse-page type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
@@ -20740,6 +23396,8 @@ namespace gaia {
 		public:
 			constexpr sparse_storage() noexcept = default;
 
+			//! Copy-constructs the storage.
+			//! \param other Storage to copy.
 			sparse_storage(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20748,6 +23406,9 @@ namespace gaia {
 				m_cnt = other.m_cnt;
 			}
 
+			//! Copy-assigns the storage.
+			//! \param other Storage to copy.
+			//! \return This storage.
 			sparse_storage& operator=(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20758,6 +23419,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs the storage.
+			//! \param other Storage to move from.
 			sparse_storage(sparse_storage&& other) noexcept {
 				// This is a newly constructed object.
 				// It can't have any memory allocated, yet.
@@ -20772,6 +23435,9 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Move-assigns the storage.
+			//! \param other Storage to move from.
+			//! \return This storage.
 			sparse_storage& operator=(sparse_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -20788,7 +23454,9 @@ namespace gaia {
 
 			~sparse_storage() = default;
 
-			//! Checks if an item with a given sparse id \param sid exists
+			//! Checks whether a sparse identifier is registered.
+			//! \param sid Sparse identifier to find.
+			//! \return True if the identifier is present.
 			GAIA_NODISCARD bool has(sparse_id sid) const {
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
@@ -20865,26 +23533,34 @@ namespace gaia {
 				m_cnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of identifiers registered in the storage.
+			//! \return Number of registered identifiers.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no identifiers.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the first registered sparse identifier.
+			//! \return Reference representing the first identifier.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Returns the first registered sparse identifier.
+			//! \return Constant reference representing the first identifier.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Returns the last registered sparse identifier.
+			//! \return Reference representing the last identifier.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -20895,6 +23571,8 @@ namespace gaia {
 				return (reference)m_pages[pid].set_id(did);
 			}
 
+			//! Returns the last registered sparse identifier.
+			//! \return Constant reference representing the last identifier.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -20905,30 +23583,45 @@ namespace gaia {
 				return (const_reference)m_pages[pid].get_id(did);
 			}
 
+			//! Returns an iterator to the first sparse identifier.
+			//! \return Mutable begin iterator.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns an iterator to the first sparse identifier.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns a constant iterator to the first sparse identifier.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns an iterator past the last sparse identifier.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Returns an iterator past the last sparse identifier.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Returns a constant iterator past the last sparse identifier.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Checks whether two storages contain the same sparse identifiers.
+			//! \param other Storage to compare.
+			//! \return True if the storages are equal.
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
 				// The number of items needs to be the same
 				if (m_cnt != other.m_cnt)
@@ -20943,6 +23636,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare.
+			//! \return True if the storages are not equal.
 			GAIA_NODISCARD constexpr bool operator!=(const sparse_storage& other) const {
 				return !operator==(other);
 			}
@@ -20956,20 +23652,32 @@ namespace gaia {
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace sringbuffer_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace sringbuffer_detail
+		//! \endcond
 
+		//! Random-access iterator over the logical sequence stored in a sringbuffer.
+		//! \tparam T Element type, optionally const-qualified.
+		//! \tparam N Ring-buffer capacity.
 		template <typename T, sringbuffer_detail::size_type N>
 		struct sringbuffer_iterator {
+			//! Element value type.
 			using value_type = T;
+			//! Pointer to an element.
 			using pointer = T*;
+			//! Reference to an element.
 			using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = sringbuffer_detail::difference_type;
+			//! Type used for indices and offsets.
 			using size_type = sringbuffer_detail::size_type;
 
+			//! Iterator type.
 			using iterator = sringbuffer_iterator;
+			//! Iterator category tag.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -20979,6 +23687,11 @@ namespace gaia {
 			sringbuffer_detail::size_type m_index;
 
 		public:
+			//! Constructs an iterator over a ring-buffer sequence.
+			//! \param ptr Address of the physical buffer.
+			//! \param tail Physical index of the logical front element.
+			//! \param size Number of live elements in the buffer.
+			//! \param index Logical iterator index in the range [0, size].
 			sringbuffer_iterator(
 					// Buffer address
 					pointer ptr,
@@ -20989,72 +23702,120 @@ namespace gaia {
 					// Current index
 					sringbuffer_detail::size_type index): m_ptr(ptr), m_tail(tail), m_size(size), m_index(index) {}
 
+			//! Dereferences the current logical element.
+			//! \return Reference to the current element.
 			T& operator*() const {
 				return m_ptr[(m_tail + m_index) % N];
 			}
+			//! Accesses the current logical element.
+			//! \return Pointer to the current element.
 			T* operator->() const {
 				return &m_ptr[(m_tail + m_index) % N];
 			}
+			//! Accesses storage at a logical offset using the declared iterator result type.
+			//! \param offset Logical offset from the current index.
+			//! \return Value read from the corresponding physical storage position.
 			iterator operator[](size_type offset) const {
 				return m_ptr[(m_tail + m_index + offset) % N];
 			}
 
+			//! Advances by a logical offset.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancement.
 			iterator& operator+=(size_type diff) {
 				m_index += diff;
 				return *this;
 			}
+			//! Moves backward by a logical offset.
+			//! \param diff Number of positions to move backward.
+			//! \return This iterator after movement.
 			iterator& operator-=(size_type diff) {
 				m_index -= diff;
 				return *this;
 			}
+			//! Advances by one logical position.
+			//! \return This iterator after advancement.
 			iterator& operator++() {
 				++m_index;
 				return *this;
 			}
+			//! Advances by one logical position.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves backward by one logical position.
+			//! \return This iterator after movement.
 			iterator& operator--() {
 				--m_index;
 				return *this;
 			}
+			//! Moves backward by one logical position.
+			//! \return Iterator value before movement.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of logical positions to advance.
+			//! \return Offset iterator.
 			iterator operator+(size_type offset) const {
 				return {m_index + offset};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of logical positions to move backward.
+			//! \return Offset iterator.
 			iterator operator-(size_type offset) const {
 				return {m_index - offset};
 			}
+			//! Calculates the logical distance between iterators from the same buffer.
+			//! \param other Iterator to subtract.
+			//! \return Signed logical index difference.
 			difference_type operator-(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return (difference_type)(m_index - other.m_index);
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when both iterators have the same logical index.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index == other.m_index;
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when the iterators have different logical indices.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index != other.m_index;
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when this iterator follows other.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index > other.m_index;
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when this iterator does not precede other.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index >= other.m_index;
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when this iterator precedes other.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index < other.m_index;
 			}
+			//! Compares logical iterator positions.
+			//! \param other Iterator from the same buffer.
+			//! \return True when this iterator does not follow other.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				GAIA_ASSERT(m_ptr == other.m_ptr);
 				return m_index <= other.m_index;
@@ -21070,26 +23831,44 @@ namespace gaia {
 		public:
 			static_assert(N > 1);
 
+			//! Element value type.
 			using value_type = T;
+			//! Mutable element reference.
 			using reference = T&;
+			//! Immutable element reference.
 			using const_reference = const T&;
+			//! Mutable element pointer.
 			using pointer = T*;
+			//! Immutable element pointer.
 			using const_pointer = const T*;
+			//! Type used for iterator distances.
 			using difference_type = sringbuffer_detail::size_type;
+			//! Type used for sizes and indices.
 			using size_type = sringbuffer_detail::size_type;
 
+			//! Mutable random-access iterator.
 			using iterator = sringbuffer_iterator<T, N>;
+			//! Immutable random-access iterator.
 			using const_iterator = sringbuffer_iterator<const T, N>;
+			//! Iterator category tag.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Compile-time buffer capacity.
 			static constexpr size_type extent = N;
 
+			//! Physical index of the logical front element.
 			size_type m_tail{};
+			//! Number of live elements.
 			size_type m_size{};
+			//! Physical element storage.
 			T m_data[N];
 
 			constexpr sringbuffer() noexcept = default;
 
+			//! Constructs a ring buffer from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first First element to copy.
+			//! \param last Sentinel following the last element to copy.
 			template <typename InputIt>
 			constexpr sringbuffer(InputIt first, InputIt last) noexcept {
 				const auto count = (size_type)core::distance(first, last);
@@ -21113,12 +23892,18 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a ring buffer from an initializer list.
+			//! \param il Elements to copy in logical order.
 			constexpr sringbuffer(std::initializer_list<T> il) noexcept: sringbuffer(il.begin(), il.end()) {}
 
+			//! Copy-constructs a ring buffer.
+			//! \param other Ring buffer to copy.
 			constexpr sringbuffer(const sringbuffer& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
 				mem::copy_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 			}
 
+			//! Move-constructs a ring buffer and leaves the source empty.
+			//! \param other Ring buffer whose elements are transferred.
 			constexpr sringbuffer(sringbuffer&& other) noexcept: m_tail(other.m_tail), m_size(other.m_size) {
 				mem::move_elements<T, false>(m_data, other.m_data, other.size(), 0, extent, other.extent);
 
@@ -21126,11 +23911,17 @@ namespace gaia {
 				other.m_size = size_type(0);
 			}
 
+			//! Assigns elements from an initializer list.
+			//! \param il Elements to copy in logical order.
+			//! \return This ring buffer.
 			constexpr sringbuffer& operator=(std::initializer_list<T> il) noexcept {
 				*this = sringbuffer(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns a ring buffer.
+			//! \param other Ring buffer to copy.
+			//! \return This ring buffer.
 			constexpr sringbuffer& operator=(const sringbuffer& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -21142,6 +23933,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns a ring buffer and leaves the source empty.
+			//! \param other Ring buffer whose elements are transferred.
+			//! \return This ring buffer.
 			constexpr sringbuffer& operator=(sringbuffer&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -21158,6 +23952,8 @@ namespace gaia {
 
 			~sringbuffer() noexcept = default;
 
+			//! Appends a copied element.
+			//! \param arg Element to append. The buffer must not be full.
 			constexpr void push_back(const T& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
@@ -21165,6 +23961,8 @@ namespace gaia {
 				++m_size;
 			}
 
+			//! Appends a moved element.
+			//! \param arg Element to move into the buffer. The buffer must not be full.
 			constexpr void push_back(T&& arg) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size) % N;
@@ -21172,6 +23970,8 @@ namespace gaia {
 				++m_size;
 			}
 
+			//! Removes and copies the front element.
+			//! \param out Destination receiving the removed element.
 			constexpr void pop_front(T& out) {
 				GAIA_ASSERT(!empty());
 				out = m_data[m_tail];
@@ -21179,6 +23979,8 @@ namespace gaia {
 				--m_size;
 			}
 
+			//! Removes and moves the front element.
+			//! \param out Destination receiving the removed element.
 			constexpr void pop_front(T&& out) {
 				GAIA_ASSERT(!empty());
 				out = GAIA_MOV(m_data[m_tail]);
@@ -21186,6 +23988,8 @@ namespace gaia {
 				--m_size;
 			}
 
+			//! Removes and copies the back element.
+			//! \param out Destination receiving the removed element.
 			constexpr void pop_back(T& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
@@ -21193,6 +23997,8 @@ namespace gaia {
 				--m_size;
 			}
 
+			//! Removes and moves the back element.
+			//! \param out Destination receiving the removed element.
 			constexpr void pop_back(T&& out) {
 				GAIA_ASSERT(m_size < N);
 				const auto head = (m_tail + m_size - 1) % N;
@@ -21200,68 +24006,99 @@ namespace gaia {
 				--m_size;
 			}
 
+			//! Returns the number of live elements.
+			//! \return Current element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return m_size;
 			}
 
+			//! Checks whether the buffer is empty.
+			//! \return True when size() is zero. False otherwise.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the fixed capacity.
+			//! \return N.
 			GAIA_NODISCARD constexpr size_type capacity() const noexcept {
 				return N;
 			}
 
+			//! Returns the maximum element count.
+			//! \return N.
 			GAIA_NODISCARD constexpr size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Returns the front element.
+			//! \return Mutable reference to the logical front element.
 			GAIA_NODISCARD constexpr reference front() noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
+			//! Returns the front element.
+			//! \return Immutable reference to the logical front element.
 			GAIA_NODISCARD constexpr const_reference front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return m_data[m_tail];
 			}
 
+			//! Returns the back element.
+			//! \return Mutable reference to the logical back element.
 			GAIA_NODISCARD constexpr reference back() noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
 			}
 
+			//! Returns the back element.
+			//! \return Immutable reference to the logical back element.
 			GAIA_NODISCARD constexpr const_reference back() const noexcept {
 				GAIA_ASSERT(!empty());
 				const auto head = (m_tail + m_size - 1) % N;
 				return m_data[head];
 			}
 
+			//! Returns an iterator to the logical front.
+			//! \return Mutable iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() noexcept {
 				return iterator((T*)&m_data[0], m_tail, m_size, 0);
 			}
 
+			//! Returns an iterator to the logical front.
+			//! \return Immutable iterator to the first element.
 			GAIA_NODISCARD constexpr auto begin() const noexcept {
 				return const_iterator((T*)&m_data[0], m_tail, m_size, 0);
 			}
 
+			//! Returns an iterator to the logical front.
+			//! \return Immutable iterator to the first element.
 			GAIA_NODISCARD constexpr auto cbegin() const noexcept {
 				return const_iterator((T*)&m_data[0], m_tail, m_size, 0);
 			}
 
+			//! Returns the mutable end sentinel.
+			//! \return Iterator following the last logical element.
 			GAIA_NODISCARD constexpr auto end() noexcept {
 				return iterator((T*)&m_data[0], m_tail, m_size, m_size);
 			}
 
+			//! Returns the immutable end sentinel.
+			//! \return Iterator following the last logical element.
 			GAIA_NODISCARD constexpr auto end() const noexcept {
 				return const_iterator((T*)&m_data[0], m_tail, m_size, m_size);
 			}
 
+			//! Returns the immutable end sentinel.
+			//! \return Iterator following the last logical element.
 			GAIA_NODISCARD constexpr auto cend() const noexcept {
 				return const_iterator((T*)&m_data[0], m_tail, m_size, m_size);
 			}
 
+			//! Compares corresponding physical storage positions.
+			//! \param other Ring buffer to compare with.
+			//! \return True when every corresponding physical element differs. False otherwise.
 			GAIA_NODISCARD constexpr bool operator==(const sringbuffer& other) const {
 				for (size_type i = 0; i < N; ++i) {
 					if (m_data[i] == other.m_data[i])
@@ -21271,6 +24108,7 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			constexpr sringbuffer<std::remove_cv_t<T>, N>
@@ -21278,12 +24116,21 @@ namespace gaia {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Creates a ring buffer containing every element of a built-in array.
+		//! \tparam T Array element type.
+		//! \tparam N Array extent and resulting ring-buffer capacity.
+		//! \param a Source array.
+		//! \return Ring buffer containing the array elements in order.
 		template <typename T, uint32_t N>
 		constexpr sringbuffer<std::remove_cv_t<T>, N> to_sringbuffer(T (&a)[N]) {
 			return detail::to_sringbuffer_impl(a, std::make_index_sequence<N>{});
 		}
 
+		//! Deduces ring-buffer element type and capacity from constructor arguments.
+		//! \tparam T First argument type and resulting element type.
+		//! \tparam U Remaining argument types.
 		template <typename T, typename... U>
 		sringbuffer(T, U...) -> sringbuffer<T, 1 + sizeof...(U)>;
 
@@ -21301,6 +24148,7 @@ namespace gaia {
 #include <type_traits>
 
 namespace gaia {
+	//! \cond INTERNAL
 	namespace detail {
 		template <class T>
 		struct is_reference_wrapper: std::false_type {};
@@ -21332,7 +24180,14 @@ namespace gaia {
 			}
 		}
 	} // namespace detail
+	//! \endcond
 
+	//! Invokes a callable or a pointer to member using standard invocation semantics.
+	//! \tparam F Callable type.
+	//! \tparam Args Argument types.
+	//! \param f Callable or pointer to member to invoke.
+	//! \param args Arguments forwarded to the callable.
+	//! \return The result produced by the invocation, preserving its value category.
 	template <class F, class... Args>
 	constexpr decltype(auto) invoke(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_v<F, Args...>) {
 		if constexpr (std::is_member_pointer_v<std::decay_t<F>>)
@@ -21519,7 +24374,6 @@ namespace gaia {
 			}
 
 		public:
-			//! Constructs an empty function wrapper.
 			MoveFunc() = default;
 
 			//! Constructs an empty function wrapper.
@@ -21559,11 +24413,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Constructs a wrapper from a compatible callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, MoveFunc>>>
 			MoveFunc(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
+			//! Replaces the stored callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return Reference to this wrapper.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, MoveFunc>>>
 			MoveFunc& operator=(F&& f) {
 				destroy();
@@ -21590,6 +24451,7 @@ namespace gaia {
 
 			//! Executes the stored callable.
 			//! \param args Arguments forwarded to the callable.
+			//! \return Callable result, or no value when R is void.
 			R exec(Args... args) const {
 				GAIA_ASSERT(m_ops != nullptr);
 				if constexpr (std::is_void_v<R>) {
@@ -21601,6 +24463,7 @@ namespace gaia {
 
 			//! Executes the stored callable.
 			//! \param args Arguments forwarded to the callable.
+			//! \return Callable result, or no value when R is void.
 			R operator()(Args... args) const {
 				if constexpr (std::is_void_v<R>) {
 					exec(GAIA_FWD(args)...);
@@ -21628,6 +24491,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace util {
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename Ret, typename... Args>
 			auto func_ptr(Ret (*)(Args...)) -> Ret (*)(Args...);
@@ -21659,6 +24523,7 @@ namespace gaia {
 			template <auto Func>
 			inline constexpr connect_arg_t<Func> connect_arg{};
 		} // namespace detail
+		//! \endcond
 
 		template <typename>
 		class delegate;
@@ -21879,16 +24744,29 @@ namespace gaia {
 			return lhs != rhs;
 		}
 
+		//! Deduces a delegate signature from a free function or member.
+		//! \tparam Func Function or member to bind.
+		//! \param tag Binding tag for Func.
 		template <auto Func>
-		delegate(detail::connect_arg_t<Func>) noexcept
+		delegate(detail::connect_arg_t<Func> tag) noexcept
 				-> delegate<std::remove_pointer_t<detail::func_ptr_t<decltype(Func)>>>;
 
+		//! Deduces a delegate signature from a function and context type.
+		//! \tparam Func Function or member to bind.
+		//! \tparam Type Context or instance type.
+		//! \param tag Binding tag for Func.
+		//! \param value_or_instance Context or instance supplied to the delegate.
 		template <auto Func, typename Type>
-		delegate(detail::connect_arg_t<Func>, Type&&) noexcept
+		delegate(detail::connect_arg_t<Func> tag, Type&& value_or_instance) noexcept
 				-> delegate<std::remove_pointer_t<detail::func_ptr_t<decltype(Func), Type>>>;
 
+		//! Deduces a delegate signature from an erased-context function pointer.
+		//! \tparam Ret Function return type.
+		//! \tparam Args Function argument types.
+		//! \param func Function pointer to bind.
+		//! \param data Optional opaque context pointer.
 		template <typename Ret, typename... Args>
-		delegate(Ret (*)(const void*, Args...), const void* = nullptr) noexcept -> delegate<Ret(Args...)>;
+		delegate(Ret (*func)(const void*, Args...), const void* data = nullptr) noexcept -> delegate<Ret(Args...)>;
 
 		//------------------------------------------------------------------------------
 		// signal
@@ -21897,10 +24775,12 @@ namespace gaia {
 		template <typename Ret, typename... Args>
 		class signal<Ret(Args...)>;
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename Ret, typename... Args>
 			using container = cnt::darray<delegate<Ret(Args...)>>;
 		} // namespace detail
+		//! \endcond
 
 		//! Signal is a container of listener which it can notify.
 		//! It works directly with references to classes and pointers to both free and member functions.
@@ -21915,7 +24795,9 @@ namespace gaia {
 			detail::container<Ret, Args...> m_listeners;
 
 		public:
+			//! Type used to represent listener counts.
 			using size_type = typename detail::container<Ret, Args...>::size_type;
+			//! Sink type allowed to modify this signal.
 			using sink_type = sink<Ret(Args...)>;
 
 			//! Number of listeners connected to the signal.
@@ -22079,8 +24961,12 @@ namespace gaia {
 			}
 		};
 
+		//! Deduces a sink signature from a signal reference.
+		//! \tparam Ret Signal return type.
+		//! \tparam Args Signal argument types.
+		//! \param ref Signal controlled by the sink.
 		template <typename Ret, typename... Args>
-		sink(signal<Ret(Args...)>&) noexcept -> sink<Ret(Args...)>;
+		sink(signal<Ret(Args...)>& ref) noexcept -> sink<Ret(Args...)>;
 	} // namespace util
 } // namespace gaia
 
@@ -22219,7 +25105,6 @@ namespace gaia {
 			}
 
 		public:
-			//! Constructs an empty function wrapper.
 			SmallFunc() = default;
 
 			//! Destroys the stored callable, if any.
@@ -22249,11 +25134,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Constructs a wrapper from a callable compatible with void().
+			//! \tparam F Callable type.
+			//! \param f Callable object.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
 			SmallFunc(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
+			//! Replaces the stored callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return Reference to this wrapper.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
 			SmallFunc& operator=(F&& f) {
 				destroy();
@@ -22318,14 +25210,15 @@ namespace gaia {
 	namespace util {
 		//! Lightweight non-owning string view over a character sequence.
 		struct str_view {
+			//! Pointer to the first character in the view.
 			const char* m_data = nullptr;
+			//! Number of characters in the view.
 			uint32_t m_size = 0;
 
-			//! Constructs an empty string view.
 			str_view() = default;
 
 			//! Constructs a string view from a pointer and an explicit length.
-			//! \param data Pointer to the first character. Can be nullptr if @a size is 0.
+			//! \param data Pointer to the first character. Can be nullptr if \a size is 0.
 			//! \param size Number of characters in the view.
 			constexpr str_view(const char* data, uint32_t size): m_data(data), m_size(size) {}
 
@@ -22355,7 +25248,7 @@ namespace gaia {
 				return m_size == 0;
 			}
 
-			//! Finds the first occurrence of substring @a value starting at index @a pos.
+			//! Finds the first occurrence of substring \a value starting at index \a pos.
 			//! \param value Needle string view.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -22363,9 +25256,9 @@ namespace gaia {
 				return find(value.data(), value.size(), pos);
 			}
 
-			//! Finds the first occurrence of a character sequence starting at index @a pos.
+			//! Finds the first occurrence of a character sequence starting at index \a pos.
 			//! \param value Needle pointer.
-			//! \param len Number of characters in @a value.
+			//! \param len Number of characters in \a value.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
 			GAIA_NODISCARD constexpr uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
@@ -22383,7 +25276,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first occurrence of literal @a lit starting at index @a pos.
+			//! Finds the first occurrence of literal \a lit starting at index \a pos.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Needle literal.
 			//! \param pos Start position in this view.
@@ -22394,7 +25287,7 @@ namespace gaia {
 				return find(str_view(lit), pos);
 			}
 
-			//! Finds the first occurrence of character @a ch starting at index @a pos.
+			//! Finds the first occurrence of character \a ch starting at index \a pos.
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -22408,7 +25301,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is present in set @a chars.
+			//! Finds the first character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
@@ -22422,7 +25315,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first occurrence of character @a ch.
+			//! Finds the first occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -22430,7 +25323,7 @@ namespace gaia {
 				return find(ch, pos);
 			}
 
-			//! Finds the first character that is present in literal set @a lit.
+			//! Finds the first character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this view.
@@ -22440,7 +25333,7 @@ namespace gaia {
 				return find_first_of(str_view(lit), pos);
 			}
 
-			//! Finds the last character that is present in set @a chars.
+			//! Finds the last character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
@@ -22462,7 +25355,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last occurrence of character @a ch.
+			//! Finds the last occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last match or BadIndex.
@@ -22484,7 +25377,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is present in literal set @a lit.
+			//! Finds the last character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
@@ -22494,7 +25387,7 @@ namespace gaia {
 				return find_last_of(str_view(lit), pos);
 			}
 
-			//! Finds the first character that is NOT present in set @a chars.
+			//! Finds the first character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
@@ -22511,7 +25404,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is different from @a ch.
+			//! Finds the first character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
@@ -22525,7 +25418,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is NOT present in literal set @a lit.
+			//! Finds the first character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this view.
@@ -22535,7 +25428,7 @@ namespace gaia {
 				return find_first_not_of(str_view(lit), pos);
 			}
 
-			//! Finds the last character that is NOT present in set @a chars.
+			//! Finds the last character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
@@ -22560,7 +25453,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is different from @a ch.
+			//! Finds the last character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
@@ -22582,7 +25475,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is NOT present in literal set @a lit.
+			//! Finds the last character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
@@ -22592,7 +25485,7 @@ namespace gaia {
 				return find_last_not_of(str_view(lit), pos);
 			}
 
-			//! Compares this view with literal @a lit for exact byte equality.
+			//! Compares this view with literal \a lit for exact byte equality.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
@@ -22602,14 +25495,14 @@ namespace gaia {
 				return m_size == (uint32_t)(N - 1) && equal_bytes(m_data, lit, m_size);
 			}
 
-			//! Compares this view with view @a other for exact byte equality.
+			//! Compares this view with view \a other for exact byte equality.
 			//! \param other View to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD constexpr bool operator==(str_view other) const {
 				return m_size == other.m_size && equal_bytes(m_data, other.m_data, m_size);
 			}
 
-			//! Compares this view with view @a other for exact byte inequality.
+			//! Compares this view with view \a other for exact byte inequality.
 			//! \param other View to compare with.
 			//! \return True when lengths or contents differ.
 			GAIA_NODISCARD constexpr bool operator!=(str_view other) const {
@@ -22636,9 +25529,9 @@ namespace gaia {
 
 		//! Lightweight owning string container with explicit length semantics (no implicit null terminator).
 		struct str {
+			//! Contiguous owned character storage.
 			cnt::darray<char> m_data;
 
-			//! Constructs an empty string.
 			str() = default;
 
 			//! Constructs a string by copying view contents.
@@ -22647,7 +25540,7 @@ namespace gaia {
 				assign(view);
 			}
 
-			//! Constructs a string from literal @a lit, excluding trailing null terminator.
+			//! Constructs a string from literal \a lit, excluding trailing null terminator.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -22660,13 +25553,13 @@ namespace gaia {
 				m_data.clear();
 			}
 
-			//! Reserves capacity for at least @a len characters.
+			//! Reserves capacity for at least \a len characters.
 			//! \param len Target character capacity.
 			void reserve(uint32_t len) {
 				m_data.reserve(len);
 			}
 
-			//! Replaces contents with @a size characters from @a data.
+			//! Replaces contents with \a size characters from \a data.
 			//! \param data Source pointer.
 			//! \param size Number of characters to copy.
 			void assign(const char* data, uint32_t size) {
@@ -22675,13 +25568,13 @@ namespace gaia {
 					memcpy(m_data.data(), data, size);
 			}
 
-			//! Replaces contents with @a view contents.
+			//! Replaces contents with \a view contents.
 			//! \param view Source view.
 			void assign(str_view view) {
 				assign(view.data(), view.size());
 			}
 
-			//! Replaces contents with literal @a lit.
+			//! Replaces contents with literal \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -22690,7 +25583,7 @@ namespace gaia {
 				assign(lit, (uint32_t)(N - 1));
 			}
 
-			//! Appends @a size characters from @a data.
+			//! Appends \a size characters from \a data.
 			//! \param data Source pointer.
 			//! \param size Number of characters to append.
 			void append(const char* data, uint32_t size) {
@@ -22700,13 +25593,13 @@ namespace gaia {
 					memcpy(m_data.data() + oldSize, data, size);
 			}
 
-			//! Appends @a view contents.
+			//! Appends \a view contents.
 			//! \param view Source view.
 			void append(str_view view) {
 				append(view.data(), view.size());
 			}
 
-			//! Appends literal @a lit.
+			//! Appends literal \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -22757,7 +25650,7 @@ namespace gaia {
 				return view();
 			}
 
-			//! Compares this string with literal @a lit for exact byte equality.
+			//! Compares this string with literal \a lit for exact byte equality.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
@@ -22768,21 +25661,21 @@ namespace gaia {
 				return size() == len && (len == 0 || memcmp(data(), lit, len) == 0);
 			}
 
-			//! Compares this string with view @a other for exact byte equality.
+			//! Compares this string with view \a other for exact byte equality.
 			//! \param other View to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD bool operator==(str_view other) const {
 				return size() == other.size() && (size() == 0 || memcmp(data(), other.data(), size()) == 0);
 			}
 
-			//! Compares this string with string @a other for exact byte equality.
+			//! Compares this string with string \a other for exact byte equality.
 			//! \param other String to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD bool operator==(const str& other) const {
 				return operator==(other.view());
 			}
 
-			//! Finds the first occurrence of substring @a value starting at index @a pos.
+			//! Finds the first occurrence of substring \a value starting at index \a pos.
 			//! \param value Needle view.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -22790,7 +25683,7 @@ namespace gaia {
 				return view().find(value, pos);
 			}
 
-			//! Finds the first occurrence of a character sequence starting at index @a pos.
+			//! Finds the first occurrence of a character sequence starting at index \a pos.
 			//! \param value Needle pointer.
 			//! \param len Number of needle characters.
 			//! \param pos Start position in this string.
@@ -22799,7 +25692,7 @@ namespace gaia {
 				return view().find(value, len, pos);
 			}
 
-			//! Finds the first occurrence of literal @a lit starting at index @a pos.
+			//! Finds the first occurrence of literal \a lit starting at index \a pos.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Needle literal.
 			//! \param pos Start position in this string.
@@ -22810,7 +25703,7 @@ namespace gaia {
 				return find(str_view(lit), pos);
 			}
 
-			//! Finds the first occurrence of character @a ch starting at index @a pos.
+			//! Finds the first occurrence of character \a ch starting at index \a pos.
 			//! \param ch Needle character.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -22818,7 +25711,7 @@ namespace gaia {
 				return view().find(ch, pos);
 			}
 
-			//! Finds the first character that is present in set @a chars.
+			//! Finds the first character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this string.
 			//! \return Index of first matching character or BadIndex.
@@ -22826,7 +25719,7 @@ namespace gaia {
 				return view().find_first_of(chars, pos);
 			}
 
-			//! Finds the first occurrence of character @a ch.
+			//! Finds the first occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -22834,7 +25727,7 @@ namespace gaia {
 				return view().find_first_of(ch, pos);
 			}
 
-			//! Finds the first character that is present in literal set @a lit.
+			//! Finds the first character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this string.
@@ -22844,7 +25737,7 @@ namespace gaia {
 				return view().find_first_of(lit, pos);
 			}
 
-			//! Finds the last character that is present in set @a chars.
+			//! Finds the last character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last matching character or BadIndex.
@@ -22852,7 +25745,7 @@ namespace gaia {
 				return view().find_last_of(chars, pos);
 			}
 
-			//! Finds the last occurrence of character @a ch.
+			//! Finds the last occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last match or BadIndex.
@@ -22860,7 +25753,7 @@ namespace gaia {
 				return view().find_last_of(ch, pos);
 			}
 
-			//! Finds the last character that is present in literal set @a lit.
+			//! Finds the last character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
@@ -22870,7 +25763,7 @@ namespace gaia {
 				return view().find_last_of(lit, pos);
 			}
 
-			//! Finds the first character that is NOT present in set @a chars.
+			//! Finds the first character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this string.
 			//! \return Index of first non-matching character or BadIndex.
@@ -22878,7 +25771,7 @@ namespace gaia {
 				return view().find_first_not_of(chars, pos);
 			}
 
-			//! Finds the first character that is different from @a ch.
+			//! Finds the first character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Start position in this string.
 			//! \return Index of first non-matching character or BadIndex.
@@ -22886,7 +25779,7 @@ namespace gaia {
 				return view().find_first_not_of(ch, pos);
 			}
 
-			//! Finds the first character that is NOT present in literal set @a lit.
+			//! Finds the first character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this string.
@@ -22896,7 +25789,7 @@ namespace gaia {
 				return view().find_first_not_of(lit, pos);
 			}
 
-			//! Finds the last character that is NOT present in set @a chars.
+			//! Finds the last character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last non-matching character or BadIndex.
@@ -22904,7 +25797,7 @@ namespace gaia {
 				return view().find_last_not_of(chars, pos);
 			}
 
-			//! Finds the last character that is different from @a ch.
+			//! Finds the last character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last non-matching character or BadIndex.
@@ -22912,7 +25805,7 @@ namespace gaia {
 				return view().find_last_not_of(ch, pos);
 			}
 
-			//! Finds the last character that is NOT present in literal set @a lit.
+			//! Finds the last character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
@@ -22923,16 +25816,16 @@ namespace gaia {
 			}
 		};
 
-		//! Returns true when @a c is an ASCII whitespace character.
+		//! Returns true when \a c is an ASCII whitespace character.
 		//! \param c Character to test.
 		//! \return True for ' ' (space) and characters in range ['\\t', '\\r'].
 		GAIA_NODISCARD constexpr bool is_whitespace(char c) {
 			return c == ' ' || (c >= '\t' && c <= '\r');
 		}
 
-		//! Trims ASCII whitespace from both ends of @a expr.
+		//! Trims ASCII whitespace from both ends of \a expr.
 		//! \param expr Input string view.
-		//! \return Trimmed sub-view into @a expr.
+		//! \return Trimmed sub-view into \a expr.
 		GAIA_NODISCARD constexpr str_view trim(str_view expr) {
 			const auto len = expr.size();
 			if (len == 0)
@@ -22950,9 +25843,9 @@ namespace gaia {
 			return str_view(expr.data() + beg, end - beg + 1);
 		}
 
-		//! Trims ASCII whitespace from both ends of @a expr.
+		//! Trims ASCII whitespace from both ends of \a expr.
 		//! \param expr Input character span.
-		//! \return Trimmed subspan view into @a expr.
+		//! \return Trimmed subspan view into \a expr.
 		GAIA_NODISCARD constexpr std::span<const char> trim(std::span<const char> expr) {
 			const auto trimmed = trim(str_view(expr.data(), (uint32_t)expr.size()));
 			return std::span<const char>(trimmed.data(), trimmed.size());
@@ -22967,6 +25860,7 @@ namespace gaia {
 		enum class serialization_type_id : uint8_t;
 
 		namespace detail {
+			//! \cond INTERNAL
 			static constexpr uint32_t SerializationBufferCapacityIncreaseSize = 128U;
 
 			template <typename DataContainer>
@@ -23002,7 +25896,7 @@ namespace gaia {
 					return m_data.data();
 				}
 
-				//! Makes sure there is enough capacity in our data container to hold another @a size bytes of data.
+				//! Makes sure there is enough capacity in our data container to hold another \a size bytes of data.
 				//! \param size Minimum number of free bytes at the end of the buffer.
 				void reserve(uint32_t size) {
 					const auto nextSize = m_dataPos + size;
@@ -23015,7 +25909,7 @@ namespace gaia {
 					m_data.reserve(newCapacity);
 				}
 
-				//! Resizes the internal buffer to @a size bytes.
+				//! Resizes the internal buffer to \a size bytes.
 				//! \param size Position in the buffer to move to.
 				void resize(uint32_t size) {
 					m_data.resize(size);
@@ -23027,7 +25921,7 @@ namespace gaia {
 					m_dataPos = pos;
 				}
 
-				//! Advances @a size bytes from the current buffer position.
+				//! Advances \a size bytes from the current buffer position.
 				//! \param size Number of bytes to skip
 				void skip(uint32_t size) {
 					m_dataPos += size;
@@ -23038,7 +25932,7 @@ namespace gaia {
 					return m_dataPos;
 				}
 
-				//! Writes @a value to the buffer
+				//! Writes \a value to the buffer
 				//! \param value Value to store
 				template <typename T>
 				void save(T&& value) {
@@ -23053,7 +25947,7 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Writes @a size bytes of data starting at the address @a pSrc to the buffer
+				//! Writes \a size bytes of data starting at the address \a pSrc to the buffer
 				//! \param pSrc Pointer to serialized data
 				//! \param size Size of serialized data in bytes
 				//! \param id Type of serialized data
@@ -23072,7 +25966,7 @@ namespace gaia {
 					m_dataPos += size;
 				}
 
-				//! Loads @a value from the buffer
+				//! Loads \a value from the buffer
 				//! \param[out] value Value to load
 				template <typename T>
 				void load(T& value) {
@@ -23084,7 +25978,7 @@ namespace gaia {
 					m_dataPos += (uint32_t)sizeof(T);
 				}
 
-				//! Loads @a size bytes of data from the buffer and writes it to the address @a pDst
+				//! Loads \a size bytes of data from the buffer and writes it to the address \a pDst
 				//! \param[out] pDst Pointer to where deserialized data is written
 				//! \param size Size of serialized data in bytes
 				//! \param id Type of serialized data
@@ -23100,9 +25994,12 @@ namespace gaia {
 					m_dataPos += size;
 				}
 			};
+			//! \endcond
 		} // namespace detail
 
+		//! Fixed-growth storage used by ser_buffer_binary.
 		using ser_buffer_binary_storage = gaia::cnt::darray_ext<uint8_t, detail::SerializationBufferCapacityIncreaseSize>;
+		//! Dynamic storage used by ser_buffer_binary_dyn.
 		using ser_buffer_binary_storage_dyn = gaia::cnt::darray<uint8_t>;
 
 		//! Minimal in-memory binary serializer.
@@ -23119,23 +26016,38 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
+		//! Type-erased callback that writes raw serialized bytes.
 		using save_raw_fn = void (*)(void*, const void*, uint32_t, serialization_type_id);
+		//! Type-erased callback that reads raw serialized bytes.
 		using load_raw_fn = void (*)(void*, void*, uint32_t, serialization_type_id);
+		//! Type-erased callback that returns the backing data pointer.
 		using data_fn = const char* (*)(const void*);
+		//! Type-erased callback that resets a backend.
 		using reset_fn = void (*)(void*);
+		//! Type-erased callback that returns the current cursor.
 		using tell_fn = uint32_t (*)(const void*);
+		//! Type-erased callback that returns the byte count.
 		using bytes_fn = uint32_t (*)(const void*);
+		//! Type-erased callback that moves the cursor.
 		using seek_fn = void (*)(void*, uint32_t);
 
 		//! Opaque runtime serializer context passed around as a single object.
 		struct serializer_ctx {
+			//! Opaque backend instance.
 			void* user = nullptr;
+			//! Raw-write callback.
 			save_raw_fn save_raw = nullptr;
+			//! Raw-read callback.
 			load_raw_fn load_raw = nullptr;
+			//! Optional backing-data callback.
 			data_fn data = nullptr;
+			//! Optional reset callback.
 			reset_fn reset = nullptr;
+			//! Cursor-query callback.
 			tell_fn tell = nullptr;
+			//! Optional byte-count callback.
 			bytes_fn bytes = nullptr;
+			//! Cursor-movement callback.
 			seek_fn seek = nullptr;
 		};
 
@@ -23184,19 +26096,27 @@ namespace gaia {
 		//! Runtime serializer type-erased handle.
 		//! Traversal logic is shared with compile-time serialization, while raw I/O is delegated
 		//! through function pointers bound to a concrete serializer instance.
-		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
+		//! This is a binary traversal API. JSON document I/O uses ser::ser_json.
 		struct serializer {
+			//! Bound backend context and callback table.
 			serializer_ctx m_ctx{};
 
 			serializer() = default;
 
+			//! Creates a serializer from an existing callback context.
+			//! \param ctx Backend context to copy.
 			explicit serializer(const serializer_ctx& ctx): m_ctx(ctx) {}
 
+			//! Checks whether mandatory backend callbacks are bound.
+			//! \return True when save, load, tell, and seek are available.
 			GAIA_NODISCARD bool valid() const {
 				return m_ctx.user != nullptr && m_ctx.save_raw != nullptr && m_ctx.load_raw != nullptr &&
 							 m_ctx.tell != nullptr && m_ctx.seek != nullptr;
 			}
 
+			//! Serializes a value through generic traversal.
+			//! \tparam T Value type.
+			//! \param arg Value to serialize.
 			template <typename T>
 			void save(const T& arg) {
 				auto saveTrivial = [](auto& serializer, const auto& value) {
@@ -23205,6 +26125,9 @@ namespace gaia {
 				detail::save_dispatch(*this, arg, saveTrivial);
 			}
 
+			//! Deserializes a value through generic traversal.
+			//! \tparam T Value type.
+			//! \param[out] arg Destination value.
 			template <typename T>
 			void load(T& arg) {
 				auto loadTrivial = [](auto& serializer, auto& value) {
@@ -23233,54 +26156,81 @@ namespace gaia {
 			}
 #endif
 
+			//! Writes the object representation of a typed value.
+			//! \tparam T Value type.
+			//! \param value Value to write.
 			template <typename T>
 			void save_raw(const T& value) {
 				save_raw(&value, sizeof(value), ser::type_id<T>());
 			}
 
+			//! Reads an object representation into a typed value.
+			//! \tparam T Value type.
+			//! \param[out] value Destination value.
 			template <typename T>
 			void load_raw(T& value) {
 				load_raw(&value, sizeof(value), ser::type_id<T>());
 			}
 
+			//! Writes raw bytes through the bound backend.
+			//! \param src Source bytes.
+			//! \param size Number of bytes.
+			//! \param id Serialization representation.
 			void save_raw(const void* src, uint32_t size, serialization_type_id id) {
 				GAIA_ASSERT(m_ctx.save_raw != nullptr);
 				m_ctx.save_raw(m_ctx.user, src, size, id);
 			}
 
+			//! Reads raw bytes through the bound backend.
+			//! \param[out] src Destination bytes.
+			//! \param size Number of bytes.
+			//! \param id Serialization representation.
 			void load_raw(void* src, uint32_t size, serialization_type_id id) {
 				GAIA_ASSERT(m_ctx.load_raw != nullptr);
 				m_ctx.load_raw(m_ctx.user, src, size, id);
 			}
 
+			//! Returns the backend data pointer when exposed.
+			//! \return Backing data pointer, or null when unsupported.
 			GAIA_NODISCARD const char* data() const {
 				if (m_ctx.data == nullptr)
 					return nullptr;
 				return m_ctx.data(m_ctx.user);
 			}
 
+			//! Resets the backend when supported.
 			void reset() {
 				if (m_ctx.reset == nullptr)
 					return;
 				m_ctx.reset(m_ctx.user);
 			}
 
+			//! Returns the current backend cursor.
+			//! \return Cursor position in bytes.
 			GAIA_NODISCARD uint32_t tell() const {
 				GAIA_ASSERT(m_ctx.tell != nullptr);
 				return m_ctx.tell(m_ctx.user);
 			}
 
+			//! Returns the backend byte count when exposed.
+			//! \return Byte count, or zero when unsupported.
 			GAIA_NODISCARD uint32_t bytes() const {
 				if (m_ctx.bytes == nullptr)
 					return 0;
 				return m_ctx.bytes(m_ctx.user);
 			}
 
+			//! Moves the backend cursor.
+			//! \param pos Absolute byte position.
 			void seek(uint32_t pos) {
 				GAIA_ASSERT(m_ctx.seek != nullptr);
 				m_ctx.seek(m_ctx.user, pos);
 			}
 
+			//! Creates a callback context bound to a concrete backend.
+			//! \tparam TSerializer Backend type.
+			//! \param obj Backend instance that must outlive the context.
+			//! \return Type-erased callback context.
 			template <typename TSerializer>
 			static serializer_ctx bind_ctx(TSerializer& obj) {
 				static_assert(detail::has_save_raw_ptr<TSerializer>::value, "Serializer must expose save_raw(ptr,size,id)");
@@ -23333,6 +26283,10 @@ namespace gaia {
 				return ctx;
 			}
 
+			//! Creates a runtime serializer bound to a concrete backend.
+			//! \tparam TSerializer Backend type.
+			//! \param obj Backend instance that must outlive the serializer.
+			//! \return Bound runtime serializer.
 			template <typename TSerializer>
 			static serializer bind(TSerializer& obj) {
 				return serializer(bind_ctx(obj));
@@ -23340,11 +26294,16 @@ namespace gaia {
 		};
 
 		//! Returns a runtime serializer handle as-is.
+		//! \param s Serializer handle to return.
+		//! \return The supplied serializer handle.
 		inline serializer make_serializer(serializer s) {
 			return s;
 		}
 
 		//! Binds an object exposing save_raw/load_raw/tell/seek into a runtime serializer handle.
+		//! \tparam TSerializer Backend type.
+		//! \param s Backend instance that must outlive the serializer.
+		//! \return Bound runtime serializer.
 		template <typename TSerializer>
 		inline serializer make_serializer(TSerializer& s) {
 			return serializer::bind(s);
@@ -23434,18 +26393,25 @@ namespace gaia {
 
 namespace gaia {
 	namespace ser {
+		//! Non-owning string view used by JSON APIs.
 		using json_str_view = util::str_view;
+		//! Owning string used by JSON APIs.
 		using json_str = util::str;
 
+		//! Options controlling semantic JSON output and fallback payloads.
 		enum JsonSaveFlags : uint32_t {
+			//! Disables optional snapshot and fallback payloads.
 			None = 0,
-			BinarySnapshot = 1u << 0, // Include binary snapshot
-			RawFallback = 1u << 1, // Allow raw data fallback
+			//! Includes a binary snapshot.
+			BinarySnapshot = 1u << 0,
+			//! Allows raw component data as a fallback.
+			RawFallback = 1u << 1,
+			//! Enables the standard snapshot and raw fallback behavior.
 			Default = BinarySnapshot | RawFallback
 		};
 
 		//! Explicit presentation and import policy for runtime values in semantic JSON.
-		//! Numeric enum and bitmask payloads are the default; symbolic behavior must be requested.
+		//! Numeric enum and bitmask payloads are the default. Symbolic behavior must be requested.
 		struct RuntimeJsonPolicy final {
 			//! Emits enum constants by name and accepts named enum values during import.
 			bool symbolicEnums = false;
@@ -23453,43 +26419,86 @@ namespace gaia {
 			bool symbolicBitmasks = false;
 		};
 
-		enum class JsonDiagSeverity : uint8_t { Info, Warning, Error };
+		//! Severity assigned to a JSON diagnostic.
+		enum class JsonDiagSeverity : uint8_t {
+			//! Informational message that does not indicate data loss.
+			Info,
+			//! Recoverable issue or adjusted input.
+			Warning,
+			//! Error that prevents faithful processing.
+			Error
+		};
+		//! Machine-readable reason for a JSON diagnostic.
 		enum class JsonDiagReason : uint8_t {
+			//! No specific reason.
 			None,
+			//! Input contains an unrecognized field.
 			UnknownField,
+			//! Field location exceeds component storage.
 			FieldOutOfBounds,
+			//! Field value was adjusted while loading.
 			FieldValueAdjusted,
+			//! Payload supplied for a tag component was ignored.
 			TagValueIgnored,
+			//! Component payload is null.
 			NullComponentPayload,
+			//! Runtime fields and a raw fallback are both absent.
 			MissingRuntimeFieldsOrRawPayload,
+			//! Raw fallback cannot represent structure-of-arrays storage.
 			SoaRawUnsupported,
+			//! Component identifier is unknown.
 			UnknownComponent,
+			//! Operation does not support a tag component.
 			TagComponentUnsupported,
+			//! An entity name appears more than once.
 			DuplicateEntityName,
+			//! Component storage required by the payload is absent.
 			MissingComponentStorage,
+			//! Document omits the required archetypes section.
 			MissingArchetypesSection,
+			//! Document omits its format identifier.
 			MissingFormatField,
+			//! Document format version is not supported.
 			UnsupportedFormatVersion,
+			//! Input is not valid JSON.
 			InvalidJson,
+			//! Symbolic runtime constant is unknown.
 			UnknownRuntimeConstant,
+			//! Runtime constant is invalid in the current context.
 			InvalidRuntimeConstant
 		};
 
+		//! One structured issue produced while reading or writing JSON.
 		struct JsonDiagnostic {
+			//! Diagnostic severity.
 			JsonDiagSeverity severity = JsonDiagSeverity::Warning;
+			//! Machine-readable reason.
 			JsonDiagReason reason = JsonDiagReason::None;
+			//! Path to the affected JSON value.
 			json_str path;
+			//! Human-readable explanation.
 			json_str message;
 		};
 
+		//! Collection of JSON diagnostics with cached severity flags.
 		struct JsonDiagnostics {
+			//! Maximum path length read from a null-terminated string.
 			static constexpr uint32_t MaxDiagPathLength = 1024;
+			//! Maximum message length read from a null-terminated string.
 			static constexpr uint32_t MaxDiagMessageLength = 2048;
 
+			//! Recorded diagnostics in insertion order.
 			cnt::darray<JsonDiagnostic> items;
+			//! True when at least one warning has been added.
 			bool hasWarnings = false;
+			//! True when at least one error has been added.
 			bool hasErrors = false;
 
+			//! Appends a diagnostic.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Path to the affected value.
+			//! \param message Human-readable explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, json_str_view message) {
 				JsonDiagnostic diag;
 				diag.severity = severity;
@@ -23503,14 +26512,26 @@ namespace gaia {
 				else if (severity == JsonDiagSeverity::Error)
 					hasErrors = true;
 			}
+			//! Appends a diagnostic with a null-terminated message.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Path to the affected value.
+			//! \param message Null-terminated explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, json_str_view path, const char* message) {
 				add(severity, reason, path, json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
 			}
+			//! Appends a diagnostic from null-terminated strings.
+			//! \param severity Diagnostic severity.
+			//! \param reason Machine-readable reason.
+			//! \param path Null-terminated path.
+			//! \param message Null-terminated explanation.
 			void add(JsonDiagSeverity severity, JsonDiagReason reason, const char* path, const char* message) {
 				add(severity, reason, json_str_view(path, (uint32_t)GAIA_STRLEN(path, MaxDiagPathLength)),
 						json_str_view(message, (uint32_t)GAIA_STRLEN(message, MaxDiagMessageLength)));
 			}
 
+			//! Checks whether warnings or errors were recorded.
+			//! \return True when the collection contains an issue.
 			GAIA_NODISCARD bool has_issues() const {
 				return hasWarnings || hasErrors;
 			}
@@ -23588,9 +26609,15 @@ namespace gaia {
 
 		public:
 			ser_json() = default;
+
+			//! \param json Input buffer. It must outlive parsing.
+			//! \param len Input length in bytes.
 			ser_json(const char* json, uint32_t len) {
 				reset_input(json, len);
 			}
+			//! Creates a reader over a null-terminated character array.
+			//! \tparam N Array extent including the terminator.
+			//! \param json Input character array. It must outlive parsing.
 			template <size_t N>
 			explicit ser_json(const char (&json)[N]) {
 				static_assert(N > 0);
@@ -23598,6 +26625,8 @@ namespace gaia {
 			}
 
 			//! Sets an input JSON buffer for parsing.
+			//! \param json Input buffer. It must outlive parsing, or null to clear input.
+			//! \param len Input length in bytes.
 			void reset_input(const char* json, uint32_t len) {
 				if (json == nullptr) {
 					m_it = nullptr;
@@ -23608,6 +26637,9 @@ namespace gaia {
 				m_it = json;
 				m_end = json + len;
 			}
+			//! Sets input from a null-terminated character array.
+			//! \tparam N Array extent including the terminator.
+			//! \param json Input character array. It must outlive parsing.
 			template <size_t N>
 			void reset_input(const char (&json)[N]) {
 				static_assert(N > 0);
@@ -23622,16 +26654,19 @@ namespace gaia {
 			}
 
 			//! Returns currently emitted output text.
+			//! \return Reference to the owned output string.
 			GAIA_NODISCARD const json_str& str() const {
 				return m_out;
 			}
 
 			//! Returns true if parser has reached end of input.
+			//! \return True when no unread input remains.
 			GAIA_NODISCARD bool eof() const {
 				return m_it == nullptr || m_end == nullptr || m_it >= m_end;
 			}
 
 			//! Returns next non-consumed character.
+			//! \return Next input character.
 			GAIA_NODISCARD char peek() const {
 				GAIA_ASSERT(m_it != nullptr && m_it < m_end);
 				return *m_it;
@@ -23871,7 +26906,7 @@ namespace gaia {
 			}
 
 			//! Scans an integer JSON token without converting through floating point.
-			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through @a integerToken as
+			//! Integral exponents are folded into the magnitude. Decimal tokens are reported through \a integerToken as
 			//! non-integers and are not consumed.
 			//! \param negative Receives whether the token has a leading minus sign.
 			//! \param magnitude Receives the unsigned magnitude, saturated to UINT64_MAX on overflow.
@@ -24079,6 +27114,7 @@ namespace gaia {
 		};
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T>
 			inline void copy_field_bytes(uint8_t* pFieldData, uint32_t size, const T& v) {
 				memcpy(pFieldData, &v, size < sizeof(v) ? size : (uint32_t)sizeof(v));
@@ -24369,6 +27405,7 @@ namespace gaia {
 					return false;
 				}
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia
@@ -24569,6 +27606,7 @@ namespace gaia {
 namespace gaia {
 	namespace mt {
 		namespace detail {
+			//! \cond INTERNAL
 			inline static constexpr uint32_t WaitMaskAll = 0x7FFFFFFF;
 			inline static constexpr uint32_t WaitMaskAny = ~0u;
 
@@ -24596,6 +27634,7 @@ namespace gaia {
 			//! Per-thread wait node. A thread can only be waiting on a single futex at a time.
 			//! Do NOT call Futex::wait() from the same thread concurrently (e.g. via fibers or coroutines).
 			inline thread_local FutexWaitNode t_WaitNode;
+			//! \endcond
 
 		} // namespace detail
 
@@ -24611,6 +27650,7 @@ namespace gaia {
 		//! TODO: Consider using WaitOnAddress for Windows, futex call for Linux etc.
 		//!       The current solution is platform-agnostic but platform-specific solutions might be more performant.
 		struct Futex {
+			//! Outcome of a futex wait attempt.
 			enum class Result {
 				//! Futex value didn't match the expected one
 				Change,
@@ -24618,12 +27658,13 @@ namespace gaia {
 				WakeUp
 			};
 
-			//! Suspends the caller on the futex while its value remains @a expected.
+			//! Suspends the caller on the futex while its value remains \a expected.
 			//! \param pFutexValue Target futex
 			//! \param expected Expected futex value
 			//! \param waitMask Mask of waiters to wait for
 			//! \warning A thread can only be in one wait() at a time. Do not call this
 			//!          concurrently from the same thread (e.g. via fibers or coroutines).
+			//! \return Change when the value no longer matches. WakeUp after a matching wake.
 			static Result wait(const std::atomic_uint32_t* pFutexValue, uint32_t expected, uint32_t waitMask) {
 				GAIA_PROF_SCOPE(futex::wait);
 
@@ -24651,10 +27692,11 @@ namespace gaia {
 				return Result::WakeUp;
 			}
 
-			//! Wakes up to @a wakeCount waiters whose @a waitMask matches @a wakeMask.
+			//! Wakes up to \a wakeCount waiters whose \a waitMask matches \a wakeMask.
 			//! \param pFutexValue Target futex
 			//! \param wakeCount How many waiters are supposed to wake up
 			//! \param wakeMask Mask of callers to wake
+			//! \return Number of waiters that were awakened.
 			static uint32_t
 			wake(const std::atomic_uint32_t* pFutexValue, uint32_t wakeCount, uint32_t wakeMask = detail::WaitMaskAny) {
 				GAIA_PROF_SCOPE(futex::wake);
@@ -24701,19 +27743,31 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+		//! Unsigned storage type used by packed job handles.
 		using JobInternalType = uint32_t;
+		//! Job-pool slot identifier type.
 		using JobId = JobInternalType;
+		//! Job generation and priority field type.
 		using JobGenId = JobInternalType;
 
+		//! Packed identifier for a job-pool slot, generation, and priority.
 		struct GAIA_API JobHandle final {
+			//! Number of bits reserved for the slot identifier.
 			static constexpr JobInternalType IdBits = 20;
+			//! Number of bits reserved for the generation.
 			static constexpr JobInternalType GenBits = 11;
+			//! Number of bits reserved for the priority.
 			static constexpr JobInternalType PrioBits = 1;
+			//! Total number of bits used by a packed handle.
 			static constexpr JobInternalType AllBits = IdBits + GenBits + PrioBits;
+			//! Mask selecting the slot identifier.
 			static constexpr JobInternalType IdMask = (uint32_t)(uint64_t(1) << IdBits) - 1;
+			//! Mask selecting the unshifted generation.
 			static constexpr JobInternalType GenMask = (uint32_t)(uint64_t(1) << GenBits) - 1;
+			//! Mask selecting the unshifted priority.
 			static constexpr JobInternalType PrioMask = (uint32_t)(uint64_t(1) << PrioBits) - 1;
 
+			//! Integer type large enough to hold all packed fields.
 			using JobSizeType = std::conditional_t<(AllBits > 32), uint64_t, uint32_t>;
 
 			static_assert(AllBits <= 64, "Job IdBits and GenBits must fit inside 64 bits");
@@ -24736,16 +27790,23 @@ namespace gaia {
 			};
 
 		public:
+			//! Creates the null job handle.
 			JobHandle() {
 				data.id = JobHandle::IdMask;
 				data.gen = JobHandle::GenMask;
 				data.prio = JobHandle::PrioMask;
 			}
+			//! Creates a handle from its component fields.
+			//! \param id Job-pool slot identifier.
+			//! \param gen Slot generation.
+			//! \param prio Encoded priority bit.
 			JobHandle(JobId id, JobGenId gen, JobGenId prio) {
 				data.id = id;
 				data.gen = gen;
 				data.prio = prio;
 			}
+			//! Creates a handle from its packed representation.
+			//! \param value Packed handle value.
 			explicit JobHandle(uint32_t value) {
 				val = value;
 			}
@@ -24756,28 +27817,45 @@ namespace gaia {
 			JobHandle& operator=(JobHandle&&) noexcept = default;
 			JobHandle& operator=(const JobHandle&) = default;
 
+			//! Compares packed handle values.
+			//! \param other Handle to compare.
+			//! \return True when both handles are identical.
 			GAIA_NODISCARD constexpr bool operator==(const JobHandle& other) const noexcept {
 				return val == other.val;
 			}
+			//! Compares packed handle values.
+			//! \param other Handle to compare.
+			//! \return True when the handles differ.
 			GAIA_NODISCARD constexpr bool operator!=(const JobHandle& other) const noexcept {
 				return val != other.val;
 			}
 
+			//! Returns the job-pool slot identifier.
+			//! \return Slot identifier.
 			GAIA_NODISCARD auto id() const {
 				return data.id;
 			}
+			//! Returns the slot generation.
+			//! \return Generation value.
 			GAIA_NODISCARD auto gen() const {
 				return data.gen;
 			}
+			//! Returns the encoded priority bit.
+			//! \return Priority bit.
 			GAIA_NODISCARD auto prio() const {
 				return data.prio;
 			}
+			//! Returns the packed handle representation.
+			//! \return Packed value.
 			GAIA_NODISCARD auto value() const {
 				return val;
 			}
 		};
 
+		//! Sentinel type representing an invalid job handle.
 		struct JobNull_t {
+			//! Converts the sentinel to a packed null handle.
+			//! \return Null job handle.
 			GAIA_NODISCARD operator JobHandle() const noexcept {
 				return JobHandle(JobHandle::IdMask, JobHandle::GenMask, JobHandle::PrioMask);
 			}
@@ -24806,6 +27884,7 @@ namespace gaia {
 			return null != entity;
 		}
 
+		//! Global null-job sentinel.
 		inline constexpr JobNull_t JobNull{};
 	} // namespace mt
 } // namespace gaia
@@ -25119,15 +28198,19 @@ GAIA_MSVC_WARNING_POP()
 
 namespace gaia {
 	namespace mt {
+		//! Scheduling priority assigned to a job.
 		enum class JobPriority : uint8_t {
 			//! High priority job. If available it should target the CPU's performance cores.
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores.
 			Low = 1
 		};
+		//! Number of supported job-priority queues.
 		static inline constexpr uint32_t JobPriorityCnt = 2;
 
+		//! Flags controlling the scheduling and lifetime of a job.
 		enum JobCreationFlags : uint8_t {
+			//! Uses automatic deletion and the regular frame queue.
 			Default = 0,
 			//! The job is not deleted automatically. Has to be done by the user.
 			ManualDelete = 0x01,
@@ -25137,18 +28220,27 @@ namespace gaia {
 			Background = 0x04
 		};
 
+		//! Allocation metadata used when reserving a job slot.
 		struct JobAllocCtx {
+			//! Priority encoded into the allocated job handle.
 			JobPriority priority;
 		};
 
+		//! Callable and scheduling options for a single job.
 		struct Job {
+			//! Callable executed by the worker.
 			util::SmallFunc func;
+			//! Queue priority used to schedule the callable.
 			JobPriority priority = JobPriority::High;
+			//! Creation and lifetime options.
 			JobCreationFlags flags = JobCreationFlags::Default;
 		};
 
+		//! Half-open item range passed to a parallel job callback.
 		struct JobArgs {
+			//! First item index processed by this invocation.
 			uint32_t idxStart;
+			//! One-past-the-last item index processed by this invocation.
 			uint32_t idxEnd;
 		};
 
@@ -25296,21 +28388,28 @@ namespace gaia {
 			}
 		};
 
+		//! Callable and priority for a range-partitioned parallel job.
 		struct JobParallel {
+			//! Callable invoked once for each scheduled range.
 			JobArgsFunc func;
+			//! Queue priority used for each range job.
 			JobPriority priority = JobPriority::High;
 		};
 
 		//! Non-owning callback descriptor for parallel jobs.
 		//! \warning The pointed-to context must stay alive until the scheduled job completes.
 		struct JobParallelRef {
+			//! Non-owning callback context.
 			void* pCtx = nullptr;
+			//! Function that invokes the callback stored in the context.
 			void (*invoke)(void*, const JobArgs&) = nullptr;
+			//! Queue priority used for each range job.
 			JobPriority priority = JobPriority::High;
 		};
 
 		class ThreadPool;
 
+		//! Per-thread execution state owned by ThreadPool.
 		struct ThreadCtx {
 			//! Thread pool pointer
 			ThreadPool* tp;
@@ -25352,7 +28451,8 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
-		//! Packed job state layout used inside @ref JobContainer::state.
+		//! \cond INTERNAL
+		//! Packed job state layout used inside \ref JobContainer::state.
 		enum JobState : uint32_t {
 			DEP_BITS_START = 0,
 			DEP_BITS = 27,
@@ -25470,9 +28570,9 @@ namespace gaia {
 				return jc;
 			}
 
-			//! Returns the public handle associated with @a jc.
+			//! Returns the public handle associated with \a jc.
 			//! \param jc Job container to inspect.
-			//! \return Handle referencing @a jc.
+			//! \return Handle referencing \a jc.
 			GAIA_NODISCARD static JobHandle handle(const JobContainer& jc) {
 				return JobHandle(jc.idx, jc.data.gen, (jc.prio == JobPriority::Low) != 0);
 			}
@@ -25485,7 +28585,6 @@ namespace gaia {
 			uint32_t m_id = IdMask;
 			uint32_t m_gen = 0;
 
-			//! Creates an invalid callback handle.
 			ParallelCallbackHandle() = default;
 			//! Creates a callback handle from the given identifier and generation.
 			//! \param id Slot identifier.
@@ -25519,9 +28618,7 @@ namespace gaia {
 			JobArgsFunc callback;
 			std::atomic_uint32_t refs = 0;
 
-			//! Creates an empty callback record.
 			ParallelCallbackRecord() = default;
-			//! Destroys the callback record.
 			~ParallelCallbackRecord() = default;
 
 			ParallelCallbackRecord(const ParallelCallbackRecord&) = delete;
@@ -25556,9 +28653,9 @@ namespace gaia {
 				return record;
 			}
 
-			//! Returns the public handle associated with @a record.
+			//! Returns the public handle associated with \a record.
 			//! \param record Callback record to inspect.
-			//! \return Handle referencing @a record.
+			//! \return Handle referencing \a record.
 			GAIA_NODISCARD static ParallelCallbackHandle handle(const ParallelCallbackRecord& record) {
 				return ParallelCallbackHandle(record.idx, record.data.gen);
 			}
@@ -25576,12 +28673,12 @@ namespace gaia {
 			cnt::ilist<ParallelCallbackRecord, ParallelCallbackHandle> m_parallelCallbacks;
 
 		public:
-			//! Returns mutable internal storage for @a jobHandle.
+			//! Returns mutable internal storage for \a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			JobContainer& data(JobHandle jobHandle) {
 				return m_jobData.live_unsafe(jobHandle.id());
 			}
-			//! Returns immutable internal storage for @a jobHandle.
+			//! Returns immutable internal storage for \a jobHandle.
 			//! \param jobHandle Handle of the job to inspect.
 			const JobContainer& data(JobHandle jobHandle) const {
 				return m_jobData.live_unsafe(jobHandle.id());
@@ -25618,7 +28715,7 @@ namespace gaia {
 				return m_parallelCallbacks.alloc(&ctx);
 			}
 
-			//! Invalidates @a jobHandle by resetting its index in the job pool.
+			//! Invalidates \a jobHandle by resetting its index in the job pool.
 			//! Every time a job is deallocated its generation is increased by one.
 			//! \param jobHandle Job handle.
 			//! \warning Caller must serialize job-pool allocation/free access.
@@ -25653,7 +28750,7 @@ namespace gaia {
 				finalize(jobData);
 			}
 
-			//! Signals that one dependency edge of @a jobData has completed.
+			//! Signals that one dependency edge of \a jobData has completed.
 			//! \param jobData Job whose dependency counter should be decremented.
 			//! \return True when the job has no remaining dependencies and can be processed.
 			static bool signal_edge(JobContainer& jobData) {
@@ -25670,7 +28767,7 @@ namespace gaia {
 				return deps == 0;
 			}
 
-			//! Releases heap storage used for the dependency list of @a jobData.
+			//! Releases heap storage used for the dependency list of \a jobData.
 			//! \param jobData Job whose dependency edge storage should be released.
 			static void free_edges(JobContainer& jobData) {
 				// We only allocate an array for 2 and more dependencies
@@ -25682,19 +28779,19 @@ namespace gaia {
 				// jobData.edges.pDeps = nullptr;
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(!jobsFirst.empty());
@@ -25721,10 +28818,10 @@ namespace gaia {
 				GAIA_ASSERT((statePrev & JobState::DEP_BITS_MASK) < DEP_BITS_MASK - 1);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep_refresh(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
@@ -25775,7 +28872,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Marks a job as executing on the worker identified by @a workerIdx.
+			//! Marks a job as executing on the worker identified by \a workerIdx.
 			//! \param jobData Job to transition.
 			//! \param workerIdx Worker executing the job.
 			static void executing(JobContainer& jobData, uint32_t workerIdx) {
@@ -25807,7 +28904,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Checks whether the job referenced by @a jobHandle is in the clear state.
+			//! Checks whether the job referenced by \a jobHandle is in the clear state.
 			//! \param jobHandle Handle of the job to inspect.
 			//! \return True when the packed state is zero.
 			GAIA_NODISCARD bool is_clear(JobHandle jobHandle) const {
@@ -25816,7 +28913,7 @@ namespace gaia {
 				return state == 0;
 			}
 
-			//! Checks whether @a jobData is in the clear state.
+			//! Checks whether \a jobData is in the clear state.
 			//! \param jobData Job to inspect.
 			//! \return True when the packed state is zero.
 			GAIA_NODISCARD static bool is_clear(JobContainer& jobData) {
@@ -25824,7 +28921,7 @@ namespace gaia {
 				return state == 0;
 			}
 
-			//! Checks whether @a jobData has been submitted but not yet queued for execution.
+			//! Checks whether \a jobData has been submitted but not yet queued for execution.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Submitted.
 			GAIA_NODISCARD static bool submitted(const JobContainer& jobData) {
@@ -25832,7 +28929,7 @@ namespace gaia {
 				return state == JobState::Submitted;
 			}
 
-			//! Checks whether @a jobData is queued for worker processing.
+			//! Checks whether \a jobData is queued for worker processing.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Processing.
 			GAIA_NODISCARD static bool processing(const JobContainer& jobData) {
@@ -25840,7 +28937,7 @@ namespace gaia {
 				return state == JobState::Processing;
 			}
 
-			//! Checks whether @a jobData currently is executing or queued for execution.
+			//! Checks whether \a jobData currently is executing or queued for execution.
 			//! \param jobData Job to inspect.
 			//! \return True when the job is busy.
 			GAIA_NODISCARD static bool busy(const JobContainer& jobData) {
@@ -25848,7 +28945,7 @@ namespace gaia {
 				return state == JobState::Executing || state == JobState::Processing;
 			}
 
-			//! Checks whether @a jobData has finished executing.
+			//! Checks whether \a jobData has finished executing.
 			//! \param jobData Job to inspect.
 			//! \return True when the state bits equal JobState::Done.
 			GAIA_NODISCARD static bool done(const JobContainer& jobData) {
@@ -25856,7 +28953,7 @@ namespace gaia {
 				return state == JobState::Done;
 			}
 
-			//! Invokes the shared callback referenced by @a handle.
+			//! Invokes the shared callback referenced by \a handle.
 			//! \param handle Callback handle.
 			//! \param args Arguments forwarded to the callback.
 			void invoke_parallel_callback(ParallelCallbackHandle handle, const JobArgs& args) {
@@ -25865,7 +28962,7 @@ namespace gaia {
 				record.callback(args);
 			}
 
-			//! Releases one reference to the callback referenced by @a handle.
+			//! Releases one reference to the callback referenced by \a handle.
 			//! \param handle Callback handle.
 			//! \return True when the released reference was the last one.
 			GAIA_NODISCARD bool release_parallel_callback_ref(ParallelCallbackHandle handle) {
@@ -25946,6 +29043,7 @@ namespace gaia {
 				JobManager::signal_edge(jobData);
 			}
 		} // namespace detail
+		//! \endcond
 	} // namespace mt
 } // namespace gaia
 
@@ -25964,6 +29062,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+		//! Portable counting semaphore with indefinite waits.
 		class GAIA_API Semaphore final {
 #if GAIA_PLATFORM_WINDOWS
 			void* m_handle;
@@ -26011,6 +29110,8 @@ namespace gaia {
 			}
 
 		public:
+			//! Creates a semaphore with an initial count.
+			//! \param count Initial permit count.
 			explicit Semaphore(int32_t count = 0) {
 				init(count);
 			}
@@ -26020,6 +29121,7 @@ namespace gaia {
 			}
 
 			//! Increments semaphore count by the specified amount.
+			//! \param count Number of permits to release. Must be positive.
 			void release(int32_t count) {
 				GAIA_ASSERT(count > 0);
 
@@ -26042,6 +29144,7 @@ namespace gaia {
 			//! Decrements semaphore count by 1.
 			//! If the count is already 0, it waits indefinitely until semaphore count is incremented,
 			//! then decrements and returns. Returns false when an error occurs, otherwise returns true.
+			//! \return True when a permit was acquired successfully.
 			bool wait() {
 #if GAIA_PLATFORM_WINDOWS
 				GAIA_ASSERT(m_handle != (void*)ERROR_INVALID_HANDLE);
@@ -26079,10 +29182,13 @@ namespace gaia {
 			SemaphoreFast& operator=(const SemaphoreFast&) = delete;
 
 		public:
+			//! Creates a semaphore with the requested initial system-semaphore count.
+			//! \param count Initial count passed to the underlying semaphore.
 			explicit SemaphoreFast(int32_t count = 0): m_sem(count), m_cnt(0) {}
 			~SemaphoreFast() = default;
 
 			//! Increments semaphore count by the specified amount.
+			//! \param count Number of permits to release.
 			void release(int32_t count = 1) {
 				const int32_t prevCount = m_cnt.fetch_add(count, std::memory_order_release);
 				int32_t toRelease = -prevCount;
@@ -26096,6 +29202,7 @@ namespace gaia {
 			//! Decrements semaphore count by 1.
 			//! If the count is already 0, it waits indefinitely until semaphore count is incremented,
 			//! then decrements and returns. Returns false when an error occurs, otherwise returns true.
+			//! \return True when a permit was acquired successfully.
 			bool wait() {
 				const int32_t oldCount = m_cnt.fetch_sub(1, std::memory_order_acquire);
 				bool result = true;
@@ -26112,6 +29219,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace mt {
+		//! Non-recursive spin lock backed by an atomic flag.
 		class GAIA_API SpinLock final {
 			std::atomic_int32_t m_value{};
 
@@ -26121,11 +29229,14 @@ namespace gaia {
 			SpinLock(const SpinLock&) = delete;
 			SpinLock& operator=(const SpinLock&) = delete;
 
+			//! Attempts to acquire the lock without waiting.
+			//! \return True when the lock was acquired.
 			bool try_lock() {
 				// Attempt to acquire the lock without waiting
 				return 0 == m_value.exchange(1, std::memory_order_acquire);
 			}
 
+			//! Spins until the lock is acquired.
 			void lock() {
 				while (true) {
 					// The value has been changed, we successfully entered the lock
@@ -26138,6 +29249,7 @@ namespace gaia {
 				}
 			}
 
+			//! Releases the lock.
 			void unlock() {
 				// Release the lock
 				m_value.store(0, std::memory_order_release);
@@ -26169,6 +29281,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4324)
 
+		//! Process-wide worker pool for dependent frame and background jobs.
 		class GAIA_API ThreadPool final {
 			friend class JobManager;
 
@@ -26240,6 +29353,8 @@ namespace gaia {
 			ThreadPool& operator=(const ThreadPool&) = delete;
 
 		public:
+			//! Returns the process-wide thread-pool instance.
+			//! \return Singleton thread pool.
 			static ThreadPool& get() {
 				static ThreadPool threadPool;
 				return threadPool;
@@ -26255,11 +29370,13 @@ namespace gaia {
 			}
 
 			//! Returns the number of frame worker threads
+			//! \return Spawned frame worker count, excluding the main thread.
 			GAIA_NODISCARD uint32_t workers() const {
 				return m_frameWorkersCnt;
 			}
 
 			//! Returns the number of background worker threads
+			//! \return Spawned background worker count.
 			GAIA_NODISCARD uint32_t background_workers() const {
 				return m_backgroundWorkersCnt;
 			}
@@ -26268,7 +29385,7 @@ namespace gaia {
 			//! \param count Requested frame execution contexts, including the main thread.
 			//!              The number of spawned frame worker threads is one less.
 			//! \param countHighPrio Number of high-priority frame execution contexts.
-			//!                      Values larger than @a count are clamped.
+			//!                      Values larger than \a count are clamped.
 			//! \warning All jobs are finished first before threads are recreated.
 			void set_max_workers(uint32_t count, uint32_t countHighPrio) {
 				const auto maxFrameWorkers = MaxWorkers - m_backgroundWorkersCnt;
@@ -26403,10 +29520,10 @@ namespace gaia {
 				create_background_worker_threads(workerIdx);
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			void dep(JobHandle jobFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
@@ -26414,10 +29531,10 @@ namespace gaia {
 				m_jobManager.dep(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \warning This must must to be called before any of the listed jobs are scheduled.
 			void dep(std::span<JobHandle> jobsFirst, JobHandle jobSecond) {
 				GAIA_ASSERT(main_thread());
@@ -26425,10 +29542,10 @@ namespace gaia {
 				m_jobManager.dep(jobsFirst, jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on @a jobFirst.
-			//! This means @a jobSecond will not run until @a jobFirst finishes.
+			//! Makes \a jobSecond depend on \a jobFirst.
+			//! This means \a jobSecond will not run until \a jobFirst finishes.
 			//! \param jobFirst The job that must complete first.
-			//! \param jobSecond The job that will run after @a jobFirst.
+			//! \param jobSecond The job that will run after \a jobFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			//! \warning This must be called from the main thread.
@@ -26438,10 +29555,10 @@ namespace gaia {
 				m_jobManager.dep_refresh(std::span(&jobFirst, 1), jobSecond);
 			}
 
-			//! Makes @a jobSecond depend on the jobs listed in @a jobsFirst.
-			//! This means @a jobSecond will not run until all jobs from @a jobsFirst finish.
+			//! Makes \a jobSecond depend on the jobs listed in \a jobsFirst.
+			//! This means \a jobSecond will not run until all jobs from \a jobsFirst finish.
 			//! \param jobsFirst Jobs that must complete first.
-			//! \param jobSecond The job that will run after @a jobsFirst.
+			//! \param jobSecond The job that will run after \a jobsFirst.
 			//! \note Unlike dep() this function needs to be called when job handles are reused.
 			//! \warning This must be called before any of the listed jobs are scheduled.
 			//! \warning This must be called from the main thread.
@@ -26451,7 +29568,9 @@ namespace gaia {
 				m_jobManager.dep_refresh(jobsFirst, jobSecond);
 			}
 
-			//! Creates a threadpool job from @a job.
+			//! Creates a threadpool job from \a job.
+			//! \tparam TJob Job descriptor type convertible to Job.
+			//! \param job Job descriptor to allocate.
 			//! \warning Must be used from the main thread.
 			//! \warning Frame jobs should be created before frame work is submitted.
 			//!          It is valid to create new frame jobs while unrelated background jobs are running.
@@ -26502,7 +29621,8 @@ namespace gaia {
 			}
 
 		public:
-			//! Deletes a job handle @a jobHandle from the threadpool.
+			//! Deletes a job handle \a jobHandle from the threadpool.
+			//! \param jobHandle Completed or clear job to delete.
 			//! \warning Job handle must not be used by any worker thread and can not be used
 			//!          by any active job handles as a dependency.
 			void del([[maybe_unused]] JobHandle jobHandle) {
@@ -26522,11 +29642,12 @@ namespace gaia {
 				m_jobManager.free_job(jobHandle);
 			}
 
-			//! Pushes @a jobHandles into the internal queue so worker threads
+			//! Pushes \a jobHandles into the internal queue so worker threads
 			//! can pick them up and execute them.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
+			//! \param jobHandles Jobs to submit.
 			void submit(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
 					return;
@@ -26553,15 +29674,18 @@ namespace gaia {
 				process(std::span(pHandles, cnt), ctx);
 			}
 
-			//! Pushes @a jobHandle into the internal queue so worker threads
+			//! Pushes \a jobHandle into the internal queue so worker threads
 			//! can pick it up and execute it.
 			//! If there are more jobs than the queue can handle it puts the calling
 			//! thread to sleep until workers consume enough jobs.
 			//! \warning Once submitted, dependencies can't be modified for this job.
+			//! \param jobHandle Job to submit.
 			void submit(JobHandle jobHandle) {
 				submit(std::span(&jobHandle, 1));
 			}
 
+			//! Resets completed jobs to the clear reusable state without waiting.
+			//! \param jobHandles Completed jobs to reset.
 			void reset_state(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
 					return;
@@ -26574,11 +29698,14 @@ namespace gaia {
 				}
 			}
 
+			//! Resets a completed job to the clear reusable state without waiting.
+			//! \param jobHandle Completed job to reset.
 			void reset_state(JobHandle jobHandle) {
 				reset_state(std::span(&jobHandle, 1));
 			}
 
-			//! Waits for @a jobHandles to finish and resets them to a reusable state.
+			//! Waits for \a jobHandles to finish and resets them to a reusable state.
+			//! \param jobHandles Jobs to wait for and reset.
 			//! \warning Handles that were auto-deleted (non-manual jobs) are skipped.
 			void reset(std::span<JobHandle> jobHandles) {
 				if (jobHandles.empty())
@@ -26608,7 +29735,8 @@ namespace gaia {
 				}
 			}
 
-			//! Waits for @a jobHandle to finish and resets it to a reusable state.
+			//! Waits for \a jobHandle to finish and resets it to a reusable state.
+			//! \param jobHandle Job to wait for and reset.
 			void reset(JobHandle jobHandle) {
 				reset(std::span(&jobHandle, 1));
 			}
@@ -26849,8 +29977,8 @@ namespace gaia {
 			}
 
 			//! Wait until a job associated with the jobHandle finishes executing.
-			//! Cleans up any job allocations and dependencies associated with @a jobHandle.
-			//! The calling thread participates in frame job processing until @a jobHandle is done.
+			//! Cleans up any job allocations and dependencies associated with \a jobHandle.
+			//! The calling thread participates in frame job processing until \a jobHandle is done.
 			//! For background jobs, the calling thread only runs background work when no
 			//! background workers are configured.
 			//! \param jobHandle Job handle to wait for
@@ -27411,7 +30539,7 @@ namespace gaia {
 				return try_fetch_prio(ctx, ctx.prio, jobHandle);
 			}
 
-			//! Checks whether @a ctx is allowed to execute @a jobData inline.
+			//! Checks whether \a ctx is allowed to execute \a jobData inline.
 			//! \param ctx Calling worker context. Null when the submission comes from outside worker execution.
 			//! \param jobData Job being considered.
 			//! \return True when inline execution is allowed for forward progress.
@@ -27555,7 +30683,7 @@ namespace gaia {
 				return final_frame_prio(job.priority);
 			}
 
-			//! Checks whether @a jobData is routed through the background worker queue.
+			//! Checks whether \a jobData is routed through the background worker queue.
 			//! \param jobData Job to inspect.
 			//! \return True when the job is a background job.
 			GAIA_NODISCARD static bool is_background(const JobContainer& jobData) {
@@ -27766,10 +30894,14 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! Numeric portion shared by entity and component identifiers.
 		using IdentifierId = uint32_t;
+		//! Storage word used for packed identifier metadata.
 		using IdentifierData = uint32_t;
 
+		//! Numeric entity identifier type.
 		using EntityId = IdentifierId;
+		//! Numeric component identifier type.
 		using ComponentId = IdentifierId;
 	} // namespace ecs
 } // namespace gaia
@@ -27785,11 +30917,16 @@ namespace gaia {
 		class Archetype;
 		struct Entity;
 
+		//! Stable numeric identifier assigned to a cached query.
 		using QueryId = uint32_t;
+		//! Numeric key returned by query grouping callbacks.
 		using GroupId = uint32_t;
+		//! Dynamic binary buffer used to serialize query definitions.
 		using QuerySerBuffer = ser::ser_buffer_binary_dyn;
 
+		//! Comparator callback used to order query rows by component values.
 		using TSortByFunc = int (*)(const World&, const void*, const void*);
+		//! Callback used to assign an archetype entity to a query group.
 		using TGroupByFunc = GroupId (*)(const World&, const Archetype&, Entity);
 	} // namespace ecs
 } // namespace gaia
@@ -27807,6 +30944,10 @@ namespace gaia {
 
 		const ComponentCache& comp_cache(const World& world);
 		ComponentCache& comp_cache_mut(World& world);
+		//! Registers or retrieves metadata for a typed component.
+		//! \tparam T Component type to register.
+		//! \param world World whose component cache owns the registration.
+		//! \return Metadata for the registered component.
 		template <typename T>
 		const ComponentCacheItem& comp_cache_add(World& world);
 
@@ -27822,7 +30963,10 @@ namespace gaia {
 		Entity pair_rel(const World& world, Entity pair);
 		Entity pair_tgt(const World& world, Entity pair);
 
-		//! Returns whether @a entity currently exists and its generation matches the world's record.
+		//! Returns whether \p entity currently exists and its generation matches the world's record.
+		//! \param world World that owns the entity records.
+		//! \param entity Entity to validate.
+		//! \return True when the entity is alive in the world.
 		bool valid(const World& world, Entity entity);
 
 		bool is(const World& world, Entity entity, Entity baseEntity);
@@ -27833,7 +30977,7 @@ namespace gaia {
 		util::str_view entity_name(const World& world, Entity entity);
 		util::str_view entity_name(const World& world, EntityId entityId);
 		Entity target(const World& world, Entity entity, Entity relation);
-		//! Invokes @a func for each live target of @a entity through @a relation.
+		//! Invokes \a func for each live target of \a entity through \a relation.
 		//! This is a small C-style adapter used by header-only query/observer internals.
 		void
 		world_for_each_target(const World& world, Entity entity, Entity relation, void* ctx, void (*func)(void*, Entity));
@@ -27842,22 +30986,29 @@ namespace gaia {
 		bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation);
 		uint32_t world_enabled_hierarchy_version(const World& world);
 		//! Returns the version that changes when an archetype enters or leaves the deletion-request set.
+		//! \param world World whose archetype deletion state is inspected.
+		//! \return Current archetype deletion-set version.
 		uint32_t world_archetype_delete_version(const World& world);
 		//! Returns the current world structural version.
+		//! \param world World whose version is inspected.
+		//! \return Current structural version.
 		uint32_t world_version(const World& world);
-		//! Returns the current version of @a relation-specific traversal metadata.
+		//! Returns the current version of \p relation-specific traversal metadata.
+		//! \param world World that owns the traversal metadata.
+		//! \param relation Relation whose metadata version is inspected.
+		//! \return Current relation traversal version.
 		uint32_t world_rel_version(const World& world, Entity relation);
-		//! Returns whether @a relation is non-fragmenting.
+		//! Returns whether \a relation is non-fragmenting.
 		bool world_relation_is_non_fragmenting(const World& world, Entity relation);
-		//! Returns whether @a relation is treated as a hierarchy relation by traversal helpers.
+		//! Returns whether \a relation is treated as a hierarchy relation by traversal helpers.
 		bool world_relation_is_hierarchy(const World& world, Entity relation);
-		//! Returns whether @a relation fragments archetypes.
+		//! Returns whether \a relation fragments archetypes.
 		bool world_relation_is_fragmenting(const World& world, Entity relation);
-		//! Returns whether @a relation is both hierarchy-like and fragmenting.
+		//! Returns whether \a relation is both hierarchy-like and fragmenting.
 		bool world_relation_is_fragmenting_hierarchy(const World& world, Entity relation);
-		//! Returns whether @a relation supports cached depth-order traversal.
+		//! Returns whether \a relation supports cached depth-order traversal.
 		bool world_relation_supports_depth_order(const World& world, Entity relation);
-		//! Returns whether depth-order traversal for @a relation skips disabled subtrees.
+		//! Returns whether depth-order traversal for \a relation skips disabled subtrees.
 		bool world_relation_depth_order_prunes_disabled_subtrees(const World& world, Entity relation);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id);
@@ -27912,6 +31063,7 @@ namespace gaia {
 
 #include <cstdint>
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class Archetype;
@@ -27972,6 +31124,7 @@ namespace gaia {
 		using ArchetypeMapById = cnt::map<ArchetypeIdLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 
@@ -27996,6 +31149,7 @@ namespace gaia {
 			//! Data stored in sparse storage
 			Sparse,
 
+			//! Number of supported storage modes.
 			Count = 2
 		};
 
@@ -28094,9 +31248,9 @@ namespace gaia {
 		//----------------------------------------------------------------------
 
 		enum EntityKind : uint8_t {
-			// Generic entity, one per entity
+			//! Generic entity with one value per entity.
 			EK_Gen = 0,
-			// Unique entity, one per chunk
+			//! Unique entity with one value per chunk.
 			EK_Uni
 		};
 
@@ -28127,6 +31281,7 @@ namespace gaia {
 			using TTypeOriginal = T;
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct has_entity_kind: std::false_type {};
@@ -28173,6 +31328,7 @@ namespace gaia {
 				using type = typename detail::ExtractComponentType_WithEntityKind<T>;
 			};
 		} // namespace detail
+		//! \endcond
 
 		template <typename T>
 		using component_type_t = typename detail::component_type<T>::type;
@@ -28184,15 +31340,17 @@ namespace gaia {
 		// Pair helpers
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct pair_base {};
 		} // namespace detail
+		//! \endcond
 
 		//! Wrapper for two types forming a relationship pair.
 		//! Depending on what types are used to form a pair it can contain a value.
 		//! To determine the storage type the following logic is applied:
-		//! If @a Rel is non-empty, the storage type is Rel.
-		//! If @a Rel is empty and @a Tgt is non-empty, the storage type is Tgt.
+		//! If \a Rel is non-empty, the storage type is Rel.
+		//! If \a Rel is empty and \a Tgt is non-empty, the storage type is Tgt.
 		//! \tparam Rel relation part of the relationship
 		//! \tparam Tgt target part of the relationship
 		template <typename Rel, typename Tgt>
@@ -28335,6 +31493,7 @@ namespace gaia {
 
 		inline static const Entity EntityBad = Entity(IdentifierBad);
 
+		//! \cond INTERNAL
 		namespace detail {
 			struct EntityLoadRemapState {
 				uint32_t savedLastCoreComponentId = 0;
@@ -28415,6 +31574,7 @@ namespace gaia {
 				return remap_loaded_entity(entity, state.savedLastCoreComponentId, state.currLastCoreComponentId);
 			}
 		} // namespace detail
+		//! \endcond
 
 		template <typename Serializer>
 		inline void Entity::save(Serializer& s) const {
@@ -28542,6 +31702,7 @@ namespace gaia {
 		// Core components
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, typename U = void>
 			struct actual_type {
@@ -28554,6 +31715,7 @@ namespace gaia {
 				using type = typename component_type<storage_type>::type;
 			};
 		} // namespace detail
+		//! \endcond
 
 		template <typename T>
 		using actual_type_t = typename detail::actual_type<T>::type;
@@ -28792,6 +31954,7 @@ namespace gaia {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct auto_storage_policy_inter {
@@ -28802,6 +31965,7 @@ namespace gaia {
 				static constexpr DataStorageType data_storage_type = T::gaia_Data_Storage;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Returns the storage mode requested by a C++ component type.
 		//! \tparam T Component payload type.
@@ -28812,6 +31976,7 @@ namespace gaia {
 		// Component verification
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
@@ -28823,6 +31988,7 @@ namespace gaia {
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 		} // namespace detail
+		//! \endcond
 
 		//----------------------------------------------------------------------
 		// Component verification
@@ -28925,6 +32091,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -28982,26 +32149,26 @@ namespace gaia {
 				add_edge(m_edgesDel, entity, archetypeId, hash);
 			}
 
-			//! Deletes the "add" edge formed by the entity @a entity.
+			//! Deletes the "add" edge formed by the entity \a entity.
 			//! \param entity Edge entity.
 			void del_edge_right(Entity entity) {
 				del_edge(m_edgesAdd, entity);
 			}
 
-			//! Deletes the "del" edge formed by the entity @a entity.
+			//! Deletes the "del" edge formed by the entity \a entity.
 			//! \param entity Edge entity.
 			void del_edge_left(Entity entity) {
 				del_edge(m_edgesDel, entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! Checks if an archetype graph "add" edge with entity \a entity exists.
 			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return find_edge(m_edgesAdd, entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! Checks if an archetype graph "del" edge with entity \a entity exists.
 			//! \param entity Edge entity.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeGraphEdgeBad otherwise.
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
@@ -29062,6 +32229,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 #include <cstring>
@@ -29075,6 +32243,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			struct MemoryBlockHeader final {
 				uintptr_t m_pageAddr = 0;
@@ -29086,8 +32255,11 @@ namespace gaia {
 
 			class ChunkAllocatorImpl;
 		} // namespace detail
+		//! \endcond
 
+		//! Alignment of chunk allocator memory blocks in bytes.
 		static constexpr uint32_t MemoryBlockAlignment = 64;
+		//! Size of the smallest allocator block class in bytes.
 		static constexpr uint32_t MinMemoryBlockSize = 1024 * 8;
 		//! Number of chunk allocator block size classes: 8, 16, 32 and 64 KiB-class blocks.
 		static constexpr uint32_t MemoryBlockSizeClasses = 4;
@@ -29097,12 +32269,18 @@ namespace gaia {
 		//! Validated against the actual chunk layout in Chunk::chunk_header_size().
 		static constexpr uint32_t MemoryBlockUsableOffset = 40;
 
+		//! Returns the block size represented by an allocator size-class index.
+		//! \param sizeType Size-class index in the range supported by the allocator.
+		//! \return Block size in bytes.
 		constexpr uint16_t mem_block_size(uint32_t sizeType) {
 			constexpr uint16_t sizes[] = {
 					MinMemoryBlockSize, MinMemoryBlockSize * 2, MinMemoryBlockSize * 4, MaxMemoryBlockSize};
 			return sizes[sizeType];
 		}
 
+		//! Selects the smallest allocator size class that can hold a request.
+		//! \param sizeBytes Positive requested block size in bytes.
+		//! \return Allocator size-class index.
 		constexpr uint8_t mem_block_size_type(uint32_t sizeBytes) {
 			GAIA_ASSERT(sizeBytes > 0);
 			if (sizeBytes <= MinMemoryBlockSize)
@@ -29138,6 +32316,7 @@ namespace gaia {
 
 		using ChunkAllocator = core::dyn_singleton<detail::ChunkAllocatorImpl>;
 
+		//! \cond INTERNAL
 		namespace detail {
 			static_assert(sizeof(MemoryBlockHeader) <= MemoryBlockUsableOffset);
 
@@ -29742,6 +32921,7 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
 #endif
 
@@ -29750,6 +32930,7 @@ namespace gaia {
 
 #include <cstdint>
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -29870,11 +33051,16 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 
 namespace gaia {
 	namespace ecs {
+		//! Tests whether a change version is newer than a required version, including wraparound.
+		//! \param changeVersion Version recorded when data last changed.
+		//! \param requiredVersion Baseline version required by the caller.
+		//! \return True when the change occurred after the baseline.
 		GAIA_NODISCARD inline bool version_changed(uint32_t changeVersion, uint32_t requiredVersion) {
 			// When a system runs for the first time, everything is considered changed.
 			if GAIA_UNLIKELY (requiredVersion == 0U)
@@ -29886,6 +33072,8 @@ namespace gaia {
 			return (int)(changeVersion - requiredVersion) > 0;
 		}
 
+		//! Advances a version counter while reserving zero as an invalid value.
+		//! \param version Version counter to advance.
 		inline void update_version(uint32_t& version) {
 			++version;
 			// Handle wrap-around, 0 is reserved for systems that have never run.
@@ -29904,8 +33092,11 @@ namespace gaia {
 
 namespace gaia {
 	namespace core {
+		//! Fixed-limit string lookup key carrying a precomputed 32-bit hash.
+		//! \tparam MaxLen Maximum supported string length used by bounded comparisons.
 		template <uint32_t MaxLen>
 		struct StringLookupKey {
+			//! Direct hash wrapper used by lookup containers.
 			using LookupHash = core::direct_hash_key<uint32_t>;
 
 		private:
@@ -29932,11 +33123,13 @@ namespace gaia {
 			}
 
 		public:
+			//! Marker indicating that this key provides its hash directly.
 			static constexpr bool IsDirectHashKey = true;
 
+			//! Constructs an empty lookup key.
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
 
-			//! Constructor calculating hash from the provided string @a pStr and @a len.
+			//! Constructor calculating hash from the provided string \a pStr and \a len.
 			//! \param pStr Pointer to the string
 			//! \param len Number of characters
 			//! \param owned True if the string is owned
@@ -29953,22 +33146,33 @@ namespace gaia {
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 
+			//! Returns the referenced string.
+			//! \return Pointer to the string, or nullptr for an empty key.
 			const char* str() const {
 				return m_pStr;
 			}
 
+			//! Returns the string length.
+			//! \return Number of characters in the string.
 			uint32_t len() const {
 				return m_len;
 			}
 
+			//! Reports whether Gaia-ECS manages the string lifetime.
+			//! \return True when the referenced string is owned by the framework.
 			bool owned() const {
 				return m_owned == 1;
 			}
 
+			//! Returns the precomputed string hash.
+			//! \return The 32-bit hash value.
 			uint32_t hash() const {
 				return m_hash.hash;
 			}
 
+			//! Compares keys by hash, length, and string contents.
+			//! \param other Key to compare with.
+			//! \return True when both keys identify equal strings.
 			bool operator==(const StringLookupKey& other) const {
 				// Hash doesn't match we don't have a match.
 				// Hash collisions are expected to be very unlikely so optimize for this case.
@@ -29990,6 +33194,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares keys for inequality.
+			//! \param other Key to compare with.
+			//! \return True when the keys identify different strings.
 			bool operator!=(const StringLookupKey& other) const {
 				return !operator==(other);
 			}
@@ -30029,7 +33236,7 @@ namespace gaia {
 		};
 
 		//! User-authored runtime field descriptor.
-		//! A count of 0 means scalar; positive values describe a fixed inline array.
+		//! A count of 0 means scalar. Positive values describe a fixed inline array.
 		struct RuntimeFieldDesc final {
 			//! Field symbol.
 			util::str_view name{};
@@ -30103,7 +33310,7 @@ namespace gaia {
 			bool (*count)(void*, const RuntimeSequenceScope&, uint32_t&) = nullptr;
 			//! Selects one element by index. Required for traversal.
 			bool (*element)(void*, const RuntimeSequenceScope&, uint32_t, RuntimeSequenceElement&) = nullptr;
-			//! Resizes the sequence. Optional; required for JSON load into dynamic sequences.
+			//! Resizes the sequence. Optional. Required for JSON load into dynamic sequences.
 			bool (*resize)(void*, RuntimeSequenceScope&, uint32_t) = nullptr;
 			//! Commits a projected element after cursor writes. Optional for direct element pointers.
 			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
@@ -30178,8 +33385,8 @@ namespace gaia {
 			DataStorageType storageType = DataStorageType::Table;
 			//! Number of SoA elements, 0 means AoS.
 			uint32_t soa = 0;
-			//! Per-element SoA sizes when @a soa is non-zero. The array must contain @a soa non-zero entries and
-			//! their sum must not exceed @a size.
+			//! Per-element SoA sizes when \a soa is non-zero. The array must contain \a soa non-zero entries and
+			//! their sum must not exceed \a size.
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};
@@ -30548,6 +33755,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -30570,9 +33778,9 @@ namespace gaia {
 			//! Interned lookup key type used for component symbols.
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
-			//! Constructs @a cnt component values in raw storage.
+			//! Constructs \a cnt component values in raw storage.
 			using FuncCtor = void(void*, uint32_t);
-			//! Destroys @a cnt component values in raw storage.
+			//! Destroys \a cnt component values in raw storage.
 			using FuncDtor = void(void*, uint32_t);
 			//! Moves or copies component values between different storage layouts.
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -30610,7 +33818,7 @@ namespace gaia {
 			Component comp;
 			//! Hash used for component lookup by registered symbol.
 			ComponentLookupHash hashLookup;
-			//! Per-element byte sizes for SoA components; unused for AoS components.
+			//! Per-element byte sizes for SoA components. Unused for AoS components.
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Registered component symbol.
@@ -30682,7 +33890,7 @@ namespace gaia {
 
 			//! Returns the physical SoA field-array cardinality for this component.
 			//! \param capacity Capacity of the containing chunk.
-			//! \return One for unique components, otherwise @a capacity.
+			//! \return One for unique components, otherwise \a capacity.
 			GAIA_NODISCARD uint32_t soa_capacity(uint32_t capacity) const noexcept {
 				return entity.kind() == EntityKind::EK_Uni ? 1U : capacity;
 			}
@@ -30731,9 +33939,7 @@ namespace gaia {
 				}
 			}
 
-			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
-			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
 			~ComponentCacheItem() = default;
 
 		public:
@@ -30977,7 +34183,7 @@ namespace gaia {
 
 			//! Gets the byte size of a reflected primitive runtime type entity.
 			//! \param type Primitive type entity.
-			//! \return Primitive byte size, or 0 when @a type is not a reflected primitive type.
+			//! \return Primitive byte size, or 0 when \a type is not a reflected primitive type.
 			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
 				ser::serialization_type_id id = ser::serialization_type_id::ignore;
 				if (!runtime_primitive_serialization_type(type, id))
@@ -31111,7 +34317,7 @@ namespace gaia {
 
 #endif
 
-			//! Calculates the next aligned memory offset after storing @a cnt values of this component.
+			//! Calculates the next aligned memory offset after storing \a cnt values of this component.
 			//! \param addr Starting byte offset.
 			//! \param cnt Number of component values to reserve.
 			//! \return Byte offset after the component storage block.
@@ -31250,7 +34456,7 @@ namespace gaia {
 			//! Creates metadata for a compile-time C++ component type.
 			//! \tparam T Component type to register.
 			//! \param entity Component entity that owns the resulting metadata.
-			//! \return Newly allocated component cache item; release with destroy().
+			//! \return Newly allocated component cache item. Release with destroy().
 			template <typename T>
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
@@ -31279,7 +34485,7 @@ namespace gaia {
 			//! Creates metadata from a plain component descriptor.
 			//! \param entity Component entity that owns the resulting metadata.
 			//! \param desc Component descriptor describing storage, lifecycle, and runtime type metadata.
-			//! \return Newly allocated component cache item; release with destroy().
+			//! \return Newly allocated component cache item. Release with destroy().
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
@@ -31348,7 +34554,7 @@ namespace gaia {
 			}
 
 			//! Releases a cache item and any owned symbol storage.
-			//! \param pItem Cache item created by create(); null is accepted.
+			//! \param pItem Cache item created by create(). Null is accepted.
 			static void destroy(ComponentCacheItem* pItem) {
 				if (pItem == nullptr)
 					return;
@@ -31363,7 +34569,9 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -32005,7 +35213,7 @@ namespace gaia {
 				return short_symbol(normalize_name_view(name, len));
 			}
 
-			//! Appends every component entity whose scoped path exactly matches @a name.
+			//! Appends every component entity whose scoped path exactly matches \a name.
 			//! Unique matches append one entity. Ambiguous matches append all matching component entities.
 			//! \param out Output array.
 			//! \param name Exact scoped path to inspect.
@@ -32085,10 +35293,12 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 #include <type_traits>
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct EntityContainer;
@@ -32228,7 +35438,7 @@ namespace gaia {
 				m_records = {};
 			}
 
-			//! Checks whether @a entity has a pair record.
+			//! Checks whether \a entity has a pair record.
 			//! \param entity Pair entity.
 			//! \return True when a pair record exists.
 			GAIA_NODISCARD bool contains(Entity entity) const {
@@ -32347,7 +35557,7 @@ namespace gaia {
 				m_pairRecords.clear();
 			}
 
-			//! Checks whether @a entity has a pair record.
+			//! Checks whether \a entity has a pair record.
 			//! \param entity Pair entity.
 			//! \return True when a pair record exists.
 			GAIA_NODISCARD bool pair_record_contains(Entity entity) const {
@@ -32716,6 +35926,7 @@ namespace gaia {
 		}
 	} // namespace cnt
 } // namespace gaia
+//! \endcond
 
 namespace gaia {
 	namespace ecs {
@@ -32857,7 +36068,7 @@ namespace gaia {
 			//! \param from Starting row
 			//! \param to Ending row
 			//! \return Span of read-only component data.
-			//! \warning It is expected the component column @a compIdx is valid for @a T.
+			//! \warning It is expected the component column \a compIdx is valid for \a T.
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter_idx(uint32_t compIdx, uint32_t from, uint32_t to) const //
 					-> decltype(std::span<const uint8_t>{}) {
@@ -32906,7 +36117,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only span of the component data.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from Starting row
 			//! \param to Ending row
@@ -32931,7 +36142,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 			//! \param compIdx Index of component column
@@ -33023,7 +36234,7 @@ namespace gaia {
 
 		public:
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component with @a compIdx is present. Undefined behavior otherwise.
+			//! \warning It is expected the component with \a compIdx is present. Undefined behavior otherwise.
 			//! \param compIdx Component index
 			//! \param row Row of entity in the chunk
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
@@ -33063,9 +36274,9 @@ namespace gaia {
 			}
 
 		private:
-			//! Returns the value stored in the component @a T on @a row in the chunk.
-			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! Returns the value stored in the component \a T on \a row in the chunk.
+			//! \warning It is expected the \a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param row Row of entity in the chunk
 			//! \return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
@@ -33184,7 +36395,7 @@ namespace gaia {
 				return pChunk;
 			}
 
-			//! Releases all memory allocated by @a pChunk.
+			//! Releases all memory allocated by \a pChunk.
 			//! \param pChunk Chunk which we want to destroy
 			static void free(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
@@ -33299,7 +36510,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -33327,7 +36538,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -33359,7 +36570,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -33389,9 +36600,9 @@ namespace gaia {
 				return sview_mut<T>(0, m_header.count);
 			}
 
-			//! Marks the component @a T as modified. Best used with sview to manually trigger
+			//! Marks the component \a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If @a TriggerSetHooks is true, also triggers the component's set hooks.
+			//! If \a TriggerSetHooks is true, also triggers the component's set hooks.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -33450,7 +36661,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -33472,7 +36683,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -33545,7 +36756,7 @@ namespace gaia {
 				return row;
 			}
 
-			//! Copies all data associated with @a srcEntity into @a dstEntity.
+			//! Copies all data associated with \a srcEntity into \a dstEntity.
 			//! \param srcEntity Source entity
 			//! \param dstEntity Destination entity
 			//! \param recs Entity containers
@@ -33576,7 +36787,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in the same-archetype chunk.
+			//! Copies all data associated with \a srcRow into \a dstCount consecutive rows in the same-archetype chunk.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -33609,7 +36820,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in a foreign chunk.
+			//! Copies all data associated with \a srcRow into \a dstCount consecutive rows in a foreign chunk.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -33669,7 +36880,7 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Moves all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param entity Entity to move
 			//! \param row Entity's row within its chunk
 			//! \param recs Entity containers
@@ -33693,7 +36904,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Copies all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -33756,7 +36967,7 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Moves all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -33819,7 +37030,7 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at @a row.
+			//! Tries to remove the entity at \a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
@@ -33883,7 +37094,7 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at row @a row.
+			//! Tries to remove the entity at row \a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
@@ -33916,9 +37127,9 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to swap the entity at row @a rowA with the one at the row @a rowB.
+			//! Tries to swap the entity at row \a rowA with the one at the row \a rowB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If @a rowA equals @a rowB no swapping is performed.
+			//! If \a rowA equals \a rowB no swapping is performed.
 			//! \param rowA Row of the entityA within chunk
 			//! \param rowB Row of the entityB within chunk
 			//! \param[out] recs Entity container records
@@ -33961,9 +37172,9 @@ namespace gaia {
 				ecB.pEntity = &ev[rowA];
 			}
 
-			//! Tries to swap @a entityA with @a entityB.
+			//! Tries to swap \a entityA with \a entityB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If @a entityA and @a entityB are the same entity no swapping is performed.
+			//! If \a entityA and \a entityB are the same entity no swapping is performed.
 			//! \param world Parent world
 			//! \param entityA First entity
 			//! \param entityB Second entity
@@ -34135,7 +37346,7 @@ namespace gaia {
 			// Check component presence
 			//----------------------------------------------------------------------
 
-			//! Checks if a component/entity @a entity is present in the chunk.
+			//! Checks if a component/entity \a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if found. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
@@ -34143,7 +37354,7 @@ namespace gaia {
 				return core::has(ids, entity);
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -34162,10 +37373,10 @@ namespace gaia {
 			// Set component data
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the unique component @a T on @a row in the chunk.
+			//! Sets the value of the unique component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
@@ -34219,10 +37430,10 @@ namespace gaia {
 				return comp_mut_idx<T, true>(0, compIdx);
 			}
 
-			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
+			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
 				const uint32_t compIdx = comp_idx(type);
@@ -34240,10 +37451,10 @@ namespace gaia {
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
-			//! Sets the value of the unique component @a T on @a row in the chunk.
+			//! Sets the value of the unique component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row) {
@@ -34280,11 +37491,11 @@ namespace gaia {
 				return comp_mut_idx<T, false>(0, compIdx);
 			}
 
-			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
+			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row, Entity type) {
@@ -34305,11 +37516,11 @@ namespace gaia {
 			// Read component data
 			//----------------------------------------------------------------------
 
-			//! Returns the value stored in the generic component @a T on @a row in the chunk.
+			//! Returns the value stored in the generic component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the \a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
@@ -34320,7 +37531,7 @@ namespace gaia {
 				return comp_inter<T>(row);
 			}
 
-			//! Returns the value stored in the generic component @a T using a pre-resolved component column.
+			//! Returns the value stored in the generic component \a T using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param compIdx Pre-resolved component column index
@@ -34333,7 +37544,7 @@ namespace gaia {
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
-			//! Returns the value stored in the generic component @a type on @a row in the chunk.
+			//! Returns the value stored in the generic component \a type on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
@@ -34350,9 +37561,9 @@ namespace gaia {
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
-			//! Returns the value stored in the unique component @a T.
+			//! Returns the value stored in the unique component \a T.
 			//! \tparam T Component or pair
-			//! \warning It is expected the unique component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the unique component \a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
@@ -34363,7 +37574,7 @@ namespace gaia {
 				return comp_inter<T>(0);
 			}
 
-			//! Returns the value stored in the unique component @a T using a pre-resolved component column.
+			//! Returns the value stored in the unique component \a T using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param compIdx Pre-resolved component column index
 			template <typename T>
@@ -34386,7 +37597,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the internal index of a component based on the provided @a entity.
+			//! Returns the internal index of a component based on the provided \a entity.
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			//! \warning The component id must be present in the array.
@@ -34394,7 +37605,7 @@ namespace gaia {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
-			//! Returns the internal index of a component based on the provided @a entity.
+			//! Returns the internal index of a component based on the provided \a entity.
 			//! \param entity Component
 			//! \param offset Component offset
 			//! \return Component index if the component was found. -1 otherwise.
@@ -34541,7 +37752,7 @@ namespace gaia {
 				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
-			//! Returns true if entity order changed since @a requiredVersion.
+			//! Returns true if entity order changed since \a requiredVersion.
 			//! This is narrower than changed(requiredVersion): unrelated component writes do not affect it.
 			GAIA_NODISCARD bool entity_order_changed(uint32_t requiredVersion) const {
 				return ::gaia::ecs::version_changed(m_header.entityOrderVersion, requiredVersion);
@@ -34594,6 +37805,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct Entity;
@@ -34684,6 +37896,7 @@ namespace gaia {
 #endif
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 namespace gaia {
 	namespace ecs {
@@ -34691,6 +37904,7 @@ namespace gaia {
 		class Archetype;
 		struct EntityContainer;
 
+		//! \cond INTERNAL
 		namespace detail {
 			GAIA_NODISCARD inline bool cmp_comps(EntitySpan comps, EntitySpan compsOther) {
 				const auto s0 = comps.size();
@@ -34709,6 +37923,7 @@ namespace gaia {
 				return true;
 			}
 		} // namespace detail
+		//! \endcond
 
 		struct ArchetypeChunkPair {
 			Archetype* pArchetype;
@@ -35054,7 +38269,7 @@ namespace gaia {
 				}
 			}
 
-			//! Estimates whether another entity still fits in the chunk described by @a comps.
+			//! Estimates whether another entity still fits in the chunk described by \a comps.
 			//! \param cc Component metadata cache.
 			//! \param offs Current byte offset inside the chunk payload.
 			//! \param ids Entitiies laid out in the chunk.
@@ -35506,7 +38721,7 @@ namespace gaia {
 				return m_runtime.observedTermCnt != 0;
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -35750,28 +38965,28 @@ namespace gaia {
 				m_edges.graph.del_edge_left(entity);
 			}
 
-			//! Deletes a cached local "add" edge formed by @a entity.
+			//! Deletes a cached local "add" edge formed by \a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
 			//! \param entity Entity to remove
 			void del_graph_edge_right_local(Entity entity) {
 				m_edges.graph.del_edge_right(entity);
 			}
 
-			//! Deletes a cached local "del" edge formed by @a entity.
+			//! Deletes a cached local "del" edge formed by \a entity.
 			//! Intended for stale edge cache recovery when the opposite archetype no longer exists.
 			//! \param entity Entity to remove
 			void del_graph_edge_left_local(Entity entity) {
 				m_edges.graph.del_edge_left(entity);
 			}
 
-			//! Checks if an archetype graph "add" edge with entity @a entity exists.
+			//! Checks if an archetype graph "add" edge with entity \a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_right(Entity entity) const {
 				return m_edges.graph.find_edge_right(entity);
 			}
 
-			//! Checks if an archetype graph "del" edge with entity @a entity exists.
+			//! Checks if an archetype graph "del" edge with entity \a entity exists.
 			//! \return Archetype id of the target archetype if the edge is found. ArchetypeIdBad otherwise.
 			//! \param entity Entity to find
 			GAIA_NODISCARD ArchetypeGraphEdge find_edge_left(Entity entity) const {
@@ -36045,7 +39260,7 @@ namespace gaia {
 		//! Non-owning read-only view over raw component bytes on an entity.
 		//!
 		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::get_raw(...)`; keeping it out of the view
+		//! omitted because callers already pass it to `World::get_raw(...)`. Keeping it out of the view
 		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
 		//! and `ComponentRawViewFlag_Valid` set.
 		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
@@ -36068,7 +39283,7 @@ namespace gaia {
 		//! Non-owning mutable view over raw component bytes on an entity.
 		//!
 		//! The view intentionally stores only a pointer, byte size, and flags. The component id is
-		//! omitted because callers already pass it to `World::mut_raw(...)`; keeping it out of the view
+		//! omitted because callers already pass it to `World::mut_raw(...)`. Keeping it out of the view
 		//! keeps the return value compact. A valid tag is represented by `data == nullptr`, `size == 0`,
 		//! and `ComponentRawViewFlag_Valid` set.
 		//! \note Treat the view as a short-lived borrow. Structural changes can invalidate `data`.
@@ -36118,7 +39333,18 @@ namespace gaia {
 		ComponentRawMutView world_mut_raw_field(World& world, Entity entity, Entity component, uint32_t fieldIdx);
 
 		//! Result status for ComponentCursor operations.
-		enum class CursorStatus : uint8_t { Ok, Invalid, ReadOnly, TypeMismatch, OutOfRange };
+		enum class CursorStatus : uint8_t {
+			//! Operation completed successfully.
+			Ok,
+			//! Cursor or selected value is invalid.
+			Invalid,
+			//! Operation requires mutable access but the cursor is read-only.
+			ReadOnly,
+			//! Requested value type does not match the selected field type.
+			TypeMismatch,
+			//! Requested element or field index is outside the valid range.
+			OutOfRange
+		};
 
 		//! Result of reading or writing through a ComponentCursor.
 		//! \tparam T Value type returned by the operation.
@@ -36157,22 +39383,22 @@ namespace gaia {
 			}
 		};
 
-		//! \return True when @a result has status @a status.
+		//! \return True when \a result has status \a status.
 		GAIA_NODISCARD inline bool operator==(CursorResult<void> result, CursorStatus status) noexcept {
 			return result.status == status;
 		}
 
-		//! \return True when @a result has status @a status.
+		//! \return True when \a result has status \a status.
 		GAIA_NODISCARD inline bool operator==(CursorStatus status, CursorResult<void> result) noexcept {
 			return result.status == status;
 		}
 
-		//! \return True when @a result does not have status @a status.
+		//! \return True when \a result does not have status \a status.
 		GAIA_NODISCARD inline bool operator!=(CursorResult<void> result, CursorStatus status) noexcept {
 			return result.status != status;
 		}
 
-		//! \return True when @a result does not have status @a status.
+		//! \return True when \a result does not have status \a status.
 		GAIA_NODISCARD inline bool operator!=(CursorStatus status, CursorResult<void> result) noexcept {
 			return result.status != status;
 		}
@@ -36186,14 +39412,13 @@ namespace gaia {
 			//! Maximum nested field depth tracked by the cursor.
 			static constexpr uint32_t MaxDepth = 32;
 
-			//! Creates an invalid cursor.
 			ComponentCursor() = default;
 
 			//! Creates a read-only cursor from a raw component view.
 			//! \param components Component metadata registry used for field/type lookup.
-			//! \param component Component/type entity represented by @a view.
+			//! \param component Component/type entity represented by \a view.
 			//! \param view Raw component view returned by World::get_raw().
-			//! \return Cursor positioned at the root component payload, or invalid cursor when @a view is invalid.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when \a view is invalid.
 			GAIA_NODISCARD static ComponentCursor
 			from_raw(const ComponentCache& components, Entity component, ComponentRawView view) {
 				ComponentCursor cursor{};
@@ -36213,10 +39438,10 @@ namespace gaia {
 			//! Creates a mutable cursor from a raw component view.
 			//! \param world World owning the mutated chunk storage.
 			//! \param components Component metadata registry used for field/type lookup.
-			//! \param entity Entity whose component payload is represented by @a view.
-			//! \param component Component/type entity represented by @a view.
+			//! \param entity Entity whose component payload is represented by \a view.
+			//! \param component Component/type entity represented by \a view.
 			//! \param view Raw component view returned by World::mut_raw().
-			//! \return Cursor positioned at the root component payload, or invalid cursor when @a view is invalid.
+			//! \return Cursor positioned at the root component payload, or invalid cursor when \a view is invalid.
 			GAIA_NODISCARD static ComponentCursor from_raw(
 					World& world, const ComponentCache& components, Entity entity, Entity component, ComponentRawMutView view) {
 				ComponentCursor cursor{};
@@ -36383,7 +39608,7 @@ namespace gaia {
 				return result;
 			}
 
-			//! Descends into the reflected field at @a index.
+			//! Descends into the reflected field at \a index.
 			//! \param index Reflected field index on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(uint32_t index) {
@@ -36400,7 +39625,7 @@ namespace gaia {
 				return pField != nullptr ? descend(*pField, index) : false;
 			}
 
-			//! Descends into the reflected field named @a name.
+			//! Descends into the reflected field named \a name.
 			//! \param name Reflected field name on the current type.
 			//! \return True when the cursor moved to the field.
 			bool field(util::str_view name) {
@@ -36424,7 +39649,7 @@ namespace gaia {
 				return index < fieldCount && descend(*pField, index);
 			}
 
-			//! Descends into element @a index of the current fixed inline or named array scope.
+			//! Descends into element \a index of the current fixed inline or named array scope.
 			//! \param index Element index inside the current field.
 			//! \return True when the cursor moved to the element.
 			bool elem(uint32_t index) noexcept {
@@ -36542,7 +39767,7 @@ namespace gaia {
 			}
 
 			//! Moves back to the parent cursor scope.
-			//! \return True when the cursor moved to the parent; false at root or when invalid.
+			//! \return True when the cursor moved to the parent. False at root or when invalid.
 			bool parent() noexcept {
 				if (!m_valid || m_depth == 0)
 					return false;
@@ -36556,7 +39781,7 @@ namespace gaia {
 				return read_primitive<bool>(Bool);
 			}
 
-			//! Writes @a value to the current cursor value as a bool.
+			//! Writes \a value to the current cursor value as a bool.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> b(bool value) noexcept {
@@ -36569,7 +39794,7 @@ namespace gaia {
 				return read_primitive<char>(Char8);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c8.
+			//! Writes \a value to the current cursor value as a scalar c8.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c8(char value) noexcept {
@@ -36642,7 +39867,7 @@ namespace gaia {
 				return read_primitive<char16_t>(Char16);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c16.
+			//! Writes \a value to the current cursor value as a scalar c16.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c16(char16_t value) noexcept {
@@ -36655,7 +39880,7 @@ namespace gaia {
 				return read_primitive<char32_t>(Char32);
 			}
 
-			//! Writes @a value to the current cursor value as a scalar c32.
+			//! Writes \a value to the current cursor value as a scalar c32.
 			//! \param value Value to write.
 			//! \return Write result.
 			GAIA_NODISCARD CursorResult<void> c32(char32_t value) noexcept {
@@ -36667,7 +39892,7 @@ namespace gaia {
 				return read_primitive<int8_t>(S8);
 			}
 
-			//! Writes @a value to the current cursor value as an s8.
+			//! Writes \a value to the current cursor value as an s8.
 			GAIA_NODISCARD CursorResult<void> s8(int8_t value) noexcept {
 				return write_primitive(S8, value);
 			}
@@ -36677,7 +39902,7 @@ namespace gaia {
 				return read_primitive<uint8_t>(U8);
 			}
 
-			//! Writes @a value to the current cursor value as a u8.
+			//! Writes \a value to the current cursor value as a u8.
 			GAIA_NODISCARD CursorResult<void> u8(uint8_t value) noexcept {
 				return write_primitive(U8, value);
 			}
@@ -36687,7 +39912,7 @@ namespace gaia {
 				return read_primitive<int16_t>(S16);
 			}
 
-			//! Writes @a value to the current cursor value as an s16.
+			//! Writes \a value to the current cursor value as an s16.
 			GAIA_NODISCARD CursorResult<void> s16(int16_t value) noexcept {
 				return write_primitive(S16, value);
 			}
@@ -36697,7 +39922,7 @@ namespace gaia {
 				return read_primitive<uint16_t>(U16);
 			}
 
-			//! Writes @a value to the current cursor value as a u16.
+			//! Writes \a value to the current cursor value as a u16.
 			GAIA_NODISCARD CursorResult<void> u16(uint16_t value) noexcept {
 				return write_primitive(U16, value);
 			}
@@ -36707,7 +39932,7 @@ namespace gaia {
 				return read_primitive<int32_t>(S32);
 			}
 
-			//! Writes @a value to the current cursor value as an s32.
+			//! Writes \a value to the current cursor value as an s32.
 			GAIA_NODISCARD CursorResult<void> s32(int32_t value) noexcept {
 				return write_primitive(S32, value);
 			}
@@ -36717,7 +39942,7 @@ namespace gaia {
 				return read_primitive<uint32_t>(U32);
 			}
 
-			//! Writes @a value to the current cursor value as a u32.
+			//! Writes \a value to the current cursor value as a u32.
 			GAIA_NODISCARD CursorResult<void> u32(uint32_t value) noexcept {
 				return write_primitive(U32, value);
 			}
@@ -36727,7 +39952,7 @@ namespace gaia {
 				return read_primitive<int64_t>(S64);
 			}
 
-			//! Writes @a value to the current cursor value as an s64.
+			//! Writes \a value to the current cursor value as an s64.
 			GAIA_NODISCARD CursorResult<void> s64(int64_t value) noexcept {
 				return write_primitive(S64, value);
 			}
@@ -36737,7 +39962,7 @@ namespace gaia {
 				return read_primitive<uint64_t>(U64);
 			}
 
-			//! Writes @a value to the current cursor value as a u64.
+			//! Writes \a value to the current cursor value as a u64.
 			GAIA_NODISCARD CursorResult<void> u64(uint64_t value) noexcept {
 				return write_primitive(U64, value);
 			}
@@ -36747,7 +39972,7 @@ namespace gaia {
 				return read_primitive<float>(F32);
 			}
 
-			//! Writes @a value to the current cursor value as an f32.
+			//! Writes \a value to the current cursor value as an f32.
 			GAIA_NODISCARD CursorResult<void> f32(float value) noexcept {
 				return write_primitive(F32, value);
 			}
@@ -36757,7 +39982,7 @@ namespace gaia {
 				return read_primitive<double>(F64);
 			}
 
-			//! Writes @a value to the current cursor value as an f64.
+			//! Writes \a value to the current cursor value as an f64.
 			GAIA_NODISCARD CursorResult<void> f64(double value) noexcept {
 				return write_primitive(F64, value);
 			}
@@ -36793,10 +40018,10 @@ namespace gaia {
 			//! Writes exact bytes to the current cursor position.
 			//!
 			//! This is the cursor write path for runtime component data. It performs no type conversion and
-			//! requires @a byteCount to match the current cursor scope size. Use field navigation to choose
+			//! requires \a byteCount to match the current cursor scope size. Use field navigation to choose
 			//! the address being written.
 			//! Successful writes finish the root component write, so normal chunk write tracking and OnSet observers run.
-			//! \param data Bytes to copy. Must be non-null when @a byteCount is non-zero.
+			//! \param data Bytes to copy. Must be non-null when \a byteCount is non-zero.
 			//! \param byteCount Number of bytes to copy.
 			//! \return Ok when bytes were copied, otherwise the reason the write failed.
 			CursorResult<void> set_raw(const void* data, uint32_t byteCount) noexcept {
@@ -37110,6 +40335,7 @@ namespace gaia {
 	namespace ecs {
 		class World;
 		class Archetype;
+		//! Read-only component-data pointers for every query field of one matched archetype.
 		using InheritedTermDataView = std::span<const void* const>;
 		GAIA_NODISCARD uint32_t world_rel_version(const World& world, Entity relation);
 		GAIA_NODISCARD bool world_has_entity_term(const World& world, Entity entity, Entity term);
@@ -37140,6 +40366,10 @@ namespace gaia {
 		GAIA_NODISCARD uint32_t
 		world_component_index_match_count(const World& world, const Archetype& archetype, Entity term);
 		//! Groups fragmenting hierarchy archetypes by depth for depth-ordered top-down iteration.
+		//! \param world World containing the archetype hierarchy.
+		//! \param archetype Archetype whose hierarchy depth determines the group.
+		//! \param relation Traversal relation defining the hierarchy.
+		//! \return Hierarchy depth encoded as the query group identifier.
 		GAIA_NODISCARD GroupId group_by_func_depth_order(const World& world, const Archetype& archetype, Entity relation);
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) world_direct_entity_arg(World& world, Entity entity);
@@ -37164,50 +40394,109 @@ namespace gaia {
 		// We have a globally defined entity All and thinks QueryOpKind::All shadows it.
 		GAIA_GCC_WARNING_DISABLE("-Wshadow")
 
-		//! Operation type
-		enum class QueryOpKind : uint8_t { All, Or, Not, Any, Count };
-		//! Access type
-		enum class QueryAccess : uint8_t { None, Read, Write };
+		//! Boolean operation applied to a query term.
+		enum class QueryOpKind : uint8_t {
+			//! Requires the term to match.
+			All,
+			//! Accepts the term as one alternative in an OR block.
+			Or,
+			//! Requires the term not to match.
+			Not,
+			//! Treats the term as optional for matching.
+			Any,
+			//! Number of operation kinds.
+			Count
+		};
+		//! Component access requested by a query term.
+		enum class QueryAccess : uint8_t {
+			//! Access is inferred from the typed term.
+			None,
+			//! Read-only component access.
+			Read,
+			//! Mutable component access.
+			Write
+		};
 		//! Term match semantics.
-		enum class QueryMatchKind : uint8_t { Semantic, In, Direct };
-		//! Operation flags
-		enum class QueryInputFlags : uint8_t { None, Variable };
+		enum class QueryMatchKind : uint8_t {
+			//! Applies Gaia-ECS semantic matching, including inherited Is targets.
+			Semantic,
+			//! Matches entities containing the term directly or through inheritance.
+			In,
+			//! Matches only directly stored terms.
+			Direct
+		};
+		//! Flags derived from query input parsing.
+		enum class QueryInputFlags : uint8_t {
+			//! Input contains no special form.
+			None,
+			//! Input contains a query variable.
+			Variable
+		};
 		//! Source traversal filter used for source lookups.
-		enum class QueryTravKind : uint8_t { None = 0x00, Self = 0x01, Up = 0x02, Down = 0x04 };
+		enum class QueryTravKind : uint8_t {
+			//! Does not inspect any source entity.
+			None = 0x00,
+			//! Inspects the source entity itself.
+			Self = 0x01,
+			//! Traverses relation targets from the source.
+			Up = 0x02,
+			//! Traverses entities that target the source through the relation.
+			Down = 0x04
+		};
 
 		GAIA_GCC_WARNING_POP()
 
+		//! Combines source traversal filters.
+		//! \param lhs First traversal filter.
+		//! \param rhs Second traversal filter.
+		//! \return Bitwise union of \a lhs and \a rhs.
 		GAIA_NODISCARD constexpr QueryTravKind operator|(QueryTravKind lhs, QueryTravKind rhs) {
 			return (QueryTravKind)((uint8_t)lhs | (uint8_t)rhs);
 		}
 
+		//! Tests whether a traversal filter contains a requested bit.
+		//! \param value Combined traversal filter.
+		//! \param bit Traversal bit to test.
+		//! \return True when \a bit is set in \a value.
 		GAIA_NODISCARD constexpr bool query_trav_has(QueryTravKind value, QueryTravKind bit) {
 			return (((uint8_t)value) & ((uint8_t)bit)) != 0;
 		}
 
+		//! Direct-hash representation of a canonical query lookup key.
 		using QueryLookupHash = core::direct_hash_key<uint64_t>;
+		//! Fixed-capacity entity storage used by compiled query metadata.
 		using QueryEntityArray = cnt::sarray<Entity, MAX_ITEMS_IN_QUERY>;
+		//! Per-query serialization buffers indexed by query identifier.
 		using QuerySerMap = cnt::map<QueryId, QuerySerBuffer>;
 
 		//! Incremental query-matching cursor for one entity-to-archetype lookup bucket.
 		struct QueryArchetypeCacheCursor {
-			//! Number of bucket records that were already matched at @a revision.
+			//! Number of bucket records that were already matched at \a revision.
 			uint32_t index = 0;
-			//! Lookup-bucket revision associated with @a index.
+			//! Lookup-bucket revision associated with \a index.
 			uint32_t revision = 0;
 		};
 
+		//! Per-lookup-key cursors used for incremental archetype matching.
 		using QueryArchetypeCacheIndexMap = cnt::map<EntityLookupKey, QueryArchetypeCacheCursor>;
 		//! Revision table for entity-to-archetype lookup buckets whose record order changed.
 		using EntityToArchetypeVersionMap = cnt::map<EntityLookupKey, uint32_t>;
 
+		//! Sentinel indicating that a component column index is unavailable.
 		static constexpr uint16_t ComponentIndexBad = (uint16_t)-1;
 
+		//! One archetype record stored in the entity-to-archetype reverse index.
 		struct ComponentIndexEntry {
+			//! Archetype matched by the indexed entity or pair key.
 			Archetype* pArchetype = nullptr;
+			//! Component column index in \a pArchetype, or ComponentIndexBad when no direct column exists.
 			uint16_t compIdx = ComponentIndexBad;
+			//! Number of archetype components contributing this lookup-key match.
 			uint16_t matchCount = 0;
 
+			//! Tests whether this record belongs to an archetype.
+			//! \param pOther Archetype pointer to compare.
+			//! \return True when \a pOther equals pArchetype.
 			GAIA_NODISCARD bool matches(const Archetype* pOther) const {
 				return pArchetype == pOther;
 			}
@@ -37217,7 +40506,9 @@ namespace gaia {
 		//! Most buckets contain one archetype, so keep that record inline and spill only when needed.
 		class ComponentIndexEntryArray {
 		public:
+			//! Stored reverse-index record type.
 			using value_type = ComponentIndexEntry;
+			//! Unsigned element-count and index type.
 			using size_type = uint32_t;
 
 		private:
@@ -37240,58 +40531,86 @@ namespace gaia {
 			ComponentIndexEntryArray& operator=(ComponentIndexEntryArray&&) noexcept = default;
 			ComponentIndexEntryArray& operator=(const ComponentIndexEntryArray&) = default;
 
+			//! Checks whether the bucket contains no reverse-index records.
+			//! \return True when size is zero.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return m_size == 0;
 			}
 
+			//! Returns the number of reverse-index records.
+			//! \return Number of stored records.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_size;
 			}
 
+			//! Returns mutable contiguous record storage.
+			//! \return Pointer to the inline record or spill storage.
 			GAIA_NODISCARD ComponentIndexEntry* data() noexcept {
 				return m_size <= 1 ? &m_inline : m_items.data();
 			}
 
+			//! Returns read-only contiguous record storage.
+			//! \return Pointer to the inline record or spill storage.
 			GAIA_NODISCARD const ComponentIndexEntry* data() const noexcept {
 				return m_size <= 1 ? &m_inline : m_items.data();
 			}
 
+			//! Returns a mutable iterator to the first record.
+			//! \return Pointer to the first stored record.
 			GAIA_NODISCARD ComponentIndexEntry* begin() noexcept {
 				return data();
 			}
 
+			//! Returns a read-only iterator to the first record.
+			//! \return Pointer to the first stored record.
 			GAIA_NODISCARD const ComponentIndexEntry* begin() const noexcept {
 				return data();
 			}
 
+			//! Returns a mutable iterator past the final record.
+			//! \return Pointer one past the last stored record.
 			GAIA_NODISCARD ComponentIndexEntry* end() noexcept {
 				return data() + m_size;
 			}
 
+			//! Returns a read-only iterator past the final record.
+			//! \return Pointer one past the last stored record.
 			GAIA_NODISCARD const ComponentIndexEntry* end() const noexcept {
 				return data() + m_size;
 			}
 
+			//! Returns a mutable record by index.
+			//! \param idx Zero-based record index.
+			//! \return Record at \a idx.
 			GAIA_NODISCARD ComponentIndexEntry& operator[](size_type idx) noexcept {
 				GAIA_ASSERT(idx < m_size);
 				return data()[idx];
 			}
 
+			//! Returns a read-only record by index.
+			//! \param idx Zero-based record index.
+			//! \return Record at \a idx.
 			GAIA_NODISCARD const ComponentIndexEntry& operator[](size_type idx) const noexcept {
 				GAIA_ASSERT(idx < m_size);
 				return data()[idx];
 			}
 
+			//! Returns the final mutable record.
+			//! \return Last record in the non-empty bucket.
 			GAIA_NODISCARD ComponentIndexEntry& back() noexcept {
 				GAIA_ASSERT(m_size > 0);
 				return (*this)[m_size - 1];
 			}
 
+			//! Returns the final read-only record.
+			//! \return Last record in the non-empty bucket.
 			GAIA_NODISCARD const ComponentIndexEntry& back() const noexcept {
 				GAIA_ASSERT(m_size > 0);
 				return (*this)[m_size - 1];
 			}
 
+			//! Appends a reverse-index record, spilling inline storage when necessary.
+			//! \param entry Record to append.
 			void push_back(ComponentIndexEntry entry) {
 				if (m_size == 0) {
 					m_inline = entry;
@@ -37310,6 +40629,7 @@ namespace gaia {
 				++m_size;
 			}
 
+			//! Removes the final record and restores inline storage when one record remains.
 			void pop_back() {
 				GAIA_ASSERT(m_size > 0);
 				if (m_size == 1) {
@@ -37323,22 +40643,32 @@ namespace gaia {
 			}
 		};
 
+		//! One lookup-key record collected while indexing a single archetype.
 		struct SingleArchetypeLookupItem {
+			//! Entity or wildcard-pair lookup key represented by this record.
 			EntityLookupKey key = EntityBadLookupKey;
+			//! Reverse-index data associated with \a key.
 			ComponentIndexEntry entry{};
 
+			//! Tests whether this item represents a lookup key.
+			//! \param other Lookup key to compare.
+			//! \return True when \a other equals key.
 			GAIA_NODISCARD bool matches(EntityLookupKey other) const {
 				return key == other;
 			}
 		};
 
-		// Exact id + (X, id) + (id, X) + (*, *) wildcard-derived records for a single archetype.
+		//! Exact-id and wildcard-derived lookup records generated for one archetype.
 		using SingleArchetypeLookup = cnt::sarray_ext<SingleArchetypeLookupItem, ChunkHeader::MAX_COMPONENTS * 4>;
 
+		//! Sentinel identifying an invalid query slot.
 		static constexpr QueryId QueryIdBad = (QueryId)-1;
+		//! Greatest group identifier available to query grouping callbacks.
 		static constexpr GroupId GroupIdMax = ((GroupId)-1) - 1;
 
+		//! Stable query-slot identifier combining a slot index and generation.
 		struct QueryHandle {
+			//! Bit mask spanning the query-id portion of a packed handle.
 			static constexpr uint32_t IdMask = QueryIdBad;
 
 		private:
@@ -37355,6 +40685,9 @@ namespace gaia {
 		public:
 			constexpr QueryHandle() noexcept: val((uint64_t)-1) {};
 
+			//! Constructs a handle from query slot metadata.
+			//! \param id Query slot identifier.
+			//! \param gen Query slot generation.
 			QueryHandle(QueryId id, uint32_t gen) {
 				data.id = id;
 				data.gen = gen;
@@ -37366,28 +40699,42 @@ namespace gaia {
 			QueryHandle& operator=(QueryHandle&&) noexcept = default;
 			QueryHandle& operator=(const QueryHandle&) = default;
 
+			//! Compares packed query handles.
+			//! \param other Handle to compare.
+			//! \return True when slot identifier and generation match.
 			GAIA_NODISCARD constexpr bool operator==(const QueryHandle& other) const noexcept {
 				return val == other.val;
 			}
+			//! Compares packed query handles for inequality.
+			//! \param other Handle to compare.
+			//! \return True when slot identifier or generation differs.
 			GAIA_NODISCARD constexpr bool operator!=(const QueryHandle& other) const noexcept {
 				return val != other.val;
 			}
 
+			//! Returns the query slot identifier.
+			//! \return Query slot identifier stored in the handle.
 			GAIA_NODISCARD auto id() const {
 				return data.id;
 			}
+			//! Returns the query slot generation.
+			//! \return Generation stored in the handle.
 			GAIA_NODISCARD auto gen() const {
 				return data.gen;
 			}
+			//! Returns the packed handle representation.
+			//! \return Combined query identifier and generation bits.
 			GAIA_NODISCARD auto value() const {
 				return val;
 			}
 		};
 
+		//! Invalid query handle sentinel.
 		inline static const QueryHandle QueryHandleBad = QueryHandle();
 
 		//! Hashmap lookup structure used for Entity
 		struct QueryHandleLookupKey {
+			//! Direct hash value cached for the packed query handle.
 			using LookupHash = core::direct_hash_key<uint64_t>;
 
 		private:
@@ -37401,9 +40748,12 @@ namespace gaia {
 			}
 
 		public:
+			//! Indicates that Gaia containers may consume hash() without rehashing the key.
 			static constexpr bool IsDirectHashKey = true;
 
 			QueryHandleLookupKey() = default;
+			//! Constructs a lookup key and precomputes its hash.
+			//! \param handle Query handle represented by the key.
 			explicit QueryHandleLookupKey(QueryHandle handle): m_handle(handle), m_hash(calc(handle)) {}
 			~QueryHandleLookupKey() = default;
 
@@ -37412,14 +40762,21 @@ namespace gaia {
 			QueryHandleLookupKey& operator=(const QueryHandleLookupKey&) = default;
 			QueryHandleLookupKey& operator=(QueryHandleLookupKey&&) = default;
 
+			//! Returns the represented query handle.
+			//! \return Query handle stored by the lookup key.
 			QueryHandle handle() const {
 				return m_handle;
 			}
 
+			//! Returns the precomputed container hash.
+			//! \return Hash of the packed query handle.
 			size_t hash() const {
 				return (size_t)m_hash.hash;
 			}
 
+			//! Compares lookup keys using their cached hashes and handles.
+			//! \param other Lookup key to compare.
+			//! \return True when both keys represent the same query handle.
 			bool operator==(const QueryHandleLookupKey& other) const {
 				if GAIA_LIKELY (m_hash != other.m_hash)
 					return false;
@@ -37427,15 +40784,20 @@ namespace gaia {
 				return m_handle == other.m_handle;
 			}
 
+			//! Compares lookup keys for inequality.
+			//! \param other Lookup key to compare.
+			//! \return True when the represented handles differ.
 			bool operator!=(const QueryHandleLookupKey& other) const {
 				return !operator==(other);
 			}
 		};
 
+		//! Invalid query-handle lookup-key sentinel.
 		inline static const QueryHandleLookupKey QueryHandleBadLookupKey = QueryHandleLookupKey(QueryHandleBad);
 
 		//! User-provided query input
 		struct QueryInput {
+			//! Traversal-depth value selecting the internally bounded unlimited mode.
 			static constexpr uint8_t TravDepthUnlimited = 0;
 
 			//! Operation to perform with the input
@@ -37466,6 +40828,7 @@ namespace gaia {
 		//! This can be used to configure source lookup, traversal and access mode
 		//! without relying on many positional overloads.
 		struct QueryTermOptions {
+			//! Traversal-depth value selecting the internally bounded unlimited mode.
 			static constexpr uint8_t TravDepthUnlimited = QueryInput::TravDepthUnlimited;
 
 			//! Source entity to query from.
@@ -37483,11 +40846,17 @@ namespace gaia {
 			//! Match semantics for terms with special meaning, such as `Pair(Is, X)`.
 			QueryMatchKind matchKind = QueryMatchKind::Semantic;
 
+			//! Selects a fixed or variable source entity for the term.
+			//! \param source Source entity or variable identifier.
+			//! \return This options object.
 			QueryTermOptions& src(Entity source) {
 				entSrc = source;
 				return *this;
 			}
 
+			//! Traverses the source and its relation targets without a user depth limit.
+			//! \param relation Relation to traverse.
+			//! \return This options object.
 			QueryTermOptions& trav(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Self | QueryTravKind::Up;
@@ -37495,6 +40864,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Traverses relation targets without checking the source itself.
+			//! \param relation Relation to traverse.
+			//! \return This options object.
 			QueryTermOptions& trav_up(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Up;
@@ -37502,6 +40874,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Checks only the immediate relation target of the source.
+			//! \param relation Relation to traverse.
+			//! \return This options object.
 			QueryTermOptions& trav_parent(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Up;
@@ -37509,6 +40884,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Checks the source and its immediate relation target.
+			//! \param relation Relation to traverse.
+			//! \return This options object.
 			QueryTermOptions& trav_self_parent(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Self | QueryTravKind::Up;
@@ -37516,6 +40894,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Traverses entities targeting the source without a user depth limit.
+			//! \param relation Relation to traverse in reverse.
+			//! \return This options object.
 			QueryTermOptions& trav_down(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Down;
@@ -37523,6 +40904,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Checks the source and recursively traverses entities targeting it.
+			//! \param relation Relation to traverse in reverse.
+			//! \return This options object.
 			QueryTermOptions& trav_self_down(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Self | QueryTravKind::Down;
@@ -37530,6 +40914,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Checks only immediate entities targeting the source.
+			//! \param relation Relation to traverse in reverse.
+			//! \return This options object.
 			QueryTermOptions& trav_child(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Down;
@@ -37537,6 +40924,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Checks the source and immediate entities targeting it.
+			//! \param relation Relation to traverse in reverse.
+			//! \return This options object.
 			QueryTermOptions& trav_self_child(Entity relation = ChildOf) {
 				entTrav = relation;
 				travKind = QueryTravKind::Self | QueryTravKind::Down;
@@ -37544,31 +40934,45 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Replaces the traversal filter without changing its relation or depth.
+			//! \param kind Traversal locations to inspect.
+			//! \return This options object.
 			QueryTermOptions& trav_kind(QueryTravKind kind) {
 				travKind = kind;
 				return *this;
 			}
 
+			//! Sets the maximum traversal distance.
+			//! \param maxDepth Maximum steps, or TravDepthUnlimited for the internal limit.
+			//! \return This options object.
 			QueryTermOptions& trav_depth(uint8_t maxDepth) {
 				travDepth = maxDepth;
 				return *this;
 			}
 
+			//! Requests read-only access to the term.
+			//! \return This options object.
 			QueryTermOptions& read() {
 				access = QueryAccess::Read;
 				return *this;
 			}
 
+			//! Requests mutable access to the term.
+			//! \return This options object.
 			QueryTermOptions& write() {
 				access = QueryAccess::Write;
 				return *this;
 			}
 
+			//! Restricts the term to direct storage matches.
+			//! \return This options object.
 			QueryTermOptions& direct() {
 				matchKind = QueryMatchKind::Direct;
 				return *this;
 			}
 
+			//! Allows direct and inherited matches for the term.
+			//! \return This options object.
 			QueryTermOptions& in() {
 				matchKind = QueryMatchKind::In;
 				return *this;
@@ -37659,15 +41063,25 @@ namespace gaia {
 			//! Stable execution field index matching the user-defined query field order.
 			uint8_t fieldIndex = 0;
 
+			//! Compares the matching identity of two compiled terms.
+			//! \param other Term to compare.
+			//! \return True when matching-relevant fields are equal.
 			bool operator==(const QueryTerm& other) const {
 				return id == other.id && src == other.src && entTrav == other.entTrav && travKind == other.travKind &&
 							 travDepth == other.travDepth && matchKind == other.matchKind && op == other.op;
 			}
+			//! Compares the matching identity of two compiled terms for inequality.
+			//! \param other Term to compare.
+			//! \return True when a matching-relevant field differs.
 			bool operator!=(const QueryTerm& other) const {
 				return !operator==(other);
 			}
 		};
 
+		//! Orders compiled terms into their canonical query-lookup representation.
+		//! \param lhs First term.
+		//! \param rhs Second term.
+		//! \return True when \a lhs precedes \a rhs in lookup order.
 		constexpr bool query_term_less_for_lookup(const QueryTerm& lhs, const QueryTerm& rhs) {
 			if (lhs.op != rhs.op)
 				return lhs.op < rhs.op;
@@ -37690,6 +41104,8 @@ namespace gaia {
 			return (uint8_t)lhs.matchKind < (uint8_t)rhs.matchKind;
 		}
 
+		//! Canonicalizes terms for query identity hashing and equality.
+		//! \param terms Mutable query terms to normalize and sort.
 		inline void canonicalize_lookup_terms(std::span<QueryTerm> terms) {
 			const auto idsCnt = (uint32_t)terms.size();
 			if (idsCnt > 0) {
@@ -37713,12 +41129,17 @@ namespace gaia {
 			});
 		}
 
+		//! Sorts changed-filter identifiers into canonical query-identity order.
+		//! \param changed Mutable changed-filter identifiers.
 		inline void canonicalize_lookup_changed(std::span<Entity> changed) {
 			const auto changedCnt = (uint32_t)changed.size();
 			if (changedCnt > 1)
 				core::sort(changed.data(), changed.data() + changedCnt, SortComponentCond{});
 		}
 
+		//! Checks whether a compiled term contains a source or id variable.
+		//! \param term Compiled query term.
+		//! \return True when any source, relation, or target identifier is variable.
 		GAIA_NODISCARD inline bool term_has_variables(const QueryTerm& term) {
 			if (is_variable(term.src))
 				return true;
@@ -37747,26 +41168,36 @@ namespace gaia {
 						 (!id.pair() || !is_variable((EntityId)id.gen()));
 		}
 
+		//! Fixed-capacity compiled query-term sequence.
 		using QueryTermArray = cnt::sarray_ext<QueryTerm, MAX_ITEMS_IN_QUERY>;
+		//! Mutable view over compiled query terms.
 		using QueryTermSpan = std::span<QueryTerm>;
+		//! Fixed-capacity mapping between canonical and user query-field indices.
 		using QueryRemappingArray = cnt::sarray_ext<uint8_t, MAX_ITEMS_IN_QUERY>;
 
+		//! Slot and serialization identity owned by a compiled query context.
 		struct QueryIdentity {
 			//! Query id
 			QueryHandle handle = {};
 			//! Serialization id
 			QueryId serId = QueryIdBad;
 
+			//! Returns this query's serialization buffer in a world.
+			//! \param world World owning the query serialization map.
+			//! \return Mutable serialization buffer associated with serId.
 			GAIA_NODISCARD QuerySerBuffer& ser_buffer(World* world) {
 				return query_buffer(*world, serId);
 			}
+			//! Resets this query's serialization buffer in a world.
+			//! \param world World owning the query serialization map.
 			void ser_buffer_reset(World* world) {
 				query_buffer_reset(*world, serId);
 			}
 		};
 
+		//! Authored and compiled state defining query identity and execution behavior.
 		struct QueryCtx {
-			// World
+			//! World against which the query is compiled and executed.
 			const World* w{};
 			//! Component cache
 			ComponentCache* cc{};
@@ -37775,41 +41206,45 @@ namespace gaia {
 			//! Query identity
 			QueryIdentity q{};
 
+			//! Query maintenance and execution flags derived during compilation.
 			enum QueryFlags : uint16_t {
+				//! No query flags are set.
 				Empty = 0x00,
-				// Entities need sorting
+				//! Cached entity slices require sorting.
 				SortEntities = 0x01,
-				// Groups need sorting
+				//! Cached group ranges require sorting.
 				SortGroups = 0x02,
-				// Complex query
+				//! Query requires the general matching path.
 				Complex = 0x04,
-				// Recompilation requested
+				//! VM opcode recompilation is pending.
 				Recompile = 0x08,
-				// Query contains source-based lookup terms
+				//! Query contains fixed-source lookup terms.
 				HasSourceTerms = 0x10,
-				// Query contains variable-based lookup terms
+				//! Query contains variable-based lookup terms.
 				HasVariableTerms = 0x20,
-				// Include entities tagged with Prefab even when the query does not mention Prefab explicitly.
+				//! Includes prefab entities without requiring an explicit Prefab term.
 				MatchPrefab = 0x40,
-				// Query mentions Prefab explicitly and therefore must not auto-exclude it.
+				//! Query explicitly mentions Prefab and therefore bypasses automatic exclusion.
 				HasPrefabTerms = 0x80,
-				// Grouped archetypes should be ordered by group id during cache refresh.
+				//! Grouped archetypes are ordered by group identifier during cache refresh.
 				OrderGroups = 0x100,
 			};
 
+			//! Strategy used to maintain cached archetype matches.
 			enum class CachePolicy : uint8_t {
-				// Structural query with a positive selector term. Safe to update immediately on archetype creation.
+				//! Updates a structural query immediately when an archetype is created.
 				Immediate,
-				// Structural query that stays cached but refreshes lazily on the next read.
+				//! Refreshes a structural query lazily on the next read.
 				Lazy,
-				// Query with source or variable terms. Cached state is repaired on demand.
+				//! Repairs source- or variable-dependent cached state on demand.
 				Dynamic,
 			};
 
+			//! Matcher selected for newly created archetypes.
 			enum class CreateArchetypeMatchKind : uint8_t {
-				// Use the normal one-archetype VM path.
+				//! Uses the normal one-archetype VM path.
 				Vm,
-				// Match a small immediate structural query with ALL/OR/NOT terms directly on the archetype.
+				//! Evaluates a small immediate ALL, OR, and NOT query directly on the archetype.
 				DirectStructuralTerms,
 			};
 
@@ -37829,43 +41264,76 @@ namespace gaia {
 				Mixed
 			};
 
+			//! Specialized evaluation shape for concrete target entities.
 			enum class DirectTargetEvalKind : uint8_t {
+				//! Uses the general compiled query evaluator.
 				Generic,
+				//! Evaluates one required direct-storage term.
 				SingleAllDirect,
+				//! Evaluates one required semantic Is term.
 				SingleAllSemanticIs,
+				//! Evaluates one required inherited-inclusive Is term.
 				SingleAllInIs,
+				//! Evaluates one required term through inherited component data.
 				SingleAllInherited,
 			};
 
+			//! Dependency facts derived from the compiled term set.
 			enum DependencyFlags : uint16_t {
+				//! No dependency facts are present.
 				DependencyNone = 0x00,
+				//! At least one term uses a fixed source entity.
 				DependencyHasSourceTerms = 0x01,
+				//! At least one term contains a runtime variable.
 				DependencyHasVariableTerms = 0x02,
+				//! At least one positive ALL or OR term is present.
 				DependencyHasPositiveTerms = 0x04,
+				//! At least one negative NOT term is present.
 				DependencyHasNegativeTerms = 0x08,
+				//! At least one optional ANY term is present.
 				DependencyHasAnyTerms = 0x10,
+				//! At least one wildcard id or pair term is present.
 				DependencyHasWildcardTerms = 0x20,
+				//! Query has an entity sorting callback.
 				DependencyHasSort = 0x40,
+				//! Query has an archetype grouping callback.
 				DependencyHasGroup = 0x80,
+				//! At least one source term traverses a relation.
 				DependencyHasTraversalTerms = 0x100,
+				//! At least one term requires per-entity filtering.
 				DependencyHasEntityFilterTerms = 0x200,
+				//! Iteration requires cached inherited component pointers.
 				DependencyHasInheritedDataTerms = 0x400,
+				//! A term shape may resolve through inherited-id matching.
 				DependencyHasPotentialInheritedIdTerms = 0x800,
 			};
 
+			//! Compact compiled query payload used by matching, identity, and cache maintenance.
 			struct Data {
+				//! Deduplicated entities and flags that can invalidate or update a query cache.
 				struct Dependencies {
+					//! Positive selector ids used for archetype-create propagation.
 					QueryEntityArray createSelectors;
+					//! Negative selector ids used to reject new archetypes.
 					QueryEntityArray exclusions;
+					//! Relations whose topology versions affect cached results.
 					QueryEntityArray relations;
+					//! Concrete source entities whose archetype versions affect cached results.
 					QueryEntityArray sourceEntities;
+					//! Number of valid entries in createSelectors.
 					uint8_t createSelectorCnt = 0;
+					//! Number of valid entries in exclusions.
 					uint8_t exclusionCnt = 0;
+					//! Number of valid entries in relations.
 					uint8_t relationCnt = 0;
+					//! Number of valid entries in sourceEntities.
 					uint8_t sourceEntityCnt = 0;
+					//! Number of fixed-source terms, including duplicate source entities.
 					uint8_t sourceTermCnt = 0;
+					//! Combined DependencyFlags describing the compiled query shape.
 					DependencyFlags flags = DependencyNone;
 
+					//! Resets dependency counts and flags while retaining fixed storage.
 					void clear() {
 						createSelectorCnt = 0;
 						exclusionCnt = 0;
@@ -37875,30 +41343,45 @@ namespace gaia {
 						flags = DependencyNone;
 					}
 
+					//! Returns positive selector ids used during archetype creation.
+					//! \return Read-only view over valid createSelectors entries.
 					GAIA_NODISCARD std::span<const Entity> create_selectors_view() const {
 						return {createSelectors.data(), createSelectorCnt};
 					}
 
+					//! Returns negative selector ids used during archetype creation.
+					//! \return Read-only view over valid exclusions entries.
 					GAIA_NODISCARD std::span<const Entity> exclusions_view() const {
 						return {exclusions.data(), exclusionCnt};
 					}
 
+					//! Returns relation-version dependencies.
+					//! \return Read-only view over valid relations entries.
 					GAIA_NODISCARD std::span<const Entity> relations_view() const {
 						return {relations.data(), relationCnt};
 					}
 
+					//! Returns concrete source-entity dependencies.
+					//! \return Read-only view over valid sourceEntities entries.
 					GAIA_NODISCARD std::span<const Entity> src_entities_view() const {
 						return {sourceEntities.data(), sourceEntityCnt};
 					}
 
+					//! Records a dependency fact.
+					//! \param dependency Flag to add to flags.
 					void set_dep_flag(DependencyFlags dependency) {
 						flags = (DependencyFlags)(flags | dependency);
 					}
 
+					//! Tests whether a dependency fact was recorded.
+					//! \param dependency Flag to test.
+					//! \return True when \a dependency is set in flags.
 					GAIA_NODISCARD bool has_dep_flag(DependencyFlags dependency) const {
 						return (flags & dependency) != 0;
 					}
 
+					//! Adds a unique relation-version dependency.
+					//! \param relation Relation whose topology affects query results.
 					void add_rel(Entity relation) {
 						if (relation == EntityBad || core::has(relations_view(), relation))
 							return;
@@ -37907,6 +41390,8 @@ namespace gaia {
 						relations[relationCnt++] = relation;
 					}
 
+					//! Adds a unique concrete source-entity dependency.
+					//! \param entity Source entity whose archetype membership affects results.
 					void add_src_entity(Entity entity) {
 						if (entity == EntityBad || core::has(src_entities_view(), entity))
 							return;
@@ -37915,11 +41400,14 @@ namespace gaia {
 						sourceEntities[sourceEntityCnt++] = entity;
 					}
 
+					//! Checks whether each fixed-source term has a distinct tracked entity.
+					//! \return True when targeted source-version checks can validate the cache.
 					GAIA_NODISCARD bool can_reuse_src_cache() const {
 						return sourceTermCnt > 0 && sourceTermCnt == sourceEntityCnt;
 					}
 				};
 
+				//! Cold canonical payload used exclusively by shared-query hashing and equality.
 				struct LookupIdentity {
 					//! Canonicalized lookup terms reused by hash/equality for shared query dedup.
 					cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> lookupTerms;
@@ -37935,9 +41423,13 @@ namespace gaia {
 				cnt::sarray<QueryTerm, MAX_ITEMS_IN_QUERY> terms;
 				//! Index of the last checked archetype in the component-to-archetype map
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_All;
+				//! Incremental lookup cursors for OR selector terms.
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Or;
+				//! Incremental lookup cursors for NOT selector terms.
 				QueryArchetypeCacheIndexMap lastMatchedArchetypeIdx_Not;
+				//! Number of valid ids and terms in the fixed-capacity query arrays.
 				uint8_t idsCnt = 0;
+				//! Number of valid changed-filter ids and field mappings.
 				uint8_t changedCnt = 0;
 				//! Array of filtered components
 				QueryEntityArray changed;
@@ -37999,54 +41491,68 @@ namespace gaia {
 				//! Cold canonical shared-query identity payload.
 				LookupIdentity lookupIdentity;
 
+				//! Returns authored query ids in canonical execution order.
+				//! \return Read-only view over valid ids entries.
 				GAIA_NODISCARD std::span<const Entity> ids_view() const {
 					return {ids.data(), idsCnt};
 				}
 
+				//! Returns changed-filter component ids.
+				//! \return Read-only view over valid changed entries.
 				GAIA_NODISCARD std::span<const Entity> changed_view() const {
 					return {changed.data(), changedCnt};
 				}
 
 				//! Returns query-term indices matching changed-filter components.
+				//! \return Read-only field-index view aligned with changed_view().
 				GAIA_NODISCARD std::span<const uint8_t> changed_fields_view() const {
 					return {changedFields.data(), changedCnt};
 				}
 
+				//! Returns explicit grouping invalidation dependencies.
+				//! \return Read-only view over valid groupDeps entries.
 				GAIA_NODISCARD std::span<const Entity> group_deps_view() const {
 					return {groupDeps.data(), groupDepCnt};
 				}
 
 				//! Returns canonicalized lookup terms used by shared query deduplication.
+				//! \return Read-only canonical term view.
 				GAIA_NODISCARD std::span<const QueryTerm> lookup_terms_view() const {
 					return {lookupIdentity.lookupTerms.data(), idsCnt};
 				}
 
 				//! Returns mutable canonicalized lookup terms used by shared query deduplication.
+				//! \return Mutable canonical term view.
 				GAIA_NODISCARD std::span<QueryTerm> lookup_terms_view_mut() {
 					return {lookupIdentity.lookupTerms.data(), idsCnt};
 				}
 
 				//! Returns canonicalized changed-filter lookup ids used by shared query deduplication.
+				//! \return Read-only canonical changed-filter view.
 				GAIA_NODISCARD std::span<const Entity> changed_lookup_view() const {
 					return {lookupIdentity.changed.data(), changedCnt};
 				}
 
 				//! Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication.
+				//! \return Mutable canonical changed-filter view.
 				GAIA_NODISCARD std::span<Entity> changed_lookup_view_mut() {
 					return {lookupIdentity.changed.data(), changedCnt};
 				}
 
 				//! Returns canonicalized group dependency lookup ids used by shared query deduplication.
+				//! \return Read-only canonical grouping-dependency view.
 				GAIA_NODISCARD std::span<const Entity> group_deps_lookup_view() const {
 					return {lookupIdentity.groupDeps.data(), groupDepCnt};
 				}
 
 				//! Returns mutable canonicalized group dependency lookup ids used by shared query deduplication.
+				//! \return Mutable canonical grouping-dependency view.
 				GAIA_NODISCARD std::span<Entity> group_deps_lookup_view_mut() {
 					return {lookupIdentity.groupDeps.data(), groupDepCnt};
 				}
 
 				//! Adds a declared grouping invalidation dependency.
+				//! \param relation Relation whose topology can change group assignment.
 				void add_group_dep(Entity relation) {
 					if (relation == EntityBad || core::has(group_deps_view(), relation))
 						return;
@@ -38068,9 +41574,13 @@ namespace gaia {
 						deps.add_rel(relation);
 				}
 
+				//! Returns mutable compiled terms in execution order.
+				//! \return Mutable view over valid terms entries.
 				GAIA_NODISCARD std::span<QueryTerm> terms_view_mut() {
 					return {terms.data(), idsCnt};
 				}
+				//! Returns compiled terms in execution order.
+				//! \return Read-only view over valid terms entries.
 				GAIA_NODISCARD std::span<const QueryTerm> terms_view() const {
 					return {terms.data(), idsCnt};
 				}
@@ -38151,6 +41661,8 @@ namespace gaia {
 				}
 
 				//! Returns true when canonical lookup arrays match another query context payload.
+				//! \param other Compiled payload to compare.
+				//! \return True when terms, changed filters, and group dependencies match canonically.
 				GAIA_NODISCARD bool lookup_keys_equal(const Data& other) const {
 					{
 						const auto left = lookup_terms_view();
@@ -38183,6 +41695,7 @@ namespace gaia {
 				}
 
 				//! Returns the hash contribution from canonical lookup-key payload arrays.
+				//! \return Combined hash of canonical terms, filters, grouping dependencies, and identity flags.
 				GAIA_NODISCARD QueryLookupHash::Type hash_lookup_key_payload() const {
 					QueryLookupHash::Type hashLookup = 0;
 
@@ -38235,6 +41748,8 @@ namespace gaia {
 				}
 
 				//! Returns true when grouping identity payload matches another query context payload.
+				//! \param other Compiled payload to compare.
+				//! \return True when grouping entity, callback, and ordering mode match.
 				GAIA_NODISCARD bool grouping_payload_equal(const Data& other) const {
 					if (groupBy != other.groupBy)
 						return false;
@@ -38244,16 +41759,20 @@ namespace gaia {
 				}
 
 				//! Returns true when the sort identity payload matches another query context payload.
+				//! \param other Compiled payload to compare.
+				//! \return True when sorting entity and callback match.
 				GAIA_NODISCARD bool sort_payload_equal(const Data& other) const {
 					return sortBy == other.sortBy && sortByFunc == other.sortByFunc;
 				}
 
 				//! Returns true when sort identity payload is active.
+				//! \return True when either a sort entity or callback is configured.
 				GAIA_NODISCARD bool has_sort_payload() const {
 					return sortBy != EntityBad || sortByFunc != nullptr;
 				}
 
 				//! Returns the hash contribution from sort identity payload.
+				//! \return Combined hash of the sort entity and callback.
 				GAIA_NODISCARD QueryLookupHash::Type hash_sort_payload() const {
 					QueryLookupHash::Type hash = 0;
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)sortBy.value());
@@ -38262,6 +41781,8 @@ namespace gaia {
 				}
 
 				//! Returns true when the shared query identity payload matches another query context payload.
+				//! \param other Compiled payload to compare.
+				//! \return True when every field contributing to shared query identity matches.
 				GAIA_NODISCARD bool identity_payload_equal(const Data& other) const {
 					if (idsCnt != other.idsCnt)
 						return false;
@@ -38281,6 +41802,7 @@ namespace gaia {
 				}
 
 				//! Returns the hash contribution from grouping identity payload.
+				//! \return Combined hash of grouping entity, callback, and ordering mode.
 				GAIA_NODISCARD QueryLookupHash::Type hash_grouping_payload() const {
 					QueryLookupHash::Type hash = 0;
 					hash = core::hash_combine(hash, (QueryLookupHash::Type)groupBy.value());
@@ -38290,6 +41812,7 @@ namespace gaia {
 				}
 
 				//! Returns the hash contribution from the full shared query identity payload.
+				//! \return Combined lookup, optional sorting, and grouping identity hash.
 				GAIA_NODISCARD QueryLookupHash::Type hash_identity_payload() const {
 					QueryLookupHash::Type hash = hash_lookup_key_payload();
 					if (has_sort_payload())
@@ -38298,18 +41821,22 @@ namespace gaia {
 				}
 
 				//! Returns the finalized lookup hash for shared query identity.
+				//! \return Direct-hash key calculated from the complete identity payload.
 				GAIA_NODISCARD QueryLookupHash calc_lookup_hash() const {
 					return {core::calculate_hash64(hash_identity_payload())};
 				}
-			} data{};
+			} data{}; //!< Compiled query payload.
 			// Make sure that MAX_ITEMS_IN_QUERY can fit into data.readWriteMask
 			static_assert(MAX_ITEMS_IN_QUERY < 16);
 
+			//! Attaches the query context to a world and its component cache.
+			//! \param pWorld World that will compile and execute the query.
 			void init(World* pWorld) {
 				w = pWorld;
 				cc = &comp_cache_mut(*pWorld);
 			}
 
+			//! Rebuilds derived masks, dependency metadata, and cache policy after authored terms change.
 			void refresh() {
 				const auto mask0_old = data.as_mask_0;
 				const auto mask1_old = data.as_mask_1;
@@ -38649,6 +42176,10 @@ namespace gaia {
 					data.flags |= QueryCtx::QueryFlags::Recompile;
 			}
 
+			//! Compares shared query identity without requiring invalid handles.
+			//! \param leftCtx First query context.
+			//! \param rightCtx Second query context.
+			//! \return True when lookup hashes and complete identity payloads match.
 			GAIA_NODISCARD static bool
 			equals_no_handle_assumption(const QueryCtx& leftCtx, const QueryCtx& rightCtx) noexcept {
 				// Lookup hash must match
@@ -38660,6 +42191,9 @@ namespace gaia {
 				return left.identity_payload_equal(right);
 			}
 
+			//! Compares query contexts during initial shared-query lookup.
+			//! \param other Query context to compare.
+			//! \return True when both contexts have the same shared query identity.
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const noexcept {
 				// Comparison expected to be done only the first time the query is set up
 				GAIA_ASSERT(q.handle.id() == QueryIdBad);
@@ -38670,6 +42204,9 @@ namespace gaia {
 				return equals_no_handle_assumption(*this, other);
 			}
 
+			//! Compares query contexts for distinct shared query identity.
+			//! \param other Query context to compare.
+			//! \return True when the contexts do not have the same identity.
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const noexcept {
 				return !operator==(other);
 			}
@@ -38677,12 +42214,17 @@ namespace gaia {
 
 		//! Functor for sorting terms in a query before compilation
 		struct query_sort_cond {
+			//! Orders two terms by their canonical lookup representation.
+			//! \param lhs First term.
+			//! \param rhs Second term.
+			//! \return True when \a lhs precedes \a rhs.
 			constexpr bool operator()(const QueryTerm& lhs, const QueryTerm& rhs) const {
 				return query_term_less_for_lookup(lhs, rhs);
 			}
 		};
 
 		//! Sorts internal component arrays
+		//! \param ctx Query context whose terms and changed filters are canonicalized.
 		inline void sort(QueryCtx& ctx) {
 			const uint32_t idsCnt = ctx.data.idsCnt;
 			const uint32_t changedCnt = ctx.data.changedCnt;
@@ -38754,6 +42296,7 @@ namespace gaia {
 
 		//! Traversed-source snapshot caching only has meaning for terms that use both a source and traversal.
 		//! All other query shapes normalize the effective cap to 0 so shared cache identity does not diverge.
+		//! \param ctx Query context whose traversed-source cache limit is normalized.
 		inline void normalize_cache_src_trav(QueryCtx& ctx) {
 			auto& ctxData = ctx.data;
 			if (ctxData.cacheSrcTrav == 0)
@@ -38772,6 +42315,8 @@ namespace gaia {
 				ctxData.cacheSrcTrav = 0;
 		}
 
+		//! Calculates and stores the shared-query lookup hash after canonicalization.
+		//! \param ctx Query context whose hashLookup field is initialized.
 		inline void calc_lookup_hash(QueryCtx& ctx) {
 			GAIA_ASSERT(ctx.cc != nullptr);
 			// Make sure we don't calculate the hash twice
@@ -38808,10 +42353,15 @@ namespace gaia {
 
 		//! Prebound operations for one runtime sparse component store.
 		struct RawSparseStoreOps {
+			//! Type-erased sparse store instance.
 			const void* pStore = nullptr;
+			//! Reads one component value from the store.
 			const void* (*funcGet)(const void*, Entity) = nullptr;
+			//! Acquires mutable access to one component value.
 			void* (*funcMut)(void*, Entity) = nullptr;
+			//! Tests whether an entity has a value in the store.
 			bool (*funcHas)(const void*, Entity) = nullptr;
+			//! Size of one stored component value in bytes.
 			uint32_t elemSize = 0;
 		};
 
@@ -38840,9 +42390,17 @@ namespace gaia {
 		template <typename T>
 		Entity world_query_arg_id(World& world);
 
-		//! QueryImpl constraints
-		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
+		//! Selects which entity enablement states an iterator exposes.
+		enum class Constraints : uint8_t {
+			//! Iterate enabled entities only.
+			EnabledOnly,
+			//! Iterate disabled entities only.
+			DisabledOnly,
+			//! Iterate both disabled and enabled entities.
+			AcceptAll
+		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			class ChunkIterImpl;
 
@@ -39972,10 +43530,10 @@ namespace gaia {
 
 				//! Binds the iterator to the next query chunk and keeps archetype/mapping state on the iterator.
 				//! \param pArchetype Archetype owning the chunk.
-				//! \param pCompIndices Query-term to archetype-component index mapping for @a pArchetype.
+				//! \param pCompIndices Query-term to archetype-component index mapping for \a pArchetype.
 				//! \param pChunk Chunk exposed by this iterator step.
-				//! \param from First row exposed from @a pChunk.
-				//! \param to One-past-the-end row exposed from @a pChunk.
+				//! \param from First row exposed from \a pChunk.
+				//! \param to One-past-the-end row exposed from \a pChunk.
 				void set_query_chunk(
 						const Archetype* pArchetype, const uint8_t* pCompIndices, Chunk* pChunk, uint16_t from, uint16_t to) {
 					GAIA_ASSERT(pArchetype != nullptr);
@@ -40369,7 +43927,7 @@ namespace gaia {
 
 				//! Returns a read-only raw byte view resolved separately for each iterated entity.
 				//! Use this for sparse or inherited AoS runtime payloads that are not contiguous in the current chunk.
-				//! \warning @a component must be present on every iterated entity.
+				//! \warning \a component must be present on every iterated entity.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
@@ -40387,7 +43945,7 @@ namespace gaia {
 
 				//! Returns a mutable raw byte view resolved separately for each iterated entity.
 				//! Writes are finished after the iterator callback through normal touched-write tracking.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
@@ -40397,7 +43955,7 @@ namespace gaia {
 
 				//! Returns a mutable entity-resolved raw byte view without marking the component modified.
 				//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewSetEntity sview_raw_any_mut(Entity component) {
@@ -40426,7 +43984,7 @@ namespace gaia {
 				}
 
 				//! Marks an entity-resolved raw component view as modified.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when the component was eligible and tracked.
@@ -40440,7 +43998,7 @@ namespace gaia {
 				//! Returns a read-only entity or component view that can resolve sparse storage or inherited data.
 				//! This is the fallback accessor for terms that may come from outside the archetype chunk column,
 				//! such as inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
@@ -40451,7 +44009,7 @@ namespace gaia {
 				//! Returns a read-only entity or component view for a query-term index that can resolve sparse storage or
 				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
 				//! archetype chunk column.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-only access
@@ -40464,7 +44022,7 @@ namespace gaia {
 				//! This assumes the resolved term is stored directly in the current chunk range and therefore
 				//! skips world-resolution dispatch.
 				//! Use view_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct read-only entity or component view
 				template <typename T>
@@ -40487,7 +44045,7 @@ namespace gaia {
 				//! Returns a mutable entity or component view that can resolve sparse storage or inherited data.
 				//! This is the fallback accessor for inherited data or sparse storage terms
 				//! that are not guaranteed to be backed by the current archetype chunk column.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
@@ -40520,7 +44078,7 @@ namespace gaia {
 				//! Returns a mutable entity or component view for a query-term index that can resolve sparse storage or
 				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
 				//! archetype chunk column. Updates world versioning for chunk-backed terms before handing out mutable access.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-write access
@@ -40533,7 +44091,7 @@ namespace gaia {
 				//! This is the fallback accessor for inherited data or sparse storage terms
 				//! that are not guaranteed to be backed by the current archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+				//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
@@ -40567,7 +44125,7 @@ namespace gaia {
 				//! Use this when the term may resolve to inherited data or sparse storage
 				//! instead of an archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component
 				//! \param termIdx Query term index
 				//! \return Component view with read-write access
@@ -40576,9 +44134,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template sview_any_mut<T>(*this, termIdx);
 				}
 
-				//! Marks the component @a T as modified. Best used with sview to manually trigger
+				//! Marks the component \a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
-				//! If @a TriggerHooks is true, also triggers the component's set hooks.
+				//! If \a TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
 					m_pChunk->template modify<T, TriggerHooks>();
@@ -40587,7 +44145,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
 				//! Use view_auto_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
 				template <typename T>
@@ -40602,7 +44160,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited
 				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
 				//! resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -40618,7 +44176,7 @@ namespace gaia {
 				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
 				//! resolve to inherited data or sparse storage. Doesn't update the world version when read-write access is
 				//! acquired.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -40634,7 +44192,7 @@ namespace gaia {
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
 				//! Doesn't update the world version when read-write access is acquired.
 				//! Use sview_auto_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
 				template <typename T>
@@ -40653,21 +44211,21 @@ namespace gaia {
 					return m_pChunk->enabled(row);
 				}
 
-				//! Checks if entity @a entity is present in the chunk.
+				//! Checks if entity \a entity is present in the chunk.
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
 					return m_pChunk->has(entity);
 				}
 
-				//! Checks if relationship pair @a pair is present in the chunk.
+				//! Checks if relationship pair \a pair is present in the chunk.
 				//! \param pair Relationship pair
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Pair pair) const {
 					return m_pChunk->has((Entity)pair);
 				}
 
-				//! Checks if component @a T is present in the chunk.
+				//! Checks if component \a T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
@@ -40734,11 +44292,13 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Iterator for iterating entity subsets selected by Constraints.
 		//! Disabled entities always precede enabled ones in AcceptAll mode.
 		class GAIA_API Iter: public detail::ChunkIterImpl {
 		public:
+			//! Enablement constraint applied by this iterator type.
 			static constexpr Constraints ConstraintMode = Constraints::EnabledOnly;
 
 			using detail::ChunkIterImpl::size;
@@ -40747,25 +44307,36 @@ namespace gaia {
 				set_constraints(ConstraintMode);
 			}
 
+			//! Returns the first enabled row in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return Index of the first enabled row.
 			GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::start_index(pChunk, ConstraintMode);
 			}
 
+			//! Returns the end of the enabled row range in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return One-past-the-last enabled row index.
 			GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::end_index(pChunk, ConstraintMode);
 			}
 
+			//! Returns the number of enabled rows in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return Number of enabled rows.
 			GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::size(pChunk, ConstraintMode);
 			}
 
 			//! Returns the number of enabled entities accessible via the iterator.
+			//! \return Number of enabled entities in the current chunk.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
 				return m_pChunk->size_enabled();
 			}
 
 			//! Returns the number of disabled entities accessible via the iterator.
 			//! Can be read also as "the index of the first enabled entity".
+			//! \return Number of disabled entities in the current chunk.
 			GAIA_NODISCARD uint16_t size_disabled() const noexcept {
 				return m_pChunk->size_disabled();
 			}
@@ -40774,6 +44345,7 @@ namespace gaia {
 		//! Iterator used when copying entities.
 		class GAIA_API CopyIter final {
 		protected:
+			//! Bit view used to track component columns selected for copying.
 			using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
 			//! World pointer
@@ -40792,7 +44364,7 @@ namespace gaia {
 			~CopyIter() = default;
 			CopyIter(CopyIter&&) noexcept = default;
 			CopyIter& operator=(CopyIter&&) noexcept = default;
-			CopyIter(const CopyIter&) = delete;
+
 			CopyIter& operator=(const CopyIter&) = delete;
 
 			//! Sets the iterator's range.
@@ -40805,21 +44377,29 @@ namespace gaia {
 				m_cnt = cnt;
 			}
 
+			//! Associates the iterator with its owning world.
+			//! \param pWorld Non-null world used for component access and command buffers.
 			void set_world(const World* pWorld) {
 				GAIA_ASSERT(pWorld != nullptr);
 				m_pWorld = pWorld;
 			}
 
+			//! Returns mutable access to the associated world.
+			//! \return Associated world.
 			GAIA_NODISCARD World* world() {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				return const_cast<World*>(m_pWorld);
 			}
 
+			//! Returns read-only access to the associated world.
+			//! \return Associated world.
 			GAIA_NODISCARD const World* world() const {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				return m_pWorld;
 			}
 
+			//! Associates the iterator with the source archetype.
+			//! \param pArchetype Non-null archetype being copied.
 			void set_archetype(const Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				m_pArchetype = pArchetype;
@@ -40830,33 +44410,43 @@ namespace gaia {
 			// 	return m_pArchetype;
 			// }
 
+			//! Returns the associated source archetype.
+			//! \return Source archetype.
 			GAIA_NODISCARD const Archetype* archetype() const {
 				GAIA_ASSERT(m_pArchetype != nullptr);
 				return m_pArchetype;
 			}
 
+			//! Associates the iterator with a source chunk.
+			//! \param pChunk Non-null chunk containing the copied rows.
 			void set_chunk(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				m_pChunk = pChunk;
 			}
 
+			//! Returns the associated source chunk.
+			//! \return Source chunk.
 			GAIA_NODISCARD const Chunk* chunk() const {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				return m_pChunk;
 			}
 
+			//! Returns the world's single-threaded command buffer.
+			//! \return Single-threaded command buffer associated with the world.
 			GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_st_get(*pWorld);
 			}
 
+			//! Returns the world's multi-threaded command buffer.
+			//! \return Multi-threaded command buffer associated with the world.
 			GAIA_NODISCARD CommandBufferMT& cmd_buffer_mt() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_mt_get(*pWorld);
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
@@ -40865,7 +44455,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
@@ -40875,7 +44465,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
@@ -40883,9 +44473,9 @@ namespace gaia {
 				return m_pChunk->template sview_mut<T>(from(), to());
 			}
 
-			//! Marks the component @a T as modified. Best used with sview to manually trigger
+			//! Marks the component \a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If @a TriggerHooks is true, also triggers the component's set hooks.
+			//! If \a TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
 			void modify() {
 				m_pChunk->template modify<T, TriggerHooks>();
@@ -40893,7 +44483,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -40904,7 +44494,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -40913,27 +44503,28 @@ namespace gaia {
 			}
 
 			//! Checks if the entity at the current iterator index is enabled.
+			//! \param index Iterator-relative entity index.
 			//! \return True it the entity is enabled. False otherwise.
 			GAIA_NODISCARD bool enabled(uint32_t index) const {
 				const auto row = (uint16_t)(from() + index);
 				return m_pChunk->enabled(row);
 			}
 
-			//! Checks if entity @a entity is present in the chunk.
+			//! Checks if entity \a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				return m_pChunk->has(entity);
 			}
 
-			//! Checks if relationship pair @a pair is present in the chunk.
+			//! Checks if relationship pair \a pair is present in the chunk.
 			//! \param pair Relationship pair
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return m_pChunk->has((Entity)pair);
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -40941,7 +44532,8 @@ namespace gaia {
 				return m_pChunk->template has<T>();
 			}
 
-			//! Returns the number of entities accessible via the iterator
+			//! Returns the number of entities accessible via the iterator.
+			//! \return Number of rows in the configured copy range.
 			GAIA_NODISCARD uint16_t size() const noexcept {
 				return m_cnt;
 			}
@@ -40962,6 +44554,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			IterTermDesc ChunkIterTypedOps::term_desc(const ChunkIterImpl& self) {
@@ -41343,6 +44936,7 @@ namespace gaia {
 			}
 
 		} // namespace detail
+		//! \endcond
 
 	} // namespace ecs
 } // namespace gaia
@@ -41369,15 +44963,24 @@ namespace gaia {
 		//! Entity-scoped component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentGetter {
+			//! World used to resolve inherited and sparse component data.
 			const World* m_pWorld;
+			//! Chunk containing the entity's table-backed data.
 			const Chunk* m_pChunk;
+			//! Entity whose components are accessed.
 			Entity m_entity;
+			//! Entity row within the chunk.
 			uint16_t m_row;
 
+			//! Creates an accessor for one entity row.
+			//! \param world World that owns the entity.
+			//! \param pChunk Chunk containing the entity row.
+			//! \param entity Entity being accessed.
+			//! \param row Entity row within \p pChunk.
 			ComponentGetter(const World& world, const Chunk* pChunk, Entity entity, uint16_t row):
 					m_pWorld(&world), m_pChunk(pChunk), m_entity(entity), m_row(row) {}
 
-			//! Returns the value stored in the component @a T on entity.
+			//! Returns the value stored in the component \a T on entity.
 			//! \tparam T Component
 			//! \return Value stored in the component.
 			template <typename T>
@@ -41393,9 +44996,10 @@ namespace gaia {
 					return m_pChunk->template get<T>();
 			}
 
-			//! Returns the value stored in the component associated with @a type on entity.
+			//! Returns the value stored in the component associated with \a type on entity.
 			//! \tparam T Component
 			//! \param type Entity associated with the component type
+			//! \return Value stored in the selected component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity type) const;
 
@@ -41422,6 +45026,11 @@ namespace gaia {
 		//! Entity-scoped mutable component accessor bound to a specific world, chunk and row.
 		//! It is not a standalone chunk view and expects the referenced entity to remain valid.
 		struct ComponentSetter: public ComponentGetter {
+			//! Creates a mutable accessor using the ComponentGetter constructor arguments.
+			//! \param world World that owns the entity.
+			//! \param pChunk Chunk containing the entity row.
+			//! \param entity Entity being accessed.
+			//! \param row Entity row within \p pChunk.
 			using ComponentGetter::ComponentGetter;
 
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
@@ -41456,11 +45065,12 @@ namespace gaia {
 			//! Returns a mutable reference to component without triggering hooks, observers or world-version updates.
 			//! Call `World::modify<T, true>(entity, type)` if the write should emit `OnSet`.
 			//! \tparam T Component or pair
+			//! \param type Entity associated with the component type.
 			//! \return Reference to data for AoS, or mutable accessor for SoA types
 			template <typename T>
 			decltype(auto) mut(Entity type);
 
-			//! Sets the value of the component @a type and then emits the normal post-write set notifications.
+			//! Sets the value of the component \a type and then emits the normal post-write set notifications.
 			//! \tparam T Component or pair
 			//! \param type Entity associated with the type
 			//! \param value Value to set for the component
@@ -41550,7 +45160,7 @@ namespace gaia {
 				Archetype* pArchetype = nullptr;
 				//! Destination chunk for the pending range.
 				Chunk* pChunk = nullptr;
-				//! First destination row in @a pChunk.
+				//! First destination row in \a pChunk.
 				uint16_t startRow = 0;
 				//! Number of contiguous rows in the pending range.
 				uint16_t count = 0;
@@ -41572,11 +45182,11 @@ namespace gaia {
 				uint32_t parentIdx = BadIndex;
 				//! Hierarchy relation used to attach this node to its parent node.
 				Entity parentRelation = EntityBad;
-				//! Destination archetype used for instances of @a prefab.
+				//! Destination archetype used for instances of \a prefab.
 				Archetype* pDstArchetype = nullptr;
-				//! Non-fragmenting sparse component ids copied from @a prefab.
+				//! Non-fragmenting sparse component ids copied from \a prefab.
 				cnt::darray_ext<Entity, 16> copiedSparseIds;
-				//! Component or pair ids added to instances of @a prefab.
+				//! Component or pair ids added to instances of \a prefab.
 				cnt::darray_ext<Entity, 16> addedIds;
 				//! Archetype component or pair ids reported to add hooks and observers.
 				cnt::darray_ext<Entity, 16> addHookIds;
@@ -41603,7 +45213,7 @@ namespace gaia {
 				cnt::darray<cnt::darray<Entity>> tgtToSrc;
 
 			public:
-				//! Ensures source-indexed storage can hold @a source.
+				//! Ensures source-indexed storage can hold \a source.
 				//! \param source Source entity.
 				void ensure_source_capacity(Entity source) {
 					const auto required = (uint32_t)source.id() + 1;
@@ -41619,7 +45229,7 @@ namespace gaia {
 					srcToTgtIdx.resize(newSize, BadIndex);
 				}
 
-				//! Ensures target-indexed storage can hold @a target.
+				//! Ensures target-indexed storage can hold \a target.
 				//! \param target Target entity.
 				void ensure_target_capacity(Entity target) {
 					const auto required = target.id() + 1;
@@ -41634,7 +45244,7 @@ namespace gaia {
 					tgtToSrc.resize(newSize);
 				}
 
-				//! Returns the target currently bound to @a source.
+				//! Returns the target currently bound to \a source.
 				//! \param source Source entity.
 				//! \return Bound target or EntityBad when no binding exists.
 				GAIA_NODISCARD Entity target(Entity source) const {
@@ -41644,7 +45254,7 @@ namespace gaia {
 					return srcToTgt[source.id()];
 				}
 
-				//! Returns sources currently bound to @a target.
+				//! Returns sources currently bound to \a target.
 				//! \param target Target entity.
 				//! \return Source bucket or nullptr when no source is bound.
 				GAIA_NODISCARD const cnt::darray<Entity>* sources(Entity target) const {
@@ -41673,7 +45283,7 @@ namespace gaia {
 					}
 				}
 
-				//! Removes @a source from the source bucket for @a target.
+				//! Removes \a source from the source bucket for \a target.
 				//! \param target Target entity.
 				//! \param source Source entity.
 				void remove_target_source(Entity target, Entity source) {
@@ -41698,7 +45308,7 @@ namespace gaia {
 					sources.pop_back();
 				}
 
-				//! Binds @a source to @a target.
+				//! Binds \a source to \a target.
 				//! \param source Source entity.
 				//! \param target Target entity.
 				//! \return True when the stored binding changed.
@@ -41723,7 +45333,7 @@ namespace gaia {
 					return true;
 				}
 
-				//! Removes @a source from the store.
+				//! Removes \a source from the store.
 				//! \param source Source entity.
 				//! \param target Required target, or EntityBad to remove any target.
 				//! \return True when a binding was removed.
@@ -41761,6 +45371,7 @@ namespace gaia {
 #include <cstdint>
 #include <cstring>
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct ArchetypeMatchStamps {
@@ -41819,7 +45430,7 @@ namespace gaia {
 					if (page == nullptr)
 						continue;
 					//! Reuse allocated pages across matcher runs. Only the stored stamp values
-					//! need to be reset; freeing the pages here would put heap churn back into
+					//! need to be reset. Freeing the pages here would put heap churn back into
 					//! the hot path.
 					std::memset(page, 0, sizeof(uint32_t) * PageSize);
 				}
@@ -41850,6 +45461,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 #include <cstdio>
@@ -41864,21 +45476,40 @@ namespace gaia {
 	namespace ecs {
 		namespace vm {
 
-			enum class MatchingStyle { Simple, Wildcard, Complex };
+			//! Query-term matching strategy selected by the VM compiler.
+			enum class MatchingStyle {
+				//! Match one exact entity id.
+				Simple,
+				//! Match a wildcard relationship id.
+				Wildcard,
+				//! Match a relationship or variable expression requiring full evaluation.
+				Complex
+			};
 
+			//! Type-erased view over component-to-archetype lookup storage.
 			struct ArchetypeLookupView {
+				//! Function used to fetch archetypes for an entity lookup key.
 				using FetchByKeyFn = std::span<const ComponentIndexEntry> (*)(
 						const void*, std::span<const Archetype*>, Entity, const EntityLookupKey&);
 
+				//! Lookup implementation data.
 				const void* pData = nullptr;
 				//! Optional lookup-bucket revision table used to validate cached incremental cursors.
 				const EntityToArchetypeVersionMap* pVersions = nullptr;
+				//! Lookup function, or null for an empty view.
 				FetchByKeyFn fetchByKey = nullptr;
 
+				//! Returns whether the lookup view is empty.
+				//! \return True when no lookup function is bound.
 				GAIA_NODISCARD bool empty() const {
 					return fetchByKey == nullptr;
 				}
 
+				//! Fetches archetype entries for an entity lookup key.
+				//! \param arr All archetypes available to the lookup implementation.
+				//! \param ent Entity currently evaluated by the VM.
+				//! \param key Lookup key to resolve.
+				//! \return Matching archetype entries, or an empty span when none exist.
 				GAIA_NODISCARD std::span<const ComponentIndexEntry>
 				fetch(std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) const {
 					if (empty())
@@ -41887,6 +45518,9 @@ namespace gaia {
 					return fetchByKey(pData, arr, ent, key);
 				}
 
+				//! Returns the current revision of a lookup bucket.
+				//! \param key Lookup key identifying the bucket.
+				//! \return Bucket revision, or zero when revisions are unavailable.
 				GAIA_NODISCARD uint32_t revision(const EntityLookupKey& key) const {
 					if (pVersions == nullptr || pVersions->empty())
 						return 0;
@@ -41896,6 +45530,7 @@ namespace gaia {
 				}
 			};
 
+			//! Mutable execution context used while matching query bytecode.
 			struct MatchingCtx {
 				// Setup up externally
 				//////////////////////////////////
@@ -41948,6 +45583,7 @@ namespace gaia {
 				uint32_t pc;
 			};
 
+			//! \cond INTERNAL
 			inline std::span<const ComponentIndexEntry> fetch_archetypes_for_select(
 					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				(void)arr;
@@ -42007,8 +45643,10 @@ namespace gaia {
 			inline ArchetypeLookupView make_archetype_lookup_view(const SingleArchetypeLookup& map) {
 				return ArchetypeLookupView{&map, nullptr, fetch_archetypes_for_select_from_single};
 			}
+			//! \endcond
 
 			namespace detail {
+				//! \cond INTERNAL
 				enum class EOpcode : uint8_t { //
 					//! X
 					All_Simple,
@@ -42438,8 +46076,8 @@ namespace gaia {
 					return true;
 				}
 
-				//! Tries to match ids in @a queryIds with ids in @a archetypeIds given
-				//! the comparison function @a func bool(Entity queryId, Entity archetypeId).
+				//! Tries to match ids in \a queryIds with ids in \a archetypeIds given
+				//! the comparison function \a func bool(Entity queryId, Entity archetypeId).
 				//! \tparam OpKind Operation kind
 				//! \tparam CmpFunc Comparison function
 				//! \param queryIds Entity ids inside archetype
@@ -42661,7 +46299,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Tries to match entity ids in \a queryIds with those in \a archetype.
 				//! Does not consider Is relationships.
 				//! \tparam OpKind Operation kind
 				//! \param archetype Archetype checked against
@@ -42689,7 +46327,7 @@ namespace gaia {
 							});
 				}
 
-				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Tries to match entity ids in \a queryIds with those in \a archetype.
 				//! \tparam OpKind Kind of VM operation
 				//! \param w Parent world
 				//! \param archetype Archetype checked against
@@ -44142,6 +47780,7 @@ namespace gaia {
 					GAIA_ASSERT(stackItem.arg < terms.size());
 					return terms[stackItem.arg];
 				}
+				//! \endcond
 			} // namespace detail
 
 			//! Compiles query terms into matching bytecode and evaluates that bytecode against archetypes.
@@ -45423,6 +49062,9 @@ namespace gaia {
 				}
 
 			public:
+				//! Formats the compiled query bytecode for diagnostics.
+				//! \param world World used to resolve entity names in the output.
+				//! \return Human-readable bytecode and operand metadata.
 				GAIA_NODISCARD util::str bytecode(const World& world) const {
 					util::str out;
 					out.reserve(2048);
@@ -45471,6 +49113,9 @@ namespace gaia {
 				}
 
 				//! Transforms inputs into virtual machine opcodes.
+				//! \param entityToArchetypeMap Component-to-archetype lookup available during compilation.
+				//! \param allArchetypes Archetypes available during compilation.
+				//! \param queryCtx Query definition and dependency metadata to compile.
 				void compile(
 						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 						QueryCtx& queryCtx) {
@@ -45833,6 +49478,7 @@ namespace gaia {
 					}
 				}
 
+				//! \cond INTERNAL
 				void create_opcodes(QueryCtx& queryCtx) {
 					const bool isSimple = (queryCtx.data.flags & QueryCtx::QueryFlags::Complex) == 0U;
 					const bool isAs = (queryCtx.data.as_mask_0 + queryCtx.data.as_mask_1) != 0U;
@@ -45924,15 +49570,22 @@ namespace gaia {
 					// Mark as compiled
 					queryCtx.data.flags &= ~QueryCtx::QueryFlags::Recompile;
 				}
+				//! \endcond
 
+				//! Returns whether this VM contains compiled executable opcodes.
+				//! \return True when compilation produced at least one opcode.
 				GAIA_NODISCARD bool is_compiled() const {
 					return !m_compCtx.ops.empty();
 				}
 
+				//! Returns the total number of compiled opcodes.
+				//! \return Number of compiled opcodes, including variable-search programs.
 				GAIA_NODISCARD uint32_t op_count() const {
 					return (uint32_t)m_compCtx.ops.size();
 				}
 
+				//! Computes a stable signature of the compiled opcode stream.
+				//! \return Hash of opcode kinds, control-flow targets, operands, and costs.
 				GAIA_NODISCARD uint64_t op_signature() const {
 					uint64_t hash = 1469598103934665603ull;
 					for (const auto& op: m_compCtx.ops) {
@@ -45948,7 +49601,8 @@ namespace gaia {
 					return hash;
 				}
 
-				//! Executes compiled opcodes
+				//! Executes compiled query-matching opcodes.
+				//! \param ctx Matching state updated with the resulting archetypes.
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
 					ctx.skipOr = false;
@@ -45982,12 +49636,17 @@ namespace gaia {
 		Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term);
 		const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id);
 
+		//! Reverse index from entity or pair lookup keys to matching archetype records.
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
+		//! Query-field to archetype-component column mapping for one matched archetype.
 		struct ArchetypeCompIndices {
+			//! Component column per query field, with invalid entries encoded by the mapping builder.
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
+		//! Cached inherited component data pointers for one matched archetype.
 		struct ArchetypeInheritedData {
+			//! Component data pointer per query field, or null when the field is not inherited.
 			const void* data[ChunkHeader::MAX_COMPONENTS];
 		};
 
@@ -46064,12 +49723,17 @@ namespace gaia {
 		GAIA_NODISCARD QueryMatchScratch& query_match_scratch_acquire(World& world);
 		void query_match_scratch_release(World& world, bool keepStamps);
 
+		//! Inputs passed through query-slot allocation to construct a QueryInfo instance.
 		struct QueryInfoCreationCtx {
+			//! Authored query context transferred into the allocated slot.
 			QueryCtx* pQueryCtx;
+			//! World reverse index used to compile initial archetype matching operations.
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
+			//! Archetypes present in the world when the query is compiled.
 			std::span<const Archetype*> allArchetypes;
 		};
 
+		//! Compiled query plan and its incrementally maintained result caches.
 		class QueryInfo {
 		public:
 			//! Allocated items: index in the query slot list.
@@ -46078,8 +49742,15 @@ namespace gaia {
 			//! Generation ID of the query slot.
 			uint32_t gen = 0;
 
-			//! Query matching result
-			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
+			//! Result of evaluating one archetype for cache insertion.
+			enum class MatchArchetypeQueryRet : uint8_t {
+				//! Archetype does not satisfy the query.
+				Fail,
+				//! Archetype satisfies the query and should be cached.
+				Ok,
+				//! Archetype requires no cache action for this evaluation path.
+				Skip
+			};
 
 		private:
 			struct Instruction {
@@ -46116,6 +49787,7 @@ namespace gaia {
 			};
 
 		public:
+			//! Cache layer invalidated after query inputs or world state change.
 			enum class InvalidationKind : uint8_t {
 				//! Only the final result cache is stale. Structural seed matches remain valid and can be reused.
 				Result,
@@ -46144,6 +49816,7 @@ namespace gaia {
 				//! Cached array of archetypes matching the query
 				CArchetypeDArray archetypeCache;
 
+				//! Storage used only by grouped query result caches.
 				struct GroupedPayload {
 					//! Group ids for grouped queries, aligned with archetypeCache.
 					cnt::darray<GroupId> archetypeGroupIds;
@@ -46175,6 +49848,7 @@ namespace gaia {
 					}
 				};
 
+				//! Component mappings and flattened chunks prepared for query iteration.
 				struct ExecPayload {
 					//! Cached component-index mapping for each matched archetype.
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
@@ -46246,6 +49920,7 @@ namespace gaia {
 					}
 				};
 
+				//! Sorting and hierarchy-barrier state for nontrivial iteration paths.
 				struct NonTrivialPayload {
 					//! Cached depth-order hierarchy barrier result for each archetype.
 					cnt::darray<uint8_t> archetypeBarrierPasses;
@@ -46289,6 +49964,7 @@ namespace gaia {
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
 				NonTrivialPayload nonTrivial;
 
+				//! Runtime dependency snapshots used to validate reusable dynamic results.
 				struct DynamicCacheState {
 					//! Relation-version payload for reusable dynamic caches with relation dependencies.
 					struct RelationPayload {
@@ -46296,6 +49972,9 @@ namespace gaia {
 						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> versions;
 
 						//! Returns true when any tracked relation version changed.
+						//! \param world World providing current relation topology versions.
+						//! \param relations Relations aligned with versions.
+						//! \return True when any current version differs from its snapshot.
 						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> relations) const {
 							const auto cnt = (uint32_t)relations.size();
 							GAIA_FOR(cnt) {
@@ -46307,6 +49986,8 @@ namespace gaia {
 						}
 
 						//! Captures current relation versions.
+						//! \param world World providing current relation topology versions.
+						//! \param relations Relations whose versions are captured in order.
 						void snapshot(const World& world, std::span<const Entity> relations) {
 							const auto cnt = (uint32_t)relations.size();
 							GAIA_FOR(cnt)
@@ -46320,6 +50001,9 @@ namespace gaia {
 						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> entityVersions;
 
 						//! Returns true when any tracked source entity changed archetype.
+						//! \param world World providing current entity archetype versions.
+						//! \param sourceEntities Source entities aligned with entityVersions.
+						//! \return True when any source archetype version differs from its snapshot.
 						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> sourceEntities) const {
 							const auto cnt = (uint32_t)sourceEntities.size();
 							GAIA_FOR(cnt) {
@@ -46331,6 +50015,8 @@ namespace gaia {
 						}
 
 						//! Captures current source entity archetype versions.
+						//! \param world World providing current entity archetype versions.
+						//! \param sourceEntities Source entities whose versions are captured in order.
 						void snapshot(const World& world, std::span<const Entity> sourceEntities) {
 							const auto cnt = (uint32_t)sourceEntities.size();
 							GAIA_FOR(cnt)
@@ -46355,11 +50041,14 @@ namespace gaia {
 						}
 
 						//! Returns true when the traversed-source snapshot is unusable for reuse.
+						//! \return True when capture exceeded the configured snapshot limit.
 						GAIA_NODISCARD bool is_overflowed() const {
 							return overflowed;
 						}
 
 						//! Returns true when any tracked traversed source entity changed archetype.
+						//! \param world World providing current hierarchy and archetype versions.
+						//! \return True when enabled hierarchy state or any captured entity version changed.
 						GAIA_NODISCARD bool versions_changed(const World& world) const {
 							if (enabledVersion != world_enabled_hierarchy_version(world))
 								return true;
@@ -46375,6 +50064,9 @@ namespace gaia {
 						}
 
 						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
+						//! \param world World providing the current enabled hierarchy version.
+						//! \param items Newly built ordered source closure.
+						//! \return True when hierarchy version, closure size, or any closure item differs.
 						GAIA_NODISCARD bool changed(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) const {
 							if (enabledVersion != world_enabled_hierarchy_version(world))
 								return true;
@@ -46392,6 +50084,8 @@ namespace gaia {
 						}
 
 						//! Captures a newly built traversed-source closure snapshot.
+						//! \param world World providing the enabled hierarchy version to capture.
+						//! \param items Ordered source closure and entity archetype versions.
 						void capture(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) {
 							snapshot = items;
 							enabledVersion = world_enabled_hierarchy_version(world);
@@ -46419,6 +50113,9 @@ namespace gaia {
 						}
 
 						//! Returns true when runtime variable bindings differ from the captured snapshot.
+						//! \param runtimeBindings Current values for all query variable slots.
+						//! \param runtimeBindingMask Bitmask selecting bound slots in \a runtimeBindings.
+						//! \return True when the bound-slot mask or any selected value differs.
 						GAIA_NODISCARD bool
 						changed(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) const {
 							if (bindingMask != runtimeBindingMask)
@@ -46439,6 +50136,8 @@ namespace gaia {
 						}
 
 						//! Captures runtime variable bindings.
+						//! \param runtimeBindings Current values for all query variable slots.
+						//! \param runtimeBindingMask Bitmask selecting bound slots to capture.
 						void snapshot(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) {
 							bindings = runtimeBindings;
 							bindingMask = runtimeBindingMask;
@@ -46872,6 +50571,7 @@ namespace gaia {
 			}
 
 			//! Returns the current external reference count.
+			//! \return Number of live query objects referencing this slot.
 			uint32_t refs() const {
 				return m_refs;
 			}
@@ -46925,6 +50625,7 @@ namespace gaia {
 			//! \param ctx Query context to take ownership of.
 			//! \param entityToArchetypeMap World archetype lookup used during compilation.
 			//! \param allArchetypes Current world archetype list.
+			//! \return Compiled query info owning \a ctx in slot \a id.
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
 					std::span<const Archetype*> allArchetypes) {
@@ -46948,6 +50649,7 @@ namespace gaia {
 			//! \param idx Query slot index.
 			//! \param gen Query slot generation.
 			//! \param pCtx Pointer to QueryInfoCreationCtx.
+			//! \return Compiled query info initialized for the allocated slot.
 			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = *pCreationCtx->pQueryCtx;
@@ -46970,11 +50672,15 @@ namespace gaia {
 			}
 
 			//! Builds a stable query handle from query slot metadata.
+			//! \param info Query info providing slot index and generation.
+			//! \return Handle identifying \a info's current slot generation.
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
 				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
+			//! \param entityToArchetypeMap World reverse index used by VM compilation.
+			//! \param allArchetypes Archetypes present while the plan is compiled.
 			void compile(const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes) {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
@@ -46991,11 +50697,13 @@ namespace gaia {
 			}
 
 			//! Returns the query cache policy selected during compilation.
+			//! \return Immediate, lazy, or dynamic maintenance policy.
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
 				return m_plan.ctx.data.cachePolicy;
 			}
 
 			//! Returns true when grouped-query payloads are active for this query.
+			//! \return True when a group-by entity is configured.
 			GAIA_NODISCARD bool has_grouped_payload() const {
 				return m_plan.ctx.data.groupBy != EntityBad;
 			}
@@ -47019,21 +50727,25 @@ namespace gaia {
 			}
 
 			//! Returns true when sorted-query payloads are active for this query.
+			//! \return True when an entity sorting callback is configured.
 			GAIA_NODISCARD bool has_sorted_payload() const {
 				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
 			//! Returns the result membership revision used by reverse-index cache users.
+			//! \return Revision incremented whenever result archetype membership changes.
 			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
 			}
 
 			//! Returns true when the result cache contains archetypes that need default prefab filtering.
+			//! \return True when cached membership may include prefab-tagged archetypes to reject during iteration.
 			GAIA_NODISCARD bool result_cache_may_need_prefab_filter() const {
 				return m_state.resultCacheMayNeedPrefabFilter != 0;
 			}
 
 			//! Returns true when a new archetype can be propagated into the current cache incrementally.
+			//! \return True for a compiled, clean, immediate structural query.
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only immediate structural queries participate in archetype-create propagation.
 				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
@@ -47041,28 +50753,42 @@ namespace gaia {
 			}
 
 			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
+			//! \return True when direct structural matching was selected during compilation.
 			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
 				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectStructuralTerms;
 			}
 
 			//! Returns whether direct create-time matching needs Is-aware id checks.
+			//! \return True when at least one compiled term has semantic Is matching bits.
 			GAIA_NODISCARD bool direct_create_archetype_match_uses_is() const {
 				const auto& ctxData = m_plan.ctx.data;
 				return (ctxData.as_mask_0 + ctxData.as_mask_1) != 0;
 			}
 
+			//! Compares this compiled plan with an authored query context.
+			//! \param other Query context to compare.
+			//! \return True when shared query identity matches.
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				return m_plan.ctx == other;
 			}
 
+			//! Compares this compiled plan with an authored query context for inequality.
+			//! \param other Query context to compare.
+			//! \return True when shared query identity differs.
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return m_plan.ctx != other;
 			}
 
+			//! Scope guard that releases the world-owned temporary VM matching frame.
 			struct CleanUpTmpArchetypeMatches {
+				//! World owning the acquired scratch frame.
 				World& world;
+				//! True to retain allocated dedup-stamp pages while releasing the frame.
 				bool keepStamps;
 
+				//! Creates a guard for an already acquired matching frame.
+				//! \param world World owning the frame.
+				//! \param keepStamps Whether allocated dedup-stamp pages remain reusable.
 				explicit CleanUpTmpArchetypeMatches(World& world, bool keepStamps): world(world), keepStamps(keepStamps) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
@@ -47074,7 +50800,7 @@ namespace gaia {
 				}
 			};
 
-			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
+			//! Tries to match the query against archetypes in \a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param entityToArchetypeMap Lookup of archetypes by entity
 			//! \param allArchetypes List of all archetypes
@@ -47206,7 +50932,8 @@ namespace gaia {
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
 			//! \param runtimeVarBindings Runtime bindings for query variables.
-			//! \param runtimeVarBindingMask Bitmask of variables already bound in @a runtimeVarBindings.
+			//! \param runtimeVarBindingMask Bitmask of variables already bound in \a runtimeVarBindings.
+			//! \return True when the archetype satisfies the query.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
@@ -47279,6 +51006,13 @@ namespace gaia {
 				return matched;
 			}
 
+			//! Refreshes persistent query matches when cache state or world archetypes changed.
+			//! \param entityToArchetypeMap World reverse index used to seed matching.
+			//! \param allArchetypes Current world archetypes.
+			//! \param entityToArchetypeMapVersions Revisions for reverse-index buckets.
+			//! \param archetypeLastId Greatest world-local archetype id currently allocated.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
 			void ensure_matches(
 					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 					const EntityToArchetypeVersionMap& entityToArchetypeMapVersions, ArchetypeId archetypeLastId,
@@ -47288,6 +51022,12 @@ namespace gaia {
 						runtimeVarBindingMask);
 			}
 
+			//! Rebuilds transient result membership without retaining persistent seed-cache state.
+			//! \param entityToArchetypeMap World reverse index used to seed matching.
+			//! \param allArchetypes Current world archetypes.
+			//! \param entityToArchetypeMapVersions Revisions for reverse-index buckets.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
 			void ensure_matches_transient(
 					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 					const EntityToArchetypeVersionMap& entityToArchetypeMapVersions,
@@ -47335,12 +51075,24 @@ namespace gaia {
 				ensure_group_data(false);
 			}
 
+			//! Ensures persistent result membership for one target archetype.
+			//! \param archetype Archetype to evaluate.
+			//! \param targetEntities Entities supplying target bindings for the evaluation.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
+			//! \return True when \a archetype satisfies the query.
 			bool ensure_matches_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				return match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
+			//! Rebuilds transient result membership by evaluating one target archetype.
+			//! \param archetype Archetype to evaluate.
+			//! \param targetEntities Entities supplying target bindings for the evaluation.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
+			//! \return True when \a archetype satisfies the query.
 			bool ensure_matches_one_transient(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
@@ -47718,7 +51470,7 @@ namespace gaia {
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
-			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \param dataFieldCount Number of valid entries in \a pDataFields. Pass zero to cache only chunks/ranges.
 			void
 			ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) {
 				ensure_comp_indices();
@@ -47802,6 +51554,7 @@ namespace gaia {
 			}
 
 			//! Returns true when query iteration needs cached inherited data payloads.
+			//! \return True when compiled terms require inherited component pointers.
 			GAIA_NODISCARD bool has_inherited_data_payload() const {
 				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedDataTerms);
 			}
@@ -47991,7 +51744,7 @@ namespace gaia {
 				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
-			//! Records whether @a pArchetype requires the default prefab filter during result-cache iteration.
+			//! Records whether \a pArchetype requires the default prefab filter during result-cache iteration.
 			//! \param pArchetype Matched archetype added to the result cache.
 			void update_result_cache_prefab_filter_state(const Archetype* pArchetype) {
 				if (!matches_prefab_entities() && pArchetype->has(Prefab))
@@ -48388,7 +52141,7 @@ namespace gaia {
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
-			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \param dataFieldCount Number of valid entries in \a pDataFields. Pass zero to cache only chunks/ranges.
 			//! \return Flattened chunk entries for the requested result-cache archetype range.
 			std::span<const DirectChunkEntry>
 			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) const {
@@ -48584,6 +52337,7 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace cnt {
 		template <>
@@ -48751,7 +52505,7 @@ namespace gaia {
 				m_queryToArchetype.clear();
 			}
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo* try_get(QueryHandle handle) {
@@ -48764,7 +52518,7 @@ namespace gaia {
 				return &info;
 			}
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			const QueryInfo* try_get(QueryHandle handle) const {
@@ -48839,7 +52593,7 @@ namespace gaia {
 			}
 #endif
 
-			//! Returns a QueryInfo object associated with @a handle.
+			//! Returns a QueryInfo object associated with \a handle.
 			//! \param handle Query handle
 			//! \return Query info
 			QueryInfo& get(QueryHandle handle) {
@@ -48851,7 +52605,7 @@ namespace gaia {
 				return info;
 			}
 
-			//! Registers the provided query lookup context @a ctx. If it already exists it is returned.
+			//! Registers the provided query lookup context \a ctx. If it already exists it is returned.
 			//! \param ctx Query context
 			//! \param entityToArchetypeMap Map of all archetypes
 			//! \param allArchetypes Array of all archetypes
@@ -49466,6 +53220,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 
@@ -49491,7 +53246,7 @@ namespace gaia {
 		//! Checks whether a scheduler flag set contains a specific flag.
 		//! \param flags Flag set to inspect.
 		//! \param flag Flag to test for.
-		//! \return True when @a flag is present in @a flags.
+		//! \return True when \a flag is present in \a flags.
 		GAIA_NODISCARD inline bool sched_flags_has(SchedFlags flags, SchedFlags flag) {
 			return ((uint8_t)flags & (uint8_t)flag) != 0U;
 		}
@@ -49554,16 +53309,16 @@ namespace gaia {
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque token returned by add() or add_par().
 			void (*submit)(void* pCtx, SchedToken token) = nullptr;
-			//! Adds a dependency edge so @a tokenSecond runs after @a tokenFirst.
+			//! Adds a dependency edge so \a tokenSecond runs after \a tokenFirst.
 			//! \param pCtx Scheduler-owned context.
 			//! \param tokenFirst Work that must complete first.
-			//! \param tokenSecond Work that depends on @a tokenFirst.
+			//! \param tokenSecond Work that depends on \a tokenFirst.
 			void (*dep)(void* pCtx, SchedToken tokenFirst, SchedToken tokenSecond) = nullptr;
-			//! Waits until the scheduled work referenced by @a token finishes.
+			//! Waits until the scheduled work referenced by \a token finishes.
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
 			void (*wait)(void* pCtx, SchedToken token) = nullptr;
-			//! Deletes any scheduler-owned resources associated with @a token.
+			//! Deletes any scheduler-owned resources associated with \a token.
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
 			void (*del)(void* pCtx, SchedToken token) = nullptr;
@@ -49597,12 +53352,11 @@ namespace gaia {
 			}
 
 		public:
-			//! Creates an empty wrapper.
 			SchedJob() = default;
-			//! Creates a wrapper around @a token from @a sched.
-			//! \param sched Scheduler descriptor that created @a token.
+
+			//! \param sched Scheduler descriptor that created \a token.
 			//! \param token Scheduler-owned work token.
-			//! \param submitted True if the scheduler already submitted @a token.
+			//! \param submitted True if the scheduler already submitted \a token.
 			//! \param pCleanupCtx Optional cleanup context owned by the wrapper.
 			//! \param cleanup Optional cleanup callback executed after the job is waited or deleted unsubmitted.
 			SchedJob(Sched sched, SchedToken token, bool submitted, void* pCleanupCtx, void (*cleanup)(void* pCtx)):
@@ -49661,10 +53415,10 @@ namespace gaia {
 
 			//! Submits the added work if it has not been submitted yet.
 			void submit();
-			//! Adds a dependency edge so this job runs after @a jobFirst.
+			//! Adds a dependency edge so this job runs after \a jobFirst.
 			//!
 			//! This member form mirrors the Gaia scheduler naming used by mt::ThreadPool::dep() and sched_dep(). It is
-			//! equivalent to calling sched_dep() with @a jobFirst as the prerequisite and this job as the dependent work.
+			//! equivalent to calling sched_dep() with \a jobFirst as the prerequisite and this job as the dependent work.
 			//!
 			//! \param jobFirst Job that must complete before this job can run.
 			//! \warning Both jobs must use the same scheduler descriptor, and dependencies must be added before either job is
@@ -49679,6 +53433,7 @@ namespace gaia {
 			void del();
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			inline mt::JobPriority exec_prio(QueryExecType execType) {
 				// QueryExecType::ParallelEff is encoded as value 3. Keep the scheduler bridge independent
@@ -49849,6 +53604,7 @@ namespace gaia {
 				delete pData;
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Returns the default ECS scheduler backed by gaia::mt::ThreadPool.
 		//! \return Default scheduler descriptor.
@@ -49868,9 +53624,9 @@ namespace gaia {
 			return sched;
 		}
 
-		//! Resolves @a sched to the default scheduler when it has no callbacks installed.
+		//! Resolves \a sched to the default scheduler when it has no callbacks installed.
 		//! \param sched Scheduler descriptor to resolve.
-		//! \return Either @a sched or the default scheduler when @a sched is empty.
+		//! \return Either \a sched or the default scheduler when \a sched is empty.
 		GAIA_NODISCARD inline const Sched& sched_resolve(const Sched& sched) {
 			if (sched.sched == nullptr && sched.sched_par == nullptr && sched.add == nullptr && sched.add_par == nullptr &&
 					sched.submit == nullptr && sched.dep == nullptr && sched.wait == nullptr && sched.del == nullptr)
@@ -49878,7 +53634,7 @@ namespace gaia {
 			return sched;
 		}
 
-		//! Schedules one task through @a sched.
+		//! Schedules one task through \a sched.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Task description.
 		//! \return Opaque synchronization token for the scheduled work.
@@ -49894,7 +53650,7 @@ namespace gaia {
 			return token;
 		}
 
-		//! Adds one task through @a sched without submitting it.
+		//! Adds one task through \a sched without submitting it.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Task description.
 		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
@@ -49923,7 +53679,7 @@ namespace gaia {
 			return SchedJob(resolved, resolved.sched(resolved.pCtx, &desc), true, pCleanupCtx, cleanup);
 		}
 
-		//! Schedules a parallel-for workload through @a sched.
+		//! Schedules a parallel-for workload through \a sched.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Parallel-for description.
 		//! \return Opaque synchronization token for the scheduled work.
@@ -49939,7 +53695,7 @@ namespace gaia {
 			return token;
 		}
 
-		//! Adds a parallel-for workload through @a sched without submitting it.
+		//! Adds a parallel-for workload through \a sched without submitting it.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Parallel-for description.
 		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
@@ -49980,14 +53736,14 @@ namespace gaia {
 		//! Adds a scheduler dependency edge.
 		//! \param sched Scheduler descriptor.
 		//! \param tokenFirst Work that must complete first.
-		//! \param tokenSecond Work that depends on @a tokenFirst.
+		//! \param tokenSecond Work that depends on \a tokenFirst.
 		inline void sched_dep(const Sched& sched, SchedToken tokenFirst, SchedToken tokenSecond) {
 			const auto& resolved = sched_resolve(sched);
 			if (resolved.dep != nullptr)
 				resolved.dep(resolved.pCtx, tokenFirst, tokenSecond);
 		}
 
-		//! Waits until the scheduled work referenced by @a token finishes.
+		//! Waits until the scheduled work referenced by \a token finishes.
 		//! \param sched Scheduler descriptor.
 		//! \param token Opaque synchronization token returned by sched_one() or sched_par().
 		inline void sched_wait(const Sched& sched, SchedToken token) {
@@ -49996,7 +53752,7 @@ namespace gaia {
 				resolved.wait(resolved.pCtx, token);
 		}
 
-		//! Deletes any scheduler-owned resources associated with @a token.
+		//! Deletes any scheduler-owned resources associated with \a token.
 		//! \param sched Scheduler descriptor.
 		//! \param token Opaque synchronization token returned by sched_one() or sched_par().
 		inline void sched_del(const Sched& sched, SchedToken token) {
@@ -50145,10 +53901,12 @@ namespace gaia {
 			ReversePreorder = ReverseDown
 		};
 
+		//! Cache policy selected for a prepared query.
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Func>
 			inline constexpr bool is_query_iter_callback_v = std::is_invocable_v<Func, Iter&>;
 
@@ -50518,6 +54276,8 @@ namespace gaia {
 					return m_world != nullptr && m_pCache != nullptr;
 				}
 			};
+			//! \endcond
+			//! Builds, caches, and executes a Gaia-ECS query.
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
 				friend class SystemBuilder;
@@ -50904,6 +54664,7 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			public:
+				//! Suppresses assertions when an invalid cache-kind combination is queried for diagnostics.
 				static inline bool SilenceInvalidCacheKindAssertions = false;
 
 				//! Fetches the QueryInfo object.
@@ -50997,7 +54758,7 @@ namespace gaia {
 					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
-				//! Returns whether any supplied target entity matches the query on @a archetype.
+				//! Returns whether any supplied target entity matches the query on \a archetype.
 				//! \param queryInfo Query info
 				//! \param archetype Archetype
 				//! \param targetEntities Candidate target entities
@@ -51027,6 +54788,9 @@ namespace gaia {
 				//! affect shared cache identity.
 				//! Use this only when traversed source closures stay small and stable enough for
 				//! snapshot reuse to be cheaper than rebuilding them on demand.
+				//! \param maxItems Maximum number of traversed source entities retained in a snapshot. Zero disables explicit
+				//! reuse.
+				//! \return Self reference.
 				QueryImpl& cache_src_trav(uint16_t maxItems) {
 					if (m_cacheSrcTrav == maxItems)
 						return *this;
@@ -51077,6 +54841,8 @@ namespace gaia {
 
 				//! \name Scheduling declarations
 				//! \{
+				//! Scheduling metadata used when coordinating query execution.
+
 				//! Marks whether this query must run on the main thread/serial path.
 				//!
 				//! Use this for callbacks with side effects that are not captured by component read/write declarations, such as
@@ -51098,10 +54864,12 @@ namespace gaia {
 
 				//! \name Query access declarations
 				//! \{
+				//! Explicit access metadata for data used outside positive query terms.
+
 				//! Declares an additional id read by this query callback.
 				//!
 				//! Use this for data accessed inside the query kernel but not present as a positive query term. The declaration
-				//! is scheduling metadata only; it does not change query matching or cache identity.
+				//! is scheduling metadata only. It does not change query matching or cache identity.
 				//! \param entity Component/entity id read by user code.
 				//! \return Self reference.
 				//! \see writes(Entity)
@@ -51122,7 +54890,7 @@ namespace gaia {
 				//! Declares an additional id written by this query callback.
 				//!
 				//! A write conflicts with any read or write of the same id when comparing two queries with conflicts_with().
-				//! The declaration is scheduling metadata only; it does not change query matching or cache identity.
+				//! The declaration is scheduling metadata only. It does not change query matching or cache identity.
 				//! \param entity Component/entity id written by user code.
 				//! \return Self reference.
 				//! \see reads(Entity)
@@ -51155,7 +54923,7 @@ namespace gaia {
 				//! Returns the effective read/write access for an id.
 				//!
 				//! Effective access combines positive query terms and explicit reads()/writes() declarations. Pair query terms
-				//! do not imply data access; use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
+				//! do not imply data access. Use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
 				//! key.
 				//! \param entity Component/entity id to inspect.
 				//! \return Effective access mode for the id.
@@ -51306,7 +55074,7 @@ namespace gaia {
 
 				//! Returns a human-readable message for a query kind validation result.
 				//! \param error Validation result
-				//! \return Text description for @a error.
+				//! \return Text description for \a error.
 				GAIA_NODISCARD static const char* kind_error_str(QueryKindRes error) {
 					switch (error) {
 						case QueryKindRes::OK:
@@ -51801,6 +55569,7 @@ namespace gaia {
 				//! \param queryInfo Query metadata containing changed-filter terms.
 				//! \param changedWorldVersion World version captured by the previous query pass.
 				//! \param compIndices Per-archetype mapping from query term index to chunk component column.
+				//! \return True when a tracked component or the chunk's entity order changed since the supplied version.
 				GAIA_NODISCARD static bool match_filters(
 						const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion,
 						std::span<const uint8_t> compIndices) {
@@ -51844,6 +55613,7 @@ namespace gaia {
 				//! \param chunk Chunk being evaluated.
 				//! \param queryInfo Query metadata containing changed-filter terms.
 				//! \param changedWorldVersion World version captured by the previous query pass.
+				//! \return True when a tracked component or the chunk's entity order changed since the supplied version.
 				GAIA_NODISCARD static bool
 				match_filters(const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
@@ -51896,6 +55666,10 @@ namespace gaia {
 					return chunk.entity_order_changed(changedWorldVersion);
 				}
 
+				//! Returns whether an archetype is eligible for query execution.
+				//! \param queryInfo Prepared query metadata controlling prefab matching.
+				//! \param archetype Candidate archetype.
+				//! \return True when the archetype is live and satisfies the query's prefab policy.
 				GAIA_NODISCARD bool can_process_archetype(const QueryInfo& queryInfo, const Archetype& archetype) const {
 					// Archetypes requested for deletion are skipped for processing.
 					if (archetype.is_req_del())
@@ -52006,6 +55780,7 @@ namespace gaia {
 					return true;
 				}
 
+				//! \cond INTERNAL
 				template <typename TIter>
 				static void finish_iter_writes(TIter& it) {
 					if (it.chunk() == nullptr)
@@ -52046,6 +55821,7 @@ namespace gaia {
 
 				static void finish_typed_iter_writes_runtime(
 						Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg);
+				//! \endcond
 
 				//! Runtime payload layout required by generic chunk-batch execution.
 				enum class ExecPayloadKind : uint8_t {
@@ -52111,7 +55887,7 @@ namespace gaia {
 					QueryPlanFlag_InheritedPayload = 1 << 2,
 					//! The query uses grouped payload/ranges or grouped cache ordering.
 					QueryPlanFlag_Grouped = 1 << 3,
-					//! The plan may need sorted cache slices; runners use them only with non-trivial payload.
+					//! The plan may need sorted cache slices. Runners use them only with non-trivial payload.
 					QueryPlanFlag_Sorted = 1 << 4,
 					//! The plan must use the depth-order hierarchy barrier cache when checking archetype/row ranges.
 					QueryPlanFlag_BarrierCache = 1 << 5
@@ -52284,6 +56060,7 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! \cond INTERNAL
 				template <typename Func, typename TMode>
 				struct QueryJobCtx {
 					QueryImpl* pSelf = nullptr;
@@ -52312,7 +56089,7 @@ namespace gaia {
 					//! User callback copied into the deferred job context.
 					Func func;
 
-					//! Invokes the stored callback for @a it.
+					//! Invokes the stored callback for \a it.
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						it.ctx(pSelf->ctx());
@@ -52329,7 +56106,7 @@ namespace gaia {
 					//! User callback copied into the deferred job context.
 					Func func;
 
-					//! Runs the typed callback for @a it.
+					//! Runs the typed callback for \a it.
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						pSelf->each_iter(it, func);
@@ -53479,7 +57256,7 @@ namespace gaia {
 
 				//! Selects the cache range visible to this query, applying a selected group id when present.
 				//! \param queryInfo Prepared query cache and execution metadata.
-				//! \return Cache range metadata; `valid == false` means the selected group is absent.
+				//! \return Cache range metadata. `valid == false` means the selected group is absent.
 				GAIA_NODISCARD QueryCacheRange selected_query_cache_range(const QueryInfo& queryInfo) const {
 					QueryCacheRange range{};
 					range.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
@@ -53560,6 +57337,7 @@ namespace gaia {
 						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, void* pFunc,
 						const TypedQueryExecState& state,
 						void (*runChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
+				//! \endcond
 
 				//! Selects the prepared execution plan for public iterator callbacks.
 				//! \param queryInfo Prepared query cache and execution metadata.
@@ -53756,6 +57534,7 @@ namespace gaia {
 					func(it);
 				}
 
+				//! \cond INTERNAL
 				struct RuntimeIterCallback {
 					void* pFunc;
 					void* pCtx;
@@ -53808,6 +57587,7 @@ namespace gaia {
 						pSelf->each_iter_erased(it, pFunc, *pState, runDirect, runChunk);
 					}
 				};
+				//! \endcond
 
 				//! Runs a type-erased public iterator callback through generic query execution.
 				//! \param execType Query execution mode requested by the public API.
@@ -53913,6 +57693,7 @@ namespace gaia {
 					return uses_potential_inherited_id_matching(term) && world_term_uses_inherit_policy(world, term.id);
 				}
 
+				//! \cond INTERNAL
 				//! Evaluates term presence for a concrete entity using either direct or semantic semantics.
 				GAIA_NODISCARD static bool match_entity_term(const World& world, Entity entity, const QueryTerm& term) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
@@ -54606,7 +58387,7 @@ namespace gaia {
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
-				//! \return True if no entity matches the query under @a constraints.
+				//! \return True if no entity matches the query under \a constraints.
 				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
@@ -54811,7 +58592,7 @@ namespace gaia {
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
-				//! \return Number of entities matching the query under @a constraints.
+				//! \return Number of entities matching the query under \a constraints.
 				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
@@ -55179,6 +58960,7 @@ namespace gaia {
 					});
 				}
 
+				//! \endcond
 				//! Runs an erased typed callback over entities selected by a direct sparse or target-term seed.
 				//! \param queryInfo Prepared query cache and term metadata.
 				//! \param constraints Constraints applied while selecting direct entities and constructing iterator views.
@@ -55194,13 +58976,23 @@ namespace gaia {
 						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
 						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
+				//! \cond INTERNAL
 				template <bool UseFilters, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray, Constraints constraints);
+				//! \endcond
 
 			public:
 				QueryImpl() = default;
 				~QueryImpl() = default;
 
+				//! Creates a query bound to a world's query and archetype state.
+				//! \param world World that owns the query.
+				//! \param queryCache Cache used to store prepared query data.
+				//! \param nextArchetypeId Highest archetype identifier allocated by the world.
+				//! \param worldVersion Current world version used by changed filters.
+				//! \param entityToArchetypeMap Entity-to-archetype lookup used during matching.
+				//! \param entityToArchetypeMapVersions Versions associated with entity-to-archetype mappings.
+				//! \param allArchetypes World archetypes available for query matching.
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const EntityToArchetypeMap& entityToArchetypeMap,
@@ -55274,7 +59066,7 @@ namespace gaia {
 				//!
 				//! Supported modifiers:
 				//!   "," - separates expressions
-				//!   "||" - query::or_(OR chain; at least two OR terms)
+				//!   "||" - query::or_(OR chain with at least two OR terms)
 				//!   "?" - query::any (optional)
 				//!   "!" - query::none
 				//!   "&" - read-write access
@@ -55302,11 +59094,11 @@ namespace gaia {
 				//! Component names are resolved immediately while the expression is parsed and the resulting
 				//! component ids are baked into the query terms. Later scope, path or alias changes do not
 				//! rewrite an already parsed query.
-				//! Names in @a str are resolved while add(...) parses the expression and the resulting ids
+				//! Names in \a str are resolved while add(...) parses the expression and the resulting ids
 				//! are baked into the query. Active component scope and lookup-path state affect parsing
 				//! only at that moment and do not rewrite the query later.
 				//! \param str Null-terminated string with the query expression.
-				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
+				//! \param ... Optional varargs consumed by `%e` substitutions inside \a str.
 				//! \return Reference to this query.
 				QueryImpl& add(const char* str, ...) {
 					GAIA_ASSERT(str != nullptr);
@@ -55716,6 +59508,7 @@ namespace gaia {
 				//! The name can be used later by set_var(name, value).
 				//! \param varEntity Query variable entity (`Var0..Var7`)
 				//! \param name Variable name (without '$')
+				//! \return Self reference.
 				//! \note Empty names and reserved name "this" are rejected.
 				QueryImpl& var_name(Entity varEntity, util::str_view name) {
 					[[maybe_unused]] const bool ok = set_var_name_internal(varEntity, name);
@@ -55723,6 +59516,9 @@ namespace gaia {
 					return *this;
 				}
 				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
+				//! \param varEntity Query variable entity (`Var0..Var7`).
+				//! \param name Null-terminated variable name without the `$` prefix.
+				//! \return Self reference.
 				QueryImpl& var_name(Entity varEntity, const char* name) {
 					GAIA_ASSERT(name != nullptr);
 					if (name == nullptr)
@@ -55734,6 +59530,7 @@ namespace gaia {
 				//! Bound values are applied at runtime before query evaluation.
 				//! \param varEntity Query variable entity (`Var0..Var7`)
 				//! \param value Entity value to bind
+				//! \return Self reference.
 				QueryImpl& set_var(Entity varEntity, Entity value) {
 					const bool ok = is_query_var_entity(varEntity);
 					GAIA_ASSERT(ok);
@@ -55748,6 +59545,7 @@ namespace gaia {
 				//! Binds a named query variable to a concrete entity value.
 				//! \param name Variable name previously assigned by var_name(...)
 				//! \param value Entity value to bind
+				//! \return Self reference.
 				QueryImpl& set_var(util::str_view name, Entity value) {
 					const auto varEntity = find_var_by_name(name);
 					GAIA_ASSERT(varEntity != EntityBad);
@@ -55756,6 +59554,9 @@ namespace gaia {
 					return set_var(varEntity, value);
 				}
 				//! Binds a named query variable to a concrete entity value.
+				//! \param name Null-terminated variable name previously assigned by var_name(...).
+				//! \param value Entity value to bind.
+				//! \return Self reference.
 				QueryImpl& set_var(const char* name, Entity value) {
 					GAIA_ASSERT(name != nullptr);
 					if (name == nullptr)
@@ -55765,6 +59566,8 @@ namespace gaia {
 
 				//! Clears binding for a single query variable (`Var0..Var7`).
 				//! The variable becomes unbound for the next query evaluation.
+				//! \param varEntity Query variable entity (`Var0..Var7`).
+				//! \return Self reference.
 				QueryImpl& clear_var(Entity varEntity) {
 					const bool ok = is_query_var_entity(varEntity);
 					GAIA_ASSERT(ok);
@@ -55776,6 +59579,7 @@ namespace gaia {
 					return *this;
 				}
 				//! Clears all runtime variable bindings.
+				//! \return Self reference.
 				QueryImpl& clear_vars() {
 					m_varBindingsMask = 0;
 					return *this;
@@ -55804,6 +59608,7 @@ namespace gaia {
 				//!               or anything else to sort by components.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
 					sort_by_inter(entity, func);
 					return *this;
@@ -55813,6 +59618,7 @@ namespace gaia {
 				//! \tparam T The component to sort by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& sort_by(TSortByFunc func);
 
@@ -55821,11 +59627,13 @@ namespace gaia {
 				//! \tparam Tgt The target to sort by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				template <typename Rel, typename Tgt>
 				QueryImpl& sort_by(TSortByFunc func);
 
 				//------------------------------------------------
 
+				//! Lightweight view that executes a query in deterministic relation traversal order.
 				class OrderByTravView final {
 					QueryImpl* m_query = nullptr;
 					Entity m_relation = EntityBad;
@@ -55852,10 +59660,10 @@ namespace gaia {
 
 				//! Iterates matching entities in an explicit relation traversal order.
 				//!
-				//! Pair(@a relation, X) on entity E means E points at X. Down visits X before E.
+				//! Pair(\a relation, X) on entity E means E points at X. Down visits X before E.
 				//! Up visits E before X. Reverse variants produce the exact reverse of their base order.
 				//! Siblings are tie-broken by entity id, so the order is deterministic. The traversal changes
-				//! only visit order; it does not change which entities match the query. This path resolves order
+				//! only visit order. It does not change which entities match the query. This path resolves order
 				//! per entity and works for fragmenting relations such as ChildOf and non-fragmenting relations
 				//! such as Parent. It may be slower than normal chunk iteration.
 				//! \param relation Relation used to order the matched entities.
@@ -55935,6 +59743,7 @@ namespace gaia {
 				//! Declares an explicit relation dependency for grouped cache invalidation.
 				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 				//! \param relation Relation the group depends on.
+				//! \return Self reference.
 				QueryImpl& group_dep(Entity relation) {
 					group_dep_inter(relation);
 					return *this;
@@ -55943,6 +59752,7 @@ namespace gaia {
 				//! Declares an explicit relation dependency for grouped cache invalidation.
 				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 				//! \tparam Rel Relation the group depends on.
+				//! \return Self reference.
 				template <typename Rel>
 				QueryImpl& group_dep();
 
@@ -55950,6 +59760,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \param groupId The group to iterate over.
+				//! \return Self reference.
 				QueryImpl& group_id(GroupId groupId) {
 					set_group_id_inter(groupId);
 					return *this;
@@ -55957,6 +59768,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \param entity The entity to treat as a group to iterate over.
+				//! \return Self reference.
 				QueryImpl& group_id(Entity entity) {
 					GAIA_ASSERT(!entity.pair());
 					set_group_id_inter(entity.id());
@@ -55965,6 +59777,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& group_id();
 
@@ -55987,7 +59800,7 @@ namespace gaia {
 				//! The returned SchedJob is backed by the world's ECS scheduler descriptor rather than a
 				//! gaia::mt::JobHandle, so external schedulers can provide their own token, submission,
 				//! dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler
-				//! token; the query and world must outlive the job.
+				//! token. The query and world must outlive the job.
 				//! \tparam Func Query callback type accepted by each().
 				//! \param func Callback invoked when the added job runs.
 				//! \param execType Query execution mode used inside the job.
@@ -56036,6 +59849,9 @@ namespace gaia {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
 				}
 
+				//! Iterates query matches with a typed component callback using the default execution mode.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each matching entity.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func);
 
@@ -56049,11 +59865,20 @@ namespace gaia {
 					each(func, execType, Constraints::EnabledOnly);
 				}
 
+				//! Iterates query matches with an iterator callback under the selected row constraints.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
+				//! \param func Callable invoked for each match.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, Constraints constraints) {
 					each(func, QueryExecType::Default, constraints);
 				}
 
+				//! Iterates query matches with an iterator callback using the selected execution mode and row constraints.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
+				//! \param func Callable invoked for each match.
+				//! \param execType Execution mode.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType, Constraints constraints) {
 					switch (execType) {
@@ -56072,6 +59897,10 @@ namespace gaia {
 					}
 				}
 
+				//! Iterates query matches with a typed component callback using the selected execution mode.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each matching entity.
+				//! \param execType Execution mode.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType);
 
@@ -56084,6 +59913,7 @@ namespace gaia {
 				template <typename Func>
 				void each_iter(Iter& it, Func func);
 
+				//! \cond INTERNAL
 				void each_iter_erased(
 						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
@@ -56093,13 +59923,14 @@ namespace gaia {
 						Iter& it, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
+				//! \endcond
 
 				//------------------------------------------------
 
 				//! Iterates matching archetypes instead of individual entities.
 				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each matching archetype iterator.
-				//! \param constraints Iteration constraints applied before invoking @a func.
+				//! \param constraints Iteration constraints applied before invoking \a func.
 				//! \see Iter::ctx() const
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
@@ -56125,6 +59956,7 @@ namespace gaia {
 				//! \note For changed() queries this is a non-consuming probe. It does not advance the
 				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//!	\return True if there are any entities matching the query. False otherwise.
+				//! \param constraints Entity-row subset included in the probe.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -56148,6 +59980,7 @@ namespace gaia {
 				//! \note For changed() queries this is a non-consuming probe. It does not advance the
 				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//! \return The number of matching entities
+				//! \param constraints Entity-row subset included in the count.
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -56250,6 +60083,7 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! \cond INTERNAL
 				void collect_entities_enabled(cnt::darray<Entity>& out) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
@@ -56339,6 +60173,7 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! \endcond
 				//! Appends all components or entities matching the query to the output array
 				//! \tparam Container Container type
 				//! \param[out] outArray Container storing entities or components
@@ -56712,6 +60547,12 @@ namespace gaia {
 					}
 				}
 
+				//! Iterates matching entities in relation order with a typed component callback.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each ordered matching entity.
+				//! \param relation Relation used to order matched entities.
+				//! \param order Traversal order to apply.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int> = 0>
 				void each_walk(
 						Func func, Entity relation, TravOrder order = TravOrder::Down,
@@ -56757,6 +60598,7 @@ namespace gaia {
 			};
 		} // namespace detail
 
+		//! Public query builder and execution type.
 		using Query = detail::QueryImpl;
 	} // namespace ecs
 } // namespace gaia
@@ -56764,6 +60606,7 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T>
 			GAIA_NODISCARD inline Entity typed_query_raw_entity(World& world) {
 				using U = typename component_type_t<T>::Type;
@@ -56895,12 +60738,14 @@ namespace gaia {
 			inline QueryImpl& QueryImpl::group_id() {
 				return group_id(typed_query_raw_entity<T>(*m_storage.world()));
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
 
 		template <typename T>
@@ -57063,12 +60908,14 @@ namespace gaia {
 					finish_term(state.argIds[i], state.sparseStores[i] != nullptr);
 			}
 		}
+		//! \endcond
 	} // namespace ecs
 } // namespace gaia
 
 namespace gaia {
 	namespace ecs {
 		namespace detail {
+			//! \cond INTERNAL
 			inline TypedQueryExecState build_typed_query_exec_state(
 					World& world, const QueryInfo& queryInfo, const TypedQueryArgMeta* pMetas, uint32_t argCount) {
 				TypedQueryExecState state{};
@@ -57707,12 +61554,12 @@ namespace gaia {
 
 			//! Returns a typed direct-chunk view element.
 			//! SoA views are chunk-relative, so they need the absolute row offset. AoS views are already sliced.
-			//! \tparam T Typed query argument represented by @a view.
+			//! \tparam T Typed query argument represented by \a view.
 			//! \tparam View Prepared chunk view type.
 			//! \param view Direct chunk view for the argument.
 			//! \param row Row relative to the currently processed chunk range.
 			//! \param from Absolute row offset of the current chunk range.
-			//! \return Reference or value selected from @a view for the current row.
+			//! \return Reference or value selected from \a view for the current row.
 			//! \see run_typed_direct_chunk_rows(const TypedDirectChunkRun&, Func&, const TypedQueryExecState&,
 			//! core::func_type_list<T...>)
 			template <typename T, typename View>
@@ -57728,7 +61575,7 @@ namespace gaia {
 			//! \tparam Func Callback type.
 			//! \tparam ViewsTuple Tuple type containing prepared direct chunk views.
 			//! \tparam T Typed query argument list.
-			//! \tparam I Tuple indices matching @a T.
+			//! \tparam I Tuple indices matching \a T.
 			//! \param func Callback invoked for the selected row.
 			//! \param views Prepared direct chunk views.
 			//! \param row Row relative to the current chunk range.
@@ -58832,6 +62679,7 @@ namespace gaia {
 					arr_inter<false>(queryInfo, outArray, constraints);
 				}
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
@@ -59482,31 +63330,31 @@ namespace gaia {
 
 			//! Registers a new term to the observer registry and links an observer with it.
 			//! \param world World the observer is triggered for
-			//! \param term Term to add to @a observer
+			//! \param term Term to add to \a observer
 			//! \param observer Observer entity
 			//! \param matchKind Observer match policy used for the registered term.
 			void add(World& world, Entity term, Entity observer, QueryMatchKind matchKind = QueryMatchKind::Semantic);
 
 			//! Removes a term from the observer registry.
 			//! \param world World the observer is triggered for
-			//! \param term Term to remove from @a observer
+			//! \param term Term to remove from \a observer
 			void del(World& world, Entity term);
 
 			//! Called when components are added to an entity.
 			//! \param world World the observer is triggered for
 			//! \param archetype Archetype we try to match with the observer
-			//! \param entsAdded Span of entities added to the @a archetype
+			//! \param entsAdded Span of entities added to the \a archetype
 			//! \param targets Span on entities for which the observers triggers
 			void on_add(World& world, const Archetype& archetype, EntitySpan entsAdded, EntitySpan targets);
 
 			//! Called when components are removed from an entity.
 			//! \param world World the observer is triggered for
 			//! \param archetype Archetype we try to match with the observer
-			//! \param entsRemoved Span of entities removed from the @a archetype
+			//! \param entsRemoved Span of entities removed from the \a archetype
 			//! \param targets Span on entities for which the observers triggers
 			void on_del(World& world, const Archetype& archetype, EntitySpan entsRemoved, EntitySpan targets);
 
-			//! Dispatches `OnSet` observers for @a term against @a targets.
+			//! Dispatches `OnSet` observers for \a term against \a targets.
 			//! \param world World the observer is triggered for
 			//! \param term Changed term
 			//! \param targets Triggered entities
@@ -59516,6 +63364,7 @@ namespace gaia {
 } // namespace gaia
 #endif
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		using PairLookupMap = cnt::map<EntityLookupKey, cnt::set<EntityLookupKey>>;
@@ -59533,7 +63382,7 @@ namespace gaia {
 				m_tgtToRel = {};
 			}
 
-			//! Returns targets for @a relation.
+			//! Returns targets for \a relation.
 			//! \param relation Relation entity.
 			//! \return Target set or nullptr when no target is stored.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
@@ -59544,7 +63393,7 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns relations for @a target.
+			//! Returns relations for \a target.
 			//! \param target Target entity.
 			//! \return Relation set or nullptr when no relation is stored.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
@@ -59634,7 +63483,7 @@ namespace gaia {
 					(void)del_bucket_entry(m_tgtToRel, allKey, relKey);
 			}
 
-			//! Removes all entries whose relation or target is @a entity.
+			//! Removes all entries whose relation or target is \a entity.
 			//! \param entity Entity being deleted.
 			void del_entity_pairs(Entity entity) {
 				const auto key = EntityLookupKey(entity);
@@ -59655,6 +63504,7 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #include <cstdint>
 
@@ -59678,6 +63528,7 @@ namespace gaia {
 #include <cstdint>
 #include <type_traits>
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		//! Sparse component record keyed by entity id.
@@ -60015,6 +63866,7 @@ namespace gaia {
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
+//! \endcond
 
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {
@@ -60072,14 +63924,14 @@ namespace gaia {
 
 			//! Creates or returns runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload associated with @a system.
+			//! \return Mutable runtime payload associated with \a system.
 			SystemRuntimeData& data_add(Entity system) {
 				return m_system_data[EntityLookupKey(system)];
 			}
 
 			//! Tries to find runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload, or null when @a system has no registry entry.
+			//! \return Mutable runtime payload, or null when \a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData* data_try(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -60089,7 +63941,7 @@ namespace gaia {
 
 			//! Tries to find runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Immutable runtime payload, or null when @a system has no registry entry.
+			//! \return Immutable runtime payload, or null when \a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData* data_try(Entity system) const {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -60099,8 +63951,8 @@ namespace gaia {
 
 			//! Returns runtime data for a registered system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload associated with @a system.
-			//! \warning Asserts if @a system has no registry entry.
+			//! \return Mutable runtime payload associated with \a system.
+			//! \warning Asserts if \a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData& data(Entity system) {
 				auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
@@ -60109,8 +63961,8 @@ namespace gaia {
 
 			//! Returns runtime data for a registered system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Immutable runtime payload associated with @a system.
-			//! \warning Asserts if @a system has no registry entry.
+			//! \return Immutable runtime payload associated with \a system.
+			//! \warning Asserts if \a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData& data(Entity system) const {
 				const auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
@@ -60144,15 +63996,14 @@ namespace gaia {
 		namespace detail {
 			//! Pending scheduler-backed system job owned by World::systems_run().
 			struct PendingSystemJob {
-				//! System entity that created @a job.
+				//! System entity that created \a job.
 				Entity entity = EntityBad;
 				//! Deferred system work.
 				SchedJob job;
 
-				//! Creates an empty pending entry.
 				PendingSystemJob() = default;
-				//! Creates a pending entry for @a systemEntity.
-				//! \param systemEntity System entity that created @a systemJob.
+				//! Creates a pending entry for \a systemEntity.
+				//! \param systemEntity System entity that created \a systemJob.
 				//! \param systemJob Deferred system job moved into this entry.
 				PendingSystemJob(Entity systemEntity, SchedJob&& systemJob): entity(systemEntity), job(GAIA_MOV(systemJob)) {}
 			};
@@ -60163,15 +64014,15 @@ namespace gaia {
 				Entity entity = EntityBad;
 				//! Phase entity assigned with SystemBuilder::phase(), or EntityBad for unphased systems.
 				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
+				//! Depth of \a phase in the phase DependsOn graph.
 				uint32_t phaseDepth = 0;
 				//! Depth of the system in the DependsOn graph, excluding the phase marker target.
 				uint32_t systemDepth = 0;
-				//! Deterministic child-before-target order of @a phase.
+				//! Deterministic child-before-target order of \a phase.
 				uint32_t phaseOrder = 0;
-				//! Deterministic child-before-target order of @a entity inside its scheduling group.
+				//! Deterministic child-before-target order of \a entity inside its scheduling group.
 				uint32_t systemOrder = 0;
-				//! True when @a phase is valid.
+				//! True when \a phase is valid.
 				bool hasPhase = false;
 			};
 
@@ -60179,9 +64030,9 @@ namespace gaia {
 			struct SystemPhaseScheduleItem {
 				//! Phase entity.
 				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
+				//! Depth of \a phase in the phase DependsOn graph.
 				uint32_t depth = 0;
-				//! Deterministic child-before-target order of @a phase.
+				//! Deterministic child-before-target order of \a phase.
 				uint32_t order = 0;
 			};
 
@@ -60189,7 +64040,7 @@ namespace gaia {
 			struct SystemScheduleEdge {
 				//! Item index that must run first.
 				uint32_t child = 0;
-				//! Item index that must run after @a child.
+				//! Item index that must run after \a child.
 				uint32_t target = 0;
 				//! Next edge index in the same child adjacency list.
 				uint32_t next = UINT32_MAX;
@@ -60253,7 +64104,7 @@ namespace gaia {
 				cnt::darray<PendingSystemJob>* pPending = nullptr;
 				//! Current scheduling batch key.
 				SystemScheduleItem current{};
-				//! True once @a current has been initialized.
+				//! True once \a current has been initialized.
 				bool hasCurrent = false;
 				//! True when the active scheduler can prepare dependency-ready jobs.
 				bool canScheduleSystems = false;
@@ -60274,12 +64125,12 @@ namespace gaia {
 		class World;
 
 		void world_notify_on_set_entity(World& world, Entity term, Entity entity);
-		void world_finish_write(World& world, Entity term, Entity entity);
 		template <typename T>
 		decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity);
 		template <typename T>
 		decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id);
 
+		//! Owns entities, components, archetypes, queries, observers, and systems.
 		class GAIA_API World final {
 		public:
 			//! Allows asserts on duplicate name/alias assignment
@@ -60583,7 +64434,7 @@ namespace gaia {
 					return ec.pChunk->template set<T>();
 			}
 
-			//! Resolves the metadata backing an exact component or pair column on @a entity.
+			//! Resolves the metadata backing an exact component or pair column on \a entity.
 			//! Pair columns use their archetype record so compile-time pair storage selection remains unchanged.
 			GAIA_NODISCARD const ComponentCacheItem* component_item(Entity entity, Entity component) const {
 				if (!component.pair())
@@ -60594,12 +64445,12 @@ namespace gaia {
 				return compIdx != BadIndex ? ec.pChunk->comp_rec_view()[compIdx].pItem : nullptr;
 			}
 
-			//! Checks whether @a item can expose a direct raw byte view.
+			//! Checks whether \a item can expose a direct raw byte view.
 			GAIA_NODISCARD static bool raw_component_supported(const ComponentCacheItem& item) noexcept {
 				return item.comp.soa() == 0;
 			}
 
-			//! Checks whether @a item can expose direct SoA field views in table storage.
+			//! Checks whether \a item can expose direct SoA field views in table storage.
 			//! \param item Physical component payload metadata.
 			//! \return True when the payload uses supported table SoA storage.
 			GAIA_NODISCARD static bool soa_field_supported(const ComponentCacheItem& item) noexcept {
@@ -60629,7 +64480,7 @@ namespace gaia {
 				return ec.pChunk->template set<T>(ec.row, object);
 			}
 
-			//! Finishes a deferred raw write on @a term attached to @a entity.
+			//! Finishes a deferred raw write on \a term attached to \a entity.
 			//! Ensures direct owned storage exists when needed, updates version state for table storage,
 			//! and emits `OnSet` for the completed write.
 			//! \param entity Entity
@@ -60728,7 +64579,7 @@ namespace gaia {
 			EntityToArchetypeMap m_entityToArchetypeMap;
 			//! Revisions for entity -> archetype lookup buckets whose record order changed after removals.
 			EntityToArchetypeVersionMap m_entityToArchetypeMapVersions;
-			//! Map of [entity; Is relationship targets].
+			//! Map of [entity, Is relationship targets].
 			//!   w.as(herbivore, animal);
 			//!   w.as(rabbit, herbivore);
 			//!   w.as(hare, herbivore);
@@ -60740,7 +64591,7 @@ namespace gaia {
 			//! Lazily built transitive closure for m_entityToAsTargets.
 			//! Cleared whenever an `Is` edge changes.
 			mutable cnt::map<EntityLookupKey, cnt::darray<Entity>> m_entityToAsTargetsTravCache;
-			//! Map of [entity; Is relationship relations]
+			//! Map of [entity, Is relationship relations]
 			//!   w.as(herbivore, animal);
 			//!   w.as(rabbit, herbivore);
 			//!   w.as(hare, herbivore);
@@ -60958,7 +64809,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns the internal record for @a entity.
+			//! Returns the internal record for \a entity.
 			//! \param entity Entity or exact pair record.
 			//! \return Mutable entity container record.
 			GAIA_NODISCARD EntityContainer& fetch(Entity entity) {
@@ -60987,7 +64838,7 @@ namespace gaia {
 				return m_recs[entity];
 			}
 
-			//! Returns the internal record for @a entity.
+			//! Returns the internal record for \a entity.
 			//! \param entity Entity or exact pair record.
 			//! \return Const entity container record.
 			GAIA_NODISCARD const EntityContainer& fetch(Entity entity) const {
@@ -61048,9 +64899,9 @@ namespace gaia {
 			}
 	#endif
 
-			//! Returns whether @a entity is already being processed by the deletion pipeline.
+			//! Returns whether \a entity is already being processed by the deletion pipeline.
 			//! \param entity Entity to inspect.
-			//! True when deletion is active for @a entity.
+			//! True when deletion is active for \a entity.
 			GAIA_NODISCARD bool entity_deletion_active(Entity entity) const {
 				for (auto deleting: m_entitiesDeleting) {
 					if (deleting == entity)
@@ -61059,14 +64910,14 @@ namespace gaia {
 				return false;
 			}
 
-			//! Marks @a entity as active in the deletion pipeline.
+			//! Marks \a entity as active in the deletion pipeline.
 			//! \param entity Entity entering deletion.
 			void entity_deletion_enter(Entity entity) {
 				GAIA_ASSERT(!entity_deletion_active(entity));
 				m_entitiesDeleting.push_back(entity);
 			}
 
-			//! Removes @a entity from the active deletion stack.
+			//! Removes \a entity from the active deletion stack.
 			//! \param entity Entity leaving deletion.
 			void entity_deletion_leave(Entity entity) {
 				GAIA_ASSERT(!m_entitiesDeleting.empty());
@@ -61075,24 +64926,24 @@ namespace gaia {
 			}
 #endif
 
-			//! Returns whether @a entity is marked DontFragment.
+			//! Returns whether \a entity is marked DontFragment.
 			//! \param entity Entity
-			//! \return True if @a entity is marked DontFragment. False otherwise.
+			//! \return True if \a entity is marked DontFragment. False otherwise.
 			GAIA_NODISCARD bool is_dont_fragment(Entity entity) const {
 				return (fetch(entity).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
-			//! Returns whether @a relation is non-fragmenting.
+			//! Returns whether \a relation is non-fragmenting.
 			//! \param relation Relation entity
-			//! \return True if @a relation is valid and non-fragmenting. False otherwise.
+			//! \return True if \a relation is valid and non-fragmenting. False otherwise.
 			GAIA_NODISCARD bool relation_is_non_fragmenting(Entity relation) const {
 				return valid(relation) && !relation.pair() && is_dont_fragment(relation);
 			}
 
-			//! Returns whether @a relation uses non-fragmenting relation storage.
+			//! Returns whether \a relation uses non-fragmenting relation storage.
 			//! Only exclusive non-fragmenting relations use this storage path.
 			//! \param relation Relation entity
-			//! \return True if @a relation uses non-fragmenting relation storage. False otherwise.
+			//! \return True if \a relation uses non-fragmenting relation storage. False otherwise.
 			GAIA_NODISCARD bool relation_uses_non_fragmenting_storage(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
@@ -61104,6 +64955,8 @@ namespace gaia {
 
 			//! Returns true for hierarchy-like relations whose targets form an exclusive traversable parent chain.
 			//! ChildOf and Parent satisfy this today. DependsOn intentionally does not.
+			//! \param relation Relation entity to inspect.
+			//! \return True when \p relation is exclusive and traversable. False otherwise.
 			GAIA_NODISCARD bool relation_is_hierarchy(Entity relation) const {
 				if (!valid(relation) || relation.pair())
 					return false;
@@ -61113,12 +64966,16 @@ namespace gaia {
 
 			//! Returns true when the relation still participates in archetype identity.
 			//! Non-fragmenting relations such as Parent are excluded.
+			//! \param relation Relation entity to inspect.
+			//! \return True when \p relation participates in archetype identity. False otherwise.
 			GAIA_NODISCARD bool relation_is_fragmenting(Entity relation) const {
 				return valid(relation) && !relation.pair() && !is_dont_fragment(relation);
 			}
 
 			//! Returns true for hierarchy relations that still fragment archetypes.
 			//! ChildOf satisfies this today, while Parent intentionally does not.
+			//! \param relation Relation entity to inspect.
+			//! \return True when \p relation is both hierarchical and fragmenting. False otherwise.
 			GAIA_NODISCARD bool relation_is_fragmenting_hierarchy(Entity relation) const {
 				return relation_is_hierarchy(relation) && relation_is_fragmenting(relation);
 			}
@@ -61127,6 +64984,8 @@ namespace gaia {
 			//! This requires a fragmenting relation whose target participates in archetype identity,
 			//! such as ChildOf, DependsOn, or a custom fragmenting relation. Cycles are still invalid
 			//! and are diagnosed by the depth cache itself.
+			//! \param relation Relation entity to inspect.
+			//! \return True when \p relation can provide archetype-level depth ordering. False otherwise.
 			GAIA_NODISCARD bool relation_supports_depth_order(Entity relation) const {
 				return relation_is_fragmenting(relation);
 			}
@@ -61134,11 +64993,13 @@ namespace gaia {
 			//! Returns true when depth-ordered iteration may safely prune disabled subtrees at archetype level.
 			//! Only fragmenting hierarchy relations qualify because all rows in the archetype then share
 			//! the same direct parent and therefore the same ancestor chain.
+			//! \param relation Relation entity to inspect.
+			//! \return True when disabled subtrees can be pruned at archetype granularity. False otherwise.
 			GAIA_NODISCARD bool relation_depth_order_prunes_disabled_subtrees(Entity relation) const {
 				return relation_is_fragmenting_hierarchy(relation);
 			}
 
-			//! Returns whether @a component stores instance data in sparse storage instead of archetype chunks.
+			//! Returns whether \a component stores instance data in sparse storage instead of archetype chunks.
 			//! This is currently the storage path used for sparse plain generic AoS components.
 			//! \param component Component entity to inspect.
 			//! \return True when the component uses sparse storage.
@@ -61153,7 +65014,7 @@ namespace gaia {
 				return gaia::ecs::component_uses_sparse_storage(pItem->comp);
 			}
 
-			//! Returns whether @a component is non-fragmenting.
+			//! Returns whether \a component is non-fragmenting.
 			//! Non-fragmenting components do not participate in archetype identity.
 			//! \param component Component entity to inspect.
 			//! \return True when the component is non-fragmenting.
@@ -61164,6 +65025,9 @@ namespace gaia {
 				return (fetch(component).flags & EntityContainerFlags::IsDontFragment) != 0;
 			}
 
+			//! Returns the sparse storage mode used by a component.
+			//! \param component Component entity to inspect.
+			//! \return Sparse storage mode, or SparseStorageMode::None when the component is not sparse.
 			GAIA_NODISCARD SparseStorageMode sparse_storage_mode(Entity component) const {
 				if (!valid(component) || component.pair() || component.entity())
 					return SparseStorageMode::None;
@@ -61179,17 +65043,30 @@ namespace gaia {
 				return SparseStorageMode::Fragmenting;
 			}
 
+			//! Checks whether an inter-world copy includes a sparse component payload.
+			//! \param comp Component entity being copied.
+			//! \param srcEntity Source entity in \p store.
+			//! \param store Type-erased sparse store containing the source payload.
+			//! \return True when \p srcEntity owns the sparse payload and \p comp uses sparse storage.
 			GAIA_NODISCARD bool
 			copies_sparse_payload_inter(Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
 				return store.func_has(store.pStore, srcEntity) && sparse_storage_mode(comp) != SparseStorageMode::None;
 			}
 
+			//! Checks whether an inter-world copy includes a non-fragmenting sparse payload.
+			//! \param comp Component entity being copied.
+			//! \param srcEntity Source entity in \p store.
+			//! \param store Type-erased sparse store containing the source payload.
+			//! \return True when the copied sparse payload does not participate in archetype identity.
 			GAIA_NODISCARD bool copies_non_frag_sparse_payload_inter(
 					Entity comp, Entity srcEntity, const SparseComponentStoreErased& store) const {
 				return copies_sparse_payload_inter(comp, srcEntity, store) &&
 							 sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
 			}
 
+			//! Checks whether copying a sparse payload must also add its id to the destination entity.
+			//! \param comp Sparse component entity being copied.
+			//! \return True for non-fragmenting sparse components. False otherwise.
 			GAIA_NODISCARD bool sparse_copy_adds_id_inter(Entity comp) const {
 				return sparse_storage_mode(comp) == SparseStorageMode::NonFragmenting;
 			}
@@ -61287,7 +65164,7 @@ namespace gaia {
 			//! Sparse storage currently supports only plain generic components.
 			//! Pairs, unique components and SoA layouts stay on the normal archetype path.
 			//! \tparam T Component type to inspect.
-			//! \return True when @a T can use the sparse storage path.
+			//! \return True when \a T can use the sparse storage path.
 			template <typename T>
 			GAIA_NODISCARD static constexpr bool supports_sparse_component_storage() {
 				using U = typename actual_type_t<T>::Type;
@@ -61310,10 +65187,10 @@ namespace gaia {
 				return is_dont_fragment(component) ? SparseStorageMode::NonFragmenting : SparseStorageMode::Fragmenting;
 			}
 
-			//! Returns whether @a object is a usable sparse storage target for component type @a T.
+			//! Returns whether \a object is a usable sparse storage target for component type \a T.
 			//! \tparam T Component type to validate against.
 			//! \param object Component entity to inspect.
-			//! \return True when @a object can back sparse storage for @a T.
+			//! \return True when \a object can back sparse storage for \a T.
 			template <typename T>
 			GAIA_NODISCARD bool can_use_sparse_component_storage(Entity object) const {
 				if constexpr (!supports_sparse_component_storage<T>())
@@ -61332,7 +65209,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the sparse component store for @a component, or nullptr if it does not exist.
+			//! Returns the sparse component store for \a component, or nullptr if it does not exist.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
@@ -61345,7 +65222,7 @@ namespace gaia {
 				return static_cast<SparseComponentStore<T>*>(it->second.pStore);
 			}
 
-			//! Returns the sparse component store for @a component, or nullptr if it does not exist.
+			//! Returns the sparse component store for \a component, or nullptr if it does not exist.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Pointer to the sparse store, or nullptr when absent.
@@ -61358,7 +65235,7 @@ namespace gaia {
 				return static_cast<const SparseComponentStore<T>*>(it->second.pStore);
 			}
 
-			//! Returns the sparse component store for @a component, creating it if needed.
+			//! Returns the sparse component store for \a component, creating it if needed.
 			//! \tparam T Component payload type stored in the sparse store.
 			//! \param component Component entity identifying the store.
 			//! \return Mutable sparse store reference.
@@ -61418,7 +65295,7 @@ namespace gaia {
 				return *(const U*)it->second.func_get(it->second.pStore, entity);
 			}
 
-			//! Returns the erased sparse store for @a component, or nullptr when absent.
+			//! Returns the erased sparse store for \a component, or nullptr when absent.
 			//! \param component Sparse component entity.
 			//! \return Erased sparse store, or nullptr when no values have been stored.
 			GAIA_NODISCARD const SparseComponentStoreErased* sparse_component_store_erased(Entity component) const {
@@ -61426,7 +65303,7 @@ namespace gaia {
 				return it != m_sparseComponentsByComp.end() ? &it->second : nullptr;
 			}
 
-			//! Returns the erased sparse store for @a component, creating runtime-sized storage when absent.
+			//! Returns the erased sparse store for \a component, creating runtime-sized storage when absent.
 			//! \param component Sparse component entity.
 			//! \param item Runtime component metadata controlling payload size, alignment, and lifecycle.
 			//! \return Mutable erased sparse store.
@@ -61470,7 +65347,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Removes all sparse component instances owned by @a entity.
+			//! Removes all sparse component instances owned by \a entity.
 			//! \param entity Entity
 			void del_sparse_components(Entity entity) {
 				for (auto& [compKey, store]: m_sparseComponentsByComp) {
@@ -61479,7 +65356,7 @@ namespace gaia {
 				}
 			}
 
-			//! Deletes the sparse component store associated with @a component.
+			//! Deletes the sparse component store associated with \a component.
 			//! \param component Component entity identifying the store.
 			void del_sparse_component_store(Entity component) {
 				const auto it = m_sparseComponentsByComp.find(EntityLookupKey(component));
@@ -61491,7 +65368,7 @@ namespace gaia {
 				m_sparseComponentsByComp.erase(it);
 			}
 
-			//! Returns the non-fragmenting relation store for @a relation, or nullptr when absent.
+			//! Returns the non-fragmenting relation store for \a relation, or nullptr when absent.
 			//! \param relation Relation entity
 			//! \return Non-fragmenting relation store or nullptr if absent.
 			GAIA_NODISCARD const NonFragmentingRelationStore* nonfragmenting_relation_store(Entity relation) const {
@@ -61502,13 +65379,18 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns the non-fragmenting relation store for @a relation, creating it if needed.
+			//! Returns the non-fragmenting relation store for \a relation, creating it if needed.
 			//! \param relation Relation entity
 			//! \return Mutable non-fragmenting relation store reference.
 			GAIA_NODISCARD NonFragmentingRelationStore& nonfragmenting_relation_store_mut(Entity relation) {
 				return m_nonFragmentingRelationsByRel[EntityLookupKey(relation)];
 			}
 
+			//! Sets an exclusive non-fragmenting relation target in an existing store.
+			//! \param store Relation store to update.
+			//! \param source Source entity whose target is replaced.
+			//! \param relation Non-fragmenting relation entity represented by \p store.
+			//! \param target New target entity.
 			void
 			nonfragmenting_relation_set(NonFragmentingRelationStore& store, Entity source, Entity relation, Entity target) {
 				GAIA_ASSERT(relation_uses_non_fragmenting_storage(relation));
@@ -61516,11 +65398,20 @@ namespace gaia {
 					invalidate_relation_caches(relation);
 			}
 
+			//! Sets an exclusive non-fragmenting relation target, creating its store when necessary.
+			//! \param source Source entity whose target is replaced.
+			//! \param relation Non-fragmenting relation entity.
+			//! \param target New target entity.
 			void nonfragmenting_relation_set(Entity source, Entity relation, Entity target) {
 				auto& store = nonfragmenting_relation_store_mut(relation);
 				nonfragmenting_relation_set(store, source, relation, target);
 			}
 
+			//! Removes an exclusive non-fragmenting relation from a source entity.
+			//! \param source Source entity whose relation is removed.
+			//! \param relation Non-fragmenting relation entity.
+			//! \param target Expected target, or EntityBad to remove the current target unconditionally.
+			//! \return True when a stored relation was removed. False otherwise.
 			bool nonfragmenting_relation_del(Entity source, Entity relation, Entity target) {
 				const auto itStore = m_nonFragmentingRelationsByRel.find(EntityLookupKey(relation));
 				if (itStore == m_nonFragmentingRelationsByRel.end())
@@ -61538,6 +65429,10 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether a source matches a possibly wildcarded non-fragmenting relation pair.
+			//! \param source Source entity to inspect.
+			//! \param object Exact or wildcard relation pair to match.
+			//! \return True when a stored non-fragmenting relation matches \p object. False otherwise.
 			GAIA_NODISCARD bool has_nonfragmenting_relation_pair(Entity source, Entity object) const {
 				if (!object.pair())
 					return false;
@@ -61578,6 +65473,8 @@ namespace gaia {
 				return false;
 			}
 
+			//! Removes all outgoing non-fragmenting relations from a source entity.
+			//! \param source Source entity whose stored relation targets are removed.
 			void del_nonfragmenting_relation_source(Entity source) {
 				cnt::darray<Entity> relations;
 				for (const auto& it: m_nonFragmentingRelationsByRel) {
@@ -61597,7 +65494,7 @@ namespace gaia {
 			}
 
 #if GAIA_OBSERVERS_ENABLED
-			//! Removes outgoing non-fragmenting relation pairs from @a source and emits OnDel observers.
+			//! Removes outgoing non-fragmenting relation pairs from \a source and emits OnDel observers.
 			//! \param source Source entity whose outgoing relation pairs are removed.
 			void del_nonfragmenting_relation_source_observed(Entity source) {
 				if (!m_observers.has_on_del_observers())
@@ -61630,6 +65527,8 @@ namespace gaia {
 			}
 #endif
 
+			//! Removes every stored source-target mapping for a non-fragmenting relation.
+			//! \param relation Relation entity whose store is removed.
 			void del_nonfragmenting_relation(Entity relation) {
 				const auto itStore = m_nonFragmentingRelationsByRel.find(EntityLookupKey(relation));
 				if (itStore == m_nonFragmentingRelationsByRel.end())
@@ -61645,7 +65544,10 @@ namespace gaia {
 				clear_relation_caches();
 			}
 
-			//! Checks whether any non-fragmenting exclusive relation targeting @a target uses the given OnDeleteTarget rule.
+			//! Checks whether any non-fragmenting exclusive relation targeting \p target uses an OnDeleteTarget rule.
+			//! \param target Target entity referenced by stored non-fragmenting relations.
+			//! \param cond OnDeleteTarget condition pair to test on each matching relation.
+			//! \return True when a matching relation has \p cond. False otherwise.
 			GAIA_NODISCARD bool has_nonfragmenting_relation_target_cond(Entity target, Pair cond) const {
 				for (const auto& [relKey, store]: m_nonFragmentingRelationsByRel) {
 					if (store.sources(target) == nullptr)
@@ -61688,9 +65590,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
+			//! Applies structural and value changes to one entity.
 			struct EntityBuilder final {
 				friend class World;
 
+				//! World receiving the accumulated entity changes.
 				World& m_world;
 				//! Original archetype m_entity belongs to
 				Archetype* m_pArchetypeSrc = nullptr;
@@ -61706,6 +65610,7 @@ namespace gaia {
 				EntityNameLookupKey m_targetAliasKey;
 				//! Source entity
 				Entity m_entity;
+				//! Mutation path selected for fragmenting or non-fragmenting relation updates.
 				using RelationMutationPath = detail::RelationMutationPath;
 
 #if GAIA_ENABLE_ADD_DEL_HOOKS || GAIA_OBSERVERS_ENABLED
@@ -61720,6 +65625,10 @@ namespace gaia {
 				cnt::sarray_ext<Entity, MAX_TERMS> tl_del_nonfragmenting_relations;
 #endif
 
+				//! Creates a builder from an already fetched entity record.
+				//! \param world World owning \p entity.
+				//! \param entity Entity to mutate.
+				//! \param ec Current storage record for \p entity.
 				EntityBuilder(World& world, Entity entity, EntityContainer& ec):
 						m_world(world), m_pArchetypeSrc(ec.pArchetype), m_pChunkSrc(ec.pChunk), m_rowSrc(ec.row),
 						m_pArchetype(ec.pArchetype), m_entity(entity) {
@@ -61727,6 +65636,9 @@ namespace gaia {
 					GAIA_ASSERT(ec.pChunk->entity_view()[ec.row] == entity);
 				}
 
+				//! Creates a builder and fetches the entity's current storage record.
+				//! \param world World owning \p entity.
+				//! \param entity Entity to mutate.
 				EntityBuilder(World& world, Entity entity): m_world(world), m_entity(entity) {
 					const auto& ec = world.fetch(entity);
 					m_pArchetypeSrc = ec.pArchetype;
@@ -61737,7 +65649,7 @@ namespace gaia {
 				}
 
 				EntityBuilder(const EntityBuilder&) = default;
-				EntityBuilder(EntityBuilder&&) = delete;
+
 				EntityBuilder& operator=(const EntityBuilder&) = delete;
 				EntityBuilder& operator=(EntityBuilder&&) = delete;
 
@@ -61876,7 +65788,7 @@ namespace gaia {
 					m_targetAliasKey = {};
 				}
 
-				//! Assigns a @a name to entity. Ignored if used with pair.
+				//! Assigns a \a name to entity. Ignored if used with pair.
 				//! The string is copied and kept internally.
 				//! \param name A null-terminated string.
 				//! \param len String length. If zero, the length is calculated.
@@ -61887,7 +65799,7 @@ namespace gaia {
 					name_inter<true>(name, len);
 				}
 
-				//! Assigns a @a name to entity. Ignored if used with pair.
+				//! Assigns a \a name to entity. Ignored if used with pair.
 				//! The string is NOT copied. Your are responsible for its lifetime.
 				//! \param name Pointer to a stable null-terminated string.
 				//! \param len String length. If zero, the length is calculated.
@@ -61985,6 +65897,7 @@ namespace gaia {
 
 				//! Prepares an archetype movement by following the "add" edge of the current archetype.
 				//! \param entity Added entity
+				//! \return This builder.
 				EntityBuilder& add(Entity entity) {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
@@ -61996,6 +65909,7 @@ namespace gaia {
 
 				//! Prepares an archetype movement by following the "add" edge of the current archetype.
 				//! \param pair Relationship pair
+				//! \return This builder.
 				EntityBuilder& add(Pair pair) {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
@@ -62007,18 +65921,20 @@ namespace gaia {
 				}
 
 				//! Shortcut for add(Pair(Is, entityBase)).
-				//! Effectively makes an entity inherit from @a entityBase
+				//! Effectively makes an entity inherit from \p entityBase.
 				//! \param entityBase Entity to inherit from
+				//! \return This builder.
 				EntityBuilder& as(Entity entityBase) {
 					return add(Pair(Is, entityBase));
 				}
 
 				//! Marks the entity as a prefab.
+				//! \return This builder.
 				EntityBuilder& prefab() {
 					return add(Prefab);
 				}
 
-				//! Check if @a entity inherits from @a entityBase
+				//! Check if \p entity inherits from \p entityBase.
 				//! \param entity Source entity
 				//! \param entityBase Base entity
 				//! \return True if entity inherits from entityBase
@@ -62027,12 +65943,15 @@ namespace gaia {
 				}
 
 				//! Shortcut for add(Pair(ChildOf, parent))
+				//! \param parent Parent entity to attach through ChildOf.
+				//! \return This builder.
 				EntityBuilder& child(Entity parent) {
 					return add(Pair(ChildOf, parent));
 				}
 
-				//! Takes care of registering the component type used by @a T.
+				//! Takes care of registering the component type used by \p T.
 				//! \tparam T Component or pair type to register.
+				//! \return Registered component or pair entity.
 				template <typename T>
 				Entity register_component() {
 					if constexpr (is_pair<T>::value) {
@@ -62046,6 +65965,9 @@ namespace gaia {
 					}
 				}
 
+				//! Adds the registered component or pair type to the pending entity state.
+				//! \tparam T Component or pair type to add.
+				//! \return This builder.
 				template <typename T>
 				EntityBuilder& add() {
 					verify_comp<T>();
@@ -62055,6 +65977,7 @@ namespace gaia {
 
 				//! Prepares an archetype movement by following the "del" edge of the current archetype.
 				//! \param entity Removed entity
+				//! \return This builder.
 				EntityBuilder& del(Entity entity) {
 					GAIA_PROF_SCOPE(EntityBuilder::del);
 					GAIA_ASSERT(m_world.valid(m_entity));
@@ -62065,6 +65988,7 @@ namespace gaia {
 
 				//! Prepares an archetype movement by following the "del" edge of the current archetype.
 				//! \param pair Relationship pair
+				//! \return This builder.
 				EntityBuilder& del(Pair pair) {
 					GAIA_PROF_SCOPE(EntityBuilder::add);
 					GAIA_ASSERT(m_world.valid(m_entity));
@@ -62074,6 +65998,9 @@ namespace gaia {
 					return *this;
 				}
 
+				//! Removes the registered component or pair type from the pending entity state.
+				//! \tparam T Component or pair type to remove.
+				//! \return This builder.
 				template <typename T>
 				EntityBuilder& del() {
 					verify_comp<T>();
@@ -62435,14 +66362,14 @@ namespace gaia {
 					return RelationMutationPath::NonFragmentingArchetypePair;
 				}
 
-				//! Checks whether @a entity is already present in archetype storage.
+				//! Checks whether \a entity is already present in archetype storage.
 				//! \param entity Id being queried.
 				//! \return True if the id is already attached to the source entity through archetype storage.
 				GAIA_NODISCARD bool has_archetype_id(Entity entity) const {
 					return m_pArchetype->has(entity);
 				}
 
-				//! Checks whether @a entity is already present on the exclusive non-fragmenting relation path.
+				//! Checks whether \a entity is already present on the exclusive non-fragmenting relation path.
 				//! \param entity Pair id being queried.
 				//! \return True if the pair is attached to the source entity.
 				GAIA_NODISCARD bool has_nonfragmenting_relation_id(Entity entity) const {
@@ -62450,7 +66377,7 @@ namespace gaia {
 					return m_world.has_nonfragmenting_relation_pair(m_entity, entity);
 				}
 
-				//! Checks whether @a entity is already present on the non-fragmenting archetype-backed pair path.
+				//! Checks whether \a entity is already present on the non-fragmenting archetype-backed pair path.
 				//! \param entity Pair id being queried.
 				//! \return True if the pair is attached to the source entity.
 				GAIA_NODISCARD bool has_nonfragmenting_archetype_pair_id(Entity entity) const {
@@ -62464,7 +66391,7 @@ namespace gaia {
 					m_pArchetype = m_world.foc_archetype_add_no_graph(m_pArchetype, entity);
 				}
 
-				//! Adds @a entity to the pending target archetype.
+				//! Adds \a entity to the pending target archetype.
 				//! \param entity Id to attach.
 				//! \return True when the add succeeded.
 				GAIA_NODISCARD bool add_id(Entity entity) {
@@ -62489,7 +66416,7 @@ namespace gaia {
 					m_pArchetype = m_world.foc_archetype_del_no_graph(m_pArchetype, entity);
 				}
 
-				//! Removes @a entity from the pending target archetype.
+				//! Removes \a entity from the pending target archetype.
 				//! \param entity Id to remove.
 				void del_id(Entity entity) {
 					del_archetype_id(entity);
@@ -63203,7 +67130,7 @@ namespace gaia {
 
 			//! Returns the registered symbol name for a component entity.
 			//! \param component Component entity.
-			//! \return Registered component symbol. Empty view when @a component is not a cached component.
+			//! \return Registered component symbol. Empty view when \a component is not a cached component.
 			GAIA_NODISCARD util::str_view symbol(Entity component) const {
 				const auto* pItem = comp_cache().find(component);
 				return pItem != nullptr ? comp_cache().symbol_name(*pItem) : util::str_view{};
@@ -63223,7 +67150,7 @@ namespace gaia {
 
 			//! Returns the scoped path name for a component entity.
 			//! \param component Component entity.
-			//! \return Scoped component path. Empty view when no path is assigned or @a component is not cached.
+			//! \return Scoped component path. Empty view when no path is assigned or \a component is not cached.
 			GAIA_NODISCARD util::str_view path(Entity component) const {
 				const auto* pItem = comp_cache().find(component);
 				return pItem != nullptr ? comp_cache().path_name(*pItem) : util::str_view{};
@@ -63311,7 +67238,7 @@ namespace gaia {
 			//! Returns the preferred display name for a entity.
 			//! This is intended for diagnostics and other pretty output, not as a stable identity key.
 			//! \param entity Entity.
-			//! \return Display name used for user-facing output. Empty view when @a entity is not cached.
+			//! \return Display name used for user-facing output. Empty view when \a entity is not cached.
 			GAIA_NODISCARD util::str_view display_name(Entity entity) const {
 				const auto* pItem = comp_cache().find(entity);
 				if (pItem == nullptr)
@@ -63340,7 +67267,7 @@ namespace gaia {
 				m_componentScopePathCacheValid = false;
 			}
 
-			//! Builds a dotted scope path for @a scope by walking its ChildOf chain.
+			//! Builds a dotted scope path for \a scope by walking its ChildOf chain.
 			//! \param scope Scope entity to inspect.
 			//! \param out Receives the dotted path when successful.
 			//! \return True when a full named scope path could be built, false otherwise.
@@ -63574,7 +67501,7 @@ namespace gaia {
 		public:
 			//----------------------------------------------------------------------
 
-			//! Checks if @a entity is valid.
+			//! Checks if \a entity is valid.
 			//! \param entity Checked entity.
 			//! \return True if the entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid(Entity entity) const {
@@ -63585,7 +67512,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns the entity located at the index @a id
+			//! Returns the entity located at the index \a id
 			//! \param id Entity id
 			//! \return Entity
 			GAIA_NODISCARD Entity get(EntityId id) const {
@@ -63598,12 +67525,14 @@ namespace gaia {
 				return Entity(id, ec.data.gen, (bool)ec.data.ent, (bool)ec.data.pair, (EntityKind)ec.data.kind);
 			}
 
-			//! Returns the entity for @a id when it is still live, or EntityBad for stale cleanup-time ids.
+			//! Returns the entity for \p id when it is still live, or EntityBad for stale cleanup-time ids.
+			//! \param id Entity id to resolve.
+			//! \return Live entity for \p id, or EntityBad when the id is stale or absent.
 			GAIA_NODISCARD Entity try_get(EntityId id) const {
 				return valid_entity_id(id) ? get(id) : EntityBad;
 			}
 
-			//! Returns the entity registered for component type @a T.
+			//! Returns the entity registered for component type \a T.
 			//! \tparam T Component type.
 			//! \return Component entity.
 			template <typename T>
@@ -63611,9 +67540,9 @@ namespace gaia {
 				return comp_cache().get<T>().entity;
 			}
 
-			//! Returns the registered component cache item for @a T, auto-registering it when enabled.
+			//! Returns the registered component cache item for \a T, auto-registering it when enabled.
 			//! \tparam T Component type.
-			//! \return Component cache item for @a T.
+			//! \return Component cache item for \a T.
 			template <typename T>
 			GAIA_NODISCARD const ComponentCacheItem& reg_comp() {
 #if GAIA_ECS_AUTO_COMPONENT_REGISTRATION
@@ -63625,10 +67554,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk add/remove operation on @a entity.
+			//! Starts a bulk add/remove operation on \a entity.
 			//! \param entity Entity
 			//! \return EntityBuilder
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			EntityBuilder build(Entity entity) {
 				return EntityBuilder(*this, entity);
 			}
@@ -63649,7 +67578,7 @@ namespace gaia {
 				return entity;
 			}
 
-			//! Creates @a count new empty entities.
+			//! Creates \a count new empty entities.
 			//! \param count Number of entities to create.
 			//! \param func Functor invoked for each new entity.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -63657,7 +67586,7 @@ namespace gaia {
 				add_entity_n(*m_pEntityArchetype, count, func);
 			}
 
-			//! Creates @a count of entities of the same archetype as @a entity.
+			//! Creates \a count of entities of the same archetype as \a entity.
 			//! \param entity Source entity whose archetype is reused.
 			//! \param count Number of entities to create.
 			//! \param func Functor invoked for each new entity.
@@ -63723,10 +67652,10 @@ namespace gaia {
 				return itemInfo;
 			}
 
-			//! Attaches entity @a object to entity @a entity.
+			//! Attaches entity \a object to entity \a entity.
 			//! \param entity Source entity
 			//! \param object Added entity
-			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both \a entity and \a object are valid. Undefined behavior otherwise.
 			void add(Entity entity, Entity object) {
 #if GAIA_ASSERT_ENABLED
 				if (!object.pair()) {
@@ -63739,10 +67668,10 @@ namespace gaia {
 				EntityBuilder(*this, entity).add(object);
 			}
 
-			//! Attaches a relationship pair to @a entity.
+			//! Attaches a relationship pair to \a entity.
 			//! \param entity Source entity.
 			//! \param pair Pair to attach.
-			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
+			//! \warning It is expected both \a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void add(Entity entity, Pair pair) {
 				auto& ec = m_recs.entities[entity.id()];
@@ -63751,11 +67680,11 @@ namespace gaia {
 				builder.commit();
 			}
 
-			//! Attaches a new component @a T to @a entity.
+			//! Attaches a new component \a T to \a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity) {
 				using FT = typename component_type_t<T>::TypeFull;
@@ -63769,13 +67698,13 @@ namespace gaia {
 				EntityBuilder(*this, entity).add<T>();
 			}
 
-			//! Attaches @a object to @a entity. Also sets its value.
+			//! Attaches \a object to \a entity. Also sets its value.
 			//! \param object Object
 			//! \param entity Entity
 			//! \param value Value to set for the object
-			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning It is expected @a object is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a object is valid. Undefined behavior otherwise.
 			template <typename T>
 			void add(Entity entity, Entity object, T&& value) {
 				static_assert(core::is_raw_v<T>);
@@ -63811,12 +67740,12 @@ namespace gaia {
 #endif
 			}
 
-			//! Attaches a new component @a T to @a entity. Also sets its value.
+			//! Attaches a new component \a T to \a entity. Also sets its value.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \param value Value to set for the component
-			//! \warning It is expected the component is not present on @a entity yet. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is not present on \a entity yet. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename T, typename U = typename actual_type_t<T>::Type>
 			void add(Entity entity, U&& value) {
 				using FT = typename component_type_t<T>::TypeFull;
@@ -63849,19 +67778,25 @@ namespace gaia {
 #endif
 			}
 
-			//! Materializes an inherited id as directly owned storage on @a entity.
+			//! Materializes an inherited id as directly owned storage on \p entity.
+			//! \param entity Entity receiving the local override.
+			//! \param object Inherited component or pair id to materialize.
 			//! \return True when a local override was created. False if nothing changed.
 			GAIA_NODISCARD bool override(Entity entity, Entity object) {
 				return override_inter(entity, object);
 			}
 
-			//! Materializes an inherited pair as directly owned storage on @a entity.
+			//! Materializes an inherited pair as directly owned storage on \p entity.
+			//! \param entity Entity receiving the local override.
+			//! \param pair Inherited pair to materialize.
 			//! \return True when a local override was created. False if nothing changed.
 			GAIA_NODISCARD bool override(Entity entity, Pair pair) {
 				return override_inter(entity, (Entity)pair);
 			}
 
-			//! Materializes an inherited typed component as directly owned storage on @a entity.
+			//! Materializes an inherited typed component as directly owned storage on \p entity.
+			//! \tparam T Component type to materialize.
+			//! \param entity Entity receiving the local override.
 			//! \return True when a local override was created. False if nothing changed.
 			template <typename T>
 			GAIA_NODISCARD bool override(Entity entity) {
@@ -63875,7 +67810,10 @@ namespace gaia {
 				return override_inter(entity, item.entity);
 			}
 
-			//! Materializes an inherited typed component associated with @a object on @a entity.
+			//! Materializes an inherited typed component associated with \p object on \p entity.
+			//! \tparam T Component type represented by \p object.
+			//! \param entity Entity receiving the local override.
+			//! \param object Inherited component entity to materialize.
 			//! \return True when a local override was created. False if nothing changed.
 			template <typename T>
 			GAIA_NODISCARD bool override(Entity entity, Entity object) {
@@ -63892,10 +67830,10 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Removes any component or entity attached to @a entity.
+			//! Removes any component or entity attached to \a entity.
 			//! \param entity Entity we want to remove any attached component or entity from
-			//! \warning It is expected @a entity is not a pair. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is not a pair. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			void clear(Entity entity) {
 				GAIA_ASSERT(!entity.pair());
 				GAIA_ASSERT(valid(entity));
@@ -63915,8 +67853,8 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one. Does not trigger observers.
 			//! \param srcEntity Entity to clone
 			//! \return New entity
-			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
+			//! \warning It is expected \a srcEntity is valid. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on \a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy(Entity srcEntity) {
@@ -63949,13 +67887,13 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates @a count new entities by cloning an already existing one.
+			//! Creates \a count new entities by cloning an already existing one.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
+			//! \warning It is expected \a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on \a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -63967,8 +67905,8 @@ namespace gaia {
 			//! Creates a new entity by cloning an already existing one. Trigger observers if necessary.
 			//! \param srcEntity Entity to clone
 			//! \return New entity
-			//! \warning It is expected @a srcEntity is valid. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on @a srcEntity, it is not copied because names are
+			//! \warning It is expected \a srcEntity is valid. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on \a srcEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			GAIA_NODISCARD Entity copy_ext(Entity srcEntity) {
@@ -64018,13 +67956,13 @@ namespace gaia {
 				return dstEntity;
 			}
 
-			//! Creates @a count new entities by cloning an already existing one. Trigger observers if necessary.
+			//! Creates \a count new entities by cloning an already existing one. Trigger observers if necessary.
 			//! \param entity Entity to clone
 			//! \param count Number of clones to make
 			//! \param func Functor executed every time a copy is created.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected @a entity is valid generic entity. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on @a entity, it is not copied because names are
+			//! \warning It is expected \a entity is valid generic entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on \a entity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -64443,7 +68381,7 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns whether @a entity has a direct sparse payload for @a object.
+			//! Returns whether \a entity has a direct sparse payload for \a object.
 			//! \param entity Entity to inspect.
 			//! \param object Sparse component entity.
 			//! \return True when the sparse store contains a direct payload for the entity.
@@ -64453,9 +68391,9 @@ namespace gaia {
 							 itSparseStore->second.func_has(itSparseStore->second.pStore, entity);
 			}
 
-			//! Resolves which entity currently owns @a object for @a entity.
+			//! Resolves which entity currently owns \a object for \a entity.
 			//! Direct non-fragmenting relation pairs, direct sparse payloads, and direct archetype membership all resolve to
-			//! @a entity. Otherwise this returns the inherited owner, or EntityBad if the id is absent.
+			//! \a entity. Otherwise this returns the inherited owner, or EntityBad if the id is absent.
 			//! \param entity Entity being queried.
 			//! \param object Non-wildcard id being queried.
 			//! \return Direct owner, inherited owner, or EntityBad.
@@ -64488,11 +68426,11 @@ namespace gaia {
 				return true;
 			}
 
-			//! Checks whether @a children already contains an edge for @a childPrefab.
+			//! Checks whether \a children already contains an edge for \a childPrefab.
 			//! \tparam T Prefab child edge container type.
 			//! \param children Collected child edges to inspect.
 			//! \param childPrefab Child prefab entity to look for.
-			//! \return True when an edge for @a childPrefab is already present.
+			//! \return True when an edge for \a childPrefab is already present.
 			template <typename T>
 			GAIA_NODISCARD bool prefab_child_edge_exists(const T& children, Entity childPrefab) const {
 				for (const auto& child: children) {
@@ -64503,7 +68441,7 @@ namespace gaia {
 				return false;
 			}
 
-			//! Appends direct prefab children connected to @a prefabEntity through @a relation.
+			//! Appends direct prefab children connected to \a prefabEntity through \a relation.
 			//! Duplicate child prefabs are ignored so relation precedence stays deterministic.
 			//! \tparam T Prefab child edge container type.
 			//! \param prefabEntity Parent prefab entity whose children are gathered.
@@ -64540,9 +68478,9 @@ namespace gaia {
 				});
 			}
 
-			//! Returns whether @a id is a prefab-only ChildOf parent edge that should not be copied directly.
+			//! Returns whether \a id is a prefab-only ChildOf parent edge that should not be copied directly.
 			//! \param id Component or pair id from a prefab archetype.
-			//! \return True when @a id is Pair(ChildOf, prefab parent).
+			//! \return True when \a id is Pair(ChildOf, prefab parent).
 			GAIA_NODISCARD bool prefab_hierarchy_parent_id(Entity id) const {
 				if (!id.pair() || id.id() != ChildOf.id())
 					return false;
@@ -64551,7 +68489,7 @@ namespace gaia {
 				return valid(parentPrefab) && has_direct(parentPrefab, Prefab);
 			}
 
-			//! Attaches @a instance under @a parentInstance using the prefab child hierarchy relation.
+			//! Attaches \a instance under \a parentInstance using the prefab child hierarchy relation.
 			//! \param instance Spawned child instance.
 			//! \param relation Hierarchy relation copied from the prefab child edge.
 			//! \param parentInstance Spawned parent instance.
@@ -64649,7 +68587,7 @@ namespace gaia {
 				return copy_sparse_store_inter(srcEntity, dstEntity, object, itSparseStore->second);
 			}
 
-			//! Copies an inherited sparse payload onto @a entity and makes it direct when needed.
+			//! Copies an inherited sparse payload onto \a entity and makes it direct when needed.
 			//! \param entity Entity receiving the local override.
 			//! \param object Out-of-line component entity being overridden.
 			//! \return True when the local override was created. False otherwise.
@@ -64673,7 +68611,7 @@ namespace gaia {
 				return true;
 			}
 
-			//! Copies an owned sparse payload from @a srcEntity to @a dstEntity and reports the add.
+			//! Copies an owned sparse payload from \a srcEntity to \a dstEntity and reports the add.
 			//! Fragmenting components are also made direct on the destination archetype.
 			//! \param srcEntity Source entity owning the payload.
 			//! \param dstEntity Destination entity receiving the payload.
@@ -64714,7 +68652,7 @@ namespace gaia {
 				eb.commit();
 			}
 
-			//! Copies direct component payload data for @a object from @a srcEntity to @a dstEntity.
+			//! Copies direct component payload data for \a object from \a srcEntity to \a dstEntity.
 			//! \param srcEntity Source entity holding the payload.
 			//! \param dstEntity Destination entity receiving the payload.
 			//! \param object Component entity identifying the column to copy.
@@ -65069,7 +69007,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Builds a depth-first prefab instantiation plan from @a prefabEntity.
+			//! Builds a depth-first prefab instantiation plan from \a prefabEntity.
 			//! \tparam T Prefab instantiation plan container type.
 			//! \param prefabEntity Prefab represented by the next plan node.
 			//! \param parentIdx Parent node index, or BadIndex for the root node.
@@ -65096,7 +69034,7 @@ namespace gaia {
 					build_prefab_instantiate_plan(child.prefab, nodeIdx, child.relation, plan);
 			}
 
-			//! Returns whether @a parentInstance already has a child instance of @a childPrefab through @a relation.
+			//! Returns whether \a parentInstance already has a child instance of \a childPrefab through \a relation.
 			//! \param parentInstance Instance subtree parent to inspect.
 			//! \param relation Hierarchy relation used for the child edge.
 			//! \param childPrefab Prefab child entity to find.
@@ -65116,8 +69054,8 @@ namespace gaia {
 			//! \tparam T Prefab child edge container type.
 			//! \param prefabEntity Prefab source entity.
 			//! \param instance Existing instance receiving additive prefab changes.
-			//! \param node Cached instantiation data for @a prefabEntity.
-			//! \param prefabChildren Direct child prefab edges of @a prefabEntity.
+			//! \param node Cached instantiation data for \a prefabEntity.
+			//! \param prefabChildren Direct child prefab edges of \a prefabEntity.
 			//! \return Number of copied ids or spawned child instances.
 			template <typename T>
 			uint32_t sync_prefab_instance(
@@ -65188,10 +69126,10 @@ namespace gaia {
 				return changes;
 			}
 
-			//! Instantiates a prefab as a normal entity and optionally attaches it under @a parentInstance.
+			//! Instantiates a prefab as a normal entity and optionally attaches it under \a parentInstance.
 			//! \param prefabEntity Prefab entity to instantiate.
 			//! \param parentInstance Parent instance, or EntityBad for an unparented root.
-			//! \param parentRelation Hierarchy relation used when @a parentInstance is valid.
+			//! \param parentRelation Hierarchy relation used when \a parentInstance is valid.
 			//! \return Spawned root instance entity.
 			GAIA_NODISCARD Entity
 			instantiate_inter(Entity prefabEntity, Entity parentInstance, Entity parentRelation = Parent) {
@@ -65214,6 +69152,8 @@ namespace gaia {
 			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
 			//! Prefab children linked through Parent or ChildOf are instantiated with the same hierarchy relation.
+			//! \param prefabEntity Prefab entity to instantiate.
+			//! \return Spawned root instance, or a plain copy when \p prefabEntity is not marked Prefab.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -65224,11 +69164,14 @@ namespace gaia {
 				return instantiate_inter(prefabEntity, EntityBad);
 			}
 
-			//! Instantiates a prefab as a normal entity parented under @a parentInstance.
+			//! Instantiates a prefab as a normal entity parented under \p parentInstance.
 			//! The instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, adds a direct Pair(Is, prefabEntity) edge instead,
 			//! and attaches Pair(Parent, parentInstance) to the new root instance. Prefab children linked through
 			//! Parent or ChildOf are instantiated with the same hierarchy relation.
+			//! \param prefabEntity Prefab entity to instantiate.
+			//! \param parentInstance Entity receiving the spawned root through Parent.
+			//! \return Spawned root instance, or a parented plain copy when \p prefabEntity is not marked Prefab.
 			GAIA_NODISCARD Entity instantiate(Entity prefabEntity, Entity parentInstance) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -65243,7 +69186,7 @@ namespace gaia {
 				return instantiate_inter(prefabEntity, parentInstance);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal root entities.
+			//! Instantiates \a count copies of a prefab as normal root entities.
 			//! Each instance copies the prefab's direct data, drops the Prefab tag, does not copy the name,
 			//! removes the prefab's direct Is edges, and adds a direct Pair(Is, prefabEntity) edge instead.
 			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
@@ -65252,8 +69195,8 @@ namespace gaia {
 			//! \param count Number of clones to make
 			//! \param func Functor executed for spawned root instances.
 			//!             It can be either void(ecs::Entity) or void(ecs::CopyIter&).
-			//! \warning It is expected @a prefabEntity is valid entity. Undefined behavior otherwise.
-			//! \warning If EntityDesc is present on @a prefabEntity, it is not copied because names are
+			//! \warning It is expected \a prefabEntity is valid entity. Undefined behavior otherwise.
+			//! \warning If EntityDesc is present on \a prefabEntity, it is not copied because names are
 			//!          expected to be unique. Instead, the copied entity will be a part of an archetype
 			//!          without EntityDesc and any calls to World::name(copiedEntity) will return an empty view.
 			template <typename Func = TFunc_Void_With_Entity>
@@ -65261,7 +69204,7 @@ namespace gaia {
 				instantiate_n(prefabEntity, EntityBad, count, func);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal root entities parented under @a parentInstance.
+			//! Instantiates \a count copies of a prefab as normal root entities parented under \a parentInstance.
 			//! Each spawned root instance receives a direct Pair(Parent, parentInstance) relationship.
 			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
 			//! \param prefabEntity Prefab entity to clone
@@ -65271,8 +69214,8 @@ namespace gaia {
 				instantiate_n(prefabEntity, parentInstance, count, func_void_with_entity);
 			}
 
-			//! Instantiates @a count copies of a prefab as normal root entities, assigning a direct
-			//! Pair(Parent, parentInstance) relationship when @a parentInstance is not EntityBad.
+			//! Instantiates \a count copies of a prefab as normal root entities, assigning a direct
+			//! Pair(Parent, parentInstance) relationship when \a parentInstance is not EntityBad.
 			//! The callback is invoked for each spawned root instance after its subtree has been instantiated.
 			//! Recursively instantiated prefab children keep their Parent or ChildOf hierarchy relation.
 			//! \tparam Func Callback type. It can be either void(ecs::Entity) or void(ecs::CopyIter&).
@@ -65349,6 +69292,8 @@ namespace gaia {
 			//! Missing copied ids are added to existing instances and missing prefab children are spawned with
 			//! their Parent or ChildOf hierarchy relation.
 			//! Existing owned instance data is left intact.
+			//! \param prefabEntity Prefab root whose instances are synchronized.
+			//! \return Number of copied ids and spawned child instances.
 			GAIA_NODISCARD uint32_t sync(Entity prefabEntity) {
 				GAIA_ASSERT(!prefabEntity.pair());
 				GAIA_ASSERT(valid(prefabEntity));
@@ -65357,8 +69302,8 @@ namespace gaia {
 				return sync_prefab_inter(prefabEntity, visited);
 			}
 
-			//! Finds the entity inside @a instanceRoot that was instantiated from @a prefabEntity.
-			//! The lookup checks @a instanceRoot first, then walks direct `Parent` and `ChildOf` descendants breadth-first.
+			//! Finds the entity inside \a instanceRoot that was instantiated from \a prefabEntity.
+			//! The lookup checks \a instanceRoot first, then walks direct `Parent` and `ChildOf` descendants breadth-first.
 			//! It matches the direct `Pair(Is, prefabEntity)` edge created by prefab instantiation and does not use names.
 			//! \param instanceRoot Root instance entity to search from.
 			//! \param prefabEntity Prefab entity to map into the instance subtree.
@@ -65446,10 +69391,10 @@ namespace gaia {
 				del_inter(entity);
 			}
 
-			//! Removes an @a object from @a entity if possible.
+			//! Removes an \a object from \a entity if possible.
 			//! \param entity Entity to delete from
 			//! \param object Entity to delete
-			//! \warning It is expected both @a entity and @a object are valid. Undefined behavior otherwise.
+			//! \warning It is expected both \a entity and \a object are valid. Undefined behavior otherwise.
 			void del(Entity entity, Entity object) {
 				if (!object.pair()) {
 					const auto itSparseStore = m_sparseComponentsByComp.find(EntityLookupKey(object));
@@ -65481,17 +69426,17 @@ namespace gaia {
 			//! Removes an existing entity relationship pair
 			//! \param entity Source entity
 			//! \param pair Pair
-			//! \warning It is expected both @a entity and the entities forming the relationship are valid.
+			//! \warning It is expected both \a entity and the entities forming the relationship are valid.
 			//!          Undefined behavior otherwise.
 			void del(Entity entity, Pair pair) {
 				EntityBuilder(*this, entity).del(pair);
 			}
 
-			//! Removes a component @a T from @a entity.
+			//! Removes a component \a T from \a entity.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename T>
 			void del(Entity entity) {
 				using CT = component_type_t<T>;
@@ -65509,13 +69454,15 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(Is, entityBase)
+			//! Shortcut for add(entity, Pair(Is, entityBase)).
+			//! \param entity Entity receiving the inheritance pair.
+			//! \param entityBase Base entity to inherit from.
 			void as(Entity entity, Entity entityBase) {
 				// Form the relationship
 				add(entity, Pair(Is, entityBase));
 			}
 
-			//! Checks if @a entity inherits from @a entityBase.
+			//! Checks if \a entity inherits from \a entityBase.
 			//! \param entity Entity
 			//! \param entityBase Base entity
 			//! \return True if entity is located in entityBase. False otherwise.
@@ -65523,9 +69470,9 @@ namespace gaia {
 				return is_inter<false>(entity, entityBase);
 			}
 
-			//! Checks if @a entity is located in @a entityBase.
+			//! Checks if \a entity is located in \a entityBase.
 			//! This is almost the same as "is" with the exception that false is returned
-			//! if @a entity matches @a entityBase
+			//! if \a entity matches \a entityBase
 			//! \param entity Entity
 			//! \param entityBase Base entity
 			//! \return True if entity is located in entityBase. False otherwise.
@@ -65533,6 +69480,9 @@ namespace gaia {
 				return is_inter<true>(entity, entityBase);
 			}
 
+			//! Checks whether an entity is the target of at least one direct Is relation.
+			//! \param target Candidate base entity.
+			//! \return True when \p target has a derived entity. False otherwise.
 			GAIA_NODISCARD bool is_base(Entity target) const {
 				GAIA_ASSERT(valid_entity(target));
 
@@ -65546,20 +69496,22 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Shortcut for add(entity, Pair(ChildOf, parent)
+			//! Shortcut for add(entity, Pair(ChildOf, parent)).
+			//! \param entity Entity receiving the ChildOf pair.
+			//! \param parent Parent target of the ChildOf pair.
 			void child(Entity entity, Entity parent) {
 				add(entity, Pair(ChildOf, parent));
 			}
 
-			//! Checks whether @a entity has a `ChildOf` relationship to @a parent.
+			//! Checks whether \a entity has a `ChildOf` relationship to \a parent.
 			//! \param entity Entity to inspect.
 			//! \param parent Candidate parent entity.
-			//! \return True if @a entity is a child of @a parent. False otherwise.
+			//! \return True if \a entity is a child of \a parent. False otherwise.
 			GAIA_NODISCARD bool child(Entity entity, Entity parent) const {
 				return has(entity, Pair(ChildOf, parent));
 			}
 
-			//! Adds a direct non-fragmenting `Parent` relationship to @a parentEntity.
+			//! Adds a direct non-fragmenting `Parent` relationship to \a parentEntity.
 			//! The relationship is non-fragmenting and does not participate in archetype identity.
 			//! \param entity Entity to inspect.
 			//! \param parentEntity Candidate parent entity.
@@ -65567,22 +69519,23 @@ namespace gaia {
 				parent_direct(entity, parentEntity);
 			}
 
-			//! Checks whether @a entity has a direct non-fragmenting `Parent` relationship to @a parentEntity.
+			//! Checks whether \a entity has a direct non-fragmenting `Parent` relationship to \a parentEntity.
 			//! \param entity Entity to inspect.
 			//! \param parentEntity Candidate parent entity.
-			//! \return True if @a entity references @a parentEntity through `Parent`. False otherwise.
+			//! \return True if \a entity references \a parentEntity through `Parent`. False otherwise.
 			GAIA_NODISCARD bool parent(Entity entity, Entity parentEntity) const {
 				return has_direct(entity, Pair(Parent, parentEntity));
 			}
 
 			//----------------------------------------------------------------------
 
-			//! Marks the component @a T as modified. Best used with acc_mut().sset() or set()
+			//! Marks the component type `T` as modified. Best used with acc_mut().sset() or set()
 			//! to manually trigger an update at user's whim.
-			//! If @a TriggerSetEffects is true, also triggers the component's set side effects:
+			//! If `TriggerSetEffects` is true, also triggers the component's set side effects:
 			//! set hooks and `OnSet` observers.
 			//! \tparam T Component type
 			//! \tparam TriggerSetEffects Triggers set side effects if true
+			//! \param entity Entity whose component version is updated.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -65636,13 +69589,15 @@ namespace gaia {
 #endif
 			}
 
-			//! Marks the component associated with @a object as modified on @a entity.
+			//! Marks the component associated with \p object as modified on \p entity.
 			//! Best used with `mut<T>(entity, object)` or `sset<T>(entity, object)` to manually trigger an update
 			//! at user's whim.
-			//! If @a TriggerSetEffects is true, also triggers the component's set side effects:
+			//! If `TriggerSetEffects` is true, also triggers the component's set side effects:
 			//! set hooks and `OnSet` observers.
 			//! \tparam T Component type
 			//! \tparam TriggerSetEffects Triggers set side effects if true
+			//! \param entity Entity whose component version is updated.
+			//! \param object Component entity associated with \p T.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -65685,11 +69640,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Starts a bulk set operation on @a entity.
+			//! Starts a bulk set operation on \a entity.
 			//! \param entity Entity
 			//! \return Entity-scoped ComponentSetter bound to this world and entity's current storage
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD ComponentSetter acc_mut(Entity entity) {
 				GAIA_ASSERT(valid(entity));
 
@@ -65697,16 +69652,16 @@ namespace gaia {
 				return ComponentSetter{*this, ec.pChunk, entity, ec.row};
 			}
 
-			//! Returns a write-back proxy for the component @a T on @a entity.
+			//! Returns a write-back proxy for the component \a T on \a entity.
 			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
 			//! full expression or scope. `OnSet` observers and chunk-backed set hooks are triggered only after the
 			//! write-back completes.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return Write-back proxy
-			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype before the proxy writes the value back.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype before the proxy writes the value back.
 			template <typename T>
 			GAIA_NODISCARD auto set(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -65716,7 +69671,7 @@ namespace gaia {
 				return SetWriteProxyTyped<T, ValueType>{*this, entity, item.entity, get<T>(entity)};
 			}
 
-			//! Returns a write-back proxy for the component associated with @a object on @a entity.
+			//! Returns a write-back proxy for the component associated with \a object on \a entity.
 			//! The proxy copies the current value, lets the caller mutate it, then writes it back at the end of the
 			//! full expression or scope. `OnSet` observers and chunk-backed set hooks are triggered only after the
 			//! write-back completes.
@@ -65724,22 +69679,23 @@ namespace gaia {
 			//! \param entity Entity
 			//! \param object Component entity
 			//! \return Write-back proxy
-			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype before the proxy writes the value back.
+			//! \warning It is expected the component is present on \a entity. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype before the proxy writes the value back.
 			template <typename T>
 			GAIA_NODISCARD auto set(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				return SetWriteProxyObject<typename actual_type_t<T>::Type>{*this, entity, object, get<T>(entity, object)};
 			}
 
-			//! Sets the value of the component @a T on @a entity without triggering a world version update.
+			//! Returns silent mutable access to component type `T` on \p entity.
 			//! This is a silent write and does not trigger set hooks or `OnSet` observers.
 			//! \tparam T Component
 			//! \param entity Entity
-			//! \warning It is expected the component is present on @a entity. Undefined behavior otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \return Mutable reference or proxy to the component payload.
+			//! \warning It is expected the component is present on \p entity. Undefined behavior otherwise.
+			//! \warning It is expected \p entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \p entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity) {
 				static_assert(!is_pair<T>::value);
@@ -65750,8 +69706,12 @@ namespace gaia {
 				return acc_mut(entity).smut<T>();
 			}
 
-			//! Sets the value of the component associated with @a object on @a entity without updating world version.
+			//! Sets the value of the component associated with \p object on \p entity without updating world version.
 			//! This is a silent write and does not trigger set hooks or `OnSet` observers.
+			//! \tparam T Component type represented by \p object.
+			//! \param entity Entity owning the component.
+			//! \param object Component entity selecting the payload.
+			//! \return Mutable reference or proxy to the component payload.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) sset(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
@@ -65765,10 +69725,11 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns a mutable reference or proxy to the component on @a entity without triggering a world version update.
+			//! Returns a mutable reference or proxy to the component on \a entity without triggering a world version update.
 			//! This is a silent raw write path. Call `modify<T, true>(entity)` when you need hooks or `OnSet`.
 			//! \tparam T Component
 			//! \param entity Entity
+			//! \return Mutable reference or proxy to the component payload.
 			//! \warning It is expected the component is present on entity. Undefined behavior otherwise.
 			//! \warning It is expected entity is valid. Undefined behavior otherwise.
 			//! \warning Undefined behavior if entity changes archetype after ComponentSetter is created.
@@ -65778,15 +69739,19 @@ namespace gaia {
 				return sset<T>(entity);
 			}
 
-			//! Returns a mutable reference or proxy to the component associated with @a object on @a entity.
+			//! Returns a mutable reference or proxy to the component associated with \p object on \p entity.
 			//! This is a silent raw write path. Call `modify<T, true>(entity, object)` when you need hooks or `OnSet`.
+			//! \tparam T Component type represented by \p object.
+			//! \param entity Entity owning the component.
+			//! \param object Component entity selecting the payload.
+			//! \return Mutable reference or proxy to the component payload.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) mut(Entity entity, Entity object) {
 				static_assert(!is_pair<T>::value);
 				return sset<T>(entity, object);
 			}
 
-			//! Returns raw read-only bytes for an AoS component or exact pair payload on @a entity.
+			//! Returns raw read-only bytes for an AoS component or exact pair payload on \a entity.
 			//! Inherited ids resolve to the owning entity. SoA and unsupported components return an invalid view.
 			//! \param entity Entity being read.
 			//! \param component Component entity or exact relationship pair being read.
@@ -65924,14 +69889,14 @@ namespace gaia {
 				return {pData, pItem->soaSizes[fieldIdx], ComponentRawViewFlag_Valid};
 			}
 
-			//! Creates a read-only cursor over a runtime component on @a entity.
+			//! Creates a read-only cursor over a runtime component on \a entity.
 			//! Inherited ids resolve like get_raw(). SoA roots expose fields without pretending the root is contiguous.
 			//! \param entity Entity being read.
 			//! \param component Component entity or exact relationship pair being read.
 			//! \return Cursor positioned at the root component payload, or invalid cursor when unavailable.
 			GAIA_NODISCARD ComponentCursor cursor(Entity entity, Entity component) const;
 
-			//! Creates a mutable cursor over a directly owned runtime component on @a entity.
+			//! Creates a mutable cursor over a directly owned runtime component on \a entity.
 			//! Direct writes through mut_ptr() are silent and must be paired with modify_raw(). Writes through
 			//! ComponentCursor::set_raw() finishes the root component write automatically.
 			//! \param entity Entity being mutated.
@@ -66073,7 +70038,11 @@ namespace gaia {
 				return acc(owner).template get<T>();
 			}
 
-			//! Returns the value stored in the component associated with @a object on @a entity.
+			//! Returns the value stored in the component associated with \p object on \p entity.
+			//! \tparam T Component type represented by \p object.
+			//! \param entity Entity to read, resolving inherited ownership when necessary.
+			//! \param object Component entity selecting the payload.
+			//! \return Read-only component value or proxy.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(Entity entity, Entity object) const {
 				using FT = typename component_type_t<T>::TypeFull;
@@ -66147,24 +70116,24 @@ namespace gaia {
 				}
 			}
 
-			//! Checks if @a pair is currently used by the world.
+			//! Checks if \a pair is currently used by the world.
 			//! \param pair Pair
 			//! \return True if the entity is used. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return has((Entity)pair);
 			}
 
-			//! Checks if @a entity contains the entity @a object.
+			//! Checks if \a entity contains the entity \a object.
 			//! \param entity Entity
 			//! \param object Tested entity
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Entity object) const {
 				return has_inter(entity, object, true);
 			}
 
-			//! Checks if @a entity directly contains the entity @a object, without semantic inheritance expansion.
+			//! Checks if \a entity directly contains the entity \a object, without semantic inheritance expansion.
 			//! \param entity Entity
 			//! \param object Tested entity
 			//! \return True if object is directly present on entity. False otherwise or if any of the entities is not valid.
@@ -66172,7 +70141,10 @@ namespace gaia {
 				return has_inter(entity, object, false);
 			}
 
-			//! Checks if @a entity directly contains @a pair, without semantic inheritance expansion.
+			//! Checks if \p entity directly contains \p pair, without semantic inheritance expansion.
+			//! \param entity Entity to inspect.
+			//! \param pair Exact or wildcard pair to test.
+			//! \return True when \p pair is directly present. False otherwise.
 			GAIA_NODISCARD bool has_direct(Entity entity, Pair pair) const {
 				return has_inter(entity, (Entity)pair, false);
 			}
@@ -66287,7 +70259,7 @@ namespace gaia {
 				return prev;
 			}
 
-			//! Executes @a func with a temporary component scope and restores the previous scope afterwards.
+			//! Executes \a func with a temporary component scope and restores the previous scope afterwards.
 			//! Relative component lookup walks up the ChildOf hierarchy of the active scope.
 			//! The scope entity and its ChildOf ancestors are expected to have names so we can build a path from them.
 			//! \param scopeEntity Scope entity. Pass EntityBad to temporarily disable component scope.
@@ -66356,22 +70328,22 @@ namespace gaia {
 				return parent;
 			}
 
-			//! Checks if @a entity contains @a pair.
+			//! Checks if \a entity contains \a pair.
 			//! \param entity Entity
 			//! \param pair Tested pair
 			//! \return True if object is present on entity. False otherwise or if any of the entities is not valid.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentSetter is created.
 			GAIA_NODISCARD bool has(Entity entity, Pair pair) const {
 				return has(entity, (Entity)pair);
 			}
 
-			//! Checks if @a entity contains the component @a T.
+			//! Checks if \a entity contains the component \a T.
 			//! \tparam T Component
 			//! \param entity Entity
 			//! \return True if the component is present on entity.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
-			//! \warning Undefined behavior if @a entity changes archetype after ComponentSetter is created.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
+			//! \warning Undefined behavior if \a entity changes archetype after ComponentSetter is created.
 			template <typename T>
 			GAIA_NODISCARD bool has(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
@@ -66400,12 +70372,12 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Assigns a @a name to @a entity. Ignored if used with pair.
+			//! Assigns a \a name to \a entity. Ignored if used with pair.
 			//! The string is copied and kept internally.
 			//! \param entity Entity
 			//! \param name A null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			//! \warning Name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -66413,12 +70385,12 @@ namespace gaia {
 				EntityBuilder(*this, entity).name(name, len);
 			}
 
-			//! Assigns a @a name to @a entity. Ignored if used with pair.
+			//! Assigns a \a name to \a entity. Ignored if used with pair.
 			//! The string is NOT copied. Your are responsible for its lifetime.
 			//! \param entity Entity
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			//! \warning The name is expected to be unique. If it is not this function does nothing.
 			//! \warning The name can't contain the character '.'. This character is reserved for hierarchical lookups
 			//!          such as "parent.child.subchild".
@@ -66430,10 +70402,10 @@ namespace gaia {
 				EntityBuilder(*this, entity).name_raw(name, len);
 			}
 
-			//! Returns the name assigned to @a entity.
+			//! Returns the name assigned to \a entity.
 			//! \param entity Entity
 			//! \return Name assigned to entity. Empty view when there is no name.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD util::str_view name(Entity entity) const {
 				if (entity.pair())
 					return {};
@@ -66448,10 +70420,10 @@ namespace gaia {
 				return {pDesc->name, pDesc->name_len};
 			}
 
-			//! Returns the entity name assigned to @a entityId.
+			//! Returns the entity name assigned to \a entityId.
 			//! \param entityId EntityId
 			//! \return Name assigned through the entity naming API. Empty view when there is no entity name.
-			//! \warning It is expected @a entityId is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entityId is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD util::str_view name(EntityId entityId) const {
 				auto entity = get(entityId);
 				return name(entity);
@@ -66459,7 +70431,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Resolves @a name in the world naming system.
+			//! Resolves \a name in the world naming system.
 			//! Entity names and hierarchical entity paths are attempted first. If they do not match,
 			//! component lookup uses the current scope, then the lookup path, then global component
 			//! symbol, path and alias lookup.
@@ -66482,7 +70454,7 @@ namespace gaia {
 				return get_inter(name, l);
 			}
 
-			//! Collects every entity and component entity that matches @a name.
+			//! Collects every entity and component entity that matches \a name.
 			//! This is useful for diagnostics when a short lookup could refer to multiple scoped components.
 			//! \param[out] out Output array cleared and then filled with unique matching entities.
 			//! \param name Pointer to a stable null-terminated string.
@@ -66517,7 +70489,7 @@ namespace gaia {
 				push_unique(alias(name, l));
 			}
 
-			//! Returns the entity assigned a name @a name.
+			//! Returns the entity assigned a name \a name.
 			//! This is a convenience alias for resolve(name).
 			//! \param name Pointer to a stable null-terminated string
 			//! \param len String length. If zero, the length is calculated
@@ -66536,10 +70508,10 @@ namespace gaia {
 				return it != m_nameToEntity.end() ? it->second : EntityBad;
 			}
 
-			//! Checks whether @a child is directly nested under @a parent through a Gaia hierarchy relation.
+			//! Checks whether \a child is directly nested under \a parent through a Gaia hierarchy relation.
 			//! \param child Candidate child entity.
 			//! \param parent Candidate parent entity.
-			//! \return True when `ChildOf` or non-fragmenting `Parent` links @a child to @a parent.
+			//! \return True when `ChildOf` or non-fragmenting `Parent` links \a child to \a parent.
 			GAIA_NODISCARD bool hierarchy_child_matches_parent(Entity child, Entity parent) const {
 				return this->child(child, parent) || this->parent(child, parent);
 			}
@@ -66626,18 +70598,19 @@ namespace gaia {
 		public:
 			//----------------------------------------------------------------------
 
-			//! Returns relations for @a target.
+			//! Returns relations for \p target.
 			//! \param target Target entity
-			//! \warning It is expected @a target is valid. Undefined behavior otherwise.
+			//! \return Set of relations that reference \p target, or nullptr when none do.
+			//! \warning It is expected \p target is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
 				return m_pairLookup.relations(target);
 			}
 
-			//! Returns the first relationship relation for the @a target entity on @a entity.
+			//! Returns the first relationship relation for the \a target entity on \a entity.
 			//! \param entity Source entity
 			//! \param target Target entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity relation(Entity entity, Entity target) const {
 				GAIA_ASSERT(valid(entity));
 				if (!valid(target))
@@ -66665,11 +70638,11 @@ namespace gaia {
 				return *ecRel.pEntity;
 			}
 
-			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! Returns the relationship relations for the \a target entity on \a entity.
 			//! \param entity Source entity
 			//! \param target Target entity
 			//! \param func void(Entity relation) functor executed for relationship relation found.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -66698,12 +70671,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship relations for the @a target entity on @a entity.
+			//! Returns the relationship relations for the \a target entity on \a entity.
 			//! \param entity Source entity
 			//! \param target Target entity
 			//! \param func bool(Entity relation) functor executed for relationship relation found.
 			//!             Stops if false is returned.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void relations_if(Entity entity, Entity target, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -66735,6 +70708,8 @@ namespace gaia {
 
 			//! Returns the cached transitive `Is` descendants for a target entity.
 			//! The cache is rebuilt lazily and cleared whenever an `Is` edge changes.
+			//! \param target Base entity whose derived entities are requested.
+			//! \return Cached transitive descendants of \p target.
 			GAIA_NODISCARD const cnt::darray<Entity>& as_relations_trav_cache(Entity target) const {
 				const auto key = EntityLookupKey(target);
 				const auto itCache = m_entityToAsRelationsTravCache.find(key);
@@ -66772,6 +70747,8 @@ namespace gaia {
 
 			//! Returns the cached transitive `Is` targets for a relation entity.
 			//! The cache is rebuilt lazily and cleared whenever an `Is` edge changes.
+			//! \param relation Derived entity whose transitive bases are requested.
+			//! \return Cached transitive base targets of \p relation.
 			GAIA_NODISCARD const cnt::darray<Entity>& as_targets_trav_cache(Entity relation) const {
 				const auto key = EntityLookupKey(relation);
 				const auto itCache = m_entityToAsTargetsTravCache.find(key);
@@ -66809,6 +70786,9 @@ namespace gaia {
 
 			//! Returns the cached unlimited upward traversal chain for `(relation, source)`.
 			//! The cache excludes the source entity itself and is cleared whenever a pair edge changes.
+			//! \param relation Relation defining each upward edge.
+			//! \param source Entity where traversal starts.
+			//! \return Cached targets above \p source in traversal order.
 			GAIA_NODISCARD const cnt::darray<Entity>& targets_trav_cache(Entity relation, Entity source) const {
 				const auto key = EntityLookupKey(Pair(relation, source));
 				const auto itCache = m_targetsTravCache.find(key);
@@ -66833,8 +70813,10 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Returns the cached deduped direct targets for wildcard target traversal on @a source.
+			//! Returns the cached deduped direct targets for wildcard target traversal on \p source.
 			//! The cache is keyed by `source` and cleared whenever a pair edge changes.
+			//! \param source Entity whose direct pair targets are requested.
+			//! \return Cached unique direct targets of \p source.
 			GAIA_NODISCARD const cnt::darray<Entity>& targets_all_cache(Entity source) const {
 				const auto key = EntityLookupKey(source);
 				const auto itCache = m_targetsAllCache.find(key);
@@ -66872,8 +70854,10 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Returns the cached deduped direct sources for wildcard source traversal on @a target.
+			//! Returns the cached deduped direct sources for wildcard source traversal on \p target.
 			//! The cache is keyed by `target` and cleared whenever a pair edge changes.
+			//! \param target Entity whose direct pair sources are requested.
+			//! \return Cached unique direct sources referencing \p target.
 			GAIA_NODISCARD const cnt::darray<Entity>& sources_all_cache(Entity target) const {
 				const auto key = EntityLookupKey(target);
 				const auto itCache = m_sourcesAllCache.find(key);
@@ -66924,8 +70908,12 @@ namespace gaia {
 				return cache;
 			}
 
-			//! Traverses relationship targets upwards starting from @a source.
+			//! Traverses relationship targets upwards starting from \p source.
 			//! Disabled entities act as traversal barriers and are not yielded.
+			//! \tparam Func Callable type accepting each target entity.
+			//! \param relation Relation defining each upward edge.
+			//! \param source Entity where traversal starts.
+			//! \param func Callable invoked for each enabled target.
 			template <typename Func>
 			void targets_trav(Entity relation, Entity source, Func func) const {
 				if (!valid(relation) || !valid(source))
@@ -66944,9 +70932,13 @@ namespace gaia {
 				}
 			}
 
-			//! Traverses relationship targets upwards starting from @a source.
+			//! Traverses relationship targets upwards starting from \p source.
 			//! Disabled entities act as traversal barriers and are not yielded.
-			//! \return True if traversal was stopped by @a func, false otherwise.
+			//! \tparam Func Callable type returning whether traversal should continue.
+			//! \param relation Relation defining each upward edge.
+			//! \param source Entity where traversal starts.
+			//! \param func Callable invoked for each enabled target. Returning false stops traversal.
+			//! \return True if traversal was stopped by \p func, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool targets_trav_if(Entity relation, Entity source, Func func) const {
 				if (!valid(relation) || !valid(source))
@@ -66970,6 +70962,9 @@ namespace gaia {
 
 			//! Returns the cached unlimited breadth-first descendant traversal for `(relation, rootTarget)`.
 			//! The cache excludes the root target itself and is cleared whenever a pair edge changes.
+			//! \param relation Relation defining descendant edges.
+			//! \param rootTarget Target entity where traversal starts.
+			//! \return Cached descendants in deterministic breadth-first order.
 			GAIA_NODISCARD const cnt::darray<Entity>& sources_bfs_trav_cache(Entity relation, Entity rootTarget) const {
 				const auto key = EntityLookupKey(Pair(relation, rootTarget));
 				const auto itCache = m_srcBfsTravCache.find(key);
@@ -67017,6 +71012,9 @@ namespace gaia {
 			//! Returns the cached fragmenting relation depth used by depth-ordered iteration for `(relation, target)`.
 			//! The returned value is `1` for direct dependents of a root/source with no further relation targets and grows
 			//! by one per level. For multi-target relations, the deepest target chain determines the result.
+			//! \param relation Fragmenting relation defining depth edges.
+			//! \param sourceTarget Target entity whose depth is requested.
+			//! \return Cached one-based depth, or zero when either entity is invalid.
 			GAIA_NODISCARD uint32_t depth_order_cache(Entity relation, Entity sourceTarget) const {
 				const auto key = EntityLookupKey(Pair(relation, sourceTarget));
 				const auto itCache = m_depthOrderCache.find(key);
@@ -67046,7 +71044,7 @@ namespace gaia {
 				return depth;
 			}
 
-			//! Traverses transitive `Is` descendants of @a target.
+			//! Traverses transitive `Is` descendants of \a target.
 			//! The traversal uses the cached closure built by as_relations_trav_cache().
 			//! \param target Target entity
 			//! \param func void(Entity relation) functor executed for each descendant relation.
@@ -67060,7 +71058,7 @@ namespace gaia {
 					func(relation);
 			}
 
-			//! Traverses transitive `Is` descendants of @a target until @a func returns true.
+			//! Traverses transitive `Is` descendants of \a target until \a func returns true.
 			//! \param target Target entity
 			//! \param func bool(Entity relation) functor executed for each descendant relation.
 			//!             Stops if true is returned.
@@ -67081,18 +71079,19 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns targets for @a relation.
+			//! Returns targets for \p relation.
 			//! \param relation Relation entity
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \return Set of targets referenced by \p relation, or nullptr when none exist.
+			//! \warning It is expected \p relation is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
 				return m_pairLookup.targets(relation);
 			}
 
-			//! Returns the first relationship target for the @a relation entity on @a entity.
+			//! Returns the first relationship target for the \a relation entity on \a entity.
 			//! \param entity Source entity
 			//! \param relation Relation entity
 			//! \return Relationship target. EntityBad if there is nothing to return.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD Entity target(Entity entity, Entity relation) const {
 				if (!valid(entity))
 					return EntityBad;
@@ -67131,11 +71130,11 @@ namespace gaia {
 				return EntityBad;
 			}
 
-			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! Returns the relationship targets for the \a relation entity on \a entity.
 			//! \param entity Source entity
 			//! \param relation Relation entity
 			//! \param func void(Entity target) functor executed for relationship target found.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets(Entity entity, Entity relation, Func func) const {
 				if (!valid(entity))
@@ -67173,12 +71172,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the relationship targets for the @a relation entity on @a entity.
+			//! Returns the relationship targets for the \a relation entity on \a entity.
 			//! \param entity Source entity
 			//! \param relation Relation entity
 			//! \param func bool(Entity target) functor executed for relationship target found.
 			//!             Stops if false is returned.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			template <typename Func>
 			void targets_if(Entity entity, Entity relation, Func func) const {
 				GAIA_ASSERT(valid(entity));
@@ -67219,6 +71218,8 @@ namespace gaia {
 			}
 
 			//! Resolves the target of an archetype-stored exact pair id, skipping stale cleanup-time targets.
+			//! \param pair Exact relationship pair whose target is resolved.
+			//! \return Live target entity, or EntityBad when its id is stale or absent.
 			GAIA_NODISCARD Entity pair_target_if_alive(Entity pair) const {
 				GAIA_ASSERT(pair.pair());
 				if (!valid_entity_id((EntityId)pair.gen()))
@@ -67232,11 +71233,11 @@ namespace gaia {
 				return valid(target) ? target : EntityBad;
 			}
 
-			//! Returns relationship sources for the @a relation and @a target.
+			//! Returns relationship sources for the \a relation and \a target.
 			//! \param relation Relation entity
 			//! \param target Target entity
 			//! \param func void(Entity source) functor executed for each source entity found.
-			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			//! \warning It is expected \a relation and \a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources(Entity relation, Entity target, Func func) const {
 				if ((relation != All && !valid(relation)) || !valid(target))
@@ -67288,12 +71289,12 @@ namespace gaia {
 				}
 			}
 
-			//! Returns relationship sources for the @a relation and @a target.
+			//! Returns relationship sources for the \a relation and \a target.
 			//! \param relation Relation entity
 			//! \param target Target entity
 			//! \param func bool(Entity source) functor executed for each source entity found.
 			//!             Stops if false is returned.
-			//! \warning It is expected @a relation and @a target are valid. Undefined behavior otherwise.
+			//! \warning It is expected \a relation and \a target are valid. Undefined behavior otherwise.
 			template <typename Func>
 			void sources_if(Entity relation, Entity target, Func func) const {
 				if ((relation != All && !valid(relation)) || !valid(target))
@@ -67642,55 +71643,55 @@ namespace gaia {
 			}
 
 		public:
-			//! Counts entities directly matching @a term, including semantic `Is` inheritance expansion.
+			//! Counts entities directly matching \a term, including semantic `Is` inheritance expansion.
 			//! \param term Query term
 			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities(Entity term) const {
 				return count_direct_term_entities_inter(term, true);
 			}
 
-			//! Counts entities directly matching @a term without semantic `Is` expansion.
+			//! Counts entities directly matching \a term without semantic `Is` expansion.
 			//! \param term Query term
 			//! \return Number of directly matching entities.
 			GAIA_NODISCARD uint32_t count_direct_term_entities_direct(Entity term) const {
 				return count_direct_term_entities_inter(term, false);
 			}
 
-			//! Appends entities directly matching @a term to @a out, including semantic `Is` expansion.
+			//! Appends entities directly matching \a term to \a out, including semantic `Is` expansion.
 			//! \param term Query term
 			//! \param out Output array
 			void collect_direct_term_entities(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, true);
 			}
 
-			//! Appends entities directly matching @a term to @a out without semantic `Is` expansion.
+			//! Appends entities directly matching \a term to \a out without semantic `Is` expansion.
 			//! \param term Query term
 			//! \param out Output array
 			void collect_direct_term_entities_direct(Entity term, cnt::darray<Entity>& out) const {
 				collect_direct_term_entities_inter(term, out, false);
 			}
 
-			//! Visits entities directly matching @a term, including semantic `Is` expansion.
+			//! Visits entities directly matching \a term, including semantic `Is` expansion.
 			//! \param term Query term
-			//! \param ctx User context passed to @a func
+			//! \param ctx User context passed to \a func
 			//! \param func bool(void*, Entity) callback executed for each matching entity.
-			//! \return False when @a func requested early stop. True otherwise.
+			//! \return False when \a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool for_each_direct_term_entity(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, true);
 			}
 
-			//! Visits entities directly matching @a term without semantic `Is` expansion.
+			//! Visits entities directly matching \a term without semantic `Is` expansion.
 			//! \param term Query term
-			//! \param ctx User context passed to @a func
+			//! \param ctx User context passed to \a func
 			//! \param func bool(void*, Entity) callback executed for each matching entity.
-			//! \return False when @a func requested early stop. True otherwise.
+			//! \return False when \a func requested early stop. True otherwise.
 			GAIA_NODISCARD bool
 			for_each_direct_term_entity_direct(Entity term, void* ctx, bool (*func)(void*, Entity)) const {
 				return for_each_direct_term_entity_inter(term, ctx, func, false);
 			}
 
 			//! Traverses relationship sources in breadth-first order.
-			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! Starting at \a rootTarget, this visits all direct sources first and then deeper levels.
 			//! \param relation Relation entity
 			//! \param rootTarget Root target entity
 			//! \param func void(Entity source) functor executed for each traversed source.
@@ -67740,12 +71741,12 @@ namespace gaia {
 			}
 
 			//! Traverses relationship sources in breadth-first order.
-			//! Starting at @a rootTarget, this visits all direct sources first and then deeper levels.
+			//! Starting at \a rootTarget, this visits all direct sources first and then deeper levels.
 			//! \param relation Relation entity
 			//! \param rootTarget Root target entity
 			//! \param func bool(Entity source) functor executed for each traversed source.
 			//!             Stops if true is returned.
-			//! \return True if traversal was stopped by @a func, false otherwise.
+			//! \return True if traversal was stopped by \a func, false otherwise.
 			template <typename Func>
 			GAIA_NODISCARD bool sources_bfs_if(Entity relation, Entity rootTarget, Func func) const {
 				if (!valid(relation) || !valid(rootTarget))
@@ -67798,7 +71799,7 @@ namespace gaia {
 				return false;
 			}
 
-			//! Traverses transitive `Is` targets of @a relation.
+			//! Traverses transitive `Is` targets of \a relation.
 			//! The traversal uses the cached closure built by as_targets_trav_cache().
 			//! \param relation Relation entity
 			//! \param func void(Entity target) functor executed for each inherited target.
@@ -67813,7 +71814,7 @@ namespace gaia {
 					func(target);
 			}
 
-			//! Traverses transitive `Is` targets of @a relation until @a func returns true.
+			//! Traverses transitive `Is` targets of \a relation until \a func returns true.
 			//! \param relation Relation entity
 			//! \param func bool(Entity target) functor executed for each inherited target.
 			//!             Stops if true is returned.
@@ -67911,7 +71912,7 @@ namespace gaia {
 			//! Enables or disables an entire entity.
 			//! \param entity Entity
 			//! \param enable Enable or disable the entity
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			void enable(Entity entity, bool enable) {
 				GAIA_ASSERT(valid(entity));
 
@@ -67947,7 +71948,7 @@ namespace gaia {
 			//! Checks if an entity is enabled.
 			//! \param entity Entity
 			//! \return True it the entity is enabled. False otherwise.
-			//! \warning It is expected @a entity is valid. Undefined behavior otherwise.
+			//! \warning It is expected \a entity is valid. Undefined behavior otherwise.
 			GAIA_NODISCARD bool enabled(Entity entity) const {
 				GAIA_ASSERT(valid(entity));
 
@@ -67955,8 +71956,11 @@ namespace gaia {
 				return enabled(ec);
 			}
 
-			//! Checks whether an entity is enabled together with all of its ancestors reachable through @a relation.
+			//! Checks whether an entity is enabled together with all of its ancestors reachable through \p relation.
 			//! This keeps direct enabled state separate from hierarchy-aware gating.
+			//! \param entity Entity whose effective enabled state is requested.
+			//! \param relation Relation defining the ancestor chain.
+			//! \return True when \p entity and every reachable ancestor are enabled. False otherwise.
 			GAIA_NODISCARD bool enabled_hierarchy(Entity entity, Entity relation) const {
 				GAIA_ASSERT(valid(entity));
 				GAIA_ASSERT(valid(relation));
@@ -67980,7 +71984,7 @@ namespace gaia {
 
 			//----------------------------------------------------------------------
 
-			//! Returns a chunk containing the @a entity.
+			//! Returns a chunk containing the \a entity.
 			//! \param entity Entity
 			//! \return Chunk or nullptr if not found.
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity) const {
@@ -67989,10 +71993,10 @@ namespace gaia {
 				return ec.pChunk;
 			}
 
-			//! Returns a chunk containing the @a entity.
-			//! Index of the entity is stored in @a row
+			//! Returns a chunk containing the \a entity.
+			//! Index of the entity is stored in \a row
 			//! \param entity Entity
-			//! \param[out] row Row of @a entity within chunk
+			//! \param[out] row Row of \a entity within chunk
 			//! \return Chunk or nullptr if not found
 			GAIA_NODISCARD Chunk* get_chunk(Entity entity, uint32_t& row) const {
 				GAIA_ASSERT(entity.id() < m_recs.entities.size());
@@ -68008,6 +72012,10 @@ namespace gaia {
 			}
 
 			//! Returns high-level runtime counters useful for diagnostics/telemetry.
+			//! \param[out] outArchetypes Number of allocated archetypes, including deletion-pending archetypes.
+			//! \param[out] outChunks Number of chunks owned by those archetypes.
+			//! \param[out] outEntitiesTotal Total rows across those chunks.
+			//! \param[out] outEntitiesActive Enabled rows across those chunks.
 			void runtime_counters(
 					uint32_t& outArchetypes, uint32_t& outChunks, uint32_t& outEntitiesTotal, uint32_t& outEntitiesActive) const {
 				outArchetypes = (uint32_t)m_archetypes.size();
@@ -68037,6 +72045,8 @@ namespace gaia {
 
 			//! Returns structural version for a given relation.
 			//! Increments whenever any Pair(relation, *) is added or removed on any entity.
+			//! \param relation Relation whose structural version is requested.
+			//! \return Current relation version, or zero when the relation has not changed.
 			GAIA_NODISCARD uint32_t rel_version(Entity relation) const {
 				const auto it = m_relationVersions.find(EntityLookupKey(relation));
 				return it != m_relationVersions.end() ? it->second : 0;
@@ -68061,6 +72071,7 @@ namespace gaia {
 			friend uint32_t world_entity_archetype_version(const World& world, Entity entity);
 
 			//! Updates a tracked source-entity version after the entity changes archetype membership.
+			//! \param entity Source entity whose existing tracked version is incremented.
 			void update_src_entity_version(Entity entity) {
 				const auto key = EntityLookupKey(entity);
 				const auto it = m_srcEntityVersions.find(key);
@@ -68071,11 +72082,12 @@ namespace gaia {
 			}
 
 			//! Removes sparse source-version state for an entity that is being destroyed.
+			//! \param entity Source entity whose tracked version entry is removed.
 			void remove_src_entity_version(Entity entity) {
 				m_srcEntityVersions.erase(EntityLookupKey(entity));
 			}
 
-			//! Sets maximal lifespan of an archetype @a entity belongs to.
+			//! Sets maximal lifespan of an archetype \a entity belongs to.
 			//! \param entity Entity
 			//! \param lifespan How many world updates an empty archetype is kept.
 			//!                 If zero, the archetype it kept indefinitely.
@@ -68383,7 +72395,7 @@ namespace gaia {
 
 			//! Checks whether the pair entity is valid.
 			//! \param entity Pair entity to inspect.
-			//! \return True if @a entity is valid. False otherwise.
+			//! \return True if \a entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid_pair(Entity entity) const {
 				if (entity == EntityBad)
 					return false;
@@ -68406,7 +72418,7 @@ namespace gaia {
 
 			//! Checks whether the entity is valid.
 			//! \param entity Entity to inspect.
-			//! \return True if @a entity is valid. False otherwise.
+			//! \return True if \a entity is valid. False otherwise.
 			GAIA_NODISCARD bool valid_entity(Entity entity) const {
 				if (entity == EntityBad)
 					return false;
@@ -68426,10 +72438,10 @@ namespace gaia {
 				return valid(*pEc, entity);
 			}
 
-			//! Checks whether the entity identified by @a entityId is valid.
+			//! Checks whether the entity identified by \a entityId is valid.
 			//! Pairs are considered invalid.
 			//! \param entityId Entity id to inspect.
-			//! \return True if @a entityId is valid. False otherwise.
+			//! \return True if \a entityId is valid. False otherwise.
 			GAIA_NODISCARD bool valid_entity_id(EntityId entityId) const {
 				if (entityId == EntityBad.id())
 					return false;
@@ -68472,12 +72484,14 @@ namespace gaia {
 
 		public:
 			//! Checks if the chunk is locked for structural changes.
+			//! \return True while at least one structural-change lock is held. False otherwise.
 			GAIA_NODISCARD bool locked() const {
 				return m_structuralChangesLocked != 0;
 			}
 
 			//! Returns true while the world is draining teardown work and normal runtime callbacks
 			//! must not execute.
+			//! \return True during world teardown. False otherwise.
 			GAIA_NODISCARD bool tearing_down() const {
 				return m_teardownActive;
 			}
@@ -68731,6 +72745,8 @@ namespace gaia {
 			//!       1) member function: "void load(bin_stream& s)"
 			//!       2) free function in gaia::ser namespace: "void tag_invoke(gaia::ser::load_v, bin_stream& s,
 			//!       YourType& data)"
+			//! \param inputSerializer Serializer to read from, or an invalid handle to use the world's bound serializer.
+			//! \return True when the snapshot version is supported and all world data loads successfully. False otherwise.
 			bool load(ser::serializer inputSerializer = {}) {
 				auto s = inputSerializer.valid() ? inputSerializer : m_serializer;
 				GAIA_ASSERT(s.valid());
@@ -69697,7 +73713,7 @@ namespace gaia {
 
 			//! Deletes an archetype from the <entity, archetype> map
 			//! \param entity Entity getting deleted
-			//! \param pArchetype Archetype currently associated with @a entity, or nullptr when unavailable.
+			//! \param pArchetype Archetype currently associated with \a entity, or nullptr when unavailable.
 			void del_entity_archetype_pairs(Entity entity, Archetype* pArchetype) {
 				GAIA_ASSERT(entity != Pair(All, All));
 
@@ -69891,7 +73907,7 @@ namespace gaia {
 			}
 #endif
 
-			//! Searches for an archetype formed by adding @a entity to @a pArchetypeLeft.
+			//! Searches for an archetype formed by adding \a entity to \a pArchetypeLeft.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeLeft Archetype we originate from.
 			//! \param entity Entity we want to add.
@@ -69967,7 +73983,7 @@ namespace gaia {
 				return pArchetypeRight;
 			}
 
-			//! Searches for an archetype formed by removing @a entity from @a pArchetypeRight.
+			//! Searches for an archetype formed by removing \a entity from \a pArchetypeRight.
 			//! If no such archetype is found a new one is created.
 			//! \param pArchetypeRight Archetype we originate from.
 			//! \param entity Component we want to remove.
@@ -70062,7 +74078,7 @@ namespace gaia {
 			}
 
 			//! Removes any name associated with the entity
-			//! \param ec Entity container associated with @a entity.
+			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity the name of which we want to delete
 			void del_name(EntityContainer& ec, Entity entity) {
 				EntityBuilder(*this, entity, ec).del_name();
@@ -70130,7 +74146,7 @@ namespace gaia {
 					invalidate_entity(entity);
 			}
 
-			//! Deletes all entities, and in turn their chunks, from @a archetype.
+			//! Deletes all entities, and in turn their chunks, from \a archetype.
 			//! If an archetype forming entity is present, the chunk is treated as if it were empty
 			//! and normal dying procedure is applied to it. At the last dying tick the entity is
 			//! deleted so the chunk can be removed.
@@ -70293,7 +74309,7 @@ namespace gaia {
 				return false;
 			}
 
-			//! Updates all chunks and entities of archetype @a srcArchetype so they are a part of @a dstArchetype
+			//! Updates all chunks and entities of archetype \a srcArchetype so they are a part of \a dstArchetype
 			//! \param srcArchetype Source archetype
 			//! \param dstArchetype Destination archeytpe
 			void move_to_archetype(Archetype& srcArchetype, Archetype& dstArchetype) {
@@ -70342,7 +74358,7 @@ namespace gaia {
 					update_version(m_worldVersion);
 			}
 
-			//! Finds the destination archetype produced by removing @a entity from @a pArchetype.
+			//! Finds the destination archetype produced by removing \a entity from \a pArchetype.
 			//! \param pArchetype Source archetype.
 			//! \param entity Entity or component to remove.
 			//! \return Destination archetype or nullptr if no match is found.
@@ -70360,7 +74376,7 @@ namespace gaia {
 				return nullptr;
 			}
 
-			//! Finds the destination archetype for removing every pair matching `(All, entity)` from @a pArchetype.
+			//! Finds the destination archetype for removing every pair matching `(All, entity)` from \a pArchetype.
 			//! \param pArchetype Source archetype.
 			//! \param entity Wildcard target to remove.
 			//! \return Destination archetype or nullptr if no match is found.
@@ -70380,7 +74396,7 @@ namespace gaia {
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
-			//! Finds the destination archetype for removing every pair matching `(entity, All)` from @a pArchetype.
+			//! Finds the destination archetype for removing every pair matching `(entity, All)` from \a pArchetype.
 			//! \param pArchetype Source archetype.
 			//! \param entity Wildcard relation to remove.
 			//! \return Destination archetype or nullptr if no match is found.
@@ -70400,7 +74416,7 @@ namespace gaia {
 				return pArchetype != pDstArchetype ? pDstArchetype : nullptr;
 			}
 
-			//! Finds the destination archetype for removing every wildcard pair from @a pArchetype.
+			//! Finds the destination archetype for removing every wildcard pair from \a pArchetype.
 			//! \param pArchetype Source archetype.
 			//! \param entity Wildcard pair selector.
 			//! \return Destination archetype or nullptr if no match is found.
@@ -70422,7 +74438,7 @@ namespace gaia {
 				return found ? pDstArchetype : nullptr;
 			}
 
-			//! Finds the destination archetype produced by removing @a entity from @a pArchetype.
+			//! Finds the destination archetype produced by removing \a entity from \a pArchetype.
 			//! Wildcard pair entities are supported as well.
 			//! \param pArchetype Source archetype.
 			//! \param entity Entity, pair, or wildcard pair selector to remove.
@@ -70462,7 +74478,7 @@ namespace gaia {
 
 			//! Requests deletion without acquiring observer reentrancy state.
 			//! The caller already owns the active deletion transaction when observers are enabled.
-			//! \param ec Entity container associated with @a entity.
+			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity to request for deletion.
 			void req_del_inter(EntityContainer& ec, Entity entity) {
 				if (is_req_del(ec))
@@ -70483,7 +74499,7 @@ namespace gaia {
 			}
 
 			//! Requests deletion and owns the active deletion transaction for the request.
-			//! \param ec Entity container associated with @a entity.
+			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity to request for deletion.
 			void req_del(EntityContainer& ec, Entity entity) {
 #if GAIA_OBSERVERS_ENABLED
@@ -70616,7 +74632,7 @@ namespace gaia {
 				}
 			}
 
-			//! Checks whether deleting @a target must recurse into at least one live direct source.
+			//! Checks whether deleting \a target must recurse into at least one live direct source.
 			//! \param target Target entity whose direct sources are checked.
 			//! \param cond OnDeleteTarget condition required on the source relation.
 			//! \return True when a matching direct source exists and can have descendants.
@@ -70682,7 +74698,7 @@ namespace gaia {
 				}
 			}
 
-			//! Requests deleting anything that references @a entity.
+			//! Requests deleting anything that references \a entity.
 			//! \param entity Entity whose referrers should be deleted.
 			void req_del_entities_with(Entity entity) {
 				GAIA_PROF_SCOPE(World::req_del_entities_with);
@@ -70732,8 +74748,8 @@ namespace gaia {
 					req_del(*record.pArchetype);
 			}
 
-			//! Requests deleting anything that references @a entity.
-			//! Takes @a cond into account.
+			//! Requests deleting anything that references \a entity.
+			//! Takes \a cond into account.
 			//! \param entity Entity whose referrers should be deleted.
 			//! \param cond Additional pair condition applied to matching referrers.
 			void req_del_entities_with(Entity entity, Pair cond) {
@@ -70812,7 +74828,7 @@ namespace gaia {
 				}
 			}
 
-			//! Removes @a entity from anything referencing it.
+			//! Removes \a entity from anything referencing it.
 			//! \param entity Entity to remove from referring records.
 			void rem_from_entities(Entity entity) {
 				GAIA_PROF_SCOPE(World::rem_from_entities);
@@ -70964,8 +74980,8 @@ namespace gaia {
 #endif
 			}
 
-			//! Removes @a entity from anything referencing it.
-			//! Takes @a cond into account.
+			//! Removes \a entity from anything referencing it.
+			//! Takes \a cond into account.
 			//! \param entity Entity to remove from referring records.
 			//! \param cond Additional pair condition applied to matching referrers.
 			void rem_from_entities(Entity entity, Pair cond) {
@@ -71104,7 +75120,7 @@ namespace gaia {
 				}
 			}
 
-			//! Handles specific conditions that might arise from deleting @a entity.
+			//! Handles specific conditions that might arise from deleting \a entity.
 			//! Conditions are:
 			//!   OnDelete - deleting an entity/pair
 			//!   OnDeleteTarget - deleting a pair's target
@@ -71114,7 +75130,7 @@ namespace gaia {
 			//!   Error - error out when deleted
 			//! These rules can be set up as:
 			//!   e.add(Pair(OnDelete, Remove));
-			//! \param ec Entity container associated with @a entity.
+			//! \param ec Entity container associated with \a entity.
 			//! \param entity Entity being deleted.
 			//! \param pairEntities Pair entities to delete after the entity passes deletion checks.
 			void handle_del_entity(EntityContainer& ec, Entity entity, EntitySpan pairEntities) {
@@ -71432,7 +75448,7 @@ namespace gaia {
 				clear_relation_caches();
 			}
 
-			//! Deletes the stored record for @a entity.
+			//! Deletes the stored record for \a entity.
 			//! \param entity Pair entity to delete.
 			//! \param pArchetype Archetype owning the pair record.
 			//! \param rel Pair relation entity.
@@ -71463,13 +75479,13 @@ namespace gaia {
 				m_pairLookup.del_pair(rel, tgt);
 			}
 
-			//! Removes all pair lookup entries that mention @a entity.
+			//! Removes all pair lookup entries that mention \a entity.
 			//! \param entity Entity being deleted.
 			void del_entity_pair_lookup(Entity entity) {
 				m_pairLookup.del_entity_pairs(entity);
 			}
 
-			//! Removes stored pair data that points to or is represented by @a entity.
+			//! Removes stored pair data that points to or is represented by \a entity.
 			//! \param entity Entity being deleted.
 			void del_pair_data_for_entity(Entity entity) {
 				Archetype* pArchetype = nullptr;
@@ -71520,7 +75536,7 @@ namespace gaia {
 			//! \param ec Entity container updated to point at the new storage.
 			//! \param entity Entity to associate with a chunk
 			//! \param pArchetype Target archetype
-			//! \param pChunk Target chunk belonging to @a pArchetype
+			//! \param pChunk Target chunk belonging to \a pArchetype
 			void store_entity(EntityContainer& ec, Entity entity, Archetype* pArchetype, Chunk* pChunk) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				GAIA_ASSERT(pChunk != nullptr);
@@ -71752,12 +75768,12 @@ namespace gaia {
 #endif
 			}
 
-			//! Checks relationship membership against @a entityBase.
-			//! \tparam CheckIn If true, checks whether @a entity is located in @a entityBase.
-			//!                 If false, checks whether @a entity inherits from @a entityBase.
+			//! Checks relationship membership against \a entityBase.
+			//! \tparam CheckIn If true, checks whether \a entity is located in \a entityBase.
+			//!                 If false, checks whether \a entity inherits from \a entityBase.
 			//! \param entity Entity to inspect.
 			//! \param entityBase Base entity used for the membership test.
-			//! \return True if @a entity inherits from or is located in @a entityBase. False otherwise.
+			//! \return True if \a entity inherits from or is located in \a entityBase. False otherwise.
 			template <bool CheckIn>
 			GAIA_NODISCARD bool is_inter(Entity entity, Entity entityBase) const {
 				GAIA_ASSERT(valid_entity(entity));
@@ -71879,7 +75895,7 @@ namespace gaia {
 #endif
 			}
 
-			//! Creates the entity container record for @a entity.
+			//! Creates the entity container record for \a entity.
 			//! \param entity Pair entity.
 			//! \param archetype Archetype the pair record should use.
 			//! \return True when a new pair record was created. False if it already existed.
@@ -71909,7 +75925,7 @@ namespace gaia {
 				return true;
 			}
 
-			//! Adds @a entity to the pair lookup index.
+			//! Adds \a entity to the pair lookup index.
 			//! \param entity Pair entity.
 			void add_pair_lookup(Entity entity) {
 				GAIA_ASSERT(entity.pair());
@@ -72023,9 +76039,9 @@ namespace gaia {
 
 		public:
 			//! Returns the temporary serialization buffer used while building a query.
-			//! A fresh query id is allocated lazily when @a serId is QueryIdBad.
+			//! A fresh query id is allocated lazily when \a serId is QueryIdBad.
 			//! \param serId Query serialization id
-			//! \return Serialization buffer associated with @a serId.
+			//! \return Serialization buffer associated with \a serId.
 			QuerySerBuffer& query_buffer(QueryId& serId) {
 				// No serialization id set on the query, try creating a new record
 				if GAIA_UNLIKELY (serId == QueryIdBad) {
@@ -72058,7 +76074,7 @@ namespace gaia {
 				return m_querySerMap[serId];
 			}
 
-			//! Releases the temporary serialization buffer associated with @a serId.
+			//! Releases the temporary serialization buffer associated with \a serId.
 			//! \param serId Query serialization id reset to QueryIdBad on return.
 			void query_buffer_reset(QueryId& serId) {
 				auto it = m_querySerMap.find(serId);
@@ -72069,13 +76085,13 @@ namespace gaia {
 				serId = QueryIdBad;
 			}
 
-			//! Invalidates cached queries structurally affected by @a entityKey.
+			//! Invalidates cached queries structurally affected by \a entityKey.
 			//! \param entityKey Structural entity lookup key
 			void invalidate_queries_for_structural_entity(EntityLookupKey entityKey) {
 				m_queryCache.invalidate_queries_for_entity(entityKey, QueryCache::ChangeKind::Structural);
 			}
 
-			//! Invalidates cached queries whose dynamic result depends on @a relation.
+			//! Invalidates cached queries whose dynamic result depends on \a relation.
 			//! \param relation Relation entity
 			void invalidate_queries_for_rel(Entity relation) {
 				if (!m_queryCache.has_relation_query_dependencies())
@@ -72084,7 +76100,7 @@ namespace gaia {
 				m_queryCache.invalidate_queries_for_rel(relation, QueryCache::ChangeKind::DynamicResult);
 			}
 
-			//! Invalidates cached sorted queries whose row ordering depends on @a entity.
+			//! Invalidates cached sorted queries whose row ordering depends on \a entity.
 			//! \param entity Entity
 			void invalidate_sorted_queries_for_entity(Entity entity) {
 				m_queryCache.invalidate_sorted_queries_for_entity(entity);
@@ -72095,7 +76111,7 @@ namespace gaia {
 				m_queryCache.invalidate_sorted_queries();
 			}
 
-			//! Invalidates semantic `Is` queries affected by removing or changing @a is_pair.
+			//! Invalidates semantic `Is` queries affected by removing or changing \a is_pair.
 			//! \param is_pair `Is` pair
 			void invalidate_queries_for_entity(Pair is_pair) {
 				GAIA_ASSERT(is_pair.first() == Is);
@@ -72271,6 +76287,7 @@ namespace gaia {
 			return ComponentCursor::from_raw(*this, comp_cache(), entity, component, mut_raw(entity, component));
 		}
 
+		//! Entity mutation builder returned by World entity operations.
 		using EntityBuilder = World::EntityBuilder;
 	} // namespace ecs
 } // namespace gaia
@@ -74383,7 +78400,6 @@ namespace gaia {
 			//! Query job dependency handle
 			mt::JobHandle jobHandle = mt::JobNull;
 
-			//! Creates an empty system component payload.
 			System_() = default;
 
 			//! Waits for and releases any outstanding manual-delete query job.
@@ -74574,7 +78590,7 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Adds an Is relationship term that matches entities derived from @a entity.
+			//! Adds an Is relationship term that matches entities derived from \a entity.
 			//! \param entity Target entity used with the built-in Is relation.
 			//! \param options Query-term options applied to the generated pair term.
 			//! \return Self reference.
@@ -74584,7 +78600,7 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Adds an input-only Is relationship term for @a entity.
+			//! Adds an input-only Is relationship term for \a entity.
 			//! \param entity Target entity used with the built-in Is relation.
 			//! \param options Query-term options applied before the input flag is forced.
 			//! \return Self reference.
@@ -75555,6 +79571,11 @@ namespace gaia {
 #endif
 		}
 
+		//! Groups an archetype by the target of its first pair using a requested relation.
+		//! \param world World associated with \p archetype. Unused by the default grouping policy.
+		//! \param archetype Archetype whose ids are inspected.
+		//! \param groupBy Relation entity selecting the pair target used as the group id.
+		//! \return Matching pair target id, or zero when the archetype has no such pair.
 		inline GroupId
 		group_by_func_default([[maybe_unused]] const World& world, const Archetype& archetype, Entity groupBy) {
 			if (archetype.pairs() > 0) {
@@ -75610,6 +79631,7 @@ namespace gaia {
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			static constexpr uint32_t RuntimeJsonMaxDepth = 32;
 
@@ -75674,9 +79696,9 @@ namespace gaia {
 			//! Reads an integer runtime value as its width-preserving unsigned bit pattern.
 			//! \param pData Runtime value bytes.
 			//! \param type Reflected integer storage type.
-			//! \param valueSize Size of @a pData in bytes.
+			//! \param valueSize Size of \a pData in bytes.
 			//! \param out Receives the normalized bit pattern.
-			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			//! \return True when \a type is a supported integer type and \a valueSize matches it.
 			GAIA_NODISCARD inline bool runtime_json_integer_bits(
 					const uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t& out) noexcept {
 				switch (type) {
@@ -75723,7 +79745,7 @@ namespace gaia {
 			//! \param type Reflected integer storage type.
 			//! \param value Registered constant value.
 			//! \param out Receives the normalized bit pattern.
-			//! \return True when @a type is a supported integer type.
+			//! \return True when \a type is a supported integer type.
 			GAIA_NODISCARD inline bool
 			runtime_json_constant_bits(ser::serialization_type_id type, int64_t value, uint64_t& out) noexcept {
 				switch (type) {
@@ -75773,9 +79795,9 @@ namespace gaia {
 			//! Writes a width-preserving integer bit pattern to runtime value bytes.
 			//! \param pData Destination runtime value bytes.
 			//! \param type Reflected integer storage type.
-			//! \param valueSize Size of @a pData in bytes.
+			//! \param valueSize Size of \a pData in bytes.
 			//! \param value Normalized bit pattern to write.
-			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			//! \return True when \a type is a supported integer type and \a valueSize matches it.
 			GAIA_NODISCARD inline bool runtime_json_write_integer_bits(
 					uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t value) noexcept {
 				switch (type) {
@@ -75814,7 +79836,7 @@ namespace gaia {
 				}
 			}
 
-			//! \return Whether @a item is represented by one direct semantic JSON value rather than a keyed field object.
+			//! \return Whether \a item is represented by one direct semantic JSON value rather than a keyed field object.
 			GAIA_NODISCARD inline bool runtime_json_is_direct_value(const ComponentCacheItem& item) noexcept {
 				switch (item.typeKind) {
 					case RuntimeTypeKind::Primitive:
@@ -76442,8 +80464,9 @@ namespace gaia {
 				return true;
 			}
 		} // namespace detail
+		//! \endcond
 
-		//! Serializes a single component instance into key/value JSON using runtime field metadata in @a item.
+		//! Serializes a single component instance into key/value JSON using runtime field metadata in \a item.
 		//! \param item Component metadata and optional runtime fields.
 		//! \param pComponentData Pointer to one component value.
 		//! \param writer Destination JSON writer.
@@ -77259,20 +81282,20 @@ namespace gaia {
 namespace gaia {
 	namespace ecs {
 		namespace detail {
-			//! Returns whether @a lhs entity id sorts before @a rhs entity id.
+			//! Returns whether \a lhs entity id sorts before \a rhs entity id.
 			//! \param lhs First entity.
 			//! \param rhs Second entity.
-			//! \return True when @a lhs has a smaller id/generation tuple.
+			//! \return True when \a lhs has a smaller id/generation tuple.
 			GAIA_NODISCARD inline bool entity_schedule_less(Entity lhs, Entity rhs) {
 				if (lhs.id() != rhs.id())
 					return lhs.id() < rhs.id();
 				return lhs.gen() < rhs.gen();
 			}
 
-			//! Returns whether @a stack already contains @a entity.
+			//! Returns whether \a stack already contains \a entity.
 			//! \param stack Current dependency traversal stack.
 			//! \param entity Entity to find.
-			//! \return True when @a entity is already being visited.
+			//! \return True when \a entity is already being visited.
 			GAIA_NODISCARD inline bool system_schedule_stack_contains(const cnt::darray<Entity>& stack, Entity entity) {
 				for (auto item: stack) {
 					if (item == entity)
@@ -77282,11 +81305,11 @@ namespace gaia {
 			}
 
 			//! Computes a cycle-safe DependsOn depth for one scheduling key.
-			//! \param world World containing @a entity.
+			//! \param world World containing \a entity.
 			//! \param entity Entity whose DependsOn targets are inspected.
 			//! \param skipTarget Target to ignore, usually the phase marker added by SystemBuilder::phase().
 			//! \param stack Current dependency traversal stack.
-			//! \return Longest target chain reachable from @a entity, or zero when a cycle is hit.
+			//! \return Longest target chain reachable from \a entity, or zero when a cycle is hit.
 			GAIA_NODISCARD inline uint32_t
 			system_schedule_dep_depth(World& world, Entity entity, Entity skipTarget, cnt::darray<Entity>& stack) {
 				if (entity == EntityBad || system_schedule_stack_contains(stack, entity))
@@ -77305,8 +81328,8 @@ namespace gaia {
 				return depth;
 			}
 
-			//! Returns the phase assigned to @a systemEntity, if any.
-			//! \param world World containing @a systemEntity.
+			//! Returns the phase assigned to \a systemEntity, if any.
+			//! \param world World containing \a systemEntity.
 			//! \param systemEntity System entity to inspect.
 			//! \return Phase entity or EntityBad when the system has no phase assignment.
 			GAIA_NODISCARD inline Entity system_phase(World& world, Entity systemEntity) {
@@ -77318,8 +81341,8 @@ namespace gaia {
 				return phase;
 			}
 
-			//! Builds the scheduling key for @a systemEntity.
-			//! \param world World containing @a systemEntity.
+			//! Builds the scheduling key for \a systemEntity.
+			//! \param world World containing \a systemEntity.
 			//! \param systemEntity System entity to inspect.
 			//! \return Scheduling key used by World::systems_run().
 			GAIA_NODISCARD inline SystemScheduleItem system_schedule_item(World& world, Entity systemEntity) {
@@ -77354,7 +81377,7 @@ namespace gaia {
 				finish_pending_system_jobs(pending);
 			}
 
-			//! Returns whether @a sched supports deferred system jobs and dependency edges.
+			//! Returns whether \a sched supports deferred system jobs and dependency edges.
 			//! \param sched Scheduler descriptor to inspect after default-resolution.
 			//! \return True when system_update can add, depend, submit, wait, and delete jobs safely.
 			GAIA_NODISCARD inline bool sched_supports_deferred_system_jobs(const Sched& sched) {
@@ -77377,11 +81400,11 @@ namespace gaia {
 				});
 			}
 
-			//! Returns the index of @a entity in @a items using sorted entity indices.
+			//! Returns the index of \a entity in \a items using sorted entity indices.
 			//! \param items All collected scheduling keys.
 			//! \param entityIndices Item indices sorted by system entity id.
 			//! \param entity Entity to find.
-			//! \return Item index in @a items or UINT32_MAX when not found.
+			//! \return Item index in \a items or UINT32_MAX when not found.
 			GAIA_NODISCARD inline uint32_t system_schedule_find_item_by_entity(
 					const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices, Entity entity) {
 				uint32_t lo = 0;
@@ -77402,7 +81425,7 @@ namespace gaia {
 			//! Returns whether two schedule items belong to the same explicit system-dependency group.
 			//! \param lhs First schedule item.
 			//! \param rhs Second schedule item.
-			//! \return True when explicit system DependsOn edges may order @a lhs and @a rhs.
+			//! \return True when explicit system DependsOn edges may order \a lhs and \a rhs.
 			GAIA_NODISCARD inline bool
 			system_schedule_same_group(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
 				if (lhs.hasPhase != rhs.hasPhase)
@@ -77417,7 +81440,7 @@ namespace gaia {
 			//! \param items All collected scheduling keys.
 			//! \param entityIndices Item indices sorted by system entity id.
 			//! \param itemIdx Child item whose primary target is requested.
-			//! \return Item index in @a items or UINT32_MAX when no collected target matches.
+			//! \return Item index in \a items or UINT32_MAX when no collected target matches.
 			GAIA_NODISCARD inline uint32_t system_schedule_primary_target_idx(
 					World& world, const cnt::darray<SystemScheduleItem>& items, const cnt::darray<uint32_t>& entityIndices,
 					uint32_t itemIdx) {
@@ -77520,7 +81543,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the index of @a phase in @a phases.
+			//! Returns the index of \a phase in \a phases.
 			//! \param phases Collected phase keys.
 			//! \param phase Phase entity to find.
 			//! \return Phase index or UINT32_MAX when not found.
@@ -77812,7 +81835,7 @@ namespace gaia {
 			//!
 			//! \param lhs First scheduling key.
 			//! \param rhs Second scheduling key.
-			//! \return True when @a lhs must be visited before @a rhs.
+			//! \return True when \a lhs must be visited before \a rhs.
 			GAIA_NODISCARD inline bool system_schedule_less(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
 				if (lhs.hasPhase != rhs.hasPhase)
 					return lhs.hasPhase;
@@ -77836,7 +81859,7 @@ namespace gaia {
 			//! \param edges Output edge list.
 			//! \param childCounts Direct child count per target item.
 			//! \param childIdx Item index that must run first.
-			//! \param targetIdx Item index that must run after @a childIdx.
+			//! \param targetIdx Item index that must run after \a childIdx.
 			inline void system_schedule_add_edge(
 					cnt::darray<SystemScheduleEdge>& edges, cnt::darray<uint32_t>& childCounts, uint32_t childIdx,
 					uint32_t targetIdx) {
@@ -77989,10 +82012,10 @@ namespace gaia {
 				items = ordered;
 			}
 
-			//! Returns whether @a lhs and @a rhs belong to different scheduler batches.
+			//! Returns whether \a lhs and \a rhs belong to different scheduler batches.
 			//! \param lhs Current batch key.
 			//! \param rhs Candidate system key.
-			//! \return True when pending jobs must be flushed before @a rhs runs.
+			//! \return True when pending jobs must be flushed before \a rhs runs.
 			GAIA_NODISCARD inline bool
 			system_schedule_batch_changed(const SystemScheduleItem& lhs, const SystemScheduleItem& rhs) {
 				if (lhs.hasPhase != rhs.hasPhase)
@@ -78002,7 +82025,7 @@ namespace gaia {
 				return lhs.systemDepth != rhs.systemDepth;
 			}
 
-			//! Returns whether @a type asks Gaia-ECS to prepare scheduler work for a system.
+			//! Returns whether \a type asks Gaia-ECS to prepare scheduler work for a system.
 			//! \param type System query execution type.
 			//! \return True for parallel execution modes.
 			GAIA_NODISCARD inline bool system_exec_uses_scheduler(QueryExecType type) {
@@ -78175,14 +82198,14 @@ namespace gaia {
 			return world.m_archetypeDeleteVersion;
 		}
 
-		//! Returns the resolved scheduler bound to @a world.
+		//! Returns the resolved scheduler bound to \a world.
 		//! \param world World instance.
 		//! \return Bound scheduler or the default scheduler when none was installed.
 		inline const Sched& world_sched(const World& world) {
 			return world.sched();
 		}
 
-		//! Iterates direct targets of @a entity for the given relation.
+		//! Iterates direct targets of \a entity for the given relation.
 		//! \param world World to query.
 		//! \param entity Source entity.
 		//! \param relation Relation to traverse.
@@ -78219,24 +82242,24 @@ namespace gaia {
 				scratch.clear_temporary_matches();
 		}
 
-		//! Invalidates sorted queries affected by @a entity.
+		//! Invalidates sorted queries affected by \a entity.
 		//! \param world World owning the queries.
 		//! \param entity Changed entity.
 		inline void world_invalidate_sorted_queries_for_entity(World& world, Entity entity) {
 			world.invalidate_sorted_queries_for_entity(entity);
 		}
 
-		//! Invalidates all sorted queries in @a world.
+		//! Invalidates all sorted queries in \a world.
 		//! \param world World owning the queries.
 		inline void world_invalidate_sorted_queries(World& world) {
 			world.invalidate_sorted_queries();
 		}
 
-		//! Checks whether @a entity satisfies @a term using normal semantic matching.
+		//! Checks whether \a entity satisfies \a term using normal semantic matching.
 		//! \param world World to query.
 		//! \param entity Entity to test.
 		//! \param term Term to match.
-		//! \return True if @a entity satisfies @a term.
+		//! \return True if \a entity satisfies \a term.
 		inline bool world_has_entity_term(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -78246,11 +82269,11 @@ namespace gaia {
 			return world.has(entity, term);
 		}
 
-		//! Checks whether @a entity satisfies an inherited `in(...)` semantic term.
+		//! Checks whether \a entity satisfies an inherited `in(...)` semantic term.
 		//! \param world World to query.
 		//! \param entity Entity to test.
 		//! \param term Term to match.
-		//! \return True if @a entity matches @a term through inherited Is traversal.
+		//! \return True if \a entity matches \a term through inherited Is traversal.
 		inline bool world_has_entity_term_in(const World& world, Entity entity, Entity term) {
 			if (term.pair() && term.id() == Is.id() && !is_wildcard(term.gen())) {
 				const auto target = world.get(term.gen());
@@ -78260,56 +82283,56 @@ namespace gaia {
 			return false;
 		}
 
-		//! Returns whether @a term inherits by OnInstantiate(Inherit) policy.
+		//! Returns whether \a term inherits by OnInstantiate(Inherit) policy.
 		//! \param world World to query.
 		//! \param term Term to inspect.
-		//! \return True if @a term uses inherit policy.
+		//! \return True if \a term uses inherit policy.
 		inline bool world_term_uses_inherit_policy(const World& world, Entity term) {
 			return !is_wildcard(term) && world.valid(term) && world.target(term, OnInstantiate) == Inherit;
 		}
 
-		//! Checks whether @a entity directly owns @a term without inheritance.
+		//! Checks whether \a entity directly owns \a term without inheritance.
 		//! \param world World to query.
 		//! \param entity Entity to test.
 		//! \param term Term to match.
-		//! \return True if @a entity directly owns @a term.
+		//! \return True if \a entity directly owns \a term.
 		inline bool world_has_entity_term_direct(const World& world, Entity entity, Entity term) {
 			return world.has_direct(entity, term);
 		}
 
-		//! Returns whether @a relation uses the dedicated non-fragmenting relation store.
+		//! Returns whether \a relation uses the dedicated non-fragmenting relation store.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is exclusive, non-fragmenting, and uses relation storage.
+		//! \return True if \a relation is exclusive, non-fragmenting, and uses relation storage.
 		inline bool world_relation_uses_non_fragmenting_storage(const World& world, Entity relation) {
 			return world.relation_uses_non_fragmenting_storage(relation);
 		}
 
-		//! Returns whether @a relation is non-fragmenting.
+		//! Returns whether \a relation is non-fragmenting.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is non-fragmenting.
+		//! \return True if \a relation is non-fragmenting.
 		inline bool world_relation_is_non_fragmenting(const World& world, Entity relation) {
 			return world.relation_is_non_fragmenting(relation);
 		}
 
-		//! Returns whether @a component uses sparse instance storage.
+		//! Returns whether \a component uses sparse instance storage.
 		//! \param world World to query.
 		//! \param component Component entity to inspect.
-		//! \return True if @a component stores payload in sparse storage.
+		//! \return True if \a component stores payload in sparse storage.
 		inline bool world_component_uses_sparse_storage(const World& world, Entity component) {
 			return world.component_uses_sparse_storage(component);
 		}
 
-		//! Returns whether @a component is non-fragmenting.
+		//! Returns whether \a component is non-fragmenting.
 		//! \param world World to query.
 		//! \param component Component entity to inspect.
-		//! \return True if @a component is non-fragmenting.
+		//! \return True if \a component is non-fragmenting.
 		inline bool world_component_is_non_fragmenting(const World& world, Entity component) {
 			return world.component_is_non_fragmenting(component);
 		}
 
-		//! Counts direct entities addressable by @a term.
+		//! Counts direct entities addressable by \a term.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \return Number of direct entities.
@@ -78329,7 +82352,7 @@ namespace gaia {
 			return world.valid(target) ? (uint32_t)world.as_relations_trav_cache(target).size() : 0U;
 		}
 
-		//! Counts direct entities addressable by @a term without semantic expansion.
+		//! Counts direct entities addressable by \a term without semantic expansion.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \return Number of direct entities.
@@ -78337,7 +82360,7 @@ namespace gaia {
 			return world.count_direct_term_entities_direct(term);
 		}
 
-		//! Collects direct entities addressable by @a term.
+		//! Collects direct entities addressable by \a term.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \param out Output array.
@@ -78363,7 +82386,7 @@ namespace gaia {
 				out.push_back(relation);
 		}
 
-		//! Collects direct entities addressable by @a term without semantic expansion.
+		//! Collects direct entities addressable by \a term without semantic expansion.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \param out Output array.
@@ -78371,12 +82394,12 @@ namespace gaia {
 			world.collect_direct_term_entities_direct(term, out);
 		}
 
-		//! Iterates direct entities addressable by @a term.
+		//! Iterates direct entities addressable by \a term.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each entity.
-		//! \return False if iteration was stopped by @a func.
+		//! \return False if iteration was stopped by \a func.
 		inline bool
 		world_for_each_direct_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity(term, ctx, func);
@@ -78387,7 +82410,7 @@ namespace gaia {
 		//! \param term Inherited semantic term.
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each entity.
-		//! \return False if iteration was stopped by @a func.
+		//! \return False if iteration was stopped by \a func.
 		inline bool world_for_each_in_term_entity(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			if (!term.pair() || term.id() != Is.id() || is_wildcard(term.gen()))
 				return true;
@@ -78404,26 +82427,26 @@ namespace gaia {
 			return true;
 		}
 
-		//! Iterates direct entities addressable by @a term without semantic expansion.
+		//! Iterates direct entities addressable by \a term without semantic expansion.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \param ctx Opaque callback context.
 		//! \param func Callback invoked for each entity.
-		//! \return False if iteration was stopped by @a func.
+		//! \return False if iteration was stopped by \a func.
 		inline bool
 		world_for_each_direct_term_entity_direct(const World& world, Entity term, void* ctx, bool (*func)(void*, Entity)) {
 			return world.for_each_direct_term_entity_direct(term, ctx, func);
 		}
 
-		//! Returns whether @a entity is enabled.
+		//! Returns whether \a entity is enabled.
 		//! \param world World to query.
 		//! \param entity Entity to inspect.
-		//! \return True if @a entity is enabled.
+		//! \return True if \a entity is enabled.
 		inline bool world_entity_enabled(const World& world, Entity entity) {
 			return world.enabled(entity);
 		}
 
-		//! Returns the live target of @a pair, or EntityBad if unavailable.
+		//! Returns the live target of \a pair, or EntityBad if unavailable.
 		//! \param world World to query.
 		//! \param pair Pair entity.
 		//! \return Live pair target or EntityBad.
@@ -78431,11 +82454,11 @@ namespace gaia {
 			return world.pair_target_if_alive(pair);
 		}
 
-		//! Returns whether @a entity is enabled through the given hierarchy relation.
+		//! Returns whether \a entity is enabled through the given hierarchy relation.
 		//! \param world World to query.
 		//! \param entity Entity to inspect.
 		//! \param relation Hierarchy relation.
-		//! \return True if @a entity is enabled in the hierarchy.
+		//! \return True if \a entity is enabled in the hierarchy.
 		inline bool world_entity_enabled_hierarchy(const World& world, Entity entity, Entity relation) {
 			return world.enabled_hierarchy(entity, relation);
 		}
@@ -78447,34 +82470,34 @@ namespace gaia {
 			return world.enabled_hierarchy_version();
 		}
 
-		//! Returns whether @a relation is treated as a hierarchy relation.
+		//! Returns whether \a relation is treated as a hierarchy relation.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is a hierarchy relation.
+		//! \return True if \a relation is a hierarchy relation.
 		inline bool world_relation_is_hierarchy(const World& world, Entity relation) {
 			return world.relation_is_hierarchy(relation);
 		}
 
-		//! Returns whether @a relation fragments archetypes.
+		//! Returns whether \a relation fragments archetypes.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is fragmenting.
+		//! \return True if \a relation is fragmenting.
 		inline bool world_relation_is_fragmenting(const World& world, Entity relation) {
 			return world.relation_is_fragmenting(relation);
 		}
 
-		//! Returns whether @a relation is both hierarchy-forming and fragmenting.
+		//! Returns whether \a relation is both hierarchy-forming and fragmenting.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation is a fragmenting hierarchy relation.
+		//! \return True if \a relation is a fragmenting hierarchy relation.
 		inline bool world_relation_is_fragmenting_hierarchy(const World& world, Entity relation) {
 			return world.relation_is_fragmenting_hierarchy(relation);
 		}
 
-		//! Returns whether @a relation supports cached depth-ordered iteration.
+		//! Returns whether \a relation supports cached depth-ordered iteration.
 		//! \param world World to query.
 		//! \param relation Relation to inspect.
-		//! \return True if @a relation supports depth ordering.
+		//! \return True if \a relation supports depth ordering.
 		inline bool world_relation_supports_depth_order(const World& world, Entity relation) {
 			return world.relation_supports_depth_order(relation);
 		}
@@ -78487,20 +82510,20 @@ namespace gaia {
 			return world.relation_depth_order_prunes_disabled_subtrees(relation);
 		}
 
-		//! Returns whether @a entity currently belongs to a prefab archetype.
+		//! Returns whether \a entity currently belongs to a prefab archetype.
 		//! \param world World to query.
 		//! \param entity Entity to inspect.
-		//! \return True if @a entity is stored in a prefab archetype.
+		//! \return True if \a entity is stored in a prefab archetype.
 		inline bool world_entity_prefab(const World& world, Entity entity) {
 			const auto& ec = world.fetch(entity);
 			return ec.pArchetype != nullptr && ec.pArchetype->has(Prefab);
 		}
 
-		//! Finds the first inherited owner providing @a term for @a archetype.
+		//! Finds the first inherited owner providing \a term for \a archetype.
 		//! \param world World to query.
 		//! \param archetype Archetype to inspect.
 		//! \param term Term to resolve.
-		//! \return First inherited owner providing @a term, or EntityBad.
+		//! \return First inherited owner providing \a term, or EntityBad.
 		inline Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term) {
 			const auto& chunks = archetype.chunks();
 			const Chunk* pFirstChunk = nullptr;
@@ -78524,7 +82547,7 @@ namespace gaia {
 			return EntityBad;
 		}
 
-		//! Returns the current archetype of @a entity.
+		//! Returns the current archetype of \a entity.
 		//! \param world World to query.
 		//! \param entity Entity to inspect.
 		//! \return Archetype pointer, or nullptr when absent.
@@ -78532,7 +82555,7 @@ namespace gaia {
 			return world.fetch(entity).pArchetype;
 		}
 
-		//! Returns the size of the component-to-archetype bucket for @a term.
+		//! Returns the size of the component-to-archetype bucket for \a term.
 		//! \param world World to query.
 		//! \param term Term to inspect.
 		//! \return Number of indexed archetype entries.
@@ -78544,7 +82567,7 @@ namespace gaia {
 			return (uint32_t)it->second.size();
 		}
 
-		//! Returns the cached component index of @a term inside @a archetype.
+		//! Returns the cached component index of \a term inside \a archetype.
 		//! \param world World to query.
 		//! \param archetype Archetype to inspect.
 		//! \param term Term to inspect.
@@ -78566,7 +82589,7 @@ namespace gaia {
 			return it->second[idx].compIdx;
 		}
 
-		//! Returns the cached match count of @a term inside @a archetype.
+		//! Returns the cached match count of \a term inside \a archetype.
 		//! \param world World to query.
 		//! \param archetype Archetype to inspect.
 		//! \param term Term to inspect.
@@ -78609,11 +82632,11 @@ namespace gaia {
 			return ec.pChunk->comp_ptr(ec.pChunk->comp_idx(id), row);
 		}
 
-		//! Returns a direct query argument for @a entity using immediate-write access for mutable references.
+		//! Returns a direct query argument for \a entity using immediate-write access for mutable references.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read or mutate.
-		//! \return Query argument bound to @a entity.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -78625,11 +82648,11 @@ namespace gaia {
 				return world.template get<Arg>(entity);
 		}
 
-		//! Returns a direct query argument for @a entity using raw mutable access.
+		//! Returns a direct query argument for \a entity using raw mutable access.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read or mutate.
-		//! \return Query argument bound to @a entity.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_direct_entity_arg_raw(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -78681,7 +82704,7 @@ namespace gaia {
 			return static_cast<const detail::SparseComponentStore<T>*>(pStore)->has(entity);
 		}
 
-		//! Returns the component or pair id represented by query argument type @a T.
+		//! Returns the component or pair id represented by query argument type \a T.
 		//! \tparam T Query argument type.
 		//! \param world World providing component metadata.
 		//! \return Component or pair entity id.
@@ -78697,11 +82720,11 @@ namespace gaia {
 				return comp_cache(world).template get<FT>().entity;
 		}
 
-		//! Returns the query argument for @a entity using the id implied by @a T.
+		//! Returns the query argument for \a entity using the id implied by \a T.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read or mutate.
-		//! \return Query argument bound to @a entity.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg(World& world, Entity entity) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -78713,13 +82736,13 @@ namespace gaia {
 			}
 		}
 
-		//! Returns the query argument for @a entity using explicit term id @a id.
+		//! Returns the query argument for \a entity using explicit term id \a id.
 		//! Mutable references materialize an override when inherited data must become direct.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read or mutate.
-		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
-		//! \return Query argument bound to @a entity.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from \a T.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id(World& world, Entity entity, Entity id) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -78739,13 +82762,13 @@ namespace gaia {
 				return world.template get<Arg>(entity, termId);
 		}
 
-		//! Returns the query argument for @a entity using explicit term id @a id and raw mutable access.
+		//! Returns the query argument for \a entity using explicit term id \a id and raw mutable access.
 		//! Mutable references materialize an override when inherited data must become direct.
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read or mutate.
-		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
-		//! \return Query argument bound to @a entity.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from \a T.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id_raw(World& world, Entity entity, Entity id) {
 			using Arg = std::remove_cv_t<std::remove_reference_t<T>>;
@@ -78770,11 +82793,11 @@ namespace gaia {
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param chunk Chunk currently being iterated.
-		//! \param pEntities Entities belonging to @a chunk.
-		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \param pEntities Entities belonging to \a chunk.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from \a T.
 		//! \param[out] direct True when the argument is stored directly on the chunk archetype.
-		//! \param[out] compIdx Component index inside @a chunk when @a direct is true.
-		//! \param[out] pDataInherited Pointer to inherited data when @a direct is false.
+		//! \param[out] compIdx Component index inside \a chunk when \a direct is true.
+		//! \param[out] pDataInherited Pointer to inherited data when \a direct is false.
 		template <typename T>
 		inline void world_init_query_entity_arg_by_id_chunk_stable_const(
 				World& world, const Chunk& chunk, const Entity* pEntities, Entity id, bool& direct, uint32_t& compIdx,
@@ -78816,11 +82839,11 @@ namespace gaia {
 		//! \tparam T Query argument type.
 		//! \param world World to query.
 		//! \param entity Entity to read.
-		//! \param id Explicit component or pair id, or EntityBad to derive it from @a T.
+		//! \param id Explicit component or pair id, or EntityBad to derive it from \a T.
 		//! \param[in,out] pLastArchetype Last archetype used by the caller cache.
 		//! \param[in,out] cachedOwner Cached inherited owner entity.
 		//! \param[in,out] cachedDirect Cached flag telling whether the value is direct.
-		//! \return Query argument bound to @a entity.
+		//! \return Query argument bound to \a entity.
 		template <typename T>
 		inline decltype(auto) world_query_entity_arg_by_id_cached_const(
 				World& world, Entity entity, Entity id, const Archetype*& pLastArchetype, Entity& cachedOwner,
@@ -78855,7 +82878,7 @@ namespace gaia {
 			return world.template get<Arg>(cachedOwner, termId);
 		}
 
-		//! Dispatches OnSet observers for a contiguous row range in @a chunk.
+		//! Dispatches OnSet observers for a contiguous row range in \a chunk.
 		//! \param world World owning the chunk.
 		//! \param term Component or pair id that was written.
 		//! \param chunk Chunk containing the written rows.
@@ -78928,6 +82951,10 @@ namespace gaia {
 			return *this;
 		}
 
+		//! Returns a typed component value selected by a runtime component entity.
+		//! \tparam T Component type represented by \p type.
+		//! \param type Component entity selecting the payload.
+		//! \return Read-only component value or proxy for the getter's entity.
 		template <typename T>
 		GAIA_NODISCARD decltype(auto) ComponentGetter::get(Entity type) const {
 			GAIA_ASSERT(m_pWorld != nullptr);
@@ -79012,10 +83039,6 @@ namespace gaia {
 #endif
 		}
 
-		//! Finalizes a write to @a term on @a entity.
-		//! \param world World owning the entity.
-		//! \param term Component or pair id that was written.
-		//! \param entity Entity that was written.
 		inline void world_finish_write(World& world, Entity term, Entity entity) {
 			world.finish_write(entity, term);
 		}
@@ -79032,6 +83055,9 @@ namespace gaia {
 		//! Returns the sparse archetype-membership version tracked for a source entity.
 		//! Invalid source entities report version 0 so cached queries see deletions immediately.
 		//! Valid entries are created on first use so non-source entities do not pay any extra storage.
+		//! \param world World containing the sparse source-version state.
+		//! \param entity Source entity whose archetype-membership version is requested.
+		//! \return Tracked version, one for a newly tracked live entity, or zero for an invalid entity.
 		inline uint32_t world_entity_archetype_version(const World& world, Entity entity) {
 			if (!world.valid(entity))
 				return 0;
@@ -79174,10 +83200,10 @@ namespace gaia {
 					return temp;
 				}
 
-				//! Requests a component @a T to be added to @a entity.
+				//! Requests a component \a T to be added to \a entity.
 				//! \tparam T Component type.
 				//! \param entity Destination entity.
-				//! \warning Component @a T should be registered in the world before calling this function while
+				//! \warning Component \a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				template <typename T>
 				void add(Entity entity) {
@@ -79190,29 +83216,29 @@ namespace gaia {
 					push_op({OpType::ADD_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests an entity @a other to be added to entity @a entity.
+				//! Requests an entity \a other to be added to entity \a entity.
 				//! \param entity Destination entity
-				//! \param other Entity to add to @a entity
+				//! \param other Entity to add to \a entity
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
-				//! Requests a relationship pair to be added to entity @a entity.
+				//! Requests a relationship pair to be added to entity \a entity.
 				//! \param entity Destination entity.
-				//! \param pair Relationship pair to add to @a entity.
+				//! \param pair Relationship pair to add to \a entity.
 				void add(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::ADD_COMPONENT, 0, entity, (Entity)pair});
 				}
 
-				//! Requests a component @a T to be added to entity. Also sets its value.
+				//! Requests a component \a T to be added to entity. Also sets its value.
 				//! \tparam T Component type
 				//! \param entity Destination entity
 				//! \param value Component value
-				//! \warning Component @a T should be registered in the world before calling this function while
+				//! \warning Component \a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T, std::enable_if_t<!is_pair<std::remove_cv_t<std::remove_reference_t<T>>>::value, int> = 0>
@@ -79233,7 +83259,7 @@ namespace gaia {
 				//! \tparam T Component type
 				//! \param entity Destination entity
 				//! \param value Component value
-				//! \warning Component @a T must be registered in the world before calling this function.
+				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
 				void set(Entity entity, T&& value) {
@@ -79249,7 +83275,7 @@ namespace gaia {
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
-				//! Requests an existing @a entity to be removed.
+				//! Requests an existing \a entity to be removed.
 				//! \param entity Entity to remove
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
@@ -79257,10 +83283,10 @@ namespace gaia {
 					push_op({OpType::DEL_ENTITY, 0, entity, EntityBad});
 				}
 
-				//! Requests removal of component @a T from @a entity.
+				//! Requests removal of component \a T from \a entity.
 				//! \tparam T Component type
 				//! \param entity Source entity
-				//! \warning Component @a T must be registered in the world before calling this function.
+				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
 				template <typename T>
 				void del(Entity entity) {
@@ -79273,7 +83299,7 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests removal of entity @a object from entity @a entity.
+				//! Requests removal of entity \a object from entity \a entity.
 				//! \param entity Source entity
 				//! \param object Entity to remove
 				void del(Entity entity, Entity object) {
@@ -79282,9 +83308,9 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
-				//! Requests removal of a relationship pair from entity @a entity.
+				//! Requests removal of a relationship pair from entity \a entity.
 				//! \param entity Source entity.
-				//! \param pair Relationship pair to remove from @a entity.
+				//! \param pair Relationship pair to remove from \a entity.
 				void del(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 

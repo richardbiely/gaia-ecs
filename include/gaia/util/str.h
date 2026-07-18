@@ -11,14 +11,15 @@ namespace gaia {
 	namespace util {
 		//! Lightweight non-owning string view over a character sequence.
 		struct str_view {
+			//! Pointer to the first character in the view.
 			const char* m_data = nullptr;
+			//! Number of characters in the view.
 			uint32_t m_size = 0;
 
-			//! Constructs an empty string view.
 			str_view() = default;
 
 			//! Constructs a string view from a pointer and an explicit length.
-			//! \param data Pointer to the first character. Can be nullptr if @a size is 0.
+			//! \param data Pointer to the first character. Can be nullptr if \a size is 0.
 			//! \param size Number of characters in the view.
 			constexpr str_view(const char* data, uint32_t size): m_data(data), m_size(size) {}
 
@@ -48,7 +49,7 @@ namespace gaia {
 				return m_size == 0;
 			}
 
-			//! Finds the first occurrence of substring @a value starting at index @a pos.
+			//! Finds the first occurrence of substring \a value starting at index \a pos.
 			//! \param value Needle string view.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -56,9 +57,9 @@ namespace gaia {
 				return find(value.data(), value.size(), pos);
 			}
 
-			//! Finds the first occurrence of a character sequence starting at index @a pos.
+			//! Finds the first occurrence of a character sequence starting at index \a pos.
 			//! \param value Needle pointer.
-			//! \param len Number of characters in @a value.
+			//! \param len Number of characters in \a value.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
 			GAIA_NODISCARD constexpr uint32_t find(const char* value, uint32_t len, uint32_t pos) const {
@@ -76,7 +77,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first occurrence of literal @a lit starting at index @a pos.
+			//! Finds the first occurrence of literal \a lit starting at index \a pos.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Needle literal.
 			//! \param pos Start position in this view.
@@ -87,7 +88,7 @@ namespace gaia {
 				return find(str_view(lit), pos);
 			}
 
-			//! Finds the first occurrence of character @a ch starting at index @a pos.
+			//! Finds the first occurrence of character \a ch starting at index \a pos.
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -101,7 +102,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is present in set @a chars.
+			//! Finds the first character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first matching character or BadIndex.
@@ -115,7 +116,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first occurrence of character @a ch.
+			//! Finds the first occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Start position in this view.
 			//! \return Index of first match or BadIndex.
@@ -123,7 +124,7 @@ namespace gaia {
 				return find(ch, pos);
 			}
 
-			//! Finds the first character that is present in literal set @a lit.
+			//! Finds the first character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this view.
@@ -133,7 +134,7 @@ namespace gaia {
 				return find_first_of(str_view(lit), pos);
 			}
 
-			//! Finds the last character that is present in set @a chars.
+			//! Finds the last character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last matching character or BadIndex.
@@ -155,7 +156,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last occurrence of character @a ch.
+			//! Finds the last occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last match or BadIndex.
@@ -177,7 +178,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is present in literal set @a lit.
+			//! Finds the last character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
@@ -187,7 +188,7 @@ namespace gaia {
 				return find_last_of(str_view(lit), pos);
 			}
 
-			//! Finds the first character that is NOT present in set @a chars.
+			//! Finds the first character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
@@ -204,7 +205,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is different from @a ch.
+			//! Finds the first character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Start position in this view.
 			//! \return Index of first non-matching character or BadIndex.
@@ -218,7 +219,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the first character that is NOT present in literal set @a lit.
+			//! Finds the first character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this view.
@@ -228,7 +229,7 @@ namespace gaia {
 				return find_first_not_of(str_view(lit), pos);
 			}
 
-			//! Finds the last character that is NOT present in set @a chars.
+			//! Finds the last character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
@@ -253,7 +254,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is different from @a ch.
+			//! Finds the last character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
 			//! \return Index of last non-matching character or BadIndex.
@@ -275,7 +276,7 @@ namespace gaia {
 				return BadIndex;
 			}
 
-			//! Finds the last character that is NOT present in literal set @a lit.
+			//! Finds the last character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of view.
@@ -285,7 +286,7 @@ namespace gaia {
 				return find_last_not_of(str_view(lit), pos);
 			}
 
-			//! Compares this view with literal @a lit for exact byte equality.
+			//! Compares this view with literal \a lit for exact byte equality.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
@@ -295,14 +296,14 @@ namespace gaia {
 				return m_size == (uint32_t)(N - 1) && equal_bytes(m_data, lit, m_size);
 			}
 
-			//! Compares this view with view @a other for exact byte equality.
+			//! Compares this view with view \a other for exact byte equality.
 			//! \param other View to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD constexpr bool operator==(str_view other) const {
 				return m_size == other.m_size && equal_bytes(m_data, other.m_data, m_size);
 			}
 
-			//! Compares this view with view @a other for exact byte inequality.
+			//! Compares this view with view \a other for exact byte inequality.
 			//! \param other View to compare with.
 			//! \return True when lengths or contents differ.
 			GAIA_NODISCARD constexpr bool operator!=(str_view other) const {
@@ -329,9 +330,9 @@ namespace gaia {
 
 		//! Lightweight owning string container with explicit length semantics (no implicit null terminator).
 		struct str {
+			//! Contiguous owned character storage.
 			cnt::darray<char> m_data;
 
-			//! Constructs an empty string.
 			str() = default;
 
 			//! Constructs a string by copying view contents.
@@ -340,7 +341,7 @@ namespace gaia {
 				assign(view);
 			}
 
-			//! Constructs a string from literal @a lit, excluding trailing null terminator.
+			//! Constructs a string from literal \a lit, excluding trailing null terminator.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -353,13 +354,13 @@ namespace gaia {
 				m_data.clear();
 			}
 
-			//! Reserves capacity for at least @a len characters.
+			//! Reserves capacity for at least \a len characters.
 			//! \param len Target character capacity.
 			void reserve(uint32_t len) {
 				m_data.reserve(len);
 			}
 
-			//! Replaces contents with @a size characters from @a data.
+			//! Replaces contents with \a size characters from \a data.
 			//! \param data Source pointer.
 			//! \param size Number of characters to copy.
 			void assign(const char* data, uint32_t size) {
@@ -368,13 +369,13 @@ namespace gaia {
 					memcpy(m_data.data(), data, size);
 			}
 
-			//! Replaces contents with @a view contents.
+			//! Replaces contents with \a view contents.
 			//! \param view Source view.
 			void assign(str_view view) {
 				assign(view.data(), view.size());
 			}
 
-			//! Replaces contents with literal @a lit.
+			//! Replaces contents with literal \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -383,7 +384,7 @@ namespace gaia {
 				assign(lit, (uint32_t)(N - 1));
 			}
 
-			//! Appends @a size characters from @a data.
+			//! Appends \a size characters from \a data.
 			//! \param data Source pointer.
 			//! \param size Number of characters to append.
 			void append(const char* data, uint32_t size) {
@@ -393,13 +394,13 @@ namespace gaia {
 					memcpy(m_data.data() + oldSize, data, size);
 			}
 
-			//! Appends @a view contents.
+			//! Appends \a view contents.
 			//! \param view Source view.
 			void append(str_view view) {
 				append(view.data(), view.size());
 			}
 
-			//! Appends literal @a lit.
+			//! Appends literal \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Source literal.
 			template <size_t N>
@@ -450,7 +451,7 @@ namespace gaia {
 				return view();
 			}
 
-			//! Compares this string with literal @a lit for exact byte equality.
+			//! Compares this string with literal \a lit for exact byte equality.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Literal to compare with.
 			//! \return True when lengths and contents are equal.
@@ -461,21 +462,21 @@ namespace gaia {
 				return size() == len && (len == 0 || memcmp(data(), lit, len) == 0);
 			}
 
-			//! Compares this string with view @a other for exact byte equality.
+			//! Compares this string with view \a other for exact byte equality.
 			//! \param other View to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD bool operator==(str_view other) const {
 				return size() == other.size() && (size() == 0 || memcmp(data(), other.data(), size()) == 0);
 			}
 
-			//! Compares this string with string @a other for exact byte equality.
+			//! Compares this string with string \a other for exact byte equality.
 			//! \param other String to compare with.
 			//! \return True when lengths and contents are equal.
 			GAIA_NODISCARD bool operator==(const str& other) const {
 				return operator==(other.view());
 			}
 
-			//! Finds the first occurrence of substring @a value starting at index @a pos.
+			//! Finds the first occurrence of substring \a value starting at index \a pos.
 			//! \param value Needle view.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -483,7 +484,7 @@ namespace gaia {
 				return view().find(value, pos);
 			}
 
-			//! Finds the first occurrence of a character sequence starting at index @a pos.
+			//! Finds the first occurrence of a character sequence starting at index \a pos.
 			//! \param value Needle pointer.
 			//! \param len Number of needle characters.
 			//! \param pos Start position in this string.
@@ -492,7 +493,7 @@ namespace gaia {
 				return view().find(value, len, pos);
 			}
 
-			//! Finds the first occurrence of literal @a lit starting at index @a pos.
+			//! Finds the first occurrence of literal \a lit starting at index \a pos.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Needle literal.
 			//! \param pos Start position in this string.
@@ -503,7 +504,7 @@ namespace gaia {
 				return find(str_view(lit), pos);
 			}
 
-			//! Finds the first occurrence of character @a ch starting at index @a pos.
+			//! Finds the first occurrence of character \a ch starting at index \a pos.
 			//! \param ch Needle character.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -511,7 +512,7 @@ namespace gaia {
 				return view().find(ch, pos);
 			}
 
-			//! Finds the first character that is present in set @a chars.
+			//! Finds the first character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Start position in this string.
 			//! \return Index of first matching character or BadIndex.
@@ -519,7 +520,7 @@ namespace gaia {
 				return view().find_first_of(chars, pos);
 			}
 
-			//! Finds the first occurrence of character @a ch.
+			//! Finds the first occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Start position in this string.
 			//! \return Index of first match or BadIndex.
@@ -527,7 +528,7 @@ namespace gaia {
 				return view().find_first_of(ch, pos);
 			}
 
-			//! Finds the first character that is present in literal set @a lit.
+			//! Finds the first character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this string.
@@ -537,7 +538,7 @@ namespace gaia {
 				return view().find_first_of(lit, pos);
 			}
 
-			//! Finds the last character that is present in set @a chars.
+			//! Finds the last character that is present in set \a chars.
 			//! \param chars Set of accepted characters.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last matching character or BadIndex.
@@ -545,7 +546,7 @@ namespace gaia {
 				return view().find_last_of(chars, pos);
 			}
 
-			//! Finds the last occurrence of character @a ch.
+			//! Finds the last occurrence of character \a ch.
 			//! \param ch Needle character.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last match or BadIndex.
@@ -553,7 +554,7 @@ namespace gaia {
 				return view().find_last_of(ch, pos);
 			}
 
-			//! Finds the last character that is present in literal set @a lit.
+			//! Finds the last character that is present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
@@ -563,7 +564,7 @@ namespace gaia {
 				return view().find_last_of(lit, pos);
 			}
 
-			//! Finds the first character that is NOT present in set @a chars.
+			//! Finds the first character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Start position in this string.
 			//! \return Index of first non-matching character or BadIndex.
@@ -571,7 +572,7 @@ namespace gaia {
 				return view().find_first_not_of(chars, pos);
 			}
 
-			//! Finds the first character that is different from @a ch.
+			//! Finds the first character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Start position in this string.
 			//! \return Index of first non-matching character or BadIndex.
@@ -579,7 +580,7 @@ namespace gaia {
 				return view().find_first_not_of(ch, pos);
 			}
 
-			//! Finds the first character that is NOT present in literal set @a lit.
+			//! Finds the first character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Start position in this string.
@@ -589,7 +590,7 @@ namespace gaia {
 				return view().find_first_not_of(lit, pos);
 			}
 
-			//! Finds the last character that is NOT present in set @a chars.
+			//! Finds the last character that is NOT present in set \a chars.
 			//! \param chars Set of excluded characters.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last non-matching character or BadIndex.
@@ -597,7 +598,7 @@ namespace gaia {
 				return view().find_last_not_of(chars, pos);
 			}
 
-			//! Finds the last character that is different from @a ch.
+			//! Finds the last character that is different from \a ch.
 			//! \param ch Excluded character.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
 			//! \return Index of last non-matching character or BadIndex.
@@ -605,7 +606,7 @@ namespace gaia {
 				return view().find_last_not_of(ch, pos);
 			}
 
-			//! Finds the last character that is NOT present in literal set @a lit.
+			//! Finds the last character that is NOT present in literal set \a lit.
 			//! \tparam N Number of characters in the literal including the trailing null terminator.
 			//! \param lit Set literal.
 			//! \param pos Maximum position to consider, BadIndex means end of string.
@@ -616,16 +617,16 @@ namespace gaia {
 			}
 		};
 
-		//! Returns true when @a c is an ASCII whitespace character.
+		//! Returns true when \a c is an ASCII whitespace character.
 		//! \param c Character to test.
 		//! \return True for ' ' (space) and characters in range ['\\t', '\\r'].
 		GAIA_NODISCARD constexpr bool is_whitespace(char c) {
 			return c == ' ' || (c >= '\t' && c <= '\r');
 		}
 
-		//! Trims ASCII whitespace from both ends of @a expr.
+		//! Trims ASCII whitespace from both ends of \a expr.
 		//! \param expr Input string view.
-		//! \return Trimmed sub-view into @a expr.
+		//! \return Trimmed sub-view into \a expr.
 		GAIA_NODISCARD constexpr str_view trim(str_view expr) {
 			const auto len = expr.size();
 			if (len == 0)
@@ -643,9 +644,9 @@ namespace gaia {
 			return str_view(expr.data() + beg, end - beg + 1);
 		}
 
-		//! Trims ASCII whitespace from both ends of @a expr.
+		//! Trims ASCII whitespace from both ends of \a expr.
 		//! \param expr Input character span.
-		//! \return Trimmed subspan view into @a expr.
+		//! \return Trimmed subspan view into \a expr.
 		GAIA_NODISCARD constexpr std::span<const char> trim(std::span<const char> expr) {
 			const auto trimmed = trim(str_view(expr.data(), (uint32_t)expr.size()));
 			return std::span<const char>(trimmed.data(), trimmed.size());

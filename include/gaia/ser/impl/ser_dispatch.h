@@ -11,6 +11,7 @@
 namespace gaia {
 	namespace ser {
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Serializer, typename T, typename SaveTrivial>
 			void save_dispatch(Serializer& s, const T& arg, SaveTrivial&& saveTrivial) {
 				using U = core::raw_t<T>;
@@ -97,6 +98,7 @@ namespace gaia {
 				} else
 					static_assert(!sizeof(U), "Type is not supported for serialization, yet");
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia

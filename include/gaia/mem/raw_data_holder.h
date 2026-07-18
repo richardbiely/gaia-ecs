@@ -7,6 +7,7 @@
 
 namespace gaia {
 	namespace mem {
+		//! \cond INTERNAL
 		namespace detail {
 			template <uint32_t Size, uint32_t Alignment>
 			struct raw_data_holder {
@@ -38,7 +39,11 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Inline raw byte storage aligned for the automatically selected layout of a type.
+		//! \tparam T Type whose layout determines the storage alignment.
+		//! \tparam N Storage size in bytes.
 		template <typename T, uint32_t N>
 		using raw_data_holder = detail::raw_data_holder<N, auto_view_policy<T>::Alignment>;
 	} // namespace mem

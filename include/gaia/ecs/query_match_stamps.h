@@ -8,6 +8,7 @@
 #include "gaia/core/utility.h"
 #include "gaia/mem/mem_alloc.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct ArchetypeMatchStamps {
@@ -66,7 +67,7 @@ namespace gaia {
 					if (page == nullptr)
 						continue;
 					//! Reuse allocated pages across matcher runs. Only the stored stamp values
-					//! need to be reset; freeing the pages here would put heap churn back into
+					//! need to be reset. Freeing the pages here would put heap churn back into
 					//! the hot path.
 					std::memset(page, 0, sizeof(uint32_t) * PageSize);
 				}
@@ -97,3 +98,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

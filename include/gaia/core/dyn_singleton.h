@@ -24,6 +24,8 @@ namespace gaia {
 			dyn_singleton() = default;
 
 		public:
+			//! Returns the process-wide singleton object.
+			//! \return Reference to the singleton instance.
 			static T& get() noexcept {
 				static dyn_singleton<T> singleton;
 				return *singleton.m_obj;

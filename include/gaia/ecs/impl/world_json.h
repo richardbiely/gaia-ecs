@@ -8,6 +8,7 @@
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			static constexpr uint32_t RuntimeJsonMaxDepth = 32;
 
@@ -72,9 +73,9 @@ namespace gaia {
 			//! Reads an integer runtime value as its width-preserving unsigned bit pattern.
 			//! \param pData Runtime value bytes.
 			//! \param type Reflected integer storage type.
-			//! \param valueSize Size of @a pData in bytes.
+			//! \param valueSize Size of \a pData in bytes.
 			//! \param out Receives the normalized bit pattern.
-			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			//! \return True when \a type is a supported integer type and \a valueSize matches it.
 			GAIA_NODISCARD inline bool runtime_json_integer_bits(
 					const uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t& out) noexcept {
 				switch (type) {
@@ -121,7 +122,7 @@ namespace gaia {
 			//! \param type Reflected integer storage type.
 			//! \param value Registered constant value.
 			//! \param out Receives the normalized bit pattern.
-			//! \return True when @a type is a supported integer type.
+			//! \return True when \a type is a supported integer type.
 			GAIA_NODISCARD inline bool
 			runtime_json_constant_bits(ser::serialization_type_id type, int64_t value, uint64_t& out) noexcept {
 				switch (type) {
@@ -171,9 +172,9 @@ namespace gaia {
 			//! Writes a width-preserving integer bit pattern to runtime value bytes.
 			//! \param pData Destination runtime value bytes.
 			//! \param type Reflected integer storage type.
-			//! \param valueSize Size of @a pData in bytes.
+			//! \param valueSize Size of \a pData in bytes.
 			//! \param value Normalized bit pattern to write.
-			//! \return True when @a type is a supported integer type and @a valueSize matches it.
+			//! \return True when \a type is a supported integer type and \a valueSize matches it.
 			GAIA_NODISCARD inline bool runtime_json_write_integer_bits(
 					uint8_t* pData, ser::serialization_type_id type, uint32_t valueSize, uint64_t value) noexcept {
 				switch (type) {
@@ -212,7 +213,7 @@ namespace gaia {
 				}
 			}
 
-			//! \return Whether @a item is represented by one direct semantic JSON value rather than a keyed field object.
+			//! \return Whether \a item is represented by one direct semantic JSON value rather than a keyed field object.
 			GAIA_NODISCARD inline bool runtime_json_is_direct_value(const ComponentCacheItem& item) noexcept {
 				switch (item.typeKind) {
 					case RuntimeTypeKind::Primitive:
@@ -840,8 +841,9 @@ namespace gaia {
 				return true;
 			}
 		} // namespace detail
+		//! \endcond
 
-		//! Serializes a single component instance into key/value JSON using runtime field metadata in @a item.
+		//! Serializes a single component instance into key/value JSON using runtime field metadata in \a item.
 		//! \param item Component metadata and optional runtime fields.
 		//! \param pComponentData Pointer to one component value.
 		//! \param writer Destination JSON writer.

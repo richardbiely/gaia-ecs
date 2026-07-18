@@ -17,6 +17,7 @@
 #include "gaia/ser/ser_rt.h"
 #include "gaia/util/str.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -39,9 +40,9 @@ namespace gaia {
 			//! Interned lookup key type used for component symbols.
 			using SymbolLookupKey = core::StringLookupKey<512>;
 
-			//! Constructs @a cnt component values in raw storage.
+			//! Constructs \a cnt component values in raw storage.
 			using FuncCtor = void(void*, uint32_t);
-			//! Destroys @a cnt component values in raw storage.
+			//! Destroys \a cnt component values in raw storage.
 			using FuncDtor = void(void*, uint32_t);
 			//! Moves or copies component values between different storage layouts.
 			using FuncFrom = void(void*, void*, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -79,7 +80,7 @@ namespace gaia {
 			Component comp;
 			//! Hash used for component lookup by registered symbol.
 			ComponentLookupHash hashLookup;
-			//! Per-element byte sizes for SoA components; unused for AoS components.
+			//! Per-element byte sizes for SoA components. Unused for AoS components.
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
 			//! Registered component symbol.
@@ -151,7 +152,7 @@ namespace gaia {
 
 			//! Returns the physical SoA field-array cardinality for this component.
 			//! \param capacity Capacity of the containing chunk.
-			//! \return One for unique components, otherwise @a capacity.
+			//! \return One for unique components, otherwise \a capacity.
 			GAIA_NODISCARD uint32_t soa_capacity(uint32_t capacity) const noexcept {
 				return entity.kind() == EntityKind::EK_Uni ? 1U : capacity;
 			}
@@ -200,9 +201,7 @@ namespace gaia {
 				}
 			}
 
-			//! Creates an empty cache item. Use create() to populate metadata.
 			ComponentCacheItem() = default;
-			//! Destroys the cache item shell. Use destroy() so owned symbol memory is released first.
 			~ComponentCacheItem() = default;
 
 		public:
@@ -446,7 +445,7 @@ namespace gaia {
 
 			//! Gets the byte size of a reflected primitive runtime type entity.
 			//! \param type Primitive type entity.
-			//! \return Primitive byte size, or 0 when @a type is not a reflected primitive type.
+			//! \return Primitive byte size, or 0 when \a type is not a reflected primitive type.
 			GAIA_NODISCARD static uint32_t primitive_type_size(Entity type) noexcept {
 				ser::serialization_type_id id = ser::serialization_type_id::ignore;
 				if (!runtime_primitive_serialization_type(type, id))
@@ -580,7 +579,7 @@ namespace gaia {
 
 #endif
 
-			//! Calculates the next aligned memory offset after storing @a cnt values of this component.
+			//! Calculates the next aligned memory offset after storing \a cnt values of this component.
 			//! \param addr Starting byte offset.
 			//! \param cnt Number of component values to reserve.
 			//! \return Byte offset after the component storage block.
@@ -719,7 +718,7 @@ namespace gaia {
 			//! Creates metadata for a compile-time C++ component type.
 			//! \tparam T Component type to register.
 			//! \param entity Component entity that owns the resulting metadata.
-			//! \return Newly allocated component cache item; release with destroy().
+			//! \return Newly allocated component cache item. Release with destroy().
 			template <typename T>
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
 				static_assert(core::is_raw_v<T>);
@@ -748,7 +747,7 @@ namespace gaia {
 			//! Creates metadata from a plain component descriptor.
 			//! \param entity Component entity that owns the resulting metadata.
 			//! \param desc Component descriptor describing storage, lifecycle, and runtime type metadata.
-			//! \return Newly allocated component cache item; release with destroy().
+			//! \return Newly allocated component cache item. Release with destroy().
 			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
@@ -817,7 +816,7 @@ namespace gaia {
 			}
 
 			//! Releases a cache item and any owned symbol storage.
-			//! \param pItem Cache item created by create(); null is accepted.
+			//! \param pItem Cache item created by create(). Null is accepted.
 			static void destroy(ComponentCacheItem* pItem) {
 				if (pItem == nullptr)
 					return;
@@ -832,3 +831,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

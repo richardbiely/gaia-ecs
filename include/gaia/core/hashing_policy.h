@@ -7,6 +7,7 @@
 namespace gaia {
 	namespace core {
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct is_direct_hash_key: std::false_type {};
@@ -28,33 +29,56 @@ namespace gaia {
 				return lhs;
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Indicates whether a type supplies a hash value directly.
+		//! \tparam T Type to inspect.
 		template <typename T>
 		inline constexpr bool is_direct_hash_key_v = detail::is_direct_hash_key<T>::value;
 
+		//! Wraps an integral value that is already a hash key.
+		//! \tparam T Integral hash storage type.
 		template <typename T>
 		struct direct_hash_key {
+			//! Underlying hash storage type.
 			using Type = T;
 
 			static_assert(std::is_integral_v<T>);
+			//! Marker used by Gaia-ECS hash containers to bypass rehashing.
 			static constexpr bool IsDirectHashKey = true;
 
+			//! Precomputed hash value.
 			T hash;
+			//! Compares two direct hash keys.
+			//! \param other Key to compare with.
+			//! \return True when both wrapped hash values are equal.
 			bool operator==(direct_hash_key other) const {
 				return hash == other.hash;
 			}
+			//! Compares two direct hash keys for inequality.
+			//! \param other Key to compare with.
+			//! \return True when the wrapped hash values differ.
 			bool operator!=(direct_hash_key other) const {
 				return hash != other.hash;
 			}
 		};
 
 		//! Combines values via OR.
+		//! \tparam T Value types accepted by the bitwise OR fold.
+		//! \param t Values to combine.
+		//! \return The bitwise OR of all supplied values.
 		template <typename... T>
 		constexpr auto combine_or([[maybe_unused]] T... t) {
 			return (... | t);
 		}
 
 		//! Combines hashes into another complex one
+		//! \tparam T Hash value type.
+		//! \tparam Rest Additional hash value types.
+		//! \param first First hash value.
+		//! \param next Second hash value.
+		//! \param rest Remaining hash values.
+		//! \return The combined hash value.
 		template <typename T, typename... Rest>
 		constexpr T hash_combine(T first, T next, Rest... rest) {
 			auto h = detail::hash_combine2(first, next);
@@ -64,13 +88,18 @@ namespace gaia {
 
 #if GAIA_ECS_HASH == GAIA_ECS_HASH_FNV1A
 
+		//! \cond INTERNAL
 		namespace detail {
 			namespace fnv1a {
 				constexpr uint64_t val_64_const = 0xcbf29ce484222325;
 				constexpr uint64_t prime_64_const = 0x100000001b3;
 			} // namespace fnv1a
 		} // namespace detail
+		//! \endcond
 
+		//! Calculates a 64-bit hash for a null-terminated string.
+		//! \param str Null-terminated string to hash.
+		//! \return The 64-bit string hash.
 		constexpr uint64_t calculate_hash64(const char* const str) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
@@ -83,6 +112,10 @@ namespace gaia {
 			return hash;
 		}
 
+		//! Calculates a 64-bit hash for an explicit character range.
+		//! \param str Pointer to the first character to hash.
+		//! \param length Number of characters to hash.
+		//! \return The 64-bit range hash.
 		constexpr uint64_t calculate_hash64(const char* const str, const uint64_t length) noexcept {
 			uint64_t hash = detail::fnv1a::val_64_const;
 
@@ -99,6 +132,7 @@ namespace gaia {
 		GAIA_MSVC_WARNING_PUSH()
 		GAIA_MSVC_WARNING_DISABLE(4592)
 
+		//! \cond INTERNAL
 		namespace detail {
 			namespace murmur2a {
 				constexpr uint64_t seed_64_const = 0xe17a1465ULL;
@@ -170,7 +204,11 @@ namespace gaia {
 				}
 			} // namespace murmur2a
 		} // namespace detail
+		//! \endcond
 
+		//! Calculates a 64-bit hash for an integer value.
+		//! \param value Integer value to hash.
+		//! \return The mixed 64-bit hash.
 		constexpr uint64_t calculate_hash64(uint64_t value) {
 			value ^= value >> 33U;
 			value *= 0xff51afd7ed558ccdULL;
@@ -181,6 +219,9 @@ namespace gaia {
 			return value;
 		}
 
+		//! Calculates a 64-bit hash for a null-terminated string.
+		//! \param str Null-terminated string to hash.
+		//! \return The 64-bit string hash.
 		constexpr uint64_t calculate_hash64(const char* str) {
 			uint64_t length = 0;
 			while (str[length] != '\0')
@@ -189,6 +230,10 @@ namespace gaia {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}
 
+		//! Calculates a 64-bit hash for an explicit character range.
+		//! \param str Pointer to the first character to hash.
+		//! \param length Number of characters to hash.
+		//! \return The 64-bit range hash.
 		constexpr uint64_t calculate_hash64(const char* str, uint64_t length) {
 			return detail::murmur2a::hash_murmur2a_64_ct(str, length, detail::murmur2a::seed_64_const);
 		}

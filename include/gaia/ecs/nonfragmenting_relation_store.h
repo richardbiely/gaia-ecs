@@ -23,7 +23,7 @@ namespace gaia {
 				cnt::darray<cnt::darray<Entity>> tgtToSrc;
 
 			public:
-				//! Ensures source-indexed storage can hold @a source.
+				//! Ensures source-indexed storage can hold \a source.
 				//! \param source Source entity.
 				void ensure_source_capacity(Entity source) {
 					const auto required = (uint32_t)source.id() + 1;
@@ -39,7 +39,7 @@ namespace gaia {
 					srcToTgtIdx.resize(newSize, BadIndex);
 				}
 
-				//! Ensures target-indexed storage can hold @a target.
+				//! Ensures target-indexed storage can hold \a target.
 				//! \param target Target entity.
 				void ensure_target_capacity(Entity target) {
 					const auto required = target.id() + 1;
@@ -54,7 +54,7 @@ namespace gaia {
 					tgtToSrc.resize(newSize);
 				}
 
-				//! Returns the target currently bound to @a source.
+				//! Returns the target currently bound to \a source.
 				//! \param source Source entity.
 				//! \return Bound target or EntityBad when no binding exists.
 				GAIA_NODISCARD Entity target(Entity source) const {
@@ -64,7 +64,7 @@ namespace gaia {
 					return srcToTgt[source.id()];
 				}
 
-				//! Returns sources currently bound to @a target.
+				//! Returns sources currently bound to \a target.
 				//! \param target Target entity.
 				//! \return Source bucket or nullptr when no source is bound.
 				GAIA_NODISCARD const cnt::darray<Entity>* sources(Entity target) const {
@@ -93,7 +93,7 @@ namespace gaia {
 					}
 				}
 
-				//! Removes @a source from the source bucket for @a target.
+				//! Removes \a source from the source bucket for \a target.
 				//! \param target Target entity.
 				//! \param source Source entity.
 				void remove_target_source(Entity target, Entity source) {
@@ -118,7 +118,7 @@ namespace gaia {
 					sources.pop_back();
 				}
 
-				//! Binds @a source to @a target.
+				//! Binds \a source to \a target.
 				//! \param source Source entity.
 				//! \param target Target entity.
 				//! \return True when the stored binding changed.
@@ -143,7 +143,7 @@ namespace gaia {
 					return true;
 				}
 
-				//! Removes @a source from the store.
+				//! Removes \a source from the store.
 				//! \param source Source entity.
 				//! \param target Required target, or EntityBad to remove any target.
 				//! \return True when a binding was removed.

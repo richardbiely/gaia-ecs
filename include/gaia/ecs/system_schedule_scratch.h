@@ -15,15 +15,14 @@ namespace gaia {
 		namespace detail {
 			//! Pending scheduler-backed system job owned by World::systems_run().
 			struct PendingSystemJob {
-				//! System entity that created @a job.
+				//! System entity that created \a job.
 				Entity entity = EntityBad;
 				//! Deferred system work.
 				SchedJob job;
 
-				//! Creates an empty pending entry.
 				PendingSystemJob() = default;
-				//! Creates a pending entry for @a systemEntity.
-				//! \param systemEntity System entity that created @a systemJob.
+				//! Creates a pending entry for \a systemEntity.
+				//! \param systemEntity System entity that created \a systemJob.
 				//! \param systemJob Deferred system job moved into this entry.
 				PendingSystemJob(Entity systemEntity, SchedJob&& systemJob): entity(systemEntity), job(GAIA_MOV(systemJob)) {}
 			};
@@ -34,15 +33,15 @@ namespace gaia {
 				Entity entity = EntityBad;
 				//! Phase entity assigned with SystemBuilder::phase(), or EntityBad for unphased systems.
 				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
+				//! Depth of \a phase in the phase DependsOn graph.
 				uint32_t phaseDepth = 0;
 				//! Depth of the system in the DependsOn graph, excluding the phase marker target.
 				uint32_t systemDepth = 0;
-				//! Deterministic child-before-target order of @a phase.
+				//! Deterministic child-before-target order of \a phase.
 				uint32_t phaseOrder = 0;
-				//! Deterministic child-before-target order of @a entity inside its scheduling group.
+				//! Deterministic child-before-target order of \a entity inside its scheduling group.
 				uint32_t systemOrder = 0;
-				//! True when @a phase is valid.
+				//! True when \a phase is valid.
 				bool hasPhase = false;
 			};
 
@@ -50,9 +49,9 @@ namespace gaia {
 			struct SystemPhaseScheduleItem {
 				//! Phase entity.
 				Entity phase = EntityBad;
-				//! Depth of @a phase in the phase DependsOn graph.
+				//! Depth of \a phase in the phase DependsOn graph.
 				uint32_t depth = 0;
-				//! Deterministic child-before-target order of @a phase.
+				//! Deterministic child-before-target order of \a phase.
 				uint32_t order = 0;
 			};
 
@@ -60,7 +59,7 @@ namespace gaia {
 			struct SystemScheduleEdge {
 				//! Item index that must run first.
 				uint32_t child = 0;
-				//! Item index that must run after @a child.
+				//! Item index that must run after \a child.
 				uint32_t target = 0;
 				//! Next edge index in the same child adjacency list.
 				uint32_t next = UINT32_MAX;
@@ -124,7 +123,7 @@ namespace gaia {
 				cnt::darray<PendingSystemJob>* pPending = nullptr;
 				//! Current scheduling batch key.
 				SystemScheduleItem current{};
-				//! True once @a current has been initialized.
+				//! True once \a current has been initialized.
 				bool hasCurrent = false;
 				//! True when the active scheduler can prepare dependency-ready jobs.
 				bool canScheduleSystems = false;

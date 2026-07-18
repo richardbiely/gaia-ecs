@@ -11,6 +11,8 @@
 
 namespace gaia {
 	namespace cnt {
+		//! Dynamically sized bit set.
+		//! \tparam Allocator Allocator adaptor used for backing-word storage.
 		template <typename Allocator = mem::DefaultAllocatorAdaptor>
 		class dbitset {
 		private:
@@ -80,21 +82,30 @@ namespace gaia {
 			}
 
 		public:
+			//! Forward iterator over set bit indices.
 			using iter = const_iterator<dbitset>;
+			//! Forward iterator over unset bit indices.
 			using iter_inv = const_iterator_inverse<dbitset>;
+			//! Reverse iterator over set bit indices.
 			using iter_rev = const_reverse_iterator<dbitset>;
+			//! Reverse iterator over unset bit indices.
 			using iter_rev_inv = const_reverse_inverse_iterator<dbitset>;
 
+			//! \cond INTERNAL
 			friend iter;
 			friend iter_inv;
 			friend iter_rev;
 			friend iter_rev_inv;
+			//! \endcond
 
+			//! Constructs a bit set with capacity for at least 128 bits and an initial size of one bit.
 			dbitset(): m_cnt(1) {
 				// Allocate at least 128 bits
 				reserve(128);
 			}
 
+			//! Constructs a bit set with requested initial capacity and a size of one bit.
+			//! \param reserveBits Minimum requested capacity in bits.
 			dbitset(uint32_t reserveBits): m_cnt(1) {
 				reserve(reserveBits);
 			}
@@ -103,11 +114,16 @@ namespace gaia {
 				mem::AllocHelper::free<Allocator>((void*)m_pData);
 			}
 
+			//! Copy-constructs a bit set.
+			//! \param other Bit set to copy.
 			dbitset(const dbitset& other) {
 				resize(other.m_cnt);
 				mem::copy_elements<size_type, false>((uint8_t*)m_pData, (const uint8_t*)other.m_pData, other.items(), 0, 0, 0);
 			}
 
+			//! Copy-assigns a bit set.
+			//! \param other Bit set to copy.
+			//! \return This bit set.
 			dbitset& operator=(const dbitset& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -116,6 +132,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs a bit set and leaves the source empty.
+			//! \param other Bit set whose storage is transferred.
 			dbitset(dbitset&& other) noexcept {
 				m_pData = other.m_pData;
 				m_cnt = other.m_cnt;
@@ -126,6 +144,9 @@ namespace gaia {
 				other.m_cap = 0;
 			}
 
+			//! Move-assigns a bit set and leaves the source empty.
+			//! \param other Bit set whose storage is transferred.
+			//! \return This bit set.
 			dbitset& operator=(dbitset&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -139,6 +160,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Reserves storage without changing the current bit count.
+			//! \param bitsWanted Minimum requested capacity in bits.
 			void reserve(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
 				if (bitsWanted < 1)
@@ -171,6 +194,8 @@ namespace gaia {
 				m_cap = itemsNew * BitsPerItem;
 			}
 
+			//! Changes the number of addressable bits.
+			//! \param bitsWanted Requested size in bits. Values below one are clamped to one.
 			void resize(uint32_t bitsWanted) {
 				// Make sure at least one bit is requested
 				if (bitsWanted < 1)
@@ -208,42 +233,64 @@ namespace gaia {
 				m_cnt = bitsWanted;
 			}
 
+			//! Returns an iterator to the first set bit.
+			//! \return Forward iterator to the first set bit, or end() when none is set.
 			iter begin() const {
 				return iter(*this, 0, true);
 			}
 
+			//! Returns the forward set-bit sentinel.
+			//! \return Sentinel following the last set bit.
 			iter end() const {
 				return iter(*this, size(), false);
 			}
 
+			//! Returns an iterator to the last set bit.
+			//! \return Reverse iterator to the last set bit, or rend() when none is set.
 			iter_rev rbegin() const {
 				return iter_rev(*this, size(), false);
 			}
 
+			//! Returns the reverse set-bit sentinel.
+			//! \return Sentinel preceding the first set bit.
 			iter_rev rend() const {
 				return iter_rev(*this, 0, true);
 			}
 
+			//! Returns an iterator to the first unset bit.
+			//! \return Forward iterator to the first unset bit, or iend() when all bits are set.
 			iter_inv ibegin() const {
 				return iter_inv(*this, 0, true);
 			}
 
+			//! Returns the forward unset-bit sentinel.
+			//! \return Sentinel following the last unset bit.
 			iter_inv iend() const {
 				return iter_inv(*this, size(), false);
 			}
 
+			//! Returns an iterator to the last unset bit.
+			//! \return Reverse iterator to the last unset bit, or riend() when all bits are set.
 			iter_rev_inv ribegin() const {
 				return iter_rev_inv(*this, size(), false);
 			}
 
+			//! Returns the reverse unset-bit sentinel.
+			//! \return Sentinel preceding the first unset bit.
 			iter_rev_inv riend() const {
 				return iter_rev_inv(*this, 0, true);
 			}
 
+			//! Tests a bit.
+			//! \param pos Zero-based bit position, which must be less than size().
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD bool operator[](uint32_t pos) const {
 				return test(pos);
 			}
 
+			//! Compares two bit sets for equality.
+			//! \param other Bit set to compare with.
+			//! \return True when all backing words are equal. False otherwise.
 			GAIA_NODISCARD bool operator==(const dbitset& other) const {
 				const uint32_t item_count = items();
 				GAIA_FOR(item_count) {
@@ -253,6 +300,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares two bit sets for inequality.
+			//! \param other Bit set to compare with.
+			//! \return True when every compared backing word differs. False otherwise.
 			GAIA_NODISCARD bool operator!=(const dbitset& other) const {
 				const uint32_t item_count = items();
 				GAIA_FOR(item_count) {
@@ -278,7 +328,9 @@ namespace gaia {
 				}
 			}
 
-			//! Sets the bit at the postion \param pos to value \param value
+			//! Sets one bit, growing the bit set when needed.
+			//! \param pos Zero-based bit position.
+			//! \param value Value assigned to the bit.
 			void set(uint32_t pos, bool value = true) {
 				try_grow(pos + 1);
 
@@ -304,13 +356,17 @@ namespace gaia {
 				}
 			}
 
-			//! Flips the bit at the postion \param pos
+			//! Flips one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
 			void flip(uint32_t pos) {
 				GAIA_ASSERT(pos < size());
 				m_pData[pos / BitsPerItem] ^= ((size_type)1 << (pos % BitsPerItem));
 			}
 
-			//! Flips all bits from \param bitFrom to \param bitTo (including)
+			//! Flips an inclusive range of bits.
+			//! \param bitFrom First bit position to flip.
+			//! \param bitTo Last bit position to flip, inclusive.
+			//! \return This bit set.
 			dbitset& flip(uint32_t bitFrom, uint32_t bitTo) {
 				GAIA_ASSERT(bitFrom <= bitTo);
 				GAIA_ASSERT(bitTo < size());
@@ -350,19 +406,23 @@ namespace gaia {
 				GAIA_FOR(item_count) m_pData[i] = 0;
 			}
 
-			//! Unsets the bit at the postion \param pos
+			//! Unsets one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
 			void reset(uint32_t pos) {
 				GAIA_ASSERT(pos < size());
 				m_pData[pos / BitsPerItem] &= ~((size_type)1 << (pos % BitsPerItem));
 			}
 
-			//! Returns the value of the bit at the position \param pos
+			//! Returns the value of one bit.
+			//! \param pos Zero-based bit position, which must be less than size().
+			//! \return True when the bit is set. False otherwise.
 			GAIA_NODISCARD bool test(uint32_t pos) const {
 				GAIA_ASSERT(pos < size());
 				return (m_pData[pos / BitsPerItem] & ((size_type)1 << (pos % BitsPerItem))) != 0;
 			}
 
 			//! Checks if all bits are set
+			//! \return True when every bit is set. False otherwise.
 			GAIA_NODISCARD bool all() const {
 				const auto item_count = items() - 1;
 				const auto lastItemMask = last_item_mask();
@@ -379,6 +439,7 @@ namespace gaia {
 			}
 
 			//! Checks if any bit is set
+			//! \return True when at least one bit is set. False otherwise.
 			GAIA_NODISCARD bool any() const {
 				const auto item_count = items();
 				GAIA_FOR(item_count) {
@@ -389,6 +450,7 @@ namespace gaia {
 			}
 
 			//! Checks if all bits are reset
+			//! \return True when no bit is set. False otherwise.
 			GAIA_NODISCARD bool none() const {
 				const auto item_count = items();
 				GAIA_FOR(item_count) {
@@ -399,6 +461,7 @@ namespace gaia {
 			}
 
 			//! Returns the number of set bits
+			//! \return Number of set bits.
 			GAIA_NODISCARD uint32_t count() const {
 				uint32_t total = 0;
 
@@ -417,11 +480,13 @@ namespace gaia {
 			}
 
 			//! Returns the number of bits the dbitset holds
+			//! \return Current number of addressable bits.
 			GAIA_NODISCARD constexpr uint32_t size() const {
 				return m_cnt;
 			}
 
 			//! Returns the number of bits the dbitset can hold
+			//! \return Current capacity in bits.
 			GAIA_NODISCARD constexpr uint32_t capacity() const {
 				return m_cap;
 			}

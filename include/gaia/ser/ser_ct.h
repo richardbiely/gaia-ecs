@@ -1,3 +1,10 @@
+//! \file
+//! \brief Compile-time serialization entry points.
+//!
+//! Uses static dispatch and concrete writer/reader types without a virtual interface.
+//! Best suited when the serializer type is known at compile time.
+//! This is a binary traversal API. JSON document I/O uses ser::ser_json.
+
 #pragma once
 #include "gaia/config/config.h"
 
@@ -10,11 +17,8 @@
 
 namespace gaia {
 	namespace ser {
-		//! Compile-time serialization entry points.
-		//! Uses static dispatch and concrete writer/reader types (no virtual interface).
-		//! Best suited when the serializer type is known at compile time.
-		//! This is a binary traversal API; JSON document I/O uses ser::ser_json.
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Writer, typename T>
 			void save_one(Writer& s, const T& arg) {
 				auto saveTrivial = [](auto& writer, const auto& value) {
@@ -72,10 +76,14 @@ namespace gaia {
 					return m_pos;
 				}
 			};
+			//! \endcond
 		} // namespace detail
 
-		//! Calculates how many bytes @a data would need when serialized via ser::save.
+		//! Calculates how many bytes \a data would need when serialized via ser::save.
 		//! Useful when a destination storage wants to reserve memory in advance.
+		//! \tparam T Type to measure.
+		//! \param data Value whose serialized size is measured.
+		//! \return Number of bytes produced by serialization.
 		template <typename T>
 		GAIA_NODISCARD uint32_t bytes(const T& data) {
 			detail::size_counter counter;
@@ -83,7 +91,7 @@ namespace gaia {
 			return counter.tell();
 		}
 
-		//! Write @a data using @a Writer at compile-time.
+		//! Write \a data using \a Writer at compile-time.
 		//! \tparam Writer Type of writer
 		//! \param writer Writer used for serialization
 		//! \param data Data to serialize
@@ -94,7 +102,7 @@ namespace gaia {
 			detail::save_one(writer, data);
 		}
 
-		//! Read @a data using @a Reader at compile-time.
+		//! Read \a data using \a Reader at compile-time.
 		//! \tparam Reader Type of reader
 		//! \param reader Reader used for deserialization
 		//! \param[out] data Data to deserialize
@@ -108,7 +116,7 @@ namespace gaia {
 #if GAIA_ASSERT_ENABLED
 		//! Write \param data using \tparam Writer at compile-time, then read it afterwards.
 		//! Used to verify that both save and load work correctly.
-		//! \param writer Writer used to serialize @a data.
+		//! \param writer Writer used to serialize \a data.
 		//!
 		//! \warning Writer has to implement a save function as follows:
 		//! 					template <typename T> void save(const T& arg);

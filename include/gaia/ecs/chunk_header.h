@@ -10,6 +10,7 @@
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/id.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -130,3 +131,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

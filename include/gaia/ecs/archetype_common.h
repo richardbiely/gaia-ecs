@@ -7,6 +7,7 @@
 #include "gaia/cnt/map.h"
 #include "gaia/core/hashing_policy.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class Archetype;
@@ -67,3 +68,4 @@ namespace gaia {
 		using ArchetypeMapById = cnt::map<ArchetypeIdLookupKey, Archetype*>;
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

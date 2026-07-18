@@ -170,7 +170,7 @@ inline bool add_runtime_field(
 }
 
 //! World wrapper for test purposes.
-//! The wrapped world handles teardown on destruction; tests can still call update()
+//! The wrapped world handles teardown on destruction. Tests can still call update()
 //! repeatedly when they want to flush regular frame maintenance explicitly.
 struct TestWorld {
 	ecs::World m_w;

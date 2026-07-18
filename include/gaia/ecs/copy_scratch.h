@@ -18,7 +18,7 @@ namespace gaia {
 				Archetype* pArchetype = nullptr;
 				//! Destination chunk for the pending range.
 				Chunk* pChunk = nullptr;
-				//! First destination row in @a pChunk.
+				//! First destination row in \a pChunk.
 				uint16_t startRow = 0;
 				//! Number of contiguous rows in the pending range.
 				uint16_t count = 0;
@@ -40,11 +40,11 @@ namespace gaia {
 				uint32_t parentIdx = BadIndex;
 				//! Hierarchy relation used to attach this node to its parent node.
 				Entity parentRelation = EntityBad;
-				//! Destination archetype used for instances of @a prefab.
+				//! Destination archetype used for instances of \a prefab.
 				Archetype* pDstArchetype = nullptr;
-				//! Non-fragmenting sparse component ids copied from @a prefab.
+				//! Non-fragmenting sparse component ids copied from \a prefab.
 				cnt::darray_ext<Entity, 16> copiedSparseIds;
-				//! Component or pair ids added to instances of @a prefab.
+				//! Component or pair ids added to instances of \a prefab.
 				cnt::darray_ext<Entity, 16> addedIds;
 				//! Archetype component or pair ids reported to add hooks and observers.
 				cnt::darray_ext<Entity, 16> addHookIds;

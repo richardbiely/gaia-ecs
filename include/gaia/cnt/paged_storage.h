@@ -19,8 +19,10 @@
 
 namespace gaia {
 	namespace cnt {
+		//! Identifier used to address an element in paged storage.
 		using page_storage_id = uint32_t;
 
+		//! \cond INTERNAL
 		namespace detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
@@ -32,9 +34,16 @@ namespace gaia {
 			template <typename T, typename Allocator>
 			class mem_page;
 		} // namespace detail
+		//! \endcond
 
+		//! Customization point for converting a value to its paged-storage identifier.
+		//! The default implementation supports only empty types and returns an invalid identifier.
+		//! \tparam T Value type to convert.
 		template <typename T>
 		struct to_page_storage_id {
+			//! Applies the default conversion for an item.
+			//! \param item Item to convert.
+			//! \return The invalid paged-storage identifier.
 			static page_storage_id get(const T& item) noexcept {
 				(void)item;
 				static_assert(
@@ -44,6 +53,7 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, typename Allocator, bool IsFwd>
 			struct mem_page_iterator {
@@ -495,15 +505,27 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
+		//! Iterator over elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator {
+			//! Element type.
 			using value_type = T;
+			//! Pointer to an element.
 			using pointer = T*;
+			//! Reference to an element.
 			using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = page_iterator;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -514,8 +536,13 @@ namespace gaia {
 			typename page_type::template iterator_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			page_iterator(page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs an iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			page_iterator(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -541,13 +568,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element.
+			//! \return Reference to the current element.
 			reference operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element through a pointer.
+			//! \return Pointer to the current element.
 			pointer operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -572,28 +605,47 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Read-only iterator over elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct const_page_iterator {
+			//! Element type.
 			using value_type = T;
+			//! Pointer to a read-only element.
 			using pointer = const T*;
+			//! Reference to a read-only element.
 			using reference = const T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = const_page_iterator;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -604,8 +656,13 @@ namespace gaia {
 			typename page_type::template iterator_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			const_page_iterator(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs a read-only iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			const_page_iterator(const page_type* pPage, const page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -631,13 +688,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element.
+			//! \return Read-only reference to the current element.
 			reference operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element through a pointer.
+			//! \return Read-only pointer to the current element.
 			pointer operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -662,28 +725,45 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Iterator over structure-of-arrays elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct page_iterator_soa {
+			//! Element view type returned by value.
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = page_iterator_soa;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -694,8 +774,13 @@ namespace gaia {
 			typename page_type::template iterator_soa_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			page_iterator_soa(page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs an iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			page_iterator_soa(page_type* pPage, page_type* pPageLast): m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
 				if constexpr (!IsFwd) {
@@ -717,13 +802,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element view.
+			//! \return View of the current element.
 			value_type operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element view through arrow syntax.
+			//! \return View of the current element.
 			value_type operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -740,28 +831,45 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
+		//! Read-only iterator over structure-of-arrays elements in paged storage.
+		//! \tparam T Element type.
+		//! \tparam Allocator Page allocator type.
+		//! \tparam IsFwd Whether iteration proceeds forward.
 		template <typename T, typename Allocator, bool IsFwd>
 		struct const_page_iterator_soa {
+			//! Element view type returned by value.
 			using value_type = T;
 			// using pointer = T*;
 			// using reference = T&;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
+			//! Iterator type.
 			using iterator = const_page_iterator_soa;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -772,8 +880,13 @@ namespace gaia {
 			typename page_type::template iterator_soa_base<IsFwd> m_it;
 
 		public:
+			//! Constructs an end iterator at a page boundary.
+			//! \param pPage Boundary page.
 			const_page_iterator_soa(const page_type* pPage): m_pPage(pPage), m_pPageLast(pPage) {}
 
+			//! Constructs a read-only iterator over a page range.
+			//! \param pPage First page to inspect.
+			//! \param pPageLast Page marking the range boundary.
 			const_page_iterator_soa(const page_type* pPage, const page_type* pPageLast):
 					m_pPage(pPage), m_pPageLast(pPageLast) {
 				// Find first page with data
@@ -796,13 +909,19 @@ namespace gaia {
 				}
 			}
 
+			//! Accesses the current element view.
+			//! \return Read-only view of the current element.
 			value_type operator*() const {
 				return m_it.operator*();
 			}
+			//! Accesses the current element view through arrow syntax.
+			//! \return Read-only view of the current element.
 			value_type operator->() const {
 				return m_it.operator->();
 			}
 
+			//! Advances to the next element.
+			//! \return Reference to this advanced iterator.
 			iterator& operator++() {
 				if constexpr (!IsFwd) {
 					++m_it;
@@ -819,48 +938,79 @@ namespace gaia {
 				}
 				return *this;
 			}
+			//! Advances to the next element.
+			//! \return Iterator value before advancement.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
 
+			//! Checks whether two iterators have the same position.
+			//! \param other Iterator to compare with.
+			//! \return True if both iterators have the same position.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pPage == other.m_pPage && m_it == other.m_it;
 			}
+			//! Checks whether two iterators have different positions.
+			//! \param other Iterator to compare with.
+			//! \return True if the iterators have different positions.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pPage != other.m_pPage || m_it != other.m_it;
 			}
 		};
 
-		//! Heap-allocated paged storage for elements of type @a T.
+		//! Heap-allocated paged storage for elements of type \a T.
+		//! \tparam T Element type.
 		template <typename T>
 		class page_storage {
 		public:
+			//! Element type.
 			using value_type = T;
+			//! Reference to an element.
 			using reference = T&;
+			//! Reference to a read-only element.
 			using const_reference = const T&;
+			//! Pointer to an element.
 			using pointer = T*;
+			//! Pointer to a read-only element.
 			using const_pointer = const T*;
+			//! Data-layout access policy for the element type.
 			using view_policy = mem::auto_view_policy<T>;
+			//! Type used for iterator distances.
 			using difference_type = detail::difference_type;
+			//! Type used for sizes and indices.
 			using size_type = detail::size_type;
 
+			//! Size in bytes of one allocator block.
 			static constexpr uint32_t AllocatorBlockSize = (uint32_t)sizeof(detail::mem_page_data<T>);
+			//! Allocator used for page data.
 			using Allocator = mem::PagedAllocator<T, AllocatorBlockSize>;
 
+			//! Raw page-data type.
 			using page_data_type = detail::mem_page_data<T>;
+			//! Page type used by the storage.
 			using page_type = detail::mem_page<T, Allocator>;
+			//! Maximum number of elements addressable in one page.
 			static constexpr uint32_t PageCapacity = page_type::PageCapacity;
 
+			//! Forward mutable iterator.
 			using iterator = page_iterator<T, Allocator, true>;
+			//! Reverse mutable iterator.
 			using iterator_reverse = page_iterator<T, Allocator, false>;
+			//! Forward mutable iterator for structure-of-arrays elements.
 			using iterator_soa = page_iterator_soa<T, Allocator, true>;
+			//! Reverse mutable iterator for structure-of-arrays elements.
 			using iterator_soa_reverse = page_iterator_soa<T, Allocator, false>;
+			//! Forward read-only iterator.
 			using const_iterator = const_page_iterator<T, Allocator, true>;
+			//! Reverse read-only iterator.
 			using const_iterator_reverse = const_page_iterator<T, Allocator, false>;
+			//! Forward read-only iterator for structure-of-arrays elements.
 			using const_iterator_soa = const_page_iterator_soa<T, Allocator, true>;
+			//! Reverse read-only iterator for structure-of-arrays elements.
 			using const_iterator_soa_reverse = const_page_iterator_soa<T, Allocator, false>;
+			//! Iterator category tag.
 			using iterator_category = core::bidirectional_iterator_tag;
 
 		private:
@@ -884,11 +1034,16 @@ namespace gaia {
 		public:
 			constexpr page_storage() noexcept = default;
 
+			//! Copy-constructs a storage.
+			//! \param other Storage to copy.
 			page_storage(const page_storage& other) {
 				m_pages = other.m_pages;
 				m_itemCnt = other.m_itemCnt;
 			}
 
+			//! Copy-assigns a storage.
+			//! \param other Storage to copy.
+			//! \return Reference to this storage.
 			page_storage& operator=(const page_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -897,6 +1052,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs a storage.
+			//! \param other Storage to move from.
 			page_storage(page_storage&& other) noexcept {
 				m_pages = GAIA_MOV(other.m_pages);
 				m_itemCnt = other.m_itemCnt;
@@ -904,6 +1061,9 @@ namespace gaia {
 				other.m_pages = {};
 			}
 
+			//! Move-assigns a storage.
+			//! \param other Storage to move from.
+			//! \return Reference to this storage.
 			page_storage& operator=(page_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -921,6 +1081,9 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Accesses an element by identifier.
+			//! \param id Identifier of an existing element.
+			//! \return Mutable element reference or structure-of-arrays view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -929,6 +1092,9 @@ namespace gaia {
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
 
+			//! Accesses an element by identifier.
+			//! \param id Identifier of an existing element.
+			//! \return Read-only element reference or structure-of-arrays view.
 			GAIA_NODISCARD decltype(auto) operator[](page_storage_id id) const noexcept {
 				GAIA_ASSERT(has(id));
 				const auto pid = size_type(id >> ToPageIndex);
@@ -939,8 +1105,9 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given page @a id exists
+			//! Checks if an item with a given page \a id exists
 			//! \param id Page id
+			//! \return True if an item with \p id exists.
 			GAIA_NODISCARD bool has(page_storage_id id) const noexcept {
 				const auto pid = size_type(id >> ToPageIndex);
 				if (pid >= m_pages.size())
@@ -951,17 +1118,19 @@ namespace gaia {
 				return did < val && m_pages[pid].has_data(did);
 			}
 
-			//! Checks if an item @a arg exists within the storage
+			//! Checks if an item \a arg exists within the storage
 			//! \param arg Data
+			//! \return True if \p arg exists in the storage.
 			GAIA_NODISCARD bool has(const T& arg) const noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				GAIA_ASSERT(id != detail::InvalidPageStorageId);
 				return has(id);
 			}
 
-			//! Inserts the item @a arg into the storage.
+			//! Inserts the item \a arg into the storage.
+			//! \tparam TType Type of the forwarded item.
 			//! \param arg Data
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! \return Reference to the inserted record, or nothing for a structure-of-arrays layout.
 			template <typename TType>
 			decltype(auto) add(TType&& arg) {
 				const auto id = to_page_storage_id<T>::get(arg);
@@ -988,9 +1157,9 @@ namespace gaia {
 					return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index @a id.
+			//! Accesses the record at the index \a id for update.
 			//! \param id Page id
-			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
+			//! \return Mutable record reference or structure-of-arrays view.
 			decltype(auto) set(page_storage_id id) {
 				GAIA_ASSERT(has(id));
 
@@ -1001,7 +1170,7 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index @a id from the storage.
+			//! Removes the item at the index \a id from the storage.
 			//! \param id Page id
 			void del(page_storage_id id) noexcept {
 				GAIA_ASSERT(!empty());
@@ -1018,113 +1187,153 @@ namespace gaia {
 				--m_itemCnt;
 			}
 
-			//! Removes the item @a arg from the storage.
+			//! Removes the item \a arg from the storage.
 			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto id = to_page_storage_id<T>::get(arg);
 				return del(id);
 			}
 
-			//! Clears the storage
+			//! Clears the storage.
 			void clear() {
 				m_pages.resize(0);
 				m_itemCnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of items inserted into the storage.
+			//! \return Number of stored items.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_itemCnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no items.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return m_itemCnt == 0;
 			}
 
+			//! Accesses the first stored element.
+			//! \return Mutable reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Accesses the first stored element.
+			//! \return Read-only reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Accesses the last stored element.
+			//! \return Mutable reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*rbegin();
 			}
 
+			//! Accesses the last stored element.
+			//! \return Read-only reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*rbegin();
 			}
 
+			//! Returns an iterator to the first stored element.
+			//! \return Mutable iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator to the first stored element.
+			//! \return Read-only iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a read-only iterator to the first stored element.
+			//! \return Read-only iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data(), m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator past the last stored element.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns an iterator past the last stored element.
+			//! \return Read-only end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a read-only iterator past the last stored element.
+			//! \return Read-only end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator(m_pages.data() + m_pages.size());
 			}
 
+			//! Returns a reverse iterator to the last stored element.
+			//! \return Mutable reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator to the last stored element.
+			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a read-only reverse iterator to the last stored element.
+			//! \return Read-only reverse iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() + m_pages.size() - 1, m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator before the first stored element.
+			//! \return Mutable reverse end iterator.
 			GAIA_NODISCARD auto rend() noexcept {
 				GAIA_ASSERT(!empty());
 				return iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Returns a reverse iterator before the first stored element.
+			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto rend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Returns a read-only reverse iterator before the first stored element.
+			//! \return Read-only reverse end iterator.
 			GAIA_NODISCARD auto crend() const noexcept {
 				GAIA_ASSERT(!empty());
 				return const_iterator_reverse(m_pages.data() - 1);
 			}
 
+			//! Checks whether two storages contain equal elements.
+			//! \param other Storage to compare with.
+			//! \return True if both storages contain equal elements.
 			GAIA_NODISCARD bool operator==(const page_storage& other) const noexcept {
 				return m_pages == other.m_pages;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare with.
+			//! \return True if the storages differ.
 			GAIA_NODISCARD bool operator!=(const page_storage& other) const noexcept {
 				return !operator==(other);
 			}

@@ -29,7 +29,11 @@
 
 namespace gaia {
 	namespace mem {
+		//! Stateless allocator backed by the platform heap.
 		struct DefaultAllocator {
+			//! Allocates an unaligned memory region.
+			//! \param size Number of bytes to allocate.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc(size_t size) {
 				GAIA_ASSERT(size > 0);
 
@@ -39,6 +43,10 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates a named unaligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param size Number of bytes to allocate.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc([[maybe_unused]] const char* name, size_t size) {
 				GAIA_ASSERT(size > 0);
 
@@ -48,6 +56,10 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates an aligned memory region.
+			//! \param size Number of bytes to allocate.
+			//! \param alig Required byte alignment.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc_alig(size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
@@ -60,6 +72,11 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Allocates a named aligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param size Number of bytes to allocate.
+			//! \param alig Required byte alignment.
+			//! \return Pointer to the allocated region.
 			GAIA_NODISCARD static void* alloc_alig([[maybe_unused]] const char* name, size_t size, size_t alig) {
 				GAIA_ASSERT(size > 0);
 				GAIA_ASSERT(alig > 0);
@@ -72,6 +89,8 @@ namespace gaia {
 				return ptr;
 			}
 
+			//! Releases an unaligned memory region.
+			//! \param ptr Pointer returned by alloc().
 			static void free(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -79,6 +98,9 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
+			//! Releases a named unaligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer returned by alloc().
 			static void free([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -86,6 +108,8 @@ namespace gaia {
 				GAIA_PROF_FREE2(ptr, name);
 			}
 
+			//! Releases an aligned memory region.
+			//! \param ptr Pointer returned by alloc_alig().
 			static void free_alig(void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -93,6 +117,9 @@ namespace gaia {
 				GAIA_PROF_FREE(ptr);
 			}
 
+			//! Releases a named aligned memory region.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer returned by alloc_alig().
 			static void free_alig([[maybe_unused]] const char* name, void* ptr) {
 				GAIA_ASSERT(ptr != nullptr);
 
@@ -101,74 +128,120 @@ namespace gaia {
 			}
 		};
 
+		//! Provides the shared default allocator instance expected by AllocHelper.
 		struct DefaultAllocatorAdaptor {
+			//! Returns the process-local default allocator.
+			//! \return Default allocator instance.
 			static DefaultAllocator& get() {
 				static DefaultAllocator s_allocator;
 				return s_allocator;
 			}
 		};
 
+		//! Typed allocation facade for allocator adaptors.
 		struct AllocHelper {
+			//! Allocates storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc(uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(sizeof(T) * cnt);
 			}
+			//! Allocates named storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc(const char* name, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc(name, sizeof(T) * cnt);
 			}
+			//! Allocates aligned storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param alig Required byte alignment.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc_alig(size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(sizeof(T) * cnt, alig);
 			}
+			//! Allocates named aligned storage for objects without constructing them.
+			//! \tparam T Object type.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param alig Required byte alignment.
+			//! \param cnt Number of objects to reserve storage for.
+			//! \return Typed pointer to the allocated storage.
 			template <typename T, typename Adaptor = DefaultAllocatorAdaptor>
 			GAIA_NODISCARD static T* alloc_alig(const char* name, size_t alig, uint32_t cnt = 1) {
 				return (T*)Adaptor::get().alloc_alig(name, sizeof(T) * cnt, alig);
 			}
+			//! Releases storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free(void* ptr) {
 				Adaptor::get().free(ptr);
 			}
+			//! Releases named storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free(const char* name, void* ptr) {
 				Adaptor::get().free(name, ptr);
 			}
+			//! Releases aligned storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free_alig(void* ptr) {
 				Adaptor::get().free_alig(ptr);
 			}
+			//! Releases named aligned storage allocated through an adaptor.
+			//! \tparam Adaptor Allocator adaptor type.
+			//! \param name Allocation name reported to the profiler.
+			//! \param ptr Pointer to release.
 			template <typename Adaptor = DefaultAllocatorAdaptor>
 			static void free_alig(const char* name, void* ptr) {
 				Adaptor::get().free_alig(name, ptr);
 			}
 		};
 
-		//! Allocate @a size bytes of memory using the default allocator.
+		//! Allocate \a size bytes of memory using the default allocator.
 		//! \param size Number of bytes to allocate
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc(size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(size);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
+		//! Allocate \a size bytes of memory using the default allocator.
 		//! \param name Allocation name for debug purposes
 		//! \param size Number of bytes to allocate
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc(const char* name, size_t size) {
 			return DefaultAllocatorAdaptor::get().alloc(name, size);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
-		//! The memory is aligned to @a alig boundary.
+		//! Allocate \a size bytes of memory using the default allocator.
+		//! The memory is aligned to \a alig boundary.
 		//! \param size Number of bytes to allocate
 		//! \param alig Allocated data alignment
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc_alig(size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(size, alig);
 		}
 
-		//! Allocate @a size bytes of memory using the default allocator.
-		//! The memory is aligned to @a alig boundary.
+		//! Allocate \a size bytes of memory using the default allocator.
+		//! The memory is aligned to \a alig boundary.
 		//! \param name Allocation name for debug purposes
 		//! \param size Number of bytes to allocate
 		//! \param alig Allocated data alignment
+		//! \return Pointer to the allocated memory.
 		GAIA_NODISCARD inline void* mem_alloc_alig(const char* name, size_t size, size_t alig) {
 			return DefaultAllocatorAdaptor::get().alloc_alig(name, size, alig);
 		}
@@ -236,7 +309,7 @@ namespace gaia {
 			return (uint32_t)(align<alignment>(num) - num);
 		}
 
-		//! Convert form type @a Src to type @a Dst without causing an undefined behavior
+		//! Convert form type \a Src to type \a Dst without causing an undefined behavior
 		//! \tparam Dst Destination data type
 		//! \tparam Src Source data type
 		//! \param src Source
@@ -256,18 +329,26 @@ namespace gaia {
 		}
 
 		//! Pointer wrapper for writing memory in defined way (not causing undefined behavior)
+		//! \tparam T Stored value type.
 		template <typename T>
 		class unaligned_ref {
 			void* m_p;
 
 		public:
+			//! Creates a reference to potentially unaligned storage.
+			//! \param p Storage address.
 			unaligned_ref(void* p): m_p(p) {}
 
+			//! Stores a value using byte-wise copying.
+			//! \param value Value to store.
+			//! \return This reference.
 			unaligned_ref& operator=(const T& value) {
 				memmove(m_p, (const void*)&value, sizeof(T));
 				return *this;
 			}
 
+			//! Loads a value using byte-wise copying.
+			//! \return Value read from storage.
 			GAIA_NODISCARD operator T() const {
 				T tmp;
 				memmove((void*)&tmp, (const void*)m_p, sizeof(T));

@@ -18,9 +18,17 @@
 
 namespace gaia {
 	namespace util {
+		//! Storage type used for log-level bit masks.
 		using LogLevelType = uint8_t;
 
-		enum class LogLevel : LogLevelType { Debug = 0x1, Info = 0x2, Warning = 0x4, Error = 0x8 };
+		//! Severity level associated with a log message.
+		enum class LogLevel : LogLevelType {
+			Debug = 0x1, //!< Diagnostic information.
+			Info = 0x2, //!< General informational message.
+			Warning = 0x4, //!< Recoverable problem or unusual condition.
+			Error = 0x8 //!< Error requiring attention.
+		};
+		//! Bit mask of currently enabled logging levels.
 		inline LogLevelType g_logLevelMask = (LogLevelType)LogLevel::Debug | (LogLevelType)LogLevel::Info |
 																				 (LogLevelType)LogLevel::Warning | (LogLevelType)LogLevel::Error;
 
@@ -35,14 +43,20 @@ namespace gaia {
 		}
 
 		//! Returns true if a given logging level is enabled. False otherwise.
+		//! \param level Logging level to query.
+		//! \return True when the level is enabled.
 		inline bool is_logging_enabled(LogLevel level) {
 			return ((LogLevelType)level & g_logLevelMask) != 0;
 		}
 
+		//! Callback receiving a fully formatted log line.
 		using LogLineFunc = void (*)(LogLevel, const char*);
+		//! Callback receiving a printf-style format string and argument list.
 		using LogFunc = void (*)(LogLevel, const char*, va_list);
+		//! Callback used to flush pending log output.
 		using LogFlushFunc = void (*)();
 
+		//! \cond INTERNAL
 		namespace detail {
 			inline constexpr uint32_t LOG_BUFFER_SIZE = GAIA_LOG_BUFFER_SIZE;
 			inline constexpr uint32_t LOG_RECORD_LIMIT = GAIA_LOG_BUFFER_ENTRIES;
@@ -253,6 +267,7 @@ namespace gaia {
 			inline LogFunc g_log_func = log_default;
 			inline LogFlushFunc g_log_flush_func = log_flush_default;
 		} // namespace detail
+		//! \endcond
 
 		//! Set the default function for handling of logs.
 		//! This will fully override the default implementation or logging from gaia (format of logs, caching, etc.).
@@ -286,6 +301,7 @@ namespace gaia {
 			va_end(args);
 		}
 
+		//! Flushes pending log output through the configured flush callback.
 		inline void log_flush() {
 			detail::g_log_flush_func();
 		}

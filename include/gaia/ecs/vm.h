@@ -30,21 +30,40 @@ namespace gaia {
 	namespace ecs {
 		namespace vm {
 
-			enum class MatchingStyle { Simple, Wildcard, Complex };
+			//! Query-term matching strategy selected by the VM compiler.
+			enum class MatchingStyle {
+				//! Match one exact entity id.
+				Simple,
+				//! Match a wildcard relationship id.
+				Wildcard,
+				//! Match a relationship or variable expression requiring full evaluation.
+				Complex
+			};
 
+			//! Type-erased view over component-to-archetype lookup storage.
 			struct ArchetypeLookupView {
+				//! Function used to fetch archetypes for an entity lookup key.
 				using FetchByKeyFn = std::span<const ComponentIndexEntry> (*)(
 						const void*, std::span<const Archetype*>, Entity, const EntityLookupKey&);
 
+				//! Lookup implementation data.
 				const void* pData = nullptr;
 				//! Optional lookup-bucket revision table used to validate cached incremental cursors.
 				const EntityToArchetypeVersionMap* pVersions = nullptr;
+				//! Lookup function, or null for an empty view.
 				FetchByKeyFn fetchByKey = nullptr;
 
+				//! Returns whether the lookup view is empty.
+				//! \return True when no lookup function is bound.
 				GAIA_NODISCARD bool empty() const {
 					return fetchByKey == nullptr;
 				}
 
+				//! Fetches archetype entries for an entity lookup key.
+				//! \param arr All archetypes available to the lookup implementation.
+				//! \param ent Entity currently evaluated by the VM.
+				//! \param key Lookup key to resolve.
+				//! \return Matching archetype entries, or an empty span when none exist.
 				GAIA_NODISCARD std::span<const ComponentIndexEntry>
 				fetch(std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) const {
 					if (empty())
@@ -53,6 +72,9 @@ namespace gaia {
 					return fetchByKey(pData, arr, ent, key);
 				}
 
+				//! Returns the current revision of a lookup bucket.
+				//! \param key Lookup key identifying the bucket.
+				//! \return Bucket revision, or zero when revisions are unavailable.
 				GAIA_NODISCARD uint32_t revision(const EntityLookupKey& key) const {
 					if (pVersions == nullptr || pVersions->empty())
 						return 0;
@@ -62,6 +84,7 @@ namespace gaia {
 				}
 			};
 
+			//! Mutable execution context used while matching query bytecode.
 			struct MatchingCtx {
 				// Setup up externally
 				//////////////////////////////////
@@ -114,6 +137,7 @@ namespace gaia {
 				uint32_t pc;
 			};
 
+			//! \cond INTERNAL
 			inline std::span<const ComponentIndexEntry> fetch_archetypes_for_select(
 					const EntityToArchetypeMap& map, std::span<const Archetype*> arr, Entity ent, const EntityLookupKey& key) {
 				(void)arr;
@@ -173,8 +197,10 @@ namespace gaia {
 			inline ArchetypeLookupView make_archetype_lookup_view(const SingleArchetypeLookup& map) {
 				return ArchetypeLookupView{&map, nullptr, fetch_archetypes_for_select_from_single};
 			}
+			//! \endcond
 
 			namespace detail {
+				//! \cond INTERNAL
 				enum class EOpcode : uint8_t { //
 					//! X
 					All_Simple,
@@ -604,8 +630,8 @@ namespace gaia {
 					return true;
 				}
 
-				//! Tries to match ids in @a queryIds with ids in @a archetypeIds given
-				//! the comparison function @a func bool(Entity queryId, Entity archetypeId).
+				//! Tries to match ids in \a queryIds with ids in \a archetypeIds given
+				//! the comparison function \a func bool(Entity queryId, Entity archetypeId).
 				//! \tparam OpKind Operation kind
 				//! \tparam CmpFunc Comparison function
 				//! \param queryIds Entity ids inside archetype
@@ -827,7 +853,7 @@ namespace gaia {
 					return cmp_ids(idInQuery, idInArchetype);
 				}
 
-				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Tries to match entity ids in \a queryIds with those in \a archetype.
 				//! Does not consider Is relationships.
 				//! \tparam OpKind Operation kind
 				//! \param archetype Archetype checked against
@@ -855,7 +881,7 @@ namespace gaia {
 							});
 				}
 
-				//! Tries to match entity ids in @a queryIds with those in @a archetype.
+				//! Tries to match entity ids in \a queryIds with those in \a archetype.
 				//! \tparam OpKind Kind of VM operation
 				//! \param w Parent world
 				//! \param archetype Archetype checked against
@@ -2308,6 +2334,7 @@ namespace gaia {
 					GAIA_ASSERT(stackItem.arg < terms.size());
 					return terms[stackItem.arg];
 				}
+				//! \endcond
 			} // namespace detail
 
 			//! Compiles query terms into matching bytecode and evaluates that bytecode against archetypes.
@@ -3589,6 +3616,9 @@ namespace gaia {
 				}
 
 			public:
+				//! Formats the compiled query bytecode for diagnostics.
+				//! \param world World used to resolve entity names in the output.
+				//! \return Human-readable bytecode and operand metadata.
 				GAIA_NODISCARD util::str bytecode(const World& world) const {
 					util::str out;
 					out.reserve(2048);
@@ -3637,6 +3667,9 @@ namespace gaia {
 				}
 
 				//! Transforms inputs into virtual machine opcodes.
+				//! \param entityToArchetypeMap Component-to-archetype lookup available during compilation.
+				//! \param allArchetypes Archetypes available during compilation.
+				//! \param queryCtx Query definition and dependency metadata to compile.
 				void compile(
 						const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 						QueryCtx& queryCtx) {
@@ -3999,6 +4032,7 @@ namespace gaia {
 					}
 				}
 
+				//! \cond INTERNAL
 				void create_opcodes(QueryCtx& queryCtx) {
 					const bool isSimple = (queryCtx.data.flags & QueryCtx::QueryFlags::Complex) == 0U;
 					const bool isAs = (queryCtx.data.as_mask_0 + queryCtx.data.as_mask_1) != 0U;
@@ -4090,15 +4124,22 @@ namespace gaia {
 					// Mark as compiled
 					queryCtx.data.flags &= ~QueryCtx::QueryFlags::Recompile;
 				}
+				//! \endcond
 
+				//! Returns whether this VM contains compiled executable opcodes.
+				//! \return True when compilation produced at least one opcode.
 				GAIA_NODISCARD bool is_compiled() const {
 					return !m_compCtx.ops.empty();
 				}
 
+				//! Returns the total number of compiled opcodes.
+				//! \return Number of compiled opcodes, including variable-search programs.
 				GAIA_NODISCARD uint32_t op_count() const {
 					return (uint32_t)m_compCtx.ops.size();
 				}
 
+				//! Computes a stable signature of the compiled opcode stream.
+				//! \return Hash of opcode kinds, control-flow targets, operands, and costs.
 				GAIA_NODISCARD uint64_t op_signature() const {
 					uint64_t hash = 1469598103934665603ull;
 					for (const auto& op: m_compCtx.ops) {
@@ -4114,7 +4155,8 @@ namespace gaia {
 					return hash;
 				}
 
-				//! Executes compiled opcodes
+				//! Executes compiled query-matching opcodes.
+				//! \param ctx Matching state updated with the resulting archetypes.
 				void exec(MatchingCtx& ctx) {
 					GAIA_PROF_SCOPE(vm::exec);
 					ctx.skipOr = false;

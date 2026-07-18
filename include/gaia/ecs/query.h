@@ -124,10 +124,12 @@ namespace gaia {
 			ReversePreorder = ReverseDown
 		};
 
+		//! Cache policy selected for a prepared query.
 		using QueryCachePolicy = QueryCtx::CachePolicy;
 		struct TypedQueryExecState;
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename Func>
 			inline constexpr bool is_query_iter_callback_v = std::is_invocable_v<Func, Iter&>;
 
@@ -497,6 +499,8 @@ namespace gaia {
 					return m_world != nullptr && m_pCache != nullptr;
 				}
 			};
+			//! \endcond
+			//! Builds, caches, and executes a Gaia-ECS query.
 			class QueryImpl {
 				static constexpr uint32_t ChunkBatchSize = 32;
 				friend class SystemBuilder;
@@ -883,6 +887,7 @@ namespace gaia {
 
 				//--------------------------------------------------------------------------------
 			public:
+				//! Suppresses assertions when an invalid cache-kind combination is queried for diagnostics.
 				static inline bool SilenceInvalidCacheKindAssertions = false;
 
 				//! Fetches the QueryInfo object.
@@ -976,7 +981,7 @@ namespace gaia {
 					return queryInfo.ensure_matches_one(archetype, targetEntities, m_varBindings, m_varBindingsMask);
 				}
 
-				//! Returns whether any supplied target entity matches the query on @a archetype.
+				//! Returns whether any supplied target entity matches the query on \a archetype.
 				//! \param queryInfo Query info
 				//! \param archetype Archetype
 				//! \param targetEntities Candidate target entities
@@ -1006,6 +1011,9 @@ namespace gaia {
 				//! affect shared cache identity.
 				//! Use this only when traversed source closures stay small and stable enough for
 				//! snapshot reuse to be cheaper than rebuilding them on demand.
+				//! \param maxItems Maximum number of traversed source entities retained in a snapshot. Zero disables explicit
+				//! reuse.
+				//! \return Self reference.
 				QueryImpl& cache_src_trav(uint16_t maxItems) {
 					if (m_cacheSrcTrav == maxItems)
 						return *this;
@@ -1056,6 +1064,8 @@ namespace gaia {
 
 				//! \name Scheduling declarations
 				//! \{
+				//! Scheduling metadata used when coordinating query execution.
+
 				//! Marks whether this query must run on the main thread/serial path.
 				//!
 				//! Use this for callbacks with side effects that are not captured by component read/write declarations, such as
@@ -1077,10 +1087,12 @@ namespace gaia {
 
 				//! \name Query access declarations
 				//! \{
+				//! Explicit access metadata for data used outside positive query terms.
+
 				//! Declares an additional id read by this query callback.
 				//!
 				//! Use this for data accessed inside the query kernel but not present as a positive query term. The declaration
-				//! is scheduling metadata only; it does not change query matching or cache identity.
+				//! is scheduling metadata only. It does not change query matching or cache identity.
 				//! \param entity Component/entity id read by user code.
 				//! \return Self reference.
 				//! \see writes(Entity)
@@ -1101,7 +1113,7 @@ namespace gaia {
 				//! Declares an additional id written by this query callback.
 				//!
 				//! A write conflicts with any read or write of the same id when comparing two queries with conflicts_with().
-				//! The declaration is scheduling metadata only; it does not change query matching or cache identity.
+				//! The declaration is scheduling metadata only. It does not change query matching or cache identity.
 				//! \param entity Component/entity id written by user code.
 				//! \return Self reference.
 				//! \see reads(Entity)
@@ -1134,7 +1146,7 @@ namespace gaia {
 				//! Returns the effective read/write access for an id.
 				//!
 				//! Effective access combines positive query terms and explicit reads()/writes() declarations. Pair query terms
-				//! do not imply data access; use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
+				//! do not imply data access. Use explicit reads(Entity) or writes(Entity) when a pair id is a custom scheduling
 				//! key.
 				//! \param entity Component/entity id to inspect.
 				//! \return Effective access mode for the id.
@@ -1285,7 +1297,7 @@ namespace gaia {
 
 				//! Returns a human-readable message for a query kind validation result.
 				//! \param error Validation result
-				//! \return Text description for @a error.
+				//! \return Text description for \a error.
 				GAIA_NODISCARD static const char* kind_error_str(QueryKindRes error) {
 					switch (error) {
 						case QueryKindRes::OK:
@@ -1780,6 +1792,7 @@ namespace gaia {
 				//! \param queryInfo Query metadata containing changed-filter terms.
 				//! \param changedWorldVersion World version captured by the previous query pass.
 				//! \param compIndices Per-archetype mapping from query term index to chunk component column.
+				//! \return True when a tracked component or the chunk's entity order changed since the supplied version.
 				GAIA_NODISCARD static bool match_filters(
 						const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion,
 						std::span<const uint8_t> compIndices) {
@@ -1823,6 +1836,7 @@ namespace gaia {
 				//! \param chunk Chunk being evaluated.
 				//! \param queryInfo Query metadata containing changed-filter terms.
 				//! \param changedWorldVersion World version captured by the previous query pass.
+				//! \return True when a tracked component or the chunk's entity order changed since the supplied version.
 				GAIA_NODISCARD static bool
 				match_filters(const Chunk& chunk, const QueryInfo& queryInfo, uint32_t changedWorldVersion) {
 					GAIA_ASSERT(!chunk.empty() && "match_filters called on an empty chunk");
@@ -1875,6 +1889,10 @@ namespace gaia {
 					return chunk.entity_order_changed(changedWorldVersion);
 				}
 
+				//! Returns whether an archetype is eligible for query execution.
+				//! \param queryInfo Prepared query metadata controlling prefab matching.
+				//! \param archetype Candidate archetype.
+				//! \return True when the archetype is live and satisfies the query's prefab policy.
 				GAIA_NODISCARD bool can_process_archetype(const QueryInfo& queryInfo, const Archetype& archetype) const {
 					// Archetypes requested for deletion are skipped for processing.
 					if (archetype.is_req_del())
@@ -1985,6 +2003,7 @@ namespace gaia {
 					return true;
 				}
 
+				//! \cond INTERNAL
 				template <typename TIter>
 				static void finish_iter_writes(TIter& it) {
 					if (it.chunk() == nullptr)
@@ -2025,6 +2044,7 @@ namespace gaia {
 
 				static void finish_typed_iter_writes_runtime(
 						Iter& it, const Entity* pArgIds, const bool* pWriteFlags, uint32_t argCnt, uint32_t firstWriteArg);
+				//! \endcond
 
 				//! Runtime payload layout required by generic chunk-batch execution.
 				enum class ExecPayloadKind : uint8_t {
@@ -2090,7 +2110,7 @@ namespace gaia {
 					QueryPlanFlag_InheritedPayload = 1 << 2,
 					//! The query uses grouped payload/ranges or grouped cache ordering.
 					QueryPlanFlag_Grouped = 1 << 3,
-					//! The plan may need sorted cache slices; runners use them only with non-trivial payload.
+					//! The plan may need sorted cache slices. Runners use them only with non-trivial payload.
 					QueryPlanFlag_Sorted = 1 << 4,
 					//! The plan must use the depth-order hierarchy barrier cache when checking archetype/row ranges.
 					QueryPlanFlag_BarrierCache = 1 << 5
@@ -2263,6 +2283,7 @@ namespace gaia {
 
 				//------------------------------------------------
 
+				//! \cond INTERNAL
 				template <typename Func, typename TMode>
 				struct QueryJobCtx {
 					QueryImpl* pSelf = nullptr;
@@ -2291,7 +2312,7 @@ namespace gaia {
 					//! User callback copied into the deferred job context.
 					Func func;
 
-					//! Invokes the stored callback for @a it.
+					//! Invokes the stored callback for \a it.
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						it.ctx(pSelf->ctx());
@@ -2308,7 +2329,7 @@ namespace gaia {
 					//! User callback copied into the deferred job context.
 					Func func;
 
-					//! Runs the typed callback for @a it.
+					//! Runs the typed callback for \a it.
 					//! \param it Iterator prepared for the current query batch.
 					void operator()(Iter& it) {
 						pSelf->each_iter(it, func);
@@ -3458,7 +3479,7 @@ namespace gaia {
 
 				//! Selects the cache range visible to this query, applying a selected group id when present.
 				//! \param queryInfo Prepared query cache and execution metadata.
-				//! \return Cache range metadata; `valid == false` means the selected group is absent.
+				//! \return Cache range metadata. `valid == false` means the selected group is absent.
 				GAIA_NODISCARD QueryCacheRange selected_query_cache_range(const QueryInfo& queryInfo) const {
 					QueryCacheRange range{};
 					range.idxTo = (uint32_t)queryInfo.cache_archetype_view().size();
@@ -3539,6 +3560,7 @@ namespace gaia {
 						QueryInfo& queryInfo, std::span<const Entity> entities, Constraints constraints, void* pFunc,
 						const TypedQueryExecState& state,
 						void (*runChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
+				//! \endcond
 
 				//! Selects the prepared execution plan for public iterator callbacks.
 				//! \param queryInfo Prepared query cache and execution metadata.
@@ -3735,6 +3757,7 @@ namespace gaia {
 					func(it);
 				}
 
+				//! \cond INTERNAL
 				struct RuntimeIterCallback {
 					void* pFunc;
 					void* pCtx;
@@ -3787,6 +3810,7 @@ namespace gaia {
 						pSelf->each_iter_erased(it, pFunc, *pState, runDirect, runChunk);
 					}
 				};
+				//! \endcond
 
 				//! Runs a type-erased public iterator callback through generic query execution.
 				//! \param execType Query execution mode requested by the public API.
@@ -3892,6 +3916,7 @@ namespace gaia {
 					return uses_potential_inherited_id_matching(term) && world_term_uses_inherit_policy(world, term.id);
 				}
 
+				//! \cond INTERNAL
 				//! Evaluates term presence for a concrete entity using either direct or semantic semantics.
 				GAIA_NODISCARD static bool match_entity_term(const World& world, Entity entity, const QueryTerm& term) {
 					if (uses_semantic_is_matching(term) || uses_inherited_id_matching(world, term))
@@ -4585,7 +4610,7 @@ namespace gaia {
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
-				//! \return True if no entity matches the query under @a constraints.
+				//! \return True if no entity matches the query under \a constraints.
 				//! \see empty(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD bool empty_inter(const QueryInfo& queryInfo, Constraints constraints) const {
@@ -4790,7 +4815,7 @@ namespace gaia {
 				//! \tparam UseFilters True when changed/per-chunk filters must be evaluated.
 				//! \param queryInfo Prepared query cache and execution metadata.
 				//! \param constraints Entity-row constraints to apply.
-				//! \return Number of entities matching the query under @a constraints.
+				//! \return Number of entities matching the query under \a constraints.
 				//! \see count(Constraints)
 				template <bool UseFilters>
 				GAIA_NODISCARD uint32_t count_inter(const QueryInfo& queryInfo, Constraints constraints) const {
@@ -5158,6 +5183,7 @@ namespace gaia {
 					});
 				}
 
+				//! \endcond
 				//! Runs an erased typed callback over entities selected by a direct sparse or target-term seed.
 				//! \param queryInfo Prepared query cache and term metadata.
 				//! \param constraints Constraints applied while selecting direct entities and constructing iterator views.
@@ -5173,13 +5199,23 @@ namespace gaia {
 						void (*runDirectChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&), bool needsInheritedArgIds,
 						void (*invokeInherited)(World&, Entity, const Entity*, void*));
 
+				//! \cond INTERNAL
 				template <bool UseFilters, typename ContainerOut>
 				void arr_inter(QueryInfo& queryInfo, ContainerOut& outArray, Constraints constraints);
+				//! \endcond
 
 			public:
 				QueryImpl() = default;
 				~QueryImpl() = default;
 
+				//! Creates a query bound to a world's query and archetype state.
+				//! \param world World that owns the query.
+				//! \param queryCache Cache used to store prepared query data.
+				//! \param nextArchetypeId Highest archetype identifier allocated by the world.
+				//! \param worldVersion Current world version used by changed filters.
+				//! \param entityToArchetypeMap Entity-to-archetype lookup used during matching.
+				//! \param entityToArchetypeMapVersions Versions associated with entity-to-archetype mappings.
+				//! \param allArchetypes World archetypes available for query matching.
 				QueryImpl(
 						World& world, QueryCache& queryCache, ArchetypeId& nextArchetypeId, uint32_t& worldVersion,
 						const EntityToArchetypeMap& entityToArchetypeMap,
@@ -5253,7 +5289,7 @@ namespace gaia {
 				//!
 				//! Supported modifiers:
 				//!   "," - separates expressions
-				//!   "||" - query::or_(OR chain; at least two OR terms)
+				//!   "||" - query::or_(OR chain with at least two OR terms)
 				//!   "?" - query::any (optional)
 				//!   "!" - query::none
 				//!   "&" - read-write access
@@ -5281,11 +5317,11 @@ namespace gaia {
 				//! Component names are resolved immediately while the expression is parsed and the resulting
 				//! component ids are baked into the query terms. Later scope, path or alias changes do not
 				//! rewrite an already parsed query.
-				//! Names in @a str are resolved while add(...) parses the expression and the resulting ids
+				//! Names in \a str are resolved while add(...) parses the expression and the resulting ids
 				//! are baked into the query. Active component scope and lookup-path state affect parsing
 				//! only at that moment and do not rewrite the query later.
 				//! \param str Null-terminated string with the query expression.
-				//! \param ... Optional varargs consumed by `%e` substitutions inside @a str.
+				//! \param ... Optional varargs consumed by `%e` substitutions inside \a str.
 				//! \return Reference to this query.
 				QueryImpl& add(const char* str, ...) {
 					GAIA_ASSERT(str != nullptr);
@@ -5695,6 +5731,7 @@ namespace gaia {
 				//! The name can be used later by set_var(name, value).
 				//! \param varEntity Query variable entity (`Var0..Var7`)
 				//! \param name Variable name (without '$')
+				//! \return Self reference.
 				//! \note Empty names and reserved name "this" are rejected.
 				QueryImpl& var_name(Entity varEntity, util::str_view name) {
 					[[maybe_unused]] const bool ok = set_var_name_internal(varEntity, name);
@@ -5702,6 +5739,9 @@ namespace gaia {
 					return *this;
 				}
 				//! Assigns a human-readable name to a query variable entity (`Var0..Var7`).
+				//! \param varEntity Query variable entity (`Var0..Var7`).
+				//! \param name Null-terminated variable name without the `$` prefix.
+				//! \return Self reference.
 				QueryImpl& var_name(Entity varEntity, const char* name) {
 					GAIA_ASSERT(name != nullptr);
 					if (name == nullptr)
@@ -5713,6 +5753,7 @@ namespace gaia {
 				//! Bound values are applied at runtime before query evaluation.
 				//! \param varEntity Query variable entity (`Var0..Var7`)
 				//! \param value Entity value to bind
+				//! \return Self reference.
 				QueryImpl& set_var(Entity varEntity, Entity value) {
 					const bool ok = is_query_var_entity(varEntity);
 					GAIA_ASSERT(ok);
@@ -5727,6 +5768,7 @@ namespace gaia {
 				//! Binds a named query variable to a concrete entity value.
 				//! \param name Variable name previously assigned by var_name(...)
 				//! \param value Entity value to bind
+				//! \return Self reference.
 				QueryImpl& set_var(util::str_view name, Entity value) {
 					const auto varEntity = find_var_by_name(name);
 					GAIA_ASSERT(varEntity != EntityBad);
@@ -5735,6 +5777,9 @@ namespace gaia {
 					return set_var(varEntity, value);
 				}
 				//! Binds a named query variable to a concrete entity value.
+				//! \param name Null-terminated variable name previously assigned by var_name(...).
+				//! \param value Entity value to bind.
+				//! \return Self reference.
 				QueryImpl& set_var(const char* name, Entity value) {
 					GAIA_ASSERT(name != nullptr);
 					if (name == nullptr)
@@ -5744,6 +5789,8 @@ namespace gaia {
 
 				//! Clears binding for a single query variable (`Var0..Var7`).
 				//! The variable becomes unbound for the next query evaluation.
+				//! \param varEntity Query variable entity (`Var0..Var7`).
+				//! \return Self reference.
 				QueryImpl& clear_var(Entity varEntity) {
 					const bool ok = is_query_var_entity(varEntity);
 					GAIA_ASSERT(ok);
@@ -5755,6 +5802,7 @@ namespace gaia {
 					return *this;
 				}
 				//! Clears all runtime variable bindings.
+				//! \return Self reference.
 				QueryImpl& clear_vars() {
 					m_varBindingsMask = 0;
 					return *this;
@@ -5783,6 +5831,7 @@ namespace gaia {
 				//!               or anything else to sort by components.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				QueryImpl& sort_by(Entity entity, TSortByFunc func) {
 					sort_by_inter(entity, func);
 					return *this;
@@ -5792,6 +5841,7 @@ namespace gaia {
 				//! \tparam T The component to sort by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& sort_by(TSortByFunc func);
 
@@ -5800,11 +5850,13 @@ namespace gaia {
 				//! \tparam Tgt The target to sort by. It is registered if it hasn't been registered yet.
 				//! \param func The function to use for sorting. Return -1 to put the first entity before the second,
 				//!             0 to keep the order, and 1 to put the first entity after the second.
+				//! \return Self reference.
 				template <typename Rel, typename Tgt>
 				QueryImpl& sort_by(TSortByFunc func);
 
 				//------------------------------------------------
 
+				//! Lightweight view that executes a query in deterministic relation traversal order.
 				class OrderByTravView final {
 					QueryImpl* m_query = nullptr;
 					Entity m_relation = EntityBad;
@@ -5831,10 +5883,10 @@ namespace gaia {
 
 				//! Iterates matching entities in an explicit relation traversal order.
 				//!
-				//! Pair(@a relation, X) on entity E means E points at X. Down visits X before E.
+				//! Pair(\a relation, X) on entity E means E points at X. Down visits X before E.
 				//! Up visits E before X. Reverse variants produce the exact reverse of their base order.
 				//! Siblings are tie-broken by entity id, so the order is deterministic. The traversal changes
-				//! only visit order; it does not change which entities match the query. This path resolves order
+				//! only visit order. It does not change which entities match the query. This path resolves order
 				//! per entity and works for fragmenting relations such as ChildOf and non-fragmenting relations
 				//! such as Parent. It may be slower than normal chunk iteration.
 				//! \param relation Relation used to order the matched entities.
@@ -5914,6 +5966,7 @@ namespace gaia {
 				//! Declares an explicit relation dependency for grouped cache invalidation.
 				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 				//! \param relation Relation the group depends on.
+				//! \return Self reference.
 				QueryImpl& group_dep(Entity relation) {
 					group_dep_inter(relation);
 					return *this;
@@ -5922,6 +5975,7 @@ namespace gaia {
 				//! Declares an explicit relation dependency for grouped cache invalidation.
 				//! Useful for custom group_by callbacks that depend on hierarchy or relation topology.
 				//! \tparam Rel Relation the group depends on.
+				//! \return Self reference.
 				template <typename Rel>
 				QueryImpl& group_dep();
 
@@ -5929,6 +5983,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \param groupId The group to iterate over.
+				//! \return Self reference.
 				QueryImpl& group_id(GroupId groupId) {
 					set_group_id_inter(groupId);
 					return *this;
@@ -5936,6 +5991,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \param entity The entity to treat as a group to iterate over.
+				//! \return Self reference.
 				QueryImpl& group_id(Entity entity) {
 					GAIA_ASSERT(!entity.pair());
 					set_group_id_inter(entity.id());
@@ -5944,6 +6000,7 @@ namespace gaia {
 
 				//! Selects the group to iterate over.
 				//! \tparam T Component to treat as a group to iterate over. It is registered if it hasn't been registered yet.
+				//! \return Self reference.
 				template <typename T>
 				QueryImpl& group_id();
 
@@ -5966,7 +6023,7 @@ namespace gaia {
 				//! The returned SchedJob is backed by the world's ECS scheduler descriptor rather than a
 				//! gaia::mt::JobHandle, so external schedulers can provide their own token, submission,
 				//! dependency, wait, and cleanup behavior. The job owns only the callback copy and scheduler
-				//! token; the query and world must outlive the job.
+				//! token. The query and world must outlive the job.
 				//! \tparam Func Query callback type accepted by each().
 				//! \param func Callback invoked when the added job runs.
 				//! \param execType Query execution mode used inside the job.
@@ -6015,6 +6072,9 @@ namespace gaia {
 					each_runtime_inter<QueryExecType::Default, Func>(func, Constraints::EnabledOnly);
 				}
 
+				//! Iterates query matches with a typed component callback using the default execution mode.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each matching entity.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func);
 
@@ -6028,11 +6088,20 @@ namespace gaia {
 					each(func, execType, Constraints::EnabledOnly);
 				}
 
+				//! Iterates query matches with an iterator callback under the selected row constraints.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
+				//! \param func Callable invoked for each match.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, Constraints constraints) {
 					each(func, QueryExecType::Default, constraints);
 				}
 
+				//! Iterates query matches with an iterator callback using the selected execution mode and row constraints.
+				//! \tparam Func Iterator callback type invocable with `Iter&`.
+				//! \param func Callable invoked for each match.
+				//! \param execType Execution mode.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType, Constraints constraints) {
 					switch (execType) {
@@ -6051,6 +6120,10 @@ namespace gaia {
 					}
 				}
 
+				//! Iterates query matches with a typed component callback using the selected execution mode.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each matching entity.
+				//! \param execType Execution mode.
 				template <typename Func, std::enable_if_t<!detail::is_query_iter_callback_v<Func>, int> = 0>
 				void each(Func func, QueryExecType execType);
 
@@ -6063,6 +6136,7 @@ namespace gaia {
 				template <typename Func>
 				void each_iter(Iter& it, Func func);
 
+				//! \cond INTERNAL
 				void each_iter_erased(
 						QueryExecType execType, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
@@ -6072,13 +6146,14 @@ namespace gaia {
 						Iter& it, void* pFunc, const TypedQueryExecState& state,
 						void (*runDirectFastChunk)(QueryImpl&, Iter&, void*, const TypedQueryExecState&),
 						void (*runMappedChunk)(QueryImpl&, const QueryInfo&, Iter&, void*, const TypedQueryExecState&));
+				//! \endcond
 
 				//------------------------------------------------
 
 				//! Iterates matching archetypes instead of individual entities.
 				//! \tparam Func Iterator callback type invocable with `Iter&`.
 				//! \param func Callable invoked for each matching archetype iterator.
-				//! \param constraints Iteration constraints applied before invoking @a func.
+				//! \param constraints Iteration constraints applied before invoking \a func.
 				//! \see Iter::ctx() const
 				template <typename Func>
 				void each_arch(Func func, Constraints constraints = Constraints::EnabledOnly) {
@@ -6104,6 +6179,7 @@ namespace gaia {
 				//! \note For changed() queries this is a non-consuming probe. It does not advance the
 				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//!	\return True if there are any entities matching the query. False otherwise.
+				//! \param constraints Entity-row subset included in the probe.
 				bool empty(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -6127,6 +6203,7 @@ namespace gaia {
 				//! \note For changed() queries this is a non-consuming probe. It does not advance the
 				//!       query's changed-reporting state. Iteration APIs such as each()/arr() do consume it.
 				//! \return The number of matching entities
+				//! \param constraints Entity-row subset included in the count.
 				uint32_t count(Constraints constraints = Constraints::EnabledOnly) {
 					auto& queryInfo = fetch();
 					if (!queryInfo.has_filters() && m_groupIdSet == 0 && can_use_direct_entity_seed_eval(queryInfo)) {
@@ -6229,6 +6306,7 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! \cond INTERNAL
 				void collect_entities_enabled(cnt::darray<Entity>& out) {
 					auto& queryInfo = fetch();
 					match_all(queryInfo);
@@ -6318,6 +6396,7 @@ namespace gaia {
 					m_changedWorldVersion = *m_worldVersion;
 				}
 
+				//! \endcond
 				//! Appends all components or entities matching the query to the output array
 				//! \tparam Container Container type
 				//! \param[out] outArray Container storing entities or components
@@ -6691,6 +6770,12 @@ namespace gaia {
 					}
 				}
 
+				//! Iterates matching entities in relation order with a typed component callback.
+				//! \tparam Func Typed callback whose arguments identify the requested query components.
+				//! \param func Callable invoked for each ordered matching entity.
+				//! \param relation Relation used to order matched entities.
+				//! \param order Traversal order to apply.
+				//! \param constraints Entity-row subset exposed to the callback.
 				template <typename Func, std::enable_if_t<!detail::is_query_walk_core_callback_v<Func>, int> = 0>
 				void each_walk(
 						Func func, Entity relation, TravOrder order = TravOrder::Down,
@@ -6736,6 +6821,7 @@ namespace gaia {
 			};
 		} // namespace detail
 
+		//! Public query builder and execution type.
 		using Query = detail::QueryImpl;
 	} // namespace ecs
 } // namespace gaia

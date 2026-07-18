@@ -6,6 +6,7 @@
 #include "gaia/cnt/set.h"
 #include "gaia/ecs/id.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		using PairLookupMap = cnt::map<EntityLookupKey, cnt::set<EntityLookupKey>>;
@@ -23,7 +24,7 @@ namespace gaia {
 				m_tgtToRel = {};
 			}
 
-			//! Returns targets for @a relation.
+			//! Returns targets for \a relation.
 			//! \param relation Relation entity.
 			//! \return Target set or nullptr when no target is stored.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* targets(Entity relation) const {
@@ -34,7 +35,7 @@ namespace gaia {
 				return &it->second;
 			}
 
-			//! Returns relations for @a target.
+			//! Returns relations for \a target.
 			//! \param target Target entity.
 			//! \return Relation set or nullptr when no relation is stored.
 			GAIA_NODISCARD const cnt::set<EntityLookupKey>* relations(Entity target) const {
@@ -124,7 +125,7 @@ namespace gaia {
 					(void)del_bucket_entry(m_tgtToRel, allKey, relKey);
 			}
 
-			//! Removes all entries whose relation or target is @a entity.
+			//! Removes all entries whose relation or target is \a entity.
 			//! \param entity Entity being deleted.
 			void del_entity_pairs(Entity entity) {
 				const auto key = EntityLookupKey(entity);
@@ -145,3 +146,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

@@ -11,6 +11,7 @@ namespace gaia {
 		// Type meta data
 		//----------------------------------------------------------------------
 
+		//! Provides compile-time compiler-derived names and hashes for C++ types.
 		struct type_info final {
 		private:
 			constexpr static size_t find_first_of(const char* data, size_t len, char toFind, size_t startPos = 0) {
@@ -31,11 +32,17 @@ namespace gaia {
 			}
 
 		public:
+			//! Returns the complete compiler function signature containing T.
+			//! \tparam T Type to describe.
+			//! \return Null-terminated compiler signature string.
 			template <typename T>
 			GAIA_NODISCARD static constexpr const char* full_name() noexcept {
 				return GAIA_PRETTY_FUNCTION;
 			}
 
+			//! Extracts the unqualified compiler spelling of T from the function signature.
+			//! \tparam T Type to describe.
+			//! \return Span covering the extracted type name.
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto name() noexcept {
 				// MSVC:
@@ -64,6 +71,9 @@ namespace gaia {
 				return name.subspan(start + 1, end - start - 1);
 			}
 
+			//! Calculates the stable Gaia-ECS hash of the compiler spelling of T.
+			//! \tparam T Type to hash.
+			//! \return 64-bit hash of name<T>().
 			template <typename T>
 			GAIA_NODISCARD static constexpr auto hash() noexcept {
 #if GAIA_COMPILER_MSVC && _MSC_VER <= 1916

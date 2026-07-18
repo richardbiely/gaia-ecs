@@ -7,12 +7,19 @@
 
 namespace gaia {
 	namespace core {
+		//! Provides packed access to fixed-width unsigned values stored in a byte span.
+		//! \tparam BlockBits Number of bits occupied by each value.
 		template <uint32_t BlockBits>
 		struct bit_view {
+			//! Largest value representable by one packed block.
 			static constexpr uint32_t MaxValue = (1 << BlockBits) - 1;
 
+			//! Bytes containing the packed values.
 			std::span<uint8_t> m_data;
 
+			//! Stores a packed value at the specified bit position.
+			//! \param bitPosition Bit offset of the value within m_data.
+			//! \param value Value to store. It must not exceed MaxValue.
 			void set(uint32_t bitPosition, uint8_t value) noexcept {
 				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
 				GAIA_ASSERT(value <= MaxValue);
@@ -32,6 +39,9 @@ namespace gaia {
 				}
 			}
 
+			//! Reads a packed value from the specified bit position.
+			//! \param bitPosition Bit offset of the value within m_data.
+			//! \return The decoded value.
 			uint8_t get(uint32_t bitPosition) const noexcept {
 				GAIA_ASSERT(bitPosition < (m_data.size() * 8));
 
@@ -53,6 +63,12 @@ namespace gaia {
 			}
 		};
 
+		//! Swaps two individual bits in an integer-like mask.
+		//! \tparam T Mask type supporting shifts and bitwise operators.
+		//! \param mask Mask to modify.
+		//! \param left Position of the first bit.
+		//! \param right Position of the second bit.
+		//! \return No value. Mask is modified in place.
 		template <typename T>
 		inline auto swap_bits(T& mask, uint32_t left, uint32_t right) {
 			// Swap the bits in the read-write mask

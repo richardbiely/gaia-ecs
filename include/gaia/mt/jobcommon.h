@@ -14,15 +14,19 @@
 
 namespace gaia {
 	namespace mt {
+		//! Scheduling priority assigned to a job.
 		enum class JobPriority : uint8_t {
 			//! High priority job. If available it should target the CPU's performance cores.
 			High = 0,
 			//! Low priority job. If available it should target the CPU's efficiency cores.
 			Low = 1
 		};
+		//! Number of supported job-priority queues.
 		static inline constexpr uint32_t JobPriorityCnt = 2;
 
+		//! Flags controlling the scheduling and lifetime of a job.
 		enum JobCreationFlags : uint8_t {
+			//! Uses automatic deletion and the regular frame queue.
 			Default = 0,
 			//! The job is not deleted automatically. Has to be done by the user.
 			ManualDelete = 0x01,
@@ -32,18 +36,27 @@ namespace gaia {
 			Background = 0x04
 		};
 
+		//! Allocation metadata used when reserving a job slot.
 		struct JobAllocCtx {
+			//! Priority encoded into the allocated job handle.
 			JobPriority priority;
 		};
 
+		//! Callable and scheduling options for a single job.
 		struct Job {
+			//! Callable executed by the worker.
 			util::SmallFunc func;
+			//! Queue priority used to schedule the callable.
 			JobPriority priority = JobPriority::High;
+			//! Creation and lifetime options.
 			JobCreationFlags flags = JobCreationFlags::Default;
 		};
 
+		//! Half-open item range passed to a parallel job callback.
 		struct JobArgs {
+			//! First item index processed by this invocation.
 			uint32_t idxStart;
+			//! One-past-the-last item index processed by this invocation.
 			uint32_t idxEnd;
 		};
 
@@ -191,21 +204,28 @@ namespace gaia {
 			}
 		};
 
+		//! Callable and priority for a range-partitioned parallel job.
 		struct JobParallel {
+			//! Callable invoked once for each scheduled range.
 			JobArgsFunc func;
+			//! Queue priority used for each range job.
 			JobPriority priority = JobPriority::High;
 		};
 
 		//! Non-owning callback descriptor for parallel jobs.
 		//! \warning The pointed-to context must stay alive until the scheduled job completes.
 		struct JobParallelRef {
+			//! Non-owning callback context.
 			void* pCtx = nullptr;
+			//! Function that invokes the callback stored in the context.
 			void (*invoke)(void*, const JobArgs&) = nullptr;
+			//! Queue priority used for each range job.
 			JobPriority priority = JobPriority::High;
 		};
 
 		class ThreadPool;
 
+		//! Per-thread execution state owned by ThreadPool.
 		struct ThreadCtx {
 			//! Thread pool pointer
 			ThreadPool* tp;

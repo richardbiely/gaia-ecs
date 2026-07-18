@@ -8,8 +8,11 @@
 
 namespace gaia {
 	namespace core {
+		//! Fixed-limit string lookup key carrying a precomputed 32-bit hash.
+		//! \tparam MaxLen Maximum supported string length used by bounded comparisons.
 		template <uint32_t MaxLen>
 		struct StringLookupKey {
+			//! Direct hash wrapper used by lookup containers.
 			using LookupHash = core::direct_hash_key<uint32_t>;
 
 		private:
@@ -36,11 +39,13 @@ namespace gaia {
 			}
 
 		public:
+			//! Marker indicating that this key provides its hash directly.
 			static constexpr bool IsDirectHashKey = true;
 
+			//! Constructs an empty lookup key.
 			StringLookupKey(): m_pStr(nullptr), m_len(0), m_owned(0), m_hash({0}) {}
 
-			//! Constructor calculating hash from the provided string @a pStr and @a len.
+			//! Constructor calculating hash from the provided string \a pStr and \a len.
 			//! \param pStr Pointer to the string
 			//! \param len Number of characters
 			//! \param owned True if the string is owned
@@ -57,22 +62,33 @@ namespace gaia {
 			explicit StringLookupKey(const char* pStr, uint32_t len, uint32_t owned, LookupHash hash):
 					m_pStr(pStr), m_len(len), m_owned(owned), m_hash(hash) {}
 
+			//! Returns the referenced string.
+			//! \return Pointer to the string, or nullptr for an empty key.
 			const char* str() const {
 				return m_pStr;
 			}
 
+			//! Returns the string length.
+			//! \return Number of characters in the string.
 			uint32_t len() const {
 				return m_len;
 			}
 
+			//! Reports whether Gaia-ECS manages the string lifetime.
+			//! \return True when the referenced string is owned by the framework.
 			bool owned() const {
 				return m_owned == 1;
 			}
 
+			//! Returns the precomputed string hash.
+			//! \return The 32-bit hash value.
 			uint32_t hash() const {
 				return m_hash.hash;
 			}
 
+			//! Compares keys by hash, length, and string contents.
+			//! \param other Key to compare with.
+			//! \return True when both keys identify equal strings.
 			bool operator==(const StringLookupKey& other) const {
 				// Hash doesn't match we don't have a match.
 				// Hash collisions are expected to be very unlikely so optimize for this case.
@@ -94,6 +110,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Compares keys for inequality.
+			//! \param other Key to compare with.
+			//! \return True when the keys identify different strings.
 			bool operator!=(const StringLookupKey& other) const {
 				return !operator==(other);
 			}

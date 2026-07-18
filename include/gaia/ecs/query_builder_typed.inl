@@ -3,6 +3,7 @@
 namespace gaia {
 	namespace ecs {
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T>
 			GAIA_NODISCARD inline Entity typed_query_raw_entity(World& world) {
 				using U = typename component_type_t<T>::Type;
@@ -134,6 +135,7 @@ namespace gaia {
 			inline QueryImpl& QueryImpl::group_id() {
 				return group_id(typed_query_raw_entity<T>(*m_storage.world()));
 			}
+			//! \endcond
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia

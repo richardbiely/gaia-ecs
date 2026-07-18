@@ -30,12 +30,17 @@ namespace gaia {
 		Entity world_query_first_inherited_owner(const World& world, const Archetype& archetype, Entity term);
 		const void* world_query_inherited_arg_data_const_ptr(const World& world, Entity owner, Entity id);
 
+		//! Reverse index from entity or pair lookup keys to matching archetype records.
 		using EntityToArchetypeMap = cnt::map<EntityLookupKey, ComponentIndexEntryArray>;
+		//! Query-field to archetype-component column mapping for one matched archetype.
 		struct ArchetypeCompIndices {
+			//! Component column per query field, with invalid entries encoded by the mapping builder.
 			uint8_t indices[ChunkHeader::MAX_COMPONENTS];
 		};
 
+		//! Cached inherited component data pointers for one matched archetype.
 		struct ArchetypeInheritedData {
+			//! Component data pointer per query field, or null when the field is not inherited.
 			const void* data[ChunkHeader::MAX_COMPONENTS];
 		};
 
@@ -112,12 +117,17 @@ namespace gaia {
 		GAIA_NODISCARD QueryMatchScratch& query_match_scratch_acquire(World& world);
 		void query_match_scratch_release(World& world, bool keepStamps);
 
+		//! Inputs passed through query-slot allocation to construct a QueryInfo instance.
 		struct QueryInfoCreationCtx {
+			//! Authored query context transferred into the allocated slot.
 			QueryCtx* pQueryCtx;
+			//! World reverse index used to compile initial archetype matching operations.
 			const EntityToArchetypeMap* pEntityToArchetypeMap;
+			//! Archetypes present in the world when the query is compiled.
 			std::span<const Archetype*> allArchetypes;
 		};
 
+		//! Compiled query plan and its incrementally maintained result caches.
 		class QueryInfo {
 		public:
 			//! Allocated items: index in the query slot list.
@@ -126,8 +136,15 @@ namespace gaia {
 			//! Generation ID of the query slot.
 			uint32_t gen = 0;
 
-			//! Query matching result
-			enum class MatchArchetypeQueryRet : uint8_t { Fail, Ok, Skip };
+			//! Result of evaluating one archetype for cache insertion.
+			enum class MatchArchetypeQueryRet : uint8_t {
+				//! Archetype does not satisfy the query.
+				Fail,
+				//! Archetype satisfies the query and should be cached.
+				Ok,
+				//! Archetype requires no cache action for this evaluation path.
+				Skip
+			};
 
 		private:
 			struct Instruction {
@@ -164,6 +181,7 @@ namespace gaia {
 			};
 
 		public:
+			//! Cache layer invalidated after query inputs or world state change.
 			enum class InvalidationKind : uint8_t {
 				//! Only the final result cache is stale. Structural seed matches remain valid and can be reused.
 				Result,
@@ -192,6 +210,7 @@ namespace gaia {
 				//! Cached array of archetypes matching the query
 				CArchetypeDArray archetypeCache;
 
+				//! Storage used only by grouped query result caches.
 				struct GroupedPayload {
 					//! Group ids for grouped queries, aligned with archetypeCache.
 					cnt::darray<GroupId> archetypeGroupIds;
@@ -223,6 +242,7 @@ namespace gaia {
 					}
 				};
 
+				//! Component mappings and flattened chunks prepared for query iteration.
 				struct ExecPayload {
 					//! Cached component-index mapping for each matched archetype.
 					cnt::darray<ArchetypeCompIndices> archetypeCompIndices;
@@ -294,6 +314,7 @@ namespace gaia {
 					}
 				};
 
+				//! Sorting and hierarchy-barrier state for nontrivial iteration paths.
 				struct NonTrivialPayload {
 					//! Cached depth-order hierarchy barrier result for each archetype.
 					cnt::darray<uint8_t> archetypeBarrierPasses;
@@ -337,6 +358,7 @@ namespace gaia {
 				//! Sort/remap/barrier payload used by nontrivial execution paths on demand.
 				NonTrivialPayload nonTrivial;
 
+				//! Runtime dependency snapshots used to validate reusable dynamic results.
 				struct DynamicCacheState {
 					//! Relation-version payload for reusable dynamic caches with relation dependencies.
 					struct RelationPayload {
@@ -344,6 +366,9 @@ namespace gaia {
 						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> versions;
 
 						//! Returns true when any tracked relation version changed.
+						//! \param world World providing current relation topology versions.
+						//! \param relations Relations aligned with versions.
+						//! \return True when any current version differs from its snapshot.
 						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> relations) const {
 							const auto cnt = (uint32_t)relations.size();
 							GAIA_FOR(cnt) {
@@ -355,6 +380,8 @@ namespace gaia {
 						}
 
 						//! Captures current relation versions.
+						//! \param world World providing current relation topology versions.
+						//! \param relations Relations whose versions are captured in order.
 						void snapshot(const World& world, std::span<const Entity> relations) {
 							const auto cnt = (uint32_t)relations.size();
 							GAIA_FOR(cnt)
@@ -368,6 +395,9 @@ namespace gaia {
 						cnt::sarray<uint32_t, MAX_ITEMS_IN_QUERY> entityVersions;
 
 						//! Returns true when any tracked source entity changed archetype.
+						//! \param world World providing current entity archetype versions.
+						//! \param sourceEntities Source entities aligned with entityVersions.
+						//! \return True when any source archetype version differs from its snapshot.
 						GAIA_NODISCARD bool changed(const World& world, std::span<const Entity> sourceEntities) const {
 							const auto cnt = (uint32_t)sourceEntities.size();
 							GAIA_FOR(cnt) {
@@ -379,6 +409,8 @@ namespace gaia {
 						}
 
 						//! Captures current source entity archetype versions.
+						//! \param world World providing current entity archetype versions.
+						//! \param sourceEntities Source entities whose versions are captured in order.
 						void snapshot(const World& world, std::span<const Entity> sourceEntities) {
 							const auto cnt = (uint32_t)sourceEntities.size();
 							GAIA_FOR(cnt)
@@ -403,11 +435,14 @@ namespace gaia {
 						}
 
 						//! Returns true when the traversed-source snapshot is unusable for reuse.
+						//! \return True when capture exceeded the configured snapshot limit.
 						GAIA_NODISCARD bool is_overflowed() const {
 							return overflowed;
 						}
 
 						//! Returns true when any tracked traversed source entity changed archetype.
+						//! \param world World providing current hierarchy and archetype versions.
+						//! \return True when enabled hierarchy state or any captured entity version changed.
 						GAIA_NODISCARD bool versions_changed(const World& world) const {
 							if (enabledVersion != world_enabled_hierarchy_version(world))
 								return true;
@@ -423,6 +458,9 @@ namespace gaia {
 						}
 
 						//! Returns true when a rebuilt traversed-source closure differs from the captured snapshot.
+						//! \param world World providing the current enabled hierarchy version.
+						//! \param items Newly built ordered source closure.
+						//! \return True when hierarchy version, closure size, or any closure item differs.
 						GAIA_NODISCARD bool changed(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) const {
 							if (enabledVersion != world_enabled_hierarchy_version(world))
 								return true;
@@ -440,6 +478,8 @@ namespace gaia {
 						}
 
 						//! Captures a newly built traversed-source closure snapshot.
+						//! \param world World providing the enabled hierarchy version to capture.
+						//! \param items Ordered source closure and entity archetype versions.
 						void capture(const World& world, const cnt::darray<SrcTravSnapshotItem>& items) {
 							snapshot = items;
 							enabledVersion = world_enabled_hierarchy_version(world);
@@ -467,6 +507,9 @@ namespace gaia {
 						}
 
 						//! Returns true when runtime variable bindings differ from the captured snapshot.
+						//! \param runtimeBindings Current values for all query variable slots.
+						//! \param runtimeBindingMask Bitmask selecting bound slots in \a runtimeBindings.
+						//! \return True when the bound-slot mask or any selected value differs.
 						GAIA_NODISCARD bool
 						changed(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) const {
 							if (bindingMask != runtimeBindingMask)
@@ -487,6 +530,8 @@ namespace gaia {
 						}
 
 						//! Captures runtime variable bindings.
+						//! \param runtimeBindings Current values for all query variable slots.
+						//! \param runtimeBindingMask Bitmask selecting bound slots to capture.
 						void snapshot(const cnt::sarray<Entity, MaxVarCnt>& runtimeBindings, uint8_t runtimeBindingMask) {
 							bindings = runtimeBindings;
 							bindingMask = runtimeBindingMask;
@@ -920,6 +965,7 @@ namespace gaia {
 			}
 
 			//! Returns the current external reference count.
+			//! \return Number of live query objects referencing this slot.
 			uint32_t refs() const {
 				return m_refs;
 			}
@@ -973,6 +1019,7 @@ namespace gaia {
 			//! \param ctx Query context to take ownership of.
 			//! \param entityToArchetypeMap World archetype lookup used during compilation.
 			//! \param allArchetypes Current world archetype list.
+			//! \return Compiled query info owning \a ctx in slot \a id.
 			GAIA_NODISCARD static QueryInfo create(
 					QueryId id, QueryCtx&& ctx, const EntityToArchetypeMap& entityToArchetypeMap,
 					std::span<const Archetype*> allArchetypes) {
@@ -996,6 +1043,7 @@ namespace gaia {
 			//! \param idx Query slot index.
 			//! \param gen Query slot generation.
 			//! \param pCtx Pointer to QueryInfoCreationCtx.
+			//! \return Compiled query info initialized for the allocated slot.
 			GAIA_NODISCARD static QueryInfo create(uint32_t idx, uint32_t gen, void* pCtx) {
 				auto* pCreationCtx = (QueryInfoCreationCtx*)pCtx;
 				auto& queryCtx = *pCreationCtx->pQueryCtx;
@@ -1018,11 +1066,15 @@ namespace gaia {
 			}
 
 			//! Builds a stable query handle from query slot metadata.
+			//! \param info Query info providing slot index and generation.
+			//! \return Handle identifying \a info's current slot generation.
 			GAIA_NODISCARD static QueryHandle handle(const QueryInfo& info) {
 				return QueryHandle(info.idx, info.gen);
 			}
 
 			//! Compile the query terms into a form we can easily process
+			//! \param entityToArchetypeMap World reverse index used by VM compilation.
+			//! \param allArchetypes Archetypes present while the plan is compiled.
 			void compile(const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes) {
 				GAIA_PROF_SCOPE(queryinfo::compile);
 
@@ -1039,11 +1091,13 @@ namespace gaia {
 			}
 
 			//! Returns the query cache policy selected during compilation.
+			//! \return Immediate, lazy, or dynamic maintenance policy.
 			GAIA_NODISCARD QueryCtx::CachePolicy cache_policy() const {
 				return m_plan.ctx.data.cachePolicy;
 			}
 
 			//! Returns true when grouped-query payloads are active for this query.
+			//! \return True when a group-by entity is configured.
 			GAIA_NODISCARD bool has_grouped_payload() const {
 				return m_plan.ctx.data.groupBy != EntityBad;
 			}
@@ -1067,21 +1121,25 @@ namespace gaia {
 			}
 
 			//! Returns true when sorted-query payloads are active for this query.
+			//! \return True when an entity sorting callback is configured.
 			GAIA_NODISCARD bool has_sorted_payload() const {
 				return m_plan.ctx.data.sortByFunc != nullptr;
 			}
 
 			//! Returns the result membership revision used by reverse-index cache users.
+			//! \return Revision incremented whenever result archetype membership changes.
 			GAIA_NODISCARD uint32_t result_cache_rev() const {
 				return m_state.resultCacheRevision;
 			}
 
 			//! Returns true when the result cache contains archetypes that need default prefab filtering.
+			//! \return True when cached membership may include prefab-tagged archetypes to reject during iteration.
 			GAIA_NODISCARD bool result_cache_may_need_prefab_filter() const {
 				return m_state.resultCacheMayNeedPrefabFilter != 0;
 			}
 
 			//! Returns true when a new archetype can be propagated into the current cache incrementally.
+			//! \return True for a compiled, clean, immediate structural query.
 			GAIA_NODISCARD bool can_update_with_new_archetype() const {
 				// Only immediate structural queries participate in archetype-create propagation.
 				return m_plan.vm.is_compiled() && cache_policy() == QueryCtx::CachePolicy::Immediate &&
@@ -1089,28 +1147,42 @@ namespace gaia {
 			}
 
 			//! Returns whether create-time matching should bypass the temporary one-archetype VM path.
+			//! \return True when direct structural matching was selected during compilation.
 			GAIA_NODISCARD bool can_use_direct_create_archetype_match() const {
 				return m_plan.ctx.data.createArchetypeMatchKind == QueryCtx::CreateArchetypeMatchKind::DirectStructuralTerms;
 			}
 
 			//! Returns whether direct create-time matching needs Is-aware id checks.
+			//! \return True when at least one compiled term has semantic Is matching bits.
 			GAIA_NODISCARD bool direct_create_archetype_match_uses_is() const {
 				const auto& ctxData = m_plan.ctx.data;
 				return (ctxData.as_mask_0 + ctxData.as_mask_1) != 0;
 			}
 
+			//! Compares this compiled plan with an authored query context.
+			//! \param other Query context to compare.
+			//! \return True when shared query identity matches.
 			GAIA_NODISCARD bool operator==(const QueryCtx& other) const {
 				return m_plan.ctx == other;
 			}
 
+			//! Compares this compiled plan with an authored query context for inequality.
+			//! \param other Query context to compare.
+			//! \return True when shared query identity differs.
 			GAIA_NODISCARD bool operator!=(const QueryCtx& other) const {
 				return m_plan.ctx != other;
 			}
 
+			//! Scope guard that releases the world-owned temporary VM matching frame.
 			struct CleanUpTmpArchetypeMatches {
+				//! World owning the acquired scratch frame.
 				World& world;
+				//! True to retain allocated dedup-stamp pages while releasing the frame.
 				bool keepStamps;
 
+				//! Creates a guard for an already acquired matching frame.
+				//! \param world World owning the frame.
+				//! \param keepStamps Whether allocated dedup-stamp pages remain reusable.
 				explicit CleanUpTmpArchetypeMatches(World& world, bool keepStamps): world(world), keepStamps(keepStamps) {}
 				CleanUpTmpArchetypeMatches(const CleanUpTmpArchetypeMatches&) = delete;
 				CleanUpTmpArchetypeMatches(CleanUpTmpArchetypeMatches&&) = delete;
@@ -1122,7 +1194,7 @@ namespace gaia {
 				}
 			};
 
-			//! Tries to match the query against archetypes in @a entityToArchetypeMap.
+			//! Tries to match the query against archetypes in \a entityToArchetypeMap.
 			//! This is necessary so we do not iterate all chunks over and over again when running queries.
 			//! \param entityToArchetypeMap Lookup of archetypes by entity
 			//! \param allArchetypes List of all archetypes
@@ -1254,7 +1326,8 @@ namespace gaia {
 			//! \param archetype Archtype to match
 			//! \param targetEntities Entities related to the matched archetype
 			//! \param runtimeVarBindings Runtime bindings for query variables.
-			//! \param runtimeVarBindingMask Bitmask of variables already bound in @a runtimeVarBindings.
+			//! \param runtimeVarBindingMask Bitmask of variables already bound in \a runtimeVarBindings.
+			//! \return True when the archetype satisfies the query.
 			//! \warning Not thread safe. No two threads can call this at the same time.
 			bool match_one(
 					const Archetype& archetype, EntitySpan targetEntities,
@@ -1327,6 +1400,13 @@ namespace gaia {
 				return matched;
 			}
 
+			//! Refreshes persistent query matches when cache state or world archetypes changed.
+			//! \param entityToArchetypeMap World reverse index used to seed matching.
+			//! \param allArchetypes Current world archetypes.
+			//! \param entityToArchetypeMapVersions Revisions for reverse-index buckets.
+			//! \param archetypeLastId Greatest world-local archetype id currently allocated.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
 			void ensure_matches(
 					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 					const EntityToArchetypeVersionMap& entityToArchetypeMapVersions, ArchetypeId archetypeLastId,
@@ -1336,6 +1416,12 @@ namespace gaia {
 						runtimeVarBindingMask);
 			}
 
+			//! Rebuilds transient result membership without retaining persistent seed-cache state.
+			//! \param entityToArchetypeMap World reverse index used to seed matching.
+			//! \param allArchetypes Current world archetypes.
+			//! \param entityToArchetypeMapVersions Revisions for reverse-index buckets.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
 			void ensure_matches_transient(
 					const EntityToArchetypeMap& entityToArchetypeMap, std::span<const Archetype*> allArchetypes,
 					const EntityToArchetypeVersionMap& entityToArchetypeMapVersions,
@@ -1383,12 +1469,24 @@ namespace gaia {
 				ensure_group_data(false);
 			}
 
+			//! Ensures persistent result membership for one target archetype.
+			//! \param archetype Archetype to evaluate.
+			//! \param targetEntities Entities supplying target bindings for the evaluation.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
+			//! \return True when \a archetype satisfies the query.
 			bool ensure_matches_one(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
 				return match_one(archetype, targetEntities, runtimeVarBindings, runtimeVarBindingMask);
 			}
 
+			//! Rebuilds transient result membership by evaluating one target archetype.
+			//! \param archetype Archetype to evaluate.
+			//! \param targetEntities Entities supplying target bindings for the evaluation.
+			//! \param runtimeVarBindings Runtime values for query variable slots.
+			//! \param runtimeVarBindingMask Bitmask selecting bound slots in \a runtimeVarBindings.
+			//! \return True when \a archetype satisfies the query.
 			bool ensure_matches_one_transient(
 					const Archetype& archetype, EntitySpan targetEntities,
 					const cnt::sarray<Entity, MaxVarCnt>& runtimeVarBindings, uint8_t runtimeVarBindingMask) {
@@ -1766,7 +1864,7 @@ namespace gaia {
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
-			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \param dataFieldCount Number of valid entries in \a pDataFields. Pass zero to cache only chunks/ranges.
 			void
 			ensure_direct_chunks(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) {
 				ensure_comp_indices();
@@ -1850,6 +1948,7 @@ namespace gaia {
 			}
 
 			//! Returns true when query iteration needs cached inherited data payloads.
+			//! \return True when compiled terms require inherited component pointers.
 			GAIA_NODISCARD bool has_inherited_data_payload() const {
 				return ctx().data.deps.has_dep_flag(QueryCtx::DependencyHasInheritedDataTerms);
 			}
@@ -2039,7 +2138,7 @@ namespace gaia {
 				m_state.exec.archetypeInheritedData.push_back(inheritedData);
 			}
 
-			//! Records whether @a pArchetype requires the default prefab filter during result-cache iteration.
+			//! Records whether \a pArchetype requires the default prefab filter during result-cache iteration.
 			//! \param pArchetype Matched archetype added to the result cache.
 			void update_result_cache_prefab_filter_state(const Archetype* pArchetype) {
 				if (!matches_prefab_entities() && pArchetype->has(Prefab))
@@ -2436,7 +2535,7 @@ namespace gaia {
 			//! \param idxFrom First result-cache archetype index to include.
 			//! \param idxTo One-past-the-end result-cache archetype index to include.
 			//! \param pDataFields Query term indices to cache component data pointers for, in callback-argument order.
-			//! \param dataFieldCount Number of valid entries in @a pDataFields. Pass zero to cache only chunks/ranges.
+			//! \param dataFieldCount Number of valid entries in \a pDataFields. Pass zero to cache only chunks/ranges.
 			//! \return Flattened chunk entries for the requested result-cache archetype range.
 			std::span<const DirectChunkEntry>
 			direct_chunk_view(uint32_t idxFrom, uint32_t idxTo, const uint32_t* pDataFields, uint32_t dataFieldCount) const {

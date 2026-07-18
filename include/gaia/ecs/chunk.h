@@ -164,7 +164,7 @@ namespace gaia {
 			//! \param from Starting row
 			//! \param to Ending row
 			//! \return Span of read-only component data.
-			//! \warning It is expected the component column @a compIdx is valid for @a T.
+			//! \warning It is expected the component column \a compIdx is valid for \a T.
 			template <typename T>
 			GAIA_NODISCARD GAIA_FORCEINLINE auto view_inter_idx(uint32_t compIdx, uint32_t from, uint32_t to) const //
 					-> decltype(std::span<const uint8_t>{}) {
@@ -213,7 +213,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only span of the component data.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from Starting row
 			//! \param to Ending row
@@ -238,7 +238,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
 			//! \param compIdx Index of component column
@@ -330,7 +330,7 @@ namespace gaia {
 
 		public:
 			//! Returns a read-write span of the component data. Also updates the world version for the component.
-			//! \warning It is expected the component with @a compIdx is present. Undefined behavior otherwise.
+			//! \warning It is expected the component with \a compIdx is present. Undefined behavior otherwise.
 			//! \param compIdx Component index
 			//! \param row Row of entity in the chunk
 			//! \tparam WorldVersionUpdateWanted If true, the world version is updated as a result of the write access
@@ -370,9 +370,9 @@ namespace gaia {
 			}
 
 		private:
-			//! Returns the value stored in the component @a T on @a row in the chunk.
-			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! Returns the value stored in the component \a T on \a row in the chunk.
+			//! \warning It is expected the \a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param row Row of entity in the chunk
 			//! \return Value stored in the component if smaller than 8 bytes. Const reference to the value otherwise.
@@ -491,7 +491,7 @@ namespace gaia {
 				return pChunk;
 			}
 
-			//! Releases all memory allocated by @a pChunk.
+			//! Releases all memory allocated by \a pChunk.
 			//! \param pChunk Chunk which we want to destroy
 			static void free(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
@@ -606,7 +606,7 @@ namespace gaia {
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -634,7 +634,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -666,7 +666,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -696,9 +696,9 @@ namespace gaia {
 				return sview_mut<T>(0, m_header.count);
 			}
 
-			//! Marks the component @a T as modified. Best used with sview to manually trigger
+			//! Marks the component \a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If @a TriggerSetHooks is true, also triggers the component's set hooks.
+			//! If \a TriggerSetHooks is true, also triggers the component's set hooks.
 			template <
 					typename T
 #if GAIA_ENABLE_HOOKS
@@ -757,7 +757,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -779,7 +779,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \param from First valid entity row
 			//! \param to Last valid entity row
@@ -852,7 +852,7 @@ namespace gaia {
 				return row;
 			}
 
-			//! Copies all data associated with @a srcEntity into @a dstEntity.
+			//! Copies all data associated with \a srcEntity into \a dstEntity.
 			//! \param srcEntity Source entity
 			//! \param dstEntity Destination entity
 			//! \param recs Entity containers
@@ -883,7 +883,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in the same-archetype chunk.
+			//! Copies all data associated with \a srcRow into \a dstCount consecutive rows in the same-archetype chunk.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -916,7 +916,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a srcRow into @a dstCount consecutive rows in a foreign chunk.
+			//! Copies all data associated with \a srcRow into \a dstCount consecutive rows in a foreign chunk.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -976,7 +976,7 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Moves all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param entity Entity to move
 			//! \param row Entity's row within its chunk
 			//! \param recs Entity containers
@@ -1000,7 +1000,7 @@ namespace gaia {
 				}
 			}
 
-			//! Copies all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Copies all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -1063,7 +1063,7 @@ namespace gaia {
 				}
 			}
 
-			//! Moves all data associated with @a entity into the chunk so that it is stored at the row @a row.
+			//! Moves all data associated with \a entity into the chunk so that it is stored at the row \a row.
 			//! \param pSrcChunk Source chunk
 			//! \param srcRow Row in source chunk
 			//! \param pDstChunk Destination chunk
@@ -1126,7 +1126,7 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at @a row.
+			//! Tries to remove the entity at \a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
@@ -1190,7 +1190,7 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to remove the entity at row @a row.
+			//! Tries to remove the entity at row \a row.
 			//! Removal is done via swapping with last entity in chunk.
 			//! Upon removal, all associated data is also removed.
 			//! If the entity at the given row already is the last chunk entity, it is removed directly.
@@ -1223,9 +1223,9 @@ namespace gaia {
 				}
 			}
 
-			//! Tries to swap the entity at row @a rowA with the one at the row @a rowB.
+			//! Tries to swap the entity at row \a rowA with the one at the row \a rowB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If @a rowA equals @a rowB no swapping is performed.
+			//! If \a rowA equals \a rowB no swapping is performed.
 			//! \param rowA Row of the entityA within chunk
 			//! \param rowB Row of the entityB within chunk
 			//! \param[out] recs Entity container records
@@ -1268,9 +1268,9 @@ namespace gaia {
 				ecB.pEntity = &ev[rowA];
 			}
 
-			//! Tries to swap @a entityA with @a entityB.
+			//! Tries to swap \a entityA with \a entityB.
 			//! When swapping, all data associated with the two entities is swapped as well.
-			//! If @a entityA and @a entityB are the same entity no swapping is performed.
+			//! If \a entityA and \a entityB are the same entity no swapping is performed.
 			//! \param world Parent world
 			//! \param entityA First entity
 			//! \param entityB Second entity
@@ -1442,7 +1442,7 @@ namespace gaia {
 			// Check component presence
 			//----------------------------------------------------------------------
 
-			//! Checks if a component/entity @a entity is present in the chunk.
+			//! Checks if a component/entity \a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if found. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
@@ -1450,7 +1450,7 @@ namespace gaia {
 				return core::has(ids, entity);
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component or pair
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -1469,10 +1469,10 @@ namespace gaia {
 			// Set component data
 			//----------------------------------------------------------------------
 
-			//! Sets the value of the unique component @a T on @a row in the chunk.
+			//! Sets the value of the unique component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row) {
 				verify_comp<T>();
@@ -1526,10 +1526,10 @@ namespace gaia {
 				return comp_mut_idx<T, true>(0, compIdx);
 			}
 
-			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
+			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			template <typename T>
 			decltype(auto) set(uint16_t row, Entity type) {
 				const uint32_t compIdx = comp_idx(type);
@@ -1547,10 +1547,10 @@ namespace gaia {
 				return comp_mut_idx<T, true>(row, compIdx);
 			}
 
-			//! Sets the value of the unique component @a T on @a row in the chunk.
+			//! Sets the value of the unique component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row) {
@@ -1587,11 +1587,11 @@ namespace gaia {
 				return comp_mut_idx<T, false>(0, compIdx);
 			}
 
-			//! Sets the value of a generic entity @a type at the position @a row in the chunk.
+			//! Sets the value of a generic entity \a type at the position \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \warning World version is not updated so Query filters will not be able to catch this change.
 			template <typename T>
 			decltype(auto) sset(uint16_t row, Entity type) {
@@ -1612,11 +1612,11 @@ namespace gaia {
 			// Read component data
 			//----------------------------------------------------------------------
 
-			//! Returns the value stored in the generic component @a T on @a row in the chunk.
+			//! Returns the value stored in the generic component \a T on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
-			//! \warning It is expected the @a row is valid. Undefined behavior otherwise.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the \a row is valid. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get(uint16_t row) const {
@@ -1627,7 +1627,7 @@ namespace gaia {
 				return comp_inter<T>(row);
 			}
 
-			//! Returns the value stored in the generic component @a T using a pre-resolved component column.
+			//! Returns the value stored in the generic component \a T using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param compIdx Pre-resolved component column index
@@ -1640,7 +1640,7 @@ namespace gaia {
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
-			//! Returns the value stored in the generic component @a type on @a row in the chunk.
+			//! Returns the value stored in the generic component \a type on \a row in the chunk.
 			//! \tparam T Component or pair
 			//! \param row Row of entity in the chunk
 			//! \param type Component/entity/pair
@@ -1657,9 +1657,9 @@ namespace gaia {
 				return comp_inter_idx<T>(row, compIdx);
 			}
 
-			//! Returns the value stored in the unique component @a T.
+			//! Returns the value stored in the unique component \a T.
 			//! \tparam T Component or pair
-			//! \warning It is expected the unique component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the unique component \a T is present. Undefined behavior otherwise.
 			//! \return Value stored in the component.
 			template <typename T>
 			GAIA_NODISCARD decltype(auto) get() const {
@@ -1670,7 +1670,7 @@ namespace gaia {
 				return comp_inter<T>(0);
 			}
 
-			//! Returns the value stored in the unique component @a T using a pre-resolved component column.
+			//! Returns the value stored in the unique component \a T using a pre-resolved component column.
 			//! \tparam T Component or pair
 			//! \param compIdx Pre-resolved component column index
 			template <typename T>
@@ -1693,7 +1693,7 @@ namespace gaia {
 				}
 			}
 
-			//! Returns the internal index of a component based on the provided @a entity.
+			//! Returns the internal index of a component based on the provided \a entity.
 			//! \param entity Component
 			//! \return Component index if the component was found. -1 otherwise.
 			//! \warning The component id must be present in the array.
@@ -1701,7 +1701,7 @@ namespace gaia {
 				return ecs::comp_idx<ChunkHeader::MAX_COMPONENTS>(m_records.pCompEntities, entity);
 			}
 
-			//! Returns the internal index of a component based on the provided @a entity.
+			//! Returns the internal index of a component based on the provided \a entity.
 			//! \param entity Component
 			//! \param offset Component offset
 			//! \return Component index if the component was found. -1 otherwise.
@@ -1848,7 +1848,7 @@ namespace gaia {
 				return ::gaia::ecs::version_changed(changeVersion, requiredVersion);
 			}
 
-			//! Returns true if entity order changed since @a requiredVersion.
+			//! Returns true if entity order changed since \a requiredVersion.
 			//! This is narrower than changed(requiredVersion): unrelated component writes do not affect it.
 			GAIA_NODISCARD bool entity_order_changed(uint32_t requiredVersion) const {
 				return ::gaia::ecs::version_changed(m_header.entityOrderVersion, requiredVersion);

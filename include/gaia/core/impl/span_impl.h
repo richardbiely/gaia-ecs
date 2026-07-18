@@ -17,7 +17,9 @@
 
 namespace gaia {
 	namespace core {
+		//! Signed type used for span distances.
 		using span_diff_type = size_t;
+		//! Unsigned type used for span sizes and extents.
 		using span_size_type = size_t;
 	} // namespace core
 
@@ -29,11 +31,16 @@ namespace gaia {
 	} // namespace cnt
 
 	namespace core {
+		//! Sentinel extent indicating that a span size is stored at runtime.
 		inline constexpr span_size_type DynamicSpanExtent = (span_size_type)-1;
 
+		//! Non-owning view over a contiguous sequence of objects.
+		//! \tparam T Element type.
+		//! \tparam Extent Compile-time element count, or DynamicSpanExtent for a runtime count.
 		template <typename T, span_size_type Extent = DynamicSpanExtent>
 		class span;
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, span_size_type Extent>
 			struct span_storage {
@@ -94,7 +101,11 @@ namespace gaia {
 									typename std::remove_pointer_t<decltype(detail::data(std::declval<T>()))> (*)[],
 									E (*)[]>::value>::type>: std::true_type {};
 		} // namespace detail
+		//! \endcond
 
+		//! Non-owning view over a contiguous sequence of objects.
+		//! \tparam T Element type.
+		//! \tparam Extent Compile-time element count, or DynamicSpanExtent for a runtime count.
 		template <typename T, span_size_type Extent>
 		class span {
 			static_assert(
@@ -108,36 +119,60 @@ namespace gaia {
 			using m_datatype = detail::span_storage<T, Extent>;
 
 		public:
+			//! Element type, including const qualification.
 			using element_kind = T;
+			//! Element type without const qualification.
 			using value_type = typename std::remove_cv<T>::type;
+			//! Type used for element counts.
 			using size_type = span_size_type;
+			//! Type used for iterator differences.
 			using difference_type = span_diff_type;
+			//! Pointer to an element.
 			using pointer = element_kind*;
+			//! Pointer to a const element.
 			using const_pointer = const element_kind*;
+			//! Reference to an element.
 			using reference = element_kind&;
+			//! Reference to a const element.
 			using const_reference = const element_kind&;
 
+			//! Mutable iterator type.
 			using iterator = pointer;
+			//! Const iterator type.
 			using const_iterator = const_pointer;
+			//! Gaia-ECS iterator category exposed by span iterators.
 			using iterator_type = core::random_access_iterator_tag;
 
+			//! Compile-time extent of the view.
 			static constexpr size_type extent = Extent;
 
 		private:
 			m_datatype m_data{};
 
 		public:
+			//! Constructs an empty span when its extent permits an empty view.
+			//! \tparam E Extent checked by the constructor constraint.
 			template <span_size_type E = Extent, typename std::enable_if<(E == DynamicSpanExtent || E <= 0), int>::type = 0>
 			constexpr span() noexcept {}
 
+			//! Constructs a view over count elements starting at ptr.
+			//! \param ptr Pointer to the first element.
+			//! \param count Number of elements in the view.
 			constexpr span(pointer ptr, size_type count): m_data(ptr, count) {
 				GAIA_ASSERT(extent == DynamicSpanExtent || extent == count);
 			}
 
+			//! Constructs a view over the half-open range [begin, end).
+			//! \param begin Pointer to the first element.
+			//! \param end Pointer one past the final element.
 			constexpr span(pointer begin, pointer end): m_data(begin, end - begin) {
 				GAIA_ASSERT(extent == DynamicSpanExtent || ((uintptr_t)(end - begin) == (uintptr_t)extent));
 			}
 
+			//! Constructs a view over a compatible built-in array.
+			//! \tparam N Array element count.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param arr Array to view.
 			template <
 					span_size_type N, span_size_type E = Extent,
 					typename std::enable_if<
@@ -146,6 +181,10 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(element_kind (&arr)[N]) noexcept: m_data(arr, N) {}
 
+			//! Constructs a dynamic-extent view over a compatible mutable container.
+			//! \tparam Container Container type exposing contiguous data and size.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param cont Container to view.
 			template <
 					typename Container, span_size_type E = Extent,
 					typename std::enable_if<
@@ -154,6 +193,10 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
 
+			//! Constructs a dynamic-extent view over a compatible const container.
+			//! \tparam Container Container type exposing contiguous data and size.
+			//! \tparam E Extent checked by the constructor constraint.
+			//! \param cont Container to view.
 			template <
 					typename Container, span_size_type E = Extent,
 					typename std::enable_if<
@@ -162,9 +205,13 @@ namespace gaia {
 							int>::type = 0>
 			constexpr span(const Container& cont): m_data(detail::data(cont), detail::size(cont)) {}
 
-			constexpr span(const span& other) noexcept = default;
-			constexpr span& operator=(const span& other) noexcept = default;
+			constexpr span(const span&) noexcept = default;
+			constexpr span& operator=(const span&) noexcept = default;
 
+			//! Constructs a compatible span from another element type or extent.
+			//! \tparam T2 Source element type.
+			//! \tparam Extent2 Source extent.
+			//! \param other Source view.
 			template <
 					typename T2, span_size_type Extent2,
 					typename std::enable_if<
@@ -175,89 +222,137 @@ namespace gaia {
 
 			~span() noexcept = default;
 
+			//! Returns a pointer to the first element.
+			//! \return Pointer to the first element, or nullptr for a default-constructed empty span.
 			GAIA_NODISCARD constexpr pointer data() const noexcept {
 				return m_data.beg;
 			}
 
+			//! Returns the number of elements in the view.
+			//! \return Element count.
 			GAIA_NODISCARD constexpr size_type size() const noexcept {
 				return size_type(m_data.end - m_data.beg);
 			}
 
+			//! Checks whether the view is empty.
+			//! \return True when size() is zero.
 			GAIA_NODISCARD constexpr bool empty() const noexcept {
 				return m_data.beg == m_data.end;
 			}
 
+			//! Returns the element at index.
+			//! \param index Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD constexpr reference operator[](size_type index) const {
 				GAIA_ASSERT((uintptr_t)m_data.beg + index < (uintptr_t)m_data.end);
 				return *(m_data.beg + index);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Beginning iterator.
 			GAIA_NODISCARD constexpr iterator begin() noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Beginning iterator.
 			GAIA_NODISCARD constexpr iterator begin() const noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns a const iterator to the first element.
+			//! \return Const beginning iterator.
 			GAIA_NODISCARD constexpr const_iterator cbegin() const noexcept {
 				return {m_data.beg};
 			}
 
+			//! Returns an iterator one past the final element.
+			//! \return Ending iterator.
 			GAIA_NODISCARD constexpr iterator end() noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns a const iterator one past the final element.
+			//! \return Const ending iterator.
 			GAIA_NODISCARD constexpr const_iterator end() const noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns a const iterator one past the final element.
+			//! \return Const ending iterator.
 			GAIA_NODISCARD constexpr const_iterator cend() const noexcept {
 				return {m_data.end};
 			}
 
+			//! Returns the first Count elements with a compile-time extent.
+			//! \tparam Count Number of elements in the result.
+			//! \return Fixed-extent view over the first Count elements.
 			template <span_size_type Count>
 			GAIA_NODISCARD constexpr span<element_kind, Count> first() const {
 				GAIA_ASSERT(Count <= size());
 				return {m_data.beg, Count};
 			}
 
+			//! Returns a dynamic-extent view over the first count elements.
+			//! \param count Number of elements in the result.
+			//! \return View over the requested prefix.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> first(size_type count) const {
 				GAIA_ASSERT(count <= size());
 				return {m_data.beg, count};
 			}
 
+			//! Returns the last Count elements with a compile-time extent.
+			//! \tparam Count Number of elements in the result.
+			//! \return Fixed-extent view over the last Count elements.
 			template <span_size_type Count>
 			GAIA_NODISCARD constexpr span<element_kind, Count> last() const {
 				GAIA_ASSERT(Count <= size());
 				return {m_data.beg + (size() - Count), Count};
 			}
 
+			//! Returns a dynamic-extent view over the last count elements.
+			//! \param count Number of elements in the result.
+			//! \return View over the requested suffix.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent> last(size_type count) const {
 				GAIA_ASSERT(count <= size());
 				return {m_data.beg + (size() - count), count};
 			}
 
+			//! Returns the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD constexpr reference front() const {
 				GAIA_ASSERT(!empty());
 				return *m_data.beg;
 			}
 
+			//! Returns the final element.
+			//! \return Reference to the final element.
 			GAIA_NODISCARD constexpr reference back() const {
 				GAIA_ASSERT(!empty());
 				return *(m_data.beg + (size() - 1));
 			}
 
+			//! Result type for a compile-time subspan selection.
+			//! \tparam Offset Starting element index.
+			//! \tparam Count Requested element count, or DynamicSpanExtent for the remaining elements.
 			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
 			using subspan_return_t = span<
 					T, Count != DynamicSpanExtent ? Count : (Extent != DynamicSpanExtent ? Extent - Offset : DynamicSpanExtent)>;
 
+			//! Returns a subspan selected with compile-time offset and count.
+			//! \tparam Offset Starting element index.
+			//! \tparam Count Requested element count, or DynamicSpanExtent for the remaining elements.
+			//! \return View over the selected elements.
 			template <span_size_type Offset, span_size_type Count = DynamicSpanExtent>
 			GAIA_NODISCARD constexpr subspan_return_t<Offset, Count> subspan() const {
 				GAIA_ASSERT(Offset <= size() && (Count == DynamicSpanExtent || Offset + Count <= size()));
 				return {m_data.beg + Offset, Count != DynamicSpanExtent ? Count : size() - Offset};
 			}
 
+			//! Returns a dynamic-extent subspan.
+			//! \param offset Starting element index.
+			//! \param count Requested element count, or DynamicSpanExtent for the remaining elements.
+			//! \return View over the selected elements.
 			GAIA_NODISCARD constexpr span<element_kind, DynamicSpanExtent>
 			subspan(size_type offset, size_type count = DynamicSpanExtent) const {
 				GAIA_ASSERT(offset <= size() && (count == DynamicSpanExtent || offset + count <= size()));
@@ -265,21 +360,46 @@ namespace gaia {
 			}
 		};
 
+		//! Deduces a fixed-extent span from a built-in array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(T (&)[N]) -> span<T, N>;
+		span(T (&arr)[N]) -> span<T, N>;
 
+		//! Deduces a fixed-extent span from a mutable Gaia-ECS static array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(gaia::cnt::sarray<T, N>&) -> span<T, N>;
+		span(gaia::cnt::sarray<T, N>& arr) -> span<T, N>;
 
+		//! Deduces a fixed-extent const span from a const Gaia-ECS static array.
+		//! \tparam T Element type.
+		//! \tparam N Array element count.
+		//! \param arr Array to view.
 		template <typename T, size_t N>
-		span(const gaia::cnt::sarray<T, N>&) -> span<const T, N>;
+		span(const gaia::cnt::sarray<T, N>& arr) -> span<const T, N>;
 
+		//! Deduces a dynamic-extent span from a mutable contiguous container.
+		//! \tparam Container Container type.
+		//! \param cont Container to view.
 		template <typename Container>
-		span(Container&) -> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
+		span(Container& cont)
+				-> span<typename std::remove_reference<decltype(*detail::data(std::declval<Container&>()))>::type>;
 
+		//! Deduces a dynamic-extent const span from a const contiguous container.
+		//! \tparam Container Container type.
+		//! \param cont Container to view.
 		template <typename Container>
-		span(const Container&) -> span<const typename Container::value_type>;
+		span(const Container& cont) -> span<const typename Container::value_type>;
 
+		//! Returns the element at compile-time index N.
+		//! \tparam N Element index.
+		//! \tparam E Element type.
+		//! \tparam S Span extent.
+		//! \param s Span to access.
+		//! \return Reference to element N.
 		template <span_size_type N, typename E, span_size_type S>
 		constexpr auto get(span<E, S> s) -> decltype(s[N]) {
 			return s[N];
@@ -287,6 +407,7 @@ namespace gaia {
 	} // namespace core
 } // namespace gaia
 
+//! \cond INTERNAL
 namespace std {
 	template <typename T, size_t Extent>
 	struct tuple_size<gaia::core::span<T, Extent>>: public integral_constant<size_t, Extent> {};
@@ -300,3 +421,4 @@ namespace std {
 		using type = T;
 	};
 } // end namespace std
+//! \endcond

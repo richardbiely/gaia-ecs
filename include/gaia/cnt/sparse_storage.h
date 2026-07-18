@@ -14,15 +14,18 @@
 
 namespace gaia {
 	namespace cnt {
+		//! Identifier used to address an element in sparse storage.
 		using sparse_id = uint64_t;
 
 		namespace detail {
+			//! \cond INTERNAL
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 
 			constexpr static sparse_id InvalidSparseId = (sparse_id)-1;
 			constexpr static size_type InvalidDenseId = BadIndex - 1;
 			inline constexpr sparse_id EmptyDenseId = InvalidSparseId;
+			//! \endcond
 
 			//! Returns dense data or a valid shared sentinel for an unallocated empty array.
 			//! \tparam Dense Dense sparse-id array type.
@@ -34,12 +37,19 @@ namespace gaia {
 				return pData != nullptr ? pData : &EmptyDenseId;
 			}
 
+			//! \cond INTERNAL
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename>
 			class sparse_page;
+			//! \endcond
 		} // namespace detail
 
 		template <typename T>
+		//! Converts an item to the sparse identifier used by sparse_storage.
+		//! \tparam T Item type. Non-empty types must specialize this conversion.
 		struct to_sparse_id {
+			//! Returns the sparse identifier for an item.
+			//! \param item Item to convert.
+			//! \return Sparse identifier supplied by a specialization.
 			static sparse_id get(const T& item) noexcept {
 				(void)item;
 				static_assert(
@@ -50,14 +60,18 @@ namespace gaia {
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
+		//! Mutable random-access iterator over sparse-storage values.
+		//! \tparam T Stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct sparse_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = T*;
-			using reference = T&;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = sparse_iterator;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = T; //!< Stored value type.
+			using pointer = T*; //!< Pointer to a stored value.
+			using reference = T&; //!< Reference to a stored value.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -70,8 +84,13 @@ namespace gaia {
 			page_type* m_pPages;
 
 		public:
+			//! Constructs an iterator for a dense position and sparse-page array.
+			//! \param pDense Dense sparse-id position.
+			//! \param pPages Sparse-page array containing the values.
 			sparse_iterator(const sparse_id* pDense, page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
+			//! Returns the value at the current position.
+			//! \return Mutable reference to the current value.
 			reference operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -79,6 +98,8 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return page.set_data(did);
 			}
+			//! Returns a pointer to the value at the current position.
+			//! \return Pointer to the current value.
 			pointer operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -86,76 +107,124 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return &page.set_data(did);
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous value.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous value.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset, m_pPages};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
+		//! Constant random-access iterator over sparse-storage values.
+		//! \tparam T Stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct const_sparse_iterator {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = T;
-			using pointer = const T*;
-			using reference = const T&;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = const_sparse_iterator;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = T; //!< Stored value type.
+			using pointer = const T*; //!< Pointer to a stored value.
+			using reference = const T&; //!< Reference to a stored value.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = const_sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -168,8 +237,13 @@ namespace gaia {
 			const page_type* m_pPages;
 
 		public:
+			//! Constructs a constant iterator for a dense position and sparse-page array.
+			//! \param pDense Dense sparse-id position.
+			//! \param pPages Sparse-page array containing the values.
 			const_sparse_iterator(const sparse_id* pDense, const page_type* pPages): m_pDense(pDense), m_pPages(pPages) {}
 
+			//! Returns the value at the current position.
+			//! \return Constant reference to the current value.
 			reference operator*() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -177,6 +251,8 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return page.get_data(did);
 			}
+			//! Returns a pointer to the value at the current position.
+			//! \return Pointer to the current value.
 			pointer operator->() const {
 				const auto sid = *m_pDense;
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -184,76 +260,124 @@ namespace gaia {
 				auto& page = m_pPages[pid];
 				return &page.get_data(did);
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next value.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous value.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous value.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset, m_pPages};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset, m_pPages};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
+		//! Mutable random-access iterator over sparse identifiers for empty stored types.
+		//! \tparam T Empty stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = sparse_id;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = sparse_id; //!< Sparse identifier value type.
 			// using pointer = sparse_id*; not supported
 			// using reference = sparse_id&; not supported
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = sparse_iterator;
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -265,86 +389,140 @@ namespace gaia {
 			const value_type* m_pDense;
 
 		public:
+			//! Constructs an iterator for a dense sparse-id position.
+			//! \param pDense Dense sparse-id position.
 			sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator*() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator->() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		template <typename T, uint32_t PageCapacity, typename Allocator>
+		//! Constant random-access iterator over sparse identifiers for empty stored types.
+		//! \tparam T Empty stored value type.
+		//! \tparam PageCapacity Number of sparse entries represented by each page.
+		//! \tparam Allocator Allocator used by the sparse pages.
 		struct const_sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
-			using iterator_category = core::random_access_iterator_tag;
-			using value_type = sparse_id;
+			using iterator_category = core::random_access_iterator_tag; //!< Iterator category.
+			using value_type = sparse_id; //!< Sparse identifier value type.
 			// using pointer = sparse_id*; not supported
 			// using reference = sparse_id&; not supported
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
-			using iterator = const_sparse_iterator;
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for iterator offsets.
+			using iterator = const_sparse_iterator; //!< Iterator type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_iterator must be a power of 2");
@@ -356,78 +534,129 @@ namespace gaia {
 			const value_type* m_pDense;
 
 		public:
+			//! Constructs a constant iterator for a dense sparse-id position.
+			//! \param pDense Dense sparse-id position.
 			const_sparse_iterator(const value_type* pDense): m_pDense(pDense) {}
 
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator*() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns the sparse identifier at the current position.
+			//! \return Current sparse identifier.
 			value_type operator->() const {
 				const auto sid = *m_pDense;
 				return sid;
 			}
+			//! Returns an iterator at an offset from the current position.
+			//! \param offset Number of positions to advance.
+			//! \return Offset iterator.
 			iterator operator[](size_type offset) const {
 				return {m_pDense + offset};
 			}
 
+			//! Advances the iterator.
+			//! \param diff Number of positions to advance.
+			//! \return This iterator after advancing.
 			iterator& operator+=(size_type diff) {
 				m_pDense += diff;
 				return *this;
 			}
+			//! Moves the iterator backward.
+			//! \param diff Number of positions to retreat.
+			//! \return This iterator after retreating.
 			iterator& operator-=(size_type diff) {
 				m_pDense -= diff;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return This iterator after advancing.
 			iterator& operator++() {
 				++m_pDense;
 				return *this;
 			}
+			//! Advances to the next sparse identifier.
+			//! \return Iterator value before advancing.
 			iterator operator++(int) {
 				iterator temp(*this);
 				++*this;
 				return temp;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return This iterator after retreating.
 			iterator& operator--() {
 				--m_pDense;
 				return *this;
 			}
+			//! Moves to the previous sparse identifier.
+			//! \return Iterator value before retreating.
 			iterator operator--(int) {
 				iterator temp(*this);
 				--*this;
 				return temp;
 			}
 
+			//! Returns an iterator advanced by an offset.
+			//! \param offset Number of positions to advance.
+			//! \return Advanced iterator.
 			iterator operator+(size_type offset) const {
 				return {m_pDense + offset};
 			}
+			//! Returns an iterator moved backward by an offset.
+			//! \param offset Number of positions to retreat.
+			//! \return Retreated iterator.
 			iterator operator-(size_type offset) const {
 				return {m_pDense - offset};
 			}
+			//! Returns the distance from another iterator.
+			//! \param other Iterator to subtract.
+			//! \return Number of positions between the iterators.
 			difference_type operator-(const iterator& other) const {
 				return (difference_type)(m_pDense - other.m_pDense);
 			}
 
+			//! Checks whether two iterators refer to the same position.
+			//! \param other Iterator to compare.
+			//! \return True if the positions are equal.
 			GAIA_NODISCARD bool operator==(const iterator& other) const {
 				return m_pDense == other.m_pDense;
 			}
+			//! Checks whether two iterators refer to different positions.
+			//! \param other Iterator to compare.
+			//! \return True if the positions differ.
 			GAIA_NODISCARD bool operator!=(const iterator& other) const {
 				return m_pDense != other.m_pDense;
 			}
+			//! Checks whether this iterator follows another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position follows the other position.
 			GAIA_NODISCARD bool operator>(const iterator& other) const {
 				return m_pDense > other.m_pDense;
 			}
+			//! Checks whether this iterator does not precede another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or after the other position.
 			GAIA_NODISCARD bool operator>=(const iterator& other) const {
 				return m_pDense >= other.m_pDense;
 			}
+			//! Checks whether this iterator precedes another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position precedes the other position.
 			GAIA_NODISCARD bool operator<(const iterator& other) const {
 				return m_pDense < other.m_pDense;
 			}
+			//! Checks whether this iterator does not follow another iterator.
+			//! \param other Iterator to compare.
+			//! \return True if this position is at or before the other position.
 			GAIA_NODISCARD bool operator<=(const iterator& other) const {
 				return m_pDense <= other.m_pDense;
 			}
 		};
 
 		namespace detail {
+			//! \cond INTERNAL
 			template <typename T, uint32_t PageCapacity, typename Allocator, typename = void>
 			class sparse_page {
 			public:
@@ -734,7 +963,7 @@ namespace gaia {
 				}
 			};
 
-			//! Sparse page. Specialized for zero-size @a T
+			//! Sparse page. Specialized for zero-size \a T
 			template <typename T, uint32_t PageCapacity, typename Allocator>
 			class sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 			public:
@@ -977,27 +1206,31 @@ namespace gaia {
 					return !operator==(other);
 				}
 			};
+			//! \endcond
 		} // namespace detail
 
-		//! Array with variable size of elements of type @a T allocated on heap.
-		//! Allocates enough memory to support @a PageCapacity elements.
-		//! Uses @a Allocator to allocate memory.
+		//! Array with variable size of elements of type \a T allocated on heap.
+		//! Allocates enough memory to support \a PageCapacity elements.
+		//! Uses \a Allocator to allocate memory.
+		//! \tparam T Stored value type.
+		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam Allocator Allocator used by the storage pages.
 		template <
 				typename T, uint32_t PageCapacity = 4096, typename Allocator = mem::DefaultAllocatorAdaptor, typename = void>
 		class sparse_storage {
 		public:
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
+			using value_type = T; //!< Stored value type.
+			using reference = T&; //!< Mutable value reference.
+			using const_reference = const T&; //!< Constant value reference.
+			using pointer = T*; //!< Mutable value pointer.
+			using const_pointer = const T*; //!< Constant value pointer.
+			using view_policy = mem::data_view_policy_aos<T>; //!< Data access policy.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for sizes and offsets.
 
-			using iterator = sparse_iterator<T, PageCapacity, Allocator>;
-			using const_iterator = const_sparse_iterator<T, PageCapacity, Allocator>;
-			using page_type = detail::sparse_page<T, PageCapacity, Allocator>;
+			using iterator = sparse_iterator<T, PageCapacity, Allocator>; //!< Mutable iterator type.
+			using const_iterator = const_sparse_iterator<T, PageCapacity, Allocator>; //!< Constant iterator type.
+			using page_type = detail::sparse_page<T, PageCapacity, Allocator>; //!< Internal sparse-page type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
@@ -1031,6 +1264,8 @@ namespace gaia {
 		public:
 			constexpr sparse_storage() noexcept = default;
 
+			//! Copy-constructs the storage.
+			//! \param other Storage to copy.
 			sparse_storage(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1039,6 +1274,9 @@ namespace gaia {
 				m_cnt = other.m_cnt;
 			}
 
+			//! Copy-assigns the storage.
+			//! \param other Storage to copy.
+			//! \return This storage.
 			sparse_storage& operator=(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1049,6 +1287,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs the storage.
+			//! \param other Storage to move from.
 			sparse_storage(sparse_storage&& other) noexcept {
 				// This is a newly constructed object.
 				// It can't have any memory allocated, yet.
@@ -1063,6 +1303,9 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Move-assigns the storage.
+			//! \param other Storage to move from.
+			//! \return This storage.
 			sparse_storage& operator=(sparse_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1083,6 +1326,9 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns the value associated with a sparse identifier.
+			//! \param sid Sparse identifier to access. It must exist.
+			//! \return Mutable reference to the stored value.
 			GAIA_NODISCARD decltype(auto) operator[](sparse_id sid) noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -1092,6 +1338,9 @@ namespace gaia {
 				return view_policy::set({(typename view_policy::TargetCastType)page.data(), PageCapacity}, did);
 			}
 
+			//! Returns the value associated with a sparse identifier.
+			//! \param sid Sparse identifier to access. It must exist.
+			//! \return Constant reference to the stored value.
 			GAIA_NODISCARD decltype(auto) operator[](sparse_id sid) const noexcept {
 				GAIA_ASSERT(has(sid));
 				const auto pid = uint32_t(sid >> to_page_index);
@@ -1103,7 +1352,9 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
-			//! Checks if an item with a given sparse id \param sid exists
+			//! Checks whether an item with a sparse identifier exists.
+			//! \param sid Sparse identifier to find.
+			//! \return True if the identifier is present.
 			GAIA_NODISCARD bool has(sparse_id sid) const {
 				if (sid == detail::InvalidSparseId)
 					return false;
@@ -1123,18 +1374,20 @@ namespace gaia {
 				return id != detail::InvalidDenseId;
 			}
 
-			//! Checks if an item @a arg exists within the storage
+			//! Checks if an item \a arg exists within the storage
 			//! \param arg Data
+			//! \return True if the item is present.
 			GAIA_NODISCARD bool has(const T& arg) const {
 				const auto sid = to_sparse_id<T>::get(arg);
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 				return has(sid);
 			}
 
-			//! Inserts the item @a arg into the storage.
+			//! Inserts the item \a arg into the storage.
 			//! \param arg Data
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			template <typename TType>
+			//! \tparam TType Inserted value type.
 			decltype(auto) add(TType&& arg) {
 				const auto sid = to_sparse_id<T>::get(arg);
 				if (has(sid)) {
@@ -1155,7 +1408,7 @@ namespace gaia {
 				return page.add_data(did, GAIA_FWD(arg));
 			}
 
-			//! Update the record at the index @a sid.
+			//! Update the record at the index \a sid.
 			//! \param sid Sparse id
 			//! \return Reference to the inserted record or nothing in case it is has a SoA layout.
 			decltype(auto) set(sparse_id sid) {
@@ -1168,7 +1421,7 @@ namespace gaia {
 				return page.set_data(did);
 			}
 
-			//! Removes the item at the index @a sid from the storage.
+			//! Removes the item at the index \a sid from the storage.
 			//! \param sid Sparse id
 			void del(sparse_id sid) noexcept {
 				GAIA_ASSERT(!empty());
@@ -1198,7 +1451,7 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Removes the item @a arg from the storage.
+			//! Removes the item \a arg from the storage.
 			//! \param arg Data
 			void del(const T& arg) noexcept {
 				const auto sid = to_sparse_id<T>::get(arg);
@@ -1212,26 +1465,34 @@ namespace gaia {
 				m_cnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of items inserted into the storage.
+			//! \return Number of stored items.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no items.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the first stored value.
+			//! \return Mutable reference to the first value.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Returns the first stored value.
+			//! \return Constant reference to the first value.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Returns the last stored value.
+			//! \return Mutable reference to the last value.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -1242,6 +1503,8 @@ namespace gaia {
 				return (reference)m_pages[pid].set_data(did);
 			}
 
+			//! Returns the last stored value.
+			//! \return Constant reference to the last value.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -1252,30 +1515,45 @@ namespace gaia {
 				return (const_reference)m_pages[pid].get_data(did);
 			}
 
+			//! Returns an iterator to the first value.
+			//! \return Mutable begin iterator.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns an iterator to the first value.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns a constant iterator to the first value.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense), m_pages.data());
 			}
 
+			//! Returns an iterator past the last value.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Returns an iterator past the last value.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Returns a constant iterator past the last value.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size(), m_pages.data());
 			}
 
+			//! Checks whether two storages contain equal values at equal sparse identifiers.
+			//! \param other Storage to compare.
+			//! \return True if the storages are equal.
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
 				// The number of items needs to be the same
 				if (m_cnt != other.m_cnt)
@@ -1305,30 +1583,41 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare.
+			//! \return True if the storages are not equal.
 			GAIA_NODISCARD constexpr bool operator!=(const sparse_storage& other) const {
 				return !operator==(other);
 			}
 		};
 
-		//! Array with variable size of elements of type @a T allocated on heap.
-		//! Allocates enough memory to support @a PageCapacity elements.
-		//! Uses @a Allocator to allocate memory.
+		//! Array with variable size of elements of type \a T allocated on heap.
+		//! Allocates enough memory to support \a PageCapacity elements.
+		//! Uses \a Allocator to allocate memory.
 		//! This version is optimized for tags (data of zero size).
+		//! \tparam T Empty stored value type.
+		//! 	param PageCapacity Number of sparse entries represented by each page. Must be a power of two.
+		//! \tparam Allocator Allocator used by the storage pages.
 		template <typename T, uint32_t PageCapacity, typename Allocator>
 		class sparse_storage<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>> {
 		public:
-			using value_type = T;
-			using reference = T&;
-			using const_reference = const T&;
-			using pointer = T*;
-			using const_pointer = const T*;
-			using view_policy = mem::data_view_policy_aos<T>;
-			using difference_type = detail::difference_type;
-			using size_type = detail::size_type;
+			using value_type = T; //!< Stored empty value type.
+			using reference = T&; //!< Mutable value reference.
+			using const_reference = const T&; //!< Constant value reference.
+			using pointer = T*; //!< Mutable value pointer.
+			using const_pointer = const T*; //!< Constant value pointer.
+			using view_policy = mem::data_view_policy_aos<T>; //!< Data access policy.
+			using difference_type = detail::difference_type; //!< Type used for iterator distances.
+			using size_type = detail::size_type; //!< Type used for sizes and offsets.
 
-			using iterator = sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
-			using const_iterator = sparse_iterator<const T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
-			using page_type = detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>;
+			using iterator =
+					sparse_iterator<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Mutable iterator type.
+			using const_iterator =
+					sparse_iterator<const T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Constant
+																																																	 //!< iterator type.
+			using page_type =
+					detail::sparse_page<T, PageCapacity, Allocator, std::enable_if_t<std::is_empty_v<T>>>; //!< Internal
+																																																 //!< sparse-page type.
 
 		private:
 			static_assert((PageCapacity & (PageCapacity - 1)) == 0, "PageCapacity of sparse_storage must be a power of 2");
@@ -1362,6 +1651,8 @@ namespace gaia {
 		public:
 			constexpr sparse_storage() noexcept = default;
 
+			//! Copy-constructs the storage.
+			//! \param other Storage to copy.
 			sparse_storage(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1370,6 +1661,9 @@ namespace gaia {
 				m_cnt = other.m_cnt;
 			}
 
+			//! Copy-assigns the storage.
+			//! \param other Storage to copy.
+			//! \return This storage.
 			sparse_storage& operator=(const sparse_storage& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1380,6 +1674,8 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-constructs the storage.
+			//! \param other Storage to move from.
 			sparse_storage(sparse_storage&& other) noexcept {
 				// This is a newly constructed object.
 				// It can't have any memory allocated, yet.
@@ -1394,6 +1690,9 @@ namespace gaia {
 				other.m_cnt = size_type(0);
 			}
 
+			//! Move-assigns the storage.
+			//! \param other Storage to move from.
+			//! \return This storage.
 			sparse_storage& operator=(sparse_storage&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -1410,7 +1709,9 @@ namespace gaia {
 
 			~sparse_storage() = default;
 
-			//! Checks if an item with a given sparse id \param sid exists
+			//! Checks whether a sparse identifier is registered.
+			//! \param sid Sparse identifier to find.
+			//! \return True if the identifier is present.
 			GAIA_NODISCARD bool has(sparse_id sid) const {
 				GAIA_ASSERT(sid != detail::InvalidSparseId);
 
@@ -1487,26 +1788,34 @@ namespace gaia {
 				m_cnt = 0;
 			}
 
-			//! Returns the number of items inserted into the storage
+			//! Returns the number of identifiers registered in the storage.
+			//! \return Number of registered identifiers.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
-			//! Checks if the storage is empty (no items inserted)
+			//! Checks if the storage is empty (no items inserted).
+			//! \return True if the storage contains no identifiers.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the first registered sparse identifier.
+			//! \return Reference representing the first identifier.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return (reference)*begin();
 			}
 
+			//! Returns the first registered sparse identifier.
+			//! \return Constant reference representing the first identifier.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return (const_reference)*begin();
 			}
 
+			//! Returns the last registered sparse identifier.
+			//! \return Reference representing the last identifier.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -1517,6 +1826,8 @@ namespace gaia {
 				return (reference)m_pages[pid].set_id(did);
 			}
 
+			//! Returns the last registered sparse identifier.
+			//! \return Constant reference representing the last identifier.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -1527,30 +1838,45 @@ namespace gaia {
 				return (const_reference)m_pages[pid].get_id(did);
 			}
 
+			//! Returns an iterator to the first sparse identifier.
+			//! \return Mutable begin iterator.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns an iterator to the first sparse identifier.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns a constant iterator to the first sparse identifier.
+			//! \return Constant begin iterator.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense));
 			}
 
+			//! Returns an iterator past the last sparse identifier.
+			//! \return Mutable end iterator.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Returns an iterator past the last sparse identifier.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Returns a constant iterator past the last sparse identifier.
+			//! \return Constant end iterator.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(detail::sparse_dense_data(m_dense) + size());
 			}
 
+			//! Checks whether two storages contain the same sparse identifiers.
+			//! \param other Storage to compare.
+			//! \return True if the storages are equal.
 			GAIA_NODISCARD bool operator==(const sparse_storage& other) const {
 				// The number of items needs to be the same
 				if (m_cnt != other.m_cnt)
@@ -1565,6 +1891,9 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two storages differ.
+			//! \param other Storage to compare.
+			//! \return True if the storages are not equal.
 			GAIA_NODISCARD constexpr bool operator!=(const sparse_storage& other) const {
 				return !operator==(other);
 			}

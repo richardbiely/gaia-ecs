@@ -32,7 +32,6 @@ namespace gaia {
 			//! Query job dependency handle
 			mt::JobHandle jobHandle = mt::JobNull;
 
-			//! Creates an empty system component payload.
 			System_() = default;
 
 			//! Waits for and releases any outstanding manual-delete query job.
@@ -223,7 +222,7 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Adds an Is relationship term that matches entities derived from @a entity.
+			//! Adds an Is relationship term that matches entities derived from \a entity.
 			//! \param entity Target entity used with the built-in Is relation.
 			//! \param options Query-term options applied to the generated pair term.
 			//! \return Self reference.
@@ -233,7 +232,7 @@ namespace gaia {
 
 			//------------------------------------------------
 
-			//! Adds an input-only Is relationship term for @a entity.
+			//! Adds an input-only Is relationship term for \a entity.
 			//! \param entity Target entity used with the built-in Is relation.
 			//! \param options Query-term options applied before the input flag is forced.
 			//! \return Self reference.

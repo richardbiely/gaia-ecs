@@ -120,10 +120,10 @@ namespace gaia {
 					return temp;
 				}
 
-				//! Requests a component @a T to be added to @a entity.
+				//! Requests a component \a T to be added to \a entity.
 				//! \tparam T Component type.
 				//! \param entity Destination entity.
-				//! \warning Component @a T should be registered in the world before calling this function while
+				//! \warning Component \a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				template <typename T>
 				void add(Entity entity) {
@@ -136,29 +136,29 @@ namespace gaia {
 					push_op({OpType::ADD_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests an entity @a other to be added to entity @a entity.
+				//! Requests an entity \a other to be added to entity \a entity.
 				//! \param entity Destination entity
-				//! \param other Entity to add to @a entity
+				//! \param other Entity to add to \a entity
 				void add(Entity entity, Entity other) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::ADD_COMPONENT, 0, entity, other});
 				}
 
-				//! Requests a relationship pair to be added to entity @a entity.
+				//! Requests a relationship pair to be added to entity \a entity.
 				//! \param entity Destination entity.
-				//! \param pair Relationship pair to add to @a entity.
+				//! \param pair Relationship pair to add to \a entity.
 				void add(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 
 					push_op({OpType::ADD_COMPONENT, 0, entity, (Entity)pair});
 				}
 
-				//! Requests a component @a T to be added to entity. Also sets its value.
+				//! Requests a component \a T to be added to entity. Also sets its value.
 				//! \tparam T Component type
 				//! \param entity Destination entity
 				//! \param value Component value
-				//! \warning Component @a T should be registered in the world before calling this function while
+				//! \warning Component \a T should be registered in the world before calling this function while
 				//!          the world is locked for iteration. Registering a new component type is a structural change.
 				//!          If used in concurrent environment, race conditions may occur otherwise.
 				template <typename T, std::enable_if_t<!is_pair<std::remove_cv_t<std::remove_reference_t<T>>>::value, int> = 0>
@@ -179,7 +179,7 @@ namespace gaia {
 				//! \tparam T Component type
 				//! \param entity Destination entity
 				//! \param value Component value
-				//! \warning Component @a T must be registered in the world before calling this function.
+				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling set without a previous add of the component doesn't make sense.
 				template <typename T>
 				void set(Entity entity, T&& value) {
@@ -195,7 +195,7 @@ namespace gaia {
 					push_op({OpType::SET_COMPONENT, pos, entity, item.entity});
 				}
 
-				//! Requests an existing @a entity to be removed.
+				//! Requests an existing \a entity to be removed.
 				//! \param entity Entity to remove
 				void del(Entity entity) {
 					core::lock_scope lock(m_acc);
@@ -203,10 +203,10 @@ namespace gaia {
 					push_op({OpType::DEL_ENTITY, 0, entity, EntityBad});
 				}
 
-				//! Requests removal of component @a T from @a entity.
+				//! Requests removal of component \a T from \a entity.
 				//! \tparam T Component type
 				//! \param entity Source entity
-				//! \warning Component @a T must be registered in the world before calling this function.
+				//! \warning Component \a T must be registered in the world before calling this function.
 				//!          Calling del without a previous add of the component doesn't make sense.
 				template <typename T>
 				void del(Entity entity) {
@@ -219,7 +219,7 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, item.entity});
 				}
 
-				//! Requests removal of entity @a object from entity @a entity.
+				//! Requests removal of entity \a object from entity \a entity.
 				//! \param entity Source entity
 				//! \param object Entity to remove
 				void del(Entity entity, Entity object) {
@@ -228,9 +228,9 @@ namespace gaia {
 					push_op({OpType::DEL_COMPONENT, 0, entity, object});
 				}
 
-				//! Requests removal of a relationship pair from entity @a entity.
+				//! Requests removal of a relationship pair from entity \a entity.
 				//! \param entity Source entity.
-				//! \param pair Relationship pair to remove from @a entity.
+				//! \param pair Relationship pair to remove from \a entity.
 				void del(Entity entity, const Pair& pair) {
 					core::lock_scope lock(m_acc);
 

@@ -15,20 +15,27 @@
 
 namespace gaia {
 	namespace cnt {
+		//! \cond INTERNAL
 		namespace darr_ext_soa_detail {
 			using difference_type = uint32_t;
 			using size_type = uint32_t;
 		} // namespace darr_ext_soa_detail
+		//! \endcond
 
+		//! \cond INTERNAL
 		template <typename T>
 		struct darr_ext_soa_iterator {
+			//! Element type stored by the container.
 			using value_type = T;
 			// using pointer = T*; not supported
 			// using reference = T&; not supported
+			//! Type used for iterator differences.
 			using difference_type = darr_ext_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
 			using iterator = darr_ext_soa_iterator;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
 		private:
@@ -205,6 +212,7 @@ namespace gaia {
 				return m_idx <= other.m_idx;
 			}
 		};
+		//! \endcond
 
 		//! Array of elements of type \tparam T allocated on heap or stack. Stack capacity is \tparam N elements.
 		//! If the number of elements is bellow \tparam N the stack storage is used.
@@ -217,20 +225,33 @@ namespace gaia {
 		public:
 			static_assert(N > 0);
 
+			//! Element type stored by the container.
 			using value_type = T;
+			//! Mutable element reference type.
 			using reference = T&;
+			//! Read-only element reference type.
 			using const_reference = const T&;
+			//! Mutable element pointer type.
 			using pointer = T*;
+			//! Read-only element pointer type.
 			using const_pointer = const T*;
+			//! Data-layout access policy used by the container.
 			using view_policy = mem::data_view_policy_soa<T::gaia_Data_Layout, T>;
+			//! Type used for iterator differences.
 			using difference_type = darr_ext_soa_detail::difference_type;
+			//! Unsigned type used for sizes and indices.
 			using size_type = darr_ext_soa_detail::size_type;
 
+			//! Mutable random-access iterator type.
 			using iterator = darr_ext_soa_iterator<T>;
+			//! Read-only random-access iterator type.
 			using const_iterator = const_darr_ext_soa_iterator<T>;
+			//! Iterator category exposed by the container.
 			using iterator_category = core::random_access_iterator_tag;
 
+			//! Fixed capacity of the container.
 			static constexpr size_type extent = N;
+			//! Number of bytes reserved by the inline storage.
 			static constexpr uint32_t allocated_bytes = view_policy::get_min_byte_size(0, N);
 
 		private:
@@ -276,16 +297,26 @@ namespace gaia {
 
 		public:
 			darr_ext_soa() noexcept = default;
+			//! Constructs a value-initialized container.
 			darr_ext_soa(core::zero_t) noexcept {}
 
+			//! Constructs a container with copies of a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			darr_ext_soa(size_type count, const_reference value) {
 				resize(count, value);
 			}
 
+			//! Constructs a container with the requested number of value-initialized elements.
+			//! \param count Number of elements.
 			darr_ext_soa(size_type count) {
 				resize(count);
 			}
 
+			//! Constructs a container from an iterator range.
+			//! \tparam InputIt Input iterator type.
+			//! \param first Iterator to the first source element.
+			//! \param last Iterator one past the last source element.
 			template <typename InputIt>
 			darr_ext_soa(InputIt first, InputIt last) {
 				const auto count = (size_type)core::distance(first, last);
@@ -304,10 +335,16 @@ namespace gaia {
 				}
 			}
 
+			//! Constructs a container from an initializer list.
+			//! \param il Initializer list supplying the elements.
 			darr_ext_soa(std::initializer_list<T> il): darr_ext_soa(il.begin(), il.end()) {}
 
+			//! Copy-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext_soa(const darr_ext_soa& other): darr_ext_soa(other.begin(), other.end()) {}
 
+			//! Move-constructs a container.
+			//! \param other Container to copy or move from.
 			darr_ext_soa(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -332,11 +369,17 @@ namespace gaia {
 				other.m_cap = extent;
 			}
 
+			//! Replaces the elements from an initializer list.
+			//! \param il Initializer list supplying the elements.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(std::initializer_list<T> il) {
 				*this = darr_ext_soa(il.begin(), il.end());
 				return *this;
 			}
 
+			//! Copy-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(const darr_ext_soa& other) {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -347,6 +390,9 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Move-assigns the container.
+			//! \param other Container to copy or move from.
+			//! \return Reference to this container.
 			darr_ext_soa& operator=(darr_ext_soa&& other) noexcept {
 				GAIA_ASSERT(core::addressof(other) != this);
 
@@ -391,19 +437,29 @@ namespace gaia {
 			// Memory is aligned so we can silence this warning
 			GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD pointer data() noexcept {
 				return reinterpret_cast<pointer>(m_pData);
 			}
 
+			//! Returns a pointer to the element storage.
+			//! \return Pointer to the first element storage location.
 			GAIA_NODISCARD const_pointer data() const noexcept {
 				return reinterpret_cast<const_pointer>(m_pData);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::set({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
 			}
 
+			//! Accesses an element without bounds checking in optimized builds.
+			//! \param pos Zero-based element index.
+			//! \return Reference to the selected element.
 			GAIA_NODISCARD decltype(auto) operator[](size_type pos) const noexcept {
 				GAIA_ASSERT(pos < size());
 				return view_policy::get({(typename view_policy::TargetCastType)m_pData, capacity()}, pos);
@@ -411,6 +467,8 @@ namespace gaia {
 
 			GAIA_CLANG_WARNING_POP()
 
+			//! Ensures storage for at least the requested number of elements.
+			//! \param cap Requested element capacity.
 			void reserve(size_type cap) {
 				if (cap <= m_cap)
 					return;
@@ -430,6 +488,8 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the number of elements.
+			//! \param count Number of elements.
 			void resize(size_type count) {
 				if (count == m_cnt)
 					return;
@@ -466,6 +526,9 @@ namespace gaia {
 				m_pData = m_pDataHeap;
 			}
 
+			//! Changes the size and initializes new elements from a value.
+			//! \param count Number of elements.
+			//! \param value Value assigned to each new element.
 			void resize(size_type count, const_reference value) {
 				const auto oldCount = m_cnt;
 				resize(count);
@@ -480,6 +543,8 @@ namespace gaia {
 				}
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(const T& arg) {
 				try_grow();
 
@@ -487,6 +552,8 @@ namespace gaia {
 				operator[](m_cnt++) = arg;
 			}
 
+			//! Appends an element.
+			//! \param arg Element value to append.
 			void push_back(T&& arg) {
 				try_grow();
 
@@ -494,6 +561,10 @@ namespace gaia {
 				operator[](m_cnt++) = GAIA_MOV(arg);
 			}
 
+			//! Constructs and appends an element.
+			//! \tparam Args Types of the forwarded constructor arguments.
+			//! \param args Arguments forwarded to the element constructor.
+			//! \return No value. The deduced return type is void.
 			template <typename... Args>
 			decltype(auto) emplace_back(Args&&... args) {
 				try_grow();
@@ -502,6 +573,7 @@ namespace gaia {
 				operator[](m_cnt++) = T(GAIA_FWD(args)...);
 			}
 
+			//! Removes the last element.
 			void pop_back() noexcept {
 				GAIA_ASSERT(!empty());
 
@@ -510,7 +582,8 @@ namespace gaia {
 				--m_cnt;
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, const T& arg) {
@@ -531,7 +604,8 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
-			//! Insert the element to the position given by iterator @a pos
+			//! Insert the element to the position given by iterator \a pos
+			//! \return Iterator to the inserted element.
 			//! \param pos Position in the container
 			//! \param arg Data to insert
 			iterator insert(iterator pos, T&& arg) {
@@ -553,6 +627,7 @@ namespace gaia {
 			}
 
 			//! Removes the element at pos
+			//! \return Iterator to the element following the removed element or range.
 			//! \param pos Iterator to the element to remove
 			iterator erase(iterator pos) noexcept {
 				GAIA_ASSERT(pos >= data());
@@ -573,6 +648,7 @@ namespace gaia {
 			}
 
 			//! Removes the elements in the range [first, last)
+			//! \return Iterator to the element following the removed element or range.
 			//! \param first Iterator to the element to remove
 			//! \param last Iterator to the one beyond the last element to remove
 			iterator erase(iterator first, iterator last) noexcept {
@@ -596,10 +672,12 @@ namespace gaia {
 				return iterator(m_pData, capacity(), idxSrc);
 			}
 
+			//! Removes all elements.
 			void clear() noexcept {
 				resize(0);
 			}
 
+			//! Reduces allocated storage to match the current size when possible.
 			void shrink_to_fit() {
 				const auto cap = capacity();
 				const auto cnt = size();
@@ -628,6 +706,7 @@ namespace gaia {
 			}
 
 			//! Removes all elements that fail the predicate.
+			//! \tparam Func Predicate callable type.
 			//! \param func A lambda or a functor with the bool operator()(Container::value_type&) overload.
 			//! \return The new size of the array.
 			template <typename Func>
@@ -656,90 +735,133 @@ namespace gaia {
 				return idxDst;
 			}
 
+			//! Returns the number of elements.
+			//! \return Current element count.
 			GAIA_NODISCARD size_type size() const noexcept {
 				return m_cnt;
 			}
 
+			//! Checks whether the container has no elements.
+			//! \return True if the container contains no elements.
 			GAIA_NODISCARD bool empty() const noexcept {
 				return size() == 0;
 			}
 
+			//! Returns the number of elements that fit without reallocation.
+			//! \return Current element capacity.
 			GAIA_NODISCARD size_type capacity() const noexcept {
 				return m_cap;
 			}
 
+			//! Returns the maximum number of elements supported by this container.
+			//! \return Maximum supported element count.
 			GAIA_NODISCARD size_type max_size() const noexcept {
 				return N;
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the first element.
+			//! \return Reference to the first element.
 			GAIA_NODISCARD decltype(auto) front() const noexcept {
 				GAIA_ASSERT(!empty());
 				return *begin();
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Accesses the last element.
+			//! \return Reference to the last element.
 			GAIA_NODISCARD decltype(auto) back() const noexcept {
 				GAIA_ASSERT(!empty());
 				return operator[](m_cnt - 1);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() noexcept {
 				return iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns an iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto begin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a read-only iterator to the first element.
+			//! \return Iterator to the first element.
 			GAIA_NODISCARD auto cbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), 0);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() noexcept {
 				return iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto rbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns a read-only reverse traversal iterator to the last element.
+			//! \return Iterator to the last element.
 			GAIA_NODISCARD auto crbegin() const noexcept {
 				return const_iterator(m_pData, capacity(), size() - 1);
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() noexcept {
 				return iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns an iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto end() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns a read-only iterator one past the last element.
+			//! \return Iterator one past the last element.
 			GAIA_NODISCARD auto cend() const noexcept {
 				return const_iterator(m_pData, capacity(), size());
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() noexcept {
 				return iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto rend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Returns the read-only reverse traversal sentinel preceding the first element.
+			//! \return Reverse traversal sentinel preceding the first element.
 			GAIA_NODISCARD auto crend() const noexcept {
 				return const_iterator(m_pData, capacity(), -1);
 			}
 
+			//! Compares two containers element by element.
+			//! \param other Container to copy or move from.
+			//! \return True if both containers contain equal elements.
 			GAIA_NODISCARD bool operator==(const darr_ext_soa& other) const noexcept {
 				if (m_cnt != other.m_cnt)
 					return false;
@@ -750,16 +872,25 @@ namespace gaia {
 				return true;
 			}
 
+			//! Checks whether two containers differ.
+			//! \param other Container to copy or move from.
+			//! \return True if the containers differ.
 			GAIA_NODISCARD constexpr bool operator!=(const darr_ext_soa& other) const noexcept {
 				return !operator==(other);
 			}
 
+			//! Returns a mutable view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Mutable view of the selected member.
 			template <size_t Item>
 			auto view_mut() noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template set<Item>(
 						std::span<uint8_t>{GAIA_ACC((uint8_t*)m_pData), capacity()});
 			}
 
+			//! Returns a read-only view of one structure-of-arrays member.
+			//! \tparam Item Zero-based member index in the structure-of-arrays element.
+			//! \return Read-only view of the selected member.
 			template <size_t Item>
 			auto view() const noexcept {
 				return mem::data_view_policy<T::gaia_Data_Layout, T>::template get<Item>(
@@ -767,13 +898,20 @@ namespace gaia {
 			}
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T, uint32_t N, uint32_t... I>
 			darr_ext_soa<std::remove_cv_t<T>, N> to_sarray_impl(T (&a)[N], std::index_sequence<I...> /*no_name*/) {
 				return {{a[I]...}};
 			}
 		} // namespace detail
+		//! \endcond
 
+		//! Converts a built-in array to a Gaia-ECS array.
+		//! \tparam T Element type.
+		//! \tparam N Number of elements in the source array.
+		//! \param a Built-in array to convert.
+		//! \return Converted Gaia-ECS container.
 		template <typename T, uint32_t N>
 		darr_ext_soa<std::remove_cv_t<T>, N> to_sarray(T (&a)[N]) {
 			return detail::to_sarray_impl(a, std::make_index_sequence<N>{});

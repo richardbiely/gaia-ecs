@@ -7,6 +7,7 @@
 
 namespace gaia {
 	namespace mem {
+		//! \cond INTERNAL
 		namespace detail {
 			struct AllocationInfo {
 				//! Byte offset of the previous allocation
@@ -18,6 +19,7 @@ namespace gaia {
 				void (*dtor)(void*, uint32_t);
 			};
 		} // namespace detail
+		//! \endcond
 
 		// MSVC might warn about applying additional padding to an instance of StackAllocator.
 		// This is perfectly fine, but might make builds with warning-as-error turned on to fail.
@@ -26,6 +28,7 @@ namespace gaia {
 
 		//! Stack allocator capable of instantiating any default-constructible object on stack.
 		//! Every allocation comes with a 16-bytes long sentinel object.
+		//! \tparam CapacityInBytes Size of the inline allocation buffer in bytes.
 		template <uint32_t CapacityInBytes = 1024>
 		class StackAllocator {
 			using alloc_info = detail::AllocationInfo;
@@ -55,9 +58,11 @@ namespace gaia {
 			StackAllocator& operator=(const StackAllocator&) = delete;
 			StackAllocator& operator=(StackAllocator&&) = delete;
 
-			//! Allocates \param cnt objects of type \tparam T inside the buffer.
+			//! Allocates objects inside the buffer.
 			//! No default initialization is done so the object is returned in a non-initialized
 			//! state unless a custom constructor is provided.
+			//! \tparam T Object type.
+			//! \param cnt Number of objects to allocate.
 			//! \return Pointer to the first allocated object
 			template <typename T>
 			GAIA_NODISCARD T* alloc(uint32_t cnt) {
@@ -143,6 +148,8 @@ namespace gaia {
 				m_allocs = 0;
 			}
 
+			//! Returns the fixed buffer capacity.
+			//! \return Capacity in bytes.
 			GAIA_NODISCARD constexpr uint32_t capacity() {
 				return CapacityInBytes;
 			}

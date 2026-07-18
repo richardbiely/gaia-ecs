@@ -2,6 +2,7 @@
 
 namespace gaia {
 	namespace ecs {
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			IterTermDesc ChunkIterTypedOps::term_desc(const ChunkIterImpl& self) {
@@ -383,6 +384,7 @@ namespace gaia {
 			}
 
 		} // namespace detail
+		//! \endcond
 
 	} // namespace ecs
 } // namespace gaia

@@ -205,10 +205,10 @@
 	#define GAIA_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
 #endif
 
-//! Checks if endianess was detected correctly at compile-time.
-//! \return True if endianess defined in GAIA_LITTLE_ENDIAN/GAIA_END_ENDIAN is correct. False otherwise.
-//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
 namespace gaia {
+	//! Checks if endianness was detected correctly at compile time.
+	//! \return True if endianess defined in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN is correct. False otherwise.
+	//! \warning If false is returned, flip the values in GAIA_LITTLE_ENDIAN and GAIA_BIG_ENDIAN.
 	inline bool CheckEndianess() {
 		const uint16_t testWord = 0x1234;
 		const bool isLittleEndian(*reinterpret_cast<const uint8_t*>(&testWord) == 0x34);
@@ -642,16 +642,18 @@ namespace gaia {
 #endif
 
 namespace gaia {
-	// The dont_optimize(...) function can be used to prevent a value or
-	// expression from being optimized away by the compiler. This function is
-	// intended to add little to no overhead.
-	// See: https://youtu.be/nXaxk27zwlk?t=2441
 #if !GAIA_HAS_NO_INLINE_ASSEMBLY
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		asm volatile("" : : "r,m"(value) : "memory");
 	}
 
+	//! Prevents a mutable value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T& value) {
 	#if defined(__clang__)
@@ -668,12 +670,18 @@ namespace gaia {
 	} // namespace detail
 
 	#if defined(_MSC_VER)
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		detail::use_char_pointer(&reinterpret_cast<char const volatile&>(value));
 		::_ReadWriteBarrier();
 	}
 	#else
+	//! Prevents a const value or expression from being optimized away.
+	//! \tparam T Value type.
+	//! \param value Value whose observable use must be preserved.
 	template <class T>
 	inline void dont_optimize(T const& value) {
 		detail::use_char_pointer(&reinterpret_cast<char const volatile&>(value));

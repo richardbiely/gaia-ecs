@@ -9,18 +9,25 @@
 
 namespace gaia {
 	namespace mem {
+		//! Reports whether a type supports a copy operation used by Gaia-ECS storage.
+		//! \tparam T Type to inspect.
+		//! \return True when the type is copyable or copy-constructible.
 		template <typename T>
 		constexpr bool is_copyable() {
 			return std::is_trivially_copyable_v<T> || std::is_trivially_assignable_v<T, T> || //
 						 std::is_copy_assignable_v<T> || std::is_copy_constructible_v<T>;
 		}
 
+		//! Reports whether a type supports a move operation used by Gaia-ECS storage.
+		//! \tparam T Type to inspect.
+		//! \return True when the type is movable or move-constructible.
 		template <typename T>
 		constexpr bool is_movable() {
 			return std::is_trivially_move_assignable_v<T> || std::is_trivially_move_constructible_v<T> || //
 						 std::is_move_assignable_v<T> || std::is_move_constructible_v<T>;
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			void copy_ctor_element_aos(T* GAIA_RESTRICT dst, const T* GAIA_RESTRICT src, uint32_t idxDst, uint32_t idxSrc) {
@@ -171,7 +178,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -205,7 +212,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! Handles only the non-overlapping part.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
@@ -242,7 +249,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the left by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the left by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -267,7 +274,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -304,7 +311,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+			//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 			//! Handles only the non-overlapping part.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
@@ -341,7 +348,7 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 
-			//! Shift elements at the address pointed to by @a dst to the right by one.
+			//! Shift elements at the address pointed to by \a dst to the right by one.
 			//! \tparam T Data type
 			//! \param[out] dst Destination pointer
 			//! \param idxDst Destination index
@@ -366,12 +373,13 @@ namespace gaia {
 				GAIA_MSVC_WARNING_POP()
 			}
 		} // namespace detail
+		//! \endcond
 
 		GAIA_CLANG_WARNING_PUSH()
 		// Memory is aligned so we can silence this warning
 		GAIA_CLANG_WARNING_DISABLE("-Wcast-align")
 
-		//! Copy @a size elements of type @a T from the address pointed to by @a src to @a dst
+		//! Copy \a size elements of type \a T from the address pointed to by \a src to \a dst
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -393,8 +401,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy one element of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst.
+		//! Copy one element of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -416,8 +424,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Copy elements of type @a T from the address pointed to by @a src to @a dst.
-		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Copy elements of type \a T from the address pointed to by \a src to \a dst.
+		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -440,7 +448,7 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -465,8 +473,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy one elements of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst.
+		//! Move or copy one elements of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -491,8 +499,8 @@ namespace gaia {
 				detail::copy_element_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy elements of type @a T from the address pointed to by @a src to @a dst
-		//! at relative offsets @a idxSrc and @a idxDst. The number of moved elements is idxDst-idxSrc.
+		//! Move or copy elements of type \a T from the address pointed to by \a src to \a dst
+		//! at relative offsets \a idxSrc and \a idxDst. The number of moved elements is idxDst-idxSrc.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -518,7 +526,7 @@ namespace gaia {
 				detail::copy_elements_soa<T>(dst, src, idxDst, idxSrc, sizeDst, sizeSrc);
 		}
 
-		//! Move or copy @a cnt elements of type @a T from the address pointed to by @a src to @a dst.
+		//! Move or copy \a cnt elements of type \a T from the address pointed to by \a src to \a dst.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -557,7 +565,7 @@ namespace gaia {
 			}
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the left by one element.
+		//! Shift elements at the address pointed to by \a dst to the left by one element.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -576,7 +584,7 @@ namespace gaia {
 				detail::shift_elements_left_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the left by one @a n elements.
+		//! Shift elements at the address pointed to by \a dst to the left by one \a n elements.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -597,7 +605,7 @@ namespace gaia {
 				detail::shift_elements_left_aos_fast<T>((T*)dst, idxDst, idxSrc, n);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the right by one element.
+		//! Shift elements at the address pointed to by \a dst to the right by one element.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer
@@ -616,7 +624,7 @@ namespace gaia {
 				detail::shift_elements_right_aos<T>((T*)dst, idxDst, idxSrc, 1);
 		}
 
-		//! Shift elements at the address pointed to by @a dst to the right by @a n elements.
+		//! Shift elements at the address pointed to by \a dst to the right by \a n elements.
 		//! \tparam T Data type
 		//! \tparam SOA Structure of Arrays if true. Array of Structures otherwise.
 		//! \param[out] dst Destination pointer

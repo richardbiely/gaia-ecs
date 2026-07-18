@@ -12,6 +12,7 @@
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/mem/smallblock_allocator.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		//! Sparse component record keyed by entity id.
@@ -349,3 +350,4 @@ namespace gaia {
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

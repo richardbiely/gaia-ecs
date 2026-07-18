@@ -62,14 +62,14 @@ namespace gaia {
 
 			//! Creates or returns runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload associated with @a system.
+			//! \return Mutable runtime payload associated with \a system.
 			SystemRuntimeData& data_add(Entity system) {
 				return m_system_data[EntityLookupKey(system)];
 			}
 
 			//! Tries to find runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload, or null when @a system has no registry entry.
+			//! \return Mutable runtime payload, or null when \a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData* data_try(Entity system) {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -79,7 +79,7 @@ namespace gaia {
 
 			//! Tries to find runtime data for a system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Immutable runtime payload, or null when @a system has no registry entry.
+			//! \return Immutable runtime payload, or null when \a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData* data_try(Entity system) const {
 				const auto it = m_system_data.find(EntityLookupKey(system));
 				if (it == m_system_data.end())
@@ -89,8 +89,8 @@ namespace gaia {
 
 			//! Returns runtime data for a registered system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Mutable runtime payload associated with @a system.
-			//! \warning Asserts if @a system has no registry entry.
+			//! \return Mutable runtime payload associated with \a system.
+			//! \warning Asserts if \a system has no registry entry.
 			GAIA_NODISCARD SystemRuntimeData& data(Entity system) {
 				auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);
@@ -99,8 +99,8 @@ namespace gaia {
 
 			//! Returns runtime data for a registered system entity.
 			//! \param system Entity carrying the System_ component.
-			//! \return Immutable runtime payload associated with @a system.
-			//! \warning Asserts if @a system has no registry entry.
+			//! \return Immutable runtime payload associated with \a system.
+			//! \warning Asserts if \a system has no registry entry.
 			GAIA_NODISCARD const SystemRuntimeData& data(Entity system) const {
 				const auto* pData = data_try(system);
 				GAIA_ASSERT(pData != nullptr);

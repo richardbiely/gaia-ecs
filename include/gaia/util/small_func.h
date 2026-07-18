@@ -138,7 +138,6 @@ namespace gaia {
 			}
 
 		public:
-			//! Constructs an empty function wrapper.
 			SmallFunc() = default;
 
 			//! Destroys the stored callable, if any.
@@ -168,11 +167,18 @@ namespace gaia {
 				return *this;
 			}
 
+			//! Constructs a wrapper from a callable compatible with void().
+			//! \tparam F Callable type.
+			//! \param f Callable object.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
 			SmallFunc(F&& f) {
 				init(GAIA_FWD(f));
 			}
 
+			//! Replaces the stored callable.
+			//! \tparam F Callable type.
+			//! \param f Callable object.
+			//! \return Reference to this wrapper.
 			template <typename F, typename = std::enable_if_t<!std::is_same_v<std::decay_t<F>, SmallFunc>>>
 			SmallFunc& operator=(F&& f) {
 				destroy();

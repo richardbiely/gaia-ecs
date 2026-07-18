@@ -22,10 +22,15 @@ namespace gaia {
 
 		//! Prebound operations for one runtime sparse component store.
 		struct RawSparseStoreOps {
+			//! Type-erased sparse store instance.
 			const void* pStore = nullptr;
+			//! Reads one component value from the store.
 			const void* (*funcGet)(const void*, Entity) = nullptr;
+			//! Acquires mutable access to one component value.
 			void* (*funcMut)(void*, Entity) = nullptr;
+			//! Tests whether an entity has a value in the store.
 			bool (*funcHas)(const void*, Entity) = nullptr;
+			//! Size of one stored component value in bytes.
 			uint32_t elemSize = 0;
 		};
 
@@ -54,9 +59,17 @@ namespace gaia {
 		template <typename T>
 		Entity world_query_arg_id(World& world);
 
-		//! QueryImpl constraints
-		enum class Constraints : uint8_t { EnabledOnly, DisabledOnly, AcceptAll };
+		//! Selects which entity enablement states an iterator exposes.
+		enum class Constraints : uint8_t {
+			//! Iterate enabled entities only.
+			EnabledOnly,
+			//! Iterate disabled entities only.
+			DisabledOnly,
+			//! Iterate both disabled and enabled entities.
+			AcceptAll
+		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			class ChunkIterImpl;
 
@@ -1186,10 +1199,10 @@ namespace gaia {
 
 				//! Binds the iterator to the next query chunk and keeps archetype/mapping state on the iterator.
 				//! \param pArchetype Archetype owning the chunk.
-				//! \param pCompIndices Query-term to archetype-component index mapping for @a pArchetype.
+				//! \param pCompIndices Query-term to archetype-component index mapping for \a pArchetype.
 				//! \param pChunk Chunk exposed by this iterator step.
-				//! \param from First row exposed from @a pChunk.
-				//! \param to One-past-the-end row exposed from @a pChunk.
+				//! \param from First row exposed from \a pChunk.
+				//! \param to One-past-the-end row exposed from \a pChunk.
 				void set_query_chunk(
 						const Archetype* pArchetype, const uint8_t* pCompIndices, Chunk* pChunk, uint16_t from, uint16_t to) {
 					GAIA_ASSERT(pArchetype != nullptr);
@@ -1583,7 +1596,7 @@ namespace gaia {
 
 				//! Returns a read-only raw byte view resolved separately for each iterated entity.
 				//! Use this for sparse or inherited AoS runtime payloads that are not contiguous in the current chunk.
-				//! \warning @a component must be present on every iterated entity.
+				//! \warning \a component must be present on every iterated entity.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewGetEntity view_raw_any(Entity component) const {
@@ -1601,7 +1614,7 @@ namespace gaia {
 
 				//! Returns a mutable raw byte view resolved separately for each iterated entity.
 				//! Writes are finished after the iterator callback through normal touched-write tracking.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
@@ -1611,7 +1624,7 @@ namespace gaia {
 
 				//! Returns a mutable entity-resolved raw byte view without marking the component modified.
 				//! Pair with modify_raw(component) when set hooks or `OnSet` observers should run.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return Entity-resolved mutable raw view. Rows return invalid payloads when unsupported.
 				GAIA_NODISCARD RawTermViewSetEntity sview_raw_any_mut(Entity component) {
@@ -1640,7 +1653,7 @@ namespace gaia {
 				}
 
 				//! Marks an entity-resolved raw component view as modified.
-				//! \warning @a component must be directly owned by every iterated entity.
+				//! \warning \a component must be directly owned by every iterated entity.
 				//! At most ChunkHeader::MAX_COMPONENTS distinct sparse components can be tracked per callback.
 				//! \param component Runtime component entity or exact relationship pair.
 				//! \return True when the component was eligible and tracked.
@@ -1654,7 +1667,7 @@ namespace gaia {
 				//! Returns a read-only entity or component view that can resolve sparse storage or inherited data.
 				//! This is the fallback accessor for terms that may come from outside the archetype chunk column,
 				//! such as inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity of component view with read-only access
 				template <typename T>
@@ -1665,7 +1678,7 @@ namespace gaia {
 				//! Returns a read-only entity or component view for a query-term index that can resolve sparse storage or
 				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
 				//! archetype chunk column.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-only access
@@ -1678,7 +1691,7 @@ namespace gaia {
 				//! This assumes the resolved term is stored directly in the current chunk range and therefore
 				//! skips world-resolution dispatch.
 				//! Use view_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct read-only entity or component view
 				template <typename T>
@@ -1701,7 +1714,7 @@ namespace gaia {
 				//! Returns a mutable entity or component view that can resolve sparse storage or inherited data.
 				//! This is the fallback accessor for inherited data or sparse storage terms
 				//! that are not guaranteed to be backed by the current archetype chunk column.
-				//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view with read-write access
 				template <typename T>
@@ -1734,7 +1747,7 @@ namespace gaia {
 				//! Returns a mutable entity or component view for a query-term index that can resolve sparse storage or
 				//! inherited data. Use this when the term may resolve to inherited data or sparse storage instead of an
 				//! archetype chunk column. Updates world versioning for chunk-backed terms before handing out mutable access.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component or Entity
 				//! \param termIdx Query term index
 				//! \return Entity or component view with read-write access
@@ -1747,7 +1760,7 @@ namespace gaia {
 				//! This is the fallback accessor for inherited data or sparse storage terms
 				//! that are not guaranteed to be backed by the current archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+				//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 				//! \tparam T Component
 				//! \return Component view with read-write access
 				template <typename T>
@@ -1781,7 +1794,7 @@ namespace gaia {
 				//! Use this when the term may resolve to inherited data or sparse storage
 				//! instead of an archetype chunk column.
 				//! Doesn't update the world version when the access is acquired.
-				//! \warning It is expected the term index maps to a valid query term for @a T.
+				//! \warning It is expected the term index maps to a valid query term for \a T.
 				//! \tparam T Component
 				//! \param termIdx Query term index
 				//! \return Component view with read-write access
@@ -1790,9 +1803,9 @@ namespace gaia {
 					return ChunkIterTypedOps::template sview_any_mut<T>(*this, termIdx);
 				}
 
-				//! Marks the component @a T as modified. Best used with sview to manually trigger
+				//! Marks the component \a T as modified. Best used with sview to manually trigger
 				//! an update at user's whim.
-				//! If @a TriggerHooks is true, also triggers the component's set hooks.
+				//! If \a TriggerHooks is true, also triggers the component's set hooks.
 				template <typename T, bool TriggerHooks>
 				void modify() {
 					m_pChunk->template modify<T, TriggerHooks>();
@@ -1801,7 +1814,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view for the owned chunk-backed fast path.
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
 				//! Use view_auto_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
 				template <typename T>
@@ -1816,7 +1829,7 @@ namespace gaia {
 				//! Returns either a mutable or immutable entity/component view that can resolve sparse storage or inherited
 				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
 				//! resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -1832,7 +1845,7 @@ namespace gaia {
 				//! data. Value and const types are considered immutable. Anything else is mutable. Use this when the term may
 				//! resolve to inherited data or sparse storage. Doesn't update the world version when read-write access is
 				//! acquired.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Entity or component view
 				template <typename T>
@@ -1848,7 +1861,7 @@ namespace gaia {
 				//! Value and const types are treated as immutable. Mutable references select the mutable path.
 				//! Doesn't update the world version when read-write access is acquired.
 				//! Use sview_auto_any() when the term may resolve to inherited data or sparse storage.
-				//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+				//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 				//! \tparam T Component or Entity
 				//! \return Direct entity or component view
 				template <typename T>
@@ -1867,21 +1880,21 @@ namespace gaia {
 					return m_pChunk->enabled(row);
 				}
 
-				//! Checks if entity @a entity is present in the chunk.
+				//! Checks if entity \a entity is present in the chunk.
 				//! \param entity Entity
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Entity entity) const {
 					return m_pChunk->has(entity);
 				}
 
-				//! Checks if relationship pair @a pair is present in the chunk.
+				//! Checks if relationship pair \a pair is present in the chunk.
 				//! \param pair Relationship pair
 				//! \return True if the component is present. False otherwise.
 				GAIA_NODISCARD bool has(Pair pair) const {
 					return m_pChunk->has((Entity)pair);
 				}
 
-				//! Checks if component @a T is present in the chunk.
+				//! Checks if component \a T is present in the chunk.
 				//! \tparam T Component
 				//! \return True if the component is present. False otherwise.
 				template <typename T>
@@ -1948,11 +1961,13 @@ namespace gaia {
 				}
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Iterator for iterating entity subsets selected by Constraints.
 		//! Disabled entities always precede enabled ones in AcceptAll mode.
 		class GAIA_API Iter: public detail::ChunkIterImpl {
 		public:
+			//! Enablement constraint applied by this iterator type.
 			static constexpr Constraints ConstraintMode = Constraints::EnabledOnly;
 
 			using detail::ChunkIterImpl::size;
@@ -1961,25 +1976,36 @@ namespace gaia {
 				set_constraints(ConstraintMode);
 			}
 
+			//! Returns the first enabled row in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return Index of the first enabled row.
 			GAIA_NODISCARD static uint16_t start_index(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::start_index(pChunk, ConstraintMode);
 			}
 
+			//! Returns the end of the enabled row range in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return One-past-the-last enabled row index.
 			GAIA_NODISCARD static uint16_t end_index(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::end_index(pChunk, ConstraintMode);
 			}
 
+			//! Returns the number of enabled rows in a chunk.
+			//! \param pChunk Chunk whose enabled range is inspected.
+			//! \return Number of enabled rows.
 			GAIA_NODISCARD static uint16_t size(Chunk* pChunk) noexcept {
 				return detail::ChunkIterImpl::size(pChunk, ConstraintMode);
 			}
 
 			//! Returns the number of enabled entities accessible via the iterator.
+			//! \return Number of enabled entities in the current chunk.
 			GAIA_NODISCARD uint16_t size_enabled() const noexcept {
 				return m_pChunk->size_enabled();
 			}
 
 			//! Returns the number of disabled entities accessible via the iterator.
 			//! Can be read also as "the index of the first enabled entity".
+			//! \return Number of disabled entities in the current chunk.
 			GAIA_NODISCARD uint16_t size_disabled() const noexcept {
 				return m_pChunk->size_disabled();
 			}
@@ -1988,6 +2014,7 @@ namespace gaia {
 		//! Iterator used when copying entities.
 		class GAIA_API CopyIter final {
 		protected:
+			//! Bit view used to track component columns selected for copying.
 			using CompIndicesBitView = core::bit_view<ChunkHeader::MAX_COMPONENTS_BITS>;
 
 			//! World pointer
@@ -2006,7 +2033,7 @@ namespace gaia {
 			~CopyIter() = default;
 			CopyIter(CopyIter&&) noexcept = default;
 			CopyIter& operator=(CopyIter&&) noexcept = default;
-			CopyIter(const CopyIter&) = delete;
+
 			CopyIter& operator=(const CopyIter&) = delete;
 
 			//! Sets the iterator's range.
@@ -2019,21 +2046,29 @@ namespace gaia {
 				m_cnt = cnt;
 			}
 
+			//! Associates the iterator with its owning world.
+			//! \param pWorld Non-null world used for component access and command buffers.
 			void set_world(const World* pWorld) {
 				GAIA_ASSERT(pWorld != nullptr);
 				m_pWorld = pWorld;
 			}
 
+			//! Returns mutable access to the associated world.
+			//! \return Associated world.
 			GAIA_NODISCARD World* world() {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				return const_cast<World*>(m_pWorld);
 			}
 
+			//! Returns read-only access to the associated world.
+			//! \return Associated world.
 			GAIA_NODISCARD const World* world() const {
 				GAIA_ASSERT(m_pWorld != nullptr);
 				return m_pWorld;
 			}
 
+			//! Associates the iterator with the source archetype.
+			//! \param pArchetype Non-null archetype being copied.
 			void set_archetype(const Archetype* pArchetype) {
 				GAIA_ASSERT(pArchetype != nullptr);
 				m_pArchetype = pArchetype;
@@ -2044,33 +2079,43 @@ namespace gaia {
 			// 	return m_pArchetype;
 			// }
 
+			//! Returns the associated source archetype.
+			//! \return Source archetype.
 			GAIA_NODISCARD const Archetype* archetype() const {
 				GAIA_ASSERT(m_pArchetype != nullptr);
 				return m_pArchetype;
 			}
 
+			//! Associates the iterator with a source chunk.
+			//! \param pChunk Non-null chunk containing the copied rows.
 			void set_chunk(Chunk* pChunk) {
 				GAIA_ASSERT(pChunk != nullptr);
 				m_pChunk = pChunk;
 			}
 
+			//! Returns the associated source chunk.
+			//! \return Source chunk.
 			GAIA_NODISCARD const Chunk* chunk() const {
 				GAIA_ASSERT(m_pChunk != nullptr);
 				return m_pChunk;
 			}
 
+			//! Returns the world's single-threaded command buffer.
+			//! \return Single-threaded command buffer associated with the world.
 			GAIA_NODISCARD CommandBufferST& cmd_buffer_st() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_st_get(*pWorld);
 			}
 
+			//! Returns the world's multi-threaded command buffer.
+			//! \return Multi-threaded command buffer associated with the world.
 			GAIA_NODISCARD CommandBufferMT& cmd_buffer_mt() const {
 				auto* pWorld = const_cast<World*>(m_pWorld);
 				return cmd_buffer_mt_get(*pWorld);
 			}
 
 			//! Returns a read-only entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity of component view with read-only access
 			template <typename T>
@@ -2079,7 +2124,7 @@ namespace gaia {
 			}
 
 			//! Returns a mutable entity or component view.
-			//! \warning If @a T is a component it is expected it is present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected it is present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view with read-write access
 			template <typename T>
@@ -2089,7 +2134,7 @@ namespace gaia {
 
 			//! Returns a mutable component view.
 			//! Doesn't update the world version when the access is acquired.
-			//! \warning It is expected the component @a T is present. Undefined behavior otherwise.
+			//! \warning It is expected the component \a T is present. Undefined behavior otherwise.
 			//! \tparam T Component
 			//! \return Component view with read-write access
 			template <typename T>
@@ -2097,9 +2142,9 @@ namespace gaia {
 				return m_pChunk->template sview_mut<T>(from(), to());
 			}
 
-			//! Marks the component @a T as modified. Best used with sview to manually trigger
+			//! Marks the component \a T as modified. Best used with sview to manually trigger
 			//! an update at user's whim.
-			//! If @a TriggerHooks is true, also triggers the component's set hooks.
+			//! If \a TriggerHooks is true, also triggers the component's set hooks.
 			template <typename T, bool TriggerHooks>
 			void modify() {
 				m_pChunk->template modify<T, TriggerHooks>();
@@ -2107,7 +2152,7 @@ namespace gaia {
 
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -2118,7 +2163,7 @@ namespace gaia {
 			//! Returns either a mutable or immutable entity/component view based on the requested type.
 			//! Value and const types are considered immutable. Anything else is mutable.
 			//! Doesn't update the world version when read-write access is acquired.
-			//! \warning If @a T is a component it is expected to be present. Undefined behavior otherwise.
+			//! \warning If \a T is a component it is expected to be present. Undefined behavior otherwise.
 			//! \tparam T Component or Entity
 			//! \return Entity or component view
 			template <typename T>
@@ -2127,27 +2172,28 @@ namespace gaia {
 			}
 
 			//! Checks if the entity at the current iterator index is enabled.
+			//! \param index Iterator-relative entity index.
 			//! \return True it the entity is enabled. False otherwise.
 			GAIA_NODISCARD bool enabled(uint32_t index) const {
 				const auto row = (uint16_t)(from() + index);
 				return m_pChunk->enabled(row);
 			}
 
-			//! Checks if entity @a entity is present in the chunk.
+			//! Checks if entity \a entity is present in the chunk.
 			//! \param entity Entity
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Entity entity) const {
 				return m_pChunk->has(entity);
 			}
 
-			//! Checks if relationship pair @a pair is present in the chunk.
+			//! Checks if relationship pair \a pair is present in the chunk.
 			//! \param pair Relationship pair
 			//! \return True if the component is present. False otherwise.
 			GAIA_NODISCARD bool has(Pair pair) const {
 				return m_pChunk->has((Entity)pair);
 			}
 
-			//! Checks if component @a T is present in the chunk.
+			//! Checks if component \a T is present in the chunk.
 			//! \tparam T Component
 			//! \return True if the component is present. False otherwise.
 			template <typename T>
@@ -2155,7 +2201,8 @@ namespace gaia {
 				return m_pChunk->template has<T>();
 			}
 
-			//! Returns the number of entities accessible via the iterator
+			//! Returns the number of entities accessible via the iterator.
+			//! \return Number of rows in the configured copy range.
 			GAIA_NODISCARD uint16_t size() const noexcept {
 				return m_cnt;
 			}

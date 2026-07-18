@@ -15,6 +15,7 @@
 
 namespace gaia {
 	namespace mt {
+		//! Portable counting semaphore with indefinite waits.
 		class GAIA_API Semaphore final {
 #if GAIA_PLATFORM_WINDOWS
 			void* m_handle;
@@ -62,6 +63,8 @@ namespace gaia {
 			}
 
 		public:
+			//! Creates a semaphore with an initial count.
+			//! \param count Initial permit count.
 			explicit Semaphore(int32_t count = 0) {
 				init(count);
 			}
@@ -71,6 +74,7 @@ namespace gaia {
 			}
 
 			//! Increments semaphore count by the specified amount.
+			//! \param count Number of permits to release. Must be positive.
 			void release(int32_t count) {
 				GAIA_ASSERT(count > 0);
 
@@ -93,6 +97,7 @@ namespace gaia {
 			//! Decrements semaphore count by 1.
 			//! If the count is already 0, it waits indefinitely until semaphore count is incremented,
 			//! then decrements and returns. Returns false when an error occurs, otherwise returns true.
+			//! \return True when a permit was acquired successfully.
 			bool wait() {
 #if GAIA_PLATFORM_WINDOWS
 				GAIA_ASSERT(m_handle != (void*)ERROR_INVALID_HANDLE);

@@ -41,6 +41,7 @@ namespace gaia {
 			return component.size() != 0U && component.storage_type() == DataStorageType::Sparse && component.soa() == 0U;
 		}
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename, typename = void>
 			struct auto_storage_policy_inter {
@@ -51,6 +52,7 @@ namespace gaia {
 				static constexpr DataStorageType data_storage_type = T::gaia_Data_Storage;
 			};
 		} // namespace detail
+		//! \endcond
 
 		//! Returns the storage mode requested by a C++ component type.
 		//! \tparam T Component payload type.
@@ -61,6 +63,7 @@ namespace gaia {
 		// Component verification
 		//----------------------------------------------------------------------
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename T>
 			struct is_component_size_valid: std::bool_constant<sizeof(T) < Component::MaxComponentSizeInBytes> {};
@@ -72,6 +75,7 @@ namespace gaia {
 							(!mem::is_soa_layout_v<T> || std::is_trivially_copyable_v<T>)> {};
 
 		} // namespace detail
+		//! \endcond
 
 		//----------------------------------------------------------------------
 		// Component verification

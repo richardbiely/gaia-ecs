@@ -4732,9 +4732,11 @@ The documentation is based on [doxygen](http://www.doxygen.nl). Building it manu
 
 Doxygen reads the source headers under `include/gaia` and this README directly. It does not parse the generated `single_include/gaia.h` file.
 
+The documentation build treats missing parameter, return-value, template-parameter, and enum-value documentation as errors.
+
 The API reference is created in HTML format in ```your_build_directory/docs/html``` directory.
 
-The lastest version is always available [online](https://richardbiely.github.io/gaia-ecs/).
+The latest version is always available [online](https://richardbiely.github.io/gaia-ecs/).
 
 # Future
 To see what the future holds for this project navigate [here](https://github.com/users/richardbiely/projects/1/views/1)

@@ -4,6 +4,7 @@
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/id.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		struct Entity;
@@ -94,3 +95,4 @@ namespace gaia {
 #endif
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

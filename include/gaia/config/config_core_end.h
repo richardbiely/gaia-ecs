@@ -117,6 +117,7 @@
 
 namespace gaia {
 
+	//! Cache-locality hint accepted by prefetch().
 	enum PrefetchHint : int {
 		//! Temporal data — prefetch data into all levels of the cache hierarchy
 		PREFETCH_HINT_T0 = 3,
@@ -130,7 +131,9 @@ namespace gaia {
 		PREFETCH_HINT_NTA = 0
 	};
 
-	//! Prefetch intrinsic
+	//! Requests that a memory location be loaded into the cache hierarchy.
+	//! \param x Address to prefetch.
+	//! \param hint Cache-locality hint from PrefetchHint.
 	GAIA_FORCEINLINE void prefetch(const void* x, int hint) {
 #if GAIA_USE_PREFETCH
 	#if GAIA_COMPILER_CLANG

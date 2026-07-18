@@ -16,6 +16,7 @@
 #include "gaia/util/logging.h"
 #include "gaia/util/str.h"
 
+//! \cond INTERNAL
 namespace gaia {
 	namespace ecs {
 		class World;
@@ -657,7 +658,7 @@ namespace gaia {
 				return short_symbol(normalize_name_view(name, len));
 			}
 
-			//! Appends every component entity whose scoped path exactly matches @a name.
+			//! Appends every component entity whose scoped path exactly matches \a name.
 			//! Unique matches append one entity. Ambiguous matches append all matching component entities.
 			//! \param out Output array.
 			//! \param name Exact scoped path to inspect.
@@ -737,3 +738,4 @@ namespace gaia {
 		};
 	} // namespace ecs
 } // namespace gaia
+//! \endcond

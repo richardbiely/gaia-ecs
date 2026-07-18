@@ -11,6 +11,7 @@
 
 namespace gaia {
 	namespace util {
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename Ret, typename... Args>
 			auto func_ptr(Ret (*)(Args...)) -> Ret (*)(Args...);
@@ -42,6 +43,7 @@ namespace gaia {
 			template <auto Func>
 			inline constexpr connect_arg_t<Func> connect_arg{};
 		} // namespace detail
+		//! \endcond
 
 		template <typename>
 		class delegate;
@@ -262,16 +264,29 @@ namespace gaia {
 			return lhs != rhs;
 		}
 
+		//! Deduces a delegate signature from a free function or member.
+		//! \tparam Func Function or member to bind.
+		//! \param tag Binding tag for Func.
 		template <auto Func>
-		delegate(detail::connect_arg_t<Func>) noexcept
+		delegate(detail::connect_arg_t<Func> tag) noexcept
 				-> delegate<std::remove_pointer_t<detail::func_ptr_t<decltype(Func)>>>;
 
+		//! Deduces a delegate signature from a function and context type.
+		//! \tparam Func Function or member to bind.
+		//! \tparam Type Context or instance type.
+		//! \param tag Binding tag for Func.
+		//! \param value_or_instance Context or instance supplied to the delegate.
 		template <auto Func, typename Type>
-		delegate(detail::connect_arg_t<Func>, Type&&) noexcept
+		delegate(detail::connect_arg_t<Func> tag, Type&& value_or_instance) noexcept
 				-> delegate<std::remove_pointer_t<detail::func_ptr_t<decltype(Func), Type>>>;
 
+		//! Deduces a delegate signature from an erased-context function pointer.
+		//! \tparam Ret Function return type.
+		//! \tparam Args Function argument types.
+		//! \param func Function pointer to bind.
+		//! \param data Optional opaque context pointer.
 		template <typename Ret, typename... Args>
-		delegate(Ret (*)(const void*, Args...), const void* = nullptr) noexcept -> delegate<Ret(Args...)>;
+		delegate(Ret (*func)(const void*, Args...), const void* data = nullptr) noexcept -> delegate<Ret(Args...)>;
 
 		//------------------------------------------------------------------------------
 		// signal
@@ -280,10 +295,12 @@ namespace gaia {
 		template <typename Ret, typename... Args>
 		class signal<Ret(Args...)>;
 
+		//! \cond INTERNAL
 		namespace detail {
 			template <typename Ret, typename... Args>
 			using container = cnt::darray<delegate<Ret(Args...)>>;
 		} // namespace detail
+		//! \endcond
 
 		//! Signal is a container of listener which it can notify.
 		//! It works directly with references to classes and pointers to both free and member functions.
@@ -298,7 +315,9 @@ namespace gaia {
 			detail::container<Ret, Args...> m_listeners;
 
 		public:
+			//! Type used to represent listener counts.
 			using size_type = typename detail::container<Ret, Args...>::size_type;
+			//! Sink type allowed to modify this signal.
 			using sink_type = sink<Ret(Args...)>;
 
 			//! Number of listeners connected to the signal.
@@ -462,7 +481,11 @@ namespace gaia {
 			}
 		};
 
+		//! Deduces a sink signature from a signal reference.
+		//! \tparam Ret Signal return type.
+		//! \tparam Args Signal argument types.
+		//! \param ref Signal controlled by the sink.
 		template <typename Ret, typename... Args>
-		sink(signal<Ret(Args...)>&) noexcept -> sink<Ret(Args...)>;
+		sink(signal<Ret(Args...)>& ref) noexcept -> sink<Ret(Args...)>;
 	} // namespace util
 } // namespace gaia

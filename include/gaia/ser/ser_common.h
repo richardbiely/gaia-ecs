@@ -8,42 +8,62 @@
 
 namespace gaia {
 	namespace ser {
+		//! Runtime identifier describing the representation and alignment of serialized data.
 		enum class serialization_type_id : uint8_t {
-			// Dummy
+			//! Value is intentionally excluded from serialization.
 			ignore = 0,
 
-			// Integer types
+			//! Signed 8-bit integer.
 			s8 = 1,
+			//! Unsigned 8-bit integer.
 			u8 = 2,
+			//! Signed 16-bit integer.
 			s16 = 3,
+			//! Unsigned 16-bit integer.
 			u16 = 4,
+			//! Signed 32-bit integer.
 			s32 = 5,
+			//! Unsigned 32-bit integer.
 			u32 = 6,
+			//! Signed 64-bit integer.
 			s64 = 7,
+			//! Unsigned 64-bit integer.
 			u64 = 8,
 
-			// Boolean
+			//! Boolean value.
 			b = 9,
 
-			// Character types
+			//! 8-bit character.
 			c8 = 10,
+			//! 16-bit character.
 			c16 = 11,
+			//! 32-bit character.
 			c32 = 12,
 
-			// Floating point types
+			//! Reserved 8-bit floating-point representation.
 			f8 = 13,
+			//! Reserved 16-bit floating-point representation.
 			f16 = 14,
+			//! 32-bit floating-point value.
 			f32 = 15,
+			//! 64-bit floating-point value.
 			f64 = 16,
 
-			// Special
+			//! First identifier whose byte size depends on additional metadata.
 			special_begin = 17,
+			//! Trivially copied wrapper whose size is supplied by the caller.
 			trivial_wrapper = special_begin,
+			//! Pointer-like or contiguous value represented by data and size.
 			data_and_size = 18,
 
+			//! Highest valid serialization identifier.
 			Last = data_and_size,
 		};
 
+		//! Resolves the storage size associated with a serialization identifier.
+		//! \param id Serialization representation to inspect.
+		//! \param size Caller-provided size used for trivial wrappers.
+		//! \return Required size and alignment unit in bytes.
 		inline uint32_t serialization_type_size(serialization_type_id id, uint32_t size) {
 			static constexpr uint32_t sizes[] = {
 					// Dummy
@@ -83,6 +103,8 @@ namespace gaia {
 			return s;
 		}
 
+		//! Reports whether a type may be serialized by copying its representation.
+		//! \tparam T Type to inspect.
 		template <typename T>
 		struct is_trivially_serializable {
 		private:
@@ -91,6 +113,7 @@ namespace gaia {
 			}
 
 		public:
+			//! True when the type can be serialized trivially.
 			static constexpr bool value = update();
 		};
 
@@ -113,6 +136,9 @@ namespace gaia {
 						std::is_same<T, double>, //
 						std::is_same<T, long double>> {};
 
+		//! Returns the serialization identifier for an integral type.
+		//! \tparam T Supported integral type.
+		//! \return Matching integral serialization identifier.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id int_kind_id() {
 			static_assert(is_int_kind_id<T>::value, "Unsupported integral type");
@@ -144,6 +170,9 @@ namespace gaia {
 			}
 		}
 
+		//! Returns the serialization identifier for a floating-point type.
+		//! \tparam T Supported floating-point type.
+		//! \return Matching floating-point serialization identifier.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id flt_type_id() {
 			static_assert(is_flt_kind_id<T>::value, "Unsupported floating type");
@@ -160,6 +189,9 @@ namespace gaia {
 			}
 		}
 
+		//! Returns the serialization identifier selected for a C++ type.
+		//! \tparam T Type to classify.
+		//! \return Matching serialization identifier, or ignore when unsupported.
 		template <typename T>
 		GAIA_NODISCARD constexpr serialization_type_id type_id() {
 			if constexpr (std::is_enum_v<T>)
@@ -178,9 +210,7 @@ namespace gaia {
 				return serialization_type_id::ignore;
 		}
 
-		// --------------------
-		// Define function detectors
-		// --------------------
+		//! \cond INTERNAL
 
 		GAIA_DEFINE_HAS_MEMBER_FUNC(save);
 		GAIA_DEFINE_HAS_MEMBER_FUNC(load);
@@ -214,5 +244,6 @@ namespace gaia {
 		std::false_type has_tag_load_impl(...);
 		template <typename S, typename T>
 		using has_tag_load = decltype(has_tag_load_impl<S, T>(0));
+		//! \endcond
 	} // namespace ser
 } // namespace gaia

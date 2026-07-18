@@ -32,7 +32,7 @@ namespace gaia {
 		//! Checks whether a scheduler flag set contains a specific flag.
 		//! \param flags Flag set to inspect.
 		//! \param flag Flag to test for.
-		//! \return True when @a flag is present in @a flags.
+		//! \return True when \a flag is present in \a flags.
 		GAIA_NODISCARD inline bool sched_flags_has(SchedFlags flags, SchedFlags flag) {
 			return ((uint8_t)flags & (uint8_t)flag) != 0U;
 		}
@@ -95,16 +95,16 @@ namespace gaia {
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque token returned by add() or add_par().
 			void (*submit)(void* pCtx, SchedToken token) = nullptr;
-			//! Adds a dependency edge so @a tokenSecond runs after @a tokenFirst.
+			//! Adds a dependency edge so \a tokenSecond runs after \a tokenFirst.
 			//! \param pCtx Scheduler-owned context.
 			//! \param tokenFirst Work that must complete first.
-			//! \param tokenSecond Work that depends on @a tokenFirst.
+			//! \param tokenSecond Work that depends on \a tokenFirst.
 			void (*dep)(void* pCtx, SchedToken tokenFirst, SchedToken tokenSecond) = nullptr;
-			//! Waits until the scheduled work referenced by @a token finishes.
+			//! Waits until the scheduled work referenced by \a token finishes.
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
 			void (*wait)(void* pCtx, SchedToken token) = nullptr;
-			//! Deletes any scheduler-owned resources associated with @a token.
+			//! Deletes any scheduler-owned resources associated with \a token.
 			//! \param pCtx Scheduler-owned context.
 			//! \param token Opaque synchronization token returned by sched(), sched_par(), add(), or add_par().
 			void (*del)(void* pCtx, SchedToken token) = nullptr;
@@ -138,12 +138,11 @@ namespace gaia {
 			}
 
 		public:
-			//! Creates an empty wrapper.
 			SchedJob() = default;
-			//! Creates a wrapper around @a token from @a sched.
-			//! \param sched Scheduler descriptor that created @a token.
+
+			//! \param sched Scheduler descriptor that created \a token.
 			//! \param token Scheduler-owned work token.
-			//! \param submitted True if the scheduler already submitted @a token.
+			//! \param submitted True if the scheduler already submitted \a token.
 			//! \param pCleanupCtx Optional cleanup context owned by the wrapper.
 			//! \param cleanup Optional cleanup callback executed after the job is waited or deleted unsubmitted.
 			SchedJob(Sched sched, SchedToken token, bool submitted, void* pCleanupCtx, void (*cleanup)(void* pCtx)):
@@ -202,10 +201,10 @@ namespace gaia {
 
 			//! Submits the added work if it has not been submitted yet.
 			void submit();
-			//! Adds a dependency edge so this job runs after @a jobFirst.
+			//! Adds a dependency edge so this job runs after \a jobFirst.
 			//!
 			//! This member form mirrors the Gaia scheduler naming used by mt::ThreadPool::dep() and sched_dep(). It is
-			//! equivalent to calling sched_dep() with @a jobFirst as the prerequisite and this job as the dependent work.
+			//! equivalent to calling sched_dep() with \a jobFirst as the prerequisite and this job as the dependent work.
 			//!
 			//! \param jobFirst Job that must complete before this job can run.
 			//! \warning Both jobs must use the same scheduler descriptor, and dependencies must be added before either job is
@@ -220,6 +219,7 @@ namespace gaia {
 			void del();
 		};
 
+		//! \cond INTERNAL
 		namespace detail {
 			inline mt::JobPriority exec_prio(QueryExecType execType) {
 				// QueryExecType::ParallelEff is encoded as value 3. Keep the scheduler bridge independent
@@ -390,6 +390,7 @@ namespace gaia {
 				delete pData;
 			}
 		} // namespace detail
+		//! \endcond
 
 		//! Returns the default ECS scheduler backed by gaia::mt::ThreadPool.
 		//! \return Default scheduler descriptor.
@@ -409,9 +410,9 @@ namespace gaia {
 			return sched;
 		}
 
-		//! Resolves @a sched to the default scheduler when it has no callbacks installed.
+		//! Resolves \a sched to the default scheduler when it has no callbacks installed.
 		//! \param sched Scheduler descriptor to resolve.
-		//! \return Either @a sched or the default scheduler when @a sched is empty.
+		//! \return Either \a sched or the default scheduler when \a sched is empty.
 		GAIA_NODISCARD inline const Sched& sched_resolve(const Sched& sched) {
 			if (sched.sched == nullptr && sched.sched_par == nullptr && sched.add == nullptr && sched.add_par == nullptr &&
 					sched.submit == nullptr && sched.dep == nullptr && sched.wait == nullptr && sched.del == nullptr)
@@ -419,7 +420,7 @@ namespace gaia {
 			return sched;
 		}
 
-		//! Schedules one task through @a sched.
+		//! Schedules one task through \a sched.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Task description.
 		//! \return Opaque synchronization token for the scheduled work.
@@ -435,7 +436,7 @@ namespace gaia {
 			return token;
 		}
 
-		//! Adds one task through @a sched without submitting it.
+		//! Adds one task through \a sched without submitting it.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Task description.
 		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
@@ -464,7 +465,7 @@ namespace gaia {
 			return SchedJob(resolved, resolved.sched(resolved.pCtx, &desc), true, pCleanupCtx, cleanup);
 		}
 
-		//! Schedules a parallel-for workload through @a sched.
+		//! Schedules a parallel-for workload through \a sched.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Parallel-for description.
 		//! \return Opaque synchronization token for the scheduled work.
@@ -480,7 +481,7 @@ namespace gaia {
 			return token;
 		}
 
-		//! Adds a parallel-for workload through @a sched without submitting it.
+		//! Adds a parallel-for workload through \a sched without submitting it.
 		//! \param sched Scheduler descriptor.
 		//! \param desc Parallel-for description.
 		//! \param pCleanupCtx Optional cleanup context owned by the returned wrapper.
@@ -521,14 +522,14 @@ namespace gaia {
 		//! Adds a scheduler dependency edge.
 		//! \param sched Scheduler descriptor.
 		//! \param tokenFirst Work that must complete first.
-		//! \param tokenSecond Work that depends on @a tokenFirst.
+		//! \param tokenSecond Work that depends on \a tokenFirst.
 		inline void sched_dep(const Sched& sched, SchedToken tokenFirst, SchedToken tokenSecond) {
 			const auto& resolved = sched_resolve(sched);
 			if (resolved.dep != nullptr)
 				resolved.dep(resolved.pCtx, tokenFirst, tokenSecond);
 		}
 
-		//! Waits until the scheduled work referenced by @a token finishes.
+		//! Waits until the scheduled work referenced by \a token finishes.
 		//! \param sched Scheduler descriptor.
 		//! \param token Opaque synchronization token returned by sched_one() or sched_par().
 		inline void sched_wait(const Sched& sched, SchedToken token) {
@@ -537,7 +538,7 @@ namespace gaia {
 				resolved.wait(resolved.pCtx, token);
 		}
 
-		//! Deletes any scheduler-owned resources associated with @a token.
+		//! Deletes any scheduler-owned resources associated with \a token.
 		//! \param sched Scheduler descriptor.
 		//! \param token Opaque synchronization token returned by sched_one() or sched_par().
 		inline void sched_del(const Sched& sched, SchedToken token) {
