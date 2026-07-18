@@ -115,11 +115,16 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryHandle.html'
   <div class="headertitle"><div class="title">gaia::ecs::QueryHandle Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Stable query-slot identifier combining a slot index and generation.  
+ <a href="structgaia_1_1ecs_1_1QueryHandle.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ac8c6b445125ba0d4f2a03d4a8d019b53" id="r_ac8c6b445125ba0d4f2a03d4a8d019b53"><td class="memItemLeft" align="right" valign="top"><a id="ac8c6b445125ba0d4f2a03d4a8d019b53" name="ac8c6b445125ba0d4f2a03d4a8d019b53"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>QueryHandle</b> (QueryId id, uint32_t gen)</td></tr>
+<tr class="memitem:ac8c6b445125ba0d4f2a03d4a8d019b53" id="r_ac8c6b445125ba0d4f2a03d4a8d019b53"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#ac8c6b445125ba0d4f2a03d4a8d019b53">QueryHandle</a> (QueryId <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a3c66b01aec4fce253093ea21f60d979f">id</a>, uint32_t <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a236ee8dedba98deb20088af4f991a0ba">gen</a>)</td></tr>
+<tr class="memdesc:ac8c6b445125ba0d4f2a03d4a8d019b53"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a handle from query slot metadata.  <br /></td></tr>
 <tr class="separator:ac8c6b445125ba0d4f2a03d4a8d019b53"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad4042579a183a4772db1b386d6b4753e" id="r_ad4042579a183a4772db1b386d6b4753e"><td class="memItemLeft" align="right" valign="top"><a id="ad4042579a183a4772db1b386d6b4753e" name="ad4042579a183a4772db1b386d6b4753e"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>QueryHandle</b> (<a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;&amp;) noexcept=default</td></tr>
@@ -133,28 +138,232 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a7497bd54710d2faa8463bf1cbaed168e" id="r_a7497bd54710d2faa8463bf1cbaed168e"><td class="memItemLeft" align="right" valign="top"><a id="a7497bd54710d2faa8463bf1cbaed168e" name="a7497bd54710d2faa8463bf1cbaed168e"></a>
 <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;)=default</td></tr>
 <tr class="separator:a7497bd54710d2faa8463bf1cbaed168e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a99411c540b819377ea5fb7d21adb4645" id="r_a99411c540b819377ea5fb7d21adb4645"><td class="memItemLeft" align="right" valign="top"><a id="a99411c540b819377ea5fb7d21adb4645" name="a99411c540b819377ea5fb7d21adb4645"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;other) const noexcept</td></tr>
+<tr class="memitem:a99411c540b819377ea5fb7d21adb4645" id="r_a99411c540b819377ea5fb7d21adb4645"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a99411c540b819377ea5fb7d21adb4645">operator==</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;other) const noexcept</td></tr>
+<tr class="memdesc:a99411c540b819377ea5fb7d21adb4645"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares packed query handles.  <br /></td></tr>
 <tr class="separator:a99411c540b819377ea5fb7d21adb4645"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa66ac013fe29dfe464928272716b825a" id="r_aa66ac013fe29dfe464928272716b825a"><td class="memItemLeft" align="right" valign="top"><a id="aa66ac013fe29dfe464928272716b825a" name="aa66ac013fe29dfe464928272716b825a"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;other) const noexcept</td></tr>
+<tr class="memitem:aa66ac013fe29dfe464928272716b825a" id="r_aa66ac013fe29dfe464928272716b825a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#aa66ac013fe29dfe464928272716b825a">operator!=</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;other) const noexcept</td></tr>
+<tr class="memdesc:aa66ac013fe29dfe464928272716b825a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares packed query handles for inequality.  <br /></td></tr>
 <tr class="separator:aa66ac013fe29dfe464928272716b825a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3c66b01aec4fce253093ea21f60d979f" id="r_a3c66b01aec4fce253093ea21f60d979f"><td class="memItemLeft" align="right" valign="top"><a id="a3c66b01aec4fce253093ea21f60d979f" name="a3c66b01aec4fce253093ea21f60d979f"></a>
-GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><b>id</b> () const</td></tr>
+<tr class="memitem:a3c66b01aec4fce253093ea21f60d979f" id="r_a3c66b01aec4fce253093ea21f60d979f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a3c66b01aec4fce253093ea21f60d979f">id</a> () const</td></tr>
+<tr class="memdesc:a3c66b01aec4fce253093ea21f60d979f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the query slot identifier.  <br /></td></tr>
 <tr class="separator:a3c66b01aec4fce253093ea21f60d979f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a236ee8dedba98deb20088af4f991a0ba" id="r_a236ee8dedba98deb20088af4f991a0ba"><td class="memItemLeft" align="right" valign="top"><a id="a236ee8dedba98deb20088af4f991a0ba" name="a236ee8dedba98deb20088af4f991a0ba"></a>
-GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><b>gen</b> () const</td></tr>
+<tr class="memitem:a236ee8dedba98deb20088af4f991a0ba" id="r_a236ee8dedba98deb20088af4f991a0ba"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a236ee8dedba98deb20088af4f991a0ba">gen</a> () const</td></tr>
+<tr class="memdesc:a236ee8dedba98deb20088af4f991a0ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the query slot generation.  <br /></td></tr>
 <tr class="separator:a236ee8dedba98deb20088af4f991a0ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a559ef2bc465d25750df8ee45100c40c7" id="r_a559ef2bc465d25750df8ee45100c40c7"><td class="memItemLeft" align="right" valign="top"><a id="a559ef2bc465d25750df8ee45100c40c7" name="a559ef2bc465d25750df8ee45100c40c7"></a>
-GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><b>value</b> () const</td></tr>
+<tr class="memitem:a559ef2bc465d25750df8ee45100c40c7" id="r_a559ef2bc465d25750df8ee45100c40c7"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html#a559ef2bc465d25750df8ee45100c40c7">value</a> () const</td></tr>
+<tr class="memdesc:a559ef2bc465d25750df8ee45100c40c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the packed handle representation.  <br /></td></tr>
 <tr class="separator:a559ef2bc465d25750df8ee45100c40c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a19a9b4dc3fddbe4e90581d9d85d947f9" id="r_a19a9b4dc3fddbe4e90581d9d85d947f9"><td class="memItemLeft" align="right" valign="top"><a id="a19a9b4dc3fddbe4e90581d9d85d947f9" name="a19a9b4dc3fddbe4e90581d9d85d947f9"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>IdMask</b> = QueryIdBad</td></tr>
+<tr class="memdesc:a19a9b4dc3fddbe4e90581d9d85d947f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bit mask spanning the query-id portion of a packed handle. <br /></td></tr>
 <tr class="separator:a19a9b4dc3fddbe4e90581d9d85d947f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Stable query-slot identifier combining a slot index and generation. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="ac8c6b445125ba0d4f2a03d4a8d019b53" name="ac8c6b445125ba0d4f2a03d4a8d019b53"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac8c6b445125ba0d4f2a03d4a8d019b53">&#9670;&#160;</a></span>QueryHandle()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::ecs::QueryHandle::QueryHandle </td>
+          <td>(</td>
+          <td class="paramtype">QueryId&#160;</td>
+          <td class="paramname"><em>id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>gen</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a handle from query slot metadata. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">id</td><td>Query slot identifier. </td></tr>
+    <tr><td class="paramname">gen</td><td>Query slot generation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a236ee8dedba98deb20088af4f991a0ba" name="a236ee8dedba98deb20088af4f991a0ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a236ee8dedba98deb20088af4f991a0ba">&#9670;&#160;</a></span>gen()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto gaia::ecs::QueryHandle::gen </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the query slot generation. </p>
+<dl class="section return"><dt>Returns</dt><dd>Generation stored in the handle. </dd></dl>
+
+</div>
+</div>
+<a id="a3c66b01aec4fce253093ea21f60d979f" name="a3c66b01aec4fce253093ea21f60d979f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3c66b01aec4fce253093ea21f60d979f">&#9670;&#160;</a></span>id()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto gaia::ecs::QueryHandle::id </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the query slot identifier. </p>
+<dl class="section return"><dt>Returns</dt><dd>Query slot identifier stored in the handle. </dd></dl>
+
+</div>
+</div>
+<a id="aa66ac013fe29dfe464928272716b825a" name="aa66ac013fe29dfe464928272716b825a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa66ac013fe29dfe464928272716b825a">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool gaia::ecs::QueryHandle::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares packed query handles for inequality. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Handle to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when slot identifier or generation differs. </dd></dl>
+
+</div>
+</div>
+<a id="a99411c540b819377ea5fb7d21adb4645" name="a99411c540b819377ea5fb7d21adb4645"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a99411c540b819377ea5fb7d21adb4645">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool gaia::ecs::QueryHandle::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares packed query handles. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Handle to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when slot identifier and generation match. </dd></dl>
+
+</div>
+</div>
+<a id="a559ef2bc465d25750df8ee45100c40c7" name="a559ef2bc465d25750df8ee45100c40c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a559ef2bc465d25750df8ee45100c40c7">&#9670;&#160;</a></span>value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto gaia::ecs::QueryHandle::value </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the packed handle representation. </p>
+<dl class="section return"><dt>Returns</dt><dd>Combined query identifier and generation bits. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
@@ -163,7 +372,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

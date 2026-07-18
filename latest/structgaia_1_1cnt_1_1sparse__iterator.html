@@ -114,91 +114,789 @@ $(document).ready(function(){initNavTree('structgaia_1_1cnt_1_1sparse__iterator.
   <div class="headertitle"><div class="title">gaia::cnt::sparse_iterator&lt; T, PageCapacity, Allocator, typename &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Mutable random-access iterator over sparse-storage values.  
+ <a href="structgaia_1_1cnt_1_1sparse__iterator.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="sparse__storage_8h_source.html">sparse_storage.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a72d0769d5d8d9b2b926adfe683c4232b" id="r_a72d0769d5d8d9b2b926adfe683c4232b"><td class="memItemLeft" align="right" valign="top"><a id="a72d0769d5d8d9b2b926adfe683c4232b" name="a72d0769d5d8d9b2b926adfe683c4232b"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>iterator_category</b> = <a class="el" href="structgaia_1_1core_1_1random__access__iterator__tag.html">core::random_access_iterator_tag</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator_category</b> = <a class="el" href="structgaia_1_1core_1_1random__access__iterator__tag.html">core::random_access_iterator_tag</a></td></tr>
+<tr class="memdesc:a72d0769d5d8d9b2b926adfe683c4232b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterator category. <br /></td></tr>
 <tr class="separator:a72d0769d5d8d9b2b926adfe683c4232b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a30660e79d021aac505d69d185105ecd1" id="r_a30660e79d021aac505d69d185105ecd1"><td class="memItemLeft" align="right" valign="top"><a id="a30660e79d021aac505d69d185105ecd1" name="a30660e79d021aac505d69d185105ecd1"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = T</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = T</td></tr>
+<tr class="memdesc:a30660e79d021aac505d69d185105ecd1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored value type. <br /></td></tr>
 <tr class="separator:a30660e79d021aac505d69d185105ecd1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6c6769f143c3b03b900738dc0e1d96f9" id="r_a6c6769f143c3b03b900738dc0e1d96f9"><td class="memItemLeft" align="right" valign="top"><a id="a6c6769f143c3b03b900738dc0e1d96f9" name="a6c6769f143c3b03b900738dc0e1d96f9"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = T *</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = T *</td></tr>
+<tr class="memdesc:a6c6769f143c3b03b900738dc0e1d96f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to a stored value. <br /></td></tr>
 <tr class="separator:a6c6769f143c3b03b900738dc0e1d96f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5ffeb103328a2efbf546e7ab3f665856" id="r_a5ffeb103328a2efbf546e7ab3f665856"><td class="memItemLeft" align="right" valign="top"><a id="a5ffeb103328a2efbf546e7ab3f665856" name="a5ffeb103328a2efbf546e7ab3f665856"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = T &amp;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = T &amp;</td></tr>
+<tr class="memdesc:a5ffeb103328a2efbf546e7ab3f665856"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reference to a stored value. <br /></td></tr>
 <tr class="separator:a5ffeb103328a2efbf546e7ab3f665856"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1dd77ca1e270f66cb41a151a77d84a42" id="r_a1dd77ca1e270f66cb41a151a77d84a42"><td class="memItemLeft" align="right" valign="top"><a id="a1dd77ca1e270f66cb41a151a77d84a42" name="a1dd77ca1e270f66cb41a151a77d84a42"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">detail::difference_type</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = detail::difference_type</td></tr>
+<tr class="memdesc:a1dd77ca1e270f66cb41a151a77d84a42"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator distances. <br /></td></tr>
 <tr class="separator:a1dd77ca1e270f66cb41a151a77d84a42"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae21ba871096aca59bb02077047510b85" id="r_ae21ba871096aca59bb02077047510b85"><td class="memItemLeft" align="right" valign="top"><a id="ae21ba871096aca59bb02077047510b85" name="ae21ba871096aca59bb02077047510b85"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">detail::size_type</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = detail::size_type</td></tr>
+<tr class="memdesc:ae21ba871096aca59bb02077047510b85"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator offsets. <br /></td></tr>
 <tr class="separator:ae21ba871096aca59bb02077047510b85"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a346722214ff5e469e5122dcd8fc64198" id="r_a346722214ff5e469e5122dcd8fc64198"><td class="memItemLeft" align="right" valign="top"><a id="a346722214ff5e469e5122dcd8fc64198" name="a346722214ff5e469e5122dcd8fc64198"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">sparse_iterator</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">sparse_iterator</a></td></tr>
+<tr class="memdesc:a346722214ff5e469e5122dcd8fc64198"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterator type. <br /></td></tr>
 <tr class="separator:a346722214ff5e469e5122dcd8fc64198"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a4c6d7a9c9dba0e0c3cc39482aad6e9ff" id="r_a4c6d7a9c9dba0e0c3cc39482aad6e9ff"><td class="memItemLeft" align="right" valign="top"><a id="a4c6d7a9c9dba0e0c3cc39482aad6e9ff" name="a4c6d7a9c9dba0e0c3cc39482aad6e9ff"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>sparse_iterator</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> sparse_id *<a class="el" href="classgaia_1_1cnt_1_1darr.html">pDense</a>, <a class="el" href="classgaia_1_1cnt_1_1detail_1_1sparse__page.html">page_type</a> *<a class="el" href="classgaia_1_1cnt_1_1darr.html">pPages</a>)</td></tr>
+<tr class="memitem:a4c6d7a9c9dba0e0c3cc39482aad6e9ff" id="r_a4c6d7a9c9dba0e0c3cc39482aad6e9ff"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a4c6d7a9c9dba0e0c3cc39482aad6e9ff">sparse_iterator</a> (const sparse_id *pDense, page_type *pPages)</td></tr>
+<tr class="memdesc:a4c6d7a9c9dba0e0c3cc39482aad6e9ff"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an iterator for a dense position and sparse-page array.  <br /></td></tr>
 <tr class="separator:a4c6d7a9c9dba0e0c3cc39482aad6e9ff"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4302c7886b67dc12edef5df1cae14f61" id="r_a4302c7886b67dc12edef5df1cae14f61"><td class="memItemLeft" align="right" valign="top"><a id="a4302c7886b67dc12edef5df1cae14f61" name="a4302c7886b67dc12edef5df1cae14f61"></a>
-reference&#160;</td><td class="memItemRight" valign="bottom"><b>operator*</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a4302c7886b67dc12edef5df1cae14f61" id="r_a4302c7886b67dc12edef5df1cae14f61"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a5ffeb103328a2efbf546e7ab3f665856">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a4302c7886b67dc12edef5df1cae14f61">operator*</a> () const</td></tr>
+<tr class="memdesc:a4302c7886b67dc12edef5df1cae14f61"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the value at the current position.  <br /></td></tr>
 <tr class="separator:a4302c7886b67dc12edef5df1cae14f61"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abdce7672608a8319556af7b427f9c3c0" id="r_abdce7672608a8319556af7b427f9c3c0"><td class="memItemLeft" align="right" valign="top"><a id="abdce7672608a8319556af7b427f9c3c0" name="abdce7672608a8319556af7b427f9c3c0"></a>
-pointer&#160;</td><td class="memItemRight" valign="bottom"><b>operator-&gt;</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:abdce7672608a8319556af7b427f9c3c0" id="r_abdce7672608a8319556af7b427f9c3c0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a6c6769f143c3b03b900738dc0e1d96f9">pointer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#abdce7672608a8319556af7b427f9c3c0">operator-&gt;</a> () const</td></tr>
+<tr class="memdesc:abdce7672608a8319556af7b427f9c3c0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a pointer to the value at the current position.  <br /></td></tr>
 <tr class="separator:abdce7672608a8319556af7b427f9c3c0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3ecde9b7a50d20e9a4dc71a2e4998a09" id="r_a3ecde9b7a50d20e9a4dc71a2e4998a09"><td class="memItemLeft" align="right" valign="top"><a id="a3ecde9b7a50d20e9a4dc71a2e4998a09" name="a3ecde9b7a50d20e9a4dc71a2e4998a09"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator[]</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">size_type</a> offset) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a3ecde9b7a50d20e9a4dc71a2e4998a09" id="r_a3ecde9b7a50d20e9a4dc71a2e4998a09"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a3ecde9b7a50d20e9a4dc71a2e4998a09">operator[]</a> (<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a> offset) const</td></tr>
+<tr class="memdesc:a3ecde9b7a50d20e9a4dc71a2e4998a09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator at an offset from the current position.  <br /></td></tr>
 <tr class="separator:a3ecde9b7a50d20e9a4dc71a2e4998a09"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afb09fe6f9b908cc259f2bd991f9529c2" id="r_afb09fe6f9b908cc259f2bd991f9529c2"><td class="memItemLeft" align="right" valign="top"><a id="afb09fe6f9b908cc259f2bd991f9529c2" name="afb09fe6f9b908cc259f2bd991f9529c2"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator+=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">size_type</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">diff</a>)</td></tr>
+<tr class="memitem:afb09fe6f9b908cc259f2bd991f9529c2" id="r_afb09fe6f9b908cc259f2bd991f9529c2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#afb09fe6f9b908cc259f2bd991f9529c2">operator+=</a> (<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a> diff)</td></tr>
+<tr class="memdesc:afb09fe6f9b908cc259f2bd991f9529c2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances the iterator.  <br /></td></tr>
 <tr class="separator:afb09fe6f9b908cc259f2bd991f9529c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7221703a21ebf34a134cf3c03634fbb7" id="r_a7221703a21ebf34a134cf3c03634fbb7"><td class="memItemLeft" align="right" valign="top"><a id="a7221703a21ebf34a134cf3c03634fbb7" name="a7221703a21ebf34a134cf3c03634fbb7"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator-=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">size_type</a> <a class="el" href="classgaia_1_1cnt_1_1darr.html">diff</a>)</td></tr>
+<tr class="memitem:a7221703a21ebf34a134cf3c03634fbb7" id="r_a7221703a21ebf34a134cf3c03634fbb7"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a7221703a21ebf34a134cf3c03634fbb7">operator-=</a> (<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a> diff)</td></tr>
+<tr class="memdesc:a7221703a21ebf34a134cf3c03634fbb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves the iterator backward.  <br /></td></tr>
 <tr class="separator:a7221703a21ebf34a134cf3c03634fbb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7fda29fd7cd7a45a98b3b69ad5ce699e" id="r_a7fda29fd7cd7a45a98b3b69ad5ce699e"><td class="memItemLeft" align="right" valign="top"><a id="a7fda29fd7cd7a45a98b3b69ad5ce699e" name="a7fda29fd7cd7a45a98b3b69ad5ce699e"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator++</b> ()</td></tr>
+<tr class="memitem:a7fda29fd7cd7a45a98b3b69ad5ce699e" id="r_a7fda29fd7cd7a45a98b3b69ad5ce699e"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a7fda29fd7cd7a45a98b3b69ad5ce699e">operator++</a> ()</td></tr>
+<tr class="memdesc:a7fda29fd7cd7a45a98b3b69ad5ce699e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances to the next value.  <br /></td></tr>
 <tr class="separator:a7fda29fd7cd7a45a98b3b69ad5ce699e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaaed0638707e5172c2a3dcec8bfb6eac" id="r_aaaed0638707e5172c2a3dcec8bfb6eac"><td class="memItemLeft" align="right" valign="top"><a id="aaaed0638707e5172c2a3dcec8bfb6eac" name="aaaed0638707e5172c2a3dcec8bfb6eac"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator++</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">int</a>)</td></tr>
+<tr class="memitem:aaaed0638707e5172c2a3dcec8bfb6eac" id="r_aaaed0638707e5172c2a3dcec8bfb6eac"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#aaaed0638707e5172c2a3dcec8bfb6eac">operator++</a> (int)</td></tr>
+<tr class="memdesc:aaaed0638707e5172c2a3dcec8bfb6eac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances to the next value.  <br /></td></tr>
 <tr class="separator:aaaed0638707e5172c2a3dcec8bfb6eac"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a966f5aa7773d61f1d8ed6fbcdc18bbce" id="r_a966f5aa7773d61f1d8ed6fbcdc18bbce"><td class="memItemLeft" align="right" valign="top"><a id="a966f5aa7773d61f1d8ed6fbcdc18bbce" name="a966f5aa7773d61f1d8ed6fbcdc18bbce"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator--</b> ()</td></tr>
+<tr class="memitem:a966f5aa7773d61f1d8ed6fbcdc18bbce" id="r_a966f5aa7773d61f1d8ed6fbcdc18bbce"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a966f5aa7773d61f1d8ed6fbcdc18bbce">operator--</a> ()</td></tr>
+<tr class="memdesc:a966f5aa7773d61f1d8ed6fbcdc18bbce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves to the previous value.  <br /></td></tr>
 <tr class="separator:a966f5aa7773d61f1d8ed6fbcdc18bbce"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aeb7b0190d7b9a6a17a707890e1ed76fb" id="r_aeb7b0190d7b9a6a17a707890e1ed76fb"><td class="memItemLeft" align="right" valign="top"><a id="aeb7b0190d7b9a6a17a707890e1ed76fb" name="aeb7b0190d7b9a6a17a707890e1ed76fb"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator--</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">int</a>)</td></tr>
+<tr class="memitem:aeb7b0190d7b9a6a17a707890e1ed76fb" id="r_aeb7b0190d7b9a6a17a707890e1ed76fb"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#aeb7b0190d7b9a6a17a707890e1ed76fb">operator--</a> (int)</td></tr>
+<tr class="memdesc:aeb7b0190d7b9a6a17a707890e1ed76fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves to the previous value.  <br /></td></tr>
 <tr class="separator:aeb7b0190d7b9a6a17a707890e1ed76fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af545ada6be40c7e82f8114fb47bc44f4" id="r_af545ada6be40c7e82f8114fb47bc44f4"><td class="memItemLeft" align="right" valign="top"><a id="af545ada6be40c7e82f8114fb47bc44f4" name="af545ada6be40c7e82f8114fb47bc44f4"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator+</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">size_type</a> offset) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:af545ada6be40c7e82f8114fb47bc44f4" id="r_af545ada6be40c7e82f8114fb47bc44f4"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#af545ada6be40c7e82f8114fb47bc44f4">operator+</a> (<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a> offset) const</td></tr>
+<tr class="memdesc:af545ada6be40c7e82f8114fb47bc44f4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator advanced by an offset.  <br /></td></tr>
 <tr class="separator:af545ada6be40c7e82f8114fb47bc44f4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0957e951c364ce51e86a58ac8e1cfd6d" id="r_a0957e951c364ce51e86a58ac8e1cfd6d"><td class="memItemLeft" align="right" valign="top"><a id="a0957e951c364ce51e86a58ac8e1cfd6d" name="a0957e951c364ce51e86a58ac8e1cfd6d"></a>
-<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator-</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">size_type</a> offset) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a0957e951c364ce51e86a58ac8e1cfd6d" id="r_a0957e951c364ce51e86a58ac8e1cfd6d"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a0957e951c364ce51e86a58ac8e1cfd6d">operator-</a> (<a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a> offset) const</td></tr>
+<tr class="memdesc:a0957e951c364ce51e86a58ac8e1cfd6d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator moved backward by an offset.  <br /></td></tr>
 <tr class="separator:a0957e951c364ce51e86a58ac8e1cfd6d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa94a92f0ee02b7357085f05243ce5612" id="r_aa94a92f0ee02b7357085f05243ce5612"><td class="memItemLeft" align="right" valign="top"><a id="aa94a92f0ee02b7357085f05243ce5612" name="aa94a92f0ee02b7357085f05243ce5612"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">difference_type</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator-</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:aa94a92f0ee02b7357085f05243ce5612" id="r_aa94a92f0ee02b7357085f05243ce5612"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a1dd77ca1e270f66cb41a151a77d84a42">difference_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#aa94a92f0ee02b7357085f05243ce5612">operator-</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:aa94a92f0ee02b7357085f05243ce5612"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the distance from another iterator.  <br /></td></tr>
 <tr class="separator:aa94a92f0ee02b7357085f05243ce5612"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acc715fea6ec6cb6b53e0979368429a98" id="r_acc715fea6ec6cb6b53e0979368429a98"><td class="memItemLeft" align="right" valign="top"><a id="acc715fea6ec6cb6b53e0979368429a98" name="acc715fea6ec6cb6b53e0979368429a98"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:acc715fea6ec6cb6b53e0979368429a98" id="r_acc715fea6ec6cb6b53e0979368429a98"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#acc715fea6ec6cb6b53e0979368429a98">operator==</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:acc715fea6ec6cb6b53e0979368429a98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether two iterators refer to the same position.  <br /></td></tr>
 <tr class="separator:acc715fea6ec6cb6b53e0979368429a98"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af447af0be74591dd8c8de9d74610d63f" id="r_af447af0be74591dd8c8de9d74610d63f"><td class="memItemLeft" align="right" valign="top"><a id="af447af0be74591dd8c8de9d74610d63f" name="af447af0be74591dd8c8de9d74610d63f"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:af447af0be74591dd8c8de9d74610d63f" id="r_af447af0be74591dd8c8de9d74610d63f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#af447af0be74591dd8c8de9d74610d63f">operator!=</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:af447af0be74591dd8c8de9d74610d63f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether two iterators refer to different positions.  <br /></td></tr>
 <tr class="separator:af447af0be74591dd8c8de9d74610d63f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac988789336531ba1b2d93d17f9690f83" id="r_ac988789336531ba1b2d93d17f9690f83"><td class="memItemLeft" align="right" valign="top"><a id="ac988789336531ba1b2d93d17f9690f83" name="ac988789336531ba1b2d93d17f9690f83"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator&gt;</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:ac988789336531ba1b2d93d17f9690f83" id="r_ac988789336531ba1b2d93d17f9690f83"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ac988789336531ba1b2d93d17f9690f83">operator&gt;</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:ac988789336531ba1b2d93d17f9690f83"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether this iterator follows another iterator.  <br /></td></tr>
 <tr class="separator:ac988789336531ba1b2d93d17f9690f83"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1b14400623dee8d61a3758fcb1175b27" id="r_a1b14400623dee8d61a3758fcb1175b27"><td class="memItemLeft" align="right" valign="top"><a id="a1b14400623dee8d61a3758fcb1175b27" name="a1b14400623dee8d61a3758fcb1175b27"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator&gt;=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a1b14400623dee8d61a3758fcb1175b27" id="r_a1b14400623dee8d61a3758fcb1175b27"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a1b14400623dee8d61a3758fcb1175b27">operator&gt;=</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:a1b14400623dee8d61a3758fcb1175b27"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether this iterator does not precede another iterator.  <br /></td></tr>
 <tr class="separator:a1b14400623dee8d61a3758fcb1175b27"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a94553d18891380e78108f364f395963b" id="r_a94553d18891380e78108f364f395963b"><td class="memItemLeft" align="right" valign="top"><a id="a94553d18891380e78108f364f395963b" name="a94553d18891380e78108f364f395963b"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a94553d18891380e78108f364f395963b" id="r_a94553d18891380e78108f364f395963b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a94553d18891380e78108f364f395963b">operator&lt;</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:a94553d18891380e78108f364f395963b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether this iterator precedes another iterator.  <br /></td></tr>
 <tr class="separator:a94553d18891380e78108f364f395963b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a18d28d6a332f1f751cec3ea3af36d9bf" id="r_a18d28d6a332f1f751cec3ea3af36d9bf"><td class="memItemLeft" align="right" valign="top"><a id="a18d28d6a332f1f751cec3ea3af36d9bf" name="a18d28d6a332f1f751cec3ea3af36d9bf"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator&lt;=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a18d28d6a332f1f751cec3ea3af36d9bf" id="r_a18d28d6a332f1f751cec3ea3af36d9bf"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a18d28d6a332f1f751cec3ea3af36d9bf">operator&lt;=</a> (const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:a18d28d6a332f1f751cec3ea3af36d9bf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether this iterator does not follow another iterator.  <br /></td></tr>
 <tr class="separator:a18d28d6a332f1f751cec3ea3af36d9bf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T, uint32_t PageCapacity, typename Allocator, typename = void&gt;<br />
+struct gaia::cnt::sparse_iterator&lt; T, PageCapacity, Allocator, typename &gt;</div><p>Mutable random-access iterator over sparse-storage values. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Stored value type. </td></tr>
+    <tr><td class="paramname">PageCapacity</td><td>Number of sparse entries represented by each page. </td></tr>
+    <tr><td class="paramname">Allocator</td><td>Allocator used by the sparse pages. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a4c6d7a9c9dba0e0c3cc39482aad6e9ff" name="a4c6d7a9c9dba0e0c3cc39482aad6e9ff"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4c6d7a9c9dba0e0c3cc39482aad6e9ff">&#9670;&#160;</a></span>sparse_iterator()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::sparse_iterator </td>
+          <td>(</td>
+          <td class="paramtype">const sparse_id *&#160;</td>
+          <td class="paramname"><em>pDense</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">page_type *&#160;</td>
+          <td class="paramname"><em>pPages</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs an iterator for a dense position and sparse-page array. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pDense</td><td>Dense sparse-id position. </td></tr>
+    <tr><td class="paramname">pPages</td><td>Sparse-page array containing the values. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="af447af0be74591dd8c8de9d74610d63f" name="af447af0be74591dd8c8de9d74610d63f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af447af0be74591dd8c8de9d74610d63f">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether two iterators refer to different positions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the positions differ. </dd></dl>
+
+</div>
+</div>
+<a id="a4302c7886b67dc12edef5df1cae14f61" name="a4302c7886b67dc12edef5df1cae14f61"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4302c7886b67dc12edef5df1cae14f61">&#9670;&#160;</a></span>operator*()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a5ffeb103328a2efbf546e7ab3f665856">reference</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator* </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the value at the current position. </p>
+<dl class="section return"><dt>Returns</dt><dd>Mutable reference to the current value. </dd></dl>
+
+</div>
+</div>
+<a id="af545ada6be40c7e82f8114fb47bc44f4" name="af545ada6be40c7e82f8114fb47bc44f4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af545ada6be40c7e82f8114fb47bc44f4">&#9670;&#160;</a></span>operator+()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator+ </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a>&#160;</td>
+          <td class="paramname"><em>offset</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator advanced by an offset. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">offset</td><td>Number of positions to advance. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Advanced iterator. </dd></dl>
+
+</div>
+</div>
+<a id="a7fda29fd7cd7a45a98b3b69ad5ce699e" name="a7fda29fd7cd7a45a98b3b69ad5ce699e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7fda29fd7cd7a45a98b3b69ad5ce699e">&#9670;&#160;</a></span>operator++() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp; <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator++ </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Advances to the next value. </p>
+<dl class="section return"><dt>Returns</dt><dd>This iterator after advancing. </dd></dl>
+
+</div>
+</div>
+<a id="aaaed0638707e5172c2a3dcec8bfb6eac" name="aaaed0638707e5172c2a3dcec8bfb6eac"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaaed0638707e5172c2a3dcec8bfb6eac">&#9670;&#160;</a></span>operator++() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator++ </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Advances to the next value. </p>
+<dl class="section return"><dt>Returns</dt><dd>Iterator value before advancing. </dd></dl>
+
+</div>
+</div>
+<a id="afb09fe6f9b908cc259f2bd991f9529c2" name="afb09fe6f9b908cc259f2bd991f9529c2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afb09fe6f9b908cc259f2bd991f9529c2">&#9670;&#160;</a></span>operator+=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp; <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator+= </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a>&#160;</td>
+          <td class="paramname"><em>diff</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Advances the iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">diff</td><td>Number of positions to advance. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>This iterator after advancing. </dd></dl>
+
+</div>
+</div>
+<a id="aa94a92f0ee02b7357085f05243ce5612" name="aa94a92f0ee02b7357085f05243ce5612"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa94a92f0ee02b7357085f05243ce5612">&#9670;&#160;</a></span>operator-() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a1dd77ca1e270f66cb41a151a77d84a42">difference_type</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator- </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the distance from another iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to subtract. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Number of positions between the iterators. </dd></dl>
+
+</div>
+</div>
+<a id="a0957e951c364ce51e86a58ac8e1cfd6d" name="a0957e951c364ce51e86a58ac8e1cfd6d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0957e951c364ce51e86a58ac8e1cfd6d">&#9670;&#160;</a></span>operator-() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator- </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a>&#160;</td>
+          <td class="paramname"><em>offset</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator moved backward by an offset. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">offset</td><td>Number of positions to retreat. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Retreated iterator. </dd></dl>
+
+</div>
+</div>
+<a id="a966f5aa7773d61f1d8ed6fbcdc18bbce" name="a966f5aa7773d61f1d8ed6fbcdc18bbce"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a966f5aa7773d61f1d8ed6fbcdc18bbce">&#9670;&#160;</a></span>operator--() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp; <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator-- </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Moves to the previous value. </p>
+<dl class="section return"><dt>Returns</dt><dd>This iterator after retreating. </dd></dl>
+
+</div>
+</div>
+<a id="aeb7b0190d7b9a6a17a707890e1ed76fb" name="aeb7b0190d7b9a6a17a707890e1ed76fb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeb7b0190d7b9a6a17a707890e1ed76fb">&#9670;&#160;</a></span>operator--() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator-- </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Moves to the previous value. </p>
+<dl class="section return"><dt>Returns</dt><dd>Iterator value before retreating. </dd></dl>
+
+</div>
+</div>
+<a id="a7221703a21ebf34a134cf3c03634fbb7" name="a7221703a21ebf34a134cf3c03634fbb7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7221703a21ebf34a134cf3c03634fbb7">&#9670;&#160;</a></span>operator-=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp; <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator-= </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a>&#160;</td>
+          <td class="paramname"><em>diff</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Moves the iterator backward. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">diff</td><td>Number of positions to retreat. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>This iterator after retreating. </dd></dl>
+
+</div>
+</div>
+<a id="abdce7672608a8319556af7b427f9c3c0" name="abdce7672608a8319556af7b427f9c3c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abdce7672608a8319556af7b427f9c3c0">&#9670;&#160;</a></span>operator-&gt;()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a6c6769f143c3b03b900738dc0e1d96f9">pointer</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator-&gt; </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a pointer to the value at the current position. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the current value. </dd></dl>
+
+</div>
+</div>
+<a id="a94553d18891380e78108f364f395963b" name="a94553d18891380e78108f364f395963b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a94553d18891380e78108f364f395963b">&#9670;&#160;</a></span>operator&lt;()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator&lt; </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether this iterator precedes another iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if this position precedes the other position. </dd></dl>
+
+</div>
+</div>
+<a id="a18d28d6a332f1f751cec3ea3af36d9bf" name="a18d28d6a332f1f751cec3ea3af36d9bf"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a18d28d6a332f1f751cec3ea3af36d9bf">&#9670;&#160;</a></span>operator&lt;=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator&lt;= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether this iterator does not follow another iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if this position is at or before the other position. </dd></dl>
+
+</div>
+</div>
+<a id="acc715fea6ec6cb6b53e0979368429a98" name="acc715fea6ec6cb6b53e0979368429a98"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acc715fea6ec6cb6b53e0979368429a98">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether two iterators refer to the same position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the positions are equal. </dd></dl>
+
+</div>
+</div>
+<a id="ac988789336531ba1b2d93d17f9690f83" name="ac988789336531ba1b2d93d17f9690f83"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac988789336531ba1b2d93d17f9690f83">&#9670;&#160;</a></span>operator&gt;()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator&gt; </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether this iterator follows another iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if this position follows the other position. </dd></dl>
+
+</div>
+</div>
+<a id="a1b14400623dee8d61a3758fcb1175b27" name="a1b14400623dee8d61a3758fcb1175b27"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1b14400623dee8d61a3758fcb1175b27">&#9670;&#160;</a></span>operator&gt;=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator&gt;= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether this iterator does not precede another iterator. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if this position is at or after the other position. </dd></dl>
+
+</div>
+</div>
+<a id="a3ecde9b7a50d20e9a4dc71a2e4998a09" name="a3ecde9b7a50d20e9a4dc71a2e4998a09"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecde9b7a50d20e9a4dc71a2e4998a09">&#9670;&#160;</a></span>operator[]()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t PageCapacity, typename Allocator , typename  = void&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#a346722214ff5e469e5122dcd8fc64198">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">gaia::cnt::sparse_iterator</a>&lt; T, PageCapacity, Allocator, typename &gt;::operator[] </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html#ae21ba871096aca59bb02077047510b85">size_type</a>&#160;</td>
+          <td class="paramname"><em>offset</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator at an offset from the current position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">offset</td><td>Number of positions to advance. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Offset iterator. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/<a class="el" href="sparse__storage_8h_source.html">sparse_storage.h</a></li>
 </ul>
@@ -207,7 +905,7 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">sparse_iterator</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1sparse__iterator.html">sparse_iterator</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

@@ -2851,7 +2851,7 @@ Data layouts</h2>
 Serialization</h2>
 <p>Any data structure can be serialized into the provided serialization buffer. Native types, compound types, arrays, or any types exposing size(), begin() and end() functions are supported out of the box. If a resize() function is available, it will be used automatically. In some cases, you may still need to provide specializations, though. Either because the default behavior does not match your expectations, or because the program will not compile otherwise.</p>
 <p>Serialization is available in two modes:</p><ul>
-<li>compile-time mode (<code><a class="el" href="ser__ct_8h_source.html">gaia/ser/ser_ct.h</a></code>) for static dispatch with concrete serializer types</li>
+<li>compile-time mode (<code><a class="el" href="ser__ct_8h.html" title="Compile-time serialization entry points.">gaia/ser/ser_ct.h</a></code>) for static dispatch with concrete serializer types</li>
 <li>runtime mode (<code><a class="el" href="ser__rt_8h_source.html">gaia/ser/ser_rt.h</a></code>) for type-erased serializers selected at runtime</li>
 </ul>
 <p>Both modes share the same traversal behavior and customization points (<code>save/load</code> members or <code>tag_invoke</code>). These APIs are for binary serialization traversal, not for JSON document authoring/parsing.</p>
@@ -3025,7 +3025,7 @@ Runtime serialization</h3>
 <div class="line">    <span class="keywordflow">return</span> m_stream.tell();</div>
 <div class="line">  }</div>
 <div class="line"> </div>
-<div class="line">  uint32_t bytes()<span class="keyword"> const </span>{</div>
+<div class="line">  uint32_t <a class="code hl_function" href="ser__ct_8h.html#a0079e1ecf080d80bf1b71ede15340659">bytes</a>()<span class="keyword"> const </span>{</div>
 <div class="line">    <span class="keywordflow">return</span> m_stream.bytes();</div>
 <div class="line">  }</div>
 <div class="line"> </div>
@@ -3037,6 +3037,7 @@ Runtime serialization</h3>
 <div class="line">    <span class="keywordflow">return</span> m_writtenBytes;</div>
 <div class="line">  }</div>
 <div class="line">};</div>
+<div class="ttc" id="aser__ct_8h_html_a0079e1ecf080d80bf1b71ede15340659"><div class="ttname"><a href="ser__ct_8h.html#a0079e1ecf080d80bf1b71ede15340659">gaia::ser::bytes</a></div><div class="ttdeci">GAIA_NODISCARD uint32_t bytes(const T &amp;data)</div><div class="ttdoc">Calculates how many bytes data would need when serialized via ser::save. Useful when a destination st...</div><div class="ttdef"><b>Definition</b> ser_ct.h:88</div></div>
 </div><!-- fragment --><p>This way you can create your own runtime format and behavior (alignment policy, versioning, metadata handling, etc.).</p>
 <p>Runtime serialization is tied to ECS world. You can hook it up via <code>World::set_serializer</code>.</p>
 <div class="fragment"><div class="line">ecs::World world;</div>
@@ -3449,7 +3450,7 @@ Jobs</h3>
 <div class="line">tp.wait(jobHandle0);</div>
 <div class="line">tp.wait(jobHandle1);</div>
 </div><!-- fragment --><p>When crunching larger data sets it is often beneficial to split the load among threads automatically. This is what <code>ThreadPool::sched_par</code> is for.</p>
-<div class="fragment"><div class="line"><span class="keyword">static</span> uint32_t SumNumbers(<a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const uint32_t&gt;</a> arr) {</div>
+<div class="fragment"><div class="line"><span class="keyword">static</span> uint32_t SumNumbers(std::span&lt;const uint32_t&gt; arr) {</div>
 <div class="line">  uint32_t sum = 0;</div>
 <div class="line">  <span class="keywordflow">for</span> (uint32_t val: arr)</div>
 <div class="line">    sum += val;</div>
@@ -3478,7 +3479,6 @@ Jobs</h3>
 <div class="line"> </div>
 <div class="line"><span class="comment">// Use the result</span></div>
 <div class="line">GAIA_LOG(<span class="stringliteral">&quot;Sum: %u\n&quot;</span>, sum);</div>
-<div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 </div><!-- fragment --><h3><a class="anchor" id="job-dependencies"></a>
 Job dependencies</h3>
 <p>Sometimes we need to wait for the result of another operation before we can proceed. To achieve this we need to use low-level API and handle job registration and submitting jobs on our own. &gt;<b>NOTE:<br  />
@@ -3718,8 +3718,8 @@ Scheduler adapters</h3>
 </div><!-- fragment --><p><code>SchedJob</code> is move-only and owns the scheduler token plus the small cleanup context Gaia-ECS needs to keep callbacks and chunk batches alive until completion. Parallel <code>ecs::Iter&amp;</code> callbacks and typed callbacks both add parallel-for work directly when the query can be split into chunk batches; entity-seeded and grouped paths may still fall back to one added task.</p>
 <p>For a fully deferred external scheduler, implement <code>add</code> / <code>add_par</code>, <code>submit</code>, <code>dep</code>, <code>wait</code>, and <code>del</code>. If only <code>sched</code> / <code>sched_par</code> are provided, Gaia-ECS can still run blocking parallel query/system execution through the adapter, but <code>Query::job(...)</code> / <code>System::job()</code> cannot produce truly deferred dependency-ready work because the scheduler has no separate add step.</p>
 <p>Deferred adapters should make the same background decision inside <code>add</code> and <code>add_par</code>, store it with the scheduler-owned token, and keep <code>submit</code> from moving background work back into a frame queue.</p>
-<p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code>.</p>
-<p>This adapter hook affects ECS parallel query/system execution and explicit <code>ecs::sched_*</code> submissions. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
+<p>If no scheduler is installed, Gaia-ECS falls back to its built-in <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html" title="Process-wide worker pool for dependent frame and background jobs.">gaia::mt::ThreadPool</a></code>.</p>
+<p>This adapter hook affects ECS parallel query/system execution and explicit <code>ecs::sched_*</code> submissions. The low-level <code><a class="el" href="classgaia_1_1mt_1_1ThreadPool.html" title="Process-wide worker pool for dependent frame and background jobs.">gaia::mt::ThreadPool</a></code> API remains available directly when you want to use Gaia's jobsystem yourself.</p>
 <h2><a class="anchor" id="customization"></a>
 Customization</h2>
 <p>Certain aspects of the library can be customized.</p>
@@ -3925,8 +3925,7 @@ Profiling</h2>
 <p>Custom profiler support can be added by overriding GAIA_PROF_* preprocessor definitions: </p><div class="fragment"><div class="line"><span class="preprocessor">#define GAIA_PROF_FRAME my_profilers_frame_function</span></div>
 <div class="line"><span class="preprocessor">#define GAIA_PROF_SCOPE my_profilers_zone_function</span></div>
 <div class="line">...</div>
-<div class="line">#include &lt;<a class="code hl_namespace" href="namespacegaia.html">gaia</a>.h&gt;</div>
-<div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
+<div class="line">#include &lt;gaia.h&gt;</div>
 </div><!-- fragment --><h2><a class="anchor" id="testing"></a>
 Testing</h2>
 <p>The project is thoroughly tested via thousands of unit tests covering essentially every feature of the framework. Benchmarking relies on <a href="https://github.com/iboB/picobench">picobench</a>.</p>
@@ -3935,8 +3934,9 @@ Testing</h2>
 Documentation</h2>
 <p>The documentation is based on <a href="http://www.doxygen.nl">doxygen</a>. Building it manually is controlled via -DGAIA_GENERATE_DOCS=ON/OFF (OFF by default).</p>
 <p>Doxygen reads the source headers under <code>include/gaia</code> and this README directly. It does not parse the generated <code>single_include/gaia.h</code> file.</p>
+<p>The documentation build treats missing parameter, return-value, template-parameter, and enum-value documentation as errors.</p>
 <p>The API reference is created in HTML format in <code>your_build_directory/docs/html</code> directory.</p>
-<p>The lastest version is always available <a href="https://richardbiely.github.io/gaia-ecs/">online</a>.</p>
+<p>The latest version is always available <a href="https://richardbiely.github.io/gaia-ecs/">online</a>.</p>
 <h1><a class="anchor" id="future"></a>
 Future</h1>
 <p>To see what the future holds for this project navigate <a href="https://github.com/users/richardbiely/projects/1/views/1">here</a></p>

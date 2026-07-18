@@ -24,14 +24,6 @@
 */
 var menudata={children:[
 {text:"Main Page",url:"index.html"},
-{text:"Namespaces",url:"namespaces.html",children:[
-{text:"Namespace List",url:"namespaces.html"},
-{text:"Namespace Members",url:"namespacemembers.html",children:[
-{text:"All",url:"namespacemembers.html"},
-{text:"Functions",url:"namespacemembers_func.html"},
-{text:"Variables",url:"namespacemembers_vars.html"},
-{text:"Enumerations",url:"namespacemembers_enum.html"},
-{text:"Enumerator",url:"namespacemembers_eval.html"}]}]},
 {text:"Classes",url:"annotated.html",children:[
 {text:"Class List",url:"annotated.html"},
 {text:"Class Index",url:"classes.html"},
@@ -61,7 +53,6 @@ var menudata={children:[
 {text:"u",url:"functions_u.html#index_u"},
 {text:"v",url:"functions_v.html#index_v"},
 {text:"w",url:"functions_w.html#index_w"},
-{text:"z",url:"functions_z.html#index_z"},
 {text:"~",url:"functions_~.html#index__7E"}]},
 {text:"Functions",url:"functions_func.html",children:[
 {text:"a",url:"functions_func.html#index_a"},
@@ -87,7 +78,6 @@ var menudata={children:[
 {text:"u",url:"functions_func_u.html#index_u"},
 {text:"v",url:"functions_func_v.html#index_v"},
 {text:"w",url:"functions_func_w.html#index_w"},
-{text:"z",url:"functions_func_z.html#index_z"},
 {text:"~",url:"functions_func_~.html#index__7E"}]},
 {text:"Variables",url:"functions_vars.html",children:[
 {text:"a",url:"functions_vars.html#index_a"},
@@ -114,14 +104,21 @@ var menudata={children:[
 {text:"v",url:"functions_vars_v.html#index_v"},
 {text:"w",url:"functions_vars_w.html#index_w"}]},
 {text:"Typedefs",url:"functions_type.html",children:[
-{text:"c",url:"functions_type.html#index_c"},
-{text:"d",url:"functions_type.html#index_d"},
-{text:"f",url:"functions_type.html#index_f"},
-{text:"r",url:"functions_type.html#index_r"},
-{text:"s",url:"functions_type.html#index_s"},
-{text:"t",url:"functions_type.html#index_t"},
-{text:"u",url:"functions_type.html#index_u"},
-{text:"v",url:"functions_type.html#index_v"}]},
+{text:"a",url:"functions_type.html#index_a"},
+{text:"b",url:"functions_type_b.html#index_b"},
+{text:"c",url:"functions_type_c.html#index_c"},
+{text:"d",url:"functions_type_d.html#index_d"},
+{text:"e",url:"functions_type_e.html#index_e"},
+{text:"f",url:"functions_type_f.html#index_f"},
+{text:"i",url:"functions_type_i.html#index_i"},
+{text:"j",url:"functions_type_j.html#index_j"},
+{text:"l",url:"functions_type_l.html#index_l"},
+{text:"p",url:"functions_type_p.html#index_p"},
+{text:"r",url:"functions_type_r.html#index_r"},
+{text:"s",url:"functions_type_s.html#index_s"},
+{text:"t",url:"functions_type_t.html#index_t"},
+{text:"u",url:"functions_type_u.html#index_u"},
+{text:"v",url:"functions_type_v.html#index_v"}]},
 {text:"Enumerations",url:"functions_enum.html"},
 {text:"Enumerator",url:"functions_eval.html"},
 {text:"Related Symbols",url:"functions_rela.html"}]}]},

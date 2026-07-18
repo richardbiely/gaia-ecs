@@ -121,20 +121,131 @@ $(document).ready(function(){initNavTree('classgaia_1_1mem_1_1unaligned__ref.htm
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a7d9a2caa53cd5e9225e3321e093ab3a6" id="r_a7d9a2caa53cd5e9225e3321e093ab3a6"><td class="memItemLeft" align="right" valign="top"><a id="a7d9a2caa53cd5e9225e3321e093ab3a6" name="a7d9a2caa53cd5e9225e3321e093ab3a6"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>unaligned_ref</b> (void *p)</td></tr>
+<tr class="memitem:a7d9a2caa53cd5e9225e3321e093ab3a6" id="r_a7d9a2caa53cd5e9225e3321e093ab3a6"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html#a7d9a2caa53cd5e9225e3321e093ab3a6">unaligned_ref</a> (void *p)</td></tr>
+<tr class="memdesc:a7d9a2caa53cd5e9225e3321e093ab3a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a reference to potentially unaligned storage.  <br /></td></tr>
 <tr class="separator:a7d9a2caa53cd5e9225e3321e093ab3a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4031bae1e2c4307bcd547afe4ee1963a" id="r_a4031bae1e2c4307bcd547afe4ee1963a"><td class="memItemLeft" align="right" valign="top"><a id="a4031bae1e2c4307bcd547afe4ee1963a" name="a4031bae1e2c4307bcd547afe4ee1963a"></a>
-<a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">unaligned_ref</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const T &amp;value)</td></tr>
+<tr class="memitem:a4031bae1e2c4307bcd547afe4ee1963a" id="r_a4031bae1e2c4307bcd547afe4ee1963a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">unaligned_ref</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html#a4031bae1e2c4307bcd547afe4ee1963a">operator=</a> (const T &amp;value)</td></tr>
+<tr class="memdesc:a4031bae1e2c4307bcd547afe4ee1963a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores a value using byte-wise copying.  <br /></td></tr>
 <tr class="separator:a4031bae1e2c4307bcd547afe4ee1963a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cebb3003530c5665ba2d045dbeaeb06" id="r_a6cebb3003530c5665ba2d045dbeaeb06"><td class="memItemLeft" align="right" valign="top"><a id="a6cebb3003530c5665ba2d045dbeaeb06" name="a6cebb3003530c5665ba2d045dbeaeb06"></a>
-GAIA_NODISCARD&#160;</td><td class="memItemRight" valign="bottom"><b>operator T</b> () const</td></tr>
+<tr class="memitem:a6cebb3003530c5665ba2d045dbeaeb06" id="r_a6cebb3003530c5665ba2d045dbeaeb06"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html#a6cebb3003530c5665ba2d045dbeaeb06">operator T</a> () const</td></tr>
+<tr class="memdesc:a6cebb3003530c5665ba2d045dbeaeb06"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads a value using byte-wise copying.  <br /></td></tr>
 <tr class="separator:a6cebb3003530c5665ba2d045dbeaeb06"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;typename T&gt;<br />
 class gaia::mem::unaligned_ref&lt; T &gt;</div><p>Pointer wrapper for writing memory in defined way (not causing undefined behavior) </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Stored value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a7d9a2caa53cd5e9225e3321e093ab3a6" name="a7d9a2caa53cd5e9225e3321e093ab3a6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7d9a2caa53cd5e9225e3321e093ab3a6">&#9670;&#160;</a></span>unaligned_ref()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">gaia::mem::unaligned_ref</a>&lt; T &gt;::unaligned_ref </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>p</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a reference to potentially unaligned storage. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">p</td><td>Storage address. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a6cebb3003530c5665ba2d045dbeaeb06" name="a6cebb3003530c5665ba2d045dbeaeb06"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6cebb3003530c5665ba2d045dbeaeb06">&#9670;&#160;</a></span>operator T()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">gaia::mem::unaligned_ref</a>&lt; T &gt;::operator T </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Loads a value using byte-wise copying. </p>
+<dl class="section return"><dt>Returns</dt><dd>Value read from storage. </dd></dl>
+
+</div>
+</div>
+<a id="a4031bae1e2c4307bcd547afe4ee1963a" name="a4031bae1e2c4307bcd547afe4ee1963a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4031bae1e2c4307bcd547afe4ee1963a">&#9670;&#160;</a></span>operator=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">unaligned_ref</a> &amp; <a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">gaia::mem::unaligned_ref</a>&lt; T &gt;::operator= </td>
+          <td>(</td>
+          <td class="paramtype">const T &amp;&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Stores a value using byte-wise copying. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to store. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>This reference. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="mem__alloc_8h_source.html">mem_alloc.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -142,7 +253,7 @@ class gaia::mem::unaligned_ref&lt; T &gt;</div><p>Pointer wrapper for writing me
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">unaligned_ref</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1unaligned__ref.html">unaligned_ref</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

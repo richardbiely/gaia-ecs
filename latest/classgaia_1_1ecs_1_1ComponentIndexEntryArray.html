@@ -124,9 +124,11 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1ComponentIndexEntr
 Public Types</h2></td></tr>
 <tr class="memitem:aea6cc7c7de946e605f7fae40ab40b641" id="r_aea6cc7c7de946e605f7fae40ab40b641"><td class="memItemLeft" align="right" valign="top"><a id="aea6cc7c7de946e605f7fae40ab40b641" name="aea6cc7c7de946e605f7fae40ab40b641"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a></td></tr>
+<tr class="memdesc:aea6cc7c7de946e605f7fae40ab40b641"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stored reverse-index record type. <br /></td></tr>
 <tr class="separator:aea6cc7c7de946e605f7fae40ab40b641"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95e71d03d202c65dd446c22532d65098" id="r_a95e71d03d202c65dd446c22532d65098"><td class="memItemLeft" align="right" valign="top"><a id="a95e71d03d202c65dd446c22532d65098" name="a95e71d03d202c65dd446c22532d65098"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = uint32_t</td></tr>
+<tr class="memdesc:a95e71d03d202c65dd446c22532d65098"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unsigned element-count and index type. <br /></td></tr>
 <tr class="separator:a95e71d03d202c65dd446c22532d65098"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
@@ -143,52 +145,438 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a0ca5db17a628b6d46fceb5d32114cf08" id="r_a0ca5db17a628b6d46fceb5d32114cf08"><td class="memItemLeft" align="right" valign="top"><a id="a0ca5db17a628b6d46fceb5d32114cf08" name="a0ca5db17a628b6d46fceb5d32114cf08"></a>
 <a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html">ComponentIndexEntryArray</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html">ComponentIndexEntryArray</a> &amp;)=default</td></tr>
 <tr class="separator:a0ca5db17a628b6d46fceb5d32114cf08"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a50b9569cf712e9423fbd4f0f56d135ed" id="r_a50b9569cf712e9423fbd4f0f56d135ed"><td class="memItemLeft" align="right" valign="top"><a id="a50b9569cf712e9423fbd4f0f56d135ed" name="a50b9569cf712e9423fbd4f0f56d135ed"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>empty</b> () const noexcept</td></tr>
+<tr class="memitem:a50b9569cf712e9423fbd4f0f56d135ed" id="r_a50b9569cf712e9423fbd4f0f56d135ed"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a50b9569cf712e9423fbd4f0f56d135ed">empty</a> () const noexcept</td></tr>
+<tr class="memdesc:a50b9569cf712e9423fbd4f0f56d135ed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether the bucket contains no reverse-index records.  <br /></td></tr>
 <tr class="separator:a50b9569cf712e9423fbd4f0f56d135ed"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a420693a01f863e02eb1959065562021f" id="r_a420693a01f863e02eb1959065562021f"><td class="memItemLeft" align="right" valign="top"><a id="a420693a01f863e02eb1959065562021f" name="a420693a01f863e02eb1959065562021f"></a>
-GAIA_NODISCARD size_type&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> () const noexcept</td></tr>
+<tr class="memitem:a420693a01f863e02eb1959065562021f" id="r_a420693a01f863e02eb1959065562021f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a420693a01f863e02eb1959065562021f">size</a> () const noexcept</td></tr>
+<tr class="memdesc:a420693a01f863e02eb1959065562021f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of reverse-index records.  <br /></td></tr>
 <tr class="separator:a420693a01f863e02eb1959065562021f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8290e3d79657f59863e4524731db71cc" id="r_a8290e3d79657f59863e4524731db71cc"><td class="memItemLeft" align="right" valign="top"><a id="a8290e3d79657f59863e4524731db71cc" name="a8290e3d79657f59863e4524731db71cc"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> () noexcept</td></tr>
+<tr class="memitem:a8290e3d79657f59863e4524731db71cc" id="r_a8290e3d79657f59863e4524731db71cc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a8290e3d79657f59863e4524731db71cc">data</a> () noexcept</td></tr>
+<tr class="memdesc:a8290e3d79657f59863e4524731db71cc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable contiguous record storage.  <br /></td></tr>
 <tr class="separator:a8290e3d79657f59863e4524731db71cc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a604671d96a3d821d172e1946fbc9bb9b" id="r_a604671d96a3d821d172e1946fbc9bb9b"><td class="memItemLeft" align="right" valign="top"><a id="a604671d96a3d821d172e1946fbc9bb9b" name="a604671d96a3d821d172e1946fbc9bb9b"></a>
-GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> () const noexcept</td></tr>
+<tr class="memitem:a604671d96a3d821d172e1946fbc9bb9b" id="r_a604671d96a3d821d172e1946fbc9bb9b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a604671d96a3d821d172e1946fbc9bb9b">data</a> () const noexcept</td></tr>
+<tr class="memdesc:a604671d96a3d821d172e1946fbc9bb9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns read-only contiguous record storage.  <br /></td></tr>
 <tr class="separator:a604671d96a3d821d172e1946fbc9bb9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a735ad34163b339a77a8569ab3e0c4d20" id="r_a735ad34163b339a77a8569ab3e0c4d20"><td class="memItemLeft" align="right" valign="top"><a id="a735ad34163b339a77a8569ab3e0c4d20" name="a735ad34163b339a77a8569ab3e0c4d20"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>begin</b> () noexcept</td></tr>
+<tr class="memitem:a735ad34163b339a77a8569ab3e0c4d20" id="r_a735ad34163b339a77a8569ab3e0c4d20"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a735ad34163b339a77a8569ab3e0c4d20">begin</a> () noexcept</td></tr>
+<tr class="memdesc:a735ad34163b339a77a8569ab3e0c4d20"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable iterator to the first record.  <br /></td></tr>
 <tr class="separator:a735ad34163b339a77a8569ab3e0c4d20"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8c9a23e5cf0df9fd88bd53171b240c99" id="r_a8c9a23e5cf0df9fd88bd53171b240c99"><td class="memItemLeft" align="right" valign="top"><a id="a8c9a23e5cf0df9fd88bd53171b240c99" name="a8c9a23e5cf0df9fd88bd53171b240c99"></a>
-GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>begin</b> () const noexcept</td></tr>
+<tr class="memitem:a8c9a23e5cf0df9fd88bd53171b240c99" id="r_a8c9a23e5cf0df9fd88bd53171b240c99"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a8c9a23e5cf0df9fd88bd53171b240c99">begin</a> () const noexcept</td></tr>
+<tr class="memdesc:a8c9a23e5cf0df9fd88bd53171b240c99"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only iterator to the first record.  <br /></td></tr>
 <tr class="separator:a8c9a23e5cf0df9fd88bd53171b240c99"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a626961da71aca39df6145859175cfd24" id="r_a626961da71aca39df6145859175cfd24"><td class="memItemLeft" align="right" valign="top"><a id="a626961da71aca39df6145859175cfd24" name="a626961da71aca39df6145859175cfd24"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> () noexcept</td></tr>
+<tr class="memitem:a626961da71aca39df6145859175cfd24" id="r_a626961da71aca39df6145859175cfd24"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a626961da71aca39df6145859175cfd24">end</a> () noexcept</td></tr>
+<tr class="memdesc:a626961da71aca39df6145859175cfd24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable iterator past the final record.  <br /></td></tr>
 <tr class="separator:a626961da71aca39df6145859175cfd24"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa568b0027b93498dde7b91e1e856f0d2" id="r_aa568b0027b93498dde7b91e1e856f0d2"><td class="memItemLeft" align="right" valign="top"><a id="aa568b0027b93498dde7b91e1e856f0d2" name="aa568b0027b93498dde7b91e1e856f0d2"></a>
-GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> () const noexcept</td></tr>
+<tr class="memitem:aa568b0027b93498dde7b91e1e856f0d2" id="r_aa568b0027b93498dde7b91e1e856f0d2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#aa568b0027b93498dde7b91e1e856f0d2">end</a> () const noexcept</td></tr>
+<tr class="memdesc:aa568b0027b93498dde7b91e1e856f0d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only iterator past the final record.  <br /></td></tr>
 <tr class="separator:aa568b0027b93498dde7b91e1e856f0d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac3d4ab2230c0cfd1cc3c87e58aefddf1" id="r_ac3d4ab2230c0cfd1cc3c87e58aefddf1"><td class="memItemLeft" align="right" valign="top"><a id="ac3d4ab2230c0cfd1cc3c87e58aefddf1" name="ac3d4ab2230c0cfd1cc3c87e58aefddf1"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator[]</b> (size_type idx) noexcept</td></tr>
+<tr class="memitem:ac3d4ab2230c0cfd1cc3c87e58aefddf1" id="r_ac3d4ab2230c0cfd1cc3c87e58aefddf1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#ac3d4ab2230c0cfd1cc3c87e58aefddf1">operator[]</a> (<a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a> idx) noexcept</td></tr>
+<tr class="memdesc:ac3d4ab2230c0cfd1cc3c87e58aefddf1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable record by index.  <br /></td></tr>
 <tr class="separator:ac3d4ab2230c0cfd1cc3c87e58aefddf1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d189c133ea307dc42568d44c143827f" id="r_a5d189c133ea307dc42568d44c143827f"><td class="memItemLeft" align="right" valign="top"><a id="a5d189c133ea307dc42568d44c143827f" name="a5d189c133ea307dc42568d44c143827f"></a>
-GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator[]</b> (size_type idx) const noexcept</td></tr>
+<tr class="memitem:a5d189c133ea307dc42568d44c143827f" id="r_a5d189c133ea307dc42568d44c143827f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a5d189c133ea307dc42568d44c143827f">operator[]</a> (<a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a> idx) const noexcept</td></tr>
+<tr class="memdesc:a5d189c133ea307dc42568d44c143827f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only record by index.  <br /></td></tr>
 <tr class="separator:a5d189c133ea307dc42568d44c143827f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4b39e2aebcc86081adfcfafbeb1ba841" id="r_a4b39e2aebcc86081adfcfafbeb1ba841"><td class="memItemLeft" align="right" valign="top"><a id="a4b39e2aebcc86081adfcfafbeb1ba841" name="a4b39e2aebcc86081adfcfafbeb1ba841"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>back</b> () noexcept</td></tr>
+<tr class="memitem:a4b39e2aebcc86081adfcfafbeb1ba841" id="r_a4b39e2aebcc86081adfcfafbeb1ba841"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a4b39e2aebcc86081adfcfafbeb1ba841">back</a> () noexcept</td></tr>
+<tr class="memdesc:a4b39e2aebcc86081adfcfafbeb1ba841"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the final mutable record.  <br /></td></tr>
 <tr class="separator:a4b39e2aebcc86081adfcfafbeb1ba841"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aabb0615fe95a1b65917f5c432fb45b6b" id="r_aabb0615fe95a1b65917f5c432fb45b6b"><td class="memItemLeft" align="right" valign="top"><a id="aabb0615fe95a1b65917f5c432fb45b6b" name="aabb0615fe95a1b65917f5c432fb45b6b"></a>
-GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>back</b> () const noexcept</td></tr>
+<tr class="memitem:aabb0615fe95a1b65917f5c432fb45b6b" id="r_aabb0615fe95a1b65917f5c432fb45b6b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#aabb0615fe95a1b65917f5c432fb45b6b">back</a> () const noexcept</td></tr>
+<tr class="memdesc:aabb0615fe95a1b65917f5c432fb45b6b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the final read-only record.  <br /></td></tr>
 <tr class="separator:aabb0615fe95a1b65917f5c432fb45b6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1016b9053494544cab371681f8abb2de" id="r_a1016b9053494544cab371681f8abb2de"><td class="memItemLeft" align="right" valign="top"><a id="a1016b9053494544cab371681f8abb2de" name="a1016b9053494544cab371681f8abb2de"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>push_back</b> (<a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> entry)</td></tr>
+<tr class="memitem:a1016b9053494544cab371681f8abb2de" id="r_a1016b9053494544cab371681f8abb2de"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a1016b9053494544cab371681f8abb2de">push_back</a> (<a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> entry)</td></tr>
+<tr class="memdesc:a1016b9053494544cab371681f8abb2de"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends a reverse-index record, spilling inline storage when necessary.  <br /></td></tr>
 <tr class="separator:a1016b9053494544cab371681f8abb2de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adff5214e8d66096527fadcfa385ca892" id="r_adff5214e8d66096527fadcfa385ca892"><td class="memItemLeft" align="right" valign="top"><a id="adff5214e8d66096527fadcfa385ca892" name="adff5214e8d66096527fadcfa385ca892"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>pop_back</b> ()</td></tr>
+<tr class="memdesc:adff5214e8d66096527fadcfa385ca892"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes the final record and restores inline storage when one record remains. <br /></td></tr>
 <tr class="separator:adff5214e8d66096527fadcfa385ca892"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Small reverse-lookup bucket for entity-to-archetype matches. Most buckets contain one archetype, so keep that record inline and spill only when needed. </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="aabb0615fe95a1b65917f5c432fb45b6b" name="aabb0615fe95a1b65917f5c432fb45b6b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aabb0615fe95a1b65917f5c432fb45b6b">&#9670;&#160;</a></span>back() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp; gaia::ecs::ComponentIndexEntryArray::back </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the final read-only record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Last record in the non-empty bucket. </dd></dl>
+
+</div>
+</div>
+<a id="a4b39e2aebcc86081adfcfafbeb1ba841" name="a4b39e2aebcc86081adfcfafbeb1ba841"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4b39e2aebcc86081adfcfafbeb1ba841">&#9670;&#160;</a></span>back() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp; gaia::ecs::ComponentIndexEntryArray::back </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the final mutable record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Last record in the non-empty bucket. </dd></dl>
+
+</div>
+</div>
+<a id="a8c9a23e5cf0df9fd88bd53171b240c99" name="a8c9a23e5cf0df9fd88bd53171b240c99"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8c9a23e5cf0df9fd88bd53171b240c99">&#9670;&#160;</a></span>begin() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::begin </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only iterator to the first record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the first stored record. </dd></dl>
+
+</div>
+</div>
+<a id="a735ad34163b339a77a8569ab3e0c4d20" name="a735ad34163b339a77a8569ab3e0c4d20"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a735ad34163b339a77a8569ab3e0c4d20">&#9670;&#160;</a></span>begin() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::begin </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable iterator to the first record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the first stored record. </dd></dl>
+
+</div>
+</div>
+<a id="a604671d96a3d821d172e1946fbc9bb9b" name="a604671d96a3d821d172e1946fbc9bb9b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a604671d96a3d821d172e1946fbc9bb9b">&#9670;&#160;</a></span>data() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::data </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns read-only contiguous record storage. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the inline record or spill storage. </dd></dl>
+
+</div>
+</div>
+<a id="a8290e3d79657f59863e4524731db71cc" name="a8290e3d79657f59863e4524731db71cc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8290e3d79657f59863e4524731db71cc">&#9670;&#160;</a></span>data() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::data </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns mutable contiguous record storage. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the inline record or spill storage. </dd></dl>
+
+</div>
+</div>
+<a id="a50b9569cf712e9423fbd4f0f56d135ed" name="a50b9569cf712e9423fbd4f0f56d135ed"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a50b9569cf712e9423fbd4f0f56d135ed">&#9670;&#160;</a></span>empty()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentIndexEntryArray::empty </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether the bucket contains no reverse-index records. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when size is zero. </dd></dl>
+
+</div>
+</div>
+<a id="aa568b0027b93498dde7b91e1e856f0d2" name="aa568b0027b93498dde7b91e1e856f0d2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa568b0027b93498dde7b91e1e856f0d2">&#9670;&#160;</a></span>end() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only iterator past the final record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer one past the last stored record. </dd></dl>
+
+</div>
+</div>
+<a id="a626961da71aca39df6145859175cfd24" name="a626961da71aca39df6145859175cfd24"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a626961da71aca39df6145859175cfd24">&#9670;&#160;</a></span>end() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> * gaia::ecs::ComponentIndexEntryArray::end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable iterator past the final record. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer one past the last stored record. </dd></dl>
+
+</div>
+</div>
+<a id="a5d189c133ea307dc42568d44c143827f" name="a5d189c133ea307dc42568d44c143827f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5d189c133ea307dc42568d44c143827f">&#9670;&#160;</a></span>operator[]() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp; gaia::ecs::ComponentIndexEntryArray::operator[] </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a>&#160;</td>
+          <td class="paramname"><em>idx</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only record by index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idx</td><td>Zero-based record index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Record at <em>idx</em>. </dd></dl>
+
+</div>
+</div>
+<a id="ac3d4ab2230c0cfd1cc3c87e58aefddf1" name="ac3d4ab2230c0cfd1cc3c87e58aefddf1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac3d4ab2230c0cfd1cc3c87e58aefddf1">&#9670;&#160;</a></span>operator[]() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a> &amp; gaia::ecs::ComponentIndexEntryArray::operator[] </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a>&#160;</td>
+          <td class="paramname"><em>idx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable record by index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idx</td><td>Zero-based record index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Record at <em>idx</em>. </dd></dl>
+
+</div>
+</div>
+<a id="a1016b9053494544cab371681f8abb2de" name="a1016b9053494544cab371681f8abb2de"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1016b9053494544cab371681f8abb2de">&#9670;&#160;</a></span>push_back()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::ComponentIndexEntryArray::push_back </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a>&#160;</td>
+          <td class="paramname"><em>entry</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Appends a reverse-index record, spilling inline storage when necessary. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entry</td><td>Record to append. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a420693a01f863e02eb1959065562021f" name="a420693a01f863e02eb1959065562021f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a420693a01f863e02eb1959065562021f">&#9670;&#160;</a></span>size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html#a95e71d03d202c65dd446c22532d65098">size_type</a> gaia::ecs::ComponentIndexEntryArray::size </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the number of reverse-index records. </p>
+<dl class="section return"><dt>Returns</dt><dd>Number of stored records. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -196,7 +584,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>pop_back</b> ()</td><
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html">ComponentIndexEntryArray</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1ComponentIndexEntryArray.html">ComponentIndexEntryArray</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

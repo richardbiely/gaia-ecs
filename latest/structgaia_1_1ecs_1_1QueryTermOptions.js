@@ -1,9 +1,25 @@
 var structgaia_1_1ecs_1_1QueryTermOptions =
 [
+    [ "direct", "structgaia_1_1ecs_1_1QueryTermOptions.html#a92d933e0e4fbb4d3aaee4a411ea2f681", null ],
+    [ "in", "structgaia_1_1ecs_1_1QueryTermOptions.html#a648c32377fb1cca03ddc139f7a52f71b", null ],
+    [ "read", "structgaia_1_1ecs_1_1QueryTermOptions.html#a7c480d82230004e1c0c7ec38ec36084f", null ],
+    [ "src", "structgaia_1_1ecs_1_1QueryTermOptions.html#a60395e3e32e37f6dccacb68ed29db718", null ],
+    [ "trav", "structgaia_1_1ecs_1_1QueryTermOptions.html#a46935de673d560996b4cfc46322c0d8c", null ],
+    [ "trav_child", "structgaia_1_1ecs_1_1QueryTermOptions.html#a4a90ec8a9d6b3a02e811cbcf367bdd6d", null ],
+    [ "trav_depth", "structgaia_1_1ecs_1_1QueryTermOptions.html#a2038dde541e2c209dfaa975301feb133", null ],
+    [ "trav_down", "structgaia_1_1ecs_1_1QueryTermOptions.html#a913b02a664ec2ad52c3714485261763d", null ],
+    [ "trav_kind", "structgaia_1_1ecs_1_1QueryTermOptions.html#a6b093bc75a3922269ce660cb151036fb", null ],
+    [ "trav_parent", "structgaia_1_1ecs_1_1QueryTermOptions.html#a7dc14e73a3f9e663a501c5c9e4e43c93", null ],
+    [ "trav_self_child", "structgaia_1_1ecs_1_1QueryTermOptions.html#acffff38b92ada4654faa1c7cf063cb61", null ],
+    [ "trav_self_down", "structgaia_1_1ecs_1_1QueryTermOptions.html#a3fba15d6ff975275c4b44931a7c7aa98", null ],
+    [ "trav_self_parent", "structgaia_1_1ecs_1_1QueryTermOptions.html#a02057c27a90752ebbaeee2424c3c7473", null ],
+    [ "trav_up", "structgaia_1_1ecs_1_1QueryTermOptions.html#afb5f0a7c2b097f19bef3f91a3862c553", null ],
+    [ "write", "structgaia_1_1ecs_1_1QueryTermOptions.html#a14acd7b6d93934363f25ef0008b94eca", null ],
     [ "access", "structgaia_1_1ecs_1_1QueryTermOptions.html#a535a5f11621a334f298cd7a147061ab3", null ],
     [ "entSrc", "structgaia_1_1ecs_1_1QueryTermOptions.html#a212122d2721c1de0d43da9c42e8b1188", null ],
     [ "entTrav", "structgaia_1_1ecs_1_1QueryTermOptions.html#a4ed3364b37864ec2da22957ccf71022d", null ],
     [ "matchKind", "structgaia_1_1ecs_1_1QueryTermOptions.html#a5d4564ab465c20e05f03c55bf046eec9", null ],
     [ "travDepth", "structgaia_1_1ecs_1_1QueryTermOptions.html#a149601819cd87f3e81fa6cb4d8860a5c", null ],
+    [ "TravDepthUnlimited", "structgaia_1_1ecs_1_1QueryTermOptions.html#a6b8390766c5f7823df0fc2ba69b012a6", null ],
     [ "travKind", "structgaia_1_1ecs_1_1QueryTermOptions.html#a64fce342eb6eac5b70f4cc90adf037ba", null ]
 ];

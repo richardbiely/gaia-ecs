@@ -113,22 +113,138 @@ $(document).ready(function(){initNavTree('structgaia_1_1meta_1_1type__info.html'
   <div class="headertitle"><div class="title">gaia::meta::type_info Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Provides compile-time compiler-derived names and hashes for C++ types.  
+ <a href="structgaia_1_1meta_1_1type__info.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="type__info_8h_source.html">type_info.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a85da891c3f0f76d14126cbf2d57d9cc5" id="r_a85da891c3f0f76d14126cbf2d57d9cc5"><td class="memTemplParams" colspan="2"><a id="a85da891c3f0f76d14126cbf2d57d9cc5" name="a85da891c3f0f76d14126cbf2d57d9cc5"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a85da891c3f0f76d14126cbf2d57d9cc5"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr const char *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>full_name</b> () noexcept</td></tr>
+<tr class="memitem:a85da891c3f0f76d14126cbf2d57d9cc5" id="r_a85da891c3f0f76d14126cbf2d57d9cc5"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a85da891c3f0f76d14126cbf2d57d9cc5"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr const char *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1meta_1_1type__info.html#a85da891c3f0f76d14126cbf2d57d9cc5">full_name</a> () noexcept</td></tr>
+<tr class="memdesc:a85da891c3f0f76d14126cbf2d57d9cc5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the complete compiler function signature containing T.  <br /></td></tr>
 <tr class="separator:a85da891c3f0f76d14126cbf2d57d9cc5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1392535f2e8470585b45331ff70048d6" id="r_a1392535f2e8470585b45331ff70048d6"><td class="memTemplParams" colspan="2"><a id="a1392535f2e8470585b45331ff70048d6" name="a1392535f2e8470585b45331ff70048d6"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a1392535f2e8470585b45331ff70048d6"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr auto&#160;</td><td class="memTemplItemRight" valign="bottom"><b>name</b> () noexcept</td></tr>
+<tr class="memitem:a1392535f2e8470585b45331ff70048d6" id="r_a1392535f2e8470585b45331ff70048d6"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a1392535f2e8470585b45331ff70048d6"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1meta_1_1type__info.html#a1392535f2e8470585b45331ff70048d6">name</a> () noexcept</td></tr>
+<tr class="memdesc:a1392535f2e8470585b45331ff70048d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Extracts the unqualified compiler spelling of T from the function signature.  <br /></td></tr>
 <tr class="separator:a1392535f2e8470585b45331ff70048d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acca10895425ec6f0e97f2cf2cd337249" id="r_acca10895425ec6f0e97f2cf2cd337249"><td class="memTemplParams" colspan="2"><a id="acca10895425ec6f0e97f2cf2cd337249" name="acca10895425ec6f0e97f2cf2cd337249"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:acca10895425ec6f0e97f2cf2cd337249"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr auto&#160;</td><td class="memTemplItemRight" valign="bottom"><b>hash</b> () noexcept</td></tr>
+<tr class="memitem:acca10895425ec6f0e97f2cf2cd337249" id="r_acca10895425ec6f0e97f2cf2cd337249"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:acca10895425ec6f0e97f2cf2cd337249"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr auto&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1meta_1_1type__info.html#acca10895425ec6f0e97f2cf2cd337249">hash</a> () noexcept</td></tr>
+<tr class="memdesc:acca10895425ec6f0e97f2cf2cd337249"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the stable Gaia-ECS hash of the compiler spelling of T.  <br /></td></tr>
 <tr class="separator:acca10895425ec6f0e97f2cf2cd337249"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Provides compile-time compiler-derived names and hashes for C++ types. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a85da891c3f0f76d14126cbf2d57d9cc5" name="a85da891c3f0f76d14126cbf2d57d9cc5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a85da891c3f0f76d14126cbf2d57d9cc5">&#9670;&#160;</a></span>full_name()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD constexpr const char * gaia::meta::type_info::full_name </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the complete compiler function signature containing T. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Type to describe. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Null-terminated compiler signature string. </dd></dl>
+
+</div>
+</div>
+<a id="acca10895425ec6f0e97f2cf2cd337249" name="acca10895425ec6f0e97f2cf2cd337249"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acca10895425ec6f0e97f2cf2cd337249">&#9670;&#160;</a></span>hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD constexpr auto gaia::meta::type_info::hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Calculates the stable Gaia-ECS hash of the compiler spelling of T. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Type to hash. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>64-bit hash of <a class="el" href="structgaia_1_1meta_1_1type__info.html#a1392535f2e8470585b45331ff70048d6" title="Extracts the unqualified compiler spelling of T from the function signature.">name&lt;T&gt;()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a1392535f2e8470585b45331ff70048d6" name="a1392535f2e8470585b45331ff70048d6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1392535f2e8470585b45331ff70048d6">&#9670;&#160;</a></span>name()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD constexpr auto gaia::meta::type_info::name </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Extracts the unqualified compiler spelling of T from the function signature. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Type to describe. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Span covering the extracted type name. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/meta/<a class="el" href="type__info_8h_source.html">type_info.h</a></li>
 </ul>
@@ -137,7 +253,7 @@ template&lt;typename T &gt; </td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>meta</b></li><li class="navelem"><a class="el" href="structgaia_1_1meta_1_1type__info.html">type_info</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>meta</b></li><li class="navelem"><a class="el" href="structgaia_1_1meta_1_1type__info.html">type_info</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

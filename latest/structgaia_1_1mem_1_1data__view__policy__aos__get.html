@@ -115,6 +115,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1data__view__polic
   <div class="headertitle"><div class="title">gaia::mem::data_view_policy_aos_get&lt; ValueType &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Read-only byte view over AoS values.  
+ <a href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="data__layout__policy_8h_source.html">data_layout_policy.h</a>&gt;</code></p>
 <div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Inheritance diagram for gaia::mem::data_view_policy_aos_get&lt; ValueType &gt;:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -131,37 +136,262 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1data__view__polic
 Public Types</h2></td></tr>
 <tr class="memitem:a5a94802cc8826b4e1cbd9aee0a51aa1f" id="r_a5a94802cc8826b4e1cbd9aee0a51aa1f"><td class="memItemLeft" align="right" valign="top"><a id="a5a94802cc8826b4e1cbd9aee0a51aa1f" name="a5a94802cc8826b4e1cbd9aee0a51aa1f"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>view_policy</b> = <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">data_view_policy_aos</a>&lt; ValueType &gt;</td></tr>
+<tr class="memdesc:a5a94802cc8826b4e1cbd9aee0a51aa1f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Underlying storage policy. <br /></td></tr>
 <tr class="separator:a5a94802cc8826b4e1cbd9aee0a51aa1f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a3ee0cc76d00a187636aba87d2b263a82" id="r_a3ee0cc76d00a187636aba87d2b263a82"><td class="memItemLeft" align="right" valign="top"><a id="a3ee0cc76d00a187636aba87d2b263a82" name="a3ee0cc76d00a187636aba87d2b263a82"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>data_view_policy_aos_get</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t &gt; data)</td></tr>
+<tr class="memitem:a3ee0cc76d00a187636aba87d2b263a82" id="r_a3ee0cc76d00a187636aba87d2b263a82"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#a3ee0cc76d00a187636aba87d2b263a82">data_view_policy_aos_get</a> (std::span&lt; uint8_t &gt; <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#ab74a330cb351b996f8be6fb580910a2c">data</a>)</td></tr>
+<tr class="memdesc:a3ee0cc76d00a187636aba87d2b263a82"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only view over mutable bytes.  <br /></td></tr>
 <tr class="separator:a3ee0cc76d00a187636aba87d2b263a82"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aad79ac0d5cda03c8082dc0700eccc7ba" id="r_aad79ac0d5cda03c8082dc0700eccc7ba"><td class="memItemLeft" align="right" valign="top"><a id="aad79ac0d5cda03c8082dc0700eccc7ba" name="aad79ac0d5cda03c8082dc0700eccc7ba"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>data_view_policy_aos_get</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt; data)</td></tr>
+<tr class="memitem:aad79ac0d5cda03c8082dc0700eccc7ba" id="r_aad79ac0d5cda03c8082dc0700eccc7ba"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#aad79ac0d5cda03c8082dc0700eccc7ba">data_view_policy_aos_get</a> (std::span&lt; const uint8_t &gt; <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#ab74a330cb351b996f8be6fb580910a2c">data</a>)</td></tr>
+<tr class="memdesc:aad79ac0d5cda03c8082dc0700eccc7ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only view over bytes.  <br /></td></tr>
 <tr class="separator:aad79ac0d5cda03c8082dc0700eccc7ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa2fd257421fce515c125b7e53cb405e9" id="r_aa2fd257421fce515c125b7e53cb405e9"><td class="memTemplParams" colspan="2"><a id="aa2fd257421fce515c125b7e53cb405e9" name="aa2fd257421fce515c125b7e53cb405e9"></a>
-template&lt;typename C &gt; </td></tr>
-<tr class="memitem:aa2fd257421fce515c125b7e53cb405e9"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><b>data_view_policy_aos_get</b> (const C &amp;c)</td></tr>
+<tr class="memitem:aa2fd257421fce515c125b7e53cb405e9" id="r_aa2fd257421fce515c125b7e53cb405e9"><td class="memTemplParams" colspan="2">template&lt;typename C &gt; </td></tr>
+<tr class="memitem:aa2fd257421fce515c125b7e53cb405e9"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#aa2fd257421fce515c125b7e53cb405e9">data_view_policy_aos_get</a> (const C &amp;c)</td></tr>
+<tr class="memdesc:aa2fd257421fce515c125b7e53cb405e9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only view over a contiguous container.  <br /></td></tr>
 <tr class="separator:aa2fd257421fce515c125b7e53cb405e9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9588e892e7d544f3e5734d43d36abea0" id="r_a9588e892e7d544f3e5734d43d36abea0"><td class="memItemLeft" align="right" valign="top"><a id="a9588e892e7d544f3e5734d43d36abea0" name="a9588e892e7d544f3e5734d43d36abea0"></a>
-GAIA_NODISCARD const ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator[]</b> (size_t idx) const noexcept</td></tr>
+<tr class="memitem:a9588e892e7d544f3e5734d43d36abea0" id="r_a9588e892e7d544f3e5734d43d36abea0"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#a9588e892e7d544f3e5734d43d36abea0">operator[]</a> (size_t idx) const noexcept</td></tr>
+<tr class="memdesc:a9588e892e7d544f3e5734d43d36abea0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a value by index.  <br /></td></tr>
 <tr class="separator:a9588e892e7d544f3e5734d43d36abea0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab74a330cb351b996f8be6fb580910a2c" id="r_ab74a330cb351b996f8be6fb580910a2c"><td class="memItemLeft" align="right" valign="top"><a id="ab74a330cb351b996f8be6fb580910a2c" name="ab74a330cb351b996f8be6fb580910a2c"></a>
-GAIA_NODISCARD decltype(auto)&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> () const noexcept</td></tr>
+<tr class="memitem:ab74a330cb351b996f8be6fb580910a2c" id="r_ab74a330cb351b996f8be6fb580910a2c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#ab74a330cb351b996f8be6fb580910a2c">data</a> () const noexcept</td></tr>
+<tr class="memdesc:ab74a330cb351b996f8be6fb580910a2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the backing byte address.  <br /></td></tr>
 <tr class="separator:ab74a330cb351b996f8be6fb580910a2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a85fccf9947033d8da5f4a88de69f4e61" id="r_a85fccf9947033d8da5f4a88de69f4e61"><td class="memItemLeft" align="right" valign="top"><a id="a85fccf9947033d8da5f4a88de69f4e61" name="a85fccf9947033d8da5f4a88de69f4e61"></a>
-GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> () const noexcept</td></tr>
+<tr class="memitem:a85fccf9947033d8da5f4a88de69f4e61" id="r_a85fccf9947033d8da5f4a88de69f4e61"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html#a85fccf9947033d8da5f4a88de69f4e61">size</a> () const noexcept</td></tr>
+<tr class="memdesc:a85fccf9947033d8da5f4a88de69f4e61"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the backing span size.  <br /></td></tr>
 <tr class="separator:a85fccf9947033d8da5f4a88de69f4e61"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a062206408fa0f9c7cd69f4b6f5b656a3" id="r_a062206408fa0f9c7cd69f4b6f5b656a3"><td class="memItemLeft" align="right" valign="top"><a id="a062206408fa0f9c7cd69f4b6f5b656a3" name="a062206408fa0f9c7cd69f4b6f5b656a3"></a>
-<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr>
+std::span&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr>
 <tr class="memdesc:a062206408fa0f9c7cd69f4b6f5b656a3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Raw data pointed to by the view policy. <br /></td></tr>
 <tr class="separator:a062206408fa0f9c7cd69f4b6f5b656a3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename ValueType&gt;<br />
+struct gaia::mem::data_view_policy_aos_get&lt; ValueType &gt;</div><p>Read-only byte view over AoS values. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">ValueType</td><td>Stored value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a3ee0cc76d00a187636aba87d2b263a82" name="a3ee0cc76d00a187636aba87d2b263a82"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ee0cc76d00a187636aba87d2b263a82">&#9670;&#160;</a></span>data_view_policy_aos_get() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::data_view_policy_aos_get </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; uint8_t &gt;&#160;</td>
+          <td class="paramname"><em>data</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a read-only view over mutable bytes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">data</td><td>Backing byte span. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aad79ac0d5cda03c8082dc0700eccc7ba" name="aad79ac0d5cda03c8082dc0700eccc7ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aad79ac0d5cda03c8082dc0700eccc7ba">&#9670;&#160;</a></span>data_view_policy_aos_get() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::data_view_policy_aos_get </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; const uint8_t &gt;&#160;</td>
+          <td class="paramname"><em>data</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a read-only view over bytes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">data</td><td>Backing byte span. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aa2fd257421fce515c125b7e53cb405e9" name="aa2fd257421fce515c125b7e53cb405e9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa2fd257421fce515c125b7e53cb405e9">&#9670;&#160;</a></span>data_view_policy_aos_get() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<div class="memtemplate">
+template&lt;typename C &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::data_view_policy_aos_get </td>
+          <td>(</td>
+          <td class="paramtype">const C &amp;&#160;</td>
+          <td class="paramname"><em>c</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a read-only view over a contiguous container. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">C</td><td>Contiguous container type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">c</td><td>Backing container. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="ab74a330cb351b996f8be6fb580910a2c" name="ab74a330cb351b996f8be6fb580910a2c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab74a330cb351b996f8be6fb580910a2c">&#9670;&#160;</a></span>data()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD decltype(auto) <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::data </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the backing byte address. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only byte pointer. </dd></dl>
+
+</div>
+</div>
+<a id="a9588e892e7d544f3e5734d43d36abea0" name="a9588e892e7d544f3e5734d43d36abea0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9588e892e7d544f3e5734d43d36abea0">&#9670;&#160;</a></span>operator[]()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const ValueType &amp; <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::operator[] </td>
+          <td>(</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>idx</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a value by index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">idx</td><td>Value index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Read-only reference to the value. </dd></dl>
+
+</div>
+</div>
+<a id="a85fccf9947033d8da5f4a88de69f4e61" name="a85fccf9947033d8da5f4a88de69f4e61"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a85fccf9947033d8da5f4a88de69f4e61">&#9670;&#160;</a></span>size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD auto <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">gaia::mem::data_view_policy_aos_get</a>&lt; ValueType &gt;::size </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the backing span size. </p>
+<dl class="section return"><dt>Returns</dt><dd>Span size in bytes. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="data__layout__policy_8h_source.html">data_layout_policy.h</a></li>
 </ul>
@@ -170,7 +400,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">data_view_policy_aos_get</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos__get.html">data_view_policy_aos_get</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

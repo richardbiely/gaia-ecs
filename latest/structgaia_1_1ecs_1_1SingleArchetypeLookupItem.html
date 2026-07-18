@@ -114,22 +114,67 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1SingleArchetypeLo
   <div class="headertitle"><div class="title">gaia::ecs::SingleArchetypeLookupItem Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>One lookup-key record collected while indexing a single archetype.  
+ <a href="structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aa3b025d5bdcc34f5af54e12d8a2f0dca" id="r_aa3b025d5bdcc34f5af54e12d8a2f0dca"><td class="memItemLeft" align="right" valign="top"><a id="aa3b025d5bdcc34f5af54e12d8a2f0dca" name="aa3b025d5bdcc34f5af54e12d8a2f0dca"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>matches</b> (<a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> other) const</td></tr>
+<tr class="memitem:aa3b025d5bdcc34f5af54e12d8a2f0dca" id="r_aa3b025d5bdcc34f5af54e12d8a2f0dca"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html#aa3b025d5bdcc34f5af54e12d8a2f0dca">matches</a> (<a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a> other) const</td></tr>
+<tr class="memdesc:aa3b025d5bdcc34f5af54e12d8a2f0dca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tests whether this item represents a lookup key.  <br /></td></tr>
 <tr class="separator:aa3b025d5bdcc34f5af54e12d8a2f0dca"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a399da5d0890e8c59341dbff25da926b6" id="r_a399da5d0890e8c59341dbff25da926b6"><td class="memItemLeft" align="right" valign="top"><a id="a399da5d0890e8c59341dbff25da926b6" name="a399da5d0890e8c59341dbff25da926b6"></a>
 <a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>&#160;</td><td class="memItemRight" valign="bottom"><b>key</b> = EntityBadLookupKey</td></tr>
+<tr class="memdesc:a399da5d0890e8c59341dbff25da926b6"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> or wildcard-pair lookup key represented by this record. <br /></td></tr>
 <tr class="separator:a399da5d0890e8c59341dbff25da926b6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a970990f963be3f86af4d6d3f44dfc359" id="r_a970990f963be3f86af4d6d3f44dfc359"><td class="memItemLeft" align="right" valign="top"><a id="a970990f963be3f86af4d6d3f44dfc359" name="a970990f963be3f86af4d6d3f44dfc359"></a>
 <a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a>&#160;</td><td class="memItemRight" valign="bottom"><b>entry</b> {}</td></tr>
+<tr class="memdesc:a970990f963be3f86af4d6d3f44dfc359"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reverse-index data associated with <em>key</em>. <br /></td></tr>
 <tr class="separator:a970990f963be3f86af4d6d3f44dfc359"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>One lookup-key record collected while indexing a single archetype. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="aa3b025d5bdcc34f5af54e12d8a2f0dca" name="aa3b025d5bdcc34f5af54e12d8a2f0dca"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3b025d5bdcc34f5af54e12d8a2f0dca">&#9670;&#160;</a></span>matches()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::SingleArchetypeLookupItem::matches </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityLookupKey.html">EntityLookupKey</a>&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Tests whether this item represents a lookup key. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Lookup key to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>other</em> equals key. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
@@ -138,7 +183,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html">SingleArchetypeLookupItem</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1SingleArchetypeLookupItem.html">SingleArchetypeLookupItem</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

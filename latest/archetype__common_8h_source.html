@@ -124,76 +124,67 @@ $(document).ready(function(){initNavTree('archetype__common_8h_source.html','');
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="preprocessor">#include &quot;gaia/cnt/map.h&quot;</span></div>
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="preprocessor">#include &quot;gaia/core/hashing_policy.h&quot;</span></div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>  <span class="keyword">namespace </span>ecs {</div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    <span class="keyword">class </span>Archetype;</div>
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span> </div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <span class="keyword">using </span>ArchetypeId = uint32_t;</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">using </span>ArchetypeDArray = cnt::darray&lt;Archetype*&gt;;</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="keyword">using </span>CArchetypeDArray = cnt::darray&lt;const Archetype*&gt;;</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="keyword">using </span>ArchetypeIdHash = core::direct_hash_key&lt;uint32_t&gt;;</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span> </div>
-<div class="foldopen" id="foldopen00019" data-start="{" data-end="};">
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno"><a class="line" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">   19</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeIdHashPair</a> {</div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>      ArchetypeId id;</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>      <a class="code hl_class" href="structgaia_1_1core_1_1direct__hash__key.html">ArchetypeIdHash</a> hash;</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span> </div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator==(<a class="code hl_struct" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeIdHashPair</a> other)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        <span class="keywordflow">return</span> <span class="keywordtype">id</span> == other.id;</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>      }</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator!=(<a class="code hl_struct" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeIdHashPair</a> other)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>        <span class="keywordflow">return</span> <span class="keywordtype">id</span> != other.id;</div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>      }</div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>    };</div>
-</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span> </div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> <a class="code hl_struct" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeIdHashPair</a> ArchetypeIdHashPairBad = {ArchetypeIdBad, {0}};</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span> </div>
-<div class="foldopen" id="foldopen00034" data-start="{" data-end="};">
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno"><a class="line" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">   34</a></span>    <span class="keyword">class </span><a class="code hl_class" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">ArchetypeIdLookupKey</a> final {</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>      <span class="keyword">using </span><a class="code hl_class" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a> = <a class="code hl_struct" href="structgaia_1_1core_1_1direct__hash__key.html">core::direct_hash_key&lt;uint32_t&gt;</a>;</div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span> </div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    <span class="keyword">private</span>:</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>      ArchetypeId m_id;</div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>      <a class="code hl_class" href="structgaia_1_1core_1_1direct__hash__key.html">ArchetypeIdHash</a> m_hash;</div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="keyword">public</span>:</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>      GAIA_NODISCARD <span class="keyword">static</span> <a class="code hl_class" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a> calc(ArchetypeId <span class="keywordtype">id</span>) {</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        <span class="keywordflow">return</span> {<span class="keyword">static_cast&lt;</span>uint32_t<span class="keyword">&gt;</span>(core::calculate_hash64(<span class="keywordtype">id</span>))};</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>      }</div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span> </div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>      <span class="keyword">static</span> <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> IsDirectHashKey = <span class="keyword">true</span>;</div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span> </div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>      <a class="code hl_class" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">ArchetypeIdLookupKey</a>(): m_id(0), m_hash({0}) {}</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>      <a class="code hl_class" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">ArchetypeIdLookupKey</a>(<a class="code hl_struct" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeIdHashPair</a> <a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>): m_id(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>.id), m_hash(<a class="code hl_class" href="classgaia_1_1ecs_1_1pair.html">pair</a>.hash) {}</div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>      <span class="keyword">explicit</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">ArchetypeIdLookupKey</a>(ArchetypeId <span class="keywordtype">id</span>, <a class="code hl_class" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a> hash): m_id(<span class="keywordtype">id</span>), m_hash(hash) {}</div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span> </div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>      GAIA_NODISCARD <span class="keywordtype">size_t</span> hash()<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        <span class="keywordflow">return</span> (<span class="keywordtype">size_t</span>)m_hash.hash;</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>      }</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span> </div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> <a class="code hl_class" href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">ArchetypeIdLookupKey</a>&amp; other)<span class="keyword"> const </span>{</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>        <span class="comment">// Hash doesn&#39;t match we don&#39;t have a match.</span></div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        <span class="comment">// Hash collisions are expected to be very unlikely so optimize for this case.</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>        <span class="keywordflow">if</span> GAIA_LIKELY (m_hash != other.m_hash)</div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>          <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span> </div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>        <span class="keywordflow">return</span> m_id == other.m_id;</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>      }</div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    };</div>
-</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>    <span class="keyword">using </span><a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">ArchetypeMapById</a> = <a class="code hl_class" href="classgaia_1_1cnt_1_1darr.html">cnt::map&lt;ArchetypeIdLookupKey, Archetype*&gt;</a>;</div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1cnt_1_1darr_html"><div class="ttname"><a href="classgaia_1_1cnt_1_1darr.html">gaia::cnt::darr</a></div><div class="ttdoc">Array with variable size of elements of type.</div><div class="ttdef"><b>Definition</b> darray_impl.h:25</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1ArchetypeIdLookupKey_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1ArchetypeIdLookupKey.html">gaia::ecs::ArchetypeIdLookupKey</a></div><div class="ttdef"><b>Definition</b> archetype_common.h:34</div></div>
-<div class="ttc" id="aclassgaia_1_1ecs_1_1pair_html"><div class="ttname"><a href="classgaia_1_1ecs_1_1pair.html">gaia::ecs::pair</a></div><div class="ttdoc">Wrapper for two types forming a relationship pair. Depending on what types are used to form a pair it...</div><div class="ttdef"><b>Definition</b> id.h:228</div></div>
-<div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
-<div class="ttc" id="astructgaia_1_1core_1_1direct__hash__key_html"><div class="ttname"><a href="structgaia_1_1core_1_1direct__hash__key.html">gaia::core::direct_hash_key&lt; uint32_t &gt;</a></div></div>
-<div class="ttc" id="astructgaia_1_1ecs_1_1ArchetypeIdHashPair_html"><div class="ttname"><a href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">gaia::ecs::ArchetypeIdHashPair</a></div><div class="ttdef"><b>Definition</b> archetype_common.h:19</div></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="keyword">namespace </span>gaia {</div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>  <span class="keyword">namespace </span>ecs {</div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>    <span class="keyword">class </span>Archetype;</div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span> </div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">using </span>ArchetypeId = uint32_t;</div>
+<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="keyword">using </span>ArchetypeDArray = cnt::darray&lt;Archetype*&gt;;</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="keyword">using </span>CArchetypeDArray = cnt::darray&lt;const Archetype*&gt;;</div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    <span class="keyword">using </span>ArchetypeIdHash = core::direct_hash_key&lt;uint32_t&gt;;</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    <span class="keyword">struct </span>ArchetypeIdHashPair {</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>      ArchetypeId id;</div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>      ArchetypeIdHash hash;</div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator==(ArchetypeIdHashPair other)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>        <span class="keywordflow">return</span> <span class="keywordtype">id</span> == other.id;</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>      }</div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator!=(ArchetypeIdHashPair other)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>        <span class="keywordflow">return</span> <span class="keywordtype">id</span> != other.id;</div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span>      }</div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>    };</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span> </div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> ArchetypeId ArchetypeIdBad = (ArchetypeId)-1;</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    <span class="keyword">static</span> <span class="keyword">constexpr</span> ArchetypeIdHashPair ArchetypeIdHashPairBad = {ArchetypeIdBad, {0}};</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span> </div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    <span class="keyword">class </span>ArchetypeIdLookupKey final {</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>    <span class="keyword">public</span>:</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>      <span class="keyword">using </span>LookupHash = core::direct_hash_key&lt;uint32_t&gt;;</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span> </div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    <span class="keyword">private</span>:</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>      ArchetypeId m_id;</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>      ArchetypeIdHash m_hash;</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    <span class="keyword">public</span>:</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>      GAIA_NODISCARD <span class="keyword">static</span> LookupHash calc(ArchetypeId <span class="keywordtype">id</span>) {</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        <span class="keywordflow">return</span> {<span class="keyword">static_cast&lt;</span>uint32_t<span class="keyword">&gt;</span>(core::calculate_hash64(<span class="keywordtype">id</span>))};</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>      }</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>      <span class="keyword">static</span> <span class="keyword">constexpr</span> <span class="keywordtype">bool</span> IsDirectHashKey = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>      ArchetypeIdLookupKey(): m_id(0), m_hash({0}) {}</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>      ArchetypeIdLookupKey(ArchetypeIdHashPair pair): m_id(pair.id), m_hash(pair.hash) {}</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>      <span class="keyword">explicit</span> ArchetypeIdLookupKey(ArchetypeId <span class="keywordtype">id</span>, LookupHash hash): m_id(id), m_hash(hash) {}</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>      GAIA_NODISCARD <span class="keywordtype">size_t</span> hash()<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>        <span class="keywordflow">return</span> (<span class="keywordtype">size_t</span>)m_hash.hash;</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>      }</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span> </div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>      GAIA_NODISCARD <span class="keywordtype">bool</span> operator==(<span class="keyword">const</span> ArchetypeIdLookupKey&amp; other)<span class="keyword"> const </span>{</div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        <span class="comment">// Hash doesn&#39;t match we don&#39;t have a match.</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>        <span class="comment">// Hash collisions are expected to be very unlikely so optimize for this case.</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>        <span class="keywordflow">if</span> GAIA_LIKELY (m_hash != other.m_hash)</div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>          return false;</div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span> </div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>        return m_id == other.m_id;</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>      }</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span>    };</div>
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span> </div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    using ArchetypeMapById = cnt::map&lt;ArchetypeIdLookupKey, Archetype*&gt;;</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>} <span class="comment">// namespace gaia</span></div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

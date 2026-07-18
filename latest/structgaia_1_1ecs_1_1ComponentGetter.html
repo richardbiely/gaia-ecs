@@ -133,8 +133,8 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentGetter.h
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:acee5c2f8fa1bafd31a886b446e547952" id="r_acee5c2f8fa1bafd31a886b446e547952"><td class="memItemLeft" align="right" valign="top"><a id="acee5c2f8fa1bafd31a886b446e547952" name="acee5c2f8fa1bafd31a886b446e547952"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentGetter</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint16_t row)</td></tr>
+<tr class="memitem:acee5c2f8fa1bafd31a886b446e547952" id="r_acee5c2f8fa1bafd31a886b446e547952"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#acee5c2f8fa1bafd31a886b446e547952">ComponentGetter</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint16_t row)</td></tr>
+<tr class="memdesc:acee5c2f8fa1bafd31a886b446e547952"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an accessor for one entity row.  <br /></td></tr>
 <tr class="separator:acee5c2f8fa1bafd31a886b446e547952"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a76539992c27bf9a5570b97754c114ccd" id="r_a76539992c27bf9a5570b97754c114ccd"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a76539992c27bf9a5570b97754c114ccd"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html#a76539992c27bf9a5570b97754c114ccd">get</a> () const</td></tr>
@@ -155,20 +155,84 @@ Public Member Functions</h2></td></tr>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a8ffd91318d8b55f0488e97113057d6a6" id="r_a8ffd91318d8b55f0488e97113057d6a6"><td class="memItemLeft" align="right" valign="top"><a id="a8ffd91318d8b55f0488e97113057d6a6" name="a8ffd91318d8b55f0488e97113057d6a6"></a>
 const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>m_pWorld</b></td></tr>
+<tr class="memdesc:a8ffd91318d8b55f0488e97113057d6a6"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> used to resolve inherited and sparse component data. <br /></td></tr>
 <tr class="separator:a8ffd91318d8b55f0488e97113057d6a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a36a7410b43b49b91209ba7c8706f334c" id="r_a36a7410b43b49b91209ba7c8706f334c"><td class="memItemLeft" align="right" valign="top"><a id="a36a7410b43b49b91209ba7c8706f334c" name="a36a7410b43b49b91209ba7c8706f334c"></a>
 const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>m_pChunk</b></td></tr>
+<tr class="memdesc:a36a7410b43b49b91209ba7c8706f334c"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> containing the entity's table-backed data. <br /></td></tr>
 <tr class="separator:a36a7410b43b49b91209ba7c8706f334c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7e64de3edb779e09797596a7917fbe4f" id="r_a7e64de3edb779e09797596a7917fbe4f"><td class="memItemLeft" align="right" valign="top"><a id="a7e64de3edb779e09797596a7917fbe4f" name="a7e64de3edb779e09797596a7917fbe4f"></a>
 <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_entity</b></td></tr>
+<tr class="memdesc:a7e64de3edb779e09797596a7917fbe4f"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose components are accessed. <br /></td></tr>
 <tr class="separator:a7e64de3edb779e09797596a7917fbe4f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad3c8ea4e7549ce2c1bad1d3f578b943f" id="r_ad3c8ea4e7549ce2c1bad1d3f578b943f"><td class="memItemLeft" align="right" valign="top"><a id="ad3c8ea4e7549ce2c1bad1d3f578b943f" name="ad3c8ea4e7549ce2c1bad1d3f578b943f"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_row</b></td></tr>
+<tr class="memdesc:ad3c8ea4e7549ce2c1bad1d3f578b943f"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> row within the chunk. <br /></td></tr>
 <tr class="separator:ad3c8ea4e7549ce2c1bad1d3f578b943f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Entity-scoped component accessor bound to a specific world, chunk and row. It is not a standalone chunk view and expects the referenced entity to remain valid. </p>
-</div><h2 class="groupheader">Member Function Documentation</h2>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="acee5c2f8fa1bafd31a886b446e547952" name="acee5c2f8fa1bafd31a886b446e547952"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acee5c2f8fa1bafd31a886b446e547952">&#9670;&#160;</a></span>ComponentGetter()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::ecs::ComponentGetter::ComponentGetter </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td>
+          <td class="paramname"><em>pChunk</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint16_t&#160;</td>
+          <td class="paramname"><em>row</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates an accessor for one entity row. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> that owns the entity. </td></tr>
+    <tr><td class="paramname">pChunk</td><td><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> containing the entity row. </td></tr>
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> being accessed. </td></tr>
+    <tr><td class="paramname">row</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> row within <code>pChunk</code>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
 <a id="a76539992c27bf9a5570b97754c114ccd" name="a76539992c27bf9a5570b97754c114ccd"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a76539992c27bf9a5570b97754c114ccd">&#9670;&#160;</a></span>get() <span class="overload">[1/2]</span></h2>
 
@@ -236,6 +300,7 @@ template&lt;typename T &gt; </div>
   </table>
   </dd>
 </dl>
+<dl class="section return"><dt>Returns</dt><dd>Value stored in the selected component. </dd></dl>
 
 </div>
 </div>
@@ -329,7 +394,7 @@ template&lt;typename T &gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentGetter.html">ComponentGetter</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

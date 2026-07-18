@@ -124,10 +124,6 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentCursor.h
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a4df4c04a72b1d3ce9a6ad80038397b03" id="r_a4df4c04a72b1d3ce9a6ad80038397b03"><td class="memItemLeft" align="right" valign="top"><a id="a4df4c04a72b1d3ce9a6ad80038397b03" name="a4df4c04a72b1d3ce9a6ad80038397b03"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentCursor</b> ()=default</td></tr>
-<tr class="memdesc:a4df4c04a72b1d3ce9a6ad80038397b03"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates an invalid cursor. <br /></td></tr>
-<tr class="separator:a4df4c04a72b1d3ce9a6ad80038397b03"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a77244ffd9884bc9d8d4f47690e8462ba" id="r_a77244ffd9884bc9d8d4f47690e8462ba"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a77244ffd9884bc9d8d4f47690e8462ba">valid</a> () const noexcept</td></tr>
 <tr class="separator:a77244ffd9884bc9d8d4f47690e8462ba"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7011f4f5a7eee8365496b4cc1d072fd2" id="r_a7011f4f5a7eee8365496b4cc1d072fd2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a7011f4f5a7eee8365496b4cc1d072fd2">depth</a> () const noexcept</td></tr>
@@ -298,16 +294,16 @@ GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1CursorResult.html">Curso
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a445d01b89b315383c3888464b04fde84" id="r_a445d01b89b315383c3888464b04fde84"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a445d01b89b315383c3888464b04fde84">from_raw</a> (const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> view)</td></tr>
+<tr class="memitem:a445d01b89b315383c3888464b04fde84" id="r_a445d01b89b315383c3888464b04fde84"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a445d01b89b315383c3888464b04fde84">from_raw</a> (const ComponentCache &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1ComponentRawView.html">ComponentRawView</a> view)</td></tr>
 <tr class="memdesc:a445d01b89b315383c3888464b04fde84"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor from a raw component view.  <br /></td></tr>
 <tr class="separator:a445d01b89b315383c3888464b04fde84"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac3eb3e8879b702ca8a4f3160f6a58b1b" id="r_ac3eb3e8879b702ca8a4f3160f6a58b1b"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ac3eb3e8879b702ca8a4f3160f6a58b1b">from_raw</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a> view)</td></tr>
+<tr class="memitem:ac3eb3e8879b702ca8a4f3160f6a58b1b" id="r_ac3eb3e8879b702ca8a4f3160f6a58b1b"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#ac3eb3e8879b702ca8a4f3160f6a58b1b">from_raw</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const ComponentCache &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1ComponentRawMutView.html">ComponentRawMutView</a> view)</td></tr>
 <tr class="memdesc:ac3eb3e8879b702ca8a4f3160f6a58b1b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor from a raw component view.  <br /></td></tr>
 <tr class="separator:ac3eb3e8879b702ca8a4f3160f6a58b1b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8cfac2a61877d72eb7cbf14a5c9b6ea8" id="r_a8cfac2a61877d72eb7cbf14a5c9b6ea8"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a8cfac2a61877d72eb7cbf14a5c9b6ea8">from_soa</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5fa3d19307295643143bcb0486e80a08">size</a>)</td></tr>
+<tr class="memitem:a8cfac2a61877d72eb7cbf14a5c9b6ea8" id="r_a8cfac2a61877d72eb7cbf14a5c9b6ea8"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a8cfac2a61877d72eb7cbf14a5c9b6ea8">from_soa</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const ComponentCache &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5fa3d19307295643143bcb0486e80a08">size</a>)</td></tr>
 <tr class="memdesc:a8cfac2a61877d72eb7cbf14a5c9b6ea8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a read-only cursor over a non-contiguous SoA component value.  <br /></td></tr>
 <tr class="separator:a8cfac2a61877d72eb7cbf14a5c9b6ea8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a03baf757791f6e0b43413c3301811cf5" id="r_a03baf757791f6e0b43413c3301811cf5"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a03baf757791f6e0b43413c3301811cf5">from_soa</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5fa3d19307295643143bcb0486e80a08">size</a>)</td></tr>
+<tr class="memitem:a03baf757791f6e0b43413c3301811cf5" id="r_a03baf757791f6e0b43413c3301811cf5"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a03baf757791f6e0b43413c3301811cf5">from_soa</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, const ComponentCache &amp;components, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, uint32_t <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html#a5fa3d19307295643143bcb0486e80a08">size</a>)</td></tr>
 <tr class="memdesc:a03baf757791f6e0b43413c3301811cf5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a mutable cursor over a non-contiguous SoA component value.  <br /></td></tr>
 <tr class="separator:a03baf757791f6e0b43413c3301811cf5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -881,7 +877,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
         <tr>
           <td class="memname">static GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a> gaia::ecs::ComponentCursor::from_raw </td>
           <td>(</td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;&#160;</td>
+          <td class="paramtype">const ComponentCache &amp;&#160;</td>
           <td class="paramname"><em>components</em>, </td>
         </tr>
         <tr>
@@ -940,7 +936,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;&#160;</td>
+          <td class="paramtype">const ComponentCache &amp;&#160;</td>
           <td class="paramname"><em>components</em>, </td>
         </tr>
         <tr>
@@ -977,7 +973,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <p>Creates a mutable cursor from a raw component view. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> owning the mutated chunk storage. </td></tr>
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the mutated chunk storage. </td></tr>
     <tr><td class="paramname">components</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> metadata registry used for field/type lookup. </td></tr>
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> whose component payload is represented by <em>view</em>. </td></tr>
     <tr><td class="paramname">component</td><td>Component/type entity represented by <em>view</em>. </td></tr>
@@ -1007,7 +1003,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;&#160;</td>
+          <td class="paramtype">const ComponentCache &amp;&#160;</td>
           <td class="paramname"><em>components</em>, </td>
         </tr>
         <tr>
@@ -1044,7 +1040,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <p>Creates a read-only cursor over a non-contiguous SoA component value. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> owning the SoA storage. </td></tr>
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the SoA storage. </td></tr>
     <tr><td class="paramname">components</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> metadata registry used for field/type lookup. </td></tr>
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the resolved component value. </td></tr>
     <tr><td class="paramname">component</td><td>Component/type entity represented by the cursor. </td></tr>
@@ -1074,7 +1070,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;&#160;</td>
+          <td class="paramtype">const ComponentCache &amp;&#160;</td>
           <td class="paramname"><em>components</em>, </td>
         </tr>
         <tr>
@@ -1111,7 +1107,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <p>Creates a mutable cursor over a non-contiguous SoA component value. </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> owning the SoA storage. </td></tr>
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the SoA storage. </td></tr>
     <tr><td class="paramname">components</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> metadata registry used for field/type lookup. </td></tr>
     <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the component value. </td></tr>
     <tr><td class="paramname">component</td><td>Component/type entity represented by the cursor. </td></tr>
@@ -1219,7 +1215,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 </div><div class="memdoc">
 
 <p>Moves back to the parent cursor scope. </p>
-<dl class="section return"><dt>Returns</dt><dd>True when the cursor moved to the parent; false at root or when invalid. </dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the cursor moved to the parent. False at root or when invalid. </dd></dl>
 
 </div>
 </div>
@@ -1355,7 +1351,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentCursor.html">ComponentCursor</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

@@ -122,25 +122,115 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryInfo_1_1Quer
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a7308f3f109e82087aceaa8028ffc9bcc" id="r_a7308f3f109e82087aceaa8028ffc9bcc"><td class="memItemLeft" align="right" valign="top"><a id="a7308f3f109e82087aceaa8028ffc9bcc" name="a7308f3f109e82087aceaa8028ffc9bcc"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; relations) const</td></tr>
-<tr class="memdesc:a7308f3f109e82087aceaa8028ffc9bcc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when any tracked relation version changed. <br /></td></tr>
+<tr class="memitem:a7308f3f109e82087aceaa8028ffc9bcc" id="r_a7308f3f109e82087aceaa8028ffc9bcc"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html#a7308f3f109e82087aceaa8028ffc9bcc">changed</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; relations) const</td></tr>
+<tr class="memdesc:a7308f3f109e82087aceaa8028ffc9bcc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when any tracked relation version changed.  <br /></td></tr>
 <tr class="separator:a7308f3f109e82087aceaa8028ffc9bcc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac2f6507fed5177b9c8bc26d67cb3f4d6" id="r_ac2f6507fed5177b9c8bc26d67cb3f4d6"><td class="memItemLeft" align="right" valign="top"><a id="ac2f6507fed5177b9c8bc26d67cb3f4d6" name="ac2f6507fed5177b9c8bc26d67cb3f4d6"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>snapshot</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; relations)</td></tr>
-<tr class="memdesc:ac2f6507fed5177b9c8bc26d67cb3f4d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures current relation versions. <br /></td></tr>
+<tr class="memitem:ac2f6507fed5177b9c8bc26d67cb3f4d6" id="r_ac2f6507fed5177b9c8bc26d67cb3f4d6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html#ac2f6507fed5177b9c8bc26d67cb3f4d6">snapshot</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; relations)</td></tr>
+<tr class="memdesc:ac2f6507fed5177b9c8bc26d67cb3f4d6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures current relation versions.  <br /></td></tr>
 <tr class="separator:ac2f6507fed5177b9c8bc26d67cb3f4d6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:aa071ab7ec3e2afe3d9e1cb53cfccd93e" id="r_aa071ab7ec3e2afe3d9e1cb53cfccd93e"><td class="memItemLeft" align="right" valign="top"><a id="aa071ab7ec3e2afe3d9e1cb53cfccd93e" name="aa071ab7ec3e2afe3d9e1cb53cfccd93e"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint32_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>versions</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint32_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>versions</b></td></tr>
 <tr class="memdesc:aa071ab7ec3e2afe3d9e1cb53cfccd93e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Last seen versions for tracked dynamic relation dependencies. <br /></td></tr>
 <tr class="separator:aa071ab7ec3e2afe3d9e1cb53cfccd93e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Relation-version payload for reusable dynamic caches with relation dependencies. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a7308f3f109e82087aceaa8028ffc9bcc" name="a7308f3f109e82087aceaa8028ffc9bcc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7308f3f109e82087aceaa8028ffc9bcc">&#9670;&#160;</a></span>changed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryInfo::QueryState::DynamicCacheState::RelationPayload::changed </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td>
+          <td class="paramname"><em>relations</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when any tracked relation version changed. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> providing current relation topology versions. </td></tr>
+    <tr><td class="paramname">relations</td><td>Relations aligned with versions. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when any current version differs from its snapshot. </dd></dl>
+
+</div>
+</div>
+<a id="ac2f6507fed5177b9c8bc26d67cb3f4d6" name="ac2f6507fed5177b9c8bc26d67cb3f4d6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2f6507fed5177b9c8bc26d67cb3f4d6">&#9670;&#160;</a></span>snapshot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::QueryState::DynamicCacheState::RelationPayload::snapshot </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td>
+          <td class="paramname"><em>relations</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Captures current relation versions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> providing current relation topology versions. </td></tr>
+    <tr><td class="paramname">relations</td><td>Relations whose versions are captured in order. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__info_8h_source.html">query_info.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -148,7 +238,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html">RelationPayload</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1RelationPayload.html">RelationPayload</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

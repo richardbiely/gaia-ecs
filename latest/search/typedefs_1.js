@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['descu_0',['DescU',['../structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a110c48151380d3b11d45f259024bd047',1,'gaia::ecs::detail::ComponentDesc']]]
+  ['bitview_0',['BitView',['../structgaia_1_1mem_1_1MemoryPage.html#a517a45ce9384aac7d4935eaf573d9d19',1,'gaia::mem::MemoryPage']]],
+  ['blockarray_1',['BlockArray',['../structgaia_1_1mem_1_1MemoryPage.html#a6ec616ab9cbeb38f91946bc7f3890c9b',1,'gaia::mem::MemoryPage']]]
 ];

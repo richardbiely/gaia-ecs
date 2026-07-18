@@ -135,7 +135,7 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:adea52b8e9479f240229467a0439d0848"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a890d7d357874397045f98d05f4daf9c8" id="r_a890d7d357874397045f98d05f4daf9c8"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a890d7d357874397045f98d05f4daf9c8"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1StackAllocator.html#a890d7d357874397045f98d05f4daf9c8">alloc</a> (uint32_t cnt)</td></tr>
-<tr class="memdesc:a890d7d357874397045f98d05f4daf9c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates.  <br /></td></tr>
+<tr class="memdesc:a890d7d357874397045f98d05f4daf9c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates objects inside the buffer. No default initialization is done so the object is returned in a non-initialized state unless a custom constructor is provided.  <br /></td></tr>
 <tr class="separator:a890d7d357874397045f98d05f4daf9c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa4352d0f3e00f7dca68800cd0bdc6bb2" id="r_aa4352d0f3e00f7dca68800cd0bdc6bb2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1StackAllocator.html#aa4352d0f3e00f7dca68800cd0bdc6bb2">free</a> (void *pData, uint32_t cnt)</td></tr>
 <tr class="memdesc:aa4352d0f3e00f7dca68800cd0bdc6bb2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Frees the last allocated object from the stack.  <br /></td></tr>
@@ -144,13 +144,19 @@ Public Member Functions</h2></td></tr>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr>
 <tr class="memdesc:a6670ddeea53bd4cb1ba4fb0d596f541d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Frees all allocated objects from the buffer. <br /></td></tr>
 <tr class="separator:a6670ddeea53bd4cb1ba4fb0d596f541d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad1cc1e1cc2a6a220cefce540ce7de6da" id="r_ad1cc1e1cc2a6a220cefce540ce7de6da"><td class="memItemLeft" align="right" valign="top"><a id="ad1cc1e1cc2a6a220cefce540ce7de6da" name="ad1cc1e1cc2a6a220cefce540ce7de6da"></a>
-GAIA_NODISCARD constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>capacity</b> ()</td></tr>
+<tr class="memitem:ad1cc1e1cc2a6a220cefce540ce7de6da" id="r_ad1cc1e1cc2a6a220cefce540ce7de6da"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1StackAllocator.html#ad1cc1e1cc2a6a220cefce540ce7de6da">capacity</a> ()</td></tr>
+<tr class="memdesc:ad1cc1e1cc2a6a220cefce540ce7de6da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the fixed buffer capacity.  <br /></td></tr>
 <tr class="separator:ad1cc1e1cc2a6a220cefce540ce7de6da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><div class="compoundTemplParams">template&lt;uint32_t CapacityInBytes = 1024&gt;<br />
 class gaia::mem::StackAllocator&lt; CapacityInBytes &gt;</div><p>Stack allocator capable of instantiating any default-constructible object on stack. Every allocation comes with a 16-bytes long sentinel object. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">CapacityInBytes</td><td>Size of the inline allocation buffer in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
 </div><h2 class="groupheader">Member Function Documentation</h2>
 <a id="a890d7d357874397045f98d05f4daf9c8" name="a890d7d357874397045f98d05f4daf9c8"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a890d7d357874397045f98d05f4daf9c8">&#9670;&#160;</a></span>alloc()</h2>
@@ -180,20 +186,50 @@ template&lt;typename T &gt; </div>
 </table>
 </div><div class="memdoc">
 
-<p>Allocates. </p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">cnt</td><td>objects of type </td></tr>
+<p>Allocates objects inside the buffer. No default initialization is done so the object is returned in a non-initialized state unless a custom constructor is provided. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Object type. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="tparams"><dt>Template Parameters</dt><dd>
-  <table class="tparams">
-    <tr><td class="paramname">T</td><td>inside the buffer. No default initialization is done so the object is returned in a non-initialized state unless a custom constructor is provided. </td></tr>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">cnt</td><td>Number of objects to allocate. </td></tr>
   </table>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Pointer to the first allocated object </dd></dl>
+
+</div>
+</div>
+<a id="ad1cc1e1cc2a6a220cefce540ce7de6da" name="ad1cc1e1cc2a6a220cefce540ce7de6da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad1cc1e1cc2a6a220cefce540ce7de6da">&#9670;&#160;</a></span>capacity()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t CapacityInBytes = 1024&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr uint32_t <a class="el" href="classgaia_1_1mem_1_1StackAllocator.html">gaia::mem::StackAllocator</a>&lt; CapacityInBytes &gt;::capacity </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the fixed buffer capacity. </p>
+<dl class="section return"><dt>Returns</dt><dd>Capacity in bytes. </dd></dl>
 
 </div>
 </div>
@@ -252,7 +288,7 @@ template&lt;uint32_t CapacityInBytes = 1024&gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1StackAllocator.html">StackAllocator</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1StackAllocator.html">StackAllocator</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

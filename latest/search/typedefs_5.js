@@ -1,10 +1,13 @@
 var searchData=
 [
-  ['ttype_0',['TType',['../structgaia_1_1ecs_1_1uni.html#a4c8dc9dbb07214b66c2f97302268d891',1,'gaia::ecs::uni']]],
-  ['ttypefull_1',['TTypeFull',['../structgaia_1_1ecs_1_1uni.html#a4d1b2e5fe5966aa27e54a02860877a51',1,'gaia::ecs::uni']]],
-  ['ttypeoriginal_2',['TTypeOriginal',['../structgaia_1_1ecs_1_1uni.html#a19c9b950d518197ef4f024c31615d830',1,'gaia::ecs::uni']]],
-  ['type_3',['type',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a818db06dd1865d4a24006cbc94121daf',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::Type'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#a642ecb288e557d95fab7cd749ec21e9e',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::Type'],['../structgaia_1_1core_1_1detail_1_1rem__rp.html#a4a9ade06ccbbf1f22d8a82933c87c863',1,'gaia::core::detail::rem_rp::type'],['../structgaia_1_1core_1_1detail_1_1type__identity.html#aafd3d097cc8628dbd0bea902f8e7c18f',1,'gaia::core::detail::type_identity::type'],['../structgaia_1_1core_1_1detail_1_1member__func__checker.html#ab6ec50296da8d62fde9520fb600ae7c6',1,'gaia::core::detail::member_func_checker::type'],['../structgaia_1_1core_1_1detail_1_1member__func__checker_3_01Default_00_01std_1_1void__t_3_01Op_3_0222e17dad8904d328c48bb2ccd61015b.html#a841e10be3d5364725ec6ab373bb690a2',1,'gaia::core::detail::member_func_checker&lt; Default, std::void_t&lt; Op&lt; Args... &gt; &gt;, Op, Args... &gt;::type'],['../structgaia_1_1core_1_1type__list__concat_3_01type__list_3_01TypesA_8_8_8_01_4_00_01type__list_3_01TypesB_8_8_8_01_4_01_4.html#a2176fac19329fb73a4f18174a9a7eb4b',1,'gaia::core::type_list_concat&lt; type_list&lt; TypesA... &gt;, type_list&lt; TypesB... &gt; &gt;::type']]],
-  ['typefull_4',['typefull',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a308d015543c2767588b1403d8b2263f0',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeFull'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#a4090e207be5afaad41ff98a73c7c291f',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeFull']]],
-  ['typeoriginal_5',['typeoriginal',['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__NoEntityKind.html#a40bd7f467eb2b2d5a6a421b9eaf0492a',1,'gaia::ecs::detail::ExtractComponentType_NoEntityKind::TypeOriginal'],['../structgaia_1_1ecs_1_1detail_1_1ExtractComponentType__WithEntityKind.html#afdc86eba4413c81bd786f258751897e3',1,'gaia::ecs::detail::ExtractComponentType_WithEntityKind::TypeOriginal']]],
-  ['types_6',['types',['../structgaia_1_1core_1_1type__list.html#acdabd7a40b4d3e48740c0f4c308a1f1f',1,'gaia::core::type_list']]]
+  ['fetchbykeyfn_0',['FetchByKeyFn',['../structgaia_1_1ecs_1_1vm_1_1ArchetypeLookupView.html#a6430d62e5bc0972771dd54d74469c04e',1,'gaia::ecs::vm::ArchetypeLookupView']]],
+  ['funccmp_1',['FuncCmp',['../structgaia_1_1ecs_1_1ComponentDesc.html#a2452943a3b48248a1b0144e4f3054e08',1,'gaia::ecs::ComponentDesc']]],
+  ['funccopy_2',['FuncCopy',['../structgaia_1_1ecs_1_1ComponentDesc.html#a538a69229efa4c1b1e37f15b016a150c',1,'gaia::ecs::ComponentDesc']]],
+  ['funcctor_3',['FuncCtor',['../structgaia_1_1ecs_1_1ComponentDesc.html#a99f61ebde74688c84218474bad84a56c',1,'gaia::ecs::ComponentDesc']]],
+  ['funcdtor_4',['FuncDtor',['../structgaia_1_1ecs_1_1ComponentDesc.html#a06b898cff9ceba2dde3148777caa2390',1,'gaia::ecs::ComponentDesc']]],
+  ['funcfrom_5',['FuncFrom',['../structgaia_1_1ecs_1_1ComponentDesc.html#a9d26104386b32f3ba31739027b8039ed',1,'gaia::ecs::ComponentDesc']]],
+  ['funcload_6',['FuncLoad',['../structgaia_1_1ecs_1_1ComponentDesc.html#a7d106e07dc077f21ba173f6e1cd20386',1,'gaia::ecs::ComponentDesc']]],
+  ['funcmove_7',['FuncMove',['../structgaia_1_1ecs_1_1ComponentDesc.html#ae972daf19cf457a14e4ad38bb8fa4146',1,'gaia::ecs::ComponentDesc']]],
+  ['funcsave_8',['FuncSave',['../structgaia_1_1ecs_1_1ComponentDesc.html#a314ea870255dc198ab80756531284f1b',1,'gaia::ecs::ComponentDesc']]],
+  ['funcswap_9',['FuncSwap',['../structgaia_1_1ecs_1_1ComponentDesc.html#a7606f1367b1a5e8a5d0eb489d2d38a99',1,'gaia::ecs::ComponentDesc']]]
 ];

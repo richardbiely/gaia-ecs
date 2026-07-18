@@ -322,7 +322,7 @@ $(document).ready(function(){initNavTree('config__core_8h_source.html',''); init
 <div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span><span class="preprocessor">  #define GAIA_BIG_ENDIAN (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)</span></div>
 <div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span> </div>
-<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span><span class="keyword">namespace </span>gaia {</div>
 <div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>  <span class="keyword">inline</span> <span class="keywordtype">bool</span> CheckEndianess() {</div>
 <div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    <span class="keyword">const</span> uint16_t testWord = 0x1234;</div>
 <div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span>    <span class="keyword">const</span> <span class="keywordtype">bool</span> isLittleEndian(*<span class="keyword">reinterpret_cast&lt;</span><span class="keyword">const </span>uint8_t*<span class="keyword">&gt;</span>(&amp;testWord) == 0x34);</div>
@@ -704,47 +704,42 @@ $(document).ready(function(){initNavTree('config__core_8h_source.html',''); init
 <div class="line"><a id="l00641" name="l00641"></a><span class="lineno">  641</span><span class="preprocessor">  #define GAIA_HAS_NO_INLINE_ASSEMBLY 1</span></div>
 <div class="line"><a id="l00642" name="l00642"></a><span class="lineno">  642</span><span class="preprocessor">#endif</span></div>
 <div class="line"><a id="l00643" name="l00643"></a><span class="lineno">  643</span> </div>
-<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
-<div class="line"><a id="l00645" name="l00645"></a><span class="lineno">  645</span>  <span class="comment">// The dont_optimize(...) function can be used to prevent a value or</span></div>
-<div class="line"><a id="l00646" name="l00646"></a><span class="lineno">  646</span>  <span class="comment">// expression from being optimized away by the compiler. This function is</span></div>
-<div class="line"><a id="l00647" name="l00647"></a><span class="lineno">  647</span>  <span class="comment">// intended to add little to no overhead.</span></div>
-<div class="line"><a id="l00648" name="l00648"></a><span class="lineno">  648</span>  <span class="comment">// See: https://youtu.be/nXaxk27zwlk?t=2441</span></div>
-<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span><span class="preprocessor">#if !GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
-<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
-<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : : <span class="stringliteral">&quot;r,m&quot;</span>(value) : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00653" name="l00653"></a><span class="lineno">  653</span>  }</div>
-<div class="line"><a id="l00654" name="l00654"></a><span class="lineno">  654</span> </div>
-<div class="line"><a id="l00655" name="l00655"></a><span class="lineno">  655</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00656" name="l00656"></a><span class="lineno">  656</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T&amp; value) {</div>
-<div class="line"><a id="l00657" name="l00657"></a><span class="lineno">  657</span><span class="preprocessor">  #if defined(__clang__)</span></div>
-<div class="line"><a id="l00658" name="l00658"></a><span class="lineno">  658</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+r,m&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00659" name="l00659"></a><span class="lineno">  659</span><span class="preprocessor">  #else</span></div>
-<div class="line"><a id="l00660" name="l00660"></a><span class="lineno">  660</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+m,r&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
-<div class="line"><a id="l00661" name="l00661"></a><span class="lineno">  661</span><span class="preprocessor">  #endif</span></div>
-<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>  }</div>
-<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span><span class="preprocessor">#else</span></div>
-<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span>  <span class="keyword">namespace </span>detail {</div>
-<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> use_char_pointer(<span class="keywordtype">char</span> <span class="keyword">const</span> <span class="keyword">volatile</span>* var) {</div>
-<div class="line"><a id="l00666" name="l00666"></a><span class="lineno">  666</span>      (void)var;</div>
-<div class="line"><a id="l00667" name="l00667"></a><span class="lineno">  667</span>    }</div>
-<div class="line"><a id="l00668" name="l00668"></a><span class="lineno">  668</span>  } <span class="comment">// namespace detail</span></div>
-<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span> </div>
-<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span><span class="preprocessor">  #if defined(_MSC_VER)</span></div>
-<div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00672" name="l00672"></a><span class="lineno">  672</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
-<div class="line"><a id="l00673" name="l00673"></a><span class="lineno">  673</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
-<div class="line"><a id="l00674" name="l00674"></a><span class="lineno">  674</span>    ::_ReadWriteBarrier();</div>
-<div class="line"><a id="l00675" name="l00675"></a><span class="lineno">  675</span>  }</div>
-<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span><span class="preprocessor">  #else</span></div>
-<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
-<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
-<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
+<div class="line"><a id="l00644" name="l00644"></a><span class="lineno">  644</span><span class="keyword">namespace </span>gaia {</div>
+<div class="line"><a id="l00645" name="l00645"></a><span class="lineno">  645</span><span class="preprocessor">#if !GAIA_HAS_NO_INLINE_ASSEMBLY</span></div>
+<div class="line"><a id="l00649" name="l00649"></a><span class="lineno">  649</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00650" name="l00650"></a><span class="lineno">  650</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
+<div class="line"><a id="l00651" name="l00651"></a><span class="lineno">  651</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : : <span class="stringliteral">&quot;r,m&quot;</span>(value) : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00652" name="l00652"></a><span class="lineno">  652</span>  }</div>
+<div class="line"><a id="l00653" name="l00653"></a><span class="lineno">  653</span> </div>
+<div class="line"><a id="l00657" name="l00657"></a><span class="lineno">  657</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00658" name="l00658"></a><span class="lineno">  658</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T&amp; value) {</div>
+<div class="line"><a id="l00659" name="l00659"></a><span class="lineno">  659</span><span class="preprocessor">  #if defined(__clang__)</span></div>
+<div class="line"><a id="l00660" name="l00660"></a><span class="lineno">  660</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+r,m&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00661" name="l00661"></a><span class="lineno">  661</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00662" name="l00662"></a><span class="lineno">  662</span>    <span class="keyword">asm</span> <span class="keyword">volatile</span>(<span class="stringliteral">&quot;&quot;</span> : <span class="stringliteral">&quot;+m,r&quot;</span>(value) : : <span class="stringliteral">&quot;memory&quot;</span>);</div>
+<div class="line"><a id="l00663" name="l00663"></a><span class="lineno">  663</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l00664" name="l00664"></a><span class="lineno">  664</span>  }</div>
+<div class="line"><a id="l00665" name="l00665"></a><span class="lineno">  665</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00666" name="l00666"></a><span class="lineno">  666</span>  <span class="keyword">namespace </span>detail {</div>
+<div class="line"><a id="l00667" name="l00667"></a><span class="lineno">  667</span>    <span class="keyword">inline</span> <span class="keywordtype">void</span> use_char_pointer(<span class="keywordtype">char</span> <span class="keyword">const</span> <span class="keyword">volatile</span>* var) {</div>
+<div class="line"><a id="l00668" name="l00668"></a><span class="lineno">  668</span>      (void)var;</div>
+<div class="line"><a id="l00669" name="l00669"></a><span class="lineno">  669</span>    }</div>
+<div class="line"><a id="l00670" name="l00670"></a><span class="lineno">  670</span>  } <span class="comment">// namespace detail</span></div>
+<div class="line"><a id="l00671" name="l00671"></a><span class="lineno">  671</span> </div>
+<div class="line"><a id="l00672" name="l00672"></a><span class="lineno">  672</span><span class="preprocessor">  #if defined(_MSC_VER)</span></div>
+<div class="line"><a id="l00676" name="l00676"></a><span class="lineno">  676</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00677" name="l00677"></a><span class="lineno">  677</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
+<div class="line"><a id="l00678" name="l00678"></a><span class="lineno">  678</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
+<div class="line"><a id="l00679" name="l00679"></a><span class="lineno">  679</span>    ::_ReadWriteBarrier();</div>
 <div class="line"><a id="l00680" name="l00680"></a><span class="lineno">  680</span>  }</div>
-<div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span><span class="preprocessor">  #endif</span></div>
-<div class="line"><a id="l00682" name="l00682"></a><span class="lineno">  682</span><span class="preprocessor">#endif</span></div>
-<div class="line"><a id="l00683" name="l00683"></a><span class="lineno">  683</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
+<div class="line"><a id="l00681" name="l00681"></a><span class="lineno">  681</span><span class="preprocessor">  #else</span></div>
+<div class="line"><a id="l00685" name="l00685"></a><span class="lineno">  685</span>  <span class="keyword">template</span> &lt;<span class="keyword">class</span> T&gt;</div>
+<div class="line"><a id="l00686" name="l00686"></a><span class="lineno">  686</span>  <span class="keyword">inline</span> <span class="keywordtype">void</span> dont_optimize(T <span class="keyword">const</span>&amp; value) {</div>
+<div class="line"><a id="l00687" name="l00687"></a><span class="lineno">  687</span>    detail::use_char_pointer(&amp;<span class="keyword">reinterpret_cast&lt;</span><span class="keywordtype">char</span> <span class="keyword">const </span>volatile&amp;<span class="keyword">&gt;</span>(value));</div>
+<div class="line"><a id="l00688" name="l00688"></a><span class="lineno">  688</span>  }</div>
+<div class="line"><a id="l00689" name="l00689"></a><span class="lineno">  689</span><span class="preprocessor">  #endif</span></div>
+<div class="line"><a id="l00690" name="l00690"></a><span class="lineno">  690</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00691" name="l00691"></a><span class="lineno">  691</span>} <span class="comment">// namespace gaia</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

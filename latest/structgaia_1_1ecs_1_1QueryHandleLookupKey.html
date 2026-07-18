@@ -125,12 +125,13 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryHandleLookup
 Public Types</h2></td></tr>
 <tr class="memitem:a996694f8bbe07ce2bb97fac9ba79ba85" id="r_a996694f8bbe07ce2bb97fac9ba79ba85"><td class="memItemLeft" align="right" valign="top"><a id="a996694f8bbe07ce2bb97fac9ba79ba85" name="a996694f8bbe07ce2bb97fac9ba79ba85"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>LookupHash</b> = <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">core::direct_hash_key</a>&lt; uint64_t &gt;</td></tr>
+<tr class="memdesc:a996694f8bbe07ce2bb97fac9ba79ba85"><td class="mdescLeft">&#160;</td><td class="mdescRight">Direct hash value cached for the packed query handle. <br /></td></tr>
 <tr class="separator:a996694f8bbe07ce2bb97fac9ba79ba85"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a49024b8cc0544d9002be09b7e2aeb9c7" id="r_a49024b8cc0544d9002be09b7e2aeb9c7"><td class="memItemLeft" align="right" valign="top"><a id="a49024b8cc0544d9002be09b7e2aeb9c7" name="a49024b8cc0544d9002be09b7e2aeb9c7"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>QueryHandleLookupKey</b> (<a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> handle)</td></tr>
+<tr class="memitem:a49024b8cc0544d9002be09b7e2aeb9c7" id="r_a49024b8cc0544d9002be09b7e2aeb9c7"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a49024b8cc0544d9002be09b7e2aeb9c7">QueryHandleLookupKey</a> (<a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a111c7fe32696ca9d51a8e630ff0f7510">handle</a>)</td></tr>
+<tr class="memdesc:a49024b8cc0544d9002be09b7e2aeb9c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a lookup key and precomputes its hash.  <br /></td></tr>
 <tr class="separator:a49024b8cc0544d9002be09b7e2aeb9c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a00d0d99c65e2707c75daa75e257c5f76" id="r_a00d0d99c65e2707c75daa75e257c5f76"><td class="memItemLeft" align="right" valign="top"><a id="a00d0d99c65e2707c75daa75e257c5f76" name="a00d0d99c65e2707c75daa75e257c5f76"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>QueryHandleLookupKey</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;)=default</td></tr>
@@ -144,28 +145,191 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:abafd58ea6dfeebfa5e21ece8d4c2c13a" id="r_abafd58ea6dfeebfa5e21ece8d4c2c13a"><td class="memItemLeft" align="right" valign="top"><a id="abafd58ea6dfeebfa5e21ece8d4c2c13a" name="abafd58ea6dfeebfa5e21ece8d4c2c13a"></a>
 <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (<a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;&amp;)=default</td></tr>
 <tr class="separator:abafd58ea6dfeebfa5e21ece8d4c2c13a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a111c7fe32696ca9d51a8e630ff0f7510" id="r_a111c7fe32696ca9d51a8e630ff0f7510"><td class="memItemLeft" align="right" valign="top"><a id="a111c7fe32696ca9d51a8e630ff0f7510" name="a111c7fe32696ca9d51a8e630ff0f7510"></a>
-<a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><b>handle</b> () const</td></tr>
+<tr class="memitem:a111c7fe32696ca9d51a8e630ff0f7510" id="r_a111c7fe32696ca9d51a8e630ff0f7510"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a111c7fe32696ca9d51a8e630ff0f7510">handle</a> () const</td></tr>
+<tr class="memdesc:a111c7fe32696ca9d51a8e630ff0f7510"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the represented query handle.  <br /></td></tr>
 <tr class="separator:a111c7fe32696ca9d51a8e630ff0f7510"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae60d344bad4ec5aeb02de76b620fd5c2" id="r_ae60d344bad4ec5aeb02de76b620fd5c2"><td class="memItemLeft" align="right" valign="top"><a id="ae60d344bad4ec5aeb02de76b620fd5c2" name="ae60d344bad4ec5aeb02de76b620fd5c2"></a>
-size_t&#160;</td><td class="memItemRight" valign="bottom"><b>hash</b> () const</td></tr>
+<tr class="memitem:ae60d344bad4ec5aeb02de76b620fd5c2" id="r_ae60d344bad4ec5aeb02de76b620fd5c2"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#ae60d344bad4ec5aeb02de76b620fd5c2">hash</a> () const</td></tr>
+<tr class="memdesc:ae60d344bad4ec5aeb02de76b620fd5c2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the precomputed container hash.  <br /></td></tr>
 <tr class="separator:ae60d344bad4ec5aeb02de76b620fd5c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a287d1cf1e11501c99d01dea34a90a91e" id="r_a287d1cf1e11501c99d01dea34a90a91e"><td class="memItemLeft" align="right" valign="top"><a id="a287d1cf1e11501c99d01dea34a90a91e" name="a287d1cf1e11501c99d01dea34a90a91e"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;other) const</td></tr>
+<tr class="memitem:a287d1cf1e11501c99d01dea34a90a91e" id="r_a287d1cf1e11501c99d01dea34a90a91e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a287d1cf1e11501c99d01dea34a90a91e">operator==</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;other) const</td></tr>
+<tr class="memdesc:a287d1cf1e11501c99d01dea34a90a91e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares lookup keys using their cached hashes and handles.  <br /></td></tr>
 <tr class="separator:a287d1cf1e11501c99d01dea34a90a91e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1ce7650f3889b9a671b284966337f087" id="r_a1ce7650f3889b9a671b284966337f087"><td class="memItemLeft" align="right" valign="top"><a id="a1ce7650f3889b9a671b284966337f087" name="a1ce7650f3889b9a671b284966337f087"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;other) const</td></tr>
+<tr class="memitem:a1ce7650f3889b9a671b284966337f087" id="r_a1ce7650f3889b9a671b284966337f087"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#a1ce7650f3889b9a671b284966337f087">operator!=</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;other) const</td></tr>
+<tr class="memdesc:a1ce7650f3889b9a671b284966337f087"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares lookup keys for inequality.  <br /></td></tr>
 <tr class="separator:a1ce7650f3889b9a671b284966337f087"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a2934576035e5f3ad00447ec092f26386" id="r_a2934576035e5f3ad00447ec092f26386"><td class="memItemLeft" align="right" valign="top"><a id="a2934576035e5f3ad00447ec092f26386" name="a2934576035e5f3ad00447ec092f26386"></a>
 static constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>IsDirectHashKey</b> = true</td></tr>
+<tr class="memdesc:a2934576035e5f3ad00447ec092f26386"><td class="mdescLeft">&#160;</td><td class="mdescRight">Indicates that Gaia containers may consume <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html#ae60d344bad4ec5aeb02de76b620fd5c2" title="Returns the precomputed container hash.">hash()</a> without rehashing the key. <br /></td></tr>
 <tr class="separator:a2934576035e5f3ad00447ec092f26386"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Hashmap lookup structure used for <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a49024b8cc0544d9002be09b7e2aeb9c7" name="a49024b8cc0544d9002be09b7e2aeb9c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a49024b8cc0544d9002be09b7e2aeb9c7">&#9670;&#160;</a></span>QueryHandleLookupKey()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::ecs::QueryHandleLookupKey::QueryHandleLookupKey </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a>&#160;</td>
+          <td class="paramname"><em>handle</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a lookup key and precomputes its hash. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">handle</td><td>Query handle represented by the key. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a111c7fe32696ca9d51a8e630ff0f7510" name="a111c7fe32696ca9d51a8e630ff0f7510"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a111c7fe32696ca9d51a8e630ff0f7510">&#9670;&#160;</a></span>handle()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1ecs_1_1QueryHandle.html">QueryHandle</a> gaia::ecs::QueryHandleLookupKey::handle </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the represented query handle. </p>
+<dl class="section return"><dt>Returns</dt><dd>Query handle stored by the lookup key. </dd></dl>
+
+</div>
+</div>
+<a id="ae60d344bad4ec5aeb02de76b620fd5c2" name="ae60d344bad4ec5aeb02de76b620fd5c2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae60d344bad4ec5aeb02de76b620fd5c2">&#9670;&#160;</a></span>hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t gaia::ecs::QueryHandleLookupKey::hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the precomputed container hash. </p>
+<dl class="section return"><dt>Returns</dt><dd>Hash of the packed query handle. </dd></dl>
+
+</div>
+</div>
+<a id="a1ce7650f3889b9a671b284966337f087" name="a1ce7650f3889b9a671b284966337f087"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1ce7650f3889b9a671b284966337f087">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::QueryHandleLookupKey::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares lookup keys for inequality. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Lookup key to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the represented handles differ. </dd></dl>
+
+</div>
+</div>
+<a id="a287d1cf1e11501c99d01dea34a90a91e" name="a287d1cf1e11501c99d01dea34a90a91e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a287d1cf1e11501c99d01dea34a90a91e">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::QueryHandleLookupKey::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares lookup keys using their cached hashes and handles. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Lookup key to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when both keys represent the same query handle. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -173,7 +337,7 @@ static constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>IsDi
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryHandleLookupKey.html">QueryHandleLookupKey</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

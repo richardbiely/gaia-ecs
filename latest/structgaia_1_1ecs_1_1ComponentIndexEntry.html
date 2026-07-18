@@ -114,25 +114,71 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1ComponentIndexEnt
   <div class="headertitle"><div class="title">gaia::ecs::ComponentIndexEntry Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>One archetype record stored in the entity-to-archetype reverse index.  
+ <a href="structgaia_1_1ecs_1_1ComponentIndexEntry.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a26bc4df4ca4b2d25747e0b3c42e4211a" id="r_a26bc4df4ca4b2d25747e0b3c42e4211a"><td class="memItemLeft" align="right" valign="top"><a id="a26bc4df4ca4b2d25747e0b3c42e4211a" name="a26bc4df4ca4b2d25747e0b3c42e4211a"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>matches</b> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pOther) const</td></tr>
+<tr class="memitem:a26bc4df4ca4b2d25747e0b3c42e4211a" id="r_a26bc4df4ca4b2d25747e0b3c42e4211a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html#a26bc4df4ca4b2d25747e0b3c42e4211a">matches</a> (const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pOther) const</td></tr>
+<tr class="memdesc:a26bc4df4ca4b2d25747e0b3c42e4211a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tests whether this record belongs to an archetype.  <br /></td></tr>
 <tr class="separator:a26bc4df4ca4b2d25747e0b3c42e4211a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a98c8962421748950a1995494844f5ed6" id="r_a98c8962421748950a1995494844f5ed6"><td class="memItemLeft" align="right" valign="top"><a id="a98c8962421748950a1995494844f5ed6" name="a98c8962421748950a1995494844f5ed6"></a>
 <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pArchetype</b> = nullptr</td></tr>
+<tr class="memdesc:a98c8962421748950a1995494844f5ed6"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> matched by the indexed entity or pair key. <br /></td></tr>
 <tr class="separator:a98c8962421748950a1995494844f5ed6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aff78a09c81a1af152c88611344feac4e" id="r_aff78a09c81a1af152c88611344feac4e"><td class="memItemLeft" align="right" valign="top"><a id="aff78a09c81a1af152c88611344feac4e" name="aff78a09c81a1af152c88611344feac4e"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>compIdx</b> = ComponentIndexBad</td></tr>
+<tr class="memdesc:aff78a09c81a1af152c88611344feac4e"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> column index in <em>pArchetype</em>, or ComponentIndexBad when no direct column exists. <br /></td></tr>
 <tr class="separator:aff78a09c81a1af152c88611344feac4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a806719a6edac3cb77c40d02dbe0cdafb" id="r_a806719a6edac3cb77c40d02dbe0cdafb"><td class="memItemLeft" align="right" valign="top"><a id="a806719a6edac3cb77c40d02dbe0cdafb" name="a806719a6edac3cb77c40d02dbe0cdafb"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchCount</b> = 0</td></tr>
+<tr class="memdesc:a806719a6edac3cb77c40d02dbe0cdafb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of archetype components contributing this lookup-key match. <br /></td></tr>
 <tr class="separator:a806719a6edac3cb77c40d02dbe0cdafb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>One archetype record stored in the entity-to-archetype reverse index. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a26bc4df4ca4b2d25747e0b3c42e4211a" name="a26bc4df4ca4b2d25747e0b3c42e4211a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a26bc4df4ca4b2d25747e0b3c42e4211a">&#9670;&#160;</a></span>matches()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::ComponentIndexEntry::matches </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td>
+          <td class="paramname"><em>pOther</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Tests whether this record belongs to an archetype. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pOther</td><td><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> pointer to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>pOther</em> equals pArchetype. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
@@ -141,7 +187,7 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchCount</b> = 
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1ComponentIndexEntry.html">ComponentIndexEntry</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

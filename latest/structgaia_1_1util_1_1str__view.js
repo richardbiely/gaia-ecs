@@ -1,6 +1,5 @@
 var structgaia_1_1util_1_1str__view =
 [
-    [ "str_view", "structgaia_1_1util_1_1str__view.html#af98db8824507b2012daa1ff25f973702", null ],
     [ "str_view", "structgaia_1_1util_1_1str__view.html#a445126d8d719f427692bb393b665d3eb", null ],
     [ "str_view", "structgaia_1_1util_1_1str__view.html#ab49da3969c79b68f0b2b3d3880f4674c", null ],
     [ "data", "structgaia_1_1util_1_1str__view.html#ae155757b16a8532d26cd937f1a2160b6", null ],
@@ -24,5 +23,7 @@ var structgaia_1_1util_1_1str__view =
     [ "operator!=", "structgaia_1_1util_1_1str__view.html#ad98c7279ad840b6c895c86a0889023aa", null ],
     [ "operator==", "structgaia_1_1util_1_1str__view.html#a3c76664b4dfa638f1dad441c9b2d0b1a", null ],
     [ "operator==", "structgaia_1_1util_1_1str__view.html#a4cbb89560882abd08e6133a7f401f074", null ],
-    [ "size", "structgaia_1_1util_1_1str__view.html#a2a7ffb4c780c5386d903f4208c2c05f4", null ]
+    [ "size", "structgaia_1_1util_1_1str__view.html#a2a7ffb4c780c5386d903f4208c2c05f4", null ],
+    [ "m_data", "structgaia_1_1util_1_1str__view.html#a7ad00caf27a7b54ca81962f0cb75303b", null ],
+    [ "m_size", "structgaia_1_1util_1_1str__view.html#a613609bb6fbd4090504bf5c48c0d0b2d", null ]
 ];

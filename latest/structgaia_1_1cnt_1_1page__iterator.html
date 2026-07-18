@@ -114,58 +114,361 @@ $(document).ready(function(){initNavTree('structgaia_1_1cnt_1_1page__iterator.ht
   <div class="headertitle"><div class="title">gaia::cnt::page_iterator&lt; T, Allocator, IsFwd &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Iterator over elements in paged storage.  
+ <a href="structgaia_1_1cnt_1_1page__iterator.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="paged__storage_8h_source.html">paged_storage.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a37791631b1c3cf14a5ea01a8ca20ddec" id="r_a37791631b1c3cf14a5ea01a8ca20ddec"><td class="memItemLeft" align="right" valign="top"><a id="a37791631b1c3cf14a5ea01a8ca20ddec" name="a37791631b1c3cf14a5ea01a8ca20ddec"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = T</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = T</td></tr>
+<tr class="memdesc:a37791631b1c3cf14a5ea01a8ca20ddec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type. <br /></td></tr>
 <tr class="separator:a37791631b1c3cf14a5ea01a8ca20ddec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad4c9581882c01626f795b21c390916fc" id="r_ad4c9581882c01626f795b21c390916fc"><td class="memItemLeft" align="right" valign="top"><a id="ad4c9581882c01626f795b21c390916fc" name="ad4c9581882c01626f795b21c390916fc"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = T *</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = T *</td></tr>
+<tr class="memdesc:ad4c9581882c01626f795b21c390916fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to an element. <br /></td></tr>
 <tr class="separator:ad4c9581882c01626f795b21c390916fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acd86c02ef62bfd8681721dec328d0b96" id="r_acd86c02ef62bfd8681721dec328d0b96"><td class="memItemLeft" align="right" valign="top"><a id="acd86c02ef62bfd8681721dec328d0b96" name="acd86c02ef62bfd8681721dec328d0b96"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = T &amp;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = T &amp;</td></tr>
+<tr class="memdesc:acd86c02ef62bfd8681721dec328d0b96"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reference to an element. <br /></td></tr>
 <tr class="separator:acd86c02ef62bfd8681721dec328d0b96"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1cd79d8d890b3dc37bcf31c214749f62" id="r_a1cd79d8d890b3dc37bcf31c214749f62"><td class="memItemLeft" align="right" valign="top"><a id="a1cd79d8d890b3dc37bcf31c214749f62" name="a1cd79d8d890b3dc37bcf31c214749f62"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">detail::difference_type</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = detail::difference_type</td></tr>
+<tr class="memdesc:a1cd79d8d890b3dc37bcf31c214749f62"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator distances. <br /></td></tr>
 <tr class="separator:a1cd79d8d890b3dc37bcf31c214749f62"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a056e07727caf38da9dffa93bb3b1469b" id="r_a056e07727caf38da9dffa93bb3b1469b"><td class="memItemLeft" align="right" valign="top"><a id="a056e07727caf38da9dffa93bb3b1469b" name="a056e07727caf38da9dffa93bb3b1469b"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">detail::size_type</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = detail::size_type</td></tr>
+<tr class="memdesc:a056e07727caf38da9dffa93bb3b1469b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for sizes and indices. <br /></td></tr>
 <tr class="separator:a056e07727caf38da9dffa93bb3b1469b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a825b0125d14140227f448f9a4bb52c8c" id="r_a825b0125d14140227f448f9a4bb52c8c"><td class="memItemLeft" align="right" valign="top"><a id="a825b0125d14140227f448f9a4bb52c8c" name="a825b0125d14140227f448f9a4bb52c8c"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">page_iterator</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">page_iterator</a></td></tr>
+<tr class="memdesc:a825b0125d14140227f448f9a4bb52c8c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterator type. <br /></td></tr>
 <tr class="separator:a825b0125d14140227f448f9a4bb52c8c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abec809930af1945c089cc05c1bd9cec1" id="r_abec809930af1945c089cc05c1bd9cec1"><td class="memItemLeft" align="right" valign="top"><a id="abec809930af1945c089cc05c1bd9cec1" name="abec809930af1945c089cc05c1bd9cec1"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">using</a>&#160;</td><td class="memItemRight" valign="bottom"><b>iterator_category</b> = <a class="el" href="structgaia_1_1core_1_1bidirectional__iterator__tag.html">core::bidirectional_iterator_tag</a></td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator_category</b> = <a class="el" href="structgaia_1_1core_1_1bidirectional__iterator__tag.html">core::bidirectional_iterator_tag</a></td></tr>
+<tr class="memdesc:abec809930af1945c089cc05c1bd9cec1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterator category tag. <br /></td></tr>
 <tr class="separator:abec809930af1945c089cc05c1bd9cec1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a8552b1ceea44dcefd691171f36405c29" id="r_a8552b1ceea44dcefd691171f36405c29"><td class="memItemLeft" align="right" valign="top"><a id="a8552b1ceea44dcefd691171f36405c29" name="a8552b1ceea44dcefd691171f36405c29"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>page_iterator</b> (<a class="el" href="classgaia_1_1cnt_1_1detail_1_1mem__page.html">page_type</a> *<a class="el" href="classgaia_1_1cnt_1_1darr.html">pPage</a>)</td></tr>
+<tr class="memitem:a8552b1ceea44dcefd691171f36405c29" id="r_a8552b1ceea44dcefd691171f36405c29"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a8552b1ceea44dcefd691171f36405c29">page_iterator</a> (page_type *pPage)</td></tr>
+<tr class="memdesc:a8552b1ceea44dcefd691171f36405c29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an end iterator at a page boundary.  <br /></td></tr>
 <tr class="separator:a8552b1ceea44dcefd691171f36405c29"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af710dc9f913c87403b8118b1a36953f0" id="r_af710dc9f913c87403b8118b1a36953f0"><td class="memItemLeft" align="right" valign="top"><a id="af710dc9f913c87403b8118b1a36953f0" name="af710dc9f913c87403b8118b1a36953f0"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>page_iterator</b> (<a class="el" href="classgaia_1_1cnt_1_1detail_1_1mem__page.html">page_type</a> *<a class="el" href="classgaia_1_1cnt_1_1darr.html">pPage</a>, <a class="el" href="classgaia_1_1cnt_1_1detail_1_1mem__page.html">page_type</a> *<a class="el" href="classgaia_1_1cnt_1_1darr.html">pPageLast</a>)</td></tr>
+<tr class="memitem:af710dc9f913c87403b8118b1a36953f0" id="r_af710dc9f913c87403b8118b1a36953f0"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#af710dc9f913c87403b8118b1a36953f0">page_iterator</a> (page_type *pPage, page_type *pPageLast)</td></tr>
+<tr class="memdesc:af710dc9f913c87403b8118b1a36953f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an iterator over a page range.  <br /></td></tr>
 <tr class="separator:af710dc9f913c87403b8118b1a36953f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac794089437624ca6a40aec7d471e8471" id="r_ac794089437624ca6a40aec7d471e8471"><td class="memItemLeft" align="right" valign="top"><a id="ac794089437624ca6a40aec7d471e8471" name="ac794089437624ca6a40aec7d471e8471"></a>
-reference&#160;</td><td class="memItemRight" valign="bottom"><b>operator*</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:ac794089437624ca6a40aec7d471e8471" id="r_ac794089437624ca6a40aec7d471e8471"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#acd86c02ef62bfd8681721dec328d0b96">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#ac794089437624ca6a40aec7d471e8471">operator*</a> () const</td></tr>
+<tr class="memdesc:ac794089437624ca6a40aec7d471e8471"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accesses the current element.  <br /></td></tr>
 <tr class="separator:ac794089437624ca6a40aec7d471e8471"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa6982aaabf67a347d22d090d0c18a216" id="r_aa6982aaabf67a347d22d090d0c18a216"><td class="memItemLeft" align="right" valign="top"><a id="aa6982aaabf67a347d22d090d0c18a216" name="aa6982aaabf67a347d22d090d0c18a216"></a>
-pointer&#160;</td><td class="memItemRight" valign="bottom"><b>operator-&gt;</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:aa6982aaabf67a347d22d090d0c18a216" id="r_aa6982aaabf67a347d22d090d0c18a216"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#ad4c9581882c01626f795b21c390916fc">pointer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#aa6982aaabf67a347d22d090d0c18a216">operator-&gt;</a> () const</td></tr>
+<tr class="memdesc:aa6982aaabf67a347d22d090d0c18a216"><td class="mdescLeft">&#160;</td><td class="mdescRight">Accesses the current element through a pointer.  <br /></td></tr>
 <tr class="separator:aa6982aaabf67a347d22d090d0c18a216"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a22e14151de3169190abece33c9a66e07" id="r_a22e14151de3169190abece33c9a66e07"><td class="memItemLeft" align="right" valign="top"><a id="a22e14151de3169190abece33c9a66e07" name="a22e14151de3169190abece33c9a66e07"></a>
-<a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator++</b> ()</td></tr>
+<tr class="memitem:a22e14151de3169190abece33c9a66e07" id="r_a22e14151de3169190abece33c9a66e07"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a22e14151de3169190abece33c9a66e07">operator++</a> ()</td></tr>
+<tr class="memdesc:a22e14151de3169190abece33c9a66e07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances to the next element.  <br /></td></tr>
 <tr class="separator:a22e14151de3169190abece33c9a66e07"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7970e270d34132049c215f4c1ab54de9" id="r_a7970e270d34132049c215f4c1ab54de9"><td class="memItemLeft" align="right" valign="top"><a id="a7970e270d34132049c215f4c1ab54de9" name="a7970e270d34132049c215f4c1ab54de9"></a>
-<a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator++</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">int</a>)</td></tr>
+<tr class="memitem:a7970e270d34132049c215f4c1ab54de9" id="r_a7970e270d34132049c215f4c1ab54de9"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a7970e270d34132049c215f4c1ab54de9">operator++</a> (int)</td></tr>
+<tr class="memdesc:a7970e270d34132049c215f4c1ab54de9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Advances to the next element.  <br /></td></tr>
 <tr class="separator:a7970e270d34132049c215f4c1ab54de9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2e425b648ccb808e4dcc2795a79d8f7e" id="r_a2e425b648ccb808e4dcc2795a79d8f7e"><td class="memItemLeft" align="right" valign="top"><a id="a2e425b648ccb808e4dcc2795a79d8f7e" name="a2e425b648ccb808e4dcc2795a79d8f7e"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a2e425b648ccb808e4dcc2795a79d8f7e" id="r_a2e425b648ccb808e4dcc2795a79d8f7e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a2e425b648ccb808e4dcc2795a79d8f7e">operator==</a> (const <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:a2e425b648ccb808e4dcc2795a79d8f7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether two iterators have the same position.  <br /></td></tr>
 <tr class="separator:a2e425b648ccb808e4dcc2795a79d8f7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac3ca95a1d4d067e79dd07640395d4074" id="r_ac3ca95a1d4d067e79dd07640395d4074"><td class="memItemLeft" align="right" valign="top"><a id="ac3ca95a1d4d067e79dd07640395d4074" name="ac3ca95a1d4d067e79dd07640395d4074"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">iterator</a> &amp;other) <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:ac3ca95a1d4d067e79dd07640395d4074" id="r_ac3ca95a1d4d067e79dd07640395d4074"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#ac3ca95a1d4d067e79dd07640395d4074">operator!=</a> (const <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp;other) const</td></tr>
+<tr class="memdesc:ac3ca95a1d4d067e79dd07640395d4074"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether two iterators have different positions.  <br /></td></tr>
 <tr class="separator:ac3ca95a1d4d067e79dd07640395d4074"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T, typename Allocator, bool IsFwd&gt;<br />
+struct gaia::cnt::page_iterator&lt; T, Allocator, IsFwd &gt;</div><p>Iterator over elements in paged storage. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Element type. </td></tr>
+    <tr><td class="paramname">Allocator</td><td>Page allocator type. </td></tr>
+    <tr><td class="paramname">IsFwd</td><td>Whether iteration proceeds forward. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a8552b1ceea44dcefd691171f36405c29" name="a8552b1ceea44dcefd691171f36405c29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8552b1ceea44dcefd691171f36405c29">&#9670;&#160;</a></span>page_iterator() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::page_iterator </td>
+          <td>(</td>
+          <td class="paramtype">page_type *&#160;</td>
+          <td class="paramname"><em>pPage</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs an end iterator at a page boundary. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pPage</td><td>Boundary page. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="af710dc9f913c87403b8118b1a36953f0" name="af710dc9f913c87403b8118b1a36953f0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af710dc9f913c87403b8118b1a36953f0">&#9670;&#160;</a></span>page_iterator() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::page_iterator </td>
+          <td>(</td>
+          <td class="paramtype">page_type *&#160;</td>
+          <td class="paramname"><em>pPage</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">page_type *&#160;</td>
+          <td class="paramname"><em>pPageLast</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs an iterator over a page range. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pPage</td><td>First page to inspect. </td></tr>
+    <tr><td class="paramname">pPageLast</td><td>Page marking the range boundary. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="ac3ca95a1d4d067e79dd07640395d4074" name="ac3ca95a1d4d067e79dd07640395d4074"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac3ca95a1d4d067e79dd07640395d4074">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether two iterators have different positions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare with. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if the iterators have different positions. </dd></dl>
+
+</div>
+</div>
+<a id="ac794089437624ca6a40aec7d471e8471" name="ac794089437624ca6a40aec7d471e8471"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac794089437624ca6a40aec7d471e8471">&#9670;&#160;</a></span>operator*()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#acd86c02ef62bfd8681721dec328d0b96">reference</a> <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator* </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Accesses the current element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the current element. </dd></dl>
+
+</div>
+</div>
+<a id="a22e14151de3169190abece33c9a66e07" name="a22e14151de3169190abece33c9a66e07"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a22e14151de3169190abece33c9a66e07">&#9670;&#160;</a></span>operator++() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp; <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator++ </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Advances to the next element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this advanced iterator. </dd></dl>
+
+</div>
+</div>
+<a id="a7970e270d34132049c215f4c1ab54de9" name="a7970e270d34132049c215f4c1ab54de9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7970e270d34132049c215f4c1ab54de9">&#9670;&#160;</a></span>operator++() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator++ </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Advances to the next element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Iterator value before advancement. </dd></dl>
+
+</div>
+</div>
+<a id="aa6982aaabf67a347d22d090d0c18a216" name="aa6982aaabf67a347d22d090d0c18a216"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa6982aaabf67a347d22d090d0c18a216">&#9670;&#160;</a></span>operator-&gt;()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#ad4c9581882c01626f795b21c390916fc">pointer</a> <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator-&gt; </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Accesses the current element through a pointer. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the current element. </dd></dl>
+
+</div>
+</div>
+<a id="a2e425b648ccb808e4dcc2795a79d8f7e" name="a2e425b648ccb808e4dcc2795a79d8f7e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2e425b648ccb808e4dcc2795a79d8f7e">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Allocator , bool IsFwd&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">gaia::cnt::page_iterator</a>&lt; T, Allocator, IsFwd &gt;::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1cnt_1_1page__iterator.html#a825b0125d14140227f448f9a4bb52c8c">iterator</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether two iterators have the same position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Iterator to compare with. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True if both iterators have the same position. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/<a class="el" href="paged__storage_8h_source.html">paged_storage.h</a></li>
 </ul>
@@ -174,7 +477,7 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1cnt_1_1darr.html">bool</a>&#160;
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">page_iterator</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1page__iterator.html">page_iterator</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

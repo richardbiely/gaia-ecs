@@ -119,13 +119,13 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1Chunk.html',''); i
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a480cd63731b49f264a8cb561e43ce0f6" id="r_a480cd63731b49f264a8cb561e43ce0f6"><td class="memItemLeft" align="right" valign="top"><a id="a480cd63731b49f264a8cb561e43ce0f6" name="a480cd63731b49f264a8cb561e43ce0f6"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>EntityArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, <a class="el" href="structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb">ChunkHeader::MAX_COMPONENTS</a> &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>EntityArray</b> = <a class="el" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="separator:a480cd63731b49f264a8cb561e43ce0f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aafc74d15d0526dffa1980e26a710107e" id="r_aafc74d15d0526dffa1980e26a710107e"><td class="memItemLeft" align="right" valign="top"><a id="aafc74d15d0526dffa1980e26a710107e" name="aafc74d15d0526dffa1980e26a710107e"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, <a class="el" href="structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb">ChunkHeader::MAX_COMPONENTS</a> &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentArray</b> = <a class="el" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a>, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="separator:aafc74d15d0526dffa1980e26a710107e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4de174403b1a835de521bbf7aae54efb" id="r_a4de174403b1a835de521bbf7aae54efb"><td class="memItemLeft" align="right" valign="top"><a id="a4de174403b1a835de521bbf7aae54efb" name="a4de174403b1a835de521bbf7aae54efb"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentOffsetArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray_ext</a>&lt; ChunkDataOffset, <a class="el" href="structgaia_1_1ecs_1_1ChunkHeader.html#a826bf50e2214fc86952a449ca43d5dbb">ChunkHeader::MAX_COMPONENTS</a> &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>ComponentOffsetArray</b> = <a class="el" href="classgaia_1_1cnt_1_1sarr__ext.html">cnt::sarray_ext</a>&lt; ChunkDataOffset, ChunkHeader::MAX_COMPONENTS &gt;</td></tr>
 <tr class="separator:a4de174403b1a835de521bbf7aae54efb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
@@ -222,7 +222,7 @@ template&lt;typename T &gt; </td></tr>
 <tr class="memitem:a44ca2dda955a7e7790b05ea80373bc0c"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD decltype(auto)&#160;</td><td class="memTemplItemRight" valign="bottom"><b>sview_auto</b> ()</td></tr>
 <tr class="separator:a44ca2dda955a7e7790b05ea80373bc0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aed34db7ef8c4f0a5d00546165a9b4597" id="r_aed34db7ef8c4f0a5d00546165a9b4597"><td class="memItemLeft" align="right" valign="top"><a id="aed34db7ef8c4f0a5d00546165a9b4597" name="aed34db7ef8c4f0a5d00546165a9b4597"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>entity_view</b> () const</td></tr>
+GAIA_NODISCARD EntitySpan&#160;</td><td class="memItemRight" valign="bottom"><b>entity_view</b> () const</td></tr>
 <tr class="separator:aed34db7ef8c4f0a5d00546165a9b4597"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2a3cb84d8f262c50e45dcd7dd15e915e" id="r_a2a3cb84d8f262c50e45dcd7dd15e915e"><td class="memItemLeft" align="right" valign="top"><a id="a2a3cb84d8f262c50e45dcd7dd15e915e" name="a2a3cb84d8f262c50e45dcd7dd15e915e"></a>
 GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>world</b> ()</td></tr>
@@ -231,10 +231,10 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &am
 GAIA_NODISCARD const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>world</b> () const</td></tr>
 <tr class="separator:a5aefc753690f9a23150f6bbadc717d25"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a341453b57a0cf49460ff84785c7a082c" id="r_a341453b57a0cf49460ff84785c7a082c"><td class="memItemLeft" align="right" valign="top"><a id="a341453b57a0cf49460ff84785c7a082c" name="a341453b57a0cf49460ff84785c7a082c"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids_view</b> () const</td></tr>
+GAIA_NODISCARD EntitySpan&#160;</td><td class="memItemRight" valign="bottom"><b>ids_view</b> () const</td></tr>
 <tr class="separator:a341453b57a0cf49460ff84785c7a082c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84b1aa4b64a28909e53cdb230c9526ee" id="r_a84b1aa4b64a28909e53cdb230c9526ee"><td class="memItemLeft" align="right" valign="top"><a id="a84b1aa4b64a28909e53cdb230c9526ee" name="a84b1aa4b64a28909e53cdb230c9526ee"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1ComponentRecord.html">ComponentRecord</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>comp_rec_view</b> () const</td></tr>
+GAIA_NODISCARD std::span&lt; const ComponentRecord &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>comp_rec_view</b> () const</td></tr>
 <tr class="separator:a84b1aa4b64a28909e53cdb230c9526ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa5dc5d3e0895c877baf2b267b9dcb618" id="r_aa5dc5d3e0895c877baf2b267b9dcb618"><td class="memItemLeft" align="right" valign="top"><a id="aa5dc5d3e0895c877baf2b267b9dcb618" name="aa5dc5d3e0895c877baf2b267b9dcb618"></a>
 GAIA_NODISCARD uint8_t *&#160;</td><td class="memItemRight" valign="bottom"><b>comp_ptr_mut</b> (uint32_t compIdx)</td></tr>
@@ -251,19 +251,19 @@ GAIA_NODISCARD const uint8_t *&#160;</td><td class="memItemRight" valign="bottom
 <tr class="memitem:a608e24821aee9e82786b69b0acbba693" id="r_a608e24821aee9e82786b69b0acbba693"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint16_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a608e24821aee9e82786b69b0acbba693">add_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a608e24821aee9e82786b69b0acbba693"><td class="mdescLeft">&#160;</td><td class="mdescRight">Make.  <br /></td></tr>
 <tr class="separator:a608e24821aee9e82786b69b0acbba693"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a77bded20a2e6d485b80e390dc5a174c3" id="r_a77bded20a2e6d485b80e390dc5a174c3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a77bded20a2e6d485b80e390dc5a174c3">move_entity_data</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:a77bded20a2e6d485b80e390dc5a174c3" id="r_a77bded20a2e6d485b80e390dc5a174c3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a77bded20a2e6d485b80e390dc5a174c3">move_entity_data</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, uint16_t row, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:a77bded20a2e6d485b80e390dc5a174c3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves all data associated with <em>entity</em> into the chunk so that it is stored at the row <em>row</em>.  <br /></td></tr>
 <tr class="separator:a77bded20a2e6d485b80e390dc5a174c3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad1ed46b8b09f2ed77620f786e30e51ca" id="r_ad1ed46b8b09f2ed77620f786e30e51ca"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ad1ed46b8b09f2ed77620f786e30e51ca">remove_entity_inter</a> (uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:ad1ed46b8b09f2ed77620f786e30e51ca" id="r_ad1ed46b8b09f2ed77620f786e30e51ca"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ad1ed46b8b09f2ed77620f786e30e51ca">remove_entity_inter</a> (uint16_t row, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:ad1ed46b8b09f2ed77620f786e30e51ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to remove the entity at <em>row</em>. Removal is done via swapping with last entity in chunk. Upon removal, all associated data is also removed. If the entity at the given row already is the last chunk entity, it is removed directly.  <br /></td></tr>
 <tr class="separator:ad1ed46b8b09f2ed77620f786e30e51ca"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a193baceb9aae181b7565555b5a6bd717" id="r_a193baceb9aae181b7565555b5a6bd717"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a193baceb9aae181b7565555b5a6bd717">remove_entity</a> (uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:a193baceb9aae181b7565555b5a6bd717" id="r_a193baceb9aae181b7565555b5a6bd717"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a193baceb9aae181b7565555b5a6bd717">remove_entity</a> (uint16_t row, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:a193baceb9aae181b7565555b5a6bd717"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to remove the entity at row <em>row</em>. Removal is done via swapping with last entity in chunk. Upon removal, all associated data is also removed. If the entity at the given row already is the last chunk entity, it is removed directly.  <br /></td></tr>
 <tr class="separator:a193baceb9aae181b7565555b5a6bd717"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aad1d567a3f3195495e1cd0df4052aeb7" id="r_aad1d567a3f3195495e1cd0df4052aeb7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aad1d567a3f3195495e1cd0df4052aeb7">swap_chunk_entities</a> (uint16_t rowA, uint16_t rowB, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:aad1d567a3f3195495e1cd0df4052aeb7" id="r_aad1d567a3f3195495e1cd0df4052aeb7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aad1d567a3f3195495e1cd0df4052aeb7">swap_chunk_entities</a> (uint16_t rowA, uint16_t rowB, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:aad1d567a3f3195495e1cd0df4052aeb7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to swap the entity at row <em>rowA</em> with the one at the row <em>rowB</em>. When swapping, all data associated with the two entities is swapped as well. If <em>rowA</em> equals <em>rowB</em> no swapping is performed.  <br /></td></tr>
 <tr class="separator:aad1d567a3f3195495e1cd0df4052aeb7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab0bb5ac637cc54be6cb6f3e97be5db8b" id="r_ab0bb5ac637cc54be6cb6f3e97be5db8b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ab0bb5ac637cc54be6cb6f3e97be5db8b">enable_entity</a> (uint16_t row, bool enableEntity, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:ab0bb5ac637cc54be6cb6f3e97be5db8b" id="r_ab0bb5ac637cc54be6cb6f3e97be5db8b"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#ab0bb5ac637cc54be6cb6f3e97be5db8b">enable_entity</a> (uint16_t row, bool enableEntity, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:ab0bb5ac637cc54be6cb6f3e97be5db8b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enables or disables the entity on a given row in the chunk.  <br /></td></tr>
 <tr class="separator:ab0bb5ac637cc54be6cb6f3e97be5db8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa160a5a12843230e35563c421841c125" id="r_aa160a5a12843230e35563c421841c125"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aa160a5a12843230e35563c421841c125">enabled</a> (uint16_t row) const</td></tr>
@@ -276,7 +276,7 @@ GAIA_NODISCARD const uint8_t *&#160;</td><td class="memItemRight" valign="bottom
 <tr class="memdesc:a0d24d1d9e43f1a9f4f183db09d028376"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an immutable pointer to chunk data.  <br /></td></tr>
 <tr class="separator:a0d24d1d9e43f1a9f4f183db09d028376"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a86b5f4873ef794bfcd92a557292f82fc" id="r_a86b5f4873ef794bfcd92a557292f82fc"><td class="memItemLeft" align="right" valign="top"><a id="a86b5f4873ef794bfcd92a557292f82fc" name="a86b5f4873ef794bfcd92a557292f82fc"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>call_ctor</b> (uint32_t entIdx, uint32_t compIdx, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> &amp;item)</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>call_ctor</b> (uint32_t entIdx, uint32_t compIdx, const ComponentCacheItem &amp;item)</td></tr>
 <tr class="separator:a86b5f4873ef794bfcd92a557292f82fc"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6e0848c5af410ff248a02d395af037b0" id="r_a6e0848c5af410ff248a02d395af037b0"><td class="memItemLeft" align="right" valign="top"><a id="a6e0848c5af410ff248a02d395af037b0" name="a6e0848c5af410ff248a02d395af037b0"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>call_gen_ctors</b> (uint32_t entIdx, uint32_t entCnt)</td></tr>
@@ -379,11 +379,11 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>queued
 <tr class="separator:ac71efa84d84a23a95176895046455e8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6a2e9e992332bc940c8bb9391359a7c7" id="r_a6a2e9e992332bc940c8bb9391359a7c7"><td class="memItemLeft" align="right" valign="top"><a id="a6a2e9e992332bc940c8bb9391359a7c7" name="a6a2e9e992332bc940c8bb9391359a7c7"></a>
 GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>delete_queue_index</b> () const</td></tr>
-<tr class="memdesc:a6a2e9e992332bc940c8bb9391359a7c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the index inside <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a>'s deferred chunk-delete queue. <br /></td></tr>
+<tr class="memdesc:a6a2e9e992332bc940c8bb9391359a7c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the index inside <a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a>'s deferred chunk-delete queue. <br /></td></tr>
 <tr class="separator:a6a2e9e992332bc940c8bb9391359a7c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9995269c4a9c47b28dfb205151a3b5f0" id="r_a9995269c4a9c47b28dfb205151a3b5f0"><td class="memItemLeft" align="right" valign="top"><a id="a9995269c4a9c47b28dfb205151a3b5f0" name="a9995269c4a9c47b28dfb205151a3b5f0"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>delete_queue_index</b> (uint32_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a3dea74ff911f1680ab2802d0a0e51628">idx</a>)</td></tr>
-<tr class="memdesc:a9995269c4a9c47b28dfb205151a3b5f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores the index inside <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a>'s deferred chunk-delete queue. <br /></td></tr>
+<tr class="memdesc:a9995269c4a9c47b28dfb205151a3b5f0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores the index inside <a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a>'s deferred chunk-delete queue. <br /></td></tr>
 <tr class="separator:a9995269c4a9c47b28dfb205151a3b5f0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a85b66c1659ab5a2a8a8d25d33935b994" id="r_a85b66c1659ab5a2a8a8d25d33935b994"><td class="memItemLeft" align="right" valign="top"><a id="a85b66c1659ab5a2a8a8d25d33935b994" name="a85b66c1659ab5a2a8a8d25d33935b994"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>clear_delete_queue_index</b> ()</td></tr>
@@ -486,13 +486,13 @@ static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 static uintptr_t&#160;</td><td class="memItemRight" valign="bottom"><b>chunk_data_area_offset</b> ()</td></tr>
 <tr class="memdesc:a6ff56672354d694dfb3718d469539a1a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the relative offset of m_data in <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a>. <br /></td></tr>
 <tr class="separator:a6ff56672354d694dfb3718d469539a1a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aec1c3f97c0a87f40bd008c1fff8cc195" id="r_aec1c3f97c0a87f40bd008c1fff8cc195"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195">create</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;wld, const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;cc, uint32_t chunkIndex, uint16_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>, uint8_t cntEntities, uint8_t genEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const <a class="el" href="structgaia_1_1ecs_1_1ChunkDataOffsets.html">ChunkDataOffsets</a> &amp;offsets, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *ids, const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *const *pItems, const ChunkDataOffset *compOffs)</td></tr>
+<tr class="memitem:aec1c3f97c0a87f40bd008c1fff8cc195" id="r_aec1c3f97c0a87f40bd008c1fff8cc195"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aec1c3f97c0a87f40bd008c1fff8cc195">create</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;wld, const ComponentCache &amp;cc, uint32_t chunkIndex, uint16_t <a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a07bdcfaadf6035a43fae85934213b4aa">capacity</a>, uint8_t cntEntities, uint8_t genEntities, uint16_t dataBytes, uint32_t &amp;worldVersion, const ChunkDataOffsets &amp;offsets, const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> *ids, const ComponentCacheItem *const *pItems, const ChunkDataOffset *compOffs)</td></tr>
 <tr class="memdesc:aec1c3f97c0a87f40bd008c1fff8cc195"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates memory for a new chunk.  <br /></td></tr>
 <tr class="separator:aec1c3f97c0a87f40bd008c1fff8cc195"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0c46d205e0e753300858d1962760983f" id="r_a0c46d205e0e753300858d1962760983f"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a0c46d205e0e753300858d1962760983f">free</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk)</td></tr>
 <tr class="memdesc:a0c46d205e0e753300858d1962760983f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases all memory allocated by <em>pChunk</em>.  <br /></td></tr>
 <tr class="separator:a0c46d205e0e753300858d1962760983f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa08a654e60516438c7a7f418bdc4d3f7" id="r_aa08a654e60516438c7a7f418bdc4d3f7"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aa08a654e60516438c7a7f418bdc4d3f7">copy_entity_data</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> dstEntity, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:aa08a654e60516438c7a7f418bdc4d3f7" id="r_aa08a654e60516438c7a7f418bdc4d3f7"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#aa08a654e60516438c7a7f418bdc4d3f7">copy_entity_data</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> srcEntity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> dstEntity, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:aa08a654e60516438c7a7f418bdc4d3f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies all data associated with <em>srcEntity</em> into <em>dstEntity</em>.  <br /></td></tr>
 <tr class="separator:aa08a654e60516438c7a7f418bdc4d3f7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1d17061fd2540189dda44fa5a0320a40" id="r_a1d17061fd2540189dda44fa5a0320a40"><td class="memItemLeft" align="right" valign="top">static void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html#a1d17061fd2540189dda44fa5a0320a40">copy_entity_data_n_same_chunk</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pSrcChunk, uint32_t srcRow, <a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pDstChunk, uint32_t dstRow, uint32_t dstCount)</td></tr>
@@ -709,7 +709,7 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -946,7 +946,7 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1ComponentCache.html">ComponentCache</a> &amp;&#160;</td>
+          <td class="paramtype">const ComponentCache &amp;&#160;</td>
           <td class="paramname"><em>cc</em>, </td>
         </tr>
         <tr>
@@ -988,7 +988,7 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ChunkDataOffsets.html">ChunkDataOffsets</a> &amp;&#160;</td>
+          <td class="paramtype">const ChunkDataOffsets &amp;&#160;</td>
           <td class="paramname"><em>offsets</em>, </td>
         </tr>
         <tr>
@@ -1000,7 +1000,7 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *const *&#160;</td>
+          <td class="paramtype">const ComponentCacheItem *const *&#160;</td>
           <td class="paramname"><em>pItems</em>, </td>
         </tr>
         <tr>
@@ -1121,7 +1121,7 @@ template&lt;bool WorldVersionUpdateWanted&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1545,7 +1545,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1678,7 +1678,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1723,7 +1723,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1977,7 +1977,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section warning"><dt>Warning</dt><dd>It is expected the component <em>T</em> is present. Undefined behavior otherwise. </dd>
 <dd>
-<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
+<a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
 
 </div>
 </div>
@@ -2033,7 +2033,7 @@ template&lt;typename T &gt; </div>
 </dl>
 <dl class="section warning"><dt>Warning</dt><dd>It is expected the component <em>T</em> is present. Undefined behavior otherwise. </dd>
 <dd>
-<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
+<a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
 
 </div>
 </div>
@@ -2074,7 +2074,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Sets the value of a generic component using a pre-resolved component column. </p>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
 
 </div>
 </div>
@@ -2105,7 +2105,7 @@ template&lt;typename T &gt; </div>
 </div><div class="memdoc">
 
 <p>Sets the value of a unique component using a pre-resolved component column. </p>
-<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
+<dl class="section warning"><dt>Warning</dt><dd><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> version is not updated so Query filters will not be able to catch this change. </dd></dl>
 
 </div>
 </div>
@@ -2243,7 +2243,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -2531,7 +2531,7 @@ template&lt;typename T &gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

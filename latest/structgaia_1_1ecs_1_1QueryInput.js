@@ -7,5 +7,6 @@ var structgaia_1_1ecs_1_1QueryInput =
     [ "matchKind", "structgaia_1_1ecs_1_1QueryInput.html#ad459320eb962a347271e52f4b696103f", null ],
     [ "op", "structgaia_1_1ecs_1_1QueryInput.html#ad2f9ea308423c92fe16e8b2541723e08", null ],
     [ "travDepth", "structgaia_1_1ecs_1_1QueryInput.html#ad9e95ed0c295c92ac83feb64c3f8eb39", null ],
+    [ "TravDepthUnlimited", "structgaia_1_1ecs_1_1QueryInput.html#a738569ec899fd456fa2b5e0d784b4df9", null ],
     [ "travKind", "structgaia_1_1ecs_1_1QueryInput.html#a0dde5785bcb2b6b908da878566851372", null ]
 ];

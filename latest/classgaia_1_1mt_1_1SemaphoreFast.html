@@ -114,28 +114,124 @@ $(document).ready(function(){initNavTree('classgaia_1_1mt_1_1SemaphoreFast.html'
 </div><!--header-->
 <div class="contents">
 
-<p>An optimized version of <a class="el" href="classgaia_1_1mt_1_1Semaphore.html">Semaphore</a> that avoids expensive system calls when the counter is greater than 0.  
+<p>An optimized version of <a class="el" href="classgaia_1_1mt_1_1Semaphore.html" title="Portable counting semaphore with indefinite waits.">Semaphore</a> that avoids expensive system calls when the counter is greater than 0.  
  <a href="classgaia_1_1mt_1_1SemaphoreFast.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="semaphore__fast_8h_source.html">semaphore_fast.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:add4929470ceddf36e764b8d6f8f4ec4e" id="r_add4929470ceddf36e764b8d6f8f4ec4e"><td class="memItemLeft" align="right" valign="top"><a id="add4929470ceddf36e764b8d6f8f4ec4e" name="add4929470ceddf36e764b8d6f8f4ec4e"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>SemaphoreFast</b> (int32_t count=0)</td></tr>
+<tr class="memitem:add4929470ceddf36e764b8d6f8f4ec4e" id="r_add4929470ceddf36e764b8d6f8f4ec4e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1SemaphoreFast.html#add4929470ceddf36e764b8d6f8f4ec4e">SemaphoreFast</a> (int32_t count=0)</td></tr>
+<tr class="memdesc:add4929470ceddf36e764b8d6f8f4ec4e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a semaphore with the requested initial system-semaphore count.  <br /></td></tr>
 <tr class="separator:add4929470ceddf36e764b8d6f8f4ec4e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae7a23eb84862a53f4264376ab95c7d9d" id="r_ae7a23eb84862a53f4264376ab95c7d9d"><td class="memItemLeft" align="right" valign="top"><a id="ae7a23eb84862a53f4264376ab95c7d9d" name="ae7a23eb84862a53f4264376ab95c7d9d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>release</b> (int32_t count=1)</td></tr>
-<tr class="memdesc:ae7a23eb84862a53f4264376ab95c7d9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Increments semaphore count by the specified amount. <br /></td></tr>
+<tr class="memitem:ae7a23eb84862a53f4264376ab95c7d9d" id="r_ae7a23eb84862a53f4264376ab95c7d9d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1SemaphoreFast.html#ae7a23eb84862a53f4264376ab95c7d9d">release</a> (int32_t count=1)</td></tr>
+<tr class="memdesc:ae7a23eb84862a53f4264376ab95c7d9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Increments semaphore count by the specified amount.  <br /></td></tr>
 <tr class="separator:ae7a23eb84862a53f4264376ab95c7d9d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abb94ab1aee89f66576babcd62f698d7e" id="r_abb94ab1aee89f66576babcd62f698d7e"><td class="memItemLeft" align="right" valign="top"><a id="abb94ab1aee89f66576babcd62f698d7e" name="abb94ab1aee89f66576babcd62f698d7e"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>wait</b> ()</td></tr>
-<tr class="memdesc:abb94ab1aee89f66576babcd62f698d7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decrements semaphore count by 1. If the count is already 0, it waits indefinitely until semaphore count is incremented, then decrements and returns. Returns false when an error occurs, otherwise returns true. <br /></td></tr>
+<tr class="memitem:abb94ab1aee89f66576babcd62f698d7e" id="r_abb94ab1aee89f66576babcd62f698d7e"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1SemaphoreFast.html#abb94ab1aee89f66576babcd62f698d7e">wait</a> ()</td></tr>
+<tr class="memdesc:abb94ab1aee89f66576babcd62f698d7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decrements semaphore count by 1. If the count is already 0, it waits indefinitely until semaphore count is incremented, then decrements and returns. Returns false when an error occurs, otherwise returns true.  <br /></td></tr>
 <tr class="separator:abb94ab1aee89f66576babcd62f698d7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>An optimized version of <a class="el" href="classgaia_1_1mt_1_1Semaphore.html">Semaphore</a> that avoids expensive system calls when the counter is greater than 0. </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+<div class="textblock"><p>An optimized version of <a class="el" href="classgaia_1_1mt_1_1Semaphore.html" title="Portable counting semaphore with indefinite waits.">Semaphore</a> that avoids expensive system calls when the counter is greater than 0. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="add4929470ceddf36e764b8d6f8f4ec4e" name="add4929470ceddf36e764b8d6f8f4ec4e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#add4929470ceddf36e764b8d6f8f4ec4e">&#9670;&#160;</a></span>SemaphoreFast()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::mt::SemaphoreFast::SemaphoreFast </td>
+          <td>(</td>
+          <td class="paramtype">int32_t&#160;</td>
+          <td class="paramname"><em>count</em> = <code>0</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a semaphore with the requested initial system-semaphore count. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">count</td><td>Initial count passed to the underlying semaphore. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="ae7a23eb84862a53f4264376ab95c7d9d" name="ae7a23eb84862a53f4264376ab95c7d9d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae7a23eb84862a53f4264376ab95c7d9d">&#9670;&#160;</a></span>release()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::mt::SemaphoreFast::release </td>
+          <td>(</td>
+          <td class="paramtype">int32_t&#160;</td>
+          <td class="paramname"><em>count</em> = <code>1</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Increments semaphore count by the specified amount. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">count</td><td>Number of permits to release. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="abb94ab1aee89f66576babcd62f698d7e" name="abb94ab1aee89f66576babcd62f698d7e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb94ab1aee89f66576babcd62f698d7e">&#9670;&#160;</a></span>wait()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::mt::SemaphoreFast::wait </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Decrements semaphore count by 1. If the count is already 0, it waits indefinitely until semaphore count is incremented, then decrements and returns. Returns false when an error occurs, otherwise returns true. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when a permit was acquired successfully. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mt/<a class="el" href="semaphore__fast_8h_source.html">semaphore_fast.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -143,7 +239,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>wait</b> ()</td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mt</b></li><li class="navelem"><a class="el" href="classgaia_1_1mt_1_1SemaphoreFast.html">SemaphoreFast</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mt</b></li><li class="navelem"><a class="el" href="classgaia_1_1mt_1_1SemaphoreFast.html">SemaphoreFast</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

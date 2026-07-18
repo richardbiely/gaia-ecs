@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['invalidationkind_0',['InvalidationKind',['../classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28',1,'gaia::ecs::QueryInfo']]]
+  ['execpayloadkind_0',['ExecPayloadKind',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbd',1,'gaia::ecs::detail::QueryImpl']]]
 ];

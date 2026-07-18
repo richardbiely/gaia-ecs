@@ -136,42 +136,45 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1data__view__polic
 Public Types</h2></td></tr>
 <tr class="memitem:a90c292f170b43d630f5274c93f61b172" id="r_a90c292f170b43d630f5274c93f61b172"><td class="memItemLeft" align="right" valign="top"><a id="a90c292f170b43d630f5274c93f61b172" name="a90c292f170b43d630f5274c93f61b172"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>TargetCastType</b> = std::add_pointer_t&lt; ValueType &gt;</td></tr>
+<tr class="memdesc:a90c292f170b43d630f5274c93f61b172"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer type used to address stored values. <br /></td></tr>
 <tr class="separator:a90c292f170b43d630f5274c93f61b172"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a121616d30948c5462399821ee8b34df2" id="r_a121616d30948c5462399821ee8b34df2"><td class="memItemLeft" align="right" valign="top"><a id="a121616d30948c5462399821ee8b34df2" name="a121616d30948c5462399821ee8b34df2"></a>
-static GAIA_NODISCARD constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>get_min_byte_size</b> (uintptr_t addr, size_t cnt) noexcept</td></tr>
+<tr class="memitem:a121616d30948c5462399821ee8b34df2" id="r_a121616d30948c5462399821ee8b34df2"><td class="memItemLeft" align="right" valign="top">static GAIA_NODISCARD constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#a121616d30948c5462399821ee8b34df2">get_min_byte_size</a> (uintptr_t addr, size_t cnt) noexcept</td></tr>
+<tr class="memdesc:a121616d30948c5462399821ee8b34df2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates the bytes required for a value range.  <br /></td></tr>
 <tr class="separator:a121616d30948c5462399821ee8b34df2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2358c69b576b04859789d51ca3da31aa" id="r_a2358c69b576b04859789d51ca3da31aa"><td class="memTemplParams" colspan="2"><a id="a2358c69b576b04859789d51ca3da31aa" name="a2358c69b576b04859789d51ca3da31aa"></a>
-template&lt;typename Allocator &gt; </td></tr>
-<tr class="memitem:a2358c69b576b04859789d51ca3da31aa"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD uint8_t *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>alloc</b> (size_t cnt) noexcept</td></tr>
+<tr class="memitem:a2358c69b576b04859789d51ca3da31aa" id="r_a2358c69b576b04859789d51ca3da31aa"><td class="memTemplParams" colspan="2">template&lt;typename Allocator &gt; </td></tr>
+<tr class="memitem:a2358c69b576b04859789d51ca3da31aa"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD uint8_t *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#a2358c69b576b04859789d51ca3da31aa">alloc</a> (size_t cnt) noexcept</td></tr>
+<tr class="memdesc:a2358c69b576b04859789d51ca3da31aa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates and default-constructs an AoS value range.  <br /></td></tr>
 <tr class="separator:a2358c69b576b04859789d51ca3da31aa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91" id="r_acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplParams" colspan="2"><a id="acac6be820b146dd6fd4290d6d41c0d91" name="acac6be820b146dd6fd4290d6d41c0d91"></a>
-template&lt;typename Allocator &gt; </td></tr>
-<tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free</b> (void *pData, size_t cap, size_t cnt) noexcept</td></tr>
+<tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91" id="r_acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplParams" colspan="2">template&lt;typename Allocator &gt; </td></tr>
+<tr class="memitem:acac6be820b146dd6fd4290d6d41c0d91"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#acac6be820b146dd6fd4290d6d41c0d91">free</a> (void *pData, size_t cap, size_t cnt) noexcept</td></tr>
+<tr class="memdesc:acac6be820b146dd6fd4290d6d41c0d91"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys and releases an instrumented AoS value range.  <br /></td></tr>
 <tr class="separator:acac6be820b146dd6fd4290d6d41c0d91"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2e7a55ea80c0f79d93c98fab883093fb" id="r_a2e7a55ea80c0f79d93c98fab883093fb"><td class="memTemplParams" colspan="2"><a id="a2e7a55ea80c0f79d93c98fab883093fb" name="a2e7a55ea80c0f79d93c98fab883093fb"></a>
-template&lt;typename Allocator &gt; </td></tr>
-<tr class="memitem:a2e7a55ea80c0f79d93c98fab883093fb"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free</b> (void *pData, size_t cnt) noexcept</td></tr>
+<tr class="memitem:a2e7a55ea80c0f79d93c98fab883093fb" id="r_a2e7a55ea80c0f79d93c98fab883093fb"><td class="memTemplParams" colspan="2">template&lt;typename Allocator &gt; </td></tr>
+<tr class="memitem:a2e7a55ea80c0f79d93c98fab883093fb"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#a2e7a55ea80c0f79d93c98fab883093fb">free</a> (void *pData, size_t cnt) noexcept</td></tr>
+<tr class="memdesc:a2e7a55ea80c0f79d93c98fab883093fb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys and releases an AoS value range.  <br /></td></tr>
 <tr class="separator:a2e7a55ea80c0f79d93c98fab883093fb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7a56b9ca08681e85abb3185882960163" id="r_a7a56b9ca08681e85abb3185882960163"><td class="memItemLeft" align="right" valign="top"><a id="a7a56b9ca08681e85abb3185882960163" name="a7a56b9ca08681e85abb3185882960163"></a>
-GAIA_NODISCARD static constexpr ValueType&#160;</td><td class="memItemRight" valign="bottom"><b>get_value</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memitem:a7a56b9ca08681e85abb3185882960163" id="r_a7a56b9ca08681e85abb3185882960163"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD static constexpr ValueType&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#a7a56b9ca08681e85abb3185882960163">get_value</a> (std::span&lt; const ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memdesc:a7a56b9ca08681e85abb3185882960163"><td class="mdescLeft">&#160;</td><td class="mdescRight">Copies a value from an AoS span.  <br /></td></tr>
 <tr class="separator:a7a56b9ca08681e85abb3185882960163"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aed336bc0b63d0378a90a3a7c6122472f" id="r_aed336bc0b63d0378a90a3a7c6122472f"><td class="memItemLeft" align="right" valign="top"><a id="aed336bc0b63d0378a90a3a7c6122472f" name="aed336bc0b63d0378a90a3a7c6122472f"></a>
-GAIA_NODISCARD static constexpr const ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memitem:aed336bc0b63d0378a90a3a7c6122472f" id="r_aed336bc0b63d0378a90a3a7c6122472f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD static constexpr const ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#aed336bc0b63d0378a90a3a7c6122472f">get</a> (std::span&lt; const ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memdesc:aed336bc0b63d0378a90a3a7c6122472f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a read-only value reference from an AoS span.  <br /></td></tr>
 <tr class="separator:aed336bc0b63d0378a90a3a7c6122472f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abee3e54ae965289dd16de203716b0d59" id="r_abee3e54ae965289dd16de203716b0d59"><td class="memItemLeft" align="right" valign="top"><a id="abee3e54ae965289dd16de203716b0d59" name="abee3e54ae965289dd16de203716b0d59"></a>
-GAIA_NODISCARD static constexpr ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>set</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memitem:abee3e54ae965289dd16de203716b0d59" id="r_abee3e54ae965289dd16de203716b0d59"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD static constexpr ValueType &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html#abee3e54ae965289dd16de203716b0d59">set</a> (std::span&lt; ValueType &gt; s, size_t idx) noexcept</td></tr>
+<tr class="memdesc:abee3e54ae965289dd16de203716b0d59"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a mutable value reference from an AoS span.  <br /></td></tr>
 <tr class="separator:abee3e54ae965289dd16de203716b0d59"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:ae11b7e782ef4c23f8ddba950c326c7d1" id="r_ae11b7e782ef4c23f8ddba950c326c7d1"><td class="memItemLeft" align="right" valign="top"><a id="ae11b7e782ef4c23f8ddba950c326c7d1" name="ae11b7e782ef4c23f8ddba950c326c7d1"></a>
 static constexpr DataLayout&#160;</td><td class="memItemRight" valign="bottom"><b>Layout</b> = <a class="el" href="structgaia_1_1mem_1_1data__layout__properties.html">data_layout_properties</a>&lt;DataLayout::AoS, ValueType&gt;::Layout</td></tr>
+<tr class="memdesc:ae11b7e782ef4c23f8ddba950c326c7d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Physical layout. <br /></td></tr>
 <tr class="separator:ae11b7e782ef4c23f8ddba950c326c7d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1186a60cde324d29821fcc8711a81adf" id="r_a1186a60cde324d29821fcc8711a81adf"><td class="memItemLeft" align="right" valign="top"><a id="a1186a60cde324d29821fcc8711a81adf" name="a1186a60cde324d29821fcc8711a81adf"></a>
 static constexpr size_t&#160;</td><td class="memItemRight" valign="bottom"><b>Alignment</b> = <a class="el" href="structgaia_1_1mem_1_1data__layout__properties.html">data_layout_properties</a>&lt;DataLayout::AoS, ValueType&gt;::Alignment</td></tr>
+<tr class="memdesc:a1186a60cde324d29821fcc8711a81adf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Required byte alignment. <br /></td></tr>
 <tr class="separator:a1186a60cde324d29821fcc8711a81adf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
@@ -179,7 +182,362 @@ static constexpr size_t&#160;</td><td class="memItemRight" valign="bottom"><b>Al
 struct gaia::mem::data_view_policy_aos&lt; ValueType &gt;</div><p>View policy for accessing and storing data in the AoS way. Good for random access and when accessing data that needs to be close together. </p>
 <p>struct Foo { int x; int y; int z; }; using fooViewPolicy = data_view_policy&lt;DataLayout::AoS, Foo&gt;;</p>
 <p>Memory organized as: xyz xyz xyz xyz </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a2358c69b576b04859789d51ca3da31aa" name="a2358c69b576b04859789d51ca3da31aa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2358c69b576b04859789d51ca3da31aa">&#9670;&#160;</a></span>alloc()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<div class="memtemplate">
+template&lt;typename Allocator &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD uint8_t * <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::alloc </td>
+          <td>(</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cnt</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocates and default-constructs an AoS value range. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Allocator</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">cnt</td><td>Number of values. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Allocated byte buffer. </dd></dl>
+
+</div>
+</div>
+<a id="acac6be820b146dd6fd4290d6d41c0d91" name="acac6be820b146dd6fd4290d6d41c0d91"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acac6be820b146dd6fd4290d6d41c0d91">&#9670;&#160;</a></span>free() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<div class="memtemplate">
+template&lt;typename Allocator &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::free </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pData</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cap</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cnt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Destroys and releases an instrumented AoS value range. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Allocator</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pData</td><td>Allocated buffer, or null. </td></tr>
+    <tr><td class="paramname">cap</td><td>Buffer capacity in values. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of live values. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a2e7a55ea80c0f79d93c98fab883093fb" name="a2e7a55ea80c0f79d93c98fab883093fb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2e7a55ea80c0f79d93c98fab883093fb">&#9670;&#160;</a></span>free() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<div class="memtemplate">
+template&lt;typename Allocator &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::free </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pData</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cnt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Destroys and releases an AoS value range. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Allocator</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pData</td><td>Allocated buffer, or null. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of live values. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aed336bc0b63d0378a90a3a7c6122472f" name="aed336bc0b63d0378a90a3a7c6122472f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aed336bc0b63d0378a90a3a7c6122472f">&#9670;&#160;</a></span>get()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD static constexpr const ValueType &amp; <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::get </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; const ValueType &gt;&#160;</td>
+          <td class="paramname"><em>s</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>idx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a read-only value reference from an AoS span. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">s</td><td>Source values. </td></tr>
+    <tr><td class="paramname">idx</td><td>Value index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the selected value. </dd></dl>
+
+</div>
+</div>
+<a id="a121616d30948c5462399821ee8b34df2" name="a121616d30948c5462399821ee8b34df2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a121616d30948c5462399821ee8b34df2">&#9670;&#160;</a></span>get_min_byte_size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD constexpr uint32_t <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::get_min_byte_size </td>
+          <td>(</td>
+          <td class="paramtype">uintptr_t&#160;</td>
+          <td class="paramname"><em>addr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>cnt</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Calculates the bytes required for a value range. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">addr</td><td>Starting address used for alignment calculations. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of values. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Minimum required byte count. </dd></dl>
+
+</div>
+</div>
+<a id="a7a56b9ca08681e85abb3185882960163" name="a7a56b9ca08681e85abb3185882960163"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7a56b9ca08681e85abb3185882960163">&#9670;&#160;</a></span>get_value()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD static constexpr ValueType <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::get_value </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; const ValueType &gt;&#160;</td>
+          <td class="paramname"><em>s</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>idx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Copies a value from an AoS span. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">s</td><td>Source values. </td></tr>
+    <tr><td class="paramname">idx</td><td>Value index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Copied value. </dd></dl>
+
+</div>
+</div>
+<a id="abee3e54ae965289dd16de203716b0d59" name="abee3e54ae965289dd16de203716b0d59"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abee3e54ae965289dd16de203716b0d59">&#9670;&#160;</a></span>set()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD static constexpr ValueType &amp; <a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">gaia::mem::data_view_policy_aos</a>&lt; ValueType &gt;::set </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; ValueType &gt;&#160;</td>
+          <td class="paramname"><em>s</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>idx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a mutable value reference from an AoS span. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">s</td><td>Destination values. </td></tr>
+    <tr><td class="paramname">idx</td><td>Value index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the selected value. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="data__layout__policy_8h_source.html">data_layout_policy.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -187,7 +545,7 @@ struct gaia::mem::data_view_policy_aos&lt; ValueType &gt;</div><p>View policy fo
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">data_view_policy_aos</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__aos.html">data_view_policy_aos</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

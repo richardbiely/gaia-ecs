@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['ct_0',['CT',['../structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a92d633ca26d924f01ec2a77d423617cc',1,'gaia::ecs::detail::ComponentDesc']]]
+  ['allocator_0',['Allocator',['../classgaia_1_1cnt_1_1page__storage.html#a082536ccf4d454c02863ebee7a78bc0e',1,'gaia::cnt::page_storage']]]
 ];

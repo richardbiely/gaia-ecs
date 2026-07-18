@@ -113,15 +113,20 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1vm_1_1MatchingCtx
   <div class="headertitle"><div class="title">gaia::ecs::vm::MatchingCtx Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Mutable execution context used while matching query bytecode.  
+ <a href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="vm_8h_source.html">vm.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a8697ce34bdb46f11245ef43f45a29359" id="r_a8697ce34bdb46f11245ef43f45a29359"><td class="memItemLeft" align="right" valign="top"><a id="a8697ce34bdb46f11245ef43f45a29359" name="a8697ce34bdb46f11245ef43f45a29359"></a>
 const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pWorld</b></td></tr>
-<tr class="memdesc:a8697ce34bdb46f11245ef43f45a29359"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a>. <br /></td></tr>
+<tr class="memdesc:a8697ce34bdb46f11245ef43f45a29359"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a>. <br /></td></tr>
 <tr class="separator:a8697ce34bdb46f11245ef43f45a29359"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a75697565bf1cc212c5c170b1e337a4a1" id="r_a75697565bf1cc212c5c170b1e337a4a1"><td class="memItemLeft" align="right" valign="top"><a id="a75697565bf1cc212c5c170b1e337a4a1" name="a75697565bf1cc212c5c170b1e337a4a1"></a>
-<a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>targetEntities</b></td></tr>
+EntitySpan&#160;</td><td class="memItemRight" valign="bottom"><b>targetEntities</b></td></tr>
 <tr class="memdesc:a75697565bf1cc212c5c170b1e337a4a1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Entities for which we run the VM. If empty, we run against all of them. <br /></td></tr>
 <tr class="separator:a75697565bf1cc212c5c170b1e337a4a1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab122d169ebcc196121ac8494f5a1144b" id="r_ab122d169ebcc196121ac8494f5a1144b"><td class="memItemLeft" align="right" valign="top"><a id="ab122d169ebcc196121ac8494f5a1144b" name="ab122d169ebcc196121ac8494f5a1144b"></a>
@@ -129,7 +134,7 @@ const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
 <tr class="memdesc:ab122d169ebcc196121ac8494f5a1144b"><td class="mdescLeft">&#160;</td><td class="mdescRight">entity -&gt; archetypes lookup used to seed structural candidate archetypes <br /></td></tr>
 <tr class="separator:ab122d169ebcc196121ac8494f5a1144b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3a02df3fa1440eccb5f06673247934c9" id="r_a3a02df3fa1440eccb5f06673247934c9"><td class="memItemLeft" align="right" valign="top"><a id="a3a02df3fa1440eccb5f06673247934c9" name="a3a02df3fa1440eccb5f06673247934c9"></a>
-<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>allArchetypes</b></td></tr>
+std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>allArchetypes</b></td></tr>
 <tr class="memdesc:a3a02df3fa1440eccb5f06673247934c9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of all archetypes in the world. <br /></td></tr>
 <tr class="separator:a3a02df3fa1440eccb5f06673247934c9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7ca242ced359c74e0101b38fd27e18ce" id="r_a7ca242ced359c74e0101b38fd27e18ce"><td class="memItemLeft" align="right" valign="top"><a id="a7ca242ced359c74e0101b38fd27e18ce" name="a7ca242ced359c74e0101b38fd27e18ce"></a>
@@ -137,7 +142,7 @@ const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
 <tr class="memdesc:a7ca242ced359c74e0101b38fd27e18ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of already matches archetypes. Reset before each exec(). <br /></td></tr>
 <tr class="separator:a7ca242ced359c74e0101b38fd27e18ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3668bacf9a32c95c46501c93af2f2ee8" id="r_a3668bacf9a32c95c46501c93af2f2ee8"><td class="memItemLeft" align="right" valign="top"><a id="a3668bacf9a32c95c46501c93af2f2ee8" name="a3668bacf9a32c95c46501c93af2f2ee8"></a>
-<a class="el" href="structgaia_1_1ecs_1_1ArchetypeMatchStamps.html">ArchetypeMatchStamps</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pMatchesStampByArchetypeId</b></td></tr>
+ArchetypeMatchStamps *&#160;</td><td class="memItemRight" valign="bottom"><b>pMatchesStampByArchetypeId</b></td></tr>
 <tr class="memdesc:a3668bacf9a32c95c46501c93af2f2ee8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Per-archetype stamp table for O(1) dedup in hot loops. <br /></td></tr>
 <tr class="separator:a3668bacf9a32c95c46501c93af2f2ee8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4476c3601ac8f90f0425cced54c2df07" id="r_a4476c3601ac8f90f0425cced54c2df07"><td class="memItemLeft" align="right" valign="top"><a id="a4476c3601ac8f90f0425cced54c2df07" name="a4476c3601ac8f90f0425cced54c2df07"></a>
@@ -145,15 +150,15 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>matchesVersion</b
 <tr class="memdesc:a4476c3601ac8f90f0425cced54c2df07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current dedup version used with pMatchesStampByArchetypeId. <br /></td></tr>
 <tr class="separator:a4476c3601ac8f90f0425cced54c2df07"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a570b0339ec7d0ef6272e84a39bbb6acb" id="r_a570b0339ec7d0ef6272e84a39bbb6acb"><td class="memItemLeft" align="right" valign="top"><a id="a570b0339ec7d0ef6272e84a39bbb6acb" name="a570b0339ec7d0ef6272e84a39bbb6acb"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_All</b></td></tr>
+QueryArchetypeCacheIndexMap *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_All</b></td></tr>
 <tr class="memdesc:a570b0339ec7d0ef6272e84a39bbb6acb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Idx of the last matched archetype against the ALL opcode. <br /></td></tr>
 <tr class="separator:a570b0339ec7d0ef6272e84a39bbb6acb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aad1693d1fe6e895d1a4a5ead257f43df" id="r_aad1693d1fe6e895d1a4a5ead257f43df"><td class="memItemLeft" align="right" valign="top"><a id="aad1693d1fe6e895d1a4a5ead257f43df" name="aad1693d1fe6e895d1a4a5ead257f43df"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_Or</b></td></tr>
+QueryArchetypeCacheIndexMap *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_Or</b></td></tr>
 <tr class="memdesc:aad1693d1fe6e895d1a4a5ead257f43df"><td class="mdescLeft">&#160;</td><td class="mdescRight">Idx of the last matched archetype against the OR opcode. <br /></td></tr>
 <tr class="separator:aad1693d1fe6e895d1a4a5ead257f43df"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a074aad2b475f73e94b1a388ca7bbec97" id="r_a074aad2b475f73e94b1a388ca7bbec97"><td class="memItemLeft" align="right" valign="top"><a id="a074aad2b475f73e94b1a388ca7bbec97" name="a074aad2b475f73e94b1a388ca7bbec97"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_Not</b></td></tr>
+QueryArchetypeCacheIndexMap *&#160;</td><td class="memItemRight" valign="bottom"><b>pLastMatchedArchetypeIdx_Not</b></td></tr>
 <tr class="memdesc:a074aad2b475f73e94b1a388ca7bbec97"><td class="mdescLeft">&#160;</td><td class="mdescRight">Idx of the last matched archetype against the NOT opcode. <br /></td></tr>
 <tr class="separator:a074aad2b475f73e94b1a388ca7bbec97"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a766ea667331aa4d18dcb1300a3fbd08d" id="r_a766ea667331aa4d18dcb1300a3fbd08d"><td class="memItemLeft" align="right" valign="top"><a id="a766ea667331aa4d18dcb1300a3fbd08d" name="a766ea667331aa4d18dcb1300a3fbd08d"></a>
@@ -170,10 +175,10 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>as_mask_1</b></td
 <tr class="separator:adad99c6c47f1d8e8ac9e51577565163d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acc2031e51f5a8b8d94d9345436b00288" id="r_acc2031e51f5a8b8d94d9345436b00288"><td class="memItemLeft" align="right" valign="top"><a id="acc2031e51f5a8b8d94d9345436b00288" name="acc2031e51f5a8b8d94d9345436b00288"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b></td></tr>
-<tr class="memdesc:acc2031e51f5a8b8d94d9345436b00288"><td class="mdescLeft">&#160;</td><td class="mdescRight">Flags copied over from <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">QueryCtx::Data</a>. <br /></td></tr>
+<tr class="memdesc:acc2031e51f5a8b8d94d9345436b00288"><td class="mdescLeft">&#160;</td><td class="mdescRight">Flags copied over from <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html" title="Compact compiled query payload used by matching, identity, and cache maintenance.">QueryCtx::Data</a>. <br /></td></tr>
 <tr class="separator:acc2031e51f5a8b8d94d9345436b00288"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1f8559b9c87500828070e99f0fc4f3ac" id="r_a1f8559b9c87500828070e99f0fc4f3ac"><td class="memItemLeft" align="right" valign="top"><a id="a1f8559b9c87500828070e99f0fc4f3ac" name="a1f8559b9c87500828070e99f0fc4f3ac"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>varBindings</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>varBindings</b></td></tr>
 <tr class="memdesc:a1f8559b9c87500828070e99f0fc4f3ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Runtime variable bindings (Var0..Var7) provided by the query. <br /></td></tr>
 <tr class="separator:a1f8559b9c87500828070e99f0fc4f3ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad94e413ca9e847e411c9b9b26d56f6ff" id="r_ad94e413ca9e847e411c9b9b26d56f6ff"><td class="memItemLeft" align="right" valign="top"><a id="ad94e413ca9e847e411c9b9b26d56f6ff" name="ad94e413ca9e847e411c9b9b26d56f6ff"></a>
@@ -189,7 +194,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>skipOr</b> = false</t
 <tr class="memdesc:a1db130a415f6b3ea80d05aef16070631"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> to match. <br /></td></tr>
 <tr class="separator:a1db130a415f6b3ea80d05aef16070631"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a19de80698b03da3499e3ef386e99ca44" id="r_a19de80698b03da3499e3ef386e99ca44"><td class="memItemLeft" align="right" valign="top"><a id="a19de80698b03da3499e3ef386e99ca44" name="a19de80698b03da3499e3ef386e99ca44"></a>
-<a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>idsToMatch</b></td></tr>
+EntitySpan&#160;</td><td class="memItemRight" valign="bottom"><b>idsToMatch</b></td></tr>
 <tr class="memdesc:a19de80698b03da3499e3ef386e99ca44"><td class="mdescLeft">&#160;</td><td class="mdescRight">List of entity ids in a query to consider. <br /></td></tr>
 <tr class="separator:a19de80698b03da3499e3ef386e99ca44"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a746f09d0bbd064e09e318dfd8e6a415c" id="r_a746f09d0bbd064e09e318dfd8e6a415c"><td class="memItemLeft" align="right" valign="top"><a id="a746f09d0bbd064e09e318dfd8e6a415c" name="a746f09d0bbd064e09e318dfd8e6a415c"></a>
@@ -197,7 +202,9 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>pc</b></td></tr>
 <tr class="memdesc:a746f09d0bbd064e09e318dfd8e6a415c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Current stack position (program counter) <br /></td></tr>
 <tr class="separator:a746f09d0bbd064e09e318dfd8e6a415c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Mutable execution context used while matching query bytecode. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="vm_8h_source.html">vm.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -205,7 +212,7 @@ uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>pc</b></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>vm</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>vm</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

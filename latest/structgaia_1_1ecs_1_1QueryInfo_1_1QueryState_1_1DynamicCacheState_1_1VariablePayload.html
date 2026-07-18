@@ -126,19 +126,17 @@ Public Member Functions</h2></td></tr>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr>
 <tr class="memdesc:a7fcce21759cd74966339a41cfdae18fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Clears runtime variable binding snapshot state. <br /></td></tr>
 <tr class="separator:a7fcce21759cd74966339a41cfdae18fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac45f9d36cf0d6779226dd4d95ccbdef0" id="r_ac45f9d36cf0d6779226dd4d95ccbdef0"><td class="memItemLeft" align="right" valign="top"><a id="ac45f9d36cf0d6779226dd4d95ccbdef0" name="ac45f9d36cf0d6779226dd4d95ccbdef0"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeBindings, uint8_t runtimeBindingMask) const</td></tr>
-<tr class="memdesc:ac45f9d36cf0d6779226dd4d95ccbdef0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when runtime variable bindings differ from the captured snapshot. <br /></td></tr>
+<tr class="memitem:ac45f9d36cf0d6779226dd4d95ccbdef0" id="r_ac45f9d36cf0d6779226dd4d95ccbdef0"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1VariablePayload.html#ac45f9d36cf0d6779226dd4d95ccbdef0">changed</a> (const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeBindings, uint8_t runtimeBindingMask) const</td></tr>
+<tr class="memdesc:ac45f9d36cf0d6779226dd4d95ccbdef0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when runtime variable bindings differ from the captured snapshot.  <br /></td></tr>
 <tr class="separator:ac45f9d36cf0d6779226dd4d95ccbdef0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac47fcb7dbdf8ba27b625f13ee80dc9fd" id="r_ac47fcb7dbdf8ba27b625f13ee80dc9fd"><td class="memItemLeft" align="right" valign="top"><a id="ac47fcb7dbdf8ba27b625f13ee80dc9fd" name="ac47fcb7dbdf8ba27b625f13ee80dc9fd"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>snapshot</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeBindings, uint8_t runtimeBindingMask)</td></tr>
-<tr class="memdesc:ac47fcb7dbdf8ba27b625f13ee80dc9fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures runtime variable bindings. <br /></td></tr>
+<tr class="memitem:ac47fcb7dbdf8ba27b625f13ee80dc9fd" id="r_ac47fcb7dbdf8ba27b625f13ee80dc9fd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1VariablePayload.html#ac47fcb7dbdf8ba27b625f13ee80dc9fd">snapshot</a> (const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;runtimeBindings, uint8_t runtimeBindingMask)</td></tr>
+<tr class="memdesc:ac47fcb7dbdf8ba27b625f13ee80dc9fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures runtime variable bindings.  <br /></td></tr>
 <tr class="separator:ac47fcb7dbdf8ba27b625f13ee80dc9fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a3af207ee3c9d47921a7473325ef5e1d5" id="r_a3af207ee3c9d47921a7473325ef5e1d5"><td class="memItemLeft" align="right" valign="top"><a id="a3af207ee3c9d47921a7473325ef5e1d5" name="a3af207ee3c9d47921a7473325ef5e1d5"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>bindings</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>bindings</b></td></tr>
 <tr class="memdesc:a3af207ee3c9d47921a7473325ef5e1d5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Snapshot of runtime variable bindings used to build the current dynamic cache. <br /></td></tr>
 <tr class="separator:a3af207ee3c9d47921a7473325ef5e1d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a425e9cf2ff41080e330441f6c814fded" id="r_a425e9cf2ff41080e330441f6c814fded"><td class="memItemLeft" align="right" valign="top"><a id="a425e9cf2ff41080e330441f6c814fded" name="a425e9cf2ff41080e330441f6c814fded"></a>
@@ -148,7 +146,99 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>bindingMask</b> = 
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Variable-binding payload for reusable dynamic caches with runtime variables. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="ac45f9d36cf0d6779226dd4d95ccbdef0" name="ac45f9d36cf0d6779226dd4d95ccbdef0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac45f9d36cf0d6779226dd4d95ccbdef0">&#9670;&#160;</a></span>changed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryInfo::QueryState::DynamicCacheState::VariablePayload::changed </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramname"><em>runtimeBindings</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>runtimeBindingMask</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when runtime variable bindings differ from the captured snapshot. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">runtimeBindings</td><td>Current values for all query variable slots. </td></tr>
+    <tr><td class="paramname">runtimeBindingMask</td><td>Bitmask selecting bound slots in <em>runtimeBindings</em>. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the bound-slot mask or any selected value differs. </dd></dl>
+
+</div>
+</div>
+<a id="ac47fcb7dbdf8ba27b625f13ee80dc9fd" name="ac47fcb7dbdf8ba27b625f13ee80dc9fd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac47fcb7dbdf8ba27b625f13ee80dc9fd">&#9670;&#160;</a></span>snapshot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::QueryState::DynamicCacheState::VariablePayload::snapshot </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>, MaxVarCnt &gt; &amp;&#160;</td>
+          <td class="paramname"><em>runtimeBindings</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>runtimeBindingMask</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Captures runtime variable bindings. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">runtimeBindings</td><td>Current values for all query variable slots. </td></tr>
+    <tr><td class="paramname">runtimeBindingMask</td><td>Bitmask selecting bound slots to capture. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__info_8h_source.html">query_info.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -156,7 +246,7 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>bindingMask</b> = 
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1VariablePayload.html">VariablePayload</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1VariablePayload.html">VariablePayload</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

@@ -121,33 +121,234 @@ $(document).ready(function(){initNavTree('classgaia_1_1ecs_1_1vm_1_1VirtualMachi
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ae2df4564300608e65486ff1d6453f441" id="r_ae2df4564300608e65486ff1d6453f441"><td class="memItemLeft" align="right" valign="top"><a id="ae2df4564300608e65486ff1d6453f441" name="ae2df4564300608e65486ff1d6453f441"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1util_1_1str.html">util::str</a>&#160;</td><td class="memItemRight" valign="bottom"><b>bytecode</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world) const</td></tr>
+<tr class="memitem:ae2df4564300608e65486ff1d6453f441" id="r_ae2df4564300608e65486ff1d6453f441"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1util_1_1str.html">util::str</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#ae2df4564300608e65486ff1d6453f441">bytecode</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world) const</td></tr>
+<tr class="memdesc:ae2df4564300608e65486ff1d6453f441"><td class="mdescLeft">&#160;</td><td class="mdescRight">Formats the compiled query bytecode for diagnostics.  <br /></td></tr>
 <tr class="separator:ae2df4564300608e65486ff1d6453f441"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad4319abd299ddfabfcadc1d8fad4ceab" id="r_ad4319abd299ddfabfcadc1d8fad4ceab"><td class="memItemLeft" align="right" valign="top"><a id="ad4319abd299ddfabfcadc1d8fad4ceab" name="ad4319abd299ddfabfcadc1d8fad4ceab"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>compile</b> (const <a class="el" href="classgaia_1_1cnt_1_1darr.html">EntityToArchetypeMap</a> &amp;entityToArchetypeMap, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;queryCtx)</td></tr>
-<tr class="memdesc:ad4319abd299ddfabfcadc1d8fad4ceab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transforms inputs into virtual machine opcodes. <br /></td></tr>
+<tr class="memitem:ad4319abd299ddfabfcadc1d8fad4ceab" id="r_ad4319abd299ddfabfcadc1d8fad4ceab"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#ad4319abd299ddfabfcadc1d8fad4ceab">compile</a> (const EntityToArchetypeMap &amp;entityToArchetypeMap, std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt; allArchetypes, <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;queryCtx)</td></tr>
+<tr class="memdesc:ad4319abd299ddfabfcadc1d8fad4ceab"><td class="mdescLeft">&#160;</td><td class="mdescRight">Transforms inputs into virtual machine opcodes.  <br /></td></tr>
 <tr class="separator:ad4319abd299ddfabfcadc1d8fad4ceab"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae17f38f92cbd64128e62bff7d244d3e8" id="r_ae17f38f92cbd64128e62bff7d244d3e8"><td class="memItemLeft" align="right" valign="top"><a id="ae17f38f92cbd64128e62bff7d244d3e8" name="ae17f38f92cbd64128e62bff7d244d3e8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>create_opcodes</b> (<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;queryCtx)</td></tr>
-<tr class="separator:ae17f38f92cbd64128e62bff7d244d3e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a363eef8986af8364ba8cc210f1bf72cd" id="r_a363eef8986af8364ba8cc210f1bf72cd"><td class="memItemLeft" align="right" valign="top"><a id="a363eef8986af8364ba8cc210f1bf72cd" name="a363eef8986af8364ba8cc210f1bf72cd"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>is_compiled</b> () const</td></tr>
+<tr class="memitem:a363eef8986af8364ba8cc210f1bf72cd" id="r_a363eef8986af8364ba8cc210f1bf72cd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a363eef8986af8364ba8cc210f1bf72cd">is_compiled</a> () const</td></tr>
+<tr class="memdesc:a363eef8986af8364ba8cc210f1bf72cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns whether this VM contains compiled executable opcodes.  <br /></td></tr>
 <tr class="separator:a363eef8986af8364ba8cc210f1bf72cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9e66ad287c2932dafb86570c755117a2" id="r_a9e66ad287c2932dafb86570c755117a2"><td class="memItemLeft" align="right" valign="top"><a id="a9e66ad287c2932dafb86570c755117a2" name="a9e66ad287c2932dafb86570c755117a2"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>op_count</b> () const</td></tr>
+<tr class="memitem:a9e66ad287c2932dafb86570c755117a2" id="r_a9e66ad287c2932dafb86570c755117a2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a9e66ad287c2932dafb86570c755117a2">op_count</a> () const</td></tr>
+<tr class="memdesc:a9e66ad287c2932dafb86570c755117a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the total number of compiled opcodes.  <br /></td></tr>
 <tr class="separator:a9e66ad287c2932dafb86570c755117a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abb025a2e27da97b44a3b315f7fbc71da" id="r_abb025a2e27da97b44a3b315f7fbc71da"><td class="memItemLeft" align="right" valign="top"><a id="abb025a2e27da97b44a3b315f7fbc71da" name="abb025a2e27da97b44a3b315f7fbc71da"></a>
-GAIA_NODISCARD uint64_t&#160;</td><td class="memItemRight" valign="bottom"><b>op_signature</b> () const</td></tr>
+<tr class="memitem:abb025a2e27da97b44a3b315f7fbc71da" id="r_abb025a2e27da97b44a3b315f7fbc71da"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#abb025a2e27da97b44a3b315f7fbc71da">op_signature</a> () const</td></tr>
+<tr class="memdesc:abb025a2e27da97b44a3b315f7fbc71da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Computes a stable signature of the compiled opcode stream.  <br /></td></tr>
 <tr class="separator:abb025a2e27da97b44a3b315f7fbc71da"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4dedd43671f1bb6747a34c49d456c989" id="r_a4dedd43671f1bb6747a34c49d456c989"><td class="memItemLeft" align="right" valign="top"><a id="a4dedd43671f1bb6747a34c49d456c989" name="a4dedd43671f1bb6747a34c49d456c989"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>exec</b> (<a class="el" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a> &amp;ctx)</td></tr>
-<tr class="memdesc:a4dedd43671f1bb6747a34c49d456c989"><td class="mdescLeft">&#160;</td><td class="mdescRight">Executes compiled opcodes. <br /></td></tr>
+<tr class="memitem:a4dedd43671f1bb6747a34c49d456c989" id="r_a4dedd43671f1bb6747a34c49d456c989"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html#a4dedd43671f1bb6747a34c49d456c989">exec</a> (<a class="el" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a> &amp;ctx)</td></tr>
+<tr class="memdesc:a4dedd43671f1bb6747a34c49d456c989"><td class="mdescLeft">&#160;</td><td class="mdescRight">Executes compiled query-matching opcodes.  <br /></td></tr>
 <tr class="separator:a4dedd43671f1bb6747a34c49d456c989"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Compiles query terms into matching bytecode and evaluates that bytecode against archetypes. The VM owns query matching and cache construction only. Row, chunk, entity-seed, sorted, traversal, and mapped typed callback dispatch are selected later by QueryImpl::QueryPlan. </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="ae2df4564300608e65486ff1d6453f441" name="ae2df4564300608e65486ff1d6453f441"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae2df4564300608e65486ff1d6453f441">&#9670;&#160;</a></span>bytecode()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1util_1_1str.html">util::str</a> gaia::ecs::vm::VirtualMachine::bytecode </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Formats the compiled query bytecode for diagnostics. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> used to resolve entity names in the output. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Human-readable bytecode and operand metadata. </dd></dl>
+
+</div>
+</div>
+<a id="ad4319abd299ddfabfcadc1d8fad4ceab" name="ad4319abd299ddfabfcadc1d8fad4ceab"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad4319abd299ddfabfcadc1d8fad4ceab">&#9670;&#160;</a></span>compile()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::vm::VirtualMachine::compile </td>
+          <td>(</td>
+          <td class="paramtype">const EntityToArchetypeMap &amp;&#160;</td>
+          <td class="paramname"><em>entityToArchetypeMap</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::span&lt; const <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> * &gt;&#160;</td>
+          <td class="paramname"><em>allArchetypes</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a> &amp;&#160;</td>
+          <td class="paramname"><em>queryCtx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Transforms inputs into virtual machine opcodes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entityToArchetypeMap</td><td>Component-to-archetype lookup available during compilation. </td></tr>
+    <tr><td class="paramname">allArchetypes</td><td>Archetypes available during compilation. </td></tr>
+    <tr><td class="paramname">queryCtx</td><td>Query definition and dependency metadata to compile. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a4dedd43671f1bb6747a34c49d456c989" name="a4dedd43671f1bb6747a34c49d456c989"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4dedd43671f1bb6747a34c49d456c989">&#9670;&#160;</a></span>exec()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::vm::VirtualMachine::exec </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html">MatchingCtx</a> &amp;&#160;</td>
+          <td class="paramname"><em>ctx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Executes compiled query-matching opcodes. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>Matching state updated with the resulting archetypes. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a363eef8986af8364ba8cc210f1bf72cd" name="a363eef8986af8364ba8cc210f1bf72cd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a363eef8986af8364ba8cc210f1bf72cd">&#9670;&#160;</a></span>is_compiled()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::vm::VirtualMachine::is_compiled </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns whether this VM contains compiled executable opcodes. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when compilation produced at least one opcode. </dd></dl>
+
+</div>
+</div>
+<a id="a9e66ad287c2932dafb86570c755117a2" name="a9e66ad287c2932dafb86570c755117a2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9e66ad287c2932dafb86570c755117a2">&#9670;&#160;</a></span>op_count()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ecs::vm::VirtualMachine::op_count </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the total number of compiled opcodes. </p>
+<dl class="section return"><dt>Returns</dt><dd>Number of compiled opcodes, including variable-search programs. </dd></dl>
+
+</div>
+</div>
+<a id="abb025a2e27da97b44a3b315f7fbc71da" name="abb025a2e27da97b44a3b315f7fbc71da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abb025a2e27da97b44a3b315f7fbc71da">&#9670;&#160;</a></span>op_signature()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint64_t gaia::ecs::vm::VirtualMachine::op_signature </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Computes a stable signature of the compiled opcode stream. </p>
+<dl class="section return"><dt>Returns</dt><dd>Hash of opcode kinds, control-flow targets, operands, and costs. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="vm_8h_source.html">vm.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -155,7 +356,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>exec</b> (<a class="e
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>vm</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html">VirtualMachine</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>vm</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1vm_1_1VirtualMachine.html">VirtualMachine</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

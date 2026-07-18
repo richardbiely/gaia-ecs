@@ -113,23 +113,30 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryCtx_1_1Data_
   <div class="headertitle"><div class="title">gaia::ecs::QueryCtx::Data::LookupIdentity Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Cold canonical payload used exclusively by shared-query hashing and equality.  
+ <a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a64c91a5355cb8de8e723fc58935cb62e" id="r_a64c91a5355cb8de8e723fc58935cb62e"><td class="memItemLeft" align="right" valign="top"><a id="a64c91a5355cb8de8e723fc58935cb62e" name="a64c91a5355cb8de8e723fc58935cb62e"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookupTerms</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookupTerms</b></td></tr>
 <tr class="memdesc:a64c91a5355cb8de8e723fc58935cb62e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized lookup terms reused by hash/equality for shared query dedup. <br /></td></tr>
 <tr class="separator:a64c91a5355cb8de8e723fc58935cb62e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2dcb9e73d9d86944548e29a9c73ddfc9" id="r_a2dcb9e73d9d86944548e29a9c73ddfc9"><td class="memItemLeft" align="right" valign="top"><a id="a2dcb9e73d9d86944548e29a9c73ddfc9" name="a2dcb9e73d9d86944548e29a9c73ddfc9"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
 <tr class="memdesc:a2dcb9e73d9d86944548e29a9c73ddfc9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized changed-filter ids reused by hash/equality for shared query dedup. <br /></td></tr>
 <tr class="separator:a2dcb9e73d9d86944548e29a9c73ddfc9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:add9b16e71e210c972b71e818059fa013" id="r_add9b16e71e210c972b71e818059fa013"><td class="memItemLeft" align="right" valign="top"><a id="add9b16e71e210c972b71e818059fa013" name="add9b16e71e210c972b71e818059fa013"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
 <tr class="memdesc:add9b16e71e210c972b71e818059fa013"><td class="mdescLeft">&#160;</td><td class="mdescRight">Canonicalized group dependency ids reused by hash/equality for shared query dedup. <br /></td></tr>
 <tr class="separator:add9b16e71e210c972b71e818059fa013"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<hr/>The documentation for this struct was generated from the following file:<ul>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Cold canonical payload used exclusively by shared-query hashing and equality. </p>
+</div><hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -137,7 +144,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html">LookupIdentity</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html">LookupIdentity</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

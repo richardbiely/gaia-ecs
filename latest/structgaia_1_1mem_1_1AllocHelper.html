@@ -113,42 +113,456 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1AllocHelper.html'
   <div class="headertitle"><div class="title">gaia::mem::AllocHelper Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Typed allocation facade for allocator adaptors.  
+ <a href="structgaia_1_1mem_1_1AllocHelper.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="mem__alloc_8h_source.html">mem_alloc.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a8e0f7ebc493c91b8d01fead644c8b8a4" id="r_a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="memTemplParams" colspan="2"><a id="a8e0f7ebc493c91b8d01fead644c8b8a4" name="a8e0f7ebc493c91b8d01fead644c8b8a4"></a>
-template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>alloc</b> (uint32_t cnt=1)</td></tr>
+<tr class="memitem:a8e0f7ebc493c91b8d01fead644c8b8a4" id="r_a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="memTemplParams" colspan="2">template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a8e0f7ebc493c91b8d01fead644c8b8a4">alloc</a> (uint32_t cnt=1)</td></tr>
+<tr class="memdesc:a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates storage for objects without constructing them.  <br /></td></tr>
 <tr class="separator:a8e0f7ebc493c91b8d01fead644c8b8a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a7cf7a36a76ec5272a7852902ba897d5a" id="r_a7cf7a36a76ec5272a7852902ba897d5a"><td class="memTemplParams" colspan="2"><a id="a7cf7a36a76ec5272a7852902ba897d5a" name="a7cf7a36a76ec5272a7852902ba897d5a"></a>
-template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a7cf7a36a76ec5272a7852902ba897d5a"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>alloc</b> (const char *name, uint32_t cnt=1)</td></tr>
+<tr class="memitem:a7cf7a36a76ec5272a7852902ba897d5a" id="r_a7cf7a36a76ec5272a7852902ba897d5a"><td class="memTemplParams" colspan="2">template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a7cf7a36a76ec5272a7852902ba897d5a"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a7cf7a36a76ec5272a7852902ba897d5a">alloc</a> (const char *name, uint32_t cnt=1)</td></tr>
+<tr class="memdesc:a7cf7a36a76ec5272a7852902ba897d5a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates named storage for objects without constructing them.  <br /></td></tr>
 <tr class="separator:a7cf7a36a76ec5272a7852902ba897d5a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a3ae41033a17974982dd0c147230b542f" id="r_a3ae41033a17974982dd0c147230b542f"><td class="memTemplParams" colspan="2"><a id="a3ae41033a17974982dd0c147230b542f" name="a3ae41033a17974982dd0c147230b542f"></a>
-template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a3ae41033a17974982dd0c147230b542f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>alloc_alig</b> (size_t alig, uint32_t cnt=1)</td></tr>
+<tr class="memitem:a3ae41033a17974982dd0c147230b542f" id="r_a3ae41033a17974982dd0c147230b542f"><td class="memTemplParams" colspan="2">template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a3ae41033a17974982dd0c147230b542f"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a3ae41033a17974982dd0c147230b542f">alloc_alig</a> (size_t alig, uint32_t cnt=1)</td></tr>
+<tr class="memdesc:a3ae41033a17974982dd0c147230b542f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates aligned storage for objects without constructing them.  <br /></td></tr>
 <tr class="separator:a3ae41033a17974982dd0c147230b542f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a25aa19788f58d004f0069d95f48f8408" id="r_a25aa19788f58d004f0069d95f48f8408"><td class="memTemplParams" colspan="2"><a id="a25aa19788f58d004f0069d95f48f8408" name="a25aa19788f58d004f0069d95f48f8408"></a>
-template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a25aa19788f58d004f0069d95f48f8408"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><b>alloc_alig</b> (const char *name, size_t alig, uint32_t cnt=1)</td></tr>
+<tr class="memitem:a25aa19788f58d004f0069d95f48f8408" id="r_a25aa19788f58d004f0069d95f48f8408"><td class="memTemplParams" colspan="2">template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a25aa19788f58d004f0069d95f48f8408"><td class="memTemplItemLeft" align="right" valign="top">static GAIA_NODISCARD T *&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a25aa19788f58d004f0069d95f48f8408">alloc_alig</a> (const char *name, size_t alig, uint32_t cnt=1)</td></tr>
+<tr class="memdesc:a25aa19788f58d004f0069d95f48f8408"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocates named aligned storage for objects without constructing them.  <br /></td></tr>
 <tr class="separator:a25aa19788f58d004f0069d95f48f8408"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abe0bca060d4886e6d585a06e5ba23036" id="r_abe0bca060d4886e6d585a06e5ba23036"><td class="memTemplParams" colspan="2"><a id="abe0bca060d4886e6d585a06e5ba23036" name="abe0bca060d4886e6d585a06e5ba23036"></a>
-template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:abe0bca060d4886e6d585a06e5ba23036"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free</b> (void *ptr)</td></tr>
+<tr class="memitem:abe0bca060d4886e6d585a06e5ba23036" id="r_abe0bca060d4886e6d585a06e5ba23036"><td class="memTemplParams" colspan="2">template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:abe0bca060d4886e6d585a06e5ba23036"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#abe0bca060d4886e6d585a06e5ba23036">free</a> (void *ptr)</td></tr>
+<tr class="memdesc:abe0bca060d4886e6d585a06e5ba23036"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases storage allocated through an adaptor.  <br /></td></tr>
 <tr class="separator:abe0bca060d4886e6d585a06e5ba23036"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad2313fcc6a7a1212b211f1e31208b9fe" id="r_ad2313fcc6a7a1212b211f1e31208b9fe"><td class="memTemplParams" colspan="2"><a id="ad2313fcc6a7a1212b211f1e31208b9fe" name="ad2313fcc6a7a1212b211f1e31208b9fe"></a>
-template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:ad2313fcc6a7a1212b211f1e31208b9fe"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free</b> (const char *name, void *ptr)</td></tr>
+<tr class="memitem:ad2313fcc6a7a1212b211f1e31208b9fe" id="r_ad2313fcc6a7a1212b211f1e31208b9fe"><td class="memTemplParams" colspan="2">template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:ad2313fcc6a7a1212b211f1e31208b9fe"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#ad2313fcc6a7a1212b211f1e31208b9fe">free</a> (const char *name, void *ptr)</td></tr>
+<tr class="memdesc:ad2313fcc6a7a1212b211f1e31208b9fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases named storage allocated through an adaptor.  <br /></td></tr>
 <tr class="separator:ad2313fcc6a7a1212b211f1e31208b9fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a71be398933adeb96bf538d7339089569" id="r_a71be398933adeb96bf538d7339089569"><td class="memTemplParams" colspan="2"><a id="a71be398933adeb96bf538d7339089569" name="a71be398933adeb96bf538d7339089569"></a>
-template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a71be398933adeb96bf538d7339089569"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free_alig</b> (void *ptr)</td></tr>
+<tr class="memitem:a71be398933adeb96bf538d7339089569" id="r_a71be398933adeb96bf538d7339089569"><td class="memTemplParams" colspan="2">template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a71be398933adeb96bf538d7339089569"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a71be398933adeb96bf538d7339089569">free_alig</a> (void *ptr)</td></tr>
+<tr class="memdesc:a71be398933adeb96bf538d7339089569"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases aligned storage allocated through an adaptor.  <br /></td></tr>
 <tr class="separator:a71be398933adeb96bf538d7339089569"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a912bb9296f7cca77ca93139e65cca8cb" id="r_a912bb9296f7cca77ca93139e65cca8cb"><td class="memTemplParams" colspan="2"><a id="a912bb9296f7cca77ca93139e65cca8cb" name="a912bb9296f7cca77ca93139e65cca8cb"></a>
-template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
-<tr class="memitem:a912bb9296f7cca77ca93139e65cca8cb"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>free_alig</b> (const char *name, void *ptr)</td></tr>
+<tr class="memitem:a912bb9296f7cca77ca93139e65cca8cb" id="r_a912bb9296f7cca77ca93139e65cca8cb"><td class="memTemplParams" colspan="2">template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
+<tr class="memitem:a912bb9296f7cca77ca93139e65cca8cb"><td class="memTemplItemLeft" align="right" valign="top">static void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html#a912bb9296f7cca77ca93139e65cca8cb">free_alig</a> (const char *name, void *ptr)</td></tr>
+<tr class="memdesc:a912bb9296f7cca77ca93139e65cca8cb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases named aligned storage allocated through an adaptor.  <br /></td></tr>
 <tr class="separator:a912bb9296f7cca77ca93139e65cca8cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Typed allocation facade for allocator adaptors. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a7cf7a36a76ec5272a7852902ba897d5a" name="a7cf7a36a76ec5272a7852902ba897d5a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7cf7a36a76ec5272a7852902ba897d5a">&#9670;&#160;</a></span>alloc() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD T * gaia::mem::AllocHelper::alloc </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cnt</em> = <code>1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocates named storage for objects without constructing them. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Object type. </td></tr>
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>Allocation name reported to the profiler. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of objects to reserve storage for. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Typed pointer to the allocated storage. </dd></dl>
+
+</div>
+</div>
+<a id="a8e0f7ebc493c91b8d01fead644c8b8a4" name="a8e0f7ebc493c91b8d01fead644c8b8a4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e0f7ebc493c91b8d01fead644c8b8a4">&#9670;&#160;</a></span>alloc() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD T * gaia::mem::AllocHelper::alloc </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cnt</em> = <code>1</code></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocates storage for objects without constructing them. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Object type. </td></tr>
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">cnt</td><td>Number of objects to reserve storage for. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Typed pointer to the allocated storage. </dd></dl>
+
+</div>
+</div>
+<a id="a25aa19788f58d004f0069d95f48f8408" name="a25aa19788f58d004f0069d95f48f8408"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a25aa19788f58d004f0069d95f48f8408">&#9670;&#160;</a></span>alloc_alig() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD T * gaia::mem::AllocHelper::alloc_alig </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>alig</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cnt</em> = <code>1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocates named aligned storage for objects without constructing them. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Object type. </td></tr>
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>Allocation name reported to the profiler. </td></tr>
+    <tr><td class="paramname">alig</td><td>Required byte alignment. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of objects to reserve storage for. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Typed pointer to the allocated storage. </dd></dl>
+
+</div>
+</div>
+<a id="a3ae41033a17974982dd0c147230b542f" name="a3ae41033a17974982dd0c147230b542f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ae41033a17974982dd0c147230b542f">&#9670;&#160;</a></span>alloc_alig() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static GAIA_NODISCARD T * gaia::mem::AllocHelper::alloc_alig </td>
+          <td>(</td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>alig</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>cnt</em> = <code>1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocates aligned storage for objects without constructing them. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Object type. </td></tr>
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">alig</td><td>Required byte alignment. </td></tr>
+    <tr><td class="paramname">cnt</td><td>Number of objects to reserve storage for. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Typed pointer to the allocated storage. </dd></dl>
+
+</div>
+</div>
+<a id="ad2313fcc6a7a1212b211f1e31208b9fe" name="ad2313fcc6a7a1212b211f1e31208b9fe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad2313fcc6a7a1212b211f1e31208b9fe">&#9670;&#160;</a></span>free() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void gaia::mem::AllocHelper::free </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Releases named storage allocated through an adaptor. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>Allocation name reported to the profiler. </td></tr>
+    <tr><td class="paramname">ptr</td><td>Pointer to release. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="abe0bca060d4886e6d585a06e5ba23036" name="abe0bca060d4886e6d585a06e5ba23036"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abe0bca060d4886e6d585a06e5ba23036">&#9670;&#160;</a></span>free() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void gaia::mem::AllocHelper::free </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Releases storage allocated through an adaptor. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ptr</td><td>Pointer to release. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a912bb9296f7cca77ca93139e65cca8cb" name="a912bb9296f7cca77ca93139e65cca8cb"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a912bb9296f7cca77ca93139e65cca8cb">&#9670;&#160;</a></span>free_alig() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void gaia::mem::AllocHelper::free_alig </td>
+          <td>(</td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>name</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Releases named aligned storage allocated through an adaptor. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">name</td><td>Allocation name reported to the profiler. </td></tr>
+    <tr><td class="paramname">ptr</td><td>Pointer to release. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a71be398933adeb96bf538d7339089569" name="a71be398933adeb96bf538d7339089569"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a71be398933adeb96bf538d7339089569">&#9670;&#160;</a></span>free_alig() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static void gaia::mem::AllocHelper::free_alig </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Releases aligned storage allocated through an adaptor. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Adaptor</td><td>Allocator adaptor type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ptr</td><td>Pointer to release. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="mem__alloc_8h_source.html">mem_alloc.h</a></li>
 </ul>
@@ -157,7 +571,7 @@ template&lt;typename Adaptor  = DefaultAllocatorAdaptor&gt; </td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html">AllocHelper</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1AllocHelper.html">AllocHelper</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

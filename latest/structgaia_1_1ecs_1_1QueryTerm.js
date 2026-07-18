@@ -1,5 +1,7 @@
 var structgaia_1_1ecs_1_1QueryTerm =
 [
+    [ "operator!=", "structgaia_1_1ecs_1_1QueryTerm.html#a851ed387fdb15aafdf6a443a51cada29", null ],
+    [ "operator==", "structgaia_1_1ecs_1_1QueryTerm.html#a01cacb2ef59a635d2d311c9caa55cdcd", null ],
     [ "entTrav", "structgaia_1_1ecs_1_1QueryTerm.html#ac1cff9919a39c30152797a976fc7f7a2", null ],
     [ "fieldIndex", "structgaia_1_1ecs_1_1QueryTerm.html#a92912ed9b18bbb637021c1af68e42e26", null ],
     [ "id", "structgaia_1_1ecs_1_1QueryTerm.html#a160bc37210e7f6967fb65fb1dc699888", null ],

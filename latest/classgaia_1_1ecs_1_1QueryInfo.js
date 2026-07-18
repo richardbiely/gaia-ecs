@@ -1,6 +1,6 @@
 var classgaia_1_1ecs_1_1QueryInfo =
 [
-    [ "CleanUpTmpArchetypeMatches", "structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html", null ],
+    [ "CleanUpTmpArchetypeMatches", "structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html", "structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches" ],
     [ "InvalidationKind", "classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28", [
       [ "Result", "classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28a8eea62084ca7e541d918e823422bd82e", null ],
       [ "Seed", "classgaia_1_1ecs_1_1QueryInfo.html#a6083a66405863f8723c6b81f6904bc28adba005190e58b252f9b5375cdf5655d9", null ],
@@ -56,6 +56,10 @@ var classgaia_1_1ecs_1_1QueryInfo =
     [ "ensure_direct_chunks", "classgaia_1_1ecs_1_1QueryInfo.html#a77c3b843dfb0c610330ab8ee139ad212", null ],
     [ "ensure_group_data", "classgaia_1_1ecs_1_1QueryInfo.html#aec23c572ae4b9788e31c45ee1bb7bc56", null ],
     [ "ensure_inherited_data", "classgaia_1_1ecs_1_1QueryInfo.html#a010b52bd97f749df8fb139eb1d8d935e", null ],
+    [ "ensure_matches", "classgaia_1_1ecs_1_1QueryInfo.html#a231d6de795fa3177dff4bede43085263", null ],
+    [ "ensure_matches_one", "classgaia_1_1ecs_1_1QueryInfo.html#a20a174ce3f809b986874468e469589c3", null ],
+    [ "ensure_matches_one_transient", "classgaia_1_1ecs_1_1QueryInfo.html#a12384ea1d54f1c480fc7ca47596af4a9", null ],
+    [ "ensure_matches_transient", "classgaia_1_1ecs_1_1QueryInfo.html#ad1e749a3315789b7507674b8f6416be9", null ],
     [ "group_data_view", "classgaia_1_1ecs_1_1QueryInfo.html#a126082782488d78e83ec26beee0d0b80", null ],
     [ "group_id", "classgaia_1_1ecs_1_1QueryInfo.html#a14a67eacf069bce8eed09375b2e95149", null ],
     [ "group_ids", "classgaia_1_1ecs_1_1QueryInfo.html#a3e0b1212010c0469ede62eedfcf5c8cd", null ],
@@ -86,6 +90,8 @@ var classgaia_1_1ecs_1_1QueryInfo =
     [ "matches_prefab_entities", "classgaia_1_1ecs_1_1QueryInfo.html#a53cf52fb8f608bd7e61f968a0437eef2", null ],
     [ "op_count", "classgaia_1_1ecs_1_1QueryInfo.html#ab561fc782c20a063b1a5ded90835444e", null ],
     [ "op_signature", "classgaia_1_1ecs_1_1QueryInfo.html#adaa614f9b4fc954bab79d41929d69a1a", null ],
+    [ "operator!=", "classgaia_1_1ecs_1_1QueryInfo.html#a37314d288bb6689d2ee9a4990e125e2b", null ],
+    [ "operator==", "classgaia_1_1ecs_1_1QueryInfo.html#a97fde73241ff066a4389c91b02030e78", null ],
     [ "recompile", "classgaia_1_1ecs_1_1QueryInfo.html#a2fb228ac3a845ca4b9e429ebc6c37f4f", null ],
     [ "refs", "classgaia_1_1ecs_1_1QueryInfo.html#ab80edbaf818c0265c5a13eec2245a0cd", null ],
     [ "register_archetype", "classgaia_1_1ecs_1_1QueryInfo.html#a5fc33144c73bf6ac47ff1e37fe8d42a3", null ],

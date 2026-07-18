@@ -1,5 +1,6 @@
 var searchData=
 [
-  ['none_0',['None',['../structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6a6adf97f83acf6453d4a6a4b1070f3754',1,'gaia::ecs::QueryCtx']]],
-  ['nontrivial_1',['NonTrivial',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a41a7406850a2bb116013e94605a78fbdaa7f558fd6ae72e45d83647b938ffa9f4',1,'gaia::ecs::detail::QueryImpl']]]
+  ['hasprefabterms_0',['HasPrefabTerms',['../structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aa06582455bf05bd8cfad9ddf4127e7d59',1,'gaia::ecs::QueryCtx']]],
+  ['hassourceterms_1',['HasSourceTerms',['../structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aadf21714a66b2e23f6d7cf94a88481878',1,'gaia::ecs::QueryCtx']]],
+  ['hasvariableterms_2',['HasVariableTerms',['../structgaia_1_1ecs_1_1QueryCtx.html#a5a19b18a83e14d043d91f0f854ef598aac9ee9a6ed8a0013fc0314f09cc856386',1,'gaia::ecs::QueryCtx']]]
 ];

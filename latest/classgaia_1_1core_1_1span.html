@@ -115,141 +115,1117 @@ $(document).ready(function(){initNavTree('classgaia_1_1core_1_1span.html',''); i
   <div class="headertitle"><div class="title">gaia::core::span&lt; T, Extent &gt; Class Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Non-owning view over a contiguous sequence of objects.  
+ <a href="classgaia_1_1core_1_1span.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="span__impl_8h_source.html">span_impl.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:adb86948ec19fab6f9dd4dac5fc6a189e" id="r_adb86948ec19fab6f9dd4dac5fc6a189e"><td class="memItemLeft" align="right" valign="top"><a id="adb86948ec19fab6f9dd4dac5fc6a189e" name="adb86948ec19fab6f9dd4dac5fc6a189e"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>element_kind</b> = T</td></tr>
+<tr class="memdesc:adb86948ec19fab6f9dd4dac5fc6a189e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type, including const qualification. <br /></td></tr>
 <tr class="separator:adb86948ec19fab6f9dd4dac5fc6a189e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a0388761108aa4c7ef4f67567581744e1" id="r_a0388761108aa4c7ef4f67567581744e1"><td class="memItemLeft" align="right" valign="top"><a id="a0388761108aa4c7ef4f67567581744e1" name="a0388761108aa4c7ef4f67567581744e1"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>value_type</b> = typename std::remove_cv&lt; T &gt;::type</td></tr>
+<tr class="memdesc:a0388761108aa4c7ef4f67567581744e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Element type without const qualification. <br /></td></tr>
 <tr class="separator:a0388761108aa4c7ef4f67567581744e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a494915256b3002d9d7bceb0e321c3eed" id="r_a494915256b3002d9d7bceb0e321c3eed"><td class="memItemLeft" align="right" valign="top"><a id="a494915256b3002d9d7bceb0e321c3eed" name="a494915256b3002d9d7bceb0e321c3eed"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>size_type</b> = span_size_type</td></tr>
+<tr class="memdesc:a494915256b3002d9d7bceb0e321c3eed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for element counts. <br /></td></tr>
 <tr class="separator:a494915256b3002d9d7bceb0e321c3eed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8246a7545857f5d615349e59dbeb1582" id="r_a8246a7545857f5d615349e59dbeb1582"><td class="memItemLeft" align="right" valign="top"><a id="a8246a7545857f5d615349e59dbeb1582" name="a8246a7545857f5d615349e59dbeb1582"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>difference_type</b> = span_diff_type</td></tr>
+<tr class="memdesc:a8246a7545857f5d615349e59dbeb1582"><td class="mdescLeft">&#160;</td><td class="mdescRight">Type used for iterator differences. <br /></td></tr>
 <tr class="separator:a8246a7545857f5d615349e59dbeb1582"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1ae557ea433504cb15dd74ce443d39" id="r_a3e1ae557ea433504cb15dd74ce443d39"><td class="memItemLeft" align="right" valign="top"><a id="a3e1ae557ea433504cb15dd74ce443d39" name="a3e1ae557ea433504cb15dd74ce443d39"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = element_kind *</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>pointer</b> = <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a> *</td></tr>
+<tr class="memdesc:a3e1ae557ea433504cb15dd74ce443d39"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to an element. <br /></td></tr>
 <tr class="separator:a3e1ae557ea433504cb15dd74ce443d39"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a527d60dbaeffb116fec96d9615fbfeec" id="r_a527d60dbaeffb116fec96d9615fbfeec"><td class="memItemLeft" align="right" valign="top"><a id="a527d60dbaeffb116fec96d9615fbfeec" name="a527d60dbaeffb116fec96d9615fbfeec"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>const_pointer</b> = const element_kind *</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_pointer</b> = const <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a> *</td></tr>
+<tr class="memdesc:a527d60dbaeffb116fec96d9615fbfeec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to a const element. <br /></td></tr>
 <tr class="separator:a527d60dbaeffb116fec96d9615fbfeec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a62a8c355bec47b603164ddf8266dec13" id="r_a62a8c355bec47b603164ddf8266dec13"><td class="memItemLeft" align="right" valign="top"><a id="a62a8c355bec47b603164ddf8266dec13" name="a62a8c355bec47b603164ddf8266dec13"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = element_kind &amp;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>reference</b> = <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a> &amp;</td></tr>
+<tr class="memdesc:a62a8c355bec47b603164ddf8266dec13"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reference to an element. <br /></td></tr>
 <tr class="separator:a62a8c355bec47b603164ddf8266dec13"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa50c65eae6a2e630e322c7b4d3293cd7" id="r_aa50c65eae6a2e630e322c7b4d3293cd7"><td class="memItemLeft" align="right" valign="top"><a id="aa50c65eae6a2e630e322c7b4d3293cd7" name="aa50c65eae6a2e630e322c7b4d3293cd7"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>const_reference</b> = const element_kind &amp;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_reference</b> = const <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a> &amp;</td></tr>
+<tr class="memdesc:aa50c65eae6a2e630e322c7b4d3293cd7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reference to a const element. <br /></td></tr>
 <tr class="separator:aa50c65eae6a2e630e322c7b4d3293cd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a74323b002ec45d5a6168d1d8c54f8ec3" id="r_a74323b002ec45d5a6168d1d8c54f8ec3"><td class="memItemLeft" align="right" valign="top"><a id="a74323b002ec45d5a6168d1d8c54f8ec3" name="a74323b002ec45d5a6168d1d8c54f8ec3"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = pointer</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator</b> = <a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a></td></tr>
+<tr class="memdesc:a74323b002ec45d5a6168d1d8c54f8ec3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Mutable iterator type. <br /></td></tr>
 <tr class="separator:a74323b002ec45d5a6168d1d8c54f8ec3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a469e0088e7f2e66d7811a7fa8ea3c799" id="r_a469e0088e7f2e66d7811a7fa8ea3c799"><td class="memItemLeft" align="right" valign="top"><a id="a469e0088e7f2e66d7811a7fa8ea3c799" name="a469e0088e7f2e66d7811a7fa8ea3c799"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>const_iterator</b> = const_pointer</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>const_iterator</b> = <a class="el" href="classgaia_1_1core_1_1span.html#a527d60dbaeffb116fec96d9615fbfeec">const_pointer</a></td></tr>
+<tr class="memdesc:a469e0088e7f2e66d7811a7fa8ea3c799"><td class="mdescLeft">&#160;</td><td class="mdescRight">Const iterator type. <br /></td></tr>
 <tr class="separator:a469e0088e7f2e66d7811a7fa8ea3c799"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5ac6574598286b57a2c41a5b27a6fa8e" id="r_a5ac6574598286b57a2c41a5b27a6fa8e"><td class="memItemLeft" align="right" valign="top"><a id="a5ac6574598286b57a2c41a5b27a6fa8e" name="a5ac6574598286b57a2c41a5b27a6fa8e"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>iterator_type</b> = <a class="el" href="structgaia_1_1core_1_1random__access__iterator__tag.html">core::random_access_iterator_tag</a></td></tr>
+<tr class="memdesc:a5ac6574598286b57a2c41a5b27a6fa8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Gaia-ECS iterator category exposed by span iterators. <br /></td></tr>
 <tr class="separator:a5ac6574598286b57a2c41a5b27a6fa8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5cce039798ae1ba41a80f1e4e3e56b56" id="r_a5cce039798ae1ba41a80f1e4e3e56b56"><td class="memTemplParams" colspan="2"><a id="a5cce039798ae1ba41a80f1e4e3e56b56" name="a5cce039798ae1ba41a80f1e4e3e56b56"></a>
-template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </td></tr>
-<tr class="memitem:a5cce039798ae1ba41a80f1e4e3e56b56"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><b>subspan_return_t</b> = <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T, Count !=DynamicSpanExtent ? Count :(Extent !=DynamicSpanExtent ? Extent - Offset :DynamicSpanExtent)&gt;</td></tr>
+<tr class="memitem:a5cce039798ae1ba41a80f1e4e3e56b56" id="r_a5cce039798ae1ba41a80f1e4e3e56b56"><td class="memTemplParams" colspan="2">template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </td></tr>
+<tr class="memitem:a5cce039798ae1ba41a80f1e4e3e56b56"><td class="memTemplItemLeft" align="right" valign="top">using&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a5cce039798ae1ba41a80f1e4e3e56b56">subspan_return_t</a> = <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T, Count !=DynamicSpanExtent ? Count :(Extent !=DynamicSpanExtent ? Extent - Offset :DynamicSpanExtent)&gt;</td></tr>
+<tr class="memdesc:a5cce039798ae1ba41a80f1e4e3e56b56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Result type for a compile-time subspan selection.  <br /></td></tr>
 <tr class="separator:a5cce039798ae1ba41a80f1e4e3e56b56"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a8cdd1e95f0e23dd08b04e7cae48c5c28" id="r_a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="memItemLeft" align="right" valign="top"><a id="a8cdd1e95f0e23dd08b04e7cae48c5c28" name="a8cdd1e95f0e23dd08b04e7cae48c5c28"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>span</b> (pointer ptr, size_type count)</td></tr>
+<tr class="memitem:a392704c1d8db51aea85110303f4c5181" id="r_a392704c1d8db51aea85110303f4c5181"><td class="memTemplParams" colspan="2">template&lt;span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpanExtent||E&lt;=0), int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:a392704c1d8db51aea85110303f4c5181"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a392704c1d8db51aea85110303f4c5181">span</a> () noexcept</td></tr>
+<tr class="memdesc:a392704c1d8db51aea85110303f4c5181"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an empty span when its extent permits an empty view.  <br /></td></tr>
+<tr class="separator:a392704c1d8db51aea85110303f4c5181"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8cdd1e95f0e23dd08b04e7cae48c5c28" id="r_a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="memItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a8cdd1e95f0e23dd08b04e7cae48c5c28">span</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a> ptr, <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> count)</td></tr>
+<tr class="memdesc:a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a view over count elements starting at ptr.  <br /></td></tr>
 <tr class="separator:a8cdd1e95f0e23dd08b04e7cae48c5c28"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae9e5f500a7ebced33ed6bacc966257d3" id="r_ae9e5f500a7ebced33ed6bacc966257d3"><td class="memItemLeft" align="right" valign="top"><a id="ae9e5f500a7ebced33ed6bacc966257d3" name="ae9e5f500a7ebced33ed6bacc966257d3"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>span</b> (pointer begin, pointer end)</td></tr>
+<tr class="memitem:ae9e5f500a7ebced33ed6bacc966257d3" id="r_ae9e5f500a7ebced33ed6bacc966257d3"><td class="memItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ae9e5f500a7ebced33ed6bacc966257d3">span</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a> <a class="el" href="classgaia_1_1core_1_1span.html#a0a6cd24b185b63c1d2a3a056786f8af2">begin</a>, <a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a> <a class="el" href="classgaia_1_1core_1_1span.html#adfd19dec20c6dcc60727f7d856ded96d">end</a>)</td></tr>
+<tr class="memdesc:ae9e5f500a7ebced33ed6bacc966257d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a view over the half-open range [begin, end).  <br /></td></tr>
 <tr class="separator:ae9e5f500a7ebced33ed6bacc966257d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a284770cbf43a8f3ec092845651040c9e" id="r_a284770cbf43a8f3ec092845651040c9e"><td class="memTemplParams" colspan="2"><a id="a284770cbf43a8f3ec092845651040c9e" name="a284770cbf43a8f3ec092845651040c9e"></a>
-template&lt;span_size_type N, span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpanExtent||N==E) &amp;&amp;<a class="el" href="structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html">detail::is_container_element_kind_compatible</a>&lt; element_kind(&amp;)[N], T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
-<tr class="memitem:a284770cbf43a8f3ec092845651040c9e"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>span</b> (element_kind(&amp;arr)[N]) noexcept</td></tr>
+<tr class="memitem:a284770cbf43a8f3ec092845651040c9e" id="r_a284770cbf43a8f3ec092845651040c9e"><td class="memTemplParams" colspan="2">template&lt;span_size_type N, span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpanExtent||N==E) &amp;&amp;detail::is_container_element_kind_compatible&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(&amp;)[N], T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:a284770cbf43a8f3ec092845651040c9e"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a284770cbf43a8f3ec092845651040c9e">span</a> (<a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(&amp;arr)[N]) noexcept</td></tr>
+<tr class="memdesc:a284770cbf43a8f3ec092845651040c9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a view over a compatible built-in array.  <br /></td></tr>
 <tr class="separator:a284770cbf43a8f3ec092845651040c9e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae6280690ee2a6c1c592fd94db396b05e" id="r_ae6280690ee2a6c1c592fd94db396b05e"><td class="memTemplParams" colspan="2"><a id="ae6280690ee2a6c1c592fd94db396b05e" name="ae6280690ee2a6c1c592fd94db396b05e"></a>
-template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;<a class="el" href="structgaia_1_1core_1_1detail_1_1is__container.html">detail::is_container</a>&lt; Container &gt;::value &amp;&amp;<a class="el" href="structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html">detail::is_container_element_kind_compatible</a>&lt; Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
-<tr class="memitem:ae6280690ee2a6c1c592fd94db396b05e"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>span</b> (Container &amp;cont)</td></tr>
+<tr class="memitem:ae6280690ee2a6c1c592fd94db396b05e" id="r_ae6280690ee2a6c1c592fd94db396b05e"><td class="memTemplParams" colspan="2">template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;detail::is_container&lt; Container &gt;::value &amp;&amp;detail::is_container_element_kind_compatible&lt; Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:ae6280690ee2a6c1c592fd94db396b05e"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ae6280690ee2a6c1c592fd94db396b05e">span</a> (Container &amp;cont)</td></tr>
+<tr class="memdesc:ae6280690ee2a6c1c592fd94db396b05e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a dynamic-extent view over a compatible mutable container.  <br /></td></tr>
 <tr class="separator:ae6280690ee2a6c1c592fd94db396b05e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a08992eefb09df6dfdb2070e4d572e000" id="r_a08992eefb09df6dfdb2070e4d572e000"><td class="memTemplParams" colspan="2"><a id="a08992eefb09df6dfdb2070e4d572e000" name="a08992eefb09df6dfdb2070e4d572e000"></a>
-template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;<a class="el" href="structgaia_1_1core_1_1detail_1_1is__container.html">detail::is_container</a>&lt; Container &gt;::value &amp;&amp;<a class="el" href="structgaia_1_1core_1_1detail_1_1is__container__element__kind__compatible.html">detail::is_container_element_kind_compatible</a>&lt; const Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
-<tr class="memitem:a08992eefb09df6dfdb2070e4d572e000"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>span</b> (const Container &amp;cont)</td></tr>
+<tr class="memitem:a08992eefb09df6dfdb2070e4d572e000" id="r_a08992eefb09df6dfdb2070e4d572e000"><td class="memTemplParams" colspan="2">template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;detail::is_container&lt; Container &gt;::value &amp;&amp;detail::is_container_element_kind_compatible&lt; const Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:a08992eefb09df6dfdb2070e4d572e000"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a08992eefb09df6dfdb2070e4d572e000">span</a> (const Container &amp;cont)</td></tr>
+<tr class="memdesc:a08992eefb09df6dfdb2070e4d572e000"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a dynamic-extent view over a compatible const container.  <br /></td></tr>
 <tr class="separator:a08992eefb09df6dfdb2070e4d572e000"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae863cf6762c7f236fa33e894f252b8cb" id="r_ae863cf6762c7f236fa33e894f252b8cb"><td class="memItemLeft" align="right" valign="top"><a id="ae863cf6762c7f236fa33e894f252b8cb" name="ae863cf6762c7f236fa33e894f252b8cb"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>span</b> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;other) noexcept=default</td></tr>
-<tr class="separator:ae863cf6762c7f236fa33e894f252b8cb"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac4951717ae5c971bd22386104573deba" id="r_ac4951717ae5c971bd22386104573deba"><td class="memItemLeft" align="right" valign="top"><a id="ac4951717ae5c971bd22386104573deba" name="ac4951717ae5c971bd22386104573deba"></a>
-constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;other) noexcept=default</td></tr>
-<tr class="separator:ac4951717ae5c971bd22386104573deba"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5fd0d51bddbb24758db9ab493d76f213" id="r_a5fd0d51bddbb24758db9ab493d76f213"><td class="memTemplParams" colspan="2"><a id="a5fd0d51bddbb24758db9ab493d76f213" name="a5fd0d51bddbb24758db9ab493d76f213"></a>
-template&lt;typename T2 , span_size_type Extent2, typename std::enable_if&lt;(Extent==DynamicSpanExtent||Extent2==DynamicSpanExtent||Extent==Extent2) &amp;&amp;std::is_convertible&lt; T2(*)[], T(*)[]&gt;::value, int &gt;::type  = 0&gt; </td></tr>
-<tr class="memitem:a5fd0d51bddbb24758db9ab493d76f213"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><b>span</b> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T2, Extent2 &gt; &amp;other) noexcept</td></tr>
+<tr class="memitem:ada3d1f73b53f8202e6b3083bdce05c97" id="r_ada3d1f73b53f8202e6b3083bdce05c97"><td class="memItemLeft" align="right" valign="top"><a id="ada3d1f73b53f8202e6b3083bdce05c97" name="ada3d1f73b53f8202e6b3083bdce05c97"></a>
+constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>span</b> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;) noexcept=default</td></tr>
+<tr class="separator:ada3d1f73b53f8202e6b3083bdce05c97"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a671017d02c53f41ceccecd8e3543bf48" id="r_a671017d02c53f41ceccecd8e3543bf48"><td class="memItemLeft" align="right" valign="top"><a id="a671017d02c53f41ceccecd8e3543bf48" name="a671017d02c53f41ceccecd8e3543bf48"></a>
+constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a> &amp;) noexcept=default</td></tr>
+<tr class="separator:a671017d02c53f41ceccecd8e3543bf48"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5fd0d51bddbb24758db9ab493d76f213" id="r_a5fd0d51bddbb24758db9ab493d76f213"><td class="memTemplParams" colspan="2">template&lt;typename T2 , span_size_type Extent2, typename std::enable_if&lt;(Extent==DynamicSpanExtent||Extent2==DynamicSpanExtent||Extent==Extent2) &amp;&amp;std::is_convertible&lt; T2(*)[], T(*)[]&gt;::value, int &gt;::type  = 0&gt; </td></tr>
+<tr class="memitem:a5fd0d51bddbb24758db9ab493d76f213"><td class="memTemplItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a5fd0d51bddbb24758db9ab493d76f213">span</a> (const <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T2, Extent2 &gt; &amp;other) noexcept</td></tr>
+<tr class="memdesc:a5fd0d51bddbb24758db9ab493d76f213"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a compatible span from another element type or extent.  <br /></td></tr>
 <tr class="separator:a5fd0d51bddbb24758db9ab493d76f213"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab08a85c690a1ad519da98898d21b5ea3" id="r_ab08a85c690a1ad519da98898d21b5ea3"><td class="memItemLeft" align="right" valign="top"><a id="ab08a85c690a1ad519da98898d21b5ea3" name="ab08a85c690a1ad519da98898d21b5ea3"></a>
-GAIA_NODISCARD constexpr pointer&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> () const noexcept</td></tr>
+<tr class="memitem:ab08a85c690a1ad519da98898d21b5ea3" id="r_ab08a85c690a1ad519da98898d21b5ea3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ab08a85c690a1ad519da98898d21b5ea3">data</a> () const noexcept</td></tr>
+<tr class="memdesc:ab08a85c690a1ad519da98898d21b5ea3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a pointer to the first element.  <br /></td></tr>
 <tr class="separator:ab08a85c690a1ad519da98898d21b5ea3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abd4f556e4241d76c805a1fdbcf8273d5" id="r_abd4f556e4241d76c805a1fdbcf8273d5"><td class="memItemLeft" align="right" valign="top"><a id="abd4f556e4241d76c805a1fdbcf8273d5" name="abd4f556e4241d76c805a1fdbcf8273d5"></a>
-GAIA_NODISCARD constexpr size_type&#160;</td><td class="memItemRight" valign="bottom"><b>size</b> () const noexcept</td></tr>
+<tr class="memitem:abd4f556e4241d76c805a1fdbcf8273d5" id="r_abd4f556e4241d76c805a1fdbcf8273d5"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#abd4f556e4241d76c805a1fdbcf8273d5">size</a> () const noexcept</td></tr>
+<tr class="memdesc:abd4f556e4241d76c805a1fdbcf8273d5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of elements in the view.  <br /></td></tr>
 <tr class="separator:abd4f556e4241d76c805a1fdbcf8273d5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa63cdada82a6b2b0ec31ca0d20433ae1" id="r_aa63cdada82a6b2b0ec31ca0d20433ae1"><td class="memItemLeft" align="right" valign="top"><a id="aa63cdada82a6b2b0ec31ca0d20433ae1" name="aa63cdada82a6b2b0ec31ca0d20433ae1"></a>
-GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>empty</b> () const noexcept</td></tr>
+<tr class="memitem:aa63cdada82a6b2b0ec31ca0d20433ae1" id="r_aa63cdada82a6b2b0ec31ca0d20433ae1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#aa63cdada82a6b2b0ec31ca0d20433ae1">empty</a> () const noexcept</td></tr>
+<tr class="memdesc:aa63cdada82a6b2b0ec31ca0d20433ae1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether the view is empty.  <br /></td></tr>
 <tr class="separator:aa63cdada82a6b2b0ec31ca0d20433ae1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a94591c5eb25e29c30a055f1be1528a30" id="r_a94591c5eb25e29c30a055f1be1528a30"><td class="memItemLeft" align="right" valign="top"><a id="a94591c5eb25e29c30a055f1be1528a30" name="a94591c5eb25e29c30a055f1be1528a30"></a>
-GAIA_NODISCARD constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><b>operator[]</b> (size_type index) const</td></tr>
+<tr class="memitem:a94591c5eb25e29c30a055f1be1528a30" id="r_a94591c5eb25e29c30a055f1be1528a30"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a94591c5eb25e29c30a055f1be1528a30">operator[]</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> index) const</td></tr>
+<tr class="memdesc:a94591c5eb25e29c30a055f1be1528a30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the element at index.  <br /></td></tr>
 <tr class="separator:a94591c5eb25e29c30a055f1be1528a30"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0a6cd24b185b63c1d2a3a056786f8af2" id="r_a0a6cd24b185b63c1d2a3a056786f8af2"><td class="memItemLeft" align="right" valign="top"><a id="a0a6cd24b185b63c1d2a3a056786f8af2" name="a0a6cd24b185b63c1d2a3a056786f8af2"></a>
-GAIA_NODISCARD constexpr iterator&#160;</td><td class="memItemRight" valign="bottom"><b>begin</b> () noexcept</td></tr>
+<tr class="memitem:a0a6cd24b185b63c1d2a3a056786f8af2" id="r_a0a6cd24b185b63c1d2a3a056786f8af2"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a0a6cd24b185b63c1d2a3a056786f8af2">begin</a> () noexcept</td></tr>
+<tr class="memdesc:a0a6cd24b185b63c1d2a3a056786f8af2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator to the first element.  <br /></td></tr>
 <tr class="separator:a0a6cd24b185b63c1d2a3a056786f8af2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6151a25cb496af407f215248a70f01bd" id="r_a6151a25cb496af407f215248a70f01bd"><td class="memItemLeft" align="right" valign="top"><a id="a6151a25cb496af407f215248a70f01bd" name="a6151a25cb496af407f215248a70f01bd"></a>
-GAIA_NODISCARD constexpr iterator&#160;</td><td class="memItemRight" valign="bottom"><b>begin</b> () const noexcept</td></tr>
+<tr class="memitem:a6151a25cb496af407f215248a70f01bd" id="r_a6151a25cb496af407f215248a70f01bd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a6151a25cb496af407f215248a70f01bd">begin</a> () const noexcept</td></tr>
+<tr class="memdesc:a6151a25cb496af407f215248a70f01bd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator to the first element.  <br /></td></tr>
 <tr class="separator:a6151a25cb496af407f215248a70f01bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae8307ad9aef2ced393cb52e86a7c6430" id="r_ae8307ad9aef2ced393cb52e86a7c6430"><td class="memItemLeft" align="right" valign="top"><a id="ae8307ad9aef2ced393cb52e86a7c6430" name="ae8307ad9aef2ced393cb52e86a7c6430"></a>
-GAIA_NODISCARD constexpr const_iterator&#160;</td><td class="memItemRight" valign="bottom"><b>cbegin</b> () const noexcept</td></tr>
+<tr class="memitem:ae8307ad9aef2ced393cb52e86a7c6430" id="r_ae8307ad9aef2ced393cb52e86a7c6430"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ae8307ad9aef2ced393cb52e86a7c6430">cbegin</a> () const noexcept</td></tr>
+<tr class="memdesc:ae8307ad9aef2ced393cb52e86a7c6430"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a const iterator to the first element.  <br /></td></tr>
 <tr class="separator:ae8307ad9aef2ced393cb52e86a7c6430"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adfd19dec20c6dcc60727f7d856ded96d" id="r_adfd19dec20c6dcc60727f7d856ded96d"><td class="memItemLeft" align="right" valign="top"><a id="adfd19dec20c6dcc60727f7d856ded96d" name="adfd19dec20c6dcc60727f7d856ded96d"></a>
-GAIA_NODISCARD constexpr iterator&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> () noexcept</td></tr>
+<tr class="memitem:adfd19dec20c6dcc60727f7d856ded96d" id="r_adfd19dec20c6dcc60727f7d856ded96d"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#adfd19dec20c6dcc60727f7d856ded96d">end</a> () noexcept</td></tr>
+<tr class="memdesc:adfd19dec20c6dcc60727f7d856ded96d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns an iterator one past the final element.  <br /></td></tr>
 <tr class="separator:adfd19dec20c6dcc60727f7d856ded96d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a78838895281740d355f9b096146f5109" id="r_a78838895281740d355f9b096146f5109"><td class="memItemLeft" align="right" valign="top"><a id="a78838895281740d355f9b096146f5109" name="a78838895281740d355f9b096146f5109"></a>
-GAIA_NODISCARD constexpr const_iterator&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> () const noexcept</td></tr>
+<tr class="memitem:a78838895281740d355f9b096146f5109" id="r_a78838895281740d355f9b096146f5109"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a78838895281740d355f9b096146f5109">end</a> () const noexcept</td></tr>
+<tr class="memdesc:a78838895281740d355f9b096146f5109"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a const iterator one past the final element.  <br /></td></tr>
 <tr class="separator:a78838895281740d355f9b096146f5109"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5747d5fa804b7274c850bc66f3b7ee7b" id="r_a5747d5fa804b7274c850bc66f3b7ee7b"><td class="memItemLeft" align="right" valign="top"><a id="a5747d5fa804b7274c850bc66f3b7ee7b" name="a5747d5fa804b7274c850bc66f3b7ee7b"></a>
-GAIA_NODISCARD constexpr const_iterator&#160;</td><td class="memItemRight" valign="bottom"><b>cend</b> () const noexcept</td></tr>
+<tr class="memitem:a5747d5fa804b7274c850bc66f3b7ee7b" id="r_a5747d5fa804b7274c850bc66f3b7ee7b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a5747d5fa804b7274c850bc66f3b7ee7b">cend</a> () const noexcept</td></tr>
+<tr class="memdesc:a5747d5fa804b7274c850bc66f3b7ee7b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a const iterator one past the final element.  <br /></td></tr>
 <tr class="separator:a5747d5fa804b7274c850bc66f3b7ee7b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad5f3be561610633707418f22090b53cd" id="r_ad5f3be561610633707418f22090b53cd"><td class="memTemplParams" colspan="2"><a id="ad5f3be561610633707418f22090b53cd" name="ad5f3be561610633707418f22090b53cd"></a>
-template&lt;span_size_type Count&gt; </td></tr>
-<tr class="memitem:ad5f3be561610633707418f22090b53cd"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; element_kind, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>first</b> () const</td></tr>
+<tr class="memitem:ad5f3be561610633707418f22090b53cd" id="r_ad5f3be561610633707418f22090b53cd"><td class="memTemplParams" colspan="2">template&lt;span_size_type Count&gt; </td></tr>
+<tr class="memitem:ad5f3be561610633707418f22090b53cd"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ad5f3be561610633707418f22090b53cd">first</a> () const</td></tr>
+<tr class="memdesc:ad5f3be561610633707418f22090b53cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the first Count elements with a compile-time extent.  <br /></td></tr>
 <tr class="separator:ad5f3be561610633707418f22090b53cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa0b4265f415523ec71348969efd89d3a" id="r_aa0b4265f415523ec71348969efd89d3a"><td class="memItemLeft" align="right" valign="top"><a id="aa0b4265f415523ec71348969efd89d3a" name="aa0b4265f415523ec71348969efd89d3a"></a>
-GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; element_kind, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>first</b> (size_type count) const</td></tr>
+<tr class="memitem:aa0b4265f415523ec71348969efd89d3a" id="r_aa0b4265f415523ec71348969efd89d3a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#aa0b4265f415523ec71348969efd89d3a">first</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> count) const</td></tr>
+<tr class="memdesc:aa0b4265f415523ec71348969efd89d3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a dynamic-extent view over the first count elements.  <br /></td></tr>
 <tr class="separator:aa0b4265f415523ec71348969efd89d3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aeb4367154ef84b71774ac61010e4cc18" id="r_aeb4367154ef84b71774ac61010e4cc18"><td class="memTemplParams" colspan="2"><a id="aeb4367154ef84b71774ac61010e4cc18" name="aeb4367154ef84b71774ac61010e4cc18"></a>
-template&lt;span_size_type Count&gt; </td></tr>
-<tr class="memitem:aeb4367154ef84b71774ac61010e4cc18"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; element_kind, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>last</b> () const</td></tr>
+<tr class="memitem:aeb4367154ef84b71774ac61010e4cc18" id="r_aeb4367154ef84b71774ac61010e4cc18"><td class="memTemplParams" colspan="2">template&lt;span_size_type Count&gt; </td></tr>
+<tr class="memitem:aeb4367154ef84b71774ac61010e4cc18"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#aeb4367154ef84b71774ac61010e4cc18">last</a> () const</td></tr>
+<tr class="memdesc:aeb4367154ef84b71774ac61010e4cc18"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the last Count elements with a compile-time extent.  <br /></td></tr>
 <tr class="separator:aeb4367154ef84b71774ac61010e4cc18"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae4394d5992af37df5ad48af6d2d9f860" id="r_ae4394d5992af37df5ad48af6d2d9f860"><td class="memItemLeft" align="right" valign="top"><a id="ae4394d5992af37df5ad48af6d2d9f860" name="ae4394d5992af37df5ad48af6d2d9f860"></a>
-GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; element_kind, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>last</b> (size_type count) const</td></tr>
+<tr class="memitem:ae4394d5992af37df5ad48af6d2d9f860" id="r_ae4394d5992af37df5ad48af6d2d9f860"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ae4394d5992af37df5ad48af6d2d9f860">last</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> count) const</td></tr>
+<tr class="memdesc:ae4394d5992af37df5ad48af6d2d9f860"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a dynamic-extent view over the last count elements.  <br /></td></tr>
 <tr class="separator:ae4394d5992af37df5ad48af6d2d9f860"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a40b6dc2a4116632d4dd41d75578e5aff" id="r_a40b6dc2a4116632d4dd41d75578e5aff"><td class="memItemLeft" align="right" valign="top"><a id="a40b6dc2a4116632d4dd41d75578e5aff" name="a40b6dc2a4116632d4dd41d75578e5aff"></a>
-GAIA_NODISCARD constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><b>front</b> () const</td></tr>
+<tr class="memitem:a40b6dc2a4116632d4dd41d75578e5aff" id="r_a40b6dc2a4116632d4dd41d75578e5aff"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a40b6dc2a4116632d4dd41d75578e5aff">front</a> () const</td></tr>
+<tr class="memdesc:a40b6dc2a4116632d4dd41d75578e5aff"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the first element.  <br /></td></tr>
 <tr class="separator:a40b6dc2a4116632d4dd41d75578e5aff"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a40f8e149b6795546d3f6c555cfb9ec07" id="r_a40f8e149b6795546d3f6c555cfb9ec07"><td class="memItemLeft" align="right" valign="top"><a id="a40f8e149b6795546d3f6c555cfb9ec07" name="a40f8e149b6795546d3f6c555cfb9ec07"></a>
-GAIA_NODISCARD constexpr reference&#160;</td><td class="memItemRight" valign="bottom"><b>back</b> () const</td></tr>
+<tr class="memitem:a40f8e149b6795546d3f6c555cfb9ec07" id="r_a40f8e149b6795546d3f6c555cfb9ec07"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a40f8e149b6795546d3f6c555cfb9ec07">back</a> () const</td></tr>
+<tr class="memdesc:a40f8e149b6795546d3f6c555cfb9ec07"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the final element.  <br /></td></tr>
 <tr class="separator:a40f8e149b6795546d3f6c555cfb9ec07"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab5f490ecfcd26c938c6c66801b7003b8" id="r_ab5f490ecfcd26c938c6c66801b7003b8"><td class="memTemplParams" colspan="2"><a id="ab5f490ecfcd26c938c6c66801b7003b8" name="ab5f490ecfcd26c938c6c66801b7003b8"></a>
-template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </td></tr>
-<tr class="memitem:ab5f490ecfcd26c938c6c66801b7003b8"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">subspan_return_t</a>&lt; Offset, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>subspan</b> () const</td></tr>
+<tr class="memitem:ab5f490ecfcd26c938c6c66801b7003b8" id="r_ab5f490ecfcd26c938c6c66801b7003b8"><td class="memTemplParams" colspan="2">template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </td></tr>
+<tr class="memitem:ab5f490ecfcd26c938c6c66801b7003b8"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a5cce039798ae1ba41a80f1e4e3e56b56">subspan_return_t</a>&lt; Offset, Count &gt;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#ab5f490ecfcd26c938c6c66801b7003b8">subspan</a> () const</td></tr>
+<tr class="memdesc:ab5f490ecfcd26c938c6c66801b7003b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a subspan selected with compile-time offset and count.  <br /></td></tr>
 <tr class="separator:ab5f490ecfcd26c938c6c66801b7003b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a54e092cda00b07c42c5e5fde6b2ed8ae" id="r_a54e092cda00b07c42c5e5fde6b2ed8ae"><td class="memItemLeft" align="right" valign="top"><a id="a54e092cda00b07c42c5e5fde6b2ed8ae" name="a54e092cda00b07c42c5e5fde6b2ed8ae"></a>
-GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; element_kind, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>subspan</b> (size_type offset, size_type count=DynamicSpanExtent) const</td></tr>
+<tr class="memitem:a54e092cda00b07c42c5e5fde6b2ed8ae" id="r_a54e092cda00b07c42c5e5fde6b2ed8ae"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1core_1_1span.html#a54e092cda00b07c42c5e5fde6b2ed8ae">subspan</a> (<a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> offset, <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> count=DynamicSpanExtent) const</td></tr>
+<tr class="memdesc:a54e092cda00b07c42c5e5fde6b2ed8ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns a dynamic-extent subspan.  <br /></td></tr>
 <tr class="separator:a54e092cda00b07c42c5e5fde6b2ed8ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a17650ac1bc683bcdea6e26bdca7daa59" id="r_a17650ac1bc683bcdea6e26bdca7daa59"><td class="memItemLeft" align="right" valign="top"><a id="a17650ac1bc683bcdea6e26bdca7daa59" name="a17650ac1bc683bcdea6e26bdca7daa59"></a>
-static constexpr size_type&#160;</td><td class="memItemRight" valign="bottom"><b>extent</b> = Extent</td></tr>
+static constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td><td class="memItemRight" valign="bottom"><b>extent</b> = Extent</td></tr>
+<tr class="memdesc:a17650ac1bc683bcdea6e26bdca7daa59"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compile-time extent of the view. <br /></td></tr>
 <tr class="separator:a17650ac1bc683bcdea6e26bdca7daa59"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T, span_size_type Extent&gt;<br />
+class gaia::core::span&lt; T, Extent &gt;</div><p>Non-owning view over a contiguous sequence of objects. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Element type. </td></tr>
+    <tr><td class="paramname">Extent</td><td>Compile-time element count, or DynamicSpanExtent for a runtime count. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Member Typedef Documentation</h2>
+<a id="a5cce039798ae1ba41a80f1e4e3e56b56" name="a5cce039798ae1ba41a80f1e4e3e56b56"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5cce039798ae1ba41a80f1e4e3e56b56">&#9670;&#160;</a></span>subspan_return_t</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </div>
+      <table class="memname">
+        <tr>
+          <td class="memname">using <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::subspan_return_t =  <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T, Count != DynamicSpanExtent ? Count : (Extent != DynamicSpanExtent ? Extent - Offset : DynamicSpanExtent)&gt;</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Result type for a compile-time subspan selection. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Offset</td><td>Starting element index. </td></tr>
+    <tr><td class="paramname">Count</td><td>Requested element count, or DynamicSpanExtent for the remaining elements. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a392704c1d8db51aea85110303f4c5181" name="a392704c1d8db51aea85110303f4c5181"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a392704c1d8db51aea85110303f4c5181">&#9670;&#160;</a></span>span() <span class="overload">[1/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpanExtent||E&lt;=0), int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs an empty span when its extent permits an empty view. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">E</td><td>Extent checked by the constructor constraint. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a8cdd1e95f0e23dd08b04e7cae48c5c28" name="a8cdd1e95f0e23dd08b04e7cae48c5c28"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8cdd1e95f0e23dd08b04e7cae48c5c28">&#9670;&#160;</a></span>span() <span class="overload">[2/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a>&#160;</td>
+          <td class="paramname"><em>ptr</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>count</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a view over count elements starting at ptr. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ptr</td><td>Pointer to the first element. </td></tr>
+    <tr><td class="paramname">count</td><td>Number of elements in the view. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ae9e5f500a7ebced33ed6bacc966257d3" name="ae9e5f500a7ebced33ed6bacc966257d3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae9e5f500a7ebced33ed6bacc966257d3">&#9670;&#160;</a></span>span() <span class="overload">[3/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a>&#160;</td>
+          <td class="paramname"><em>begin</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a>&#160;</td>
+          <td class="paramname"><em>end</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a view over the half-open range [begin, end). </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">begin</td><td>Pointer to the first element. </td></tr>
+    <tr><td class="paramname">end</td><td>Pointer one past the final element. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a284770cbf43a8f3ec092845651040c9e" name="a284770cbf43a8f3ec092845651040c9e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a284770cbf43a8f3ec092845651040c9e">&#9670;&#160;</a></span>span() <span class="overload">[4/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type N, span_size_type E = Extent, typename std::enable_if&lt;(E==DynamicSpanExtent||N==E) &amp;&amp;detail::is_container_element_kind_compatible&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(&amp;)[N], T &gt;::value, int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>(&amp;)&#160;</td>
+          <td class="paramname"><em>arr</em>[N]</td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a view over a compatible built-in array. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">N</td><td>Array element count. </td></tr>
+    <tr><td class="paramname">E</td><td>Extent checked by the constructor constraint. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">arr</td><td>Array to view. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ae6280690ee2a6c1c592fd94db396b05e" name="ae6280690ee2a6c1c592fd94db396b05e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae6280690ee2a6c1c592fd94db396b05e">&#9670;&#160;</a></span>span() <span class="overload">[5/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;detail::is_container&lt; Container &gt;::value &amp;&amp;detail::is_container_element_kind_compatible&lt; Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype">Container &amp;&#160;</td>
+          <td class="paramname"><em>cont</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a dynamic-extent view over a compatible mutable container. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Container</td><td>Container type exposing contiguous data and size. </td></tr>
+    <tr><td class="paramname">E</td><td>Extent checked by the constructor constraint. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">cont</td><td>Container to view. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a08992eefb09df6dfdb2070e4d572e000" name="a08992eefb09df6dfdb2070e4d572e000"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a08992eefb09df6dfdb2070e4d572e000">&#9670;&#160;</a></span>span() <span class="overload">[6/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;typename Container , span_size_type E = Extent, typename std::enable_if&lt; E==DynamicSpanExtent &amp;&amp;detail::is_container&lt; Container &gt;::value &amp;&amp;detail::is_container_element_kind_compatible&lt; const Container &amp;, T &gt;::value, int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype">const Container &amp;&#160;</td>
+          <td class="paramname"><em>cont</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a dynamic-extent view over a compatible const container. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Container</td><td>Container type exposing contiguous data and size. </td></tr>
+    <tr><td class="paramname">E</td><td>Extent checked by the constructor constraint. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">cont</td><td>Container to view. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a5fd0d51bddbb24758db9ab493d76f213" name="a5fd0d51bddbb24758db9ab493d76f213"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5fd0d51bddbb24758db9ab493d76f213">&#9670;&#160;</a></span>span() <span class="overload">[7/7]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;typename T2 , span_size_type Extent2, typename std::enable_if&lt;(Extent==DynamicSpanExtent||Extent2==DynamicSpanExtent||Extent==Extent2) &amp;&amp;std::is_convertible&lt; T2(*)[], T(*)[]&gt;::value, int &gt;::type  = 0&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::span </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; T2, Extent2 &gt; &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a compatible span from another element type or extent. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T2</td><td>Source element type. </td></tr>
+    <tr><td class="paramname">Extent2</td><td>Source extent. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Source view. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a40f8e149b6795546d3f6c555cfb9ec07" name="a40f8e149b6795546d3f6c555cfb9ec07"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a40f8e149b6795546d3f6c555cfb9ec07">&#9670;&#160;</a></span>back()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::back </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the final element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the final element. </dd></dl>
+
+</div>
+</div>
+<a id="a6151a25cb496af407f215248a70f01bd" name="a6151a25cb496af407f215248a70f01bd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6151a25cb496af407f215248a70f01bd">&#9670;&#160;</a></span>begin() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::begin </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator to the first element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Beginning iterator. </dd></dl>
+
+</div>
+</div>
+<a id="a0a6cd24b185b63c1d2a3a056786f8af2" name="a0a6cd24b185b63c1d2a3a056786f8af2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0a6cd24b185b63c1d2a3a056786f8af2">&#9670;&#160;</a></span>begin() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::begin </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator to the first element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Beginning iterator. </dd></dl>
+
+</div>
+</div>
+<a id="ae8307ad9aef2ced393cb52e86a7c6430" name="ae8307ad9aef2ced393cb52e86a7c6430"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae8307ad9aef2ced393cb52e86a7c6430">&#9670;&#160;</a></span>cbegin()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::cbegin </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a const iterator to the first element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Const beginning iterator. </dd></dl>
+
+</div>
+</div>
+<a id="a5747d5fa804b7274c850bc66f3b7ee7b" name="a5747d5fa804b7274c850bc66f3b7ee7b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5747d5fa804b7274c850bc66f3b7ee7b">&#9670;&#160;</a></span>cend()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::cend </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a const iterator one past the final element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Const ending iterator. </dd></dl>
+
+</div>
+</div>
+<a id="ab08a85c690a1ad519da98898d21b5ea3" name="ab08a85c690a1ad519da98898d21b5ea3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab08a85c690a1ad519da98898d21b5ea3">&#9670;&#160;</a></span>data()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a3e1ae557ea433504cb15dd74ce443d39">pointer</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::data </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a pointer to the first element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the first element, or nullptr for a default-constructed empty span. </dd></dl>
+
+</div>
+</div>
+<a id="aa63cdada82a6b2b0ec31ca0d20433ae1" name="aa63cdada82a6b2b0ec31ca0d20433ae1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa63cdada82a6b2b0ec31ca0d20433ae1">&#9670;&#160;</a></span>empty()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr bool <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::empty </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether the view is empty. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when <a class="el" href="classgaia_1_1core_1_1span.html#abd4f556e4241d76c805a1fdbcf8273d5" title="Returns the number of elements in the view.">size()</a> is zero. </dd></dl>
+
+</div>
+</div>
+<a id="a78838895281740d355f9b096146f5109" name="a78838895281740d355f9b096146f5109"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a78838895281740d355f9b096146f5109">&#9670;&#160;</a></span>end() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a469e0088e7f2e66d7811a7fa8ea3c799">const_iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a const iterator one past the final element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Const ending iterator. </dd></dl>
+
+</div>
+</div>
+<a id="adfd19dec20c6dcc60727f7d856ded96d" name="adfd19dec20c6dcc60727f7d856ded96d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adfd19dec20c6dcc60727f7d856ded96d">&#9670;&#160;</a></span>end() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a74323b002ec45d5a6168d1d8c54f8ec3">iterator</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::end </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns an iterator one past the final element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Ending iterator. </dd></dl>
+
+</div>
+</div>
+<a id="ad5f3be561610633707418f22090b53cd" name="ad5f3be561610633707418f22090b53cd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad5f3be561610633707418f22090b53cd">&#9670;&#160;</a></span>first() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type Count&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, Count &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::first </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the first Count elements with a compile-time extent. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Count</td><td>Number of elements in the result. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Fixed-extent view over the first Count elements. </dd></dl>
+
+</div>
+</div>
+<a id="aa0b4265f415523ec71348969efd89d3a" name="aa0b4265f415523ec71348969efd89d3a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa0b4265f415523ec71348969efd89d3a">&#9670;&#160;</a></span>first() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::first </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>count</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a dynamic-extent view over the first count elements. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">count</td><td>Number of elements in the result. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>View over the requested prefix. </dd></dl>
+
+</div>
+</div>
+<a id="a40b6dc2a4116632d4dd41d75578e5aff" name="a40b6dc2a4116632d4dd41d75578e5aff"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a40b6dc2a4116632d4dd41d75578e5aff">&#9670;&#160;</a></span>front()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::front </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the first element. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the first element. </dd></dl>
+
+</div>
+</div>
+<a id="aeb4367154ef84b71774ac61010e4cc18" name="aeb4367154ef84b71774ac61010e4cc18"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aeb4367154ef84b71774ac61010e4cc18">&#9670;&#160;</a></span>last() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type Count&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, Count &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::last </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the last Count elements with a compile-time extent. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Count</td><td>Number of elements in the result. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Fixed-extent view over the last Count elements. </dd></dl>
+
+</div>
+</div>
+<a id="ae4394d5992af37df5ad48af6d2d9f860" name="ae4394d5992af37df5ad48af6d2d9f860"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae4394d5992af37df5ad48af6d2d9f860">&#9670;&#160;</a></span>last() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::last </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>count</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a dynamic-extent view over the last count elements. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">count</td><td>Number of elements in the result. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>View over the requested suffix. </dd></dl>
+
+</div>
+</div>
+<a id="a94591c5eb25e29c30a055f1be1528a30" name="a94591c5eb25e29c30a055f1be1528a30"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a94591c5eb25e29c30a055f1be1528a30">&#9670;&#160;</a></span>operator[]()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a62a8c355bec47b603164ddf8266dec13">reference</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::operator[] </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>index</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the element at index. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">index</td><td>Zero-based element index. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to the selected element. </dd></dl>
+
+</div>
+</div>
+<a id="abd4f556e4241d76c805a1fdbcf8273d5" name="abd4f556e4241d76c805a1fdbcf8273d5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abd4f556e4241d76c805a1fdbcf8273d5">&#9670;&#160;</a></span>size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a> <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::size </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the number of elements in the view. </p>
+<dl class="section return"><dt>Returns</dt><dd>Element count. </dd></dl>
+
+</div>
+</div>
+<a id="ab5f490ecfcd26c938c6c66801b7003b8" name="ab5f490ecfcd26c938c6c66801b7003b8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab5f490ecfcd26c938c6c66801b7003b8">&#9670;&#160;</a></span>subspan() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<div class="memtemplate">
+template&lt;span_size_type Offset, span_size_type Count = DynamicSpanExtent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html#a5cce039798ae1ba41a80f1e4e3e56b56">subspan_return_t</a>&lt; Offset, Count &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::subspan </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a subspan selected with compile-time offset and count. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">Offset</td><td>Starting element index. </td></tr>
+    <tr><td class="paramname">Count</td><td>Requested element count, or DynamicSpanExtent for the remaining elements. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>View over the selected elements. </dd></dl>
+
+</div>
+</div>
+<a id="a54e092cda00b07c42c5e5fde6b2ed8ae" name="a54e092cda00b07c42c5e5fde6b2ed8ae"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a54e092cda00b07c42c5e5fde6b2ed8ae">&#9670;&#160;</a></span>subspan() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , span_size_type Extent&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="classgaia_1_1core_1_1span.html">span</a>&lt; <a class="el" href="classgaia_1_1core_1_1span.html#adb86948ec19fab6f9dd4dac5fc6a189e">element_kind</a>, DynamicSpanExtent &gt; <a class="el" href="classgaia_1_1core_1_1span.html">gaia::core::span</a>&lt; T, Extent &gt;::subspan </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>offset</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html#a494915256b3002d9d7bceb0e321c3eed">size_type</a>&#160;</td>
+          <td class="paramname"><em>count</em> = <code>DynamicSpanExtent</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns a dynamic-extent subspan. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">offset</td><td>Starting element index. </td></tr>
+    <tr><td class="paramname">count</td><td>Requested element count, or DynamicSpanExtent for the remaining elements. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>View over the selected elements. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/core/impl/<a class="el" href="span__impl_8h_source.html">span_impl.h</a></li>
 </ul>
@@ -258,7 +1234,7 @@ static constexpr size_type&#160;</td><td class="memItemRight" valign="bottom"><b
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="classgaia_1_1core_1_1span.html">span</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="classgaia_1_1core_1_1span.html">span</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

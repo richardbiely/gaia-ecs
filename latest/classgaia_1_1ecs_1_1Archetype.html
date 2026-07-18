@@ -173,12 +173,12 @@ GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>cmp_co
 QueryMask&#160;</td><td class="memItemRight" valign="bottom"><b>queryMask</b> () const</td></tr>
 <tr class="separator:a01ef733a4df0b32e0decae231f560aeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a61fa0e7d8959c87645a98338da9c39e1" id="r_a61fa0e7d8959c87645a98338da9c39e1"><td class="memItemLeft" align="right" valign="top"><a id="a61fa0e7d8959c87645a98338da9c39e1" name="a61fa0e7d8959c87645a98338da9c39e1"></a>
-<a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">ArchetypeIdLookupKey::LookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>id_hash</b> () const</td></tr>
+ArchetypeIdLookupKey::LookupHash&#160;</td><td class="memItemRight" valign="bottom"><b>id_hash</b> () const</td></tr>
 <tr class="separator:a61fa0e7d8959c87645a98338da9c39e1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1513e1e7f43df3dacac6def5b8b765be" id="r_a1513e1e7f43df3dacac6def5b8b765be"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a1513e1e7f43df3dacac6def5b8b765be">set_hashes</a> (<a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a> hashLookup)</td></tr>
 <tr class="memdesc:a1513e1e7f43df3dacac6def5b8b765be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sets hashes for each component type and lookup.  <br /></td></tr>
 <tr class="separator:a1513e1e7f43df3dacac6def5b8b765be"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a69c5c86937a50135e52cb4e53289e73d" id="r_a69c5c86937a50135e52cb4e53289e73d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a69c5c86937a50135e52cb4e53289e73d">enable_entity</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t row, bool enableEntity, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:a69c5c86937a50135e52cb4e53289e73d" id="r_a69c5c86937a50135e52cb4e53289e73d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a69c5c86937a50135e52cb4e53289e73d">enable_entity</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk, uint16_t row, bool enableEntity, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:a69c5c86937a50135e52cb4e53289e73d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enables or disables the entity on a given row in the chunk.  <br /></td></tr>
 <tr class="separator:a69c5c86937a50135e52cb4e53289e73d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a42b1215d23b1b88ad147dd6dd2e9ba1e" id="r_a42b1215d23b1b88ad147dd6dd2e9ba1e"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a42b1215d23b1b88ad147dd6dd2e9ba1e">del</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> *pChunk)</td></tr>
@@ -193,10 +193,10 @@ QueryMask&#160;</td><td class="memItemRight" valign="bottom"><b>queryMask</b> ()
 <tr class="memitem:ad8cbf8752f1fc3a96757489e4c87d116" id="r_ad8cbf8752f1fc3a96757489e4c87d116"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#ad8cbf8752f1fc3a96757489e4c87d116">try_update_free_chunk_idx</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunkThatRemovedEntity)</td></tr>
 <tr class="memdesc:ad8cbf8752f1fc3a96757489e4c87d116"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tries to update the index of the first chunk that has space left for at least one entity.  <br /></td></tr>
 <tr class="separator:ad8cbf8752f1fc3a96757489e4c87d116"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae7bb57cadac987ff900c7857680a3ab6" id="r_ae7bb57cadac987ff900c7857680a3ab6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#ae7bb57cadac987ff900c7857680a3ab6">remove_entity_raw</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:ae7bb57cadac987ff900c7857680a3ab6" id="r_ae7bb57cadac987ff900c7857680a3ab6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#ae7bb57cadac987ff900c7857680a3ab6">remove_entity_raw</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, uint16_t row, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:ae7bb57cadac987ff900c7857680a3ab6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes an entity from the chunk.  <br /></td></tr>
 <tr class="separator:ae7bb57cadac987ff900c7857680a3ab6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a41b9c90757df2d308acbfc616d848d24" id="r_a41b9c90757df2d308acbfc616d848d24"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a41b9c90757df2d308acbfc616d848d24">remove_entity</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, uint16_t row, <a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;recs)</td></tr>
+<tr class="memitem:a41b9c90757df2d308acbfc616d848d24" id="r_a41b9c90757df2d308acbfc616d848d24"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a41b9c90757df2d308acbfc616d848d24">remove_entity</a> (<a class="el" href="classgaia_1_1ecs_1_1Chunk.html">Chunk</a> &amp;chunk, uint16_t row, EntityContainers &amp;recs)</td></tr>
 <tr class="memdesc:a41b9c90757df2d308acbfc616d848d24"><td class="mdescLeft">&#160;</td><td class="mdescRight">Removes an entity from the chunk and updates the chunk versions.  <br /></td></tr>
 <tr class="separator:a41b9c90757df2d308acbfc616d848d24"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a68b85b366d5458ec32b56642d90518e9" id="r_a68b85b366d5458ec32b56642d90518e9"><td class="memItemLeft" align="right" valign="top"><a id="a68b85b366d5458ec32b56642d90518e9" name="a68b85b366d5458ec32b56642d90518e9"></a>
@@ -209,10 +209,10 @@ GAIA_NODISCARD const <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::dar
 GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_hash</b> () const</td></tr>
 <tr class="separator:a7b5811187ccb6bc9755c7dc92b82a467"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a14807b43d347ee9e36c9b3b362b5e5af" id="r_a14807b43d347ee9e36c9b3b362b5e5af"><td class="memItemLeft" align="right" valign="top"><a id="a14807b43d347ee9e36c9b3b362b5e5af" name="a14807b43d347ee9e36c9b3b362b5e5af"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids_view</b> () const</td></tr>
+GAIA_NODISCARD EntitySpan&#160;</td><td class="memItemRight" valign="bottom"><b>ids_view</b> () const</td></tr>
 <tr class="separator:a14807b43d347ee9e36c9b3b362b5e5af"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abfdcbae8acb5a94c6bb6049f42f8401c" id="r_abfdcbae8acb5a94c6bb6049f42f8401c"><td class="memItemLeft" align="right" valign="top"><a id="abfdcbae8acb5a94c6bb6049f42f8401c" name="abfdcbae8acb5a94c6bb6049f42f8401c"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">ChunkDataOffsetSpan</a>&#160;</td><td class="memItemRight" valign="bottom"><b>comp_offs_view</b> () const</td></tr>
+GAIA_NODISCARD ChunkDataOffsetSpan&#160;</td><td class="memItemRight" valign="bottom"><b>comp_offs_view</b> () const</td></tr>
 <tr class="separator:abfdcbae8acb5a94c6bb6049f42f8401c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e65f7dc4e768372147ed0a5b27f4272" id="r_a3e65f7dc4e768372147ed0a5b27f4272"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a3e65f7dc4e768372147ed0a5b27f4272">pairs</a> () const</td></tr>
 <tr class="memdesc:a3e65f7dc4e768372147ed0a5b27f4272"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of pairs registered in the archetype.  <br /></td></tr>
@@ -228,13 +228,13 @@ GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>pa
 GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>entity_from_pairs_as_idx</b> (uint32_t idx) const</td></tr>
 <tr class="separator:ae1d84a2bd34bb0815e13f608a4341672"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec9b8516802777ade995da7a08861eeb" id="r_aec9b8516802777ade995da7a08861eeb"><td class="memItemLeft" align="right" valign="top"><a id="aec9b8516802777ade995da7a08861eeb" name="aec9b8516802777ade995da7a08861eeb"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_indices</b> () const</td></tr>
+GAIA_NODISCARD std::span&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_indices</b> () const</td></tr>
 <tr class="separator:aec9b8516802777ade995da7a08861eeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea5fa12a6fb07be40cd0468202a808d3" id="r_aea5fa12a6fb07be40cd0468202a808d3"><td class="memItemLeft" align="right" valign="top"><a id="aea5fa12a6fb07be40cd0468202a808d3" name="aea5fa12a6fb07be40cd0468202a808d3"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_rel_indices</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation) const</td></tr>
+GAIA_NODISCARD std::span&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_rel_indices</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation) const</td></tr>
 <tr class="separator:aea5fa12a6fb07be40cd0468202a808d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae157ccc0cbb912653597f6be7bd3586a" id="r_ae157ccc0cbb912653597f6be7bd3586a"><td class="memItemLeft" align="right" valign="top"><a id="ae157ccc0cbb912653597f6be7bd3586a" name="ae157ccc0cbb912653597f6be7bd3586a"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_tgt_indices</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target) const</td></tr>
+GAIA_NODISCARD std::span&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>pair_tgt_indices</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> target) const</td></tr>
 <tr class="separator:ae157ccc0cbb912653597f6be7bd3586a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a80aeafde74ec503b4598a07a7d764ef9" id="r_a80aeafde74ec503b4598a07a7d764ef9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a80aeafde74ec503b4598a07a7d764ef9">has</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a80aeafde74ec503b4598a07a7d764ef9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if an entity is a part of the archetype.  <br /></td></tr>
@@ -267,7 +267,7 @@ template&lt;bool Enabled&gt; </td></tr>
 <tr class="separator:a46e83a6634d06049f841d31ac539f05e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a12f6280c886c04f2541d97531ba92721" id="r_a12f6280c886c04f2541d97531ba92721"><td class="memTemplParams" colspan="2"><a id="a12f6280c886c04f2541d97531ba92721" name="a12f6280c886c04f2541d97531ba92721"></a>
 template&lt;bool Enabled&gt; </td></tr>
-<tr class="memitem:a12f6280c886c04f2541d97531ba92721"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>sort_entities_inter</b> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentCacheItem.html">ComponentCacheItem</a> *pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func)</td></tr>
+<tr class="memitem:a12f6280c886c04f2541d97531ba92721"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>sort_entities_inter</b> (const ComponentCacheItem *pItem, uint32_t compIdx, size_t low, size_t high, TSortByFunc func)</td></tr>
 <tr class="memdesc:a12f6280c886c04f2541d97531ba92721"><td class="mdescLeft">&#160;</td><td class="mdescRight">Generic in-place quicksort across chunks. <br /></td></tr>
 <tr class="separator:a12f6280c886c04f2541d97531ba92721"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:afc96c42628f86aebe309141b2d05804f" id="r_afc96c42628f86aebe309141b2d05804f"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#afc96c42628f86aebe309141b2d05804f">sort_entities</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, TSortByFunc func)</td></tr>
@@ -291,10 +291,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>del_graph_edges_left<
 <tr class="memitem:a40497a8000865c0ece51e9eb93e689f9" id="r_a40497a8000865c0ece51e9eb93e689f9"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a40497a8000865c0ece51e9eb93e689f9">del_graph_edge_left_local</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
 <tr class="memdesc:a40497a8000865c0ece51e9eb93e689f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deletes a cached local "del" edge formed by <em>entity</em>. Intended for stale edge cache recovery when the opposite archetype no longer exists.  <br /></td></tr>
 <tr class="separator:a40497a8000865c0ece51e9eb93e689f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acbdafd221e1d61ebeb65692b1d09c88a" id="r_acbdafd221e1d61ebeb65692b1d09c88a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeGraphEdge</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#acbdafd221e1d61ebeb65692b1d09c88a">find_edge_right</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memitem:acbdafd221e1d61ebeb65692b1d09c88a" id="r_acbdafd221e1d61ebeb65692b1d09c88a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ArchetypeGraphEdge&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#acbdafd221e1d61ebeb65692b1d09c88a">find_edge_right</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:acbdafd221e1d61ebeb65692b1d09c88a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if an archetype graph "add" edge with entity <em>entity</em> exists.  <br /></td></tr>
 <tr class="separator:acbdafd221e1d61ebeb65692b1d09c88a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a762179435ca90f9db69026ea92bb9d62" id="r_a762179435ca90f9db69026ea92bb9d62"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeGraphEdge</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a762179435ca90f9db69026ea92bb9d62">find_edge_left</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
+<tr class="memitem:a762179435ca90f9db69026ea92bb9d62" id="r_a762179435ca90f9db69026ea92bb9d62"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ArchetypeGraphEdge&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html#a762179435ca90f9db69026ea92bb9d62">find_edge_left</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity) const</td></tr>
 <tr class="memdesc:a762179435ca90f9db69026ea92bb9d62"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks if an archetype graph "del" edge with entity <em>entity</em> exists.  <br /></td></tr>
 <tr class="separator:a762179435ca90f9db69026ea92bb9d62"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aba317a5b2b81c9743540cfb87bc0078f" id="r_aba317a5b2b81c9743540cfb87bc0078f"><td class="memItemLeft" align="right" valign="top"><a id="aba317a5b2b81c9743540cfb87bc0078f" name="aba317a5b2b81c9743540cfb87bc0078f"></a>
@@ -363,7 +363,7 @@ GAIA_NODISCARD ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a01fa0c8ce1924a893054ef6e5a83e383" id="r_a01fa0c8ce1924a893054ef6e5a83e383"><td class="memItemLeft" align="right" valign="top"><a id="a01fa0c8ce1924a893054ef6e5a83e383" name="a01fa0c8ce1924a893054ef6e5a83e383"></a>
-static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, ArchetypeId archetypeId, uint32_t &amp;worldVersion, <a class="el" href="classgaia_1_1core_1_1span.html">EntitySpan</a> ids)</td></tr>
+static GAIA_NODISCARD <a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *&#160;</td><td class="memItemRight" valign="bottom"><b>create</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, ArchetypeId archetypeId, uint32_t &amp;worldVersion, EntitySpan ids)</td></tr>
 <tr class="separator:a01fa0c8ce1924a893054ef6e5a83e383"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a2eba4be560d88d9f446c3da4e4800006" id="r_a2eba4be560d88d9f446c3da4e4800006"><td class="memItemLeft" align="right" valign="top"><a id="a2eba4be560d88d9f446c3da4e4800006" name="a2eba4be560d88d9f446c3da4e4800006"></a>
 static void&#160;</td><td class="memItemRight" valign="bottom"><b>destroy</b> (<a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a> *pArchetype)</td></tr>
@@ -628,7 +628,7 @@ ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b>m_archetypeId<
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -667,7 +667,7 @@ ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b>m_archetypeId<
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeGraphEdge</a> gaia::ecs::Archetype::find_edge_left </td>
+          <td class="memname">GAIA_NODISCARD ArchetypeGraphEdge gaia::ecs::Archetype::find_edge_left </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em></td><td>)</td>
@@ -702,7 +702,7 @@ ArchetypeId&#160;</td><td class="memItemRight" valign="bottom"><b>m_archetypeId<
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1ArchetypeIdHashPair.html">ArchetypeGraphEdge</a> gaia::ecs::Archetype::find_edge_right </td>
+          <td class="memname">GAIA_NODISCARD ArchetypeGraphEdge gaia::ecs::Archetype::find_edge_right </td>
           <td>(</td>
           <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
           <td class="paramname"><em>entity</em></td><td>)</td>
@@ -1026,7 +1026,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1078,7 +1078,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1EntityContainers.html">EntityContainers</a> &amp;&#160;</td>
+          <td class="paramtype">EntityContainers &amp;&#160;</td>
           <td class="paramname"><em>recs</em>&#160;</td>
         </tr>
         <tr>
@@ -1310,7 +1310,7 @@ template&lt;typename T &gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1Archetype.html">Archetype</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

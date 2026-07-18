@@ -1,5 +1,6 @@
 var structgaia_1_1ecs_1_1ComponentSetter =
 [
+    [ "ComponentGetter", "structgaia_1_1ecs_1_1ComponentSetter.html#acee5c2f8fa1bafd31a886b446e547952", null ],
     [ "modify_raw", "structgaia_1_1ecs_1_1ComponentSetter.html#a646565eeaa4b8301b0eb231d5262a296", null ],
     [ "mut", "structgaia_1_1ecs_1_1ComponentSetter.html#a1067a5493d60d91fd1df03acad388103", null ],
     [ "mut", "structgaia_1_1ecs_1_1ComponentSetter.html#a15db43efd6c499598e32cc6c6a9566aa", null ],

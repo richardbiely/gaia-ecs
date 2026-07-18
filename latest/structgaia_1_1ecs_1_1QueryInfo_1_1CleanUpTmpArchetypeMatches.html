@@ -114,11 +114,16 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryInfo_1_1Clea
   <div class="headertitle"><div class="title">gaia::ecs::QueryInfo::CleanUpTmpArchetypeMatches Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Scope guard that releases the world-owned temporary VM matching frame.  
+ <a href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__info_8h_source.html">query_info.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a53b4ef94eec06b29907b346c63b15727" id="r_a53b4ef94eec06b29907b346c63b15727"><td class="memItemLeft" align="right" valign="top"><a id="a53b4ef94eec06b29907b346c63b15727" name="a53b4ef94eec06b29907b346c63b15727"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>CleanUpTmpArchetypeMatches</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;world, bool keepStamps)</td></tr>
+<tr class="memitem:a53b4ef94eec06b29907b346c63b15727" id="r_a53b4ef94eec06b29907b346c63b15727"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a53b4ef94eec06b29907b346c63b15727">CleanUpTmpArchetypeMatches</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#aaf12843cb59f21f8b88f102c7b7d1bdf">world</a>, bool <a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html#a5c8a084286187fb4576a2c1e610a678f">keepStamps</a>)</td></tr>
+<tr class="memdesc:a53b4ef94eec06b29907b346c63b15727"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a guard for an already acquired matching frame.  <br /></td></tr>
 <tr class="separator:a53b4ef94eec06b29907b346c63b15727"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6edc21544c9c37754135095cd3f618f1" id="r_a6edc21544c9c37754135095cd3f618f1"><td class="memItemLeft" align="right" valign="top"><a id="a6edc21544c9c37754135095cd3f618f1" name="a6edc21544c9c37754135095cd3f618f1"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>CleanUpTmpArchetypeMatches</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html">CleanUpTmpArchetypeMatches</a> &amp;)=delete</td></tr>
@@ -137,11 +142,61 @@ Public Member Functions</h2></td></tr>
 Public Attributes</h2></td></tr>
 <tr class="memitem:aaf12843cb59f21f8b88f102c7b7d1bdf" id="r_aaf12843cb59f21f8b88f102c7b7d1bdf"><td class="memItemLeft" align="right" valign="top"><a id="aaf12843cb59f21f8b88f102c7b7d1bdf" name="aaf12843cb59f21f8b88f102c7b7d1bdf"></a>
 <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>world</b></td></tr>
+<tr class="memdesc:aaf12843cb59f21f8b88f102c7b7d1bdf"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the acquired scratch frame. <br /></td></tr>
 <tr class="separator:aaf12843cb59f21f8b88f102c7b7d1bdf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5c8a084286187fb4576a2c1e610a678f" id="r_a5c8a084286187fb4576a2c1e610a678f"><td class="memItemLeft" align="right" valign="top"><a id="a5c8a084286187fb4576a2c1e610a678f" name="a5c8a084286187fb4576a2c1e610a678f"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>keepStamps</b></td></tr>
+<tr class="memdesc:a5c8a084286187fb4576a2c1e610a678f"><td class="mdescLeft">&#160;</td><td class="mdescRight">True to retain allocated dedup-stamp pages while releasing the frame. <br /></td></tr>
 <tr class="separator:a5c8a084286187fb4576a2c1e610a678f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Scope guard that releases the world-owned temporary VM matching frame. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="a53b4ef94eec06b29907b346c63b15727" name="a53b4ef94eec06b29907b346c63b15727"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a53b4ef94eec06b29907b346c63b15727">&#9670;&#160;</a></span>CleanUpTmpArchetypeMatches()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::ecs::QueryInfo::CleanUpTmpArchetypeMatches::CleanUpTmpArchetypeMatches </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>keepStamps</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a guard for an already acquired matching frame. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the frame. </td></tr>
+    <tr><td class="paramname">keepStamps</td><td>Whether allocated dedup-stamp pages remain reusable. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__info_8h_source.html">query_info.h</a></li>
 </ul>
@@ -150,7 +205,7 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>keepStamps</b></td></
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html">CleanUpTmpArchetypeMatches</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1CleanUpTmpArchetypeMatches.html">CleanUpTmpArchetypeMatches</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

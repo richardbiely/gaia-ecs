@@ -116,77 +116,619 @@ $(document).ready(function(){initNavTree('structgaia_1_1ser_1_1serializer.html',
 </div><!--header-->
 <div class="contents">
 
-<p>Runtime serializer type-erased handle. Traversal logic is shared with compile-time serialization, while raw I/O is delegated through function pointers bound to a concrete serializer instance. This is a binary traversal API; JSON document I/O uses <a class="el" href="classgaia_1_1ser_1_1ser__json.html" title="Lightweight JSON serializer/deserializer.">ser::ser_json</a>.  
+<p>Runtime serializer type-erased handle. Traversal logic is shared with compile-time serialization, while raw I/O is delegated through function pointers bound to a concrete serializer instance. This is a binary traversal API. JSON document I/O uses <a class="el" href="classgaia_1_1ser_1_1ser__json.html" title="Lightweight JSON serializer/deserializer.">ser::ser_json</a>.  
  <a href="structgaia_1_1ser_1_1serializer.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="ser__rt_8h_source.html">ser_rt.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ade0702e3dd15b5ab637fdcc13482f522" id="r_ade0702e3dd15b5ab637fdcc13482f522"><td class="memItemLeft" align="right" valign="top"><a id="ade0702e3dd15b5ab637fdcc13482f522" name="ade0702e3dd15b5ab637fdcc13482f522"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>serializer</b> (const <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a> &amp;ctx)</td></tr>
+<tr class="memitem:ade0702e3dd15b5ab637fdcc13482f522" id="r_ade0702e3dd15b5ab637fdcc13482f522"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#ade0702e3dd15b5ab637fdcc13482f522">serializer</a> (const <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a> &amp;ctx)</td></tr>
+<tr class="memdesc:ade0702e3dd15b5ab637fdcc13482f522"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a serializer from an existing callback context.  <br /></td></tr>
 <tr class="separator:ade0702e3dd15b5ab637fdcc13482f522"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac5626c621a43a13f309616dcd9d47c0f" id="r_ac5626c621a43a13f309616dcd9d47c0f"><td class="memItemLeft" align="right" valign="top"><a id="ac5626c621a43a13f309616dcd9d47c0f" name="ac5626c621a43a13f309616dcd9d47c0f"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>valid</b> () const</td></tr>
+<tr class="memitem:ac5626c621a43a13f309616dcd9d47c0f" id="r_ac5626c621a43a13f309616dcd9d47c0f"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#ac5626c621a43a13f309616dcd9d47c0f">valid</a> () const</td></tr>
+<tr class="memdesc:ac5626c621a43a13f309616dcd9d47c0f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether mandatory backend callbacks are bound.  <br /></td></tr>
 <tr class="separator:ac5626c621a43a13f309616dcd9d47c0f"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa188ed25784e52c79c634bb9f10ed796" id="r_aa188ed25784e52c79c634bb9f10ed796"><td class="memTemplParams" colspan="2"><a id="aa188ed25784e52c79c634bb9f10ed796" name="aa188ed25784e52c79c634bb9f10ed796"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:aa188ed25784e52c79c634bb9f10ed796"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>save</b> (const T &amp;arg)</td></tr>
+<tr class="memitem:aa188ed25784e52c79c634bb9f10ed796" id="r_aa188ed25784e52c79c634bb9f10ed796"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:aa188ed25784e52c79c634bb9f10ed796"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#aa188ed25784e52c79c634bb9f10ed796">save</a> (const T &amp;arg)</td></tr>
+<tr class="memdesc:aa188ed25784e52c79c634bb9f10ed796"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serializes a value through generic traversal.  <br /></td></tr>
 <tr class="separator:aa188ed25784e52c79c634bb9f10ed796"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5d536fe5f9933a278ea8608349391a96" id="r_a5d536fe5f9933a278ea8608349391a96"><td class="memTemplParams" colspan="2"><a id="a5d536fe5f9933a278ea8608349391a96" name="a5d536fe5f9933a278ea8608349391a96"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a5d536fe5f9933a278ea8608349391a96"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>load</b> (T &amp;arg)</td></tr>
+<tr class="memitem:a5d536fe5f9933a278ea8608349391a96" id="r_a5d536fe5f9933a278ea8608349391a96"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a5d536fe5f9933a278ea8608349391a96"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a5d536fe5f9933a278ea8608349391a96">load</a> (T &amp;arg)</td></tr>
+<tr class="memdesc:a5d536fe5f9933a278ea8608349391a96"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deserializes a value through generic traversal.  <br /></td></tr>
 <tr class="separator:a5d536fe5f9933a278ea8608349391a96"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a49865437e8c7d8b38c1f45f33f4e84d4" id="r_a49865437e8c7d8b38c1f45f33f4e84d4"><td class="memTemplParams" colspan="2"><a id="a49865437e8c7d8b38c1f45f33f4e84d4" name="a49865437e8c7d8b38c1f45f33f4e84d4"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:a49865437e8c7d8b38c1f45f33f4e84d4"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>save_raw</b> (const T &amp;value)</td></tr>
+<tr class="memitem:a49865437e8c7d8b38c1f45f33f4e84d4" id="r_a49865437e8c7d8b38c1f45f33f4e84d4"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a49865437e8c7d8b38c1f45f33f4e84d4"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a49865437e8c7d8b38c1f45f33f4e84d4">save_raw</a> (const T &amp;value)</td></tr>
+<tr class="memdesc:a49865437e8c7d8b38c1f45f33f4e84d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes the object representation of a typed value.  <br /></td></tr>
 <tr class="separator:a49865437e8c7d8b38c1f45f33f4e84d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adbf3e4aba54e56d37937b5bac3a6b4c7" id="r_adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="memTemplParams" colspan="2"><a id="adbf3e4aba54e56d37937b5bac3a6b4c7" name="adbf3e4aba54e56d37937b5bac3a6b4c7"></a>
-template&lt;typename T &gt; </td></tr>
-<tr class="memitem:adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><b>load_raw</b> (T &amp;value)</td></tr>
+<tr class="memitem:adbf3e4aba54e56d37937b5bac3a6b4c7" id="r_adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#adbf3e4aba54e56d37937b5bac3a6b4c7">load_raw</a> (T &amp;value)</td></tr>
+<tr class="memdesc:adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads an object representation into a typed value.  <br /></td></tr>
 <tr class="separator:adbf3e4aba54e56d37937b5bac3a6b4c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a286a734ff668e6ad6c7fc2c62b43f2f8" id="r_a286a734ff668e6ad6c7fc2c62b43f2f8"><td class="memItemLeft" align="right" valign="top"><a id="a286a734ff668e6ad6c7fc2c62b43f2f8" name="a286a734ff668e6ad6c7fc2c62b43f2f8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>save_raw</b> (const void *src, uint32_t size, serialization_type_id id)</td></tr>
+<tr class="memitem:a286a734ff668e6ad6c7fc2c62b43f2f8" id="r_a286a734ff668e6ad6c7fc2c62b43f2f8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a286a734ff668e6ad6c7fc2c62b43f2f8">save_raw</a> (const void *src, uint32_t size, serialization_type_id id)</td></tr>
+<tr class="memdesc:a286a734ff668e6ad6c7fc2c62b43f2f8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes raw bytes through the bound backend.  <br /></td></tr>
 <tr class="separator:a286a734ff668e6ad6c7fc2c62b43f2f8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a410ed687ce83ee230a3671d3ccf99e4d" id="r_a410ed687ce83ee230a3671d3ccf99e4d"><td class="memItemLeft" align="right" valign="top"><a id="a410ed687ce83ee230a3671d3ccf99e4d" name="a410ed687ce83ee230a3671d3ccf99e4d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>load_raw</b> (void *src, uint32_t size, serialization_type_id id)</td></tr>
+<tr class="memitem:a410ed687ce83ee230a3671d3ccf99e4d" id="r_a410ed687ce83ee230a3671d3ccf99e4d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a410ed687ce83ee230a3671d3ccf99e4d">load_raw</a> (void *src, uint32_t size, serialization_type_id id)</td></tr>
+<tr class="memdesc:a410ed687ce83ee230a3671d3ccf99e4d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads raw bytes through the bound backend.  <br /></td></tr>
 <tr class="separator:a410ed687ce83ee230a3671d3ccf99e4d"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acd22f0ea3e079c6c567c72f477cd1616" id="r_acd22f0ea3e079c6c567c72f477cd1616"><td class="memItemLeft" align="right" valign="top"><a id="acd22f0ea3e079c6c567c72f477cd1616" name="acd22f0ea3e079c6c567c72f477cd1616"></a>
-GAIA_NODISCARD const char *&#160;</td><td class="memItemRight" valign="bottom"><b>data</b> () const</td></tr>
+<tr class="memitem:acd22f0ea3e079c6c567c72f477cd1616" id="r_acd22f0ea3e079c6c567c72f477cd1616"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#acd22f0ea3e079c6c567c72f477cd1616">data</a> () const</td></tr>
+<tr class="memdesc:acd22f0ea3e079c6c567c72f477cd1616"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the backend data pointer when exposed.  <br /></td></tr>
 <tr class="separator:acd22f0ea3e079c6c567c72f477cd1616"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a67a6faf85704fe1503b49af8f4bcd9b8" id="r_a67a6faf85704fe1503b49af8f4bcd9b8"><td class="memItemLeft" align="right" valign="top"><a id="a67a6faf85704fe1503b49af8f4bcd9b8" name="a67a6faf85704fe1503b49af8f4bcd9b8"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>reset</b> ()</td></tr>
+<tr class="memdesc:a67a6faf85704fe1503b49af8f4bcd9b8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets the backend when supported. <br /></td></tr>
 <tr class="separator:a67a6faf85704fe1503b49af8f4bcd9b8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a65f5dcdeada7172cc9deedf82023df92" id="r_a65f5dcdeada7172cc9deedf82023df92"><td class="memItemLeft" align="right" valign="top"><a id="a65f5dcdeada7172cc9deedf82023df92" name="a65f5dcdeada7172cc9deedf82023df92"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>tell</b> () const</td></tr>
+<tr class="memitem:a65f5dcdeada7172cc9deedf82023df92" id="r_a65f5dcdeada7172cc9deedf82023df92"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a65f5dcdeada7172cc9deedf82023df92">tell</a> () const</td></tr>
+<tr class="memdesc:a65f5dcdeada7172cc9deedf82023df92"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the current backend cursor.  <br /></td></tr>
 <tr class="separator:a65f5dcdeada7172cc9deedf82023df92"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a1baedbd24f90c96f8c5a595bea00ef9c" id="r_a1baedbd24f90c96f8c5a595bea00ef9c"><td class="memItemLeft" align="right" valign="top"><a id="a1baedbd24f90c96f8c5a595bea00ef9c" name="a1baedbd24f90c96f8c5a595bea00ef9c"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>bytes</b> () const</td></tr>
+<tr class="memitem:a1baedbd24f90c96f8c5a595bea00ef9c" id="r_a1baedbd24f90c96f8c5a595bea00ef9c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a1baedbd24f90c96f8c5a595bea00ef9c">bytes</a> () const</td></tr>
+<tr class="memdesc:a1baedbd24f90c96f8c5a595bea00ef9c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the backend byte count when exposed.  <br /></td></tr>
 <tr class="separator:a1baedbd24f90c96f8c5a595bea00ef9c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa95282f9571428cf6d3d1ed40f8db77d" id="r_aa95282f9571428cf6d3d1ed40f8db77d"><td class="memItemLeft" align="right" valign="top"><a id="aa95282f9571428cf6d3d1ed40f8db77d" name="aa95282f9571428cf6d3d1ed40f8db77d"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>seek</b> (uint32_t pos)</td></tr>
+<tr class="memitem:aa95282f9571428cf6d3d1ed40f8db77d" id="r_aa95282f9571428cf6d3d1ed40f8db77d"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#aa95282f9571428cf6d3d1ed40f8db77d">seek</a> (uint32_t pos)</td></tr>
+<tr class="memdesc:aa95282f9571428cf6d3d1ed40f8db77d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Moves the backend cursor.  <br /></td></tr>
 <tr class="separator:aa95282f9571428cf6d3d1ed40f8db77d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a444533aa85dcafe2262826e510091109" id="r_a444533aa85dcafe2262826e510091109"><td class="memTemplParams" colspan="2"><a id="a444533aa85dcafe2262826e510091109" name="a444533aa85dcafe2262826e510091109"></a>
-template&lt;typename TSerializer &gt; </td></tr>
-<tr class="memitem:a444533aa85dcafe2262826e510091109"><td class="memTemplItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><b>bind_ctx</b> (TSerializer &amp;obj)</td></tr>
+<tr class="memitem:a444533aa85dcafe2262826e510091109" id="r_a444533aa85dcafe2262826e510091109"><td class="memTemplParams" colspan="2">template&lt;typename TSerializer &gt; </td></tr>
+<tr class="memitem:a444533aa85dcafe2262826e510091109"><td class="memTemplItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#a444533aa85dcafe2262826e510091109">bind_ctx</a> (TSerializer &amp;obj)</td></tr>
+<tr class="memdesc:a444533aa85dcafe2262826e510091109"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a callback context bound to a concrete backend.  <br /></td></tr>
 <tr class="separator:a444533aa85dcafe2262826e510091109"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae7a070ff967edf450b39ce3a2b868a92" id="r_ae7a070ff967edf450b39ce3a2b868a92"><td class="memTemplParams" colspan="2"><a id="ae7a070ff967edf450b39ce3a2b868a92" name="ae7a070ff967edf450b39ce3a2b868a92"></a>
-template&lt;typename TSerializer &gt; </td></tr>
-<tr class="memitem:ae7a070ff967edf450b39ce3a2b868a92"><td class="memTemplItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ser_1_1serializer.html">serializer</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><b>bind</b> (TSerializer &amp;obj)</td></tr>
+<tr class="memitem:ae7a070ff967edf450b39ce3a2b868a92" id="r_ae7a070ff967edf450b39ce3a2b868a92"><td class="memTemplParams" colspan="2">template&lt;typename TSerializer &gt; </td></tr>
+<tr class="memitem:ae7a070ff967edf450b39ce3a2b868a92"><td class="memTemplItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ser_1_1serializer.html">serializer</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1serializer.html#ae7a070ff967edf450b39ce3a2b868a92">bind</a> (TSerializer &amp;obj)</td></tr>
+<tr class="memdesc:ae7a070ff967edf450b39ce3a2b868a92"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a runtime serializer bound to a concrete backend.  <br /></td></tr>
 <tr class="separator:ae7a070ff967edf450b39ce3a2b868a92"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a269a0c24e774e6977fdded7165c80edd" id="r_a269a0c24e774e6977fdded7165c80edd"><td class="memItemLeft" align="right" valign="top"><a id="a269a0c24e774e6977fdded7165c80edd" name="a269a0c24e774e6977fdded7165c80edd"></a>
 <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_ctx</b> {}</td></tr>
+<tr class="memdesc:a269a0c24e774e6977fdded7165c80edd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bound backend context and callback table. <br /></td></tr>
 <tr class="separator:a269a0c24e774e6977fdded7165c80edd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Runtime serializer type-erased handle. Traversal logic is shared with compile-time serialization, while raw I/O is delegated through function pointers bound to a concrete serializer instance. This is a binary traversal API; JSON document I/O uses <a class="el" href="classgaia_1_1ser_1_1ser__json.html" title="Lightweight JSON serializer/deserializer.">ser::ser_json</a>. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<div class="textblock"><p>Runtime serializer type-erased handle. Traversal logic is shared with compile-time serialization, while raw I/O is delegated through function pointers bound to a concrete serializer instance. This is a binary traversal API. JSON document I/O uses <a class="el" href="classgaia_1_1ser_1_1ser__json.html" title="Lightweight JSON serializer/deserializer.">ser::ser_json</a>. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="ade0702e3dd15b5ab637fdcc13482f522" name="ade0702e3dd15b5ab637fdcc13482f522"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ade0702e3dd15b5ab637fdcc13482f522">&#9670;&#160;</a></span>serializer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::ser::serializer::serializer </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a> &amp;&#160;</td>
+          <td class="paramname"><em>ctx</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">explicit</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a serializer from an existing callback context. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ctx</td><td>Backend context to copy. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="ae7a070ff967edf450b39ce3a2b868a92" name="ae7a070ff967edf450b39ce3a2b868a92"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae7a070ff967edf450b39ce3a2b868a92">&#9670;&#160;</a></span>bind()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename TSerializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="structgaia_1_1ser_1_1serializer.html">serializer</a> gaia::ser::serializer::bind </td>
+          <td>(</td>
+          <td class="paramtype">TSerializer &amp;&#160;</td>
+          <td class="paramname"><em>obj</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a runtime serializer bound to a concrete backend. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">TSerializer</td><td>Backend type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">obj</td><td>Backend instance that must outlive the serializer. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Bound runtime serializer. </dd></dl>
+
+</div>
+</div>
+<a id="a444533aa85dcafe2262826e510091109" name="a444533aa85dcafe2262826e510091109"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a444533aa85dcafe2262826e510091109">&#9670;&#160;</a></span>bind_ctx()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename TSerializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="structgaia_1_1ser_1_1serializer__ctx.html">serializer_ctx</a> gaia::ser::serializer::bind_ctx </td>
+          <td>(</td>
+          <td class="paramtype">TSerializer &amp;&#160;</td>
+          <td class="paramname"><em>obj</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a callback context bound to a concrete backend. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">TSerializer</td><td>Backend type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">obj</td><td>Backend instance that must outlive the context. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Type-erased callback context. </dd></dl>
+
+</div>
+</div>
+<a id="a1baedbd24f90c96f8c5a595bea00ef9c" name="a1baedbd24f90c96f8c5a595bea00ef9c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1baedbd24f90c96f8c5a595bea00ef9c">&#9670;&#160;</a></span>bytes()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ser::serializer::bytes </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the backend byte count when exposed. </p>
+<dl class="section return"><dt>Returns</dt><dd>Byte count, or zero when unsupported. </dd></dl>
+
+</div>
+</div>
+<a id="acd22f0ea3e079c6c567c72f477cd1616" name="acd22f0ea3e079c6c567c72f477cd1616"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acd22f0ea3e079c6c567c72f477cd1616">&#9670;&#160;</a></span>data()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const char * gaia::ser::serializer::data </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the backend data pointer when exposed. </p>
+<dl class="section return"><dt>Returns</dt><dd>Backing data pointer, or null when unsupported. </dd></dl>
+
+</div>
+</div>
+<a id="a5d536fe5f9933a278ea8608349391a96" name="a5d536fe5f9933a278ea8608349391a96"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5d536fe5f9933a278ea8608349391a96">&#9670;&#160;</a></span>load()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::load </td>
+          <td>(</td>
+          <td class="paramtype">T &amp;&#160;</td>
+          <td class="paramname"><em>arg</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Deserializes a value through generic traversal. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">arg</td><td>Destination value. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="adbf3e4aba54e56d37937b5bac3a6b4c7" name="adbf3e4aba54e56d37937b5bac3a6b4c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adbf3e4aba54e56d37937b5bac3a6b4c7">&#9670;&#160;</a></span>load_raw() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::load_raw </td>
+          <td>(</td>
+          <td class="paramtype">T &amp;&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads an object representation into a typed value. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">value</td><td>Destination value. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a410ed687ce83ee230a3671d3ccf99e4d" name="a410ed687ce83ee230a3671d3ccf99e4d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a410ed687ce83ee230a3671d3ccf99e4d">&#9670;&#160;</a></span>load_raw() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::load_raw </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>src</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>size</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">serialization_type_id&#160;</td>
+          <td class="paramname"><em>id</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads raw bytes through the bound backend. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">src</td><td>Destination bytes. </td></tr>
+    <tr><td class="paramdir"></td><td class="paramname">size</td><td>Number of bytes. </td></tr>
+    <tr><td class="paramdir"></td><td class="paramname">id</td><td>Serialization representation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aa188ed25784e52c79c634bb9f10ed796" name="aa188ed25784e52c79c634bb9f10ed796"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa188ed25784e52c79c634bb9f10ed796">&#9670;&#160;</a></span>save()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::save </td>
+          <td>(</td>
+          <td class="paramtype">const T &amp;&#160;</td>
+          <td class="paramname"><em>arg</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Serializes a value through generic traversal. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">arg</td><td>Value to serialize. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a49865437e8c7d8b38c1f45f33f4e84d4" name="a49865437e8c7d8b38c1f45f33f4e84d4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a49865437e8c7d8b38c1f45f33f4e84d4">&#9670;&#160;</a></span>save_raw() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::save_raw </td>
+          <td>(</td>
+          <td class="paramtype">const T &amp;&#160;</td>
+          <td class="paramname"><em>value</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes the object representation of a typed value. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Value type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">value</td><td>Value to write. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a286a734ff668e6ad6c7fc2c62b43f2f8" name="a286a734ff668e6ad6c7fc2c62b43f2f8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a286a734ff668e6ad6c7fc2c62b43f2f8">&#9670;&#160;</a></span>save_raw() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::save_raw </td>
+          <td>(</td>
+          <td class="paramtype">const void *&#160;</td>
+          <td class="paramname"><em>src</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>size</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">serialization_type_id&#160;</td>
+          <td class="paramname"><em>id</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes raw bytes through the bound backend. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">src</td><td>Source bytes. </td></tr>
+    <tr><td class="paramname">size</td><td>Number of bytes. </td></tr>
+    <tr><td class="paramname">id</td><td>Serialization representation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aa95282f9571428cf6d3d1ed40f8db77d" name="aa95282f9571428cf6d3d1ed40f8db77d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa95282f9571428cf6d3d1ed40f8db77d">&#9670;&#160;</a></span>seek()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::serializer::seek </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>pos</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Moves the backend cursor. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pos</td><td>Absolute byte position. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a65f5dcdeada7172cc9deedf82023df92" name="a65f5dcdeada7172cc9deedf82023df92"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a65f5dcdeada7172cc9deedf82023df92">&#9670;&#160;</a></span>tell()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t gaia::ser::serializer::tell </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the current backend cursor. </p>
+<dl class="section return"><dt>Returns</dt><dd>Cursor position in bytes. </dd></dl>
+
+</div>
+</div>
+<a id="ac5626c621a43a13f309616dcd9d47c0f" name="ac5626c621a43a13f309616dcd9d47c0f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac5626c621a43a13f309616dcd9d47c0f">&#9670;&#160;</a></span>valid()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ser::serializer::valid </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether mandatory backend callbacks are bound. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when save, load, tell, and seek are available. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ser/<a class="el" href="ser__rt_8h_source.html">ser_rt.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -194,7 +736,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ser</b></li><li class="navelem"><a class="el" href="structgaia_1_1ser_1_1serializer.html">serializer</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ser</b></li><li class="navelem"><a class="el" href="structgaia_1_1ser_1_1serializer.html">serializer</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

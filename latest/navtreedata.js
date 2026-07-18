@@ -156,16 +156,6 @@ var NAVTREE =
     [ "Future", "index.html#future", null ],
     [ "Contributions", "index.html#contributions", null ],
     [ "License", "index.html#license", null ],
-    [ "Namespaces", "namespaces.html", [
-      [ "Namespace List", "namespaces.html", "namespaces_dup" ],
-      [ "Namespace Members", "namespacemembers.html", [
-        [ "All", "namespacemembers.html", null ],
-        [ "Functions", "namespacemembers_func.html", null ],
-        [ "Variables", "namespacemembers_vars.html", null ],
-        [ "Enumerations", "namespacemembers_enum.html", null ],
-        [ "Enumerator", "namespacemembers_eval.html", null ]
-      ] ]
-    ] ],
     [ "Classes", "annotated.html", [
       [ "Class List", "annotated.html", "annotated_dup" ],
       [ "Class Index", "classes.html", null ],
@@ -174,7 +164,7 @@ var NAVTREE =
         [ "All", "functions.html", "functions_dup" ],
         [ "Functions", "functions_func.html", "functions_func" ],
         [ "Variables", "functions_vars.html", "functions_vars" ],
-        [ "Typedefs", "functions_type.html", null ],
+        [ "Typedefs", "functions_type.html", "functions_type" ],
         [ "Enumerations", "functions_enum.html", null ],
         [ "Enumerator", "functions_eval.html", null ],
         [ "Related Symbols", "functions_rela.html", null ]
@@ -189,17 +179,19 @@ var NAVTREE =
 var NAVTREEINDEX =
 [
 "annotated.html",
-"classgaia_1_1ecs_1_1ComponentCache.html#a3d335eb23e50fe3c322bf300c6eec3de",
-"classgaia_1_1ecs_1_1World.html#a5a90f6ee29879dc71c3d7641cab27165",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a1c385740f47a2b4e3c2de1077c0d8bbc",
-"classgaia_1_1ser_1_1bin__stream.html#a7d711c63ffa10942b8325674dfbf1c1a",
-"index.html#customization",
-"structgaia_1_1cnt_1_1paged__ilist.html#a4dc27bfd8cea462fec86cd98ea7e1659",
-"structgaia_1_1ecs_1_1ComponentCursor.html#a39b0ce5116fb98f14ff9464c260f3bce",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a57980e9a61a38fdce9bd4e28ef3d5fd1",
-"structgaia_1_1ecs_1_1detail_1_1IterTermDesc.html",
-"structgaia_1_1ecs_1_1vm_1_1detail_1_1QueryCompileCtx.html#ac1a4c6a2898d6c651df56c02f4dbb050",
-"structrobin__hood_1_1detail_1_1has__is__transparent.html"
+"classgaia_1_1cnt_1_1darr__ext__soa.html#ae453cadf9f7867af6c5f14e01ededa28",
+"classgaia_1_1cnt_1_1sarr__ext.html#a60dde08a63bac6447929630d6f176d94",
+"classgaia_1_1cnt_1_1sringbuffer.html#a70dfca04bc4e14f188fd7df582a17f81",
+"classgaia_1_1ecs_1_1QueryInfo.html#a2f647000eb0c8465cbd28a6f04e54590",
+"classgaia_1_1ecs_1_1World.html#a9a204b62da6a116b2f52fc677a4bfc0c",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af8d1e2337fca718523beb8d989600241",
+"functions_j.html",
+"structgaia_1_1cnt_1_1const__page__iterator.html#a77a8729980326bd07ec3b9947ea07821",
+"structgaia_1_1cnt_1_1paged__ilist.html#add8b6feeab766b47d816b6b52800414d",
+"structgaia_1_1ecs_1_1ComponentDesc.html#a888e08add9827f54fec33fa555e37122",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a91aebffb03717b548fe0e8e007b5f9b2",
+"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#a3dcd62032724175f5a89210cb2bdea7a",
+"structgaia_1_1mem_1_1data__view__policy__soa.html#a31f687fdab677be24a18d9740c089aa3"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

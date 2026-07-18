@@ -117,7 +117,7 @@ $(document).ready(function(){initNavTree('api_8inl_source.html',''); initResizab
 <div class="contents">
 <div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#include &quot;gaia/config/config.h&quot;</span></div>
 <div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span> </div>
-<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
+<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="keyword">namespace </span>gaia {</div>
 <div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span>  <span class="keyword">namespace </span>ecs {</div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span>    <span class="comment">// Component API</span></div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
@@ -284,7 +284,7 @@ $(document).ready(function(){initNavTree('api_8inl_source.html',''); initResizab
 <div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>      world.query_buffer_reset(serId);</div>
 <div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>    }</div>
 <div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span> </div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    GAIA_NODISCARD <span class="keyword">inline</span> Entity expr_to_entity(<span class="keyword">const</span> World&amp; world, va_list&amp; args, <a class="code hl_class" href="classgaia_1_1core_1_1span.html">std::span&lt;const char&gt;</a> exprRaw) {</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    GAIA_NODISCARD <span class="keyword">inline</span> Entity expr_to_entity(<span class="keyword">const</span> World&amp; world, va_list&amp; args, std::span&lt;const char&gt; exprRaw) {</div>
 <div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>      <span class="keywordflow">return</span> world.expr_to_entity(args, exprRaw);</div>
 <div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    }</div>
 <div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span> </div>
@@ -323,9 +323,7 @@ $(document).ready(function(){initNavTree('api_8inl_source.html',''); initResizab
 <div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>    }</div>
 <div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span>  } <span class="comment">// namespace ecs</span></div>
 <div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="aclassgaia_1_1core_1_1span_html"><div class="ttname"><a href="classgaia_1_1core_1_1span.html">gaia::core::span</a></div><div class="ttdef"><b>Definition</b> span_impl.h:99</div></div>
 <div class="ttc" id="aclassgaia_1_1ecs_1_1World_html_ac6c1b4da9a3bdcc7e299b82d27ad646c"><div class="ttname"><a href="classgaia_1_1ecs_1_1World.html#ac6c1b4da9a3bdcc7e299b82d27ad646c">gaia::ecs::World::is_req_del</a></div><div class="ttdeci">static GAIA_NODISCARD bool is_req_del(const EntityContainer &amp;ec)</div><div class="ttdoc">Returns whether the record is already in delete-requested state. Covers both explicit per-entity dele...</div><div class="ttdef"><b>Definition</b> world.h:820</div></div>
-<div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

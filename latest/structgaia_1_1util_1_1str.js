@@ -1,6 +1,5 @@
 var structgaia_1_1util_1_1str =
 [
-    [ "str", "structgaia_1_1util_1_1str.html#a050e3d0613f8718888ce7b533edd1805", null ],
     [ "str", "structgaia_1_1util_1_1str.html#a6ce9e03f8093ae36c64ac4a2957d98df", null ],
     [ "str", "structgaia_1_1util_1_1str.html#ad2be2bc6d197a906e4e44bdd2e7af870", null ],
     [ "append", "structgaia_1_1util_1_1str.html#ad5d05ea7e9dc6e35befba3644c273ea7", null ],
@@ -36,5 +35,6 @@ var structgaia_1_1util_1_1str =
     [ "operator==", "structgaia_1_1util_1_1str.html#aa2bbfe9c90c35312bf4892a6be5d494b", null ],
     [ "reserve", "structgaia_1_1util_1_1str.html#a770aac166d22d2cc28eb686addcbc23d", null ],
     [ "size", "structgaia_1_1util_1_1str.html#a21c58260f322cf45966c72395f2f1b8e", null ],
-    [ "view", "structgaia_1_1util_1_1str.html#a76fc00e7a68ac94fbb337b92a000a895", null ]
+    [ "view", "structgaia_1_1util_1_1str.html#a76fc00e7a68ac94fbb337b92a000a895", null ],
+    [ "m_data", "structgaia_1_1util_1_1str.html#a3c82a334413177165247a743c9e08b0b", null ]
 ];

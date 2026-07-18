@@ -1,11 +1,13 @@
 var searchData=
 [
-  ['gen_0',['gen',['../structgaia_1_1cnt_1_1ilist__item_1_1ItemData.html#a9f822bfcade88a27ee303a9007231afd',1,'gaia::cnt::ilist_item::ItemData::gen'],['../structgaia_1_1ecs_1_1EntityContainer_1_1EntityData.html#a4c8df582bd9baa3474a54503a94760d6',1,'gaia::ecs::EntityContainer::EntityData::gen'],['../structgaia_1_1ecs_1_1Entity_1_1InternalData.html#a8654034ffb9d8b4e6ef0079fdbfb9ec1',1,'gaia::ecs::Entity::InternalData::gen'],['../classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8',1,'gaia::ecs::QueryInfo::gen']]],
-  ['genentities_1',['genentities',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html#ab8d6fdaba11d28d8cb0a6d83f37de705',1,'gaia::ecs::Archetype::Properties::genEntities'],['../structgaia_1_1ecs_1_1ChunkHeader.html#a839f1aefcc85ecde22f412bbb16f6455',1,'gaia::ecs::ChunkHeader::genEntities']]],
-  ['groupby_2',['groupBy',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a2115ff821d33b7b23bb69408496d03a4',1,'gaia::ecs::QueryCtx::Data']]],
-  ['groupbyfunc_3',['groupByFunc',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1665ab7d2f084404ba712714c8316f16',1,'gaia::ecs::QueryCtx::Data']]],
-  ['groupdepcnt_4',['groupDepCnt',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acfab20b714b9e2649ae3e589df23fd3c',1,'gaia::ecs::QueryCtx::Data']]],
-  ['groupdeps_5',['groupdeps',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#add9b16e71e210c972b71e818059fa013',1,'gaia::ecs::QueryCtx::Data::LookupIdentity::groupDeps'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a08cef351ec738ee2902014b56ee928a7',1,'gaia::ecs::QueryCtx::Data::groupDeps']]],
-  ['groupindices_6',['groupIndices',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#a7a136b3950a2491f264db290d1ea04d5',1,'gaia::ecs::detail::SystemScheduleScratch']]],
-  ['groupsize_7',['groupSize',['../structgaia_1_1ecs_1_1SchedParDesc.html#a7ce77a1e798d27672f6253ac658e2ed0',1,'gaia::ecs::SchedParDesc']]]
+  ['gen_0',['gen',['../structgaia_1_1cnt_1_1ilist__item_1_1ItemData.html#a9f822bfcade88a27ee303a9007231afd',1,'gaia::cnt::ilist_item::ItemData::gen'],['../structgaia_1_1ecs_1_1Entity_1_1InternalData.html#a8654034ffb9d8b4e6ef0079fdbfb9ec1',1,'gaia::ecs::Entity::InternalData::gen'],['../classgaia_1_1ecs_1_1QueryInfo.html#aa5870206ae6754218d9f7e86332560e8',1,'gaia::ecs::QueryInfo::gen']]],
+  ['genbits_1',['GenBits',['../structgaia_1_1mt_1_1JobHandle.html#a90f2a8338b1f47a5ca3ea043340a6d33',1,'gaia::mt::JobHandle']]],
+  ['genentities_2',['genEntities',['../structgaia_1_1ecs_1_1Archetype_1_1Properties.html#ab8d6fdaba11d28d8cb0a6d83f37de705',1,'gaia::ecs::Archetype::Properties']]],
+  ['genmask_3',['GenMask',['../structgaia_1_1mt_1_1JobHandle.html#ae2c1b9bf07627a0f00f417c919a07568',1,'gaia::mt::JobHandle']]],
+  ['groupby_4',['groupBy',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a2115ff821d33b7b23bb69408496d03a4',1,'gaia::ecs::QueryCtx::Data']]],
+  ['groupbyfunc_5',['groupByFunc',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1665ab7d2f084404ba712714c8316f16',1,'gaia::ecs::QueryCtx::Data']]],
+  ['groupdepcnt_6',['groupDepCnt',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#acfab20b714b9e2649ae3e589df23fd3c',1,'gaia::ecs::QueryCtx::Data']]],
+  ['groupdeps_7',['groupdeps',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#add9b16e71e210c972b71e818059fa013',1,'gaia::ecs::QueryCtx::Data::LookupIdentity::groupDeps'],['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a08cef351ec738ee2902014b56ee928a7',1,'gaia::ecs::QueryCtx::Data::groupDeps']]],
+  ['groupindices_8',['groupIndices',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#a7a136b3950a2491f264db290d1ea04d5',1,'gaia::ecs::detail::SystemScheduleScratch']]],
+  ['groupsize_9',['groupSize',['../structgaia_1_1ecs_1_1SchedParDesc.html#a7ce77a1e798d27672f6253ac658e2ed0',1,'gaia::ecs::SchedParDesc']]]
 ];

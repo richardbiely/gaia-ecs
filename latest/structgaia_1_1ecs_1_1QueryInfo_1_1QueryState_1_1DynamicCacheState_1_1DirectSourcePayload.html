@@ -122,25 +122,115 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryInfo_1_1Quer
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a2c2370f3b72693d7ca37e0e2ed4ac8a8" id="r_a2c2370f3b72693d7ca37e0e2ed4ac8a8"><td class="memItemLeft" align="right" valign="top"><a id="a2c2370f3b72693d7ca37e0e2ed4ac8a8" name="a2c2370f3b72693d7ca37e0e2ed4ac8a8"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; sourceEntities) const</td></tr>
-<tr class="memdesc:a2c2370f3b72693d7ca37e0e2ed4ac8a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when any tracked source entity changed archetype. <br /></td></tr>
+<tr class="memitem:a2c2370f3b72693d7ca37e0e2ed4ac8a8" id="r_a2c2370f3b72693d7ca37e0e2ed4ac8a8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html#a2c2370f3b72693d7ca37e0e2ed4ac8a8">changed</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; sourceEntities) const</td></tr>
+<tr class="memdesc:a2c2370f3b72693d7ca37e0e2ed4ac8a8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when any tracked source entity changed archetype.  <br /></td></tr>
 <tr class="separator:a2c2370f3b72693d7ca37e0e2ed4ac8a8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa8b17cd83a4bd383536a51267a0efcd6" id="r_aa8b17cd83a4bd383536a51267a0efcd6"><td class="memItemLeft" align="right" valign="top"><a id="aa8b17cd83a4bd383536a51267a0efcd6" name="aa8b17cd83a4bd383536a51267a0efcd6"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>snapshot</b> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; sourceEntities)</td></tr>
-<tr class="memdesc:aa8b17cd83a4bd383536a51267a0efcd6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures current source entity archetype versions. <br /></td></tr>
+<tr class="memitem:aa8b17cd83a4bd383536a51267a0efcd6" id="r_aa8b17cd83a4bd383536a51267a0efcd6"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html#aa8b17cd83a4bd383536a51267a0efcd6">snapshot</a> (const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;<a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html#a8edef3206af1fbbd3dfdf64f74768165">world</a>, std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; sourceEntities)</td></tr>
+<tr class="memdesc:aa8b17cd83a4bd383536a51267a0efcd6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Captures current source entity archetype versions.  <br /></td></tr>
 <tr class="separator:aa8b17cd83a4bd383536a51267a0efcd6"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a4b502c4ce24db018d125cee7ded10bd0" id="r_a4b502c4ce24db018d125cee7ded10bd0"><td class="memItemLeft" align="right" valign="top"><a id="a4b502c4ce24db018d125cee7ded10bd0" name="a4b502c4ce24db018d125cee7ded10bd0"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint32_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>entityVersions</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint32_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>entityVersions</b></td></tr>
 <tr class="memdesc:a4b502c4ce24db018d125cee7ded10bd0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Last seen archetype versions for tracked direct concrete source entities. <br /></td></tr>
 <tr class="separator:a4b502c4ce24db018d125cee7ded10bd0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Direct concrete-source payload for reusable dynamic caches. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a2c2370f3b72693d7ca37e0e2ed4ac8a8" name="a2c2370f3b72693d7ca37e0e2ed4ac8a8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2c2370f3b72693d7ca37e0e2ed4ac8a8">&#9670;&#160;</a></span>changed()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryInfo::QueryState::DynamicCacheState::DirectSourcePayload::changed </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td>
+          <td class="paramname"><em>sourceEntities</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when any tracked source entity changed archetype. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> providing current entity archetype versions. </td></tr>
+    <tr><td class="paramname">sourceEntities</td><td>Source entities aligned with entityVersions. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when any source archetype version differs from its snapshot. </dd></dl>
+
+</div>
+</div>
+<a id="aa8b17cd83a4bd383536a51267a0efcd6" name="aa8b17cd83a4bd383536a51267a0efcd6"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa8b17cd83a4bd383536a51267a0efcd6">&#9670;&#160;</a></span>snapshot()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryInfo::QueryState::DynamicCacheState::DirectSourcePayload::snapshot </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> &amp;&#160;</td>
+          <td class="paramname"><em>world</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td>
+          <td class="paramname"><em>sourceEntities</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Captures current source entity archetype versions. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> providing current entity archetype versions. </td></tr>
+    <tr><td class="paramname">sourceEntities</td><td>Source entities whose versions are captured in order. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__info_8h_source.html">query_info.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -148,7 +238,7 @@ Public Attributes</h2></td></tr>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html">DirectSourcePayload</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="classgaia_1_1ecs_1_1QueryInfo.html">QueryInfo</a></li><li class="navelem"><b>QueryState</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState.html">DynamicCacheState</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1DirectSourcePayload.html">DirectSourcePayload</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

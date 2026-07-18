@@ -113,22 +113,181 @@ $(document).ready(function(){initNavTree('classgaia_1_1mem_1_1data__view__policy
   <div class="headertitle"><div class="title">gaia::mem::data_view_policy_soa&lt; TDataLayout, ValueType &gt;::accessor Class Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Proxy used to read or assign one complete SoA value.  
+ <a href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="data__layout__policy_8h_source.html">data_layout_policy.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aaa75c8e90567ba56095e1afd19348da3" id="r_aaa75c8e90567ba56095e1afd19348da3"><td class="memItemLeft" align="right" valign="top"><a id="aaa75c8e90567ba56095e1afd19348da3" name="aaa75c8e90567ba56095e1afd19348da3"></a>
-constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>accessor</b> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t &gt; data, size_t idx)</td></tr>
+<tr class="memitem:aaa75c8e90567ba56095e1afd19348da3" id="r_aaa75c8e90567ba56095e1afd19348da3"><td class="memItemLeft" align="right" valign="top">constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html#aaa75c8e90567ba56095e1afd19348da3">accessor</a> (std::span&lt; uint8_t &gt; data, size_t idx)</td></tr>
+<tr class="memdesc:aaa75c8e90567ba56095e1afd19348da3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a value proxy.  <br /></td></tr>
 <tr class="separator:aaa75c8e90567ba56095e1afd19348da3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6a327de5c6ce121734bef60a4efda57b" id="r_a6a327de5c6ce121734bef60a4efda57b"><td class="memItemLeft" align="right" valign="top"><a id="a6a327de5c6ce121734bef60a4efda57b" name="a6a327de5c6ce121734bef60a4efda57b"></a>
-constexpr void&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const ValueType &amp;val) noexcept</td></tr>
+<tr class="memitem:a6a327de5c6ce121734bef60a4efda57b" id="r_a6a327de5c6ce121734bef60a4efda57b"><td class="memItemLeft" align="right" valign="top">constexpr void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html#a6a327de5c6ce121734bef60a4efda57b">operator=</a> (const ValueType &amp;val) noexcept</td></tr>
+<tr class="memdesc:a6a327de5c6ce121734bef60a4efda57b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Assigns a copied value to the selected SoA fields.  <br /></td></tr>
 <tr class="separator:a6a327de5c6ce121734bef60a4efda57b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aaf7a5230fdc7fb9c749308704e8a1395" id="r_aaf7a5230fdc7fb9c749308704e8a1395"><td class="memItemLeft" align="right" valign="top"><a id="aaf7a5230fdc7fb9c749308704e8a1395" name="aaf7a5230fdc7fb9c749308704e8a1395"></a>
-constexpr void&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (ValueType &amp;&amp;val) noexcept</td></tr>
+<tr class="memitem:aaf7a5230fdc7fb9c749308704e8a1395" id="r_aaf7a5230fdc7fb9c749308704e8a1395"><td class="memItemLeft" align="right" valign="top">constexpr void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html#aaf7a5230fdc7fb9c749308704e8a1395">operator=</a> (ValueType &amp;&amp;val) noexcept</td></tr>
+<tr class="memdesc:aaf7a5230fdc7fb9c749308704e8a1395"><td class="mdescLeft">&#160;</td><td class="mdescRight">Assigns a moved value to the selected SoA fields.  <br /></td></tr>
 <tr class="separator:aaf7a5230fdc7fb9c749308704e8a1395"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0f01ba8ef400d0802b95cbe42fa51624" id="r_a0f01ba8ef400d0802b95cbe42fa51624"><td class="memItemLeft" align="right" valign="top"><a id="a0f01ba8ef400d0802b95cbe42fa51624" name="a0f01ba8ef400d0802b95cbe42fa51624"></a>
-GAIA_NODISCARD constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>operator ValueType</b> () const noexcept</td></tr>
+<tr class="memitem:a0f01ba8ef400d0802b95cbe42fa51624" id="r_a0f01ba8ef400d0802b95cbe42fa51624"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD constexpr&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html#a0f01ba8ef400d0802b95cbe42fa51624">operator ValueType</a> () const noexcept</td></tr>
+<tr class="memdesc:a0f01ba8ef400d0802b95cbe42fa51624"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reconstructs the selected value.  <br /></td></tr>
 <tr class="separator:a0f01ba8ef400d0802b95cbe42fa51624"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;DataLayout TDataLayout, typename ValueType&gt;<br />
+class gaia::mem::data_view_policy_soa&lt; TDataLayout, ValueType &gt;::accessor</div><p>Proxy used to read or assign one complete SoA value. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="aaa75c8e90567ba56095e1afd19348da3" name="aaa75c8e90567ba56095e1afd19348da3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaa75c8e90567ba56095e1afd19348da3">&#9670;&#160;</a></span>accessor()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;DataLayout TDataLayout, typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr <a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">gaia::mem::data_view_policy_soa</a>&lt; TDataLayout, ValueType &gt;::accessor::accessor </td>
+          <td>(</td>
+          <td class="paramtype">std::span&lt; uint8_t &gt;&#160;</td>
+          <td class="paramname"><em>data</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>idx</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a value proxy. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">data</td><td>Backing byte span. </td></tr>
+    <tr><td class="paramname">idx</td><td>Value index. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a0f01ba8ef400d0802b95cbe42fa51624" name="a0f01ba8ef400d0802b95cbe42fa51624"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0f01ba8ef400d0802b95cbe42fa51624">&#9670;&#160;</a></span>operator ValueType()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;DataLayout TDataLayout, typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD constexpr <a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">gaia::mem::data_view_policy_soa</a>&lt; TDataLayout, ValueType &gt;::accessor::operator ValueType </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reconstructs the selected value. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reconstructed value. </dd></dl>
+
+</div>
+</div>
+<a id="a6a327de5c6ce121734bef60a4efda57b" name="a6a327de5c6ce121734bef60a4efda57b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6a327de5c6ce121734bef60a4efda57b">&#9670;&#160;</a></span>operator=() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;DataLayout TDataLayout, typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr void <a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">gaia::mem::data_view_policy_soa</a>&lt; TDataLayout, ValueType &gt;::accessor::operator= </td>
+          <td>(</td>
+          <td class="paramtype">const ValueType &amp;&#160;</td>
+          <td class="paramname"><em>val</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Assigns a copied value to the selected SoA fields. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">val</td><td>Source value. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aaf7a5230fdc7fb9c749308704e8a1395" name="aaf7a5230fdc7fb9c749308704e8a1395"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aaf7a5230fdc7fb9c749308704e8a1395">&#9670;&#160;</a></span>operator=() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;DataLayout TDataLayout, typename ValueType &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">constexpr void <a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">gaia::mem::data_view_policy_soa</a>&lt; TDataLayout, ValueType &gt;::accessor::operator= </td>
+          <td>(</td>
+          <td class="paramtype">ValueType &amp;&amp;&#160;</td>
+          <td class="paramname"><em>val</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">constexpr</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Assigns a moved value to the selected SoA fields. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">val</td><td>Source value. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="data__layout__policy_8h_source.html">data_layout_policy.h</a></li>
 </ul>
@@ -137,7 +296,7 @@ GAIA_NODISCARD constexpr&#160;</td><td class="memItemRight" valign="bottom"><b>o
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">data_view_policy_soa</a></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html">accessor</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1data__view__policy__soa.html">data_view_policy_soa</a></li><li class="navelem"><a class="el" href="classgaia_1_1mem_1_1data__view__policy__soa_1_1accessor.html">accessor</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

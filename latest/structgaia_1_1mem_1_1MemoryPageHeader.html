@@ -114,6 +114,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1MemoryPageHeader.
   <div class="headertitle"><div class="title">gaia::mem::MemoryPageHeader Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Common header for allocator pages.  
+ <a href="structgaia_1_1mem_1_1MemoryPageHeader.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="paged__allocator_8h_source.html">paged_allocator.h</a>&gt;</code></p>
 <div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Inheritance diagram for gaia::mem::MemoryPageHeader:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -122,14 +127,14 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1MemoryPageHeader.
  <div class="center">
   <img src="structgaia_1_1mem_1_1MemoryPageHeader.png" usemap="#gaia::mem::MemoryPageHeader_map" alt=""/>
   <map id="gaia::mem::MemoryPageHeader_map" name="gaia::mem::MemoryPageHeader_map">
-<area href="structgaia_1_1mem_1_1MemoryPage.html" alt="gaia::mem::MemoryPage&lt; T, RequestedBlockSize &gt;" shape="rect" coords="0,56,301,80"/>
+<area href="structgaia_1_1mem_1_1MemoryPage.html" title="Fixed-capacity page of equal-sized blocks." alt="gaia::mem::MemoryPage&lt; T, RequestedBlockSize &gt;" shape="rect" coords="0,56,301,80"/>
   </map>
 </div></div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ace8ad21d1dd9d3f4260d3339b4d31fed" id="r_ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="memItemLeft" align="right" valign="top"><a id="ace8ad21d1dd9d3f4260d3339b4d31fed" name="ace8ad21d1dd9d3f4260d3339b4d31fed"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryPageHeader</b> (void *ptr)</td></tr>
+<tr class="memitem:ace8ad21d1dd9d3f4260d3339b4d31fed" id="r_ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html#ace8ad21d1dd9d3f4260d3339b4d31fed">MemoryPageHeader</a> (void *ptr)</td></tr>
+<tr class="memdesc:ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a page header for a backing allocation.  <br /></td></tr>
 <tr class="separator:ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -139,6 +144,43 @@ void *&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr
 <tr class="memdesc:a1259ad533078cdbbc231cf98f5afec01"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to data managed by page. <br /></td></tr>
 <tr class="separator:a1259ad533078cdbbc231cf98f5afec01"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Common header for allocator pages. </p>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="ace8ad21d1dd9d3f4260d3339b4d31fed" name="ace8ad21d1dd9d3f4260d3339b4d31fed"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ace8ad21d1dd9d3f4260d3339b4d31fed">&#9670;&#160;</a></span>MemoryPageHeader()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::mem::MemoryPageHeader::MemoryPageHeader </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Creates a page header for a backing allocation. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ptr</td><td>Backing allocation address. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="paged__allocator_8h_source.html">paged_allocator.h</a></li>
 </ul>
@@ -147,7 +189,7 @@ void *&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html">MemoryPageHeader</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html">MemoryPageHeader</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

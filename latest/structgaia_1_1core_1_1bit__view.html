@@ -115,28 +115,129 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1bit__view.html',
   <div class="headertitle"><div class="title">gaia::core::bit_view&lt; BlockBits &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Provides packed access to fixed-width unsigned values stored in a byte span.  
+ <a href="structgaia_1_1core_1_1bit__view.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="bit__utils_8h_source.html">bit_utils.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:af7e106aaef0e1e96f10fee62dafaad36" id="r_af7e106aaef0e1e96f10fee62dafaad36"><td class="memItemLeft" align="right" valign="top"><a id="af7e106aaef0e1e96f10fee62dafaad36" name="af7e106aaef0e1e96f10fee62dafaad36"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>set</b> (uint32_t bitPosition, uint8_t value) noexcept</td></tr>
+<tr class="memitem:af7e106aaef0e1e96f10fee62dafaad36" id="r_af7e106aaef0e1e96f10fee62dafaad36"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1bit__view.html#af7e106aaef0e1e96f10fee62dafaad36">set</a> (uint32_t bitPosition, uint8_t value) noexcept</td></tr>
+<tr class="memdesc:af7e106aaef0e1e96f10fee62dafaad36"><td class="mdescLeft">&#160;</td><td class="mdescRight">Stores a packed value at the specified bit position.  <br /></td></tr>
 <tr class="separator:af7e106aaef0e1e96f10fee62dafaad36"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5c84215d7b6eb467dac8cf0d0d652d3c" id="r_a5c84215d7b6eb467dac8cf0d0d652d3c"><td class="memItemLeft" align="right" valign="top"><a id="a5c84215d7b6eb467dac8cf0d0d652d3c" name="a5c84215d7b6eb467dac8cf0d0d652d3c"></a>
-uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>get</b> (uint32_t bitPosition) const noexcept</td></tr>
+<tr class="memitem:a5c84215d7b6eb467dac8cf0d0d652d3c" id="r_a5c84215d7b6eb467dac8cf0d0d652d3c"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1bit__view.html#a5c84215d7b6eb467dac8cf0d0d652d3c">get</a> (uint32_t bitPosition) const noexcept</td></tr>
+<tr class="memdesc:a5c84215d7b6eb467dac8cf0d0d652d3c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads a packed value from the specified bit position.  <br /></td></tr>
 <tr class="separator:a5c84215d7b6eb467dac8cf0d0d652d3c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a8bb2a122737b96e0b1cbc1ba57ae77b3" id="r_a8bb2a122737b96e0b1cbc1ba57ae77b3"><td class="memItemLeft" align="right" valign="top"><a id="a8bb2a122737b96e0b1cbc1ba57ae77b3" name="a8bb2a122737b96e0b1cbc1ba57ae77b3"></a>
-<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr>
+std::span&lt; uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr>
+<tr class="memdesc:a8bb2a122737b96e0b1cbc1ba57ae77b3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bytes containing the packed values. <br /></td></tr>
 <tr class="separator:a8bb2a122737b96e0b1cbc1ba57ae77b3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:afe3faa5209f9b8551b3b02ca8ffa3ac0" id="r_afe3faa5209f9b8551b3b02ca8ffa3ac0"><td class="memItemLeft" align="right" valign="top"><a id="afe3faa5209f9b8551b3b02ca8ffa3ac0" name="afe3faa5209f9b8551b3b02ca8ffa3ac0"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MaxValue</b> = (1 &lt;&lt; BlockBits) - 1</td></tr>
+<tr class="memdesc:afe3faa5209f9b8551b3b02ca8ffa3ac0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Largest value representable by one packed block. <br /></td></tr>
 <tr class="separator:afe3faa5209f9b8551b3b02ca8ffa3ac0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;uint32_t BlockBits&gt;<br />
+struct gaia::core::bit_view&lt; BlockBits &gt;</div><p>Provides packed access to fixed-width unsigned values stored in a byte span. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">BlockBits</td><td>Number of bits occupied by each value. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a5c84215d7b6eb467dac8cf0d0d652d3c" name="a5c84215d7b6eb467dac8cf0d0d652d3c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5c84215d7b6eb467dac8cf0d0d652d3c">&#9670;&#160;</a></span>get()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t BlockBits&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint8_t <a class="el" href="structgaia_1_1core_1_1bit__view.html">gaia::core::bit_view</a>&lt; BlockBits &gt;::get </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>bitPosition</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads a packed value from the specified bit position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">bitPosition</td><td>Bit offset of the value within m_data. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>The decoded value. </dd></dl>
+
+</div>
+</div>
+<a id="af7e106aaef0e1e96f10fee62dafaad36" name="af7e106aaef0e1e96f10fee62dafaad36"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af7e106aaef0e1e96f10fee62dafaad36">&#9670;&#160;</a></span>set()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t BlockBits&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="structgaia_1_1core_1_1bit__view.html">gaia::core::bit_view</a>&lt; BlockBits &gt;::set </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>bitPosition</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Stores a packed value at the specified bit position. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">bitPosition</td><td>Bit offset of the value within m_data. </td></tr>
+    <tr><td class="paramname">value</td><td>Value to store. It must not exceed MaxValue. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/core/<a class="el" href="bit__utils_8h_source.html">bit_utils.h</a></li>
 </ul>
@@ -145,7 +246,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="structgaia_1_1core_1_1bit__view.html">bit_view</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="structgaia_1_1core_1_1bit__view.html">bit_view</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

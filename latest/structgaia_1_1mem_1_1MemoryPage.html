@@ -117,6 +117,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1MemoryPage.html',
   <div class="headertitle"><div class="title">gaia::mem::MemoryPage&lt; T, RequestedBlockSize &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Fixed-capacity page of equal-sized blocks.  
+ <a href="structgaia_1_1mem_1_1MemoryPage.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="paged__allocator_8h_source.html">paged_allocator.h</a>&gt;</code></p>
 <div id="dynsection-0" onclick="return toggleVisibility(this)" class="dynheader closed" style="cursor:pointer;">
   <img id="dynsection-0-trigger" src="closed.png" alt="+"/> Inheritance diagram for gaia::mem::MemoryPage&lt; T, RequestedBlockSize &gt;:</div>
 <div id="dynsection-0-summary" class="dynsummary" style="display:block;">
@@ -125,7 +130,7 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1MemoryPage.html',
  <div class="center">
   <img src="structgaia_1_1mem_1_1MemoryPage.png" usemap="#gaia::mem::MemoryPage_3C_20T_2C_20RequestedBlockSize_20_3E_map" alt=""/>
   <map id="gaia::mem::MemoryPage_3C_20T_2C_20RequestedBlockSize_20_3E_map" name="gaia::mem::MemoryPage_3C_20T_2C_20RequestedBlockSize_20_3E_map">
-<area href="structgaia_1_1mem_1_1MemoryPageHeader.html" alt="gaia::mem::MemoryPageHeader" shape="rect" coords="0,0,396,24"/>
+<area href="structgaia_1_1mem_1_1MemoryPageHeader.html" title="Common header for allocator pages." alt="gaia::mem::MemoryPageHeader" shape="rect" coords="0,0,396,24"/>
 <area href="structgaia_1_1cnt_1_1fwd__llist__base.html" alt="gaia::cnt::fwd_llist_base&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;" shape="rect" coords="406,0,802,24"/>
   </map>
 </div></div>
@@ -134,87 +139,88 @@ $(document).ready(function(){initNavTree('structgaia_1_1mem_1_1MemoryPage.html',
 Public Types</h2></td></tr>
 <tr class="memitem:ab0087f79177239889fde918fc1c184f1" id="r_ab0087f79177239889fde918fc1c184f1"><td class="memItemLeft" align="right" valign="top"><a id="ab0087f79177239889fde918fc1c184f1" name="ab0087f79177239889fde918fc1c184f1"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>Page</b> = <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">MemoryPage</a>&lt; T, RequestedBlockSize &gt;</td></tr>
+<tr class="memdesc:ab0087f79177239889fde918fc1c184f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">This page type. <br /></td></tr>
 <tr class="separator:ab0087f79177239889fde918fc1c184f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6ec616ab9cbeb38f91946bc7f3890c9b" id="r_a6ec616ab9cbeb38f91946bc7f3890c9b"><td class="memItemLeft" align="right" valign="top"><a id="a6ec616ab9cbeb38f91946bc7f3890c9b" name="a6ec616ab9cbeb38f91946bc7f3890c9b"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArray</b> = <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint8_t, BlockArrayBytes &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArray</b> = <a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint8_t, <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#aa127d16cb6ca3bd2ae58ee9695aa9bf8">BlockArrayBytes</a> &gt;</td></tr>
+<tr class="memdesc:a6ec616ab9cbeb38f91946bc7f3890c9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Packed block-index storage. <br /></td></tr>
 <tr class="separator:a6ec616ab9cbeb38f91946bc7f3890c9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a517a45ce9384aac7d4935eaf573d9d19" id="r_a517a45ce9384aac7d4935eaf573d9d19"><td class="memItemLeft" align="right" valign="top"><a id="a517a45ce9384aac7d4935eaf573d9d19" name="a517a45ce9384aac7d4935eaf573d9d19"></a>
-using&#160;</td><td class="memItemRight" valign="bottom"><b>BitView</b> = <a class="el" href="structgaia_1_1core_1_1bit__view.html">core::bit_view</a>&lt; NBlocks_Bits &gt;</td></tr>
+using&#160;</td><td class="memItemRight" valign="bottom"><b>BitView</b> = <a class="el" href="structgaia_1_1core_1_1bit__view.html">core::bit_view</a>&lt; <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a> &gt;</td></tr>
+<tr class="memdesc:a517a45ce9384aac7d4935eaf573d9d19"><td class="mdescLeft">&#160;</td><td class="mdescRight">View used to read and write packed block indices. <br /></td></tr>
 <tr class="separator:a517a45ce9384aac7d4935eaf573d9d19"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:aa68fb003e1abf4e0bd52e9ab59d6df78" id="r_aa68fb003e1abf4e0bd52e9ab59d6df78"><td class="memItemLeft" align="right" valign="top"><a id="aa68fb003e1abf4e0bd52e9ab59d6df78" name="aa68fb003e1abf4e0bd52e9ab59d6df78"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryPage</b> (void *ptr)</td></tr>
-<tr class="memdesc:aa68fb003e1abf4e0bd52e9ab59d6df78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free bits to use in the future. <br /></td></tr>
+<tr class="memitem:aa68fb003e1abf4e0bd52e9ab59d6df78" id="r_aa68fb003e1abf4e0bd52e9ab59d6df78"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#aa68fb003e1abf4e0bd52e9ab59d6df78">MemoryPage</a> (void *ptr)</td></tr>
+<tr class="memdesc:aa68fb003e1abf4e0bd52e9ab59d6df78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Free bits to use in the future.  <br /></td></tr>
 <tr class="separator:aa68fb003e1abf4e0bd52e9ab59d6df78"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2836e2c2c9c7d16ae4951976d6202efd" id="r_a2836e2c2c9c7d16ae4951976d6202efd"><td class="memItemLeft" align="right" valign="top"><a id="a2836e2c2c9c7d16ae4951976d6202efd" name="a2836e2c2c9c7d16ae4951976d6202efd"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>write_block_idx</b> (uint32_t blockIdx, uint32_t value)</td></tr>
+<tr class="memitem:a2836e2c2c9c7d16ae4951976d6202efd" id="r_a2836e2c2c9c7d16ae4951976d6202efd"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a2836e2c2c9c7d16ae4951976d6202efd">write_block_idx</a> (uint32_t blockIdx, uint32_t value)</td></tr>
+<tr class="memdesc:a2836e2c2c9c7d16ae4951976d6202efd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes one link in the packed recycled-block list.  <br /></td></tr>
 <tr class="separator:a2836e2c2c9c7d16ae4951976d6202efd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a0c270638d0fe2eff419341ce1ff63146" id="r_a0c270638d0fe2eff419341ce1ff63146"><td class="memItemLeft" align="right" valign="top"><a id="a0c270638d0fe2eff419341ce1ff63146" name="a0c270638d0fe2eff419341ce1ff63146"></a>
-uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>read_block_idx</b> (uint32_t blockIdx) const</td></tr>
+<tr class="memitem:a0c270638d0fe2eff419341ce1ff63146" id="r_a0c270638d0fe2eff419341ce1ff63146"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a0c270638d0fe2eff419341ce1ff63146">read_block_idx</a> (uint32_t blockIdx) const</td></tr>
+<tr class="memdesc:a0c270638d0fe2eff419341ce1ff63146"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reads one link from the packed recycled-block list.  <br /></td></tr>
 <tr class="separator:a0c270638d0fe2eff419341ce1ff63146"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afbd4e0b214e04cef36c5dbd313d554be" id="r_afbd4e0b214e04cef36c5dbd313d554be"><td class="memItemLeft" align="right" valign="top"><a id="afbd4e0b214e04cef36c5dbd313d554be" name="afbd4e0b214e04cef36c5dbd313d554be"></a>
-GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><b>alloc_block</b> ()</td></tr>
-<tr class="memdesc:afbd4e0b214e04cef36c5dbd313d554be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocate a new block for this page. <br /></td></tr>
+<tr class="memitem:afbd4e0b214e04cef36c5dbd313d554be" id="r_afbd4e0b214e04cef36c5dbd313d554be"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD void *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#afbd4e0b214e04cef36c5dbd313d554be">alloc_block</a> ()</td></tr>
+<tr class="memdesc:afbd4e0b214e04cef36c5dbd313d554be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Allocate a new block for this page.  <br /></td></tr>
 <tr class="separator:afbd4e0b214e04cef36c5dbd313d554be"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a235711e956fbb9061c936bb8bf076d78" id="r_a235711e956fbb9061c936bb8bf076d78"><td class="memItemLeft" align="right" valign="top"><a id="a235711e956fbb9061c936bb8bf076d78" name="a235711e956fbb9061c936bb8bf076d78"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>free_block</b> (void *pBlock)</td></tr>
-<tr class="memdesc:a235711e956fbb9061c936bb8bf076d78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Release the block allocated by this page. <br /></td></tr>
+<tr class="memitem:a235711e956fbb9061c936bb8bf076d78" id="r_a235711e956fbb9061c936bb8bf076d78"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a235711e956fbb9061c936bb8bf076d78">free_block</a> (void *pBlock)</td></tr>
+<tr class="memdesc:a235711e956fbb9061c936bb8bf076d78"><td class="mdescLeft">&#160;</td><td class="mdescRight">Release the block allocated by this page.  <br /></td></tr>
 <tr class="separator:a235711e956fbb9061c936bb8bf076d78"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ac2fb6f1341d0a68fc3708f716e556bb8" id="r_ac2fb6f1341d0a68fc3708f716e556bb8"><td class="memItemLeft" align="right" valign="top"><a id="ac2fb6f1341d0a68fc3708f716e556bb8" name="ac2fb6f1341d0a68fc3708f716e556bb8"></a>
-GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>used_blocks_cnt</b> () const</td></tr>
+<tr class="memitem:ac2fb6f1341d0a68fc3708f716e556bb8" id="r_ac2fb6f1341d0a68fc3708f716e556bb8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ac2fb6f1341d0a68fc3708f716e556bb8">used_blocks_cnt</a> () const</td></tr>
+<tr class="memdesc:ac2fb6f1341d0a68fc3708f716e556bb8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the number of live blocks.  <br /></td></tr>
 <tr class="separator:ac2fb6f1341d0a68fc3708f716e556bb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8f4b8b276a55c2f68103ab4e71fdd0c4" id="r_a8f4b8b276a55c2f68103ab4e71fdd0c4"><td class="memItemLeft" align="right" valign="top"><a id="a8f4b8b276a55c2f68103ab4e71fdd0c4" name="a8f4b8b276a55c2f68103ab4e71fdd0c4"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>full</b> () const</td></tr>
+<tr class="memitem:a8f4b8b276a55c2f68103ab4e71fdd0c4" id="r_a8f4b8b276a55c2f68103ab4e71fdd0c4"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a8f4b8b276a55c2f68103ab4e71fdd0c4">full</a> () const</td></tr>
+<tr class="memdesc:a8f4b8b276a55c2f68103ab4e71fdd0c4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reports whether all page blocks are allocated.  <br /></td></tr>
 <tr class="separator:a8f4b8b276a55c2f68103ab4e71fdd0c4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a804737f41ece1b45c82d2a1306708cb8" id="r_a804737f41ece1b45c82d2a1306708cb8"><td class="memItemLeft" align="right" valign="top"><a id="a804737f41ece1b45c82d2a1306708cb8" name="a804737f41ece1b45c82d2a1306708cb8"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>empty</b> () const</td></tr>
+<tr class="memitem:a804737f41ece1b45c82d2a1306708cb8" id="r_a804737f41ece1b45c82d2a1306708cb8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a804737f41ece1b45c82d2a1306708cb8">empty</a> () const</td></tr>
+<tr class="memdesc:a804737f41ece1b45c82d2a1306708cb8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reports whether no page blocks are allocated.  <br /></td></tr>
 <tr class="separator:a804737f41ece1b45c82d2a1306708cb8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a4db93a4b90190ad9dbba4ed5b82d0aeb" id="r_a4db93a4b90190ad9dbba4ed5b82d0aeb"><td class="memItemLeft" align="right" valign="top"><a id="a4db93a4b90190ad9dbba4ed5b82d0aeb" name="a4db93a4b90190ad9dbba4ed5b82d0aeb"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>verify</b> () const</td></tr>
+<tr class="memdesc:a4db93a4b90190ad9dbba4ed5b82d0aeb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Verifies page invariants in assertion-enabled builds. <br /></td></tr>
 <tr class="separator:a4db93a4b90190ad9dbba4ed5b82d0aeb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_structgaia_1_1mem_1_1MemoryPageHeader"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_structgaia_1_1mem_1_1MemoryPageHeader')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html">gaia::mem::MemoryPageHeader</a></td></tr>
-<tr class="memitem:ace8ad21d1dd9d3f4260d3339b4d31fed inherit pub_methods_structgaia_1_1mem_1_1MemoryPageHeader" id="r_ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="memItemLeft" align="right" valign="top">
-&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryPageHeader</b> (void *ptr)</td></tr>
+<tr class="memitem:ace8ad21d1dd9d3f4260d3339b4d31fed inherit pub_methods_structgaia_1_1mem_1_1MemoryPageHeader" id="r_ace8ad21d1dd9d3f4260d3339b4d31fed"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html#ace8ad21d1dd9d3f4260d3339b4d31fed">MemoryPageHeader</a> (void *ptr)</td></tr>
+<tr class="memdesc:ace8ad21d1dd9d3f4260d3339b4d31fed inherit pub_methods_structgaia_1_1mem_1_1MemoryPageHeader"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a page header for a backing allocation.  <br /></td></tr>
 <tr class="separator:ace8ad21d1dd9d3f4260d3339b4d31fed inherit pub_methods_structgaia_1_1mem_1_1MemoryPageHeader"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td colspan="2" onclick="javascript:toggleInherit('pub_methods_structgaia_1_1cnt_1_1fwd__llist__base')"><img src="closed.png" alt="-"/>&#160;Public Member Functions inherited from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;</a></td></tr>
-<tr class="memitem:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a2f48a015f7f70c479a2252ead05c48e2"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> ()</td></tr>
+<tr class="memitem:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a2f48a015f7f70c479a2252ead05c48e2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2">get_fwd_llist_link</a> ()</td></tr>
+<tr class="memdesc:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the mutable intrusive link.  <br /></td></tr>
 <tr class="separator:a2f48a015f7f70c479a2252ead05c48e2 inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a6cbb565b0dc96c5dc001482e7c48d5ec">get_fwd_llist_link</a> () const</td></tr>
+<tr class="memdesc:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the immutable intrusive link.  <br /></td></tr>
 <tr class="separator:a6cbb565b0dc96c5dc001482e7c48d5ec inherit pub_methods_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:afde2105f20f56c379d60e9e2c8193914" id="r_afde2105f20f56c379d60e9e2c8193914"><td class="memItemLeft" align="right" valign="top"><a id="afde2105f20f56c379d60e9e2c8193914" name="afde2105f20f56c379d60e9e2c8193914"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>next_multiple_of_alignment</b> (uint32_t num)</td></tr>
+<tr class="memitem:afde2105f20f56c379d60e9e2c8193914" id="r_afde2105f20f56c379d60e9e2c8193914"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#afde2105f20f56c379d60e9e2c8193914">next_multiple_of_alignment</a> (uint32_t num)</td></tr>
+<tr class="memdesc:afde2105f20f56c379d60e9e2c8193914"><td class="mdescLeft">&#160;</td><td class="mdescRight">Rounds a size up to MemoryBlockAlignment.  <br /></td></tr>
 <tr class="separator:afde2105f20f56c379d60e9e2c8193914"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2cf44d53519725365bcaa273c828342a" id="r_a2cf44d53519725365bcaa273c828342a"><td class="memItemLeft" align="right" valign="top"><a id="a2cf44d53519725365bcaa273c828342a" name="a2cf44d53519725365bcaa273c828342a"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>calculate_block_size</b> ()</td></tr>
+<tr class="memitem:a2cf44d53519725365bcaa273c828342a" id="r_a2cf44d53519725365bcaa273c828342a"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a2cf44d53519725365bcaa273c828342a">calculate_block_size</a> ()</td></tr>
+<tr class="memdesc:a2cf44d53519725365bcaa273c828342a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Selects and aligns the configured block size.  <br /></td></tr>
 <tr class="separator:a2cf44d53519725365bcaa273c828342a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a290c5a24705a12331e80ca6eec2288b9" id="r_a290c5a24705a12331e80ca6eec2288b9"><td class="memItemLeft" align="right" valign="top"><a id="a290c5a24705a12331e80ca6eec2288b9" name="a290c5a24705a12331e80ca6eec2288b9"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">BlockArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_blocks</b></td></tr>
+<a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a6ec616ab9cbeb38f91946bc7f3890c9b">BlockArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>m_blocks</b></td></tr>
 <tr class="memdesc:a290c5a24705a12331e80ca6eec2288b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Implicit list of blocks. <br /></td></tr>
 <tr class="separator:a290c5a24705a12331e80ca6eec2288b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aaf90f33d4972056cdf980556a6bd1540" id="r_aaf90f33d4972056cdf980556a6bd1540"><td class="memItemLeft" align="right" valign="top"><a id="aaf90f33d4972056cdf980556a6bd1540" name="aaf90f33d4972056cdf980556a6bd1540"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_blockCnt</b>: NBlocks_Bits</td></tr>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_blockCnt</b>: <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a></td></tr>
 <tr class="memdesc:aaf90f33d4972056cdf980556a6bd1540"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of blocks in the block array. <br /></td></tr>
 <tr class="separator:aaf90f33d4972056cdf980556a6bd1540"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a91838fe8ba6d11de0ddb3900e6850c0c" id="r_a91838fe8ba6d11de0ddb3900e6850c0c"><td class="memItemLeft" align="right" valign="top"><a id="a91838fe8ba6d11de0ddb3900e6850c0c" name="a91838fe8ba6d11de0ddb3900e6850c0c"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_usedBlocks</b>: NBlocks_Bits</td></tr>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_usedBlocks</b>: <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a></td></tr>
 <tr class="memdesc:a91838fe8ba6d11de0ddb3900e6850c0c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of used blocks out of NBlocks. <br /></td></tr>
 <tr class="separator:a91838fe8ba6d11de0ddb3900e6850c0c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a416a68101bcbb9ce631dbe94e338fe40" id="r_a416a68101bcbb9ce631dbe94e338fe40"><td class="memItemLeft" align="right" valign="top"><a id="a416a68101bcbb9ce631dbe94e338fe40" name="a416a68101bcbb9ce631dbe94e338fe40"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_nextFreeBlock</b>: NBlocks_Bits</td></tr>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_nextFreeBlock</b>: <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a></td></tr>
 <tr class="memdesc:a416a68101bcbb9ce631dbe94e338fe40"><td class="mdescLeft">&#160;</td><td class="mdescRight">Index of the next block to recycle. <br /></td></tr>
 <tr class="separator:a416a68101bcbb9ce631dbe94e338fe40"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7f2176d1d9284038a2b84edeef824e79" id="r_a7f2176d1d9284038a2b84edeef824e79"><td class="memItemLeft" align="right" valign="top"><a id="a7f2176d1d9284038a2b84edeef824e79" name="a7f2176d1d9284038a2b84edeef824e79"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_freeBlocks</b>: NBlocks_Bits</td></tr>
+uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>m_freeBlocks</b>: <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a></td></tr>
 <tr class="memdesc:a7f2176d1d9284038a2b84edeef824e79"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of blocks to recycle. <br /></td></tr>
 <tr class="separator:a7f2176d1d9284038a2b84edeef824e79"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_structgaia_1_1mem_1_1MemoryPageHeader"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_structgaia_1_1mem_1_1MemoryPageHeader')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="structgaia_1_1mem_1_1MemoryPageHeader.html">gaia::mem::MemoryPageHeader</a></td></tr>
@@ -224,27 +230,388 @@ void *&#160;</td><td class="memItemRight" valign="bottom"><b>m_data</b></td></tr
 <tr class="separator:a1259ad533078cdbbc231cf98f5afec01 inherit pub_attribs_structgaia_1_1mem_1_1MemoryPageHeader"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base"><td colspan="2" onclick="javascript:toggleInherit('pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base')"><img src="closed.png" alt="-"/>&#160;Public Attributes inherited from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;</a></td></tr>
 <tr class="memitem:a6e874954837719f9eaa7404f9f60f67e inherit pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base" id="r_a6e874954837719f9eaa7404f9f60f67e"><td class="memItemLeft" align="right" valign="top">
-<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, <a class="el" href="classgaia_1_1cnt_1_1darr.html">RequestedBlockSize</a> &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fwd_link_GAIA</b></td></tr>
+<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; MemoryPage&lt; T, RequestedBlockSize &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fwd_link_GAIA</b></td></tr>
+<tr class="memdesc:a6e874954837719f9eaa7404f9f60f67e inherit pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base"><td class="mdescLeft">&#160;</td><td class="mdescRight">Intrusive link storage used by <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a>. <br /></td></tr>
 <tr class="separator:a6e874954837719f9eaa7404f9f60f67e inherit pub_attribs_structgaia_1_1cnt_1_1fwd__llist__base"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:aa63c2013d8ff00bd05aba69e32dd7249" id="r_aa63c2013d8ff00bd05aba69e32dd7249"><td class="memItemLeft" align="right" valign="top"><a id="aa63c2013d8ff00bd05aba69e32dd7249" name="aa63c2013d8ff00bd05aba69e32dd7249"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryBlockBytes</b> = calculate_block_size()</td></tr>
+static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MemoryBlockBytes</b> = <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a2cf44d53519725365bcaa273c828342a">calculate_block_size</a>()</td></tr>
+<tr class="memdesc:aa63c2013d8ff00bd05aba69e32dd7249"><td class="mdescLeft">&#160;</td><td class="mdescRight">Size of one block in bytes. <br /></td></tr>
 <tr class="separator:aa63c2013d8ff00bd05aba69e32dd7249"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1f02e2077500fcfcb89363d7aa0b49f9" id="r_a1f02e2077500fcfcb89363d7aa0b49f9"><td class="memItemLeft" align="right" valign="top"><a id="a1f02e2077500fcfcb89363d7aa0b49f9" name="a1f02e2077500fcfcb89363d7aa0b49f9"></a>
 static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>NBlocks</b> = 48</td></tr>
+<tr class="memdesc:a1f02e2077500fcfcb89363d7aa0b49f9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum number of blocks in a page. <br /></td></tr>
 <tr class="separator:a1f02e2077500fcfcb89363d7aa0b49f9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae4543c78b35051ea919f9b8752493950" id="r_ae4543c78b35051ea919f9b8752493950"><td class="memItemLeft" align="right" valign="top"><a id="ae4543c78b35051ea919f9b8752493950" name="ae4543c78b35051ea919f9b8752493950"></a>
-static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>NBlocks_Bits</b> = (uint16_t)core::count_bits(NBlocks)</td></tr>
+static constexpr uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>NBlocks_Bits</b> = (uint16_t)core::count_bits(<a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a1f02e2077500fcfcb89363d7aa0b49f9">NBlocks</a>)</td></tr>
+<tr class="memdesc:ae4543c78b35051ea919f9b8752493950"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bits required to encode a block index. <br /></td></tr>
 <tr class="separator:ae4543c78b35051ea919f9b8752493950"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad7923c9dfc187c8218a6bad44fc1a69c" id="r_ad7923c9dfc187c8218a6bad44fc1a69c"><td class="memItemLeft" align="right" valign="top"><a id="ad7923c9dfc187c8218a6bad44fc1a69c" name="ad7923c9dfc187c8218a6bad44fc1a69c"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>InvalidBlockId</b> = NBlocks + 1</td></tr>
+static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>InvalidBlockId</b> = <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a1f02e2077500fcfcb89363d7aa0b49f9">NBlocks</a> + 1</td></tr>
+<tr class="memdesc:ad7923c9dfc187c8218a6bad44fc1a69c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Sentinel terminating the recycled-block list. <br /></td></tr>
 <tr class="separator:ad7923c9dfc187c8218a6bad44fc1a69c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa127d16cb6ca3bd2ae58ee9695aa9bf8" id="r_aa127d16cb6ca3bd2ae58ee9695aa9bf8"><td class="memItemLeft" align="right" valign="top"><a id="aa127d16cb6ca3bd2ae58ee9695aa9bf8" name="aa127d16cb6ca3bd2ae58ee9695aa9bf8"></a>
-static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArrayBytes</b> = ((uint32_t)NBlocks_Bits * (uint32_t)NBlocks + 7) / 8</td></tr>
+static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>BlockArrayBytes</b> = ((uint32_t)<a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950">NBlocks_Bits</a> * (uint32_t)<a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#a1f02e2077500fcfcb89363d7aa0b49f9">NBlocks</a> + 7) / 8</td></tr>
+<tr class="memdesc:aa127d16cb6ca3bd2ae58ee9695aa9bf8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Bytes occupied by the packed block-index array. <br /></td></tr>
 <tr class="separator:aa127d16cb6ca3bd2ae58ee9695aa9bf8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;typename T, uint32_t RequestedBlockSize&gt;<br />
+struct gaia::mem::MemoryPage&lt; T, RequestedBlockSize &gt;</div><p>Fixed-capacity page of equal-sized blocks. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td>Allocation category used for singleton separation and diagnostics. </td></tr>
+    <tr><td class="paramname">RequestedBlockSize</td><td>Requested bytes per block, or zero for the default. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a id="aa68fb003e1abf4e0bd52e9ab59d6df78" name="aa68fb003e1abf4e0bd52e9ab59d6df78"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa68fb003e1abf4e0bd52e9ab59d6df78">&#9670;&#160;</a></span>MemoryPage()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::MemoryPage </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>ptr</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Free bits to use in the future. </p>
+<p>Creates an empty page over a backing allocation. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ptr</td><td>Backing allocation address. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="afbd4e0b214e04cef36c5dbd313d554be" name="afbd4e0b214e04cef36c5dbd313d554be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afbd4e0b214e04cef36c5dbd313d554be">&#9670;&#160;</a></span>alloc_block()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD void * <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::alloc_block </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Allocate a new block for this page. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the usable block storage. </dd></dl>
+
+</div>
+</div>
+<a id="a2cf44d53519725365bcaa273c828342a" name="a2cf44d53519725365bcaa273c828342a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2cf44d53519725365bcaa273c828342a">&#9670;&#160;</a></span>calculate_block_size()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr uint32_t <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::calculate_block_size </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Selects and aligns the configured block size. </p>
+<dl class="section return"><dt>Returns</dt><dd>Block size in bytes. </dd></dl>
+
+</div>
+</div>
+<a id="a804737f41ece1b45c82d2a1306708cb8" name="a804737f41ece1b45c82d2a1306708cb8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a804737f41ece1b45c82d2a1306708cb8">&#9670;&#160;</a></span>empty()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::empty </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reports whether no page blocks are allocated. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the page is empty. </dd></dl>
+
+</div>
+</div>
+<a id="a235711e956fbb9061c936bb8bf076d78" name="a235711e956fbb9061c936bb8bf076d78"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a235711e956fbb9061c936bb8bf076d78">&#9670;&#160;</a></span>free_block()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::free_block </td>
+          <td>(</td>
+          <td class="paramtype">void *&#160;</td>
+          <td class="paramname"><em>pBlock</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Release the block allocated by this page. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pBlock</td><td>Pointer previously returned by <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html#afbd4e0b214e04cef36c5dbd313d554be" title="Allocate a new block for this page.">alloc_block()</a>. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a8f4b8b276a55c2f68103ab4e71fdd0c4" name="a8f4b8b276a55c2f68103ab4e71fdd0c4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8f4b8b276a55c2f68103ab4e71fdd0c4">&#9670;&#160;</a></span>full()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::full </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reports whether all page blocks are allocated. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the page is full. </dd></dl>
+
+</div>
+</div>
+<a id="afde2105f20f56c379d60e9e2c8193914" name="afde2105f20f56c379d60e9e2c8193914"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afde2105f20f56c379d60e9e2c8193914">&#9670;&#160;</a></span>next_multiple_of_alignment()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static constexpr uint32_t <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::next_multiple_of_alignment </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>num</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span><span class="mlabel">constexpr</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Rounds a size up to MemoryBlockAlignment. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">num</td><td>Size in bytes. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Aligned size in bytes. </dd></dl>
+
+</div>
+</div>
+<a id="a0c270638d0fe2eff419341ce1ff63146" name="a0c270638d0fe2eff419341ce1ff63146"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0c270638d0fe2eff419341ce1ff63146">&#9670;&#160;</a></span>read_block_idx()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint8_t <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::read_block_idx </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>blockIdx</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reads one link from the packed recycled-block list. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">blockIdx</td><td>Block whose link is read. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Linked block index or InvalidBlockId. </dd></dl>
+
+</div>
+</div>
+<a id="ac2fb6f1341d0a68fc3708f716e556bb8" name="ac2fb6f1341d0a68fc3708f716e556bb8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac2fb6f1341d0a68fc3708f716e556bb8">&#9670;&#160;</a></span>used_blocks_cnt()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD uint32_t <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::used_blocks_cnt </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the number of live blocks. </p>
+<dl class="section return"><dt>Returns</dt><dd>Number of allocated blocks. </dd></dl>
+
+</div>
+</div>
+<a id="a2836e2c2c9c7d16ae4951976d6202efd" name="a2836e2c2c9c7d16ae4951976d6202efd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2836e2c2c9c7d16ae4951976d6202efd">&#9670;&#160;</a></span>write_block_idx()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T , uint32_t RequestedBlockSize&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">gaia::mem::MemoryPage</a>&lt; T, RequestedBlockSize &gt;::write_block_idx </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>blockIdx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t&#160;</td>
+          <td class="paramname"><em>value</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes one link in the packed recycled-block list. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">blockIdx</td><td>Block whose link is updated. </td></tr>
+    <tr><td class="paramname">value</td><td>Linked block index or InvalidBlockId. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mem/<a class="el" href="paged__allocator_8h_source.html">paged_allocator.h</a></li>
 </ul>
@@ -253,7 +620,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">MemoryPage</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mem</b></li><li class="navelem"><a class="el" href="structgaia_1_1mem_1_1MemoryPage.html">MemoryPage</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

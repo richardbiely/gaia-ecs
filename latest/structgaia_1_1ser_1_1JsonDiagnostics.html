@@ -115,20 +115,25 @@ $(document).ready(function(){initNavTree('structgaia_1_1ser_1_1JsonDiagnostics.h
   <div class="headertitle"><div class="title">gaia::ser::JsonDiagnostics Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Collection of JSON diagnostics with cached severity flags.  
+ <a href="structgaia_1_1ser_1_1JsonDiagnostics.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="ser__json_8h_source.html">ser_json.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a7f7ee1c9ca23f33bf080faa7482e7daa" id="r_a7f7ee1c9ca23f33bf080faa7482e7daa"><td class="memItemLeft" align="right" valign="top"><a id="a7f7ee1c9ca23f33bf080faa7482e7daa" name="a7f7ee1c9ca23f33bf080faa7482e7daa"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add</b> (JsonDiagSeverity severity, JsonDiagReason reason, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> path, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> message)</td></tr>
+<tr class="memitem:a7f7ee1c9ca23f33bf080faa7482e7daa" id="r_a7f7ee1c9ca23f33bf080faa7482e7daa"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html#a7f7ee1c9ca23f33bf080faa7482e7daa">add</a> (JsonDiagSeverity severity, JsonDiagReason reason, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> path, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> message)</td></tr>
+<tr class="memdesc:a7f7ee1c9ca23f33bf080faa7482e7daa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends a diagnostic.  <br /></td></tr>
 <tr class="separator:a7f7ee1c9ca23f33bf080faa7482e7daa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae36a14f3ee9e567f07e667e3d66f1454" id="r_ae36a14f3ee9e567f07e667e3d66f1454"><td class="memItemLeft" align="right" valign="top"><a id="ae36a14f3ee9e567f07e667e3d66f1454" name="ae36a14f3ee9e567f07e667e3d66f1454"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add</b> (JsonDiagSeverity severity, JsonDiagReason reason, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> path, const char *message)</td></tr>
+<tr class="memitem:ae36a14f3ee9e567f07e667e3d66f1454" id="r_ae36a14f3ee9e567f07e667e3d66f1454"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html#ae36a14f3ee9e567f07e667e3d66f1454">add</a> (JsonDiagSeverity severity, JsonDiagReason reason, <a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a> path, const char *message)</td></tr>
+<tr class="memdesc:ae36a14f3ee9e567f07e667e3d66f1454"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends a diagnostic with a null-terminated message.  <br /></td></tr>
 <tr class="separator:ae36a14f3ee9e567f07e667e3d66f1454"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af49debbda870ca9ab21d138202eb1b6c" id="r_af49debbda870ca9ab21d138202eb1b6c"><td class="memItemLeft" align="right" valign="top"><a id="af49debbda870ca9ab21d138202eb1b6c" name="af49debbda870ca9ab21d138202eb1b6c"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add</b> (JsonDiagSeverity severity, JsonDiagReason reason, const char *path, const char *message)</td></tr>
+<tr class="memitem:af49debbda870ca9ab21d138202eb1b6c" id="r_af49debbda870ca9ab21d138202eb1b6c"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html#af49debbda870ca9ab21d138202eb1b6c">add</a> (JsonDiagSeverity severity, JsonDiagReason reason, const char *path, const char *message)</td></tr>
+<tr class="memdesc:af49debbda870ca9ab21d138202eb1b6c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Appends a diagnostic from null-terminated strings.  <br /></td></tr>
 <tr class="separator:af49debbda870ca9ab21d138202eb1b6c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a03a82bf52c225c73e48359d75b060837" id="r_a03a82bf52c225c73e48359d75b060837"><td class="memItemLeft" align="right" valign="top"><a id="a03a82bf52c225c73e48359d75b060837" name="a03a82bf52c225c73e48359d75b060837"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_issues</b> () const</td></tr>
+<tr class="memitem:a03a82bf52c225c73e48359d75b060837" id="r_a03a82bf52c225c73e48359d75b060837"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html#a03a82bf52c225c73e48359d75b060837">has_issues</a> () const</td></tr>
+<tr class="memdesc:a03a82bf52c225c73e48359d75b060837"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether warnings or errors were recorded.  <br /></td></tr>
 <tr class="separator:a03a82bf52c225c73e48359d75b060837"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aba29d900b6b765842ead9b5608cd35db" id="r_aba29d900b6b765842ead9b5608cd35db"><td class="memItemLeft" align="right" valign="top"><a id="aba29d900b6b765842ead9b5608cd35db" name="aba29d900b6b765842ead9b5608cd35db"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr>
@@ -138,23 +143,236 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr
 Public Attributes</h2></td></tr>
 <tr class="memitem:ad44f815cd9bb8177120338fd02c8d51e" id="r_ad44f815cd9bb8177120338fd02c8d51e"><td class="memItemLeft" align="right" valign="top"><a id="ad44f815cd9bb8177120338fd02c8d51e" name="ad44f815cd9bb8177120338fd02c8d51e"></a>
 <a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::darray</a>&lt; <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostic.html">JsonDiagnostic</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>items</b></td></tr>
+<tr class="memdesc:ad44f815cd9bb8177120338fd02c8d51e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Recorded diagnostics in insertion order. <br /></td></tr>
 <tr class="separator:ad44f815cd9bb8177120338fd02c8d51e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae97016c26ed7110d0287b70b7e658c66" id="r_ae97016c26ed7110d0287b70b7e658c66"><td class="memItemLeft" align="right" valign="top"><a id="ae97016c26ed7110d0287b70b7e658c66" name="ae97016c26ed7110d0287b70b7e658c66"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasWarnings</b> = false</td></tr>
+<tr class="memdesc:ae97016c26ed7110d0287b70b7e658c66"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when at least one warning has been added. <br /></td></tr>
 <tr class="separator:ae97016c26ed7110d0287b70b7e658c66"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9ea69f4d62ac73b0a741acc59f3395ce" id="r_a9ea69f4d62ac73b0a741acc59f3395ce"><td class="memItemLeft" align="right" valign="top"><a id="a9ea69f4d62ac73b0a741acc59f3395ce" name="a9ea69f4d62ac73b0a741acc59f3395ce"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasErrors</b> = false</td></tr>
+<tr class="memdesc:a9ea69f4d62ac73b0a741acc59f3395ce"><td class="mdescLeft">&#160;</td><td class="mdescRight">True when at least one error has been added. <br /></td></tr>
 <tr class="separator:a9ea69f4d62ac73b0a741acc59f3395ce"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a6db29fcccfbd41461dbbcb42ff751e7e" id="r_a6db29fcccfbd41461dbbcb42ff751e7e"><td class="memItemLeft" align="right" valign="top"><a id="a6db29fcccfbd41461dbbcb42ff751e7e" name="a6db29fcccfbd41461dbbcb42ff751e7e"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MaxDiagPathLength</b> = 1024</td></tr>
+<tr class="memdesc:a6db29fcccfbd41461dbbcb42ff751e7e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum path length read from a null-terminated string. <br /></td></tr>
 <tr class="separator:a6db29fcccfbd41461dbbcb42ff751e7e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af13c7565958da6f0daece307be0043cf" id="r_af13c7565958da6f0daece307be0043cf"><td class="memItemLeft" align="right" valign="top"><a id="af13c7565958da6f0daece307be0043cf" name="af13c7565958da6f0daece307be0043cf"></a>
 static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>MaxDiagMessageLength</b> = 2048</td></tr>
+<tr class="memdesc:af13c7565958da6f0daece307be0043cf"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum message length read from a null-terminated string. <br /></td></tr>
 <tr class="separator:af13c7565958da6f0daece307be0043cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Collection of JSON diagnostics with cached severity flags. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="af49debbda870ca9ab21d138202eb1b6c" name="af49debbda870ca9ab21d138202eb1b6c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af49debbda870ca9ab21d138202eb1b6c">&#9670;&#160;</a></span>add() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::JsonDiagnostics::add </td>
+          <td>(</td>
+          <td class="paramtype">JsonDiagSeverity&#160;</td>
+          <td class="paramname"><em>severity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">JsonDiagReason&#160;</td>
+          <td class="paramname"><em>reason</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>message</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Appends a diagnostic from null-terminated strings. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">severity</td><td>Diagnostic severity. </td></tr>
+    <tr><td class="paramname">reason</td><td>Machine-readable reason. </td></tr>
+    <tr><td class="paramname">path</td><td>Null-terminated path. </td></tr>
+    <tr><td class="paramname">message</td><td>Null-terminated explanation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ae36a14f3ee9e567f07e667e3d66f1454" name="ae36a14f3ee9e567f07e667e3d66f1454"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae36a14f3ee9e567f07e667e3d66f1454">&#9670;&#160;</a></span>add() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::JsonDiagnostics::add </td>
+          <td>(</td>
+          <td class="paramtype">JsonDiagSeverity&#160;</td>
+          <td class="paramname"><em>severity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">JsonDiagReason&#160;</td>
+          <td class="paramname"><em>reason</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a>&#160;</td>
+          <td class="paramname"><em>path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>message</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Appends a diagnostic with a null-terminated message. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">severity</td><td>Diagnostic severity. </td></tr>
+    <tr><td class="paramname">reason</td><td>Machine-readable reason. </td></tr>
+    <tr><td class="paramname">path</td><td>Path to the affected value. </td></tr>
+    <tr><td class="paramname">message</td><td>Null-terminated explanation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a7f7ee1c9ca23f33bf080faa7482e7daa" name="a7f7ee1c9ca23f33bf080faa7482e7daa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7f7ee1c9ca23f33bf080faa7482e7daa">&#9670;&#160;</a></span>add() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ser::JsonDiagnostics::add </td>
+          <td>(</td>
+          <td class="paramtype">JsonDiagSeverity&#160;</td>
+          <td class="paramname"><em>severity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">JsonDiagReason&#160;</td>
+          <td class="paramname"><em>reason</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a>&#160;</td>
+          <td class="paramname"><em>path</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">json_str_view</a>&#160;</td>
+          <td class="paramname"><em>message</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Appends a diagnostic. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">severity</td><td>Diagnostic severity. </td></tr>
+    <tr><td class="paramname">reason</td><td>Machine-readable reason. </td></tr>
+    <tr><td class="paramname">path</td><td>Path to the affected value. </td></tr>
+    <tr><td class="paramname">message</td><td>Human-readable explanation. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a03a82bf52c225c73e48359d75b060837" name="a03a82bf52c225c73e48359d75b060837"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a03a82bf52c225c73e48359d75b060837">&#9670;&#160;</a></span>has_issues()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ser::JsonDiagnostics::has_issues </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether warnings or errors were recorded. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the collection contains an issue. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ser/<a class="el" href="ser__json_8h_source.html">ser_json.h</a></li>
 </ul>
@@ -163,7 +381,7 @@ static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ser</b></li><li class="navelem"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">JsonDiagnostics</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ser</b></li><li class="navelem"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">JsonDiagnostics</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

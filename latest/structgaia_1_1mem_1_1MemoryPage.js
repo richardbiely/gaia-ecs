@@ -1,11 +1,27 @@
 var structgaia_1_1mem_1_1MemoryPage =
 [
+    [ "BitView", "structgaia_1_1mem_1_1MemoryPage.html#a517a45ce9384aac7d4935eaf573d9d19", null ],
+    [ "BlockArray", "structgaia_1_1mem_1_1MemoryPage.html#a6ec616ab9cbeb38f91946bc7f3890c9b", null ],
+    [ "Page", "structgaia_1_1mem_1_1MemoryPage.html#ab0087f79177239889fde918fc1c184f1", null ],
     [ "MemoryPage", "structgaia_1_1mem_1_1MemoryPage.html#aa68fb003e1abf4e0bd52e9ab59d6df78", null ],
     [ "alloc_block", "structgaia_1_1mem_1_1MemoryPage.html#afbd4e0b214e04cef36c5dbd313d554be", null ],
+    [ "calculate_block_size", "structgaia_1_1mem_1_1MemoryPage.html#a2cf44d53519725365bcaa273c828342a", null ],
+    [ "empty", "structgaia_1_1mem_1_1MemoryPage.html#a804737f41ece1b45c82d2a1306708cb8", null ],
     [ "free_block", "structgaia_1_1mem_1_1MemoryPage.html#a235711e956fbb9061c936bb8bf076d78", null ],
+    [ "full", "structgaia_1_1mem_1_1MemoryPage.html#a8f4b8b276a55c2f68103ab4e71fdd0c4", null ],
+    [ "next_multiple_of_alignment", "structgaia_1_1mem_1_1MemoryPage.html#afde2105f20f56c379d60e9e2c8193914", null ],
+    [ "read_block_idx", "structgaia_1_1mem_1_1MemoryPage.html#a0c270638d0fe2eff419341ce1ff63146", null ],
+    [ "used_blocks_cnt", "structgaia_1_1mem_1_1MemoryPage.html#ac2fb6f1341d0a68fc3708f716e556bb8", null ],
+    [ "verify", "structgaia_1_1mem_1_1MemoryPage.html#a4db93a4b90190ad9dbba4ed5b82d0aeb", null ],
+    [ "write_block_idx", "structgaia_1_1mem_1_1MemoryPage.html#a2836e2c2c9c7d16ae4951976d6202efd", null ],
+    [ "BlockArrayBytes", "structgaia_1_1mem_1_1MemoryPage.html#aa127d16cb6ca3bd2ae58ee9695aa9bf8", null ],
+    [ "InvalidBlockId", "structgaia_1_1mem_1_1MemoryPage.html#ad7923c9dfc187c8218a6bad44fc1a69c", null ],
     [ "m_blockCnt", "structgaia_1_1mem_1_1MemoryPage.html#aaf90f33d4972056cdf980556a6bd1540", null ],
     [ "m_blocks", "structgaia_1_1mem_1_1MemoryPage.html#a290c5a24705a12331e80ca6eec2288b9", null ],
     [ "m_freeBlocks", "structgaia_1_1mem_1_1MemoryPage.html#a7f2176d1d9284038a2b84edeef824e79", null ],
     [ "m_nextFreeBlock", "structgaia_1_1mem_1_1MemoryPage.html#a416a68101bcbb9ce631dbe94e338fe40", null ],
-    [ "m_usedBlocks", "structgaia_1_1mem_1_1MemoryPage.html#a91838fe8ba6d11de0ddb3900e6850c0c", null ]
+    [ "m_usedBlocks", "structgaia_1_1mem_1_1MemoryPage.html#a91838fe8ba6d11de0ddb3900e6850c0c", null ],
+    [ "MemoryBlockBytes", "structgaia_1_1mem_1_1MemoryPage.html#aa63c2013d8ff00bd05aba69e32dd7249", null ],
+    [ "NBlocks", "structgaia_1_1mem_1_1MemoryPage.html#a1f02e2077500fcfcb89363d7aa0b49f9", null ],
+    [ "NBlocks_Bits", "structgaia_1_1mem_1_1MemoryPage.html#ae4543c78b35051ea919f9b8752493950", null ]
 ];

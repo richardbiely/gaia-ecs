@@ -115,66 +115,65 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryCtx_1_1Data.
   <div class="headertitle"><div class="title">gaia::ecs::QueryCtx::Data Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Compact compiled query payload used by matching, identity, and cache maintenance.  
+ <a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html">Dependencies</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Deduplicated entities and flags that can invalidate or update a query cache.  <a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html">LookupIdentity</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cold canonical payload used exclusively by shared-query hashing and equality.  <a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a7300e8b64fdeba7aed0136921b05de39" id="r_a7300e8b64fdeba7aed0136921b05de39"><td class="memItemLeft" align="right" valign="top"><a id="a7300e8b64fdeba7aed0136921b05de39" name="a7300e8b64fdeba7aed0136921b05de39"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>ids_view</b> () const</td></tr>
+<tr class="memitem:a7300e8b64fdeba7aed0136921b05de39" id="r_a7300e8b64fdeba7aed0136921b05de39"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7300e8b64fdeba7aed0136921b05de39">ids_view</a> () const</td></tr>
+<tr class="memdesc:a7300e8b64fdeba7aed0136921b05de39"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns authored query ids in canonical execution order.  <br /></td></tr>
 <tr class="separator:a7300e8b64fdeba7aed0136921b05de39"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad865a34276fdbf1742236fe9dbab2543" id="r_ad865a34276fdbf1742236fe9dbab2543"><td class="memItemLeft" align="right" valign="top"><a id="ad865a34276fdbf1742236fe9dbab2543" name="ad865a34276fdbf1742236fe9dbab2543"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_view</b> () const</td></tr>
+<tr class="memitem:ad865a34276fdbf1742236fe9dbab2543" id="r_ad865a34276fdbf1742236fe9dbab2543"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad865a34276fdbf1742236fe9dbab2543">changed_view</a> () const</td></tr>
+<tr class="memdesc:ad865a34276fdbf1742236fe9dbab2543"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns changed-filter component ids.  <br /></td></tr>
 <tr class="separator:ad865a34276fdbf1742236fe9dbab2543"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a848e549e84f6b39c88dc02da3855eb19" id="r_a848e549e84f6b39c88dc02da3855eb19"><td class="memItemLeft" align="right" valign="top"><a id="a848e549e84f6b39c88dc02da3855eb19" name="a848e549e84f6b39c88dc02da3855eb19"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_fields_view</b> () const</td></tr>
-<tr class="memdesc:a848e549e84f6b39c88dc02da3855eb19"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns query-term indices matching changed-filter components. <br /></td></tr>
+<tr class="memitem:a848e549e84f6b39c88dc02da3855eb19" id="r_a848e549e84f6b39c88dc02da3855eb19"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const uint8_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a848e549e84f6b39c88dc02da3855eb19">changed_fields_view</a> () const</td></tr>
+<tr class="memdesc:a848e549e84f6b39c88dc02da3855eb19"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns query-term indices matching changed-filter components.  <br /></td></tr>
 <tr class="separator:a848e549e84f6b39c88dc02da3855eb19"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a79a254b1a9dbd7142710246475adb90c" id="r_a79a254b1a9dbd7142710246475adb90c"><td class="memItemLeft" align="right" valign="top"><a id="a79a254b1a9dbd7142710246475adb90c" name="a79a254b1a9dbd7142710246475adb90c"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_view</b> () const</td></tr>
+<tr class="memitem:a79a254b1a9dbd7142710246475adb90c" id="r_a79a254b1a9dbd7142710246475adb90c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a79a254b1a9dbd7142710246475adb90c">group_deps_view</a> () const</td></tr>
+<tr class="memdesc:a79a254b1a9dbd7142710246475adb90c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns explicit grouping invalidation dependencies.  <br /></td></tr>
 <tr class="separator:a79a254b1a9dbd7142710246475adb90c"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6ecb5e19b3d226717f28d40e4c53c4fd" id="r_a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memItemLeft" align="right" valign="top"><a id="a6ecb5e19b3d226717f28d40e4c53c4fd" name="a6ecb5e19b3d226717f28d40e4c53c4fd"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_terms_view</b> () const</td></tr>
-<tr class="memdesc:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized lookup terms used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:a6ecb5e19b3d226717f28d40e4c53c4fd" id="r_a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a6ecb5e19b3d226717f28d40e4c53c4fd">lookup_terms_view</a> () const</td></tr>
+<tr class="memdesc:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized lookup terms used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a6ecb5e19b3d226717f28d40e4c53c4fd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a62a3118c1768965e93020580b5cba984" id="r_a62a3118c1768965e93020580b5cba984"><td class="memItemLeft" align="right" valign="top"><a id="a62a3118c1768965e93020580b5cba984" name="a62a3118c1768965e93020580b5cba984"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_terms_view_mut</b> ()</td></tr>
-<tr class="memdesc:a62a3118c1768965e93020580b5cba984"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized lookup terms used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:a62a3118c1768965e93020580b5cba984" id="r_a62a3118c1768965e93020580b5cba984"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a62a3118c1768965e93020580b5cba984">lookup_terms_view_mut</a> ()</td></tr>
+<tr class="memdesc:a62a3118c1768965e93020580b5cba984"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized lookup terms used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a62a3118c1768965e93020580b5cba984"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a66fa371a055d9d2ada63ad2552b76515" id="r_a66fa371a055d9d2ada63ad2552b76515"><td class="memItemLeft" align="right" valign="top"><a id="a66fa371a055d9d2ada63ad2552b76515" name="a66fa371a055d9d2ada63ad2552b76515"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_lookup_view</b> () const</td></tr>
-<tr class="memdesc:a66fa371a055d9d2ada63ad2552b76515"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized changed-filter lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:a66fa371a055d9d2ada63ad2552b76515" id="r_a66fa371a055d9d2ada63ad2552b76515"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a66fa371a055d9d2ada63ad2552b76515">changed_lookup_view</a> () const</td></tr>
+<tr class="memdesc:a66fa371a055d9d2ada63ad2552b76515"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized changed-filter lookup ids used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a66fa371a055d9d2ada63ad2552b76515"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab589331d49878253c40999c668a3376b" id="r_ab589331d49878253c40999c668a3376b"><td class="memItemLeft" align="right" valign="top"><a id="ab589331d49878253c40999c668a3376b" name="ab589331d49878253c40999c668a3376b"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changed_lookup_view_mut</b> ()</td></tr>
-<tr class="memdesc:ab589331d49878253c40999c668a3376b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:ab589331d49878253c40999c668a3376b" id="r_ab589331d49878253c40999c668a3376b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ab589331d49878253c40999c668a3376b">changed_lookup_view_mut</a> ()</td></tr>
+<tr class="memdesc:ab589331d49878253c40999c668a3376b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:ab589331d49878253c40999c668a3376b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a9400247315b869311f1f3368bd28aaa3" id="r_a9400247315b869311f1f3368bd28aaa3"><td class="memItemLeft" align="right" valign="top"><a id="a9400247315b869311f1f3368bd28aaa3" name="a9400247315b869311f1f3368bd28aaa3"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_lookup_view</b> () const</td></tr>
-<tr class="memdesc:a9400247315b869311f1f3368bd28aaa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized group dependency lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:a9400247315b869311f1f3368bd28aaa3" id="r_a9400247315b869311f1f3368bd28aaa3"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a9400247315b869311f1f3368bd28aaa3">group_deps_lookup_view</a> () const</td></tr>
+<tr class="memdesc:a9400247315b869311f1f3368bd28aaa3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns canonicalized group dependency lookup ids used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:a9400247315b869311f1f3368bd28aaa3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa517d9e4231380aae852c324de6a0182" id="r_aa517d9e4231380aae852c324de6a0182"><td class="memItemLeft" align="right" valign="top"><a id="aa517d9e4231380aae852c324de6a0182" name="aa517d9e4231380aae852c324de6a0182"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>group_deps_lookup_view_mut</b> ()</td></tr>
-<tr class="memdesc:aa517d9e4231380aae852c324de6a0182"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized group dependency lookup ids used by shared query deduplication. <br /></td></tr>
+<tr class="memitem:aa517d9e4231380aae852c324de6a0182" id="r_aa517d9e4231380aae852c324de6a0182"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#aa517d9e4231380aae852c324de6a0182">group_deps_lookup_view_mut</a> ()</td></tr>
+<tr class="memdesc:aa517d9e4231380aae852c324de6a0182"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable canonicalized group dependency lookup ids used by shared query deduplication.  <br /></td></tr>
 <tr class="separator:aa517d9e4231380aae852c324de6a0182"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a2afc29af74f608d7cf1142955c37cd38" id="r_a2afc29af74f608d7cf1142955c37cd38"><td class="memItemLeft" align="right" valign="top"><a id="a2afc29af74f608d7cf1142955c37cd38" name="a2afc29af74f608d7cf1142955c37cd38"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add_group_dep</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
-<tr class="memdesc:a2afc29af74f608d7cf1142955c37cd38"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a declared grouping invalidation dependency. <br /></td></tr>
+<tr class="memitem:a2afc29af74f608d7cf1142955c37cd38" id="r_a2afc29af74f608d7cf1142955c37cd38"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a2afc29af74f608d7cf1142955c37cd38">add_group_dep</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
+<tr class="memdesc:a2afc29af74f608d7cf1142955c37cd38"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a declared grouping invalidation dependency.  <br /></td></tr>
 <tr class="separator:a2afc29af74f608d7cf1142955c37cd38"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a81bf063ca593f3031c98af14a6b55ff1" id="r_a81bf063ca593f3031c98af14a6b55ff1"><td class="memItemLeft" align="right" valign="top"><a id="a81bf063ca593f3031c98af14a6b55ff1" name="a81bf063ca593f3031c98af14a6b55ff1"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>add_group_deps</b> ()</td></tr>
 <tr class="memdesc:a81bf063ca593f3031c98af14a6b55ff1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds all grouping invalidation relations to the dependency set. <br /></td></tr>
 <tr class="separator:a81bf063ca593f3031c98af14a6b55ff1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:abaddfd1ecccf57175d487cf2ce4c0837" id="r_abaddfd1ecccf57175d487cf2ce4c0837"><td class="memItemLeft" align="right" valign="top"><a id="abaddfd1ecccf57175d487cf2ce4c0837" name="abaddfd1ecccf57175d487cf2ce4c0837"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms_view_mut</b> ()</td></tr>
+<tr class="memitem:abaddfd1ecccf57175d487cf2ce4c0837" id="r_abaddfd1ecccf57175d487cf2ce4c0837"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#abaddfd1ecccf57175d487cf2ce4c0837">terms_view_mut</a> ()</td></tr>
+<tr class="memdesc:abaddfd1ecccf57175d487cf2ce4c0837"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns mutable compiled terms in execution order.  <br /></td></tr>
 <tr class="separator:abaddfd1ecccf57175d487cf2ce4c0837"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8cc74e16c8768980c43c5882891d8702" id="r_a8cc74e16c8768980c43c5882891d8702"><td class="memItemLeft" align="right" valign="top"><a id="a8cc74e16c8768980c43c5882891d8702" name="a8cc74e16c8768980c43c5882891d8702"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms_view</b> () const</td></tr>
+<tr class="memitem:a8cc74e16c8768980c43c5882891d8702" id="r_a8cc74e16c8768980c43c5882891d8702"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8cc74e16c8768980c43c5882891d8702">terms_view</a> () const</td></tr>
+<tr class="memdesc:a8cc74e16c8768980c43c5882891d8702"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns compiled terms in execution order.  <br /></td></tr>
 <tr class="separator:a8cc74e16c8768980c43c5882891d8702"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1b7e10d64bc136246eae27fe1044d76e" id="r_a1b7e10d64bc136246eae27fe1044d76e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#adb9e3e7d3f0ff86c236849de7c619ee6">DynamicCacheKind</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a1b7e10d64bc136246eae27fe1044d76e">calc_dynamic_cache_kind</a> () const</td></tr>
 <tr class="memdesc:a1b7e10d64bc136246eae27fe1044d76e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the dynamic-cache dependency shape derived from cache policy and dependencies.  <br /></td></tr>
@@ -192,83 +191,77 @@ GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>refresh_lookup_keys</b> ()</td></tr>
 <tr class="memdesc:a6c9dfb2d992ef8a655b463c3edb5d357"><td class="mdescLeft">&#160;</td><td class="mdescRight">Refreshes canonical lookup arrays used by shared query deduplication. <br /></td></tr>
 <tr class="separator:a6c9dfb2d992ef8a655b463c3edb5d357"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad500bc2699fd7124c4074e9d10d930b9" id="r_ad500bc2699fd7124c4074e9d10d930b9"><td class="memItemLeft" align="right" valign="top"><a id="ad500bc2699fd7124c4074e9d10d930b9" name="ad500bc2699fd7124c4074e9d10d930b9"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>lookup_keys_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
-<tr class="memdesc:ad500bc2699fd7124c4074e9d10d930b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when canonical lookup arrays match another query context payload. <br /></td></tr>
+<tr class="memitem:ad500bc2699fd7124c4074e9d10d930b9" id="r_ad500bc2699fd7124c4074e9d10d930b9"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad500bc2699fd7124c4074e9d10d930b9">lookup_keys_equal</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:ad500bc2699fd7124c4074e9d10d930b9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when canonical lookup arrays match another query context payload.  <br /></td></tr>
 <tr class="separator:ad500bc2699fd7124c4074e9d10d930b9"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4482a08870c69aaa26b6542c69645070" id="r_a4482a08870c69aaa26b6542c69645070"><td class="memItemLeft" align="right" valign="top"><a id="a4482a08870c69aaa26b6542c69645070" name="a4482a08870c69aaa26b6542c69645070"></a>
-GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_lookup_key_payload</b> () const</td></tr>
-<tr class="memdesc:a4482a08870c69aaa26b6542c69645070"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from canonical lookup-key payload arrays. <br /></td></tr>
+<tr class="memitem:a4482a08870c69aaa26b6542c69645070" id="r_a4482a08870c69aaa26b6542c69645070"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4482a08870c69aaa26b6542c69645070">hash_lookup_key_payload</a> () const</td></tr>
+<tr class="memdesc:a4482a08870c69aaa26b6542c69645070"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from canonical lookup-key payload arrays.  <br /></td></tr>
 <tr class="separator:a4482a08870c69aaa26b6542c69645070"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ad2af6b97aafb6416ac719b0b5f0f0d8e" id="r_ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="memItemLeft" align="right" valign="top"><a id="ad2af6b97aafb6416ac719b0b5f0f0d8e" name="ad2af6b97aafb6416ac719b0b5f0f0d8e"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>grouping_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
-<tr class="memdesc:ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when grouping identity payload matches another query context payload. <br /></td></tr>
+<tr class="memitem:ad2af6b97aafb6416ac719b0b5f0f0d8e" id="r_ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad2af6b97aafb6416ac719b0b5f0f0d8e">grouping_payload_equal</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when grouping identity payload matches another query context payload.  <br /></td></tr>
 <tr class="separator:ad2af6b97aafb6416ac719b0b5f0f0d8e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8a7085f9e5b5fc24ffe67c8dcd999e82" id="r_a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="memItemLeft" align="right" valign="top"><a id="a8a7085f9e5b5fc24ffe67c8dcd999e82" name="a8a7085f9e5b5fc24ffe67c8dcd999e82"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>sort_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
-<tr class="memdesc:a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the sort identity payload matches another query context payload. <br /></td></tr>
+<tr class="memitem:a8a7085f9e5b5fc24ffe67c8dcd999e82" id="r_a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8a7085f9e5b5fc24ffe67c8dcd999e82">sort_payload_equal</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the sort identity payload matches another query context payload.  <br /></td></tr>
 <tr class="separator:a8a7085f9e5b5fc24ffe67c8dcd999e82"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4a9286cba3119a5f77e6422ebc53067e" id="r_a4a9286cba3119a5f77e6422ebc53067e"><td class="memItemLeft" align="right" valign="top"><a id="a4a9286cba3119a5f77e6422ebc53067e" name="a4a9286cba3119a5f77e6422ebc53067e"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_sort_payload</b> () const</td></tr>
-<tr class="memdesc:a4a9286cba3119a5f77e6422ebc53067e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when sort identity payload is active. <br /></td></tr>
+<tr class="memitem:a4a9286cba3119a5f77e6422ebc53067e" id="r_a4a9286cba3119a5f77e6422ebc53067e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a4a9286cba3119a5f77e6422ebc53067e">has_sort_payload</a> () const</td></tr>
+<tr class="memdesc:a4a9286cba3119a5f77e6422ebc53067e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when sort identity payload is active.  <br /></td></tr>
 <tr class="separator:a4a9286cba3119a5f77e6422ebc53067e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a57980e9a61a38fdce9bd4e28ef3d5fd1" id="r_a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="memItemLeft" align="right" valign="top"><a id="a57980e9a61a38fdce9bd4e28ef3d5fd1" name="a57980e9a61a38fdce9bd4e28ef3d5fd1"></a>
-GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_sort_payload</b> () const</td></tr>
-<tr class="memdesc:a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from sort identity payload. <br /></td></tr>
+<tr class="memitem:a57980e9a61a38fdce9bd4e28ef3d5fd1" id="r_a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a57980e9a61a38fdce9bd4e28ef3d5fd1">hash_sort_payload</a> () const</td></tr>
+<tr class="memdesc:a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from sort identity payload.  <br /></td></tr>
 <tr class="separator:a57980e9a61a38fdce9bd4e28ef3d5fd1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a66d39e4bba0027eb415adb30dd9ce7d8" id="r_a66d39e4bba0027eb415adb30dd9ce7d8"><td class="memItemLeft" align="right" valign="top"><a id="a66d39e4bba0027eb415adb30dd9ce7d8" name="a66d39e4bba0027eb415adb30dd9ce7d8"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>identity_payload_equal</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
-<tr class="memdesc:a66d39e4bba0027eb415adb30dd9ce7d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the shared query identity payload matches another query context payload. <br /></td></tr>
+<tr class="memitem:a66d39e4bba0027eb415adb30dd9ce7d8" id="r_a66d39e4bba0027eb415adb30dd9ce7d8"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a66d39e4bba0027eb415adb30dd9ce7d8">identity_payload_equal</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;other) const</td></tr>
+<tr class="memdesc:a66d39e4bba0027eb415adb30dd9ce7d8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns true when the shared query identity payload matches another query context payload.  <br /></td></tr>
 <tr class="separator:a66d39e4bba0027eb415adb30dd9ce7d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae498f99d16b754d6f81bb626297330be" id="r_ae498f99d16b754d6f81bb626297330be"><td class="memItemLeft" align="right" valign="top"><a id="ae498f99d16b754d6f81bb626297330be" name="ae498f99d16b754d6f81bb626297330be"></a>
-GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_grouping_payload</b> () const</td></tr>
-<tr class="memdesc:ae498f99d16b754d6f81bb626297330be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from grouping identity payload. <br /></td></tr>
+<tr class="memitem:ae498f99d16b754d6f81bb626297330be" id="r_ae498f99d16b754d6f81bb626297330be"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae498f99d16b754d6f81bb626297330be">hash_grouping_payload</a> () const</td></tr>
+<tr class="memdesc:ae498f99d16b754d6f81bb626297330be"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from grouping identity payload.  <br /></td></tr>
 <tr class="separator:ae498f99d16b754d6f81bb626297330be"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adfb644ac9aae53f0e67488faa62a1ec4" id="r_adfb644ac9aae53f0e67488faa62a1ec4"><td class="memItemLeft" align="right" valign="top"><a id="adfb644ac9aae53f0e67488faa62a1ec4" name="adfb644ac9aae53f0e67488faa62a1ec4"></a>
-GAIA_NODISCARD QueryLookupHash::Type&#160;</td><td class="memItemRight" valign="bottom"><b>hash_identity_payload</b> () const</td></tr>
-<tr class="memdesc:adfb644ac9aae53f0e67488faa62a1ec4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from the full shared query identity payload. <br /></td></tr>
+<tr class="memitem:adfb644ac9aae53f0e67488faa62a1ec4" id="r_adfb644ac9aae53f0e67488faa62a1ec4"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#adfb644ac9aae53f0e67488faa62a1ec4">hash_identity_payload</a> () const</td></tr>
+<tr class="memdesc:adfb644ac9aae53f0e67488faa62a1ec4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the hash contribution from the full shared query identity payload.  <br /></td></tr>
 <tr class="separator:adfb644ac9aae53f0e67488faa62a1ec4"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a8859b041a20d04841a9baff98e9b918c" id="r_a8859b041a20d04841a9baff98e9b918c"><td class="memItemLeft" align="right" valign="top"><a id="a8859b041a20d04841a9baff98e9b918c" name="a8859b041a20d04841a9baff98e9b918c"></a>
-GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">QueryLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><b>calc_lookup_hash</b> () const</td></tr>
-<tr class="memdesc:a8859b041a20d04841a9baff98e9b918c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the finalized lookup hash for shared query identity. <br /></td></tr>
+<tr class="memitem:a8859b041a20d04841a9baff98e9b918c" id="r_a8859b041a20d04841a9baff98e9b918c"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">QueryLookupHash</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8859b041a20d04841a9baff98e9b918c">calc_lookup_hash</a> () const</td></tr>
+<tr class="memdesc:a8859b041a20d04841a9baff98e9b918c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the finalized lookup hash for shared query identity.  <br /></td></tr>
 <tr class="separator:a8859b041a20d04841a9baff98e9b918c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a412e4daa73cb7862ddcd52025a00629f" id="r_a412e4daa73cb7862ddcd52025a00629f"><td class="memItemLeft" align="right" valign="top"><a id="a412e4daa73cb7862ddcd52025a00629f" name="a412e4daa73cb7862ddcd52025a00629f"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>ids</b></td></tr>
 <tr class="memdesc:a412e4daa73cb7862ddcd52025a00629f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of queried ids. <br /></td></tr>
 <tr class="separator:a412e4daa73cb7862ddcd52025a00629f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae445b34c3c1b01df8397383cf234ff8b" id="r_ae445b34c3c1b01df8397383cf234ff8b"><td class="memItemLeft" align="right" valign="top"><a id="ae445b34c3c1b01df8397383cf234ff8b" name="ae445b34c3c1b01df8397383cf234ff8b"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a>, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>terms</b></td></tr>
 <tr class="memdesc:ae445b34c3c1b01df8397383cf234ff8b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of terms. <br /></td></tr>
 <tr class="separator:ae445b34c3c1b01df8397383cf234ff8b"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a44050adc01a9484c9930620df2ec0e" id="r_a7a44050adc01a9484c9930620df2ec0e"><td class="memItemLeft" align="right" valign="top"><a id="a7a44050adc01a9484c9930620df2ec0e" name="a7a44050adc01a9484c9930620df2ec0e"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_All</b></td></tr>
+QueryArchetypeCacheIndexMap&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_All</b></td></tr>
 <tr class="memdesc:a7a44050adc01a9484c9930620df2ec0e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Index of the last checked archetype in the component-to-archetype map. <br /></td></tr>
 <tr class="separator:a7a44050adc01a9484c9930620df2ec0e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8804432d215bd1f8d65e32a5bc9d584c" id="r_a8804432d215bd1f8d65e32a5bc9d584c"><td class="memItemLeft" align="right" valign="top"><a id="a8804432d215bd1f8d65e32a5bc9d584c" name="a8804432d215bd1f8d65e32a5bc9d584c"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Or</b></td></tr>
+QueryArchetypeCacheIndexMap&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Or</b></td></tr>
+<tr class="memdesc:a8804432d215bd1f8d65e32a5bc9d584c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Incremental lookup cursors for OR selector terms. <br /></td></tr>
 <tr class="separator:a8804432d215bd1f8d65e32a5bc9d584c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af5f61c6d76bc7e471120ee78ffaf7561" id="r_af5f61c6d76bc7e471120ee78ffaf7561"><td class="memItemLeft" align="right" valign="top"><a id="af5f61c6d76bc7e471120ee78ffaf7561" name="af5f61c6d76bc7e471120ee78ffaf7561"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryArchetypeCacheIndexMap</a>&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Not</b></td></tr>
+QueryArchetypeCacheIndexMap&#160;</td><td class="memItemRight" valign="bottom"><b>lastMatchedArchetypeIdx_Not</b></td></tr>
+<tr class="memdesc:af5f61c6d76bc7e471120ee78ffaf7561"><td class="mdescLeft">&#160;</td><td class="mdescRight">Incremental lookup cursors for NOT selector terms. <br /></td></tr>
 <tr class="separator:af5f61c6d76bc7e471120ee78ffaf7561"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a18116cf7c72b7dfd829b0f5daa9dc487" id="r_a18116cf7c72b7dfd829b0f5daa9dc487"><td class="memItemLeft" align="right" valign="top"><a id="a18116cf7c72b7dfd829b0f5daa9dc487" name="a18116cf7c72b7dfd829b0f5daa9dc487"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>idsCnt</b> = 0</td></tr>
+<tr class="memdesc:a18116cf7c72b7dfd829b0f5daa9dc487"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid ids and terms in the fixed-capacity query arrays. <br /></td></tr>
 <tr class="separator:a18116cf7c72b7dfd829b0f5daa9dc487"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a07eca82bc1999a317b4551c88cc8eb9f" id="r_a07eca82bc1999a317b4551c88cc8eb9f"><td class="memItemLeft" align="right" valign="top"><a id="a07eca82bc1999a317b4551c88cc8eb9f" name="a07eca82bc1999a317b4551c88cc8eb9f"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>changedCnt</b> = 0</td></tr>
+<tr class="memdesc:a07eca82bc1999a317b4551c88cc8eb9f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid changed-filter ids and field mappings. <br /></td></tr>
 <tr class="separator:a07eca82bc1999a317b4551c88cc8eb9f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad39f2592985873852a48cb84548e17ee" id="r_ad39f2592985873852a48cb84548e17ee"><td class="memItemLeft" align="right" valign="top"><a id="ad39f2592985873852a48cb84548e17ee" name="ad39f2592985873852a48cb84548e17ee"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>changed</b></td></tr>
 <tr class="memdesc:ad39f2592985873852a48cb84548e17ee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Array of filtered components. <br /></td></tr>
 <tr class="separator:ad39f2592985873852a48cb84548e17ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1d65c5ad95b615523547fc23d0f221" id="r_a3e1d65c5ad95b615523547fc23d0f221"><td class="memItemLeft" align="right" valign="top"><a id="a3e1d65c5ad95b615523547fc23d0f221" name="a3e1d65c5ad95b615523547fc23d0f221"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">cnt::sarray</a>&lt; uint8_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changedFields</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">cnt::sarray</a>&lt; uint8_t, MAX_ITEMS_IN_QUERY &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>changedFields</b></td></tr>
 <tr class="memdesc:a3e1d65c5ad95b615523547fc23d0f221"><td class="mdescLeft">&#160;</td><td class="mdescRight">Query term index for each changed-filter component after query canonicalization. <br /></td></tr>
 <tr class="separator:a3e1d65c5ad95b615523547fc23d0f221"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a08cef351ec738ee2902014b56ee928a7" id="r_a08cef351ec738ee2902014b56ee928a7"><td class="memItemLeft" align="right" valign="top"><a id="a08cef351ec738ee2902014b56ee928a7" name="a08cef351ec738ee2902014b56ee928a7"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>groupDeps</b></td></tr>
 <tr class="memdesc:a08cef351ec738ee2902014b56ee928a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Explicit grouping invalidation dependencies for custom group_by callbacks. <br /></td></tr>
 <tr class="separator:a08cef351ec738ee2902014b56ee928a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a10032c2935f4d6fd750fdeadf9334d3c" id="r_a10032c2935f4d6fd750fdeadf9334d3c"><td class="memItemLeft" align="right" valign="top"><a id="a10032c2935f4d6fd750fdeadf9334d3c" name="a10032c2935f4d6fd750fdeadf9334d3c"></a>
@@ -328,7 +321,7 @@ uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>cacheSrcTrav</b> 
 <tr class="memdesc:a56fd79bf91cc3fb98f10b6f049dd0759"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum allowed size of an explicitly cached traversed-source lookup closure. <br /></td></tr>
 <tr class="separator:a56fd79bf91cc3fb98f10b6f049dd0759"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aea3f2b2c059943001fecc4b7a890995d" id="r_aea3f2b2c059943001fecc4b7a890995d"><td class="memItemLeft" align="right" valign="top"><a id="aea3f2b2c059943001fecc4b7a890995d" name="aea3f2b2c059943001fecc4b7a890995d"></a>
-DirectTargetEvalKind&#160;</td><td class="memItemRight" valign="bottom"><b>directTargetEvalKind</b> = DirectTargetEvalKind::Generic</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063c">DirectTargetEvalKind</a>&#160;</td><td class="memItemRight" valign="bottom"><b>directTargetEvalKind</b> = <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ab8166867f88443ab6730b17e3e3b063ca8045a0a6c688b0635e3caccc408a1446">DirectTargetEvalKind::Generic</a></td></tr>
 <tr class="memdesc:aea3f2b2c059943001fecc4b7a890995d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Specialized direct-target evaluation shape for single-term queries. <br /></td></tr>
 <tr class="separator:aea3f2b2c059943001fecc4b7a890995d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a800578f5f5ed8406b7406ef2fe777a26" id="r_a800578f5f5ed8406b7406ef2fe777a26"><td class="memItemLeft" align="right" valign="top"><a id="a800578f5f5ed8406b7406ef2fe777a26" name="a800578f5f5ed8406b7406ef2fe777a26"></a>
@@ -356,11 +349,11 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>canReuseDynamicCache<
 <tr class="memdesc:a99d85161c146acc532a98ea91abe4b2a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Explicit dependency metadata derived from query shape. <br /></td></tr>
 <tr class="separator:a99d85161c146acc532a98ea91abe4b2a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac2e04983a4dad3a791ef2a0b83a58b3a" id="r_ac2e04983a4dad3a791ef2a0b83a58b3a"><td class="memItemLeft" align="right" valign="top"><a id="ac2e04983a4dad3a791ef2a0b83a58b3a" name="ac2e04983a4dad3a791ef2a0b83a58b3a"></a>
-CachePolicy&#160;</td><td class="memItemRight" valign="bottom"><b>cachePolicy</b> = CachePolicy::Lazy</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ae52188f6f38dcc11f98de27ed02be345">CachePolicy</a>&#160;</td><td class="memItemRight" valign="bottom"><b>cachePolicy</b> = <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#ae52188f6f38dcc11f98de27ed02be345a46a9ebdb80117bfa1f0cdea65438290a">CachePolicy::Lazy</a></td></tr>
 <tr class="memdesc:ac2e04983a4dad3a791ef2a0b83a58b3a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cache maintenance policy derived from query shape. <br /></td></tr>
 <tr class="separator:ac2e04983a4dad3a791ef2a0b83a58b3a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7b0e1497f6112f134efaca963c2592f1" id="r_a7b0e1497f6112f134efaca963c2592f1"><td class="memItemLeft" align="right" valign="top"><a id="a7b0e1497f6112f134efaca963c2592f1" name="a7b0e1497f6112f134efaca963c2592f1"></a>
-CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>createArchetypeMatchKind</b> = CreateArchetypeMatchKind::Vm</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a97d2f17f09aed5a440566bb3f2797ae1">CreateArchetypeMatchKind</a>&#160;</td><td class="memItemRight" valign="bottom"><b>createArchetypeMatchKind</b> = <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a97d2f17f09aed5a440566bb3f2797ae1af65c89d3d3b180090988d5479df391a6">CreateArchetypeMatchKind::Vm</a></td></tr>
 <tr class="memdesc:a7b0e1497f6112f134efaca963c2592f1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Create-time archetype matcher derived from query shape. <br /></td></tr>
 <tr class="separator:a7b0e1497f6112f134efaca963c2592f1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a94125c6fa03139fe79a66e81a31381e6" id="r_a94125c6fa03139fe79a66e81a31381e6"><td class="memItemLeft" align="right" valign="top"><a id="a94125c6fa03139fe79a66e81a31381e6" name="a94125c6fa03139fe79a66e81a31381e6"></a>
@@ -372,7 +365,43 @@ CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>c
 <tr class="memdesc:ae533b8a63b2d93f56008493ebd8b5a57"><td class="mdescLeft">&#160;</td><td class="mdescRight">Cold canonical shared-query identity payload. <br /></td></tr>
 <tr class="separator:ae533b8a63b2d93f56008493ebd8b5a57"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Member Function Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Compact compiled query payload used by matching, identity, and cache maintenance. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a2afc29af74f608d7cf1142955c37cd38" name="a2afc29af74f608d7cf1142955c37cd38"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2afc29af74f608d7cf1142955c37cd38">&#9670;&#160;</a></span>add_group_dep()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryCtx::Data::add_group_dep </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds a declared grouping invalidation dependency. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation whose topology can change group assignment. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="acebac4c691c7cabde80b660199b1ba63" name="acebac4c691c7cabde80b660199b1ba63"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#acebac4c691c7cabde80b660199b1ba63">&#9670;&#160;</a></span>calc_can_reuse_dynamic_cache()</h2>
 
@@ -426,6 +455,650 @@ CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>c
 
 <p>Returns the dynamic-cache dependency shape derived from cache policy and dependencies. </p>
 <dl class="section return"><dt>Returns</dt><dd>Dynamic-cache shape used by storage and invalidation planning. </dd></dl>
+
+</div>
+</div>
+<a id="a8859b041a20d04841a9baff98e9b918c" name="a8859b041a20d04841a9baff98e9b918c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8859b041a20d04841a9baff98e9b918c">&#9670;&#160;</a></span>calc_lookup_hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">QueryLookupHash</a> gaia::ecs::QueryCtx::Data::calc_lookup_hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the finalized lookup hash for shared query identity. </p>
+<dl class="section return"><dt>Returns</dt><dd>Direct-hash key calculated from the complete identity payload. </dd></dl>
+
+</div>
+</div>
+<a id="a848e549e84f6b39c88dc02da3855eb19" name="a848e549e84f6b39c88dc02da3855eb19"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a848e549e84f6b39c88dc02da3855eb19">&#9670;&#160;</a></span>changed_fields_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const uint8_t &gt; gaia::ecs::QueryCtx::Data::changed_fields_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns query-term indices matching changed-filter components. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only field-index view aligned with <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ad865a34276fdbf1742236fe9dbab2543" title="Returns changed-filter component ids.">changed_view()</a>. </dd></dl>
+
+</div>
+</div>
+<a id="a66fa371a055d9d2ada63ad2552b76515" name="a66fa371a055d9d2ada63ad2552b76515"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a66fa371a055d9d2ada63ad2552b76515">&#9670;&#160;</a></span>changed_lookup_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::changed_lookup_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns canonicalized changed-filter lookup ids used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only canonical changed-filter view. </dd></dl>
+
+</div>
+</div>
+<a id="ab589331d49878253c40999c668a3376b" name="ab589331d49878253c40999c668a3376b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab589331d49878253c40999c668a3376b">&#9670;&#160;</a></span>changed_lookup_view_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::changed_lookup_view_mut </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns mutable canonicalized changed-filter lookup ids used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Mutable canonical changed-filter view. </dd></dl>
+
+</div>
+</div>
+<a id="ad865a34276fdbf1742236fe9dbab2543" name="ad865a34276fdbf1742236fe9dbab2543"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad865a34276fdbf1742236fe9dbab2543">&#9670;&#160;</a></span>changed_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::changed_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns changed-filter component ids. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid changed entries. </dd></dl>
+
+</div>
+</div>
+<a id="a9400247315b869311f1f3368bd28aaa3" name="a9400247315b869311f1f3368bd28aaa3"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a9400247315b869311f1f3368bd28aaa3">&#9670;&#160;</a></span>group_deps_lookup_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::group_deps_lookup_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns canonicalized group dependency lookup ids used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only canonical grouping-dependency view. </dd></dl>
+
+</div>
+</div>
+<a id="aa517d9e4231380aae852c324de6a0182" name="aa517d9e4231380aae852c324de6a0182"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa517d9e4231380aae852c324de6a0182">&#9670;&#160;</a></span>group_deps_lookup_view_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::group_deps_lookup_view_mut </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns mutable canonicalized group dependency lookup ids used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Mutable canonical grouping-dependency view. </dd></dl>
+
+</div>
+</div>
+<a id="a79a254b1a9dbd7142710246475adb90c" name="a79a254b1a9dbd7142710246475adb90c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a79a254b1a9dbd7142710246475adb90c">&#9670;&#160;</a></span>group_deps_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::group_deps_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns explicit grouping invalidation dependencies. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid groupDeps entries. </dd></dl>
+
+</div>
+</div>
+<a id="ad2af6b97aafb6416ac719b0b5f0f0d8e" name="ad2af6b97aafb6416ac719b0b5f0f0d8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad2af6b97aafb6416ac719b0b5f0f0d8e">&#9670;&#160;</a></span>grouping_payload_equal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::grouping_payload_equal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when grouping identity payload matches another query context payload. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Compiled payload to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when grouping entity, callback, and ordering mode match. </dd></dl>
+
+</div>
+</div>
+<a id="a4a9286cba3119a5f77e6422ebc53067e" name="a4a9286cba3119a5f77e6422ebc53067e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4a9286cba3119a5f77e6422ebc53067e">&#9670;&#160;</a></span>has_sort_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::has_sort_payload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when sort identity payload is active. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when either a sort entity or callback is configured. </dd></dl>
+
+</div>
+</div>
+<a id="ae498f99d16b754d6f81bb626297330be" name="ae498f99d16b754d6f81bb626297330be"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae498f99d16b754d6f81bb626297330be">&#9670;&#160;</a></span>hash_grouping_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> gaia::ecs::QueryCtx::Data::hash_grouping_payload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the hash contribution from grouping identity payload. </p>
+<dl class="section return"><dt>Returns</dt><dd>Combined hash of grouping entity, callback, and ordering mode. </dd></dl>
+
+</div>
+</div>
+<a id="adfb644ac9aae53f0e67488faa62a1ec4" name="adfb644ac9aae53f0e67488faa62a1ec4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adfb644ac9aae53f0e67488faa62a1ec4">&#9670;&#160;</a></span>hash_identity_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> gaia::ecs::QueryCtx::Data::hash_identity_payload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the hash contribution from the full shared query identity payload. </p>
+<dl class="section return"><dt>Returns</dt><dd>Combined lookup, optional sorting, and grouping identity hash. </dd></dl>
+
+</div>
+</div>
+<a id="a4482a08870c69aaa26b6542c69645070" name="a4482a08870c69aaa26b6542c69645070"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4482a08870c69aaa26b6542c69645070">&#9670;&#160;</a></span>hash_lookup_key_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> gaia::ecs::QueryCtx::Data::hash_lookup_key_payload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the hash contribution from canonical lookup-key payload arrays. </p>
+<dl class="section return"><dt>Returns</dt><dd>Combined hash of canonical terms, filters, grouping dependencies, and identity flags. </dd></dl>
+
+</div>
+</div>
+<a id="a57980e9a61a38fdce9bd4e28ef3d5fd1" name="a57980e9a61a38fdce9bd4e28ef3d5fd1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a57980e9a61a38fdce9bd4e28ef3d5fd1">&#9670;&#160;</a></span>hash_sort_payload()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html#a204343e7281518bd514c2c6b6066484a">QueryLookupHash::Type</a> gaia::ecs::QueryCtx::Data::hash_sort_payload </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the hash contribution from sort identity payload. </p>
+<dl class="section return"><dt>Returns</dt><dd>Combined hash of the sort entity and callback. </dd></dl>
+
+</div>
+</div>
+<a id="a66d39e4bba0027eb415adb30dd9ce7d8" name="a66d39e4bba0027eb415adb30dd9ce7d8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a66d39e4bba0027eb415adb30dd9ce7d8">&#9670;&#160;</a></span>identity_payload_equal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::identity_payload_equal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when the shared query identity payload matches another query context payload. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Compiled payload to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when every field contributing to shared query identity matches. </dd></dl>
+
+</div>
+</div>
+<a id="a7300e8b64fdeba7aed0136921b05de39" name="a7300e8b64fdeba7aed0136921b05de39"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7300e8b64fdeba7aed0136921b05de39">&#9670;&#160;</a></span>ids_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::ids_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns authored query ids in canonical execution order. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid ids entries. </dd></dl>
+
+</div>
+</div>
+<a id="ad500bc2699fd7124c4074e9d10d930b9" name="ad500bc2699fd7124c4074e9d10d930b9"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad500bc2699fd7124c4074e9d10d930b9">&#9670;&#160;</a></span>lookup_keys_equal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::lookup_keys_equal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when canonical lookup arrays match another query context payload. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Compiled payload to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when terms, changed filters, and group dependencies match canonically. </dd></dl>
+
+</div>
+</div>
+<a id="a6ecb5e19b3d226717f28d40e4c53c4fd" name="a6ecb5e19b3d226717f28d40e4c53c4fd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6ecb5e19b3d226717f28d40e4c53c4fd">&#9670;&#160;</a></span>lookup_terms_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt; gaia::ecs::QueryCtx::Data::lookup_terms_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns canonicalized lookup terms used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only canonical term view. </dd></dl>
+
+</div>
+</div>
+<a id="a62a3118c1768965e93020580b5cba984" name="a62a3118c1768965e93020580b5cba984"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a62a3118c1768965e93020580b5cba984">&#9670;&#160;</a></span>lookup_terms_view_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt; gaia::ecs::QueryCtx::Data::lookup_terms_view_mut </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns mutable canonicalized lookup terms used by shared query deduplication. </p>
+<dl class="section return"><dt>Returns</dt><dd>Mutable canonical term view. </dd></dl>
+
+</div>
+</div>
+<a id="a8a7085f9e5b5fc24ffe67c8dcd999e82" name="a8a7085f9e5b5fc24ffe67c8dcd999e82"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8a7085f9e5b5fc24ffe67c8dcd999e82">&#9670;&#160;</a></span>sort_payload_equal()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::sort_payload_equal </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns true when the sort identity payload matches another query context payload. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Compiled payload to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when sorting entity and callback match. </dd></dl>
+
+</div>
+</div>
+<a id="a8cc74e16c8768980c43c5882891d8702" name="a8cc74e16c8768980c43c5882891d8702"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8cc74e16c8768980c43c5882891d8702">&#9670;&#160;</a></span>terms_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt; gaia::ecs::QueryCtx::Data::terms_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns compiled terms in execution order. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid terms entries. </dd></dl>
+
+</div>
+</div>
+<a id="abaddfd1ecccf57175d487cf2ce4c0837" name="abaddfd1ecccf57175d487cf2ce4c0837"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#abaddfd1ecccf57175d487cf2ce4c0837">&#9670;&#160;</a></span>terms_view_mut()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &gt; gaia::ecs::QueryCtx::Data::terms_view_mut </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns mutable compiled terms in execution order. </p>
+<dl class="section return"><dt>Returns</dt><dd>Mutable view over valid terms entries. </dd></dl>
 
 </div>
 </div>
@@ -493,7 +1166,7 @@ CreateArchetypeMatchKind&#160;</td><td class="memItemRight" valign="bottom"><b>c
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

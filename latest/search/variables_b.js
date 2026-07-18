@@ -1,7 +1,10 @@
 var searchData=
 [
   ['lastmatchedarchetypeidx_5fall_0',['lastMatchedArchetypeIdx_All',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a7a44050adc01a9484c9930620df2ec0e',1,'gaia::ecs::QueryCtx::Data']]],
-  ['lifespancountdown_1',['lifespanCountdown',['../structgaia_1_1ecs_1_1ChunkHeader.html#ab29fbd8fc76a61bc3236c229d87c9aa2',1,'gaia::ecs::ChunkHeader']]],
-  ['lookupidentity_2',['lookupIdentity',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae533b8a63b2d93f56008493ebd8b5a57',1,'gaia::ecs::QueryCtx::Data']]],
-  ['lookupterms_3',['lookupTerms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e',1,'gaia::ecs::QueryCtx::Data::LookupIdentity']]]
+  ['lastmatchedarchetypeidx_5fnot_1',['lastMatchedArchetypeIdx_Not',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#af5f61c6d76bc7e471120ee78ffaf7561',1,'gaia::ecs::QueryCtx::Data']]],
+  ['lastmatchedarchetypeidx_5for_2',['lastMatchedArchetypeIdx_Or',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#a8804432d215bd1f8d65e32a5bc9d584c',1,'gaia::ecs::QueryCtx::Data']]],
+  ['layout_3',['layout',['../structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1AoS_00_01TItem_01_4.html#a9cd9767f38d984d9827ff4c1c1ec0f4e',1,'gaia::mem::data_layout_properties&lt; DataLayout::AoS, TItem &gt;::Layout'],['../structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA_00_01TItem_01_4.html#a3913ed8d3a9bf58222a9e98687925154',1,'gaia::mem::data_layout_properties&lt; DataLayout::SoA, TItem &gt;::Layout'],['../structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA8_00_01TItem_01_4.html#ad6a3254ea9461c66029d67ab9a2af1d6',1,'gaia::mem::data_layout_properties&lt; DataLayout::SoA8, TItem &gt;::Layout'],['../structgaia_1_1mem_1_1data__layout__properties_3_01DataLayout_1_1SoA16_00_01TItem_01_4.html#af8d830bd23a33cd101d61b9793953d5d',1,'gaia::mem::data_layout_properties&lt; DataLayout::SoA16, TItem &gt;::Layout'],['../structgaia_1_1mem_1_1data__view__policy__aos.html#ae11b7e782ef4c23f8ddba950c326c7d1',1,'gaia::mem::data_view_policy_aos::Layout'],['../structgaia_1_1mem_1_1data__view__policy__soa.html#a55b7c3aa351544cd9026e9044296c841',1,'gaia::mem::data_view_policy_soa::Layout']]],
+  ['load_5fraw_4',['load_raw',['../structgaia_1_1ser_1_1serializer__ctx.html#a4c482f3f5597f1e80f567a76c6b7f014',1,'gaia::ser::serializer_ctx']]],
+  ['lookupidentity_5',['lookupIdentity',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data.html#ae533b8a63b2d93f56008493ebd8b5a57',1,'gaia::ecs::QueryCtx::Data']]],
+  ['lookupterms_6',['lookupTerms',['../structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1LookupIdentity.html#a64c91a5355cb8de8e723fc58935cb62e',1,'gaia::ecs::QueryCtx::Data::LookupIdentity']]]
 ];

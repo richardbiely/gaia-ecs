@@ -149,7 +149,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a41ac5530feaef8dddb64373eb6b01e34" id="r_a41ac5530feaef8dddb64373eb6b01e34"><td class="memItemLeft" align="right" valign="top">static constexpr uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a41ac5530feaef8dddb64373eb6b01e34">alig</a> ()</td></tr>
 <tr class="memdesc:a41ac5530feaef8dddb64373eb6b01e34"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the payload alignment required by the component storage policy.  <br /></td></tr>
 <tr class="separator:a41ac5530feaef8dddb64373eb6b01e34"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab04f2c89f27fd6f47c0cb948c5fe661a" id="r_ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memItemLeft" align="right" valign="top">static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a">soa</a> (<a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
+<tr class="memitem:ab04f2c89f27fd6f47c0cb948c5fe661a" id="r_ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memItemLeft" align="right" valign="top">static uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ab04f2c89f27fd6f47c0cb948c5fe661a">soa</a> (std::span&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
 <tr class="memdesc:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Populates SoA element sizes for SoA payloads.  <br /></td></tr>
 <tr class="separator:ab04f2c89f27fd6f47c0cb948c5fe661a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad78f1987c21ae1409e610546d25cde0d" id="r_ad78f1987c21ae1409e610546d25cde0d"><td class="memItemLeft" align="right" valign="top">static constexpr DataStorageType&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#ad78f1987c21ae1409e610546d25cde0d">storage_type</a> ()</td></tr>
@@ -185,7 +185,7 @@ Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a59c77045c235200066ce3b57c5a08f89" id="r_a59c77045c235200066ce3b57c5a08f89"><td class="memItemLeft" align="right" valign="top">static constexpr auto&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a59c77045c235200066ce3b57c5a08f89">func_load</a> ()</td></tr>
 <tr class="memdesc:a59c77045c235200066ce3b57c5a08f89"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the serializer load callback for typed payload values.  <br /></td></tr>
 <tr class="separator:a59c77045c235200066ce3b57c5a08f89"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a95a64aba00cd3bd5fd6549b034b52584" id="r_a95a64aba00cd3bd5fd6549b034b52584"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584">make</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> descName, <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
+<tr class="memitem:a95a64aba00cd3bd5fd6549b034b52584" id="r_a95a64aba00cd3bd5fd6549b034b52584"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ecs::ComponentDesc</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584">make</a> (<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a> descName, std::span&lt; uint8_t, meta::StructToTupleMaxTypes &gt; soaSizes)</td></tr>
 <tr class="memdesc:a95a64aba00cd3bd5fd6549b034b52584"><td class="mdescLeft">&#160;</td><td class="mdescRight">Builds the plain descriptor used by component cache registration.  <br /></td></tr>
 <tr class="separator:a95a64aba00cd3bd5fd6549b034b52584"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
@@ -579,7 +579,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
+          <td class="paramtype">std::span&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
           <td class="paramname"><em>soaSizes</em>&#160;</td>
         </tr>
         <tr>
@@ -681,7 +681,7 @@ template&lt;typename T &gt; </div>
         <tr>
           <td class="memname">static uint32_t <a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">gaia::ecs::detail::ComponentDesc</a>&lt; T &gt;::soa </td>
           <td>(</td>
-          <td class="paramtype"><a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
+          <td class="paramtype">std::span&lt; uint8_t, meta::StructToTupleMaxTypes &gt;&#160;</td>
           <td class="paramname"><em>soaSizes</em></td><td>)</td>
           <td></td>
         </tr>
@@ -742,7 +742,7 @@ template&lt;typename T &gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">ComponentDesc</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><b>detail</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html">ComponentDesc</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

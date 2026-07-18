@@ -113,6 +113,11 @@ $(document).ready(function(){initNavTree('classgaia_1_1mt_1_1SpinLock.html','');
   <div class="headertitle"><div class="title">gaia::mt::SpinLock Class Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Non-recursive spin lock backed by an atomic flag.  
+ <a href="classgaia_1_1mt_1_1SpinLock.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="spinlock_8h_source.html">spinlock.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -122,16 +127,49 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:ab54d847ce2145d481588c9e183f57dd3" id="r_ab54d847ce2145d481588c9e183f57dd3"><td class="memItemLeft" align="right" valign="top"><a id="ab54d847ce2145d481588c9e183f57dd3" name="ab54d847ce2145d481588c9e183f57dd3"></a>
 <a class="el" href="classgaia_1_1mt_1_1SpinLock.html">SpinLock</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>operator=</b> (const <a class="el" href="classgaia_1_1mt_1_1SpinLock.html">SpinLock</a> &amp;)=delete</td></tr>
 <tr class="separator:ab54d847ce2145d481588c9e183f57dd3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aff764ccb19eba13d96f61ed9d9143f04" id="r_aff764ccb19eba13d96f61ed9d9143f04"><td class="memItemLeft" align="right" valign="top"><a id="aff764ccb19eba13d96f61ed9d9143f04" name="aff764ccb19eba13d96f61ed9d9143f04"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>try_lock</b> ()</td></tr>
+<tr class="memitem:aff764ccb19eba13d96f61ed9d9143f04" id="r_aff764ccb19eba13d96f61ed9d9143f04"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1mt_1_1SpinLock.html#aff764ccb19eba13d96f61ed9d9143f04">try_lock</a> ()</td></tr>
+<tr class="memdesc:aff764ccb19eba13d96f61ed9d9143f04"><td class="mdescLeft">&#160;</td><td class="mdescRight">Attempts to acquire the lock without waiting.  <br /></td></tr>
 <tr class="separator:aff764ccb19eba13d96f61ed9d9143f04"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3087ce09fd41f09e6836c88edb63d795" id="r_a3087ce09fd41f09e6836c88edb63d795"><td class="memItemLeft" align="right" valign="top"><a id="a3087ce09fd41f09e6836c88edb63d795" name="a3087ce09fd41f09e6836c88edb63d795"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>lock</b> ()</td></tr>
+<tr class="memdesc:a3087ce09fd41f09e6836c88edb63d795"><td class="mdescLeft">&#160;</td><td class="mdescRight">Spins until the lock is acquired. <br /></td></tr>
 <tr class="separator:a3087ce09fd41f09e6836c88edb63d795"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a56c457c57371dd1d15ba811df013c130" id="r_a56c457c57371dd1d15ba811df013c130"><td class="memItemLeft" align="right" valign="top"><a id="a56c457c57371dd1d15ba811df013c130" name="a56c457c57371dd1d15ba811df013c130"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> ()</td></tr>
+<tr class="memdesc:a56c457c57371dd1d15ba811df013c130"><td class="mdescLeft">&#160;</td><td class="mdescRight">Releases the lock. <br /></td></tr>
 <tr class="separator:a56c457c57371dd1d15ba811df013c130"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Non-recursive spin lock backed by an atomic flag. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="aff764ccb19eba13d96f61ed9d9143f04" name="aff764ccb19eba13d96f61ed9d9143f04"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aff764ccb19eba13d96f61ed9d9143f04">&#9670;&#160;</a></span>try_lock()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::mt::SpinLock::try_lock </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Attempts to acquire the lock without waiting. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the lock was acquired. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/mt/<a class="el" href="spinlock_8h_source.html">spinlock.h</a></li>
 </ul>
@@ -140,7 +178,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>unlock</b> ()</td></t
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>mt</b></li><li class="navelem"><a class="el" href="classgaia_1_1mt_1_1SpinLock.html">SpinLock</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>mt</b></li><li class="navelem"><a class="el" href="classgaia_1_1mt_1_1SpinLock.html">SpinLock</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

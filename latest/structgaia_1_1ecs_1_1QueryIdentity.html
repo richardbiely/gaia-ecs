@@ -114,14 +114,19 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryIdentity.htm
   <div class="headertitle"><div class="title">gaia::ecs::QueryIdentity Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Slot and serialization identity owned by a compiled query context.  
+ <a href="structgaia_1_1ecs_1_1QueryIdentity.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a29a764450220ea78cba4d23356704a9b" id="r_a29a764450220ea78cba4d23356704a9b"><td class="memItemLeft" align="right" valign="top"><a id="a29a764450220ea78cba4d23356704a9b" name="a29a764450220ea78cba4d23356704a9b"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1ser_1_1ser__buffer__binary__dyn.html">QuerySerBuffer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>ser_buffer</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *world)</td></tr>
+<tr class="memitem:a29a764450220ea78cba4d23356704a9b" id="r_a29a764450220ea78cba4d23356704a9b"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD <a class="el" href="classgaia_1_1ser_1_1ser__buffer__binary__dyn.html">QuerySerBuffer</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryIdentity.html#a29a764450220ea78cba4d23356704a9b">ser_buffer</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *world)</td></tr>
+<tr class="memdesc:a29a764450220ea78cba4d23356704a9b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns this query's serialization buffer in a world.  <br /></td></tr>
 <tr class="separator:a29a764450220ea78cba4d23356704a9b"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af224e428a64b9b3fc1a43e4f3b0633d4" id="r_af224e428a64b9b3fc1a43e4f3b0633d4"><td class="memItemLeft" align="right" valign="top"><a id="af224e428a64b9b3fc1a43e4f3b0633d4" name="af224e428a64b9b3fc1a43e4f3b0633d4"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>ser_buffer_reset</b> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *world)</td></tr>
+<tr class="memitem:af224e428a64b9b3fc1a43e4f3b0633d4" id="r_af224e428a64b9b3fc1a43e4f3b0633d4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryIdentity.html#af224e428a64b9b3fc1a43e4f3b0633d4">ser_buffer_reset</a> (<a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *world)</td></tr>
+<tr class="memdesc:af224e428a64b9b3fc1a43e4f3b0633d4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets this query's serialization buffer in a world.  <br /></td></tr>
 <tr class="separator:af224e428a64b9b3fc1a43e4f3b0633d4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -135,6 +140,78 @@ QueryId&#160;</td><td class="memItemRight" valign="bottom"><b>serId</b> = QueryI
 <tr class="memdesc:a8d0b35e64f83b2cfa9ec0607c1f4ee98"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serialization id. <br /></td></tr>
 <tr class="separator:a8d0b35e64f83b2cfa9ec0607c1f4ee98"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Slot and serialization identity owned by a compiled query context. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a29a764450220ea78cba4d23356704a9b" name="a29a764450220ea78cba4d23356704a9b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a29a764450220ea78cba4d23356704a9b">&#9670;&#160;</a></span>ser_buffer()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD <a class="el" href="classgaia_1_1ser_1_1ser__buffer__binary__dyn.html">QuerySerBuffer</a> &amp; gaia::ecs::QueryIdentity::ser_buffer </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
+          <td class="paramname"><em>world</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns this query's serialization buffer in a world. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the query serialization map. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Mutable serialization buffer associated with serId. </dd></dl>
+
+</div>
+</div>
+<a id="af224e428a64b9b3fc1a43e4f3b0633d4" name="af224e428a64b9b3fc1a43e4f3b0633d4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af224e428a64b9b3fc1a43e4f3b0633d4">&#9670;&#160;</a></span>ser_buffer_reset()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryIdentity::ser_buffer_reset </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ecs_1_1World.html">World</a> *&#160;</td>
+          <td class="paramname"><em>world</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Resets this query's serialization buffer in a world. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">world</td><td><a class="el" href="classgaia_1_1ecs_1_1World.html" title="Owns entities, components, archetypes, queries, observers, and systems.">World</a> owning the query serialization map. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
@@ -143,7 +220,7 @@ QueryId&#160;</td><td class="memItemRight" valign="bottom"><b>serId</b> = QueryI
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryIdentity.html">QueryIdentity</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryIdentity.html">QueryIdentity</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

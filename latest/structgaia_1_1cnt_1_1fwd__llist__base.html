@@ -115,30 +115,92 @@ $(document).ready(function(){initNavTree('structgaia_1_1cnt_1_1fwd__llist__base.
 </div><!--header-->
 <div class="contents">
 
-<p>Each <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a> node either has to inherit from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html" title="Each fwd_llist node either has to inherit from fwd_llist_base or it has to provide get_fwd_llist_link...">fwd_llist_base</a> or it has to provide get_fwd_llist_link() member functions.  
+<p>Each <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a> node either has to inherit from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html" title="Each fwd_llist node either has to inherit from fwd_llist_base or it has to provide get_fwd_llist_link...">fwd_llist_base</a> or it has to provide <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2" title="Returns the mutable intrusive link.">get_fwd_llist_link()</a> member functions.  
  <a href="structgaia_1_1cnt_1_1fwd__llist__base.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="fwd__llist_8h_source.html">fwd_llist.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a2f48a015f7f70c479a2252ead05c48e2" id="r_a2f48a015f7f70c479a2252ead05c48e2"><td class="memItemLeft" align="right" valign="top"><a id="a2f48a015f7f70c479a2252ead05c48e2" name="a2f48a015f7f70c479a2252ead05c48e2"></a>
-<a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> ()</td></tr>
+<tr class="memitem:a2f48a015f7f70c479a2252ead05c48e2" id="r_a2f48a015f7f70c479a2252ead05c48e2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2">get_fwd_llist_link</a> ()</td></tr>
+<tr class="memdesc:a2f48a015f7f70c479a2252ead05c48e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the mutable intrusive link.  <br /></td></tr>
 <tr class="separator:a2f48a015f7f70c479a2252ead05c48e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6cbb565b0dc96c5dc001482e7c48d5ec" id="r_a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memItemLeft" align="right" valign="top"><a id="a6cbb565b0dc96c5dc001482e7c48d5ec" name="a6cbb565b0dc96c5dc001482e7c48d5ec"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a> <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>get_fwd_llist_link</b> () <a class="el" href="classgaia_1_1cnt_1_1darr.html">const</a></td></tr>
+<tr class="memitem:a6cbb565b0dc96c5dc001482e7c48d5ec" id="r_a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memItemLeft" align="right" valign="top">const <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a6cbb565b0dc96c5dc001482e7c48d5ec">get_fwd_llist_link</a> () const</td></tr>
+<tr class="memdesc:a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the immutable intrusive link.  <br /></td></tr>
 <tr class="separator:a6cbb565b0dc96c5dc001482e7c48d5ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a6e874954837719f9eaa7404f9f60f67e" id="r_a6e874954837719f9eaa7404f9f60f67e"><td class="memItemLeft" align="right" valign="top"><a id="a6e874954837719f9eaa7404f9f60f67e" name="a6e874954837719f9eaa7404f9f60f67e"></a>
 <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>fwd_link_GAIA</b></td></tr>
+<tr class="memdesc:a6e874954837719f9eaa7404f9f60f67e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Intrusive link storage used by <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a>. <br /></td></tr>
 <tr class="separator:a6e874954837719f9eaa7404f9f60f67e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><div class="compoundTemplParams">template&lt;<a class="el" href="classgaia_1_1cnt_1_1darr.html">class</a> T&gt;<br />
-struct gaia::cnt::fwd_llist_base&lt; T &gt;</div><p>Each <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a> node either has to inherit from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html" title="Each fwd_llist node either has to inherit from fwd_llist_base or it has to provide get_fwd_llist_link...">fwd_llist_base</a> or it has to provide get_fwd_llist_link() member functions. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+<div class="textblock"><div class="compoundTemplParams">template&lt;class T&gt;<br />
+struct gaia::cnt::fwd_llist_base&lt; T &gt;</div><p>Each <a class="el" href="structgaia_1_1cnt_1_1fwd__llist.html" title="Forward list container. No memory allocation is performed because the list is stored directly inside ...">fwd_llist</a> node either has to inherit from <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html" title="Each fwd_llist node either has to inherit from fwd_llist_base or it has to provide get_fwd_llist_link...">fwd_llist_base</a> or it has to provide <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html#a2f48a015f7f70c479a2252ead05c48e2" title="Returns the mutable intrusive link.">get_fwd_llist_link()</a> member functions. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a2f48a015f7f70c479a2252ead05c48e2" name="a2f48a015f7f70c479a2252ead05c48e2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2f48a015f7f70c479a2252ead05c48e2">&#9670;&#160;</a></span>get_fwd_llist_link() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp; <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base</a>&lt; T &gt;::get_fwd_llist_link </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the mutable intrusive link. </p>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this node's link storage. </dd></dl>
+
+</div>
+</div>
+<a id="a6cbb565b0dc96c5dc001482e7c48d5ec" name="a6cbb565b0dc96c5dc001482e7c48d5ec"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6cbb565b0dc96c5dc001482e7c48d5ec">&#9670;&#160;</a></span>get_fwd_llist_link() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">const <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__link.html">fwd_llist_link</a>&lt; T &gt; &amp; <a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">gaia::cnt::fwd_llist_base</a>&lt; T &gt;::get_fwd_llist_link </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the immutable intrusive link. </p>
+<dl class="section return"><dt>Returns</dt><dd>Const reference to this node's link storage. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/cnt/<a class="el" href="fwd__llist_8h_source.html">fwd_llist.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -146,7 +208,7 @@ struct gaia::cnt::fwd_llist_base&lt; T &gt;</div><p>Each <a class="el" href="str
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">fwd_llist_base</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>cnt</b></li><li class="navelem"><a class="el" href="structgaia_1_1cnt_1_1fwd__llist__base.html">fwd_llist_base</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

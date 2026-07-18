@@ -1,6 +1,5 @@
 var structgaia_1_1ecs_1_1ComponentCursor =
 [
-    [ "ComponentCursor", "structgaia_1_1ecs_1_1ComponentCursor.html#a4df4c04a72b1d3ce9a6ad80038397b03", null ],
     [ "b", "structgaia_1_1ecs_1_1ComponentCursor.html#a6abdab7ca94cab33daeaf36019b4d1a0", null ],
     [ "b", "structgaia_1_1ecs_1_1ComponentCursor.html#a60ddf4409cd6bc4ef2c6da3022331100", null ],
     [ "c16", "structgaia_1_1ecs_1_1ComponentCursor.html#a1cfd2c77bc05eb23282234ee230a8f52", null ],

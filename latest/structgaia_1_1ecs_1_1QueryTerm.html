@@ -122,11 +122,11 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryTerm.html','
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a01cacb2ef59a635d2d311c9caa55cdcd" id="r_a01cacb2ef59a635d2d311c9caa55cdcd"><td class="memItemLeft" align="right" valign="top"><a id="a01cacb2ef59a635d2d311c9caa55cdcd" name="a01cacb2ef59a635d2d311c9caa55cdcd"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;other) const</td></tr>
+<tr class="memitem:a01cacb2ef59a635d2d311c9caa55cdcd" id="r_a01cacb2ef59a635d2d311c9caa55cdcd"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html#a01cacb2ef59a635d2d311c9caa55cdcd">operator==</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;other) const</td></tr>
+<tr class="memdesc:a01cacb2ef59a635d2d311c9caa55cdcd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares the matching identity of two compiled terms.  <br /></td></tr>
 <tr class="separator:a01cacb2ef59a635d2d311c9caa55cdcd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a851ed387fdb15aafdf6a443a51cada29" id="r_a851ed387fdb15aafdf6a443a51cada29"><td class="memItemLeft" align="right" valign="top"><a id="a851ed387fdb15aafdf6a443a51cada29" name="a851ed387fdb15aafdf6a443a51cada29"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;other) const</td></tr>
+<tr class="memitem:a851ed387fdb15aafdf6a443a51cada29" id="r_a851ed387fdb15aafdf6a443a51cada29"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html#a851ed387fdb15aafdf6a443a51cada29">operator!=</a> (const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;other) const</td></tr>
+<tr class="memdesc:a851ed387fdb15aafdf6a443a51cada29"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares the matching identity of two compiled terms for inequality.  <br /></td></tr>
 <tr class="separator:a851ed387fdb15aafdf6a443a51cada29"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
@@ -170,7 +170,78 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>fieldIndex</b> = 0
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Internal representation of <a class="el" href="structgaia_1_1ecs_1_1QueryInput.html" title="User-provided query input.">QueryInput</a>. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="a851ed387fdb15aafdf6a443a51cada29" name="a851ed387fdb15aafdf6a443a51cada29"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a851ed387fdb15aafdf6a443a51cada29">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::QueryTerm::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares the matching identity of two compiled terms for inequality. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Term to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when a matching-relevant field differs. </dd></dl>
+
+</div>
+</div>
+<a id="a01cacb2ef59a635d2d311c9caa55cdcd" name="a01cacb2ef59a635d2d311c9caa55cdcd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a01cacb2ef59a635d2d311c9caa55cdcd">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::QueryTerm::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a> &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares the matching identity of two compiled terms. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Term to compare. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when matching-relevant fields are equal. </dd></dl>
+
+</div>
+</div>
+<hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
 </div><!-- contents -->
@@ -178,7 +249,7 @@ uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>fieldIndex</b> = 0
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryTerm.html">QueryTerm</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

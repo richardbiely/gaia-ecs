@@ -122,10 +122,6 @@ $(document).ready(function(){initNavTree('classgaia_1_1util_1_1SmallFunc.html','
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a760617c828d8afde98e99980d78a3fb5" id="r_a760617c828d8afde98e99980d78a3fb5"><td class="memItemLeft" align="right" valign="top"><a id="a760617c828d8afde98e99980d78a3fb5" name="a760617c828d8afde98e99980d78a3fb5"></a>
-&#160;</td><td class="memItemRight" valign="bottom"><b>SmallFunc</b> ()=default</td></tr>
-<tr class="memdesc:a760617c828d8afde98e99980d78a3fb5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an empty function wrapper. <br /></td></tr>
-<tr class="separator:a760617c828d8afde98e99980d78a3fb5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6104aa80e8cd712347f71750d1ec8274" id="r_a6104aa80e8cd712347f71750d1ec8274"><td class="memItemLeft" align="right" valign="top"><a id="a6104aa80e8cd712347f71750d1ec8274" name="a6104aa80e8cd712347f71750d1ec8274"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>~SmallFunc</b> ()</td></tr>
 <tr class="memdesc:a6104aa80e8cd712347f71750d1ec8274"><td class="mdescLeft">&#160;</td><td class="mdescRight">Destroys the stored callable, if any. <br /></td></tr>
@@ -142,13 +138,13 @@ Public Member Functions</h2></td></tr>
 <tr class="memitem:a61f97467ea3b8a07018cc59508e73154" id="r_a61f97467ea3b8a07018cc59508e73154"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html#a61f97467ea3b8a07018cc59508e73154">operator=</a> (<a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a> &amp;&amp;other) noexcept</td></tr>
 <tr class="memdesc:a61f97467ea3b8a07018cc59508e73154"><td class="mdescLeft">&#160;</td><td class="mdescRight">Move-assigns the wrapper.  <br /></td></tr>
 <tr class="separator:a61f97467ea3b8a07018cc59508e73154"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a90778aefa2aa8d7a27bfd811ca2585e2" id="r_a90778aefa2aa8d7a27bfd811ca2585e2"><td class="memTemplParams" colspan="2"><a id="a90778aefa2aa8d7a27bfd811ca2585e2" name="a90778aefa2aa8d7a27bfd811ca2585e2"></a>
-template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </td></tr>
-<tr class="memitem:a90778aefa2aa8d7a27bfd811ca2585e2"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><b>SmallFunc</b> (F &amp;&amp;f)</td></tr>
+<tr class="memitem:a90778aefa2aa8d7a27bfd811ca2585e2" id="r_a90778aefa2aa8d7a27bfd811ca2585e2"><td class="memTemplParams" colspan="2">template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </td></tr>
+<tr class="memitem:a90778aefa2aa8d7a27bfd811ca2585e2"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html#a90778aefa2aa8d7a27bfd811ca2585e2">SmallFunc</a> (F &amp;&amp;f)</td></tr>
+<tr class="memdesc:a90778aefa2aa8d7a27bfd811ca2585e2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs a wrapper from a callable compatible with void().  <br /></td></tr>
 <tr class="separator:a90778aefa2aa8d7a27bfd811ca2585e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a21ee8c38d68992b555dae6ab9fc12ad8" id="r_a21ee8c38d68992b555dae6ab9fc12ad8"><td class="memTemplParams" colspan="2"><a id="a21ee8c38d68992b555dae6ab9fc12ad8" name="a21ee8c38d68992b555dae6ab9fc12ad8"></a>
-template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </td></tr>
-<tr class="memitem:a21ee8c38d68992b555dae6ab9fc12ad8"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><b>operator=</b> (F &amp;&amp;f)</td></tr>
+<tr class="memitem:a21ee8c38d68992b555dae6ab9fc12ad8" id="r_a21ee8c38d68992b555dae6ab9fc12ad8"><td class="memTemplParams" colspan="2">template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </td></tr>
+<tr class="memitem:a21ee8c38d68992b555dae6ab9fc12ad8"><td class="memTemplItemLeft" align="right" valign="top"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a> &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html#a21ee8c38d68992b555dae6ab9fc12ad8">operator=</a> (F &amp;&amp;f)</td></tr>
+<tr class="memdesc:a21ee8c38d68992b555dae6ab9fc12ad8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Replaces the stored callable.  <br /></td></tr>
 <tr class="separator:a21ee8c38d68992b555dae6ab9fc12ad8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad5e28e58c4a51df467e27a2bf06c2e83" id="r_ad5e28e58c4a51df467e27a2bf06c2e83"><td class="memItemLeft" align="right" valign="top"><a id="ad5e28e58c4a51df467e27a2bf06c2e83" name="ad5e28e58c4a51df467e27a2bf06c2e83"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>exec</b> ()</td></tr>
@@ -181,7 +177,7 @@ Static Public Member Functions</h2></td></tr>
 <div class="textblock"><p>Move-only function wrapper with inline storage for small callables. Callables too large for the inline buffer use SmallBlockAllocator when GAIA_FUNC_WRAPPER_SMALLBLOCK is enabled. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ae9f35a43f66a4f775acfba73e20615aa" name="ae9f35a43f66a4f775acfba73e20615aa"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ae9f35a43f66a4f775acfba73e20615aa">&#9670;&#160;</a></span>SmallFunc()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#ae9f35a43f66a4f775acfba73e20615aa">&#9670;&#160;</a></span>SmallFunc() <span class="overload">[1/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -208,6 +204,48 @@ Static Public Member Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">other</td><td>Source wrapper. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a90778aefa2aa8d7a27bfd811ca2585e2" name="a90778aefa2aa8d7a27bfd811ca2585e2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a90778aefa2aa8d7a27bfd811ca2585e2">&#9670;&#160;</a></span>SmallFunc() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">gaia::util::SmallFunc::SmallFunc </td>
+          <td>(</td>
+          <td class="paramtype">F &amp;&amp;&#160;</td>
+          <td class="paramname"><em>f</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Constructs a wrapper from a callable compatible with void(). </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">F</td><td>Callable type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">f</td><td>Callable object. </td></tr>
   </table>
   </dd>
 </dl>
@@ -292,8 +330,51 @@ template&lt;typename F &gt; </div>
 
 </div>
 </div>
+<a id="a21ee8c38d68992b555dae6ab9fc12ad8" name="a21ee8c38d68992b555dae6ab9fc12ad8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a21ee8c38d68992b555dae6ab9fc12ad8">&#9670;&#160;</a></span>operator=() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename F , typename  = std::enable_if_t&lt;!std::is_same_v&lt;std::decay_t&lt;F&gt;, SmallFunc&gt;&gt;&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a> &amp; gaia::util::SmallFunc::operator= </td>
+          <td>(</td>
+          <td class="paramtype">F &amp;&amp;&#160;</td>
+          <td class="paramname"><em>f</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Replaces the stored callable. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">F</td><td>Callable type. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">f</td><td>Callable object. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Reference to this wrapper. </dd></dl>
+
+</div>
+</div>
 <a id="a61f97467ea3b8a07018cc59508e73154" name="a61f97467ea3b8a07018cc59508e73154"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a61f97467ea3b8a07018cc59508e73154">&#9670;&#160;</a></span>operator=()</h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a61f97467ea3b8a07018cc59508e73154">&#9670;&#160;</a></span>operator=() <span class="overload">[2/2]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -335,7 +416,7 @@ template&lt;typename F &gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>util</b></li><li class="navelem"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>util</b></li><li class="navelem"><a class="el" href="classgaia_1_1util_1_1SmallFunc.html">SmallFunc</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

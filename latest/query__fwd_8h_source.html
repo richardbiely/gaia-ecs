@@ -118,7 +118,7 @@ $(document).ready(function(){initNavTree('query__fwd_8h_source.html',''); initRe
 <div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#pragma once</span></div>
 <div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#include &lt;cstdint&gt;</span></div>
 <div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span> </div>
-<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespacegaia.html">gaia</a> {</div>
+<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="keyword">namespace </span>gaia {</div>
 <div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span>  <span class="keyword">namespace </span>ser {</div>
 <div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span>    <span class="keyword">class </span>ser_buffer_binary_dyn;</div>
 <div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span>  }</div>
@@ -128,15 +128,14 @@ $(document).ready(function(){initNavTree('query__fwd_8h_source.html',''); initRe
 <div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span>    <span class="keyword">class </span>Archetype;</div>
 <div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    <span class="keyword">struct </span>Entity;</div>
 <div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span> </div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <span class="keyword">using </span>QueryId = uint32_t;</div>
-<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">using </span>GroupId = uint32_t;</div>
-<div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span>    <span class="keyword">using </span>QuerySerBuffer = ser::ser_buffer_binary_dyn;</div>
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span> </div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    <span class="keyword">using </span>TSortByFunc = int (*)(<span class="keyword">const</span> World&amp;, <span class="keyword">const</span> <span class="keywordtype">void</span>*, <span class="keyword">const</span> <span class="keywordtype">void</span>*);</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    <span class="keyword">using </span>TGroupByFunc = GroupId (*)(<span class="keyword">const</span> World&amp;, <span class="keyword">const</span> Archetype&amp;, Entity);</div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>  } <span class="comment">// namespace ecs</span></div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>} <span class="comment">// namespace gaia</span></div>
-<div class="ttc" id="anamespacegaia_html"><div class="ttname"><a href="namespacegaia.html">gaia</a></div><div class="ttdoc">Checks if endianess was detected correctly at compile-time.</div><div class="ttdef"><b>Definition</b> bitset.h:9</div></div>
+<div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>    <span class="keyword">using </span>QueryId = uint32_t;</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>    <span class="keyword">using </span>GroupId = uint32_t;</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    <span class="keyword">using </span>QuerySerBuffer = ser::ser_buffer_binary_dyn;</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span> </div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>    <span class="keyword">using </span>TSortByFunc = int (*)(<span class="keyword">const</span> World&amp;, <span class="keyword">const</span> <span class="keywordtype">void</span>*, <span class="keyword">const</span> <span class="keywordtype">void</span>*);</div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>    <span class="keyword">using </span>TGroupByFunc = GroupId (*)(<span class="keyword">const</span> World&amp;, <span class="keyword">const</span> Archetype&amp;, Entity);</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>  } <span class="comment">// namespace ecs</span></div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>} <span class="comment">// namespace gaia</span></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->

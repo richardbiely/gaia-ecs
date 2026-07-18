@@ -114,73 +114,369 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1QueryCtx_1_1Data_
   <div class="headertitle"><div class="title">gaia::ecs::QueryCtx::Data::Dependencies Struct Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Deduplicated entities and flags that can invalidate or update a query cache.  
+ <a href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="query__common_8h_source.html">query_common.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a91aebffb03717b548fe0e8e007b5f9b2" id="r_a91aebffb03717b548fe0e8e007b5f9b2"><td class="memItemLeft" align="right" valign="top"><a id="a91aebffb03717b548fe0e8e007b5f9b2" name="a91aebffb03717b548fe0e8e007b5f9b2"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>clear</b> ()</td></tr>
+<tr class="memdesc:a91aebffb03717b548fe0e8e007b5f9b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Resets dependency counts and flags while retaining fixed storage. <br /></td></tr>
 <tr class="separator:a91aebffb03717b548fe0e8e007b5f9b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4139121ee0e57a712cfb3435b7d3a2de" id="r_a4139121ee0e57a712cfb3435b7d3a2de"><td class="memItemLeft" align="right" valign="top"><a id="a4139121ee0e57a712cfb3435b7d3a2de" name="a4139121ee0e57a712cfb3435b7d3a2de"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>create_selectors_view</b> () const</td></tr>
+<tr class="memitem:a4139121ee0e57a712cfb3435b7d3a2de" id="r_a4139121ee0e57a712cfb3435b7d3a2de"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a4139121ee0e57a712cfb3435b7d3a2de">create_selectors_view</a> () const</td></tr>
+<tr class="memdesc:a4139121ee0e57a712cfb3435b7d3a2de"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns positive selector ids used during archetype creation.  <br /></td></tr>
 <tr class="separator:a4139121ee0e57a712cfb3435b7d3a2de"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a21909ecfa2fd7aca1876e6b1acb7e38e" id="r_a21909ecfa2fd7aca1876e6b1acb7e38e"><td class="memItemLeft" align="right" valign="top"><a id="a21909ecfa2fd7aca1876e6b1acb7e38e" name="a21909ecfa2fd7aca1876e6b1acb7e38e"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>exclusions_view</b> () const</td></tr>
+<tr class="memitem:a21909ecfa2fd7aca1876e6b1acb7e38e" id="r_a21909ecfa2fd7aca1876e6b1acb7e38e"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a21909ecfa2fd7aca1876e6b1acb7e38e">exclusions_view</a> () const</td></tr>
+<tr class="memdesc:a21909ecfa2fd7aca1876e6b1acb7e38e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns negative selector ids used during archetype creation.  <br /></td></tr>
 <tr class="separator:a21909ecfa2fd7aca1876e6b1acb7e38e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6dd2d257aba5c0cd33ed296bf3ce36fe" id="r_a6dd2d257aba5c0cd33ed296bf3ce36fe"><td class="memItemLeft" align="right" valign="top"><a id="a6dd2d257aba5c0cd33ed296bf3ce36fe" name="a6dd2d257aba5c0cd33ed296bf3ce36fe"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>relations_view</b> () const</td></tr>
+<tr class="memitem:a6dd2d257aba5c0cd33ed296bf3ce36fe" id="r_a6dd2d257aba5c0cd33ed296bf3ce36fe"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a6dd2d257aba5c0cd33ed296bf3ce36fe">relations_view</a> () const</td></tr>
+<tr class="memdesc:a6dd2d257aba5c0cd33ed296bf3ce36fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns relation-version dependencies.  <br /></td></tr>
 <tr class="separator:a6dd2d257aba5c0cd33ed296bf3ce36fe"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a64985a765a7185b00c114bc57cbc88d1" id="r_a64985a765a7185b00c114bc57cbc88d1"><td class="memItemLeft" align="right" valign="top"><a id="a64985a765a7185b00c114bc57cbc88d1" name="a64985a765a7185b00c114bc57cbc88d1"></a>
-GAIA_NODISCARD <a class="el" href="classgaia_1_1core_1_1span.html">std::span</a>&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>src_entities_view</b> () const</td></tr>
+<tr class="memitem:a64985a765a7185b00c114bc57cbc88d1" id="r_a64985a765a7185b00c114bc57cbc88d1"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a64985a765a7185b00c114bc57cbc88d1">src_entities_view</a> () const</td></tr>
+<tr class="memdesc:a64985a765a7185b00c114bc57cbc88d1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns concrete source-entity dependencies.  <br /></td></tr>
 <tr class="separator:a64985a765a7185b00c114bc57cbc88d1"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a11859a84a93024e44a88023b8a9ec4d7" id="r_a11859a84a93024e44a88023b8a9ec4d7"><td class="memItemLeft" align="right" valign="top"><a id="a11859a84a93024e44a88023b8a9ec4d7" name="a11859a84a93024e44a88023b8a9ec4d7"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>set_dep_flag</b> (DependencyFlags dependency)</td></tr>
+<tr class="memitem:a11859a84a93024e44a88023b8a9ec4d7" id="r_a11859a84a93024e44a88023b8a9ec4d7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a11859a84a93024e44a88023b8a9ec4d7">set_dep_flag</a> (<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3">DependencyFlags</a> dependency)</td></tr>
+<tr class="memdesc:a11859a84a93024e44a88023b8a9ec4d7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Records a dependency fact.  <br /></td></tr>
 <tr class="separator:a11859a84a93024e44a88023b8a9ec4d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a27f3e613a6ea4b86a3d29fad77e1bf67" id="r_a27f3e613a6ea4b86a3d29fad77e1bf67"><td class="memItemLeft" align="right" valign="top"><a id="a27f3e613a6ea4b86a3d29fad77e1bf67" name="a27f3e613a6ea4b86a3d29fad77e1bf67"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>has_dep_flag</b> (DependencyFlags dependency) const</td></tr>
+<tr class="memitem:a27f3e613a6ea4b86a3d29fad77e1bf67" id="r_a27f3e613a6ea4b86a3d29fad77e1bf67"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a27f3e613a6ea4b86a3d29fad77e1bf67">has_dep_flag</a> (<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3">DependencyFlags</a> dependency) const</td></tr>
+<tr class="memdesc:a27f3e613a6ea4b86a3d29fad77e1bf67"><td class="mdescLeft">&#160;</td><td class="mdescRight">Tests whether a dependency fact was recorded.  <br /></td></tr>
 <tr class="separator:a27f3e613a6ea4b86a3d29fad77e1bf67"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:acbe8321d192ae7879ef22fe9cc7c85e8" id="r_acbe8321d192ae7879ef22fe9cc7c85e8"><td class="memItemLeft" align="right" valign="top"><a id="acbe8321d192ae7879ef22fe9cc7c85e8" name="acbe8321d192ae7879ef22fe9cc7c85e8"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add_rel</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
+<tr class="memitem:acbe8321d192ae7879ef22fe9cc7c85e8" id="r_acbe8321d192ae7879ef22fe9cc7c85e8"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#acbe8321d192ae7879ef22fe9cc7c85e8">add_rel</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> relation)</td></tr>
+<tr class="memdesc:acbe8321d192ae7879ef22fe9cc7c85e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a unique relation-version dependency.  <br /></td></tr>
 <tr class="separator:acbe8321d192ae7879ef22fe9cc7c85e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ae3192e62d4caf270c057f4f97afd9d32" id="r_ae3192e62d4caf270c057f4f97afd9d32"><td class="memItemLeft" align="right" valign="top"><a id="ae3192e62d4caf270c057f4f97afd9d32" name="ae3192e62d4caf270c057f4f97afd9d32"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>add_src_entity</b> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memitem:ae3192e62d4caf270c057f4f97afd9d32" id="r_ae3192e62d4caf270c057f4f97afd9d32"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#ae3192e62d4caf270c057f4f97afd9d32">add_src_entity</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity)</td></tr>
+<tr class="memdesc:ae3192e62d4caf270c057f4f97afd9d32"><td class="mdescLeft">&#160;</td><td class="mdescRight">Adds a unique concrete source-entity dependency.  <br /></td></tr>
 <tr class="separator:ae3192e62d4caf270c057f4f97afd9d32"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:adda9d2c2b38a19d39ac77dbe185ac97a" id="r_adda9d2c2b38a19d39ac77dbe185ac97a"><td class="memItemLeft" align="right" valign="top"><a id="adda9d2c2b38a19d39ac77dbe185ac97a" name="adda9d2c2b38a19d39ac77dbe185ac97a"></a>
-GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><b>can_reuse_src_cache</b> () const</td></tr>
+<tr class="memitem:adda9d2c2b38a19d39ac77dbe185ac97a" id="r_adda9d2c2b38a19d39ac77dbe185ac97a"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#adda9d2c2b38a19d39ac77dbe185ac97a">can_reuse_src_cache</a> () const</td></tr>
+<tr class="memdesc:adda9d2c2b38a19d39ac77dbe185ac97a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Checks whether each fixed-source term has a distinct tracked entity.  <br /></td></tr>
 <tr class="separator:adda9d2c2b38a19d39ac77dbe185ac97a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:aa0ecb9f76d515dd78c1469392cdf36d2" id="r_aa0ecb9f76d515dd78c1469392cdf36d2"><td class="memItemLeft" align="right" valign="top"><a id="aa0ecb9f76d515dd78c1469392cdf36d2" name="aa0ecb9f76d515dd78c1469392cdf36d2"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>createSelectors</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>createSelectors</b></td></tr>
+<tr class="memdesc:aa0ecb9f76d515dd78c1469392cdf36d2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Positive selector ids used for archetype-create propagation. <br /></td></tr>
 <tr class="separator:aa0ecb9f76d515dd78c1469392cdf36d2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af8f670df205530fb0edf516093c5c115" id="r_af8f670df205530fb0edf516093c5c115"><td class="memItemLeft" align="right" valign="top"><a id="af8f670df205530fb0edf516093c5c115" name="af8f670df205530fb0edf516093c5c115"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>exclusions</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>exclusions</b></td></tr>
+<tr class="memdesc:af8f670df205530fb0edf516093c5c115"><td class="mdescLeft">&#160;</td><td class="mdescRight">Negative selector ids used to reject new archetypes. <br /></td></tr>
 <tr class="separator:af8f670df205530fb0edf516093c5c115"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a844f7a6ae0c963aa1b5b5378c353ba53" id="r_a844f7a6ae0c963aa1b5b5378c353ba53"><td class="memItemLeft" align="right" valign="top"><a id="a844f7a6ae0c963aa1b5b5378c353ba53" name="a844f7a6ae0c963aa1b5b5378c353ba53"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>relations</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>relations</b></td></tr>
+<tr class="memdesc:a844f7a6ae0c963aa1b5b5378c353ba53"><td class="mdescLeft">&#160;</td><td class="mdescRight">Relations whose topology versions affect cached results. <br /></td></tr>
 <tr class="separator:a844f7a6ae0c963aa1b5b5378c353ba53"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac145f8e1ef71ec71a883e6bf8fd6e376" id="r_ac145f8e1ef71ec71a883e6bf8fd6e376"><td class="memItemLeft" align="right" valign="top"><a id="ac145f8e1ef71ec71a883e6bf8fd6e376" name="ac145f8e1ef71ec71a883e6bf8fd6e376"></a>
-<a class="el" href="classgaia_1_1cnt_1_1darr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sourceEntities</b></td></tr>
+<a class="el" href="classgaia_1_1cnt_1_1sarr.html">QueryEntityArray</a>&#160;</td><td class="memItemRight" valign="bottom"><b>sourceEntities</b></td></tr>
+<tr class="memdesc:ac145f8e1ef71ec71a883e6bf8fd6e376"><td class="mdescLeft">&#160;</td><td class="mdescRight">Concrete source entities whose archetype versions affect cached results. <br /></td></tr>
 <tr class="separator:ac145f8e1ef71ec71a883e6bf8fd6e376"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aae6b65dc633265ddcb619a79c21e0054" id="r_aae6b65dc633265ddcb619a79c21e0054"><td class="memItemLeft" align="right" valign="top"><a id="aae6b65dc633265ddcb619a79c21e0054" name="aae6b65dc633265ddcb619a79c21e0054"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>createSelectorCnt</b> = 0</td></tr>
+<tr class="memdesc:aae6b65dc633265ddcb619a79c21e0054"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid entries in createSelectors. <br /></td></tr>
 <tr class="separator:aae6b65dc633265ddcb619a79c21e0054"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:acc052e025176dd48941735ce2f3526ac" id="r_acc052e025176dd48941735ce2f3526ac"><td class="memItemLeft" align="right" valign="top"><a id="acc052e025176dd48941735ce2f3526ac" name="acc052e025176dd48941735ce2f3526ac"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>exclusionCnt</b> = 0</td></tr>
+<tr class="memdesc:acc052e025176dd48941735ce2f3526ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid entries in exclusions. <br /></td></tr>
 <tr class="separator:acc052e025176dd48941735ce2f3526ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab4cf5f49f599fc7df0cd2df5fbde3312" id="r_ab4cf5f49f599fc7df0cd2df5fbde3312"><td class="memItemLeft" align="right" valign="top"><a id="ab4cf5f49f599fc7df0cd2df5fbde3312" name="ab4cf5f49f599fc7df0cd2df5fbde3312"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>relationCnt</b> = 0</td></tr>
+<tr class="memdesc:ab4cf5f49f599fc7df0cd2df5fbde3312"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid entries in relations. <br /></td></tr>
 <tr class="separator:ab4cf5f49f599fc7df0cd2df5fbde3312"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5075314c7c7a3424b954f22cc7967dbb" id="r_a5075314c7c7a3424b954f22cc7967dbb"><td class="memItemLeft" align="right" valign="top"><a id="a5075314c7c7a3424b954f22cc7967dbb" name="a5075314c7c7a3424b954f22cc7967dbb"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>sourceEntityCnt</b> = 0</td></tr>
+<tr class="memdesc:a5075314c7c7a3424b954f22cc7967dbb"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of valid entries in sourceEntities. <br /></td></tr>
 <tr class="separator:a5075314c7c7a3424b954f22cc7967dbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a84e77736cc9393e471904ba2f7cd2b50" id="r_a84e77736cc9393e471904ba2f7cd2b50"><td class="memItemLeft" align="right" valign="top"><a id="a84e77736cc9393e471904ba2f7cd2b50" name="a84e77736cc9393e471904ba2f7cd2b50"></a>
 uint8_t&#160;</td><td class="memItemRight" valign="bottom"><b>sourceTermCnt</b> = 0</td></tr>
+<tr class="memdesc:a84e77736cc9393e471904ba2f7cd2b50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of fixed-source terms, including duplicate source entities. <br /></td></tr>
 <tr class="separator:a84e77736cc9393e471904ba2f7cd2b50"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a281a4d716141af0fcece2f4c90f5f707" id="r_a281a4d716141af0fcece2f4c90f5f707"><td class="memItemLeft" align="right" valign="top"><a id="a281a4d716141af0fcece2f4c90f5f707" name="a281a4d716141af0fcece2f4c90f5f707"></a>
-DependencyFlags&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b> = DependencyNone</td></tr>
+<a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3">DependencyFlags</a>&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b> = <a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3ac79d8cc30f3a83ed1e78ad96f8434f85">DependencyNone</a></td></tr>
+<tr class="memdesc:a281a4d716141af0fcece2f4c90f5f707"><td class="mdescLeft">&#160;</td><td class="mdescRight">Combined DependencyFlags describing the compiled query shape. <br /></td></tr>
 <tr class="separator:a281a4d716141af0fcece2f4c90f5f707"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><p>Deduplicated entities and flags that can invalidate or update a query cache. </p>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a id="acbe8321d192ae7879ef22fe9cc7c85e8" name="acbe8321d192ae7879ef22fe9cc7c85e8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#acbe8321d192ae7879ef22fe9cc7c85e8">&#9670;&#160;</a></span>add_rel()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryCtx::Data::Dependencies::add_rel </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>relation</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds a unique relation-version dependency. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">relation</td><td>Relation whose topology affects query results. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="ae3192e62d4caf270c057f4f97afd9d32" name="ae3192e62d4caf270c057f4f97afd9d32"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae3192e62d4caf270c057f4f97afd9d32">&#9670;&#160;</a></span>add_src_entity()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryCtx::Data::Dependencies::add_src_entity </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Adds a unique concrete source-entity dependency. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td>Source entity whose archetype membership affects results. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="adda9d2c2b38a19d39ac77dbe185ac97a" name="adda9d2c2b38a19d39ac77dbe185ac97a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#adda9d2c2b38a19d39ac77dbe185ac97a">&#9670;&#160;</a></span>can_reuse_src_cache()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::Dependencies::can_reuse_src_cache </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Checks whether each fixed-source term has a distinct tracked entity. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when targeted source-version checks can validate the cache. </dd></dl>
+
+</div>
+</div>
+<a id="a4139121ee0e57a712cfb3435b7d3a2de" name="a4139121ee0e57a712cfb3435b7d3a2de"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4139121ee0e57a712cfb3435b7d3a2de">&#9670;&#160;</a></span>create_selectors_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::Dependencies::create_selectors_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns positive selector ids used during archetype creation. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid createSelectors entries. </dd></dl>
+
+</div>
+</div>
+<a id="a21909ecfa2fd7aca1876e6b1acb7e38e" name="a21909ecfa2fd7aca1876e6b1acb7e38e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a21909ecfa2fd7aca1876e6b1acb7e38e">&#9670;&#160;</a></span>exclusions_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::Dependencies::exclusions_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns negative selector ids used during archetype creation. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid exclusions entries. </dd></dl>
+
+</div>
+</div>
+<a id="a27f3e613a6ea4b86a3d29fad77e1bf67" name="a27f3e613a6ea4b86a3d29fad77e1bf67"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a27f3e613a6ea4b86a3d29fad77e1bf67">&#9670;&#160;</a></span>has_dep_flag()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD bool gaia::ecs::QueryCtx::Data::Dependencies::has_dep_flag </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3">DependencyFlags</a>&#160;</td>
+          <td class="paramname"><em>dependency</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Tests whether a dependency fact was recorded. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">dependency</td><td>Flag to test. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when <em>dependency</em> is set in flags. </dd></dl>
+
+</div>
+</div>
+<a id="a6dd2d257aba5c0cd33ed296bf3ce36fe" name="a6dd2d257aba5c0cd33ed296bf3ce36fe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6dd2d257aba5c0cd33ed296bf3ce36fe">&#9670;&#160;</a></span>relations_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::Dependencies::relations_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns relation-version dependencies. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid relations entries. </dd></dl>
+
+</div>
+</div>
+<a id="a11859a84a93024e44a88023b8a9ec4d7" name="a11859a84a93024e44a88023b8a9ec4d7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a11859a84a93024e44a88023b8a9ec4d7">&#9670;&#160;</a></span>set_dep_flag()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void gaia::ecs::QueryCtx::Data::Dependencies::set_dep_flag </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html#a5c21e6754dd9afa669fecb6cb24f29e3">DependencyFlags</a>&#160;</td>
+          <td class="paramname"><em>dependency</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Records a dependency fact. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">dependency</td><td>Flag to add to flags. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="a64985a765a7185b00c114bc57cbc88d1" name="a64985a765a7185b00c114bc57cbc88d1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a64985a765a7185b00c114bc57cbc88d1">&#9670;&#160;</a></span>src_entities_view()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD std::span&lt; const <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> &gt; gaia::ecs::QueryCtx::Data::Dependencies::src_entities_view </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns concrete source-entity dependencies. </p>
+<dl class="section return"><dt>Returns</dt><dd>Read-only view over valid sourceEntities entries. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="query__common_8h_source.html">query_common.h</a></li>
 </ul>
@@ -189,7 +485,7 @@ DependencyFlags&#160;</td><td class="memItemRight" valign="bottom"><b>flags</b> 
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html">Dependencies</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx.html">QueryCtx</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data.html">Data</a></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html">Dependencies</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

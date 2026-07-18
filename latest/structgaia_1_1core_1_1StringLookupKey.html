@@ -115,47 +115,67 @@ $(document).ready(function(){initNavTree('structgaia_1_1core_1_1StringLookupKey.
   <div class="headertitle"><div class="title">gaia::core::StringLookupKey&lt; MaxLen &gt; Struct Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
+
+<p>Fixed-limit string lookup key carrying a precomputed 32-bit hash.  
+ <a href="structgaia_1_1core_1_1StringLookupKey.html#details">More...</a></p>
+
+<p><code>#include &lt;<a class="el" href="hashing__string_8h_source.html">hashing_string.h</a>&gt;</code></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-types" name="pub-types"></a>
 Public Types</h2></td></tr>
 <tr class="memitem:a8f88f1c9073e44e265c1b7696173b3ae" id="r_a8f88f1c9073e44e265c1b7696173b3ae"><td class="memItemLeft" align="right" valign="top"><a id="a8f88f1c9073e44e265c1b7696173b3ae" name="a8f88f1c9073e44e265c1b7696173b3ae"></a>
 using&#160;</td><td class="memItemRight" valign="bottom"><b>LookupHash</b> = <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">core::direct_hash_key</a>&lt; uint32_t &gt;</td></tr>
+<tr class="memdesc:a8f88f1c9073e44e265c1b7696173b3ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">Direct hash wrapper used by lookup containers. <br /></td></tr>
 <tr class="separator:a8f88f1c9073e44e265c1b7696173b3ae"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a6ee30a6ca3f9deebfb3fc4a4a4567bff" id="r_a6ee30a6ca3f9deebfb3fc4a4a4567bff"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a6ee30a6ca3f9deebfb3fc4a4a4567bff">StringLookupKey</a> (const char *pStr, uint32_t len, uint32_t owned)</td></tr>
+<tr class="memitem:aca96a895aadc0f4e0e8c12351cfb4c41" id="r_aca96a895aadc0f4e0e8c12351cfb4c41"><td class="memItemLeft" align="right" valign="top"><a id="aca96a895aadc0f4e0e8c12351cfb4c41" name="aca96a895aadc0f4e0e8c12351cfb4c41"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>StringLookupKey</b> ()</td></tr>
+<tr class="memdesc:aca96a895aadc0f4e0e8c12351cfb4c41"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructs an empty lookup key. <br /></td></tr>
+<tr class="separator:aca96a895aadc0f4e0e8c12351cfb4c41"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a6ee30a6ca3f9deebfb3fc4a4a4567bff" id="r_a6ee30a6ca3f9deebfb3fc4a4a4567bff"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a6ee30a6ca3f9deebfb3fc4a4a4567bff">StringLookupKey</a> (const char *pStr, uint32_t len, uint32_t <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a353c81cd4fe5e53a387f54d56aea36cd">owned</a>)</td></tr>
 <tr class="memdesc:a6ee30a6ca3f9deebfb3fc4a4a4567bff"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructor calculating hash from the provided string <em>pStr</em> and <em>len</em>.  <br /></td></tr>
 <tr class="separator:a6ee30a6ca3f9deebfb3fc4a4a4567bff"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aba11d1cdeb80a6ad3fa65d9c48e3e21e" id="r_aba11d1cdeb80a6ad3fa65d9c48e3e21e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#aba11d1cdeb80a6ad3fa65d9c48e3e21e">StringLookupKey</a> (const char *pStr, uint32_t len, uint32_t owned, <a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a> hash)</td></tr>
+<tr class="memitem:aba11d1cdeb80a6ad3fa65d9c48e3e21e" id="r_aba11d1cdeb80a6ad3fa65d9c48e3e21e"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#aba11d1cdeb80a6ad3fa65d9c48e3e21e">StringLookupKey</a> (const char *pStr, uint32_t len, uint32_t <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a353c81cd4fe5e53a387f54d56aea36cd">owned</a>, <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a8f88f1c9073e44e265c1b7696173b3ae">LookupHash</a> <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a5041a7970d6bb6c5abccef85a3637ec2">hash</a>)</td></tr>
 <tr class="memdesc:aba11d1cdeb80a6ad3fa65d9c48e3e21e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructor just for setting values.  <br /></td></tr>
 <tr class="separator:aba11d1cdeb80a6ad3fa65d9c48e3e21e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa43548043f21651021cad8d48375c7b0" id="r_aa43548043f21651021cad8d48375c7b0"><td class="memItemLeft" align="right" valign="top"><a id="aa43548043f21651021cad8d48375c7b0" name="aa43548043f21651021cad8d48375c7b0"></a>
-const char *&#160;</td><td class="memItemRight" valign="bottom"><b>str</b> () const</td></tr>
+<tr class="memitem:aa43548043f21651021cad8d48375c7b0" id="r_aa43548043f21651021cad8d48375c7b0"><td class="memItemLeft" align="right" valign="top">const char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#aa43548043f21651021cad8d48375c7b0">str</a> () const</td></tr>
+<tr class="memdesc:aa43548043f21651021cad8d48375c7b0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the referenced string.  <br /></td></tr>
 <tr class="separator:aa43548043f21651021cad8d48375c7b0"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a788fe45362cc5690a2eb6575e0189b30" id="r_a788fe45362cc5690a2eb6575e0189b30"><td class="memItemLeft" align="right" valign="top"><a id="a788fe45362cc5690a2eb6575e0189b30" name="a788fe45362cc5690a2eb6575e0189b30"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>len</b> () const</td></tr>
+<tr class="memitem:a788fe45362cc5690a2eb6575e0189b30" id="r_a788fe45362cc5690a2eb6575e0189b30"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a788fe45362cc5690a2eb6575e0189b30">len</a> () const</td></tr>
+<tr class="memdesc:a788fe45362cc5690a2eb6575e0189b30"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the string length.  <br /></td></tr>
 <tr class="separator:a788fe45362cc5690a2eb6575e0189b30"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a353c81cd4fe5e53a387f54d56aea36cd" id="r_a353c81cd4fe5e53a387f54d56aea36cd"><td class="memItemLeft" align="right" valign="top"><a id="a353c81cd4fe5e53a387f54d56aea36cd" name="a353c81cd4fe5e53a387f54d56aea36cd"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>owned</b> () const</td></tr>
+<tr class="memitem:a353c81cd4fe5e53a387f54d56aea36cd" id="r_a353c81cd4fe5e53a387f54d56aea36cd"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a353c81cd4fe5e53a387f54d56aea36cd">owned</a> () const</td></tr>
+<tr class="memdesc:a353c81cd4fe5e53a387f54d56aea36cd"><td class="mdescLeft">&#160;</td><td class="mdescRight">Reports whether Gaia-ECS manages the string lifetime.  <br /></td></tr>
 <tr class="separator:a353c81cd4fe5e53a387f54d56aea36cd"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a5041a7970d6bb6c5abccef85a3637ec2" id="r_a5041a7970d6bb6c5abccef85a3637ec2"><td class="memItemLeft" align="right" valign="top"><a id="a5041a7970d6bb6c5abccef85a3637ec2" name="a5041a7970d6bb6c5abccef85a3637ec2"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>hash</b> () const</td></tr>
+<tr class="memitem:a5041a7970d6bb6c5abccef85a3637ec2" id="r_a5041a7970d6bb6c5abccef85a3637ec2"><td class="memItemLeft" align="right" valign="top">uint32_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a5041a7970d6bb6c5abccef85a3637ec2">hash</a> () const</td></tr>
+<tr class="memdesc:a5041a7970d6bb6c5abccef85a3637ec2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Returns the precomputed string hash.  <br /></td></tr>
 <tr class="separator:a5041a7970d6bb6c5abccef85a3637ec2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a106c2b2579959ce760f5542785c37aaa" id="r_a106c2b2579959ce760f5542785c37aaa"><td class="memItemLeft" align="right" valign="top"><a id="a106c2b2579959ce760f5542785c37aaa" name="a106c2b2579959ce760f5542785c37aaa"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator==</b> (const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a> &amp;other) const</td></tr>
+<tr class="memitem:a106c2b2579959ce760f5542785c37aaa" id="r_a106c2b2579959ce760f5542785c37aaa"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a106c2b2579959ce760f5542785c37aaa">operator==</a> (const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a> &amp;other) const</td></tr>
+<tr class="memdesc:a106c2b2579959ce760f5542785c37aaa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares keys by hash, length, and string contents.  <br /></td></tr>
 <tr class="separator:a106c2b2579959ce760f5542785c37aaa"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a353d21d08d2df7f2dab2a41b0e22c3da" id="r_a353d21d08d2df7f2dab2a41b0e22c3da"><td class="memItemLeft" align="right" valign="top"><a id="a353d21d08d2df7f2dab2a41b0e22c3da" name="a353d21d08d2df7f2dab2a41b0e22c3da"></a>
-bool&#160;</td><td class="memItemRight" valign="bottom"><b>operator!=</b> (const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a> &amp;other) const</td></tr>
+<tr class="memitem:a353d21d08d2df7f2dab2a41b0e22c3da" id="r_a353d21d08d2df7f2dab2a41b0e22c3da"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a353d21d08d2df7f2dab2a41b0e22c3da">operator!=</a> (const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a> &amp;other) const</td></tr>
+<tr class="memdesc:a353d21d08d2df7f2dab2a41b0e22c3da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Compares keys for inequality.  <br /></td></tr>
 <tr class="separator:a353d21d08d2df7f2dab2a41b0e22c3da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-attribs" name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
 <tr class="memitem:a6766b0c851f9c6b8715de2742b7a972d" id="r_a6766b0c851f9c6b8715de2742b7a972d"><td class="memItemLeft" align="right" valign="top"><a id="a6766b0c851f9c6b8715de2742b7a972d" name="a6766b0c851f9c6b8715de2742b7a972d"></a>
 static constexpr bool&#160;</td><td class="memItemRight" valign="bottom"><b>IsDirectHashKey</b> = true</td></tr>
+<tr class="memdesc:a6766b0c851f9c6b8715de2742b7a972d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Marker indicating that this key provides its hash directly. <br /></td></tr>
 <tr class="separator:a6766b0c851f9c6b8715de2742b7a972d"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
-<h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
+<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
+<div class="textblock"><div class="compoundTemplParams">template&lt;uint32_t MaxLen&gt;<br />
+struct gaia::core::StringLookupKey&lt; MaxLen &gt;</div><p>Fixed-limit string lookup key carrying a precomputed 32-bit hash. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">MaxLen</td><td>Maximum supported string length used by bounded comparisons. </td></tr>
+  </table>
+  </dd>
+</dl>
+</div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="a6ee30a6ca3f9deebfb3fc4a4a4567bff" name="a6ee30a6ca3f9deebfb3fc4a4a4567bff"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a6ee30a6ca3f9deebfb3fc4a4a4567bff">&#9670;&#160;</a></span>StringLookupKey() <span class="overload">[1/2]</span></h2>
 
@@ -243,7 +263,7 @@ template&lt;uint32_t MaxLen&gt; </div>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="structgaia_1_1core_1_1direct__hash__key.html">LookupHash</a>&#160;</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html#a8f88f1c9073e44e265c1b7696173b3ae">LookupHash</a>&#160;</td>
           <td class="paramname"><em>hash</em>&#160;</td>
         </tr>
         <tr>
@@ -272,6 +292,201 @@ template&lt;uint32_t MaxLen&gt; </div>
 
 </div>
 </div>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a id="a5041a7970d6bb6c5abccef85a3637ec2" name="a5041a7970d6bb6c5abccef85a3637ec2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5041a7970d6bb6c5abccef85a3637ec2">&#9670;&#160;</a></span>hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the precomputed string hash. </p>
+<dl class="section return"><dt>Returns</dt><dd>The 32-bit hash value. </dd></dl>
+
+</div>
+</div>
+<a id="a788fe45362cc5690a2eb6575e0189b30" name="a788fe45362cc5690a2eb6575e0189b30"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a788fe45362cc5690a2eb6575e0189b30">&#9670;&#160;</a></span>len()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::len </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the string length. </p>
+<dl class="section return"><dt>Returns</dt><dd>Number of characters in the string. </dd></dl>
+
+</div>
+</div>
+<a id="a353d21d08d2df7f2dab2a41b0e22c3da" name="a353d21d08d2df7f2dab2a41b0e22c3da"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a353d21d08d2df7f2dab2a41b0e22c3da">&#9670;&#160;</a></span>operator!=()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::operator!= </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a>&lt; MaxLen &gt; &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares keys for inequality. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Key to compare with. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the keys identify different strings. </dd></dl>
+
+</div>
+</div>
+<a id="a106c2b2579959ce760f5542785c37aaa" name="a106c2b2579959ce760f5542785c37aaa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a106c2b2579959ce760f5542785c37aaa">&#9670;&#160;</a></span>operator==()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::operator== </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a>&lt; MaxLen &gt; &amp;&#160;</td>
+          <td class="paramname"><em>other</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Compares keys by hash, length, and string contents. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">other</td><td>Key to compare with. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when both keys identify equal strings. </dd></dl>
+
+</div>
+</div>
+<a id="a353c81cd4fe5e53a387f54d56aea36cd" name="a353c81cd4fe5e53a387f54d56aea36cd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a353c81cd4fe5e53a387f54d56aea36cd">&#9670;&#160;</a></span>owned()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::owned </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Reports whether Gaia-ECS manages the string lifetime. </p>
+<dl class="section return"><dt>Returns</dt><dd>True when the referenced string is owned by the framework. </dd></dl>
+
+</div>
+</div>
+<a id="aa43548043f21651021cad8d48375c7b0" name="aa43548043f21651021cad8d48375c7b0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa43548043f21651021cad8d48375c7b0">&#9670;&#160;</a></span>str()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;uint32_t MaxLen&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">const char * <a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">gaia::core::StringLookupKey</a>&lt; MaxLen &gt;::str </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Returns the referenced string. </p>
+<dl class="section return"><dt>Returns</dt><dd>Pointer to the string, or nullptr for an empty key. </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this struct was generated from the following file:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/core/<a class="el" href="hashing__string_8h_source.html">hashing_string.h</a></li>
 </ul>
@@ -280,7 +495,7 @@ template&lt;uint32_t MaxLen&gt; </div>
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><a class="el" href="namespacegaia.html">gaia</a></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a></li>
+    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>core</b></li><li class="navelem"><a class="el" href="structgaia_1_1core_1_1StringLookupKey.html">StringLookupKey</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>
