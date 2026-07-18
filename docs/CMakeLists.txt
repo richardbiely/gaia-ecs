@@ -21,6 +21,11 @@ set(DOXY_HTML_DIRECTORY ${DOXY_OUTPUT_DIRECTORY}/html)
 set(DOXY_HEADER ${DOXY_OUTPUT_DIRECTORY}/header.html)
 set(DOXY_VERSIONS_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/write_versions_json.cmake)
 
+set(DOXY_JQUERY_SCRIPT "")
+if(DOXYGEN_VERSION VERSION_LESS "1.17.0")
+  set(DOXY_JQUERY_SCRIPT "<script type=\"text/javascript\" src=\"\$relpath^jquery.js\"></script>")
+endif()
+
 # Older distro-packaged Doxygen releases do not understand a subset of the newer
 # config tags and HTML template markers used by the current docs theme. When that
 # happens, the warnings are noisy but harmless for most tags; the problem is that
@@ -88,7 +93,7 @@ if(NOT DEFINED PROJECT_VERSION)
   set(PROJECT_VERSION "unknown")
 endif()
 
-set(_versions_json
+string(CONCAT _versions_json
   "{\n"
   "  \"latest\": { \"label\": \"${PROJECT_VERSION} (local build)\", \"path\": \"./\", \"version_path\": \"./\" },\n"
   "  \"versions\": []\n"
