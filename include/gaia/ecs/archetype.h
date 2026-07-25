@@ -1219,10 +1219,11 @@ namespace gaia {
 				} else {
 					const auto& cc = comp_cache(world);
 					const auto& desc = cc.get(entity);
+					const auto symbol = desc.symbol_name();
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", desc.hashLookup.hash,
-							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), desc.name.str(),
-							EntityKindString[entity.kind()]);
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %.*s [%s]", desc.hashLookup.hash,
+							desc.comp.size(), desc.comp.alig(), desc.entity.id(), desc.entity.gen(), (int)symbol.size(),
+							symbol.data(), EntityKindString[entity.kind()]);
 				}
 			}
 

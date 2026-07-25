@@ -38,46 +38,108 @@ namespace gaia {
 			Opaque,
 		};
 
-		//! User-authored runtime field descriptor.
+		//! JSON representation applied to a reflected runtime value.
+		//! Encoding is runtime behavior and remains separate from dynamic application semantics.
+		enum class RuntimeJsonEncoding : uint8_t {
+			//! Default representation derived from the reflected physical type.
+			Default,
+			//! A Char8 sequence represented as one UTF-8 JSON string.
+			Utf8String
+		};
+
+		//! Storage type used for runtime field presentation flags.
+		using RuntimeFieldFlagsType = uint16_t;
+		//! Presentation and validation flags attached to a reflected runtime field.
+		enum RuntimeFieldFlags : RuntimeFieldFlagsType {
+			//! No field presentation flags are set.
+			RuntimeFieldFlag_None = 0,
+			//! Validated writes to the field are rejected.
+			RuntimeFieldFlag_ReadOnly = 1u << 0,
+			//! Schema consumers should hide the field from their default presentation.
+			RuntimeFieldFlag_Hidden = 1u << 1,
+			//! Text consumers should allow multiline input.
+			RuntimeFieldFlag_Multiline = 1u << 2,
+			//! The field has an inclusive minimum value.
+			RuntimeFieldFlag_HasMinimum = 1u << 3,
+			//! The field has an inclusive maximum value.
+			RuntimeFieldFlag_HasMaximum = 1u << 4,
+			//! The field has a preferred input step size.
+			RuntimeFieldFlag_HasStep = 1u << 5
+		};
+
+		//! Interned component-cache symbol identifier.
+		struct SymbolId final {
+			//! Zero-based index in the owning component cache symbol table, or UINT32_MAX when unset.
+			uint32_t value = UINT32_MAX;
+
+			//! Checks whether the identifier refers to an interned string.
+			GAIA_NODISCARD constexpr bool valid() const noexcept {
+				return value != UINT32_MAX;
+			}
+
+			//! Compares two interned identifiers.
+			//! \param other Identifier to compare.
+			GAIA_NODISCARD constexpr bool operator==(SymbolId other) const noexcept {
+				return value == other.value;
+			}
+
+			//! Compares two interned identifiers for inequality.
+			//! \param other Identifier to compare.
+			GAIA_NODISCARD constexpr bool operator!=(SymbolId other) const noexcept {
+				return value != other.value;
+			}
+		};
+
+		//! Runtime field metadata parameterized by its string representation.
+		//! StringType selects borrowed registration text or cache-owned interned identifiers.
+		template <typename StringType>
+		struct RuntimeFieldMeta final {
+			//! Maximum supported unit length including the null terminator.
+			static constexpr uint32_t MaxUnitLength = 32;
+			//! Field symbol or its interned identifier.
+			StringType name{};
+			//! Entity describing the field type.
+			Entity type = EntityBad;
+			//! Byte offset from the start of the component payload.
+			uint32_t offset = 0;
+			//! Inline array element count. 0 means scalar.
+			uint32_t count = 0;
+			//! Optional named entity identifying the authored semantic.
+			Entity semantic = EntityBad;
+			//! JSON representation override for this field.
+			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+			//! Presentation and validation flags.
+			RuntimeFieldFlagsType flags = RuntimeFieldFlag_None;
+			//! Optional unit label or its interned identifier.
+			StringType unit{};
+			//! Inclusive minimum when RuntimeFieldFlag_HasMinimum is set.
+			double minimum = 0.0;
+			//! Inclusive maximum when RuntimeFieldFlag_HasMaximum is set.
+			double maximum = 0.0;
+			//! Preferred input step when RuntimeFieldFlag_HasStep is set.
+			double step = 0.0;
+		};
+
+		//! User-authored runtime field initializer with borrowed string views.
 		//! A count of 0 means scalar. Positive values describe a fixed inline array.
-		struct RuntimeFieldDesc final {
-			//! Field symbol.
-			util::str_view name{};
-			//! Entity describing the field type.
-			Entity type = EntityBad;
-			//! Byte offset from the start of the component payload.
-			uint32_t offset = 0;
-			//! Inline array element count. 0 means scalar.
-			uint32_t count = 0;
-		};
+		using RuntimeFieldInit = RuntimeFieldMeta<util::str_view>;
+		//! Cache-owned runtime field descriptor with interned symbol identifiers.
+		using RuntimeFieldDesc = RuntimeFieldMeta<SymbolId>;
 
-		//! Stored runtime field metadata.
-		struct RuntimeField final {
-			//! Null-terminated copied field symbol.
-			char name[256]{};
-			//! Entity describing the field type.
-			Entity type = EntityBad;
-			//! Byte offset from the start of the component payload.
-			uint32_t offset = 0;
-			//! Inline array element count. 0 means scalar.
-			uint32_t count = 0;
-		};
-
-		//! User-authored symbolic runtime constant descriptor for enum and bitmask type entities.
-		struct RuntimeConstantDesc final {
-			//! Constant symbol.
-			util::str_view name{};
+		//! Runtime symbolic constant metadata parameterized by its string representation.
+		//! StringType selects a borrowed registration symbol or a cache-owned interned identifier.
+		template <typename StringType>
+		struct RuntimeConstantMeta final {
+			//! Constant symbol or its interned identifier.
+			StringType name{};
 			//! Constant value.
 			int64_t value = 0;
 		};
 
-		//! Stored symbolic runtime constant metadata.
-		struct RuntimeConstant final {
-			//! Null-terminated copied constant symbol.
-			char name[256]{};
-			//! Constant value stored in the enum/bitmask underlying integer domain.
-			int64_t value = 0;
-		};
+		//! User-authored symbolic runtime constant initializer with a borrowed symbol view.
+		using RuntimeConstantInit = RuntimeConstantMeta<util::str_view>;
+		//! Cache-owned symbolic runtime constant descriptor with an interned symbol identifier.
+		using RuntimeConstantDesc = RuntimeConstantMeta<SymbolId>;
 
 		//! Runtime sequence adapter input scope. The byte layout is owned by the adapter.
 		struct RuntimeSequenceScope final {
@@ -116,6 +178,7 @@ namespace gaia {
 			//! Resizes the sequence. Optional. Required for JSON load into dynamic sequences.
 			bool (*resize)(void*, RuntimeSequenceScope&, uint32_t) = nullptr;
 			//! Commits a projected element after cursor writes. Optional for direct element pointers.
+			//! Returning false must not publish external side effects.
 			bool (*commitElement)(void*, RuntimeSequenceScope&, RuntimeSequenceElement&) = nullptr;
 		};
 
@@ -152,7 +215,39 @@ namespace gaia {
 			//! Projects an opaque value to its semantic runtime type. Required for traversal.
 			bool (*project)(void*, const RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
 			//! Commits a projected semantic value after cursor writes. Optional for direct projections.
+			//! Returning false must not publish external side effects.
 			bool (*commit)(void*, RuntimeOpaqueScope&, RuntimeOpaqueValue&) = nullptr;
+		};
+
+		//! Runtime reflection metadata embedded in a component descriptor or supplied to typed registration.
+		//! Storage, lifecycle callbacks, symbol, size, alignment, and lookup hash remain component properties.
+		struct RuntimeTypeDesc final {
+			//! Runtime reflection type kind.
+			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Optional named entity identifying the authored semantic.
+			Entity semantic = EntityBad;
+			//! JSON representation applied to this value.
+			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
+			Entity underlyingType = EntityBad;
+			//! Runtime field initializers copied during registration.
+			const RuntimeFieldInit* fields = nullptr;
+			//! Number of field initializers.
+			uint32_t fieldCount = 0;
+			//! Runtime constant initializers copied during registration.
+			const RuntimeConstantInit* constants = nullptr;
+			//! Number of constant initializers.
+			uint32_t constantCount = 0;
+			//! Element type for fixed array or dynamic vector metadata.
+			Entity elementType = EntityBad;
+			//! Fixed element count for array metadata. 0 otherwise.
+			uint32_t elementCount = 0;
+			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
+			Entity opaqueAsType = EntityBad;
+			//! Optional adapter for dynamic sequence metadata. The callback table must outlive the registration.
+			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
+			//! Optional adapter for opaque semantic projections. The callback table must outlive the registration.
+			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 		};
 
 		//! Plain component registration descriptor shared by typed and runtime component paths.
@@ -193,18 +288,8 @@ namespace gaia {
 			const uint8_t* pSoaSizes = nullptr;
 			//! Optional explicit lookup hash. When empty, the symbol hash is used.
 			ComponentLookupHash hashLookup{};
-			//! Runtime reflection type kind.
-			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
-			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
-			Entity underlyingType = EntityBad;
-			//! Runtime field descriptors copied into component metadata during registration.
-			const RuntimeFieldDesc* fields = nullptr;
-			//! Number of field descriptors.
-			uint32_t fieldCount = 0;
-			//! Runtime constant descriptors copied into enum/bitmask metadata during registration.
-			const RuntimeConstantDesc* constants = nullptr;
-			//! Number of constant descriptors.
-			uint32_t constantCount = 0;
+			//! Runtime reflection metadata copied during registration.
+			RuntimeTypeDesc runtimeType{};
 			//! Optional constructor callback. Runtime byte-only components leave this null.
 			FuncCtor* funcCtor = nullptr;
 			//! Optional move-constructor callback. Runtime byte-only components leave this null.
@@ -225,16 +310,6 @@ namespace gaia {
 			FuncSave* funcSave = nullptr;
 			//! Optional typed serialization load callback. Semantic runtime JSON uses field metadata instead.
 			FuncLoad* funcLoad = nullptr;
-			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
-			Entity elementType = EntityBad;
-			//! Fixed element count for reflected array metadata at this array dimension. 0 otherwise.
-			uint32_t elementCount = 0;
-			//! Semantic runtime type exposed by opaque metadata. EntityBad otherwise.
-			Entity opaqueAsType = EntityBad;
-			//! Optional adapter for dynamic sequence metadata.
-			const RuntimeSequenceAdapter* sequenceAdapter = nullptr;
-			//! Optional adapter for opaque semantic projections.
-			const RuntimeOpaqueAdapter* opaqueAdapter = nullptr;
 		};
 
 		namespace detail {
@@ -486,7 +561,7 @@ namespace gaia {
 				//! Populates compile-time reflected fields for descriptor-time metadata registration.
 				//! \param fields Scratch/output field descriptor storage.
 				//! \return Number of valid field descriptors written.
-				static uint32_t auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes> fields) {
+				static uint32_t auto_fields(std::span<RuntimeFieldInit, meta::StructToTupleMaxTypes> fields) {
 					using Raw = core::raw_t<T>;
 					if constexpr (std::is_empty_v<Raw> || mem::is_soa_layout_v<Raw>) {
 						return 0;

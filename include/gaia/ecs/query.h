@@ -158,8 +158,8 @@ namespace gaia {
 					if (ctxData.idsCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create a query with too many components!");
 
-						const auto* name = ctx.cc->get(item.id).name.str();
-						GAIA_LOG_E("Trying to add component '%s' to an already full ECS query!", name);
+						const auto name = ctx.cc->get(item.id).symbol_name();
+						GAIA_LOG_E("Trying to add component '%.*s' to an already full ECS query!", (int)name.size(), name.data());
 						return;
 					}
 #endif
@@ -194,8 +194,9 @@ namespace gaia {
 					if (ctxData.changedCnt >= MAX_ITEMS_IN_QUERY) {
 						GAIA_ASSERT2(false, "Trying to create an filter query with too many components!");
 
-						const auto* compName = ctx.cc->get(comp).name.str();
-						GAIA_LOG_E("Trying to add component %s to an already full filter query!", compName);
+						const auto compName = ctx.cc->get(comp).symbol_name();
+						GAIA_LOG_E(
+								"Trying to add component %.*s to an already full filter query!", (int)compName.size(), compName.data());
 						return;
 					}
 
@@ -219,8 +220,10 @@ namespace gaia {
 						return;
 					}
 
-					const auto* compName = ctx.cc->get(comp).name.str();
-					GAIA_LOG_E("SetChangeFilter trying to filter component %s but it's not a part of the query!", compName);
+					const auto compName = ctx.cc->get(comp).symbol_name();
+					GAIA_LOG_E(
+							"SetChangeFilter trying to filter component %.*s but it's not a part of the query!", (int)compName.size(),
+							compName.data());
 #else
 					ctxData.changed[ctxData.changedCnt++] = comp;
 #endif

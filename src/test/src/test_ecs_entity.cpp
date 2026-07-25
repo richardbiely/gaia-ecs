@@ -1871,9 +1871,9 @@ void verify_entity_has(const ecs::ComponentCache& cc, ecs::Entity entity) {
 template <typename T>
 void verify_name_has(const ecs::World& world, const ecs::ComponentCache& cc, const char* str) {
 	const auto& item = cc.get<T>();
-	auto name = item.name;
-	CHECK(name.str() != nullptr);
-	CHECK(name.len() > 1);
+	const auto name = item.symbol_name();
+	CHECK(name.data() != nullptr);
+	CHECK(name.size() > 1);
 	CHECK(world.symbol(str) == item.entity);
 }
 

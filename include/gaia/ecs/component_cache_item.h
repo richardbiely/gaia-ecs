@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "gaia/cnt/darray.h"
+#include "gaia/cnt/map.h"
 #include "gaia/core/hashing_string.h"
 #include "gaia/ecs/component.h"
 #include "gaia/ecs/component_desc.h"
@@ -24,6 +25,67 @@ namespace gaia {
 		class Chunk;
 		class ComponentCache;
 		struct ComponentRecord;
+
+		//! Intern table for immutable component-cache symbols.
+		class SymbolTable final {
+			using Key = core::StringLookupKey<256>;
+
+			cnt::darray<Key> m_values;
+			cnt::map<Key, SymbolId> m_ids;
+
+		public:
+			SymbolTable() = default;
+			SymbolTable(const SymbolTable&) = delete;
+			SymbolTable(SymbolTable&&) = delete;
+			SymbolTable& operator=(const SymbolTable&) = delete;
+			SymbolTable& operator=(SymbolTable&&) = delete;
+
+			~SymbolTable() {
+				clear();
+			}
+
+			//! Interns component-cache symbol text.
+			//! \param value Symbol text to intern. Empty values map to an invalid identifier.
+			//! \return Stable identifier for \a value.
+			GAIA_NODISCARD SymbolId intern(util::str_view value) {
+				if (value.empty())
+					return {};
+
+				const Key lookup(value.data(), value.size(), 0);
+				const auto it = m_ids.find(lookup);
+				if (it != m_ids.end())
+					return it->second;
+
+				auto* data = mem::AllocHelper::alloc<char>(value.size() + 1);
+				memcpy(data, value.data(), value.size());
+				data[value.size()] = 0;
+				const Key owned(data, value.size(), 1);
+				const SymbolId id{(uint32_t)m_values.size()};
+				m_values.push_back(owned);
+				m_ids.emplace(owned, id);
+				return id;
+			}
+
+			//! Resolves an interned component-cache symbol.
+			//! \param id Identifier returned by intern().
+			//! \return Interned string view, or an empty view for an invalid identifier.
+			GAIA_NODISCARD util::str_view view(SymbolId id) const noexcept {
+				if (!id.valid() || id.value >= m_values.size())
+					return {};
+				const auto& value = m_values[id.value];
+				return {value.str(), value.len()};
+			}
+
+			//! Releases all interned symbols.
+			void clear() {
+				m_ids.clear();
+				for (const auto& value: m_values) {
+					if (value.str() != nullptr && value.owned())
+						mem::AllocHelper::free((void*)value.str());
+				}
+				m_values.clear();
+			}
+		};
 
 		//! Runtime cache metadata for one registered Gaia component entity.
 		//!
@@ -69,11 +131,6 @@ namespace gaia {
 			//! Hook called when a component value is written in a chunk.
 			using FuncOnSet = void(const World& world, const ComponentRecord&, Chunk& chunk);
 
-			//! Stored runtime field metadata type.
-			using RuntimeField = ecs::RuntimeField;
-			//! Stored runtime constant metadata type.
-			using RuntimeConstant = ecs::RuntimeConstant;
-
 			//! Component entity bound to this cache item.
 			Entity entity;
 			//! Compact component descriptor stored in archetype/chunk metadata.
@@ -83,8 +140,8 @@ namespace gaia {
 			//! Per-element byte sizes for SoA components. Unused for AoS components.
 			uint8_t soaSizes[meta::StructToTupleMaxTypes];
 
-			//! Registered component symbol.
-			SymbolLookupKey name;
+			//! Interned registered component symbol.
+			SymbolId name;
 			//! User-facing scoped component path, e.g. "Gameplay.Device".
 			util::str path;
 			//! Construction callback for this component type.
@@ -111,6 +168,10 @@ namespace gaia {
 			FuncLoad* func_load{};
 			//! Runtime reflection type kind.
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
+			//! Optional named entity identifying the authored semantic.
+			Entity semantic = EntityBad;
+			//! JSON representation applied to this value.
+			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
 			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
@@ -145,10 +206,14 @@ namespace gaia {
 		private:
 			//! Owning component cache used to resolve reflected runtime field type entities.
 			const ComponentCache* m_ownerCache = nullptr;
+			//! Non-owning symbol table shared by this item's component and runtime metadata.
+			SymbolTable* m_symbols = nullptr;
+			//! Intern table owned only by cache items created outside a ComponentCache.
+			SymbolTable* m_ownedSymbols = nullptr;
 			//! Runtime field metadata registered for this component.
-			cnt::darray<RuntimeField> m_fields;
+			cnt::darray<RuntimeFieldDesc> m_fields;
 			//! Runtime symbolic constant metadata registered for this enum/bitmask type.
-			cnt::darray<RuntimeConstant> m_constants;
+			cnt::darray<RuntimeConstantDesc> m_constants;
 
 			//! Returns the physical SoA field-array cardinality for this component.
 			//! \param capacity Capacity of the containing chunk.
@@ -205,14 +270,20 @@ namespace gaia {
 			~ComponentCacheItem() = default;
 
 		public:
-			//! Cache items own symbol memory and are not copyable.
+			//! Cache items retain symbol-table references and are not copyable.
 			ComponentCacheItem(const ComponentCacheItem&) = delete;
-			//! Cache items own symbol memory and are not movable.
+			//! Cache items retain symbol-table references and are not movable.
 			ComponentCacheItem(ComponentCacheItem&&) = delete;
-			//! Cache items own symbol memory and are not copy-assignable.
+			//! Cache items retain symbol-table references and are not copy-assignable.
 			ComponentCacheItem& operator=(const ComponentCacheItem&) = delete;
-			//! Cache items own symbol memory and are not move-assignable.
+			//! Cache items retain symbol-table references and are not move-assignable.
 			ComponentCacheItem& operator=(ComponentCacheItem&&) = delete;
+
+			//! Resolves the registered component symbol.
+			//! \return Interned component symbol, or an empty view when this item is not initialized.
+			GAIA_NODISCARD util::str_view symbol_name() const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(name) : util::str_view{};
+			}
 
 			//! Move-constructs one component value from another value.
 			//! \param pDst Destination component storage base pointer.
@@ -429,17 +500,12 @@ namespace gaia {
 				return !m_fields.empty();
 			}
 
-			//! Gets the element count represented by a runtime field descriptor.
-			//! \param field Field descriptor to inspect.
-			//! \return 1 for scalar fields, otherwise the fixed inline array count.
-			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldDesc& field) noexcept {
-				return field.count == 0 ? 1U : field.count;
-			}
-
-			//! Gets the element count represented by stored runtime field metadata.
-			//! \param field Stored field metadata to inspect.
-			//! \return 1 for scalar fields, otherwise the fixed inline array count.
-			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeField& field) noexcept {
+			//! Gets the element count represented by runtime field metadata.
+			//! StringType selects registration or cache-owned field metadata.
+			//! \param field Field metadata to inspect.
+			//! Returns 1 for scalar fields, otherwise the fixed inline array count.
+			template <typename StringType>
+			GAIA_NODISCARD static uint32_t field_element_count(const RuntimeFieldMeta<StringType>& field) noexcept {
 				return field.count == 0 ? 1U : field.count;
 			}
 
@@ -456,22 +522,36 @@ namespace gaia {
 			//! Looks up runtime field metadata by index.
 			//! \param index Field index.
 			//! \return Field metadata pointer when found, nullptr otherwise.
-			GAIA_NODISCARD const RuntimeField* field(uint32_t index) const noexcept {
+			GAIA_NODISCARD const RuntimeFieldDesc* field(uint32_t index) const noexcept {
 				return index < m_fields.size() ? &m_fields[index] : nullptr;
 			}
 
 			//! Looks up runtime field metadata by name.
 			//! \param fieldName Field name.
 			//! \return Field metadata pointer when found, nullptr otherwise.
-			GAIA_NODISCARD const RuntimeField* field(util::str_view fieldName) const noexcept {
+			GAIA_NODISCARD const RuntimeFieldDesc* field(util::str_view fieldName) const noexcept {
 				if (fieldName.empty() || fieldName.size() >= MaxNameLength)
 					return nullptr;
 
 				for (const auto& field: m_fields) {
-					if (strncmp(field.name, fieldName.data(), fieldName.size()) == 0 && field.name[fieldName.size()] == 0)
+					if (field_name(field) == fieldName)
 						return &field;
 				}
 				return nullptr;
+			}
+
+			//! Resolves a stored runtime field name.
+			//! \param field Stored field metadata.
+			//! Returns the interned field name.
+			GAIA_NODISCARD util::str_view field_name(const RuntimeFieldDesc& field) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(field.name) : util::str_view{};
+			}
+
+			//! Resolves a stored runtime field unit.
+			//! \param field Stored field metadata.
+			//! Returns the interned unit label, or an empty view when no unit was authored.
+			GAIA_NODISCARD util::str_view field_unit(const RuntimeFieldDesc& field) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(field.unit) : util::str_view{};
 			}
 
 			//! \return Number of runtime fields registered on this component.
@@ -531,29 +611,35 @@ namespace gaia {
 			//! Looks up runtime enum/bitmask constant metadata by index.
 			//! \param index Constant index.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
-			GAIA_NODISCARD const RuntimeConstant* constant(uint32_t index) const noexcept {
+			GAIA_NODISCARD const RuntimeConstantDesc* constant(uint32_t index) const noexcept {
 				return index < m_constants.size() ? &m_constants[index] : nullptr;
 			}
 
 			//! Looks up runtime enum/bitmask constant metadata by name.
 			//! \param constantName Constant name.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
-			GAIA_NODISCARD const RuntimeConstant* constant(util::str_view constantName) const noexcept {
+			GAIA_NODISCARD const RuntimeConstantDesc* constant(util::str_view constantName) const noexcept {
 				if (constantName.empty() || constantName.size() >= MaxNameLength)
 					return nullptr;
 
 				for (const auto& constant: m_constants) {
-					if (strncmp(constant.name, constantName.data(), constantName.size()) == 0 &&
-							constant.name[constantName.size()] == 0)
+					if (constant_name(constant) == constantName)
 						return &constant;
 				}
 				return nullptr;
 			}
 
+			//! Resolves a stored runtime constant name.
+			//! \param constant Stored constant metadata.
+			//! \return Interned constant name.
+			GAIA_NODISCARD util::str_view constant_name(const RuntimeConstantDesc& constant) const noexcept {
+				return m_symbols != nullptr ? m_symbols->view(constant.name) : util::str_view{};
+			}
+
 			//! Looks up runtime enum/bitmask constant metadata by exact value.
 			//! \param value Constant value.
 			//! \return Constant metadata pointer when found, nullptr otherwise.
-			GAIA_NODISCARD const RuntimeConstant* constant_by_value(int64_t value) const noexcept {
+			GAIA_NODISCARD const RuntimeConstantDesc* constant_by_value(int64_t value) const noexcept {
 				for (const auto& constant: m_constants) {
 					if (constant.value == value)
 						return &constant;
@@ -600,7 +686,7 @@ namespace gaia {
 
 		private:
 			//! Builds a stable component symbol from compiler type-info text.
-			//! \tparam T Component type being registered.
+			//! \tparam T Component type to register.
 			//! \param nameTmp Output buffer receiving the normalized null-terminated name.
 			//! \return Length of the normalized component name, excluding the null terminator.
 			template <typename T>
@@ -672,55 +758,47 @@ namespace gaia {
 				return nameTmpLen;
 			}
 
-			//! Initializes an owned symbol lookup key from a name view.
-			//! \param nameOut Destination lookup key receiving owned storage.
-			//! \param nameView Component name to copy.
-			static void init_name(SymbolLookupKey& nameOut, util::str_view nameView) {
-				char* name = mem::AllocHelper::alloc<char>(nameView.size() + 1);
-				memcpy((void*)name, (const void*)nameView.data(), nameView.size());
-				name[nameView.size()] = 0;
-				nameOut = SymbolLookupKey(name, nameView.size(), 1);
-			}
-
-			//! Copies one runtime field descriptor into immutable component metadata.
-			//! \param desc Field descriptor to copy.
+			//! Copies one runtime field initializer into immutable component metadata.
+			//! \param desc Field initializer to copy.
 			//! \return True when copied, false when the field name is invalid.
-			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldDesc& desc) {
-				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+			GAIA_NODISCARD bool copy_runtime_field(const RuntimeFieldInit& desc) {
+				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength ||
+						desc.unit.size() >= RuntimeFieldDesc::MaxUnitLength)
 					return false;
 
-				RuntimeField field{};
-				memcpy((void*)field.name, (const void*)desc.name.data(), desc.name.size());
-				field.name[desc.name.size()] = 0;
+				RuntimeFieldDesc field{};
+				field.name = m_symbols->intern(desc.name);
 				field.type = desc.type;
 				field.offset = desc.offset;
 				field.count = desc.count;
+				field.semantic = desc.semantic;
+				field.jsonEncoding = desc.jsonEncoding;
+				field.flags = desc.flags;
+				field.unit = m_symbols->intern(desc.unit);
+				field.minimum = desc.minimum;
+				field.maximum = desc.maximum;
+				field.step = desc.step;
 				m_fields.push_back(field);
 				return true;
 			}
 
-			//! Copies one runtime constant descriptor into immutable component metadata.
-			//! \param desc Constant descriptor to copy.
+			//! Copies one runtime constant initializer into immutable component metadata.
+			//! \param desc Constant initializer to copy.
 			//! \return True when copied, false when the constant name is invalid.
-			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantDesc& desc) {
-				if (desc.name.empty() || desc.name.size() >= MaxNameLength)
+			GAIA_NODISCARD bool copy_runtime_constant(const RuntimeConstantInit& desc) {
+				if (m_symbols == nullptr || desc.name.empty() || desc.name.size() >= MaxNameLength)
 					return false;
 
-				RuntimeConstant constant{};
-				memcpy((void*)constant.name, (const void*)desc.name.data(), desc.name.size());
-				constant.name[desc.name.size()] = 0;
+				RuntimeConstantDesc constant{};
+				constant.name = m_symbols->intern(desc.name);
 				constant.value = desc.value;
 				m_constants.push_back(constant);
 				return true;
 			}
 
-		public:
-			//! Creates metadata for a compile-time C++ component type.
-			//! \tparam T Component type to register.
-			//! \param entity Component entity that owns the resulting metadata.
-			//! \return Newly allocated component cache item. Release with destroy().
 			template <typename T>
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
+			GAIA_NODISCARD static ComponentCacheItem*
+			create_typed(Entity entity, SymbolTable& symbols, const RuntimeTypeDesc* pRuntimeType) {
 				static_assert(core::is_raw_v<T>);
 
 				constexpr auto componentSize = detail::ComponentDesc<T>::size();
@@ -733,22 +811,77 @@ namespace gaia {
 				const auto nameTmpLen = init_type_name<T>(nameTmp);
 
 				uint8_t soaSizes[meta::StructToTupleMaxTypes]{};
-				RuntimeFieldDesc fields[meta::StructToTupleMaxTypes]{};
+				RuntimeFieldInit fields[meta::StructToTupleMaxTypes]{};
 				auto desc = detail::ComponentDesc<T>::make(
 						util::str_view(nameTmp, nameTmpLen), std::span<uint8_t, meta::StructToTupleMaxTypes>{soaSizes});
+				if (pRuntimeType != nullptr) {
+					desc.runtimeType = *pRuntimeType;
+				}
 #if GAIA_ECS_AUTO_COMPONENT_FIELDS
-				desc.fields = fields;
-				desc.fieldCount =
-						detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldDesc, meta::StructToTupleMaxTypes>{fields});
+				else {
+					desc.runtimeType.fields = fields;
+					desc.runtimeType.fieldCount =
+							detail::ComponentDesc<T>::auto_fields(std::span<RuntimeFieldInit, meta::StructToTupleMaxTypes>{fields});
+				}
 #endif
-				return create(entity, desc);
+				return create(entity, symbols, desc);
+			}
+
+		public:
+			//! Creates standalone metadata for a compile-time C++ component type.
+			//! Template parameter T is the component type to register.
+			//! \param entity Component entity that owns the resulting metadata.
+			//! Returns a newly allocated component cache item. Release with destroy().
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity) {
+				auto* symbols = new SymbolTable();
+				auto* item = create<T>(entity, *symbols);
+				item->m_ownedSymbols = symbols;
+				return item;
+			}
+
+		private:
+			//! Creates metadata for a compile-time C++ component type.
+			//! Template parameter T is the component type to register.
+			//! \param entity Component entity that owns the resulting metadata.
+			//! \return Newly allocated component cache item. Release with destroy().
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, SymbolTable& symbols) {
+				return create_typed<T>(entity, symbols, nullptr);
+			}
+
+		public:
+			//! Creates standalone metadata for a compile-time C++ component type with explicit runtime metadata.
+			//! Template parameter T is the component type to register.
+			//! \param entity Component entity that owns the resulting metadata.
+			//! \param runtimeType Reflection-only metadata attached to the typed component.
+			//! Returns a newly allocated component cache item. Release with destroy().
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const RuntimeTypeDesc& runtimeType) {
+				auto* symbols = new SymbolTable();
+				auto* item = create<T>(entity, *symbols, runtimeType);
+				item->m_ownedSymbols = symbols;
+				return item;
+			}
+
+		private:
+			//! Creates metadata for a compile-time C++ component type with explicit runtime type metadata.
+			//! Template parameter T is the component type to register.
+			//! \param entity Component entity that owns the resulting metadata.
+			//! \param runtimeType Reflection-only metadata attached to the typed component.
+			//! \return Newly allocated component cache item. Release with destroy().
+			template <typename T>
+			GAIA_NODISCARD static ComponentCacheItem*
+			create(Entity entity, SymbolTable& symbols, const RuntimeTypeDesc& runtimeType) {
+				return create_typed<T>(entity, symbols, &runtimeType);
 			}
 
 			//! Creates metadata from a plain component descriptor.
 			//! \param entity Component entity that owns the resulting metadata.
 			//! \param desc Component descriptor describing storage, lifecycle, and runtime type metadata.
 			//! \return Newly allocated component cache item. Release with destroy().
-			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
+			GAIA_NODISCARD static ComponentCacheItem*
+			create(Entity entity, SymbolTable& symbols, const ecs::ComponentDesc& desc) {
 				GAIA_ASSERT(!desc.name.empty());
 				GAIA_ASSERT(desc.name.size() < MaxNameLength);
 				GAIA_ASSERT(desc.size < Component::MaxComponentSizeInBytes);
@@ -768,6 +901,7 @@ namespace gaia {
 #endif
 
 				auto* cci = new ComponentCacheItem();
+				cci->m_symbols = &symbols;
 				cci->entity = entity;
 				cci->comp = Component(entity.id(), desc.soa, desc.size, desc.alig, desc.storageType);
 				cci->hashLookup = desc.hashLookup.hash != 0
@@ -778,7 +912,8 @@ namespace gaia {
 					GAIA_FOR(desc.soa) cci->soaSizes[i] = desc.pSoaSizes[i];
 				}
 
-				init_name(cci->name, desc.name);
+				cci->name = symbols.intern(desc.name);
+				GAIA_ASSERT(cci->name.valid());
 
 				cci->func_ctor = desc.funcCtor;
 				cci->func_move_ctor = desc.funcMoveCtor;
@@ -790,29 +925,45 @@ namespace gaia {
 				cci->func_cmp = desc.funcCmp;
 				cci->func_save = desc.funcSave;
 				cci->func_load = desc.funcLoad;
-				cci->typeKind = desc.typeKind;
-				cci->underlyingType = desc.underlyingType;
-				cci->elementType = desc.elementType;
-				cci->elementCount = desc.elementCount;
-				cci->opaqueAsType = desc.opaqueAsType;
-				cci->sequenceAdapter = desc.sequenceAdapter;
-				cci->opaqueAdapter = desc.opaqueAdapter;
 
-				if (desc.fieldCount > 0) {
-					GAIA_FOR(desc.fieldCount) {
-						const bool copied = cci->copy_runtime_field(desc.fields[i]);
+				const auto& runtimeType = desc.runtimeType;
+				cci->typeKind = runtimeType.typeKind;
+				cci->semantic = runtimeType.semantic;
+				cci->jsonEncoding = runtimeType.jsonEncoding;
+				cci->underlyingType = runtimeType.underlyingType;
+				cci->elementType = runtimeType.elementType;
+				cci->elementCount = runtimeType.elementCount;
+				cci->opaqueAsType = runtimeType.opaqueAsType;
+				cci->sequenceAdapter = runtimeType.sequenceAdapter;
+				cci->opaqueAdapter = runtimeType.opaqueAdapter;
+
+				if (runtimeType.fieldCount > 0) {
+					GAIA_FOR(runtimeType.fieldCount) {
+						const bool copied = cci->copy_runtime_field(runtimeType.fields[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
 
-				if (desc.constantCount > 0) {
-					GAIA_FOR(desc.constantCount) {
-						const bool copied = cci->copy_runtime_constant(desc.constants[i]);
+				if (runtimeType.constantCount > 0) {
+					GAIA_FOR(runtimeType.constantCount) {
+						const bool copied = cci->copy_runtime_constant(runtimeType.constants[i]);
 						GAIA_ASSERT(copied);
 					}
 				}
 
 				return cci;
+			}
+
+		public:
+			//! Creates standalone metadata from a plain component descriptor.
+			//! \param entity Component entity that owns the resulting metadata.
+			//! \param desc Component descriptor describing storage, lifecycle, and runtime type metadata.
+			//! Returns a newly allocated component cache item. Release with destroy().
+			GAIA_NODISCARD static ComponentCacheItem* create(Entity entity, const ecs::ComponentDesc& desc) {
+				auto* symbols = new SymbolTable();
+				auto* item = create(entity, *symbols, desc);
+				item->m_ownedSymbols = symbols;
+				return item;
 			}
 
 			//! Releases a cache item and any owned symbol storage.
@@ -821,12 +972,9 @@ namespace gaia {
 				if (pItem == nullptr)
 					return;
 
-				if (pItem->name.str() != nullptr && pItem->name.owned()) {
-					mem::AllocHelper::free((void*)pItem->name.str());
-					pItem->name = {};
-				}
-
+				auto* ownedSymbols = pItem->m_ownedSymbols;
 				delete pItem;
+				delete ownedSymbols;
 			}
 		};
 	} // namespace ecs

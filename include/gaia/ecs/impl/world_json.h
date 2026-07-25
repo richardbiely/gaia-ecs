@@ -52,7 +52,7 @@ namespace gaia {
 			};
 
 			GAIA_NODISCARD inline bool resolve_runtime_json_field_layout(
-					const ComponentCache* pCache, const RuntimeField& field, RuntimeJsonFieldLayout& out) noexcept {
+					const ComponentCache* pCache, const RuntimeFieldDesc& field, RuntimeJsonFieldLayout& out) noexcept {
 				out = {};
 				const auto* pFieldType = find_runtime_json_type(pCache, field.type);
 				out.type = field.type;
@@ -229,6 +229,11 @@ namespace gaia {
 				}
 			}
 
+			GAIA_NODISCARD inline bool runtime_json_leaf_editable(const ComponentCacheItem& item) noexcept {
+				return item.typeKind == RuntimeTypeKind::Primitive || item.typeKind == RuntimeTypeKind::Enum ||
+							 item.typeKind == RuntimeTypeKind::Bitmask;
+			}
+
 			GAIA_NODISCARD inline ser::json_str
 			make_runtime_json_child_path(ser::json_str_view parent, ser::json_str_view child) {
 				if (parent.empty())
@@ -284,7 +289,7 @@ namespace gaia {
 					uint32_t valueSize, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth);
 
 			inline bool write_runtime_json_field(
-					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field,
+					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeFieldDesc& field,
 					const uint8_t* pBase, ser::ser_json& writer, const ser::RuntimeJsonPolicy& policy, uint32_t depth) {
 				RuntimeJsonFieldLayout layout{};
 				if (!resolve_runtime_json_field_layout(pCache, field, layout)) {
@@ -300,7 +305,8 @@ namespace gaia {
 				}
 
 				const auto* pFieldData = pBase + field.offset;
-				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
+				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
+						runtime_json_is_char8_type(layout.pType, layout.type))
 					return write_runtime_json_value(
 							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, writer, policy, depth + 1);
 
@@ -330,7 +336,8 @@ namespace gaia {
 					const auto* pField = item.field(i);
 					GAIA_ASSERT(pField != nullptr);
 					const auto& field = *pField;
-					writer.key(field.name);
+					const auto fieldName = item.field_name(field);
+					writer.key(fieldName.data(), fieldName.size());
 					ok = write_runtime_json_field(pCache, item, field, pData, writer, policy, depth + 1) && ok;
 				}
 				writer.end_object();
@@ -381,6 +388,27 @@ namespace gaia {
 					if (!adapter->count(adapter->ctx, sequence, elemCount)) {
 						writer.value_null();
 						return false;
+					}
+					if (pType->jsonEncoding == RuntimeJsonEncoding::Utf8String) {
+						if (elementType != Char8) {
+							writer.value_null();
+							return false;
+						}
+
+						ser::json_str text;
+						text.reserve(elemCount);
+						GAIA_FOR(elemCount) {
+							RuntimeSequenceElement element{};
+							element.type = elementType;
+							if (!adapter->element(adapter->ctx, sequence, i, element) || element.data == nullptr ||
+									element.size != sizeof(char) || (element.type != EntityBad && element.type != Char8)) {
+								writer.value_null();
+								return false;
+							}
+							text.append(*(const char*)element.data);
+						}
+						writer.value_string(text.empty() ? "" : text.data(), text.size());
+						return true;
 					}
 
 					bool ok = true;
@@ -452,7 +480,8 @@ namespace gaia {
 						GAIA_ASSERT(pConstant != nullptr);
 						uint64_t constantBits = 0;
 						if (runtime_json_constant_bits(type, pConstant->value, constantBits) && constantBits == valueBits) {
-							writer.value_string(pConstant->name);
+							const auto constantName = pType->constant_name(*pConstant);
+							writer.value_string(constantName.data(), constantName.size());
 							return true;
 						}
 					}
@@ -479,7 +508,8 @@ namespace gaia {
 							uint64_t flagBits = 0;
 							if (runtime_json_constant_bits(type, pConstant->value, flagBits) && flagBits != 0 &&
 									(flagBits & (flagBits - 1)) == 0 && (remaining & flagBits) == flagBits) {
-								writer.value_string(pConstant->name);
+								const auto constantName = pType->constant_name(*pConstant);
+								writer.value_string(constantName.data(), constantName.size());
 								remaining &= ~flagBits;
 							}
 						}
@@ -502,7 +532,7 @@ namespace gaia {
 			}
 
 			inline bool read_runtime_json_field(
-					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeField& field, uint8_t* pBase,
+					const ComponentCache* pCache, const ComponentCacheItem& owner, const RuntimeFieldDesc& field, uint8_t* pBase,
 					ser::ser_json& reader, ser::JsonDiagnostics& diagnostics, ser::json_str_view path,
 					const ser::RuntimeJsonPolicy& policy, uint32_t depth, bool& ok) {
 				RuntimeJsonFieldLayout layout{};
@@ -525,7 +555,8 @@ namespace gaia {
 				}
 
 				auto* pFieldData = pBase + field.offset;
-				if (layout.elemCount == 1 || runtime_json_is_char8_type(layout.pType, layout.type))
+				if (layout.elemCount == 1 || field.jsonEncoding == RuntimeJsonEncoding::Utf8String ||
+						runtime_json_is_char8_type(layout.pType, layout.type))
 					return read_runtime_json_value(
 							pCache, layout.pType, layout.type, pFieldData, (uint32_t)fieldSize64, reader, diagnostics, path, policy,
 							depth + 1, ok);
@@ -651,6 +682,50 @@ namespace gaia {
 					const auto* adapter = pType->sequence_adapter();
 					const auto elementType = pType->element_type();
 					const auto* pElementType = find_runtime_json_type(pCache, elementType);
+					if (pType->jsonEncoding == RuntimeJsonEncoding::Utf8String) {
+						ser::json_str_view text;
+						bool fromScratch = false;
+						if (elementType != Char8 || adapter == nullptr || adapter->resize == nullptr ||
+								adapter->element == nullptr || !reader.parse_string_view(text, &fromScratch)) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+									"Runtime UTF-8 string cannot be resized or traversed.");
+							return false;
+						}
+
+						RuntimeSequenceScope sequence{typeEntity, pData, pData, valueSize};
+						if (!adapter->resize(adapter->ctx, sequence, text.size())) {
+							ok = false;
+							warn_runtime_json(
+									diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+									"Runtime UTF-8 string adapter rejected the requested byte count.");
+							return true;
+						}
+
+						GAIA_FOR(text.size()) {
+							RuntimeSequenceElement element{};
+							element.type = elementType;
+							if (!adapter->element(adapter->ctx, sequence, i, element) || element.mutData == nullptr ||
+									element.size != sizeof(char) || (element.type != EntityBad && element.type != Char8)) {
+								ok = false;
+								warn_runtime_json(
+										diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+										"Runtime UTF-8 string adapter rejected an element.");
+								return true;
+							}
+							*(char*)element.mutData = text.data()[i];
+							if (adapter->commitElement != nullptr && !adapter->commitElement(adapter->ctx, sequence, element)) {
+								ok = false;
+								warn_runtime_json(
+										diagnostics, ser::JsonDiagReason::FieldOutOfBounds, path,
+										"Runtime UTF-8 string adapter rejected element commit.");
+								return true;
+							}
+						}
+						(void)fromScratch;
+						return true;
+					}
 					uint32_t elemCount = 0;
 					if (adapter == nullptr || adapter->resize == nullptr || adapter->element == nullptr ||
 							!count_runtime_json_array_elements(reader, elemCount)) {

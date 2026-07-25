@@ -391,7 +391,7 @@ namespace gaia {
 				if (pItem->typeKind == RuntimeTypeKind::Opaque)
 					return field_opaque(index);
 
-				const RuntimeField* pField = pItem->field(index);
+				const RuntimeFieldDesc* pField = pItem->field(index);
 				return pField != nullptr ? descend(*pField, index) : false;
 			}
 
@@ -408,7 +408,7 @@ namespace gaia {
 				if (pItem->typeKind == RuntimeTypeKind::Opaque)
 					return field_opaque(name);
 
-				const RuntimeField* pField = pItem->field(name);
+				const RuntimeFieldDesc* pField = pItem->field(name);
 				if (pField == nullptr)
 					return false;
 
@@ -795,6 +795,13 @@ namespace gaia {
 			//! \param byteCount Number of bytes to copy.
 			//! \return Ok when bytes were copied, otherwise the reason the write failed.
 			CursorResult<void> set_raw(const void* data, uint32_t byteCount) noexcept {
+				return set_raw(data, byteCount, true);
+			}
+
+		private:
+			friend class World;
+
+			CursorResult<void> set_raw(const void* data, uint32_t byteCount, bool commitWrite) noexcept {
 				if (!m_valid)
 					return {CursorStatus::Invalid};
 				if (!m_stack[m_depth].writable || m_world == nullptr || m_entity == EntityBad || m_rootType == EntityBad)
@@ -807,13 +814,14 @@ namespace gaia {
 					return {CursorStatus::Invalid};
 
 				memcpy(mut_ptr(), data, byteCount);
-				if (!commit_current_sequence_element())
-					return {CursorStatus::Invalid};
-				world_finish_write(*m_world, m_rootType, m_entity);
+				if (commitWrite) {
+					if (!commit_current_sequence_element())
+						return {CursorStatus::Invalid};
+					world_finish_write(*m_world, m_rootType, m_entity);
+				}
 				return {CursorStatus::Ok};
 			}
 
-		private:
 			struct Scope {
 				Entity type = EntityBad;
 				const void* data = nullptr;
@@ -1028,7 +1036,7 @@ namespace gaia {
 				return {CursorStatus::Ok};
 			}
 
-			bool descend(const RuntimeField& field, uint32_t fieldIdx = UINT32_MAX) noexcept {
+			bool descend(const RuntimeFieldDesc& field, uint32_t fieldIdx = UINT32_MAX) noexcept {
 				if (!m_valid || m_components == nullptr || m_depth + 1 >= MaxDepth)
 					return false;
 

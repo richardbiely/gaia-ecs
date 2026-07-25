@@ -1036,6 +1036,24 @@ namespace gaia {
 				*pComp = comp;
 			}
 
+			void validate_runtime_semantics(const RuntimeTypeDesc& runtimeType) const {
+#if GAIA_ASSERT_ENABLED
+				auto validate = [&](Entity semantic) {
+					if (semantic == EntityBad)
+						return;
+					util::str path;
+					GAIA_ASSERT(build_scope_path(semantic, path));
+				};
+				validate(runtimeType.semantic);
+				GAIA_FOR(runtimeType.fieldCount)
+				validate(runtimeType.fields[i].semantic);
+#else
+				(void)runtimeType;
+#endif
+			}
+
+			bool write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const;
+
 			//! Finalizes a newly registered component entity after the cache record has been created.
 			//! This synchronizes the core `Component` value stored on the component entity, registers the
 			//! default symbol through the normal naming path, and optionally latches the `Sparse` trait.
@@ -1043,7 +1061,8 @@ namespace gaia {
 			//! \param addSparseTrait Whether runtime sparse registration should attach the `Sparse` trait.
 			void finalize_component_registration(const ComponentCacheItem& item, bool addSparseTrait) {
 				sync_component_record(item.entity, item.comp);
-				name_raw(item.entity, item.name.str(), item.name.len());
+				const auto symbol = item.symbol_name();
+				name_raw(item.entity, symbol.data(), symbol.size());
 				if (addSparseTrait && item.comp.storage_type() == DataStorageType::Sparse)
 					add(item.entity, Sparse);
 			}
@@ -3577,6 +3596,42 @@ namespace gaia {
 				return item;
 			}
 
+			//! Registers a compile-time component with explicit runtime type metadata.
+			//! Metadata is applied only during first registration. Existing component metadata remains immutable.
+			//! Runtime metadata does not change typed storage, lifecycle callbacks, or the component symbol.
+			//! \tparam T Component type to register.
+			//! \param runtimeType Reflection-only metadata attached during first registration.
+			//! \return Registered component cache item.
+			template <typename T>
+			GAIA_NODISCARD const ComponentCacheItem& add(const RuntimeTypeDesc& runtimeType) {
+				static_assert(!is_pair<T>::value, "Pairs can't be registered as components");
+
+				using CT = component_type_t<T>;
+				using FT = typename CT::TypeFull;
+				constexpr auto kind = CT::Kind;
+
+				const auto* pItem = comp_cache().find<FT>();
+				if (pItem != nullptr)
+					return *pItem;
+
+				validate_runtime_semantics(runtimeType);
+				const auto entity = add(*m_pCompArchetype, false, false, kind);
+				util::str scopePath;
+				(void)current_scope_path(scopePath);
+
+				const auto& item = comp_cache_mut().add<FT>(entity, runtimeType, scopePath.view());
+				item.func_create_sparse_store = [](World& world, Entity component) {
+					(void)world.sparse_component_store_mut<FT>(component);
+				};
+				finalize_component_registration(item, item.comp.storage_type() == DataStorageType::Sparse);
+				if constexpr (supports_sparse_component_storage<FT>()) {
+					if (item.comp.storage_type() == DataStorageType::Sparse)
+						(void)sparse_component_store_mut<FT>(item.entity);
+				}
+
+				return item;
+			}
+
 			//! Creates a new runtime component from a plain component descriptor if not found already.
 			//! \param desc Component registration descriptor.
 			//! \param kind Entity kind assigned to the new component entity.
@@ -3588,6 +3643,7 @@ namespace gaia {
 				if (const auto* pItem = comp_cache().symbol(desc.name); pItem != nullptr)
 					return *comp_cache_mut().find(pItem->entity);
 
+				validate_runtime_semantics(desc.runtimeType);
 				const auto entity = add(*m_pCompArchetype, false, false, kind);
 				util::str scopePath;
 				(void)current_scope_path(scopePath);
@@ -8656,6 +8712,33 @@ namespace gaia {
 			//! \return The serialized JSON document.
 			ser::json_str save_json(bool& ok, ser::JsonSaveFlags flags = ser::JsonSaveFlags::Default) const;
 
+			//! Calculates a deterministic hash of the world-level runtime schema manifest.
+			//! \return Hash of the current runtime schema manifest.
+			uint64_t runtime_schema_hash() const;
+
+			//! Serializes registered runtime component/type metadata into a self-describing schema manifest.
+			//! \param writer JSON writer receiving the manifest.
+			//! \return True when the manifest was serialized.
+			bool save_runtime_schema_json(ser::ser_json& writer) const;
+
+			//! Convenience overload returning the runtime schema manifest as JSON text.
+			//! \return Serialized runtime schema manifest.
+			ser::json_str save_runtime_schema_json() const;
+
+			//! Applies one validated JSON value to a reflected component leaf selected by JSON Pointer.
+			//! \param entity Entity owning the component value.
+			//! \param component Component entity or exact relationship pair.
+			//! \param pointer RFC 6901 pointer selecting a reflected leaf.
+			//! \param value Complete JSON value for the selected leaf.
+			//! \param diagnostics Structured validation errors.
+			//! \param policy Runtime enum and bitmask JSON policy.
+			//! \param expectedRuntimeSchemaHash Optional non-zero runtime schema hash required to match the current manifest.
+			//! \return True when the selected leaf was updated.
+			bool patch_comp_json(
+					Entity entity, Entity component, ser::json_str_view pointer, ser::json_str_view value,
+					ser::JsonDiagnostics& diagnostics, const ser::RuntimeJsonPolicy& policy = {},
+					uint64_t expectedRuntimeSchemaHash = 0);
+
 			//! Loads world state from JSON previously emitted by save_json().
 			//! \param json JSON buffer.
 			//! \param len JSON buffer length.
@@ -8935,9 +9018,10 @@ namespace gaia {
 								// Make components point back to their component cache record because if we save the world and load
 								// it back in runtime, EntityDesc would still point to the old pointers to component names.
 								const auto& ci = comp_cache().get(entity);
-								pDesc->name = ci.name.str();
+								const auto symbol = ci.symbol_name();
+								pDesc->name = symbol.data();
 								// Length should still be the same. Only the pointer has changed.
-								GAIA_ASSERT(pDesc->name_len == ci.name.len());
+								GAIA_ASSERT(pDesc->name_len == symbol.size());
 								m_nameToEntity.try_emplace(EntityNameLookupKey(pDesc->name, pDesc->name_len, 0), entity);
 							} else {
 								uint32_t len = 0;
@@ -11792,7 +11876,7 @@ namespace gaia {
 				desc.size = size;
 				desc.alig = size;
 				desc.storageType = DataStorageType::Table;
-				desc.typeKind = RuntimeTypeKind::Primitive;
+				desc.runtimeType.typeKind = RuntimeTypeKind::Primitive;
 				return desc;
 			}
 
@@ -12269,16 +12353,18 @@ namespace gaia {
 					const auto id = GAIA_ID(EntityDesc);
 					const auto& ci = reg_core_entity<EntityDesc>(id);
 					EntityBuilder(*this, id).add_inter_init(ci.entity);
-					sset<EntityDesc>(id) = {ci.name.str(), ci.name.len(), nullptr, 0};
+					const auto symbol = ci.symbol_name();
+					sset<EntityDesc>(id) = {symbol.data(), symbol.size(), nullptr, 0};
 					pCompArchetype = m_recs.entities[id.id()].pArchetype;
 				}
 				{
 					const auto id = GAIA_ID(Component);
 					const auto& ci = reg_core_entity<Component>(id, pCompArchetype);
 					EntityBuilder(*this, id).add_inter_init(ci.entity);
+					const auto symbol = ci.symbol_name();
 					acc_mut(id)
 							// Entity descriptor
-							.sset<EntityDesc>({ci.name.str(), ci.name.len(), nullptr, 0})
+							.sset<EntityDesc>({symbol.data(), symbol.size(), nullptr, 0})
 							// Component
 							.sset<Component>(ci.comp);
 					m_pCompArchetype = m_recs.entities[id.id()].pArchetype;
@@ -12628,6 +12714,8 @@ namespace gaia {
 } // namespace gaia
 
 #include "gaia/ecs/impl/world_json.h"
+#include "gaia/ecs/impl/world_json_patch.h"
+#include "gaia/ecs/impl/world_schema_json.h"
 
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {

@@ -66,6 +66,49 @@ struct CustomStruct {
 	uint32_t size;
 };
 
+struct RuntimeSchemaPosition {
+	float x;
+	float y;
+	float z;
+};
+
+namespace runtime_schema_first {
+	struct Shared {
+		float value;
+	};
+} // namespace runtime_schema_first
+
+namespace runtime_schema_second {
+	struct Shared {
+		float value;
+	};
+} // namespace runtime_schema_second
+
+struct RuntimeDynamicString {
+	gaia::cnt::darray<char> value;
+};
+
+struct RuntimeFloatVector {
+	gaia::cnt::darray<float> values;
+};
+
+struct RuntimePatchNested {
+	float value;
+};
+
+struct RuntimePatchComponent {
+	float x;
+	float locked;
+	float hidden;
+	RuntimePatchNested nested;
+	float values[2];
+	char name[8];
+};
+
+struct RuntimeRejectingOpaque {
+	float value;
+};
+
 bool operator==(const CustomStruct& a, const CustomStruct& b) {
 	return a.size == b.size && 0 == memcmp(a.ptr, b.ptr, a.size);
 }
@@ -297,7 +340,7 @@ TEST_CASE("Serialization - json runtime fields") {
 
 	SUBCASE("runtime fields are emitted and loaded through reflected metadata") {
 		TestWorld twld;
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}, //
 				{util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}, //
 				{util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0} //
@@ -490,7 +533,8 @@ TEST_CASE("Serialization - json runtime fields") {
 		CHECK(ok);
 		CHECK(
 				writer.str() ==
-				"{\"weights[0]\":0.25,\"weights[1]\":0.5,\"weights[2]\":1,\"inventory[0].id\":101,\"inventory[0].count\":3,"
+				"{\"weights[0]\":0.25,\"weights[1]\":0.5,\"weights[2]\":1,\"inventory[0].id\":101,\"inventory[0].count\":"
+				"3,"
 				"\"inventory[1].id\":202,\"inventory[1].count\":9,\"active[0]\":true,\"active[1]\":false}");
 	}
 
@@ -513,7 +557,7 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto offSamples = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.samples) - pBase);
 		const auto offMode = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.mode) - pBase);
 
-		const ecs::RuntimeFieldDesc vec3Fields[] = {
+		const ecs::RuntimeFieldInit vec3Fields[] = {
 				{util::str_view("x"), ecs::F32, 0, 0}, //
 				{util::str_view("y"), ecs::F32, 4, 0}, //
 				{util::str_view("z"), ecs::F32, 8, 0} //
@@ -522,21 +566,21 @@ TEST_CASE("Serialization - json runtime fields") {
 		vec3Desc.name = runtime_component_name_view("Runtime_Type_Json_Vec3");
 		vec3Desc.size = (uint32_t)sizeof(Vec3);
 		vec3Desc.alig = (uint32_t)alignof(Vec3);
-		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
-		vec3Desc.fields = vec3Fields;
-		vec3Desc.fieldCount = 3;
+		vec3Desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.runtimeType.fields = vec3Fields;
+		vec3Desc.runtimeType.fieldCount = 3;
 		auto& vec3Type = wld.add(vec3Desc);
 
 		ecs::ComponentDesc vec3ArrayDesc{};
 		vec3ArrayDesc.name = runtime_component_name_view("Runtime_Type_Json_Vec3_Array_2");
 		vec3ArrayDesc.size = (uint32_t)sizeof(Vec3) * 2;
 		vec3ArrayDesc.alig = (uint32_t)alignof(Vec3);
-		vec3ArrayDesc.typeKind = ecs::RuntimeTypeKind::Array;
-		vec3ArrayDesc.elementType = vec3Type.entity;
-		vec3ArrayDesc.elementCount = 2;
+		vec3ArrayDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3ArrayDesc.runtimeType.elementType = vec3Type.entity;
+		vec3ArrayDesc.runtimeType.elementCount = 2;
 		auto& vec3ArrayType = wld.add(vec3ArrayDesc);
 
-		const ecs::RuntimeConstantDesc modeConstants[] = {
+		const ecs::RuntimeConstantInit modeConstants[] = {
 				{util::str_view("Idle"), 0}, //
 				{util::str_view("Move"), 1}, //
 				{util::str_view("Jump"), 2} //
@@ -545,13 +589,13 @@ TEST_CASE("Serialization - json runtime fields") {
 		modeDesc.name = runtime_component_name_view("Runtime_Type_Json_Mode");
 		modeDesc.size = (uint32_t)sizeof(uint32_t);
 		modeDesc.alig = (uint32_t)alignof(uint32_t);
-		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		modeDesc.underlyingType = ecs::U32;
-		modeDesc.constants = modeConstants;
-		modeDesc.constantCount = 3;
+		modeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.runtimeType.underlyingType = ecs::U32;
+		modeDesc.runtimeType.constants = modeConstants;
+		modeDesc.runtimeType.constantCount = 3;
 		auto& modeType = wld.add(modeDesc);
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("id"), ecs::S32, offId, 0}, //
 				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
 				{util::str_view("samples"), vec3ArrayType.entity, offSamples, 0}, //
@@ -599,7 +643,7 @@ TEST_CASE("Serialization - json runtime fields") {
 	SUBCASE("runtime enum and bitmask symbols require an explicit json policy") {
 		TestWorld twld;
 
-		const ecs::RuntimeConstantDesc modeConstants[] = {
+		const ecs::RuntimeConstantInit modeConstants[] = {
 				{util::str_view("Idle"), 0}, //
 				{util::str_view("Move"), 1}, //
 				{util::str_view("Jump"), 2} //
@@ -608,13 +652,13 @@ TEST_CASE("Serialization - json runtime fields") {
 		modeDesc.name = runtime_component_name_view("Runtime_Type_Json_Symbolic_Mode");
 		modeDesc.size = (uint32_t)sizeof(uint32_t);
 		modeDesc.alig = (uint32_t)alignof(uint32_t);
-		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		modeDesc.underlyingType = ecs::U32;
-		modeDesc.constants = modeConstants;
-		modeDesc.constantCount = 3;
+		modeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.runtimeType.underlyingType = ecs::U32;
+		modeDesc.runtimeType.constants = modeConstants;
+		modeDesc.runtimeType.constantCount = 3;
 		auto& modeType = wld.add(modeDesc);
 
-		const ecs::RuntimeConstantDesc flagConstants[] = {
+		const ecs::RuntimeConstantInit flagConstants[] = {
 				{util::str_view("Static"), 1}, //
 				{util::str_view("Dynamic"), 2}, //
 				{util::str_view("Trigger"), 4} //
@@ -623,13 +667,13 @@ TEST_CASE("Serialization - json runtime fields") {
 		flagsDesc.name = runtime_component_name_view("Runtime_Type_Json_Symbolic_Flags");
 		flagsDesc.size = (uint32_t)sizeof(uint32_t);
 		flagsDesc.alig = (uint32_t)alignof(uint32_t);
-		flagsDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
-		flagsDesc.underlyingType = ecs::U32;
-		flagsDesc.constants = flagConstants;
-		flagsDesc.constantCount = 3;
+		flagsDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		flagsDesc.runtimeType.underlyingType = ecs::U32;
+		flagsDesc.runtimeType.constants = flagConstants;
+		flagsDesc.runtimeType.constantCount = 3;
 		auto& flagsType = wld.add(flagsDesc);
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("mode"), modeType.entity, 0, 0}, //
 				{util::str_view("flags"), flagsType.entity, 4, 0} //
 		};
@@ -637,8 +681,8 @@ TEST_CASE("Serialization - json runtime fields") {
 		componentDesc.name = runtime_component_name_view("Runtime_Component_Json_Symbolic");
 		componentDesc.size = (uint32_t)(sizeof(uint32_t) * 2);
 		componentDesc.alig = (uint32_t)alignof(uint32_t);
-		componentDesc.fields = fields;
-		componentDesc.fieldCount = 2;
+		componentDesc.runtimeType.fields = fields;
+		componentDesc.runtimeType.fieldCount = 2;
 		auto& component = wld.add(componentDesc);
 
 		uint32_t value[] = {2, 1 | 4};
@@ -691,17 +735,17 @@ TEST_CASE("Serialization - json runtime fields") {
 		CHECK_FALSE(directFlagsDiagnostics.has_issues());
 		CHECK(directFlagsOut == directFlags);
 
-		const ecs::RuntimeConstantDesc wideEnumConstants[] = {
+		const ecs::RuntimeConstantInit wideEnumConstants[] = {
 				{util::str_view("Zero"), 0} //
 		};
 		ecs::ComponentDesc wideEnumDesc{};
 		wideEnumDesc.name = runtime_component_name_view("Runtime_Json_Wide_Enum");
 		wideEnumDesc.size = (uint32_t)sizeof(int64_t);
 		wideEnumDesc.alig = (uint32_t)alignof(int64_t);
-		wideEnumDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		wideEnumDesc.underlyingType = ecs::S64;
-		wideEnumDesc.constants = wideEnumConstants;
-		wideEnumDesc.constantCount = 1;
+		wideEnumDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		wideEnumDesc.runtimeType.underlyingType = ecs::S64;
+		wideEnumDesc.runtimeType.constants = wideEnumConstants;
+		wideEnumDesc.runtimeType.constantCount = 1;
 		auto& wideEnumType = wld.add(wideEnumDesc);
 		const int64_t wideEnum = -9007199254740993LL;
 		ser::ser_json wideEnumWriter;
@@ -763,17 +807,17 @@ TEST_CASE("Serialization - json runtime fields") {
 				ecs::json_to_component(wideEnumType, &malformedIntegerOut, missingExponentReader, wideEnumDiagnostics, policy));
 		CHECK(malformedIntegerOut == 7);
 
-		const ecs::RuntimeConstantDesc wideBitmaskConstants[] = {
+		const ecs::RuntimeConstantInit wideBitmaskConstants[] = {
 				{util::str_view("Known"), 1} //
 		};
 		ecs::ComponentDesc wideBitmaskDesc{};
 		wideBitmaskDesc.name = runtime_component_name_view("Runtime_Json_Wide_Bitmask");
 		wideBitmaskDesc.size = (uint32_t)sizeof(uint64_t);
 		wideBitmaskDesc.alig = (uint32_t)alignof(uint64_t);
-		wideBitmaskDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
-		wideBitmaskDesc.underlyingType = ecs::U64;
-		wideBitmaskDesc.constants = wideBitmaskConstants;
-		wideBitmaskDesc.constantCount = 1;
+		wideBitmaskDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		wideBitmaskDesc.runtimeType.underlyingType = ecs::U64;
+		wideBitmaskDesc.runtimeType.constants = wideBitmaskConstants;
+		wideBitmaskDesc.runtimeType.constantCount = 1;
 		auto& wideBitmaskType = wld.add(wideBitmaskDesc);
 		const uint64_t wideBitmask = (UINT64_C(1) << 54) | UINT64_C(1);
 		ser::ser_json wideBitmaskWriter;
@@ -869,7 +913,7 @@ TEST_CASE("Serialization - json runtime fields") {
 		const auto* pBase = reinterpret_cast<const uint8_t*>(&layout);
 		const auto offGrid = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.grid) - pBase);
 
-		const ecs::RuntimeFieldDesc vec3Fields[] = {
+		const ecs::RuntimeFieldInit vec3Fields[] = {
 				{util::str_view("x"), ecs::F32, 0, 0}, //
 				{util::str_view("y"), ecs::F32, 4, 0}, //
 				{util::str_view("z"), ecs::F32, 8, 0} //
@@ -878,30 +922,30 @@ TEST_CASE("Serialization - json runtime fields") {
 		vec3Desc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3");
 		vec3Desc.size = (uint32_t)sizeof(Vec3);
 		vec3Desc.alig = (uint32_t)alignof(Vec3);
-		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
-		vec3Desc.fields = vec3Fields;
-		vec3Desc.fieldCount = 3;
+		vec3Desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.runtimeType.fields = vec3Fields;
+		vec3Desc.runtimeType.fieldCount = 3;
 		auto& vec3Type = wld.add(vec3Desc);
 
 		ecs::ComponentDesc rowDesc{};
 		rowDesc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3_Row_2");
 		rowDesc.size = (uint32_t)sizeof(Vec3) * 2;
 		rowDesc.alig = (uint32_t)alignof(Vec3);
-		rowDesc.typeKind = ecs::RuntimeTypeKind::Array;
-		rowDesc.elementType = vec3Type.entity;
-		rowDesc.elementCount = 2;
+		rowDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Array;
+		rowDesc.runtimeType.elementType = vec3Type.entity;
+		rowDesc.runtimeType.elementCount = 2;
 		auto& rowType = wld.add(rowDesc);
 
 		ecs::ComponentDesc gridTypeDesc{};
 		gridTypeDesc.name = runtime_component_name_view("Runtime_Type_Json_Recursive_Vec3_Grid_2x2");
 		gridTypeDesc.size = (uint32_t)sizeof(RuntimeGridComp);
 		gridTypeDesc.alig = (uint32_t)alignof(Vec3);
-		gridTypeDesc.typeKind = ecs::RuntimeTypeKind::Array;
-		gridTypeDesc.elementType = rowType.entity;
-		gridTypeDesc.elementCount = 2;
+		gridTypeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Array;
+		gridTypeDesc.runtimeType.elementType = rowType.entity;
+		gridTypeDesc.runtimeType.elementCount = 2;
 		auto& gridType = wld.add(gridTypeDesc);
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("grid"), gridType.entity, offGrid, 0} //
 		};
 		auto& item = add_runtime_component_with_fields(
@@ -2182,7 +2226,7 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 		const auto offSamples = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.samples) - pBase);
 		const auto offMode = (uint32_t)(reinterpret_cast<const uint8_t*>(&layout.mode) - pBase);
 
-		const ecs::RuntimeFieldDesc vec3Fields[] = {
+		const ecs::RuntimeFieldInit vec3Fields[] = {
 				{util::str_view("x"), ecs::F32, 0, 0}, //
 				{util::str_view("y"), ecs::F32, 4, 0}, //
 				{util::str_view("z"), ecs::F32, 8, 0} //
@@ -2191,21 +2235,21 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 		vec3Desc.name = runtime_component_name_view("Runtime_Type_World_Json_Vec3");
 		vec3Desc.size = (uint32_t)sizeof(Vec3);
 		vec3Desc.alig = (uint32_t)alignof(Vec3);
-		vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
-		vec3Desc.fields = vec3Fields;
-		vec3Desc.fieldCount = 3;
+		vec3Desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		vec3Desc.runtimeType.fields = vec3Fields;
+		vec3Desc.runtimeType.fieldCount = 3;
 		auto& vec3Type = world.add(vec3Desc);
 
 		ecs::ComponentDesc vec3ArrayDesc{};
 		vec3ArrayDesc.name = runtime_component_name_view("Runtime_Type_World_Json_Vec3_Array_2");
 		vec3ArrayDesc.size = (uint32_t)sizeof(Vec3) * 2;
 		vec3ArrayDesc.alig = (uint32_t)alignof(Vec3);
-		vec3ArrayDesc.typeKind = ecs::RuntimeTypeKind::Array;
-		vec3ArrayDesc.elementType = vec3Type.entity;
-		vec3ArrayDesc.elementCount = 2;
+		vec3ArrayDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Array;
+		vec3ArrayDesc.runtimeType.elementType = vec3Type.entity;
+		vec3ArrayDesc.runtimeType.elementCount = 2;
 		auto& vec3ArrayType = world.add(vec3ArrayDesc);
 
-		const ecs::RuntimeConstantDesc modeConstants[] = {
+		const ecs::RuntimeConstantInit modeConstants[] = {
 				{util::str_view("Idle"), 0}, //
 				{util::str_view("Move"), 1}, //
 				{util::str_view("Jump"), 2} //
@@ -2214,13 +2258,13 @@ TEST_CASE("Serialization - world json runtime semantic nested metadata") {
 		modeDesc.name = runtime_component_name_view("Runtime_Type_World_Json_Mode");
 		modeDesc.size = (uint32_t)sizeof(uint32_t);
 		modeDesc.alig = (uint32_t)alignof(uint32_t);
-		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		modeDesc.underlyingType = ecs::U32;
-		modeDesc.constants = modeConstants;
-		modeDesc.constantCount = 3;
+		modeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.runtimeType.underlyingType = ecs::U32;
+		modeDesc.runtimeType.constants = modeConstants;
+		modeDesc.runtimeType.constantCount = 3;
 		auto& modeType = world.add(modeDesc);
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("id"), ecs::S32, offId, 0}, //
 				{util::str_view("position"), vec3Type.entity, offPosition, 0}, //
 				{util::str_view("samples"), vec3ArrayType.entity, offSamples, 0}, //
@@ -2318,7 +2362,7 @@ TEST_CASE("Serialization - world json runtime-created components") {
 	};
 
 	auto register_runtime_component = [&](ecs::World& world) -> ecs::ComponentCacheItem& {
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("x"), ecs::F32, RuntimeJsonXOffset, 0}, //
 				{util::str_view("y"), ecs::F32, RuntimeJsonYOffset, 0}, //
 				{util::str_view("z"), ecs::F32, RuntimeJsonZOffset, 0} //
@@ -2373,12 +2417,12 @@ TEST_CASE("Serialization - world json runtime-created components") {
 }
 
 TEST_CASE("Serialization - world json direct runtime enum and bitmask components") {
-	const ecs::RuntimeConstantDesc modeConstants[] = {
+	const ecs::RuntimeConstantInit modeConstants[] = {
 			{util::str_view("Idle"), 0}, //
 			{util::str_view("Move"), 1}, //
 			{util::str_view("Jump"), 2} //
 	};
-	const ecs::RuntimeConstantDesc flagConstants[] = {
+	const ecs::RuntimeConstantInit flagConstants[] = {
 			{util::str_view("Static"), 1}, //
 			{util::str_view("Dynamic"), 2}, //
 			{util::str_view("Trigger"), 4} //
@@ -2390,20 +2434,20 @@ TEST_CASE("Serialization - world json direct runtime enum and bitmask components
 		modeDesc.name = runtime_component_name_view("Runtime_Direct_Json_Mode");
 		modeDesc.size = (uint32_t)sizeof(uint32_t);
 		modeDesc.alig = (uint32_t)alignof(uint32_t);
-		modeDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-		modeDesc.underlyingType = ecs::U32;
-		modeDesc.constants = modeConstants;
-		modeDesc.constantCount = 3;
+		modeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		modeDesc.runtimeType.underlyingType = ecs::U32;
+		modeDesc.runtimeType.constants = modeConstants;
+		modeDesc.runtimeType.constantCount = 3;
 		modeType = &world.add(modeDesc);
 
 		ecs::ComponentDesc flagsDesc{};
 		flagsDesc.name = runtime_component_name_view("Runtime_Direct_Json_Flags");
 		flagsDesc.size = (uint32_t)sizeof(uint32_t);
 		flagsDesc.alig = (uint32_t)alignof(uint32_t);
-		flagsDesc.typeKind = ecs::RuntimeTypeKind::Bitmask;
-		flagsDesc.underlyingType = ecs::U32;
-		flagsDesc.constants = flagConstants;
-		flagsDesc.constantCount = 3;
+		flagsDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Bitmask;
+		flagsDesc.runtimeType.underlyingType = ecs::U32;
+		flagsDesc.runtimeType.constants = flagConstants;
+		flagsDesc.runtimeType.constantCount = 3;
 		flagsType = &world.add(flagsDesc);
 	};
 
@@ -2465,9 +2509,9 @@ TEST_CASE("Serialization - world json opaque boolean component") {
 		desc.name = runtime_component_name_view("Runtime_Json_Opaque_Bool");
 		desc.size = (uint32_t)sizeof(bool);
 		desc.alig = (uint32_t)alignof(bool);
-		desc.typeKind = ecs::RuntimeTypeKind::Opaque;
-		desc.opaqueAsType = ecs::Bool;
-		desc.opaqueAdapter = &adapter;
+		desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Opaque;
+		desc.runtimeType.opaqueAsType = ecs::Bool;
+		desc.runtimeType.opaqueAdapter = &adapter;
 		return world.add(desc);
 	};
 
@@ -2637,16 +2681,16 @@ TEST_CASE("Serialization - world json runtime pair payload") {
 		targetDesc.storageType = ecs::DataStorageType::Table;
 		auto& target = world.add(targetDesc);
 
-		const ecs::RuntimeFieldDesc fields[] = {
+		const ecs::RuntimeFieldInit fields[] = {
 				{util::str_view("weight"), ecs::F32, 0, 0}, {util::str_view("flags"), ecs::U32, sizeof(float), 0}};
 		ecs::ComponentDesc relationDesc{};
 		relationDesc.name = runtime_component_name_view("Runtime_Pair_Json_Relation");
 		relationDesc.size = sizeof(RuntimePairPayload);
 		relationDesc.alig = alignof(RuntimePairPayload);
 		relationDesc.storageType = ecs::DataStorageType::Table;
-		relationDesc.typeKind = ecs::RuntimeTypeKind::Struct;
-		relationDesc.fields = fields;
-		relationDesc.fieldCount = 2;
+		relationDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		relationDesc.runtimeType.fields = fields;
+		relationDesc.runtimeType.fieldCount = 2;
 		auto& relation = world.add(relationDesc);
 
 		return RuntimePairSchema{relation.entity, target.entity};
@@ -2772,4 +2816,633 @@ TEST_CASE("Serialization - world json rejects unnamed runtime pair target") {
 
 	ser::ser_json writer;
 	CHECK_FALSE(wld.save_json(writer, ser::JsonSaveFlags::RawFallback));
+}
+
+TEST_CASE("Serialization - runtime schema manifest") {
+	TestWorld twld;
+	const auto positionSemantic = wld.add();
+	wld.name(positionSemantic, "app.semantic.vector3");
+	ecs::RuntimeFieldInit fields[] = {
+			{util::str_view("x"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, x), 0},
+			{util::str_view("y"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, y), 0},
+			{util::str_view("z"), ecs::F32, (uint32_t)offsetof(RuntimeSchemaPosition, z), 0}};
+	fields[0].flags = ecs::RuntimeFieldFlag_HasMinimum | ecs::RuntimeFieldFlag_HasMaximum | ecs::RuntimeFieldFlag_HasStep;
+	fields[0].unit = util::str_view("m");
+	fields[0].minimum = -100.0;
+	fields[0].maximum = 100.0;
+	fields[0].step = 0.1;
+	fields[1].flags = ecs::RuntimeFieldFlag_ReadOnly;
+	ecs::RuntimeTypeDesc schema{};
+	schema.typeKind = ecs::RuntimeTypeKind::Struct;
+	schema.semantic = positionSemantic;
+	schema.fields = fields;
+	schema.fieldCount = 3;
+	(void)wld.add<RuntimeSchemaPosition>(schema);
+	const ecs::RuntimeConstantInit constants[] = {{util::str_view("Idle"), 0}, {util::str_view("Running"), 1}};
+	ecs::ComponentDesc enumDesc{};
+	enumDesc.name = util::str_view("RuntimeSchemaMode");
+	enumDesc.size = sizeof(uint32_t);
+	enumDesc.alig = alignof(uint32_t);
+	enumDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+	enumDesc.runtimeType.underlyingType = ecs::U32;
+	enumDesc.runtimeType.constants = constants;
+	enumDesc.runtimeType.constantCount = 2;
+	(void)wld.add(enumDesc);
+	ecs::ComponentDesc charArrayDesc{};
+	charArrayDesc.name = util::str_view("RuntimeSchemaCharArray8");
+	charArrayDesc.size = 8;
+	charArrayDesc.alig = alignof(char);
+	charArrayDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Array;
+	charArrayDesc.runtimeType.elementType = ecs::Char8;
+	charArrayDesc.runtimeType.elementCount = 8;
+	const auto& charArray = wld.add(charArrayDesc);
+	const ecs::RuntimeFieldInit labelFields[] = {{util::str_view("label"), charArray.entity, 0, 0}};
+	ecs::ComponentDesc labelDesc{};
+	labelDesc.name = util::str_view("RuntimeSchemaLabel");
+	labelDesc.size = 8;
+	labelDesc.alig = alignof(char);
+	labelDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+	labelDesc.runtimeType.fields = labelFields;
+	labelDesc.runtimeType.fieldCount = 1;
+	(void)wld.add(labelDesc);
+
+	ser::ser_json writer;
+	CHECK(wld.save_runtime_schema_json(writer));
+	const auto& json = writer.str();
+	ser::ser_json manifestReader(json.data(), json.size());
+	CHECK(manifestReader.skip_value());
+	manifestReader.ws();
+	CHECK(manifestReader.eof());
+	CHECK(json.find("\"format\":\"gaia.ecs.schema\"") != BadIndex);
+	CHECK(json.find("\"version\":2") != BadIndex);
+	CHECK(json.find("\"hash\":\"") != BadIndex);
+	CHECK(json.find("\"symbol\":\"RuntimeSchemaPosition\"") != BadIndex);
+	CHECK(json.find("\"kind\":\"struct\"") != BadIndex);
+	CHECK(json.find("\"semantic\":{\"name\":\"app.semantic.vector3\"") != BadIndex);
+	CHECK(json.find("\"jsonEncoding\":\"default\"") != BadIndex);
+	CHECK(json.find("\"storage\":\"table\"") != BadIndex);
+	CHECK(json.find("\"layout\":\"aos\"") != BadIndex);
+	CHECK(json.find("\"name\":\"x\"") != BadIndex);
+	CHECK(json.find("\"unit\":\"m\"") != BadIndex);
+	CHECK(json.find("\"minimum\":-100") != BadIndex);
+	CHECK(json.find("\"maximum\":100") != BadIndex);
+	CHECK(json.find("\"step\":0.1") != BadIndex);
+	CHECK(json.find("\"name\":\"y\"") != BadIndex);
+	CHECK(json.find("\"readOnly\":true") != BadIndex);
+	CHECK(json.find("\"symbol\":\"RuntimeSchemaMode\"") != BadIndex);
+	CHECK(json.find("\"underlyingType\":{\"symbol\":") != BadIndex);
+	CHECK(json.find("\"constants\":[{\"name\":\"Idle\",\"value\":0}") != BadIndex);
+	CHECK(json.find("\"capacity\":8") != BadIndex);
+	const auto schemaHash = wld.runtime_schema_hash();
+	CHECK(schemaHash != 0);
+
+	ser::ser_json secondWriter;
+	CHECK(wld.save_runtime_schema_json(secondWriter));
+	CHECK(secondWriter.str() == json);
+	CHECK(wld.runtime_schema_hash() == schemaHash);
+	CHECK(wld.save_runtime_schema_json() == json);
+
+	auto addRuntimeTypes = [](ecs::World& world, bool reverse) {
+		if (reverse)
+			(void)world.add();
+		const auto semanticScope = world.add();
+		world.name(semanticScope, "app.semantic");
+		const auto semantic = world.add();
+		world.name(semantic, "hash-test");
+		world.add(semantic, ecs::Pair(ecs::ChildOf, semanticScope));
+		const ecs::RuntimeFieldInit scalarField[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::ComponentDesc first{};
+		first.name = util::str_view("Runtime_Hash_First");
+		first.size = sizeof(float);
+		first.alig = alignof(float);
+		first.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		first.runtimeType.semantic = semantic;
+		first.runtimeType.fields = scalarField;
+		first.runtimeType.fieldCount = 1;
+		ecs::ComponentDesc second = first;
+		second.name = util::str_view("Runtime_Hash_Second");
+		if (reverse) {
+			(void)world.add(second);
+			(void)world.add(first);
+		} else {
+			(void)world.add(first);
+			(void)world.add(second);
+		}
+	};
+	ecs::World ordered;
+	ecs::World reversed;
+	addRuntimeTypes(ordered, false);
+	addRuntimeTypes(reversed, true);
+	CHECK(ordered.runtime_schema_hash() == reversed.runtime_schema_hash());
+	CHECK(ordered.save_runtime_schema_json().find("\"path\":\"app.semantic.hash-test\"") != BadIndex);
+
+	auto semanticPathHash = [](const char* scopeName) {
+		ecs::World world;
+		const auto semanticScope = world.add();
+		world.name(semanticScope, scopeName);
+		const auto semantic = world.add();
+		world.name(semantic, "shared");
+		world.add(semantic, ecs::Pair(ecs::ChildOf, semanticScope));
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Semantic_Path");
+		desc.size = sizeof(float);
+		desc.alig = alignof(float);
+		desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		desc.runtimeType.semantic = semantic;
+		desc.runtimeType.fields = fields;
+		desc.runtimeType.fieldCount = 1;
+		(void)world.add(desc);
+		return world.runtime_schema_hash();
+	};
+	CHECK(semanticPathHash("app.semantic.first") != semanticPathHash("app.semantic.second"));
+	auto semanticSegmentHash = [](bool splitScope) {
+		ecs::World world;
+		const auto scope = world.add();
+		world.name(scope, splitScope ? "app" : "app.semantic");
+		auto parent = scope;
+		if (splitScope) {
+			const auto nested = world.add();
+			world.name(nested, "semantic");
+			world.add(nested, ecs::Pair(ecs::ChildOf, scope));
+			parent = nested;
+		}
+		const auto semantic = world.add();
+		world.name(semantic, "shared");
+		world.add(semantic, ecs::Pair(ecs::ChildOf, parent));
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Semantic_Segments");
+		desc.size = sizeof(float);
+		desc.alig = alignof(float);
+		desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+		desc.runtimeType.semantic = semantic;
+		desc.runtimeType.fields = fields;
+		desc.runtimeType.fieldCount = 1;
+		(void)world.add(desc);
+		return world.runtime_schema_hash();
+	};
+	CHECK(semanticSegmentHash(false) != semanticSegmentHash(true));
+
+	auto addScopedRuntimeTypes = [](ecs::World& world, bool reverse) {
+		const auto firstScope = world.add();
+		world.name(firstScope, "app.first");
+		const auto secondScope = world.add();
+		world.name(secondScope, "app.second");
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::RuntimeTypeDesc schema{};
+		schema.fields = fields;
+		schema.fieldCount = 1;
+		auto addFirst = [&] {
+			world.scope(firstScope, [&] {
+				(void)world.add<runtime_schema_first::Shared>(schema);
+			});
+		};
+		auto addSecond = [&] {
+			world.scope(secondScope, [&] {
+				(void)world.add<runtime_schema_second::Shared>(schema);
+			});
+		};
+		if (reverse) {
+			addSecond();
+			addFirst();
+		} else {
+			addFirst();
+			addSecond();
+		}
+	};
+	ecs::World scopedOrdered;
+	ecs::World scopedReversed;
+	addScopedRuntimeTypes(scopedOrdered, false);
+	addScopedRuntimeTypes(scopedReversed, true);
+	CHECK(scopedOrdered.runtime_schema_hash() == scopedReversed.runtime_schema_hash());
+}
+
+TEST_CASE("Serialization - runtime UTF-8 semantic string") {
+	TestWorld twld;
+	const auto stringSemantic = wld.add();
+	wld.name(stringSemantic, "app.semantic.localization-key");
+	ecs::RuntimeSequenceAdapter sequenceAdapter{};
+	sequenceAdapter.count = [](void*, const ecs::RuntimeSequenceScope& sequence, uint32_t& count) {
+		if (sequence.data == nullptr || sequence.size != sizeof(gaia::cnt::darray<char>))
+			return false;
+		count = (uint32_t)((const gaia::cnt::darray<char>*)sequence.data)->size();
+		return true;
+	};
+	sequenceAdapter.element = [](void*, const ecs::RuntimeSequenceScope& sequence, uint32_t index,
+															 ecs::RuntimeSequenceElement& element) {
+		if (sequence.data == nullptr || sequence.size != sizeof(gaia::cnt::darray<char>))
+			return false;
+		const auto& value = *(const gaia::cnt::darray<char>*)sequence.data;
+		if (index >= value.size())
+			return false;
+		element.type = ecs::Char8;
+		element.data = &value[index];
+		if (sequence.mutData != nullptr)
+			element.mutData = &(*(gaia::cnt::darray<char>*)sequence.mutData)[index];
+		element.size = sizeof(char);
+		return true;
+	};
+	sequenceAdapter.resize = [](void*, ecs::RuntimeSequenceScope& sequence, uint32_t count) {
+		if (sequence.mutData == nullptr || sequence.size != sizeof(gaia::cnt::darray<char>))
+			return false;
+		((gaia::cnt::darray<char>*)sequence.mutData)->resize(count);
+		return true;
+	};
+
+	ecs::ComponentDesc stringTypeDesc{};
+	stringTypeDesc.name = util::str_view("Runtime_Type_String");
+	stringTypeDesc.size = sizeof(gaia::cnt::darray<char>);
+	stringTypeDesc.alig = alignof(gaia::cnt::darray<char>);
+	stringTypeDesc.storageType = ecs::DataStorageType::Table;
+	stringTypeDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Vector;
+	stringTypeDesc.runtimeType.semantic = stringSemantic;
+	stringTypeDesc.runtimeType.jsonEncoding = ecs::RuntimeJsonEncoding::Utf8String;
+	stringTypeDesc.runtimeType.elementType = ecs::Char8;
+	stringTypeDesc.runtimeType.sequenceAdapter = &sequenceAdapter;
+	const auto& stringType = wld.add(stringTypeDesc);
+	ecs::ComponentDesc charVectorTypeDesc = stringTypeDesc;
+	charVectorTypeDesc.name = util::str_view("Runtime_Type_CharVector");
+	charVectorTypeDesc.runtimeType.jsonEncoding = ecs::RuntimeJsonEncoding::Default;
+	const auto& charVectorType = wld.add(charVectorTypeDesc);
+
+	ecs::RuntimeOpaqueAdapter opaqueAdapter{};
+	opaqueAdapter.project = [](void*, const ecs::RuntimeOpaqueScope& opaque, ecs::RuntimeOpaqueValue& projected) {
+		if (opaque.data == nullptr || opaque.size != sizeof(RuntimeDynamicString))
+			return false;
+		projected.data = &((const RuntimeDynamicString*)opaque.data)->value;
+		if (opaque.mutData != nullptr)
+			projected.mutData = &((RuntimeDynamicString*)opaque.mutData)->value;
+		projected.size = sizeof(gaia::cnt::darray<char>);
+		return true;
+	};
+	ecs::RuntimeTypeDesc stringSchema{};
+	stringSchema.typeKind = ecs::RuntimeTypeKind::Opaque;
+	stringSchema.semantic = stringSemantic;
+	stringSchema.opaqueAsType = stringType.entity;
+	stringSchema.opaqueAdapter = &opaqueAdapter;
+	const auto& item = wld.add<RuntimeDynamicString>(stringSchema);
+	const auto manifest = wld.save_runtime_schema_json();
+	CHECK(manifest.find("\"symbol\":\"Runtime_Type_String\"") != BadIndex);
+	CHECK(manifest.find("\"semantic\":{\"name\":\"app.semantic.localization-key\"") != BadIndex);
+	CHECK(manifest.find("\"jsonEncoding\":\"utf8-string\"") != BadIndex);
+	CHECK(manifest.find("\"encoding\":\"utf-8\"") != BadIndex);
+	CHECK(manifest.find("\"resizable\":true") != BadIndex);
+
+	RuntimeDynamicString value{};
+	value.value.resize(4);
+	memcpy(value.value.data(), "gaia", 4);
+	ser::ser_json writer;
+	CHECK(ecs::component_to_json(item, &value, writer));
+	CHECK(writer.str() == "\"gaia\"");
+	ser::ser_json charVectorWriter;
+	CHECK(ecs::component_to_json(charVectorType, &value.value, charVectorWriter));
+	CHECK(charVectorWriter.str() == "[\"g\",\"a\",\"i\",\"a\"]");
+
+	RuntimeDynamicString loaded{};
+	ser::ser_json reader("\"sample\"");
+	ser::JsonDiagnostics diagnostics;
+	CHECK(ecs::json_to_component(item, &loaded, reader, diagnostics));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(loaded.value.size() == 6);
+	if (loaded.value.size() == 6)
+		CHECK(memcmp(loaded.value.data(), "sample", 6) == 0);
+
+	RuntimeDynamicString escaped{};
+	ser::ser_json escapedReader("\"caf\\u00e9 \\ud83d\\ude00\"");
+	diagnostics.clear();
+	CHECK(ecs::json_to_component(item, &escaped, escapedReader, diagnostics));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(escaped.value.size() == 10);
+	if (escaped.value.size() == 10)
+		CHECK(memcmp(escaped.value.data(), "caf\xc3\xa9 \xf0\x9f\x98\x80", 10) == 0);
+}
+
+TEST_CASE("Serialization - validated runtime component patch") {
+	TestWorld twld;
+	const auto nameSemantic = wld.add();
+	wld.name(nameSemantic, "app.semantic.name");
+	const ecs::RuntimeFieldInit nestedFields[] = {
+			{util::str_view("value"), ecs::F32, offsetof(RuntimePatchNested, value), 0}};
+	ecs::RuntimeTypeDesc nestedSchema{};
+	nestedSchema.fields = nestedFields;
+	nestedSchema.fieldCount = 1;
+	const auto& nestedType = wld.add<RuntimePatchNested>(nestedSchema);
+
+	ecs::RuntimeFieldInit fields[] = {
+			{util::str_view("x"), ecs::F32, offsetof(RuntimePatchComponent, x), 0},
+			{util::str_view("locked"), ecs::F32, offsetof(RuntimePatchComponent, locked), 0},
+			{util::str_view("hidden"), ecs::F32, offsetof(RuntimePatchComponent, hidden), 0},
+			{util::str_view("nested"), nestedType.entity, offsetof(RuntimePatchComponent, nested), 0},
+			{util::str_view("values"), ecs::F32, offsetof(RuntimePatchComponent, values), 2},
+			{util::str_view("name"), ecs::Char8, offsetof(RuntimePatchComponent, name), 8}};
+	fields[0].flags = ecs::RuntimeFieldFlag_HasMinimum | ecs::RuntimeFieldFlag_HasMaximum;
+	fields[0].minimum = 0.0;
+	fields[0].maximum = 10.0;
+	fields[1].flags = ecs::RuntimeFieldFlag_ReadOnly;
+	fields[2].flags = ecs::RuntimeFieldFlag_Hidden;
+	fields[5].semantic = nameSemantic;
+	fields[5].jsonEncoding = ecs::RuntimeJsonEncoding::Utf8String;
+	ecs::RuntimeTypeDesc schema{};
+	schema.fields = fields;
+	schema.fieldCount = (uint32_t)(sizeof(fields) / sizeof(fields[0]));
+	const auto& component = wld.add<RuntimePatchComponent>(schema);
+
+	const auto entity = wld.add();
+	RuntimePatchComponent value{};
+	value.x = 1.0f;
+	value.locked = 2.0f;
+	value.hidden = 9.0f;
+	value.nested.value = 3.0f;
+	value.values[0] = 4.0f;
+	value.values[1] = 5.0f;
+	memcpy(value.name, "old", 4);
+	wld.add<RuntimePatchComponent>(entity, value);
+
+	ser::JsonDiagnostics diagnostics;
+	CHECK(wld.patch_comp_json(entity, component.entity, "/x", "4.5", diagnostics));
+	CHECK_FALSE(diagnostics.has_issues());
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
+
+	diagnostics.clear();
+	CHECK(wld.patch_comp_json(entity, component.entity, "/nested/value", "6.5", diagnostics));
+	CHECK(wld.get<RuntimePatchComponent>(entity).nested.value == doctest::Approx(6.5f));
+
+	diagnostics.clear();
+	CHECK(wld.patch_comp_json(entity, component.entity, "/values/1", "7.5", diagnostics));
+	CHECK(wld.get<RuntimePatchComponent>(entity).values[1] == doctest::Approx(7.5f));
+
+	diagnostics.clear();
+	CHECK(wld.patch_comp_json(entity, component.entity, "/name", "\"Gaia\"", diagnostics));
+	CHECK(wld.patch_comp_json(entity, component.entity, "/name/0", "\"g\"", diagnostics));
+	CHECK(strcmp(wld.get<RuntimePatchComponent>(entity).name, "gaia") == 0);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/locked", "8.0", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::ReadOnlyField);
+	CHECK(wld.get<RuntimePatchComponent>(entity).locked == doctest::Approx(2.0f));
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/hidden", "8.0", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::HiddenField);
+	CHECK(wld.get<RuntimePatchComponent>(entity).hidden == doctest::Approx(9.0f));
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/x", "11.0", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::RangeViolation);
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/missing", "1", diagnostics));
+	CHECK(diagnostics.hasErrors);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/values/2", "1", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(wld.get<RuntimePatchComponent>(entity).values[1] == doctest::Approx(7.5f));
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/nested", "{}", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::UnsupportedPatchValue);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/~2", "1", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::InvalidPatchPath);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "x", "1", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::InvalidPatchPath);
+
+	diagnostics.clear();
+	CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/x", "5.0 6.0", diagnostics));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::InvalidJson);
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
+
+	diagnostics.clear();
+	CHECK_FALSE(
+			wld.patch_comp_json(entity, component.entity, "/x", "5.0", diagnostics, {}, wld.runtime_schema_hash() + 1));
+	CHECK(diagnostics.hasErrors);
+	CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::StaleSchema);
+	CHECK(wld.get<RuntimePatchComponent>(entity).x == doctest::Approx(4.5f));
+}
+
+TEST_CASE("Serialization - validated runtime patch storage paths") {
+	SUBCASE("SoA field") {
+		TestWorld twld;
+		constexpr uint8_t soaSizes[] = {sizeof(uint32_t), sizeof(double)};
+		const ecs::RuntimeFieldInit fields[] = {
+				{util::str_view("health"), ecs::U32, 0, 0}, {util::str_view("score"), ecs::F64, 8, 0}};
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Patch_SoA");
+		desc.size = 16;
+		desc.alig = 8;
+		desc.soa = 2;
+		desc.pSoaSizes = soaSizes;
+		desc.runtimeType.fields = fields;
+		desc.runtimeType.fieldCount = 2;
+		const auto& component = wld.add(desc);
+		const auto entity = wld.add();
+		wld.add(entity, component.entity);
+
+		ser::JsonDiagnostics diagnostics;
+		CHECK(wld.patch_comp_json(entity, component.entity, "/score", "3.5", diagnostics));
+		const auto value = wld.get_raw_field(entity, component.entity, 1);
+		CHECK(value.valid());
+		if (value.valid())
+			CHECK(*(const double*)value.data == doctest::Approx(3.5));
+	}
+
+	SUBCASE("typed sparse field") {
+		TestWorld twld;
+		const ecs::RuntimeFieldInit fields[] = {
+				{util::str_view("x"), ecs::F32, offsetof(PositionSparse, x), 0},
+				{util::str_view("y"), ecs::F32, offsetof(PositionSparse, y), 0},
+				{util::str_view("z"), ecs::F32, offsetof(PositionSparse, z), 0}};
+		ecs::RuntimeTypeDesc schema{};
+		schema.fields = fields;
+		schema.fieldCount = 3;
+		const auto& component = wld.add<PositionSparse>(schema);
+		const auto entity = wld.add();
+		wld.add<PositionSparse>(entity, {1.0f, 2.0f, 3.0f});
+
+		ser::JsonDiagnostics diagnostics;
+		CHECK(wld.patch_comp_json(entity, component.entity, "/x", "2.5", diagnostics));
+		CHECK(wld.get<PositionSparse>(entity).x == doctest::Approx(2.5f));
+	}
+
+	SUBCASE("pair payload") {
+		TestWorld twld;
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Patch_Relation");
+		desc.size = sizeof(float);
+		desc.alig = alignof(float);
+		desc.runtimeType.fields = fields;
+		desc.runtimeType.fieldCount = 1;
+		const auto relation = wld.add(desc).entity;
+		const auto target = wld.add();
+		const auto source = wld.add();
+		const auto pair = (ecs::Entity)ecs::Pair(relation, target);
+		const float initial = 1.0f;
+		CHECK(wld.add_raw(source, pair, &initial, sizeof(initial)));
+
+		ser::JsonDiagnostics diagnostics;
+		CHECK(wld.patch_comp_json(source, pair, "/value", "9.5", diagnostics));
+		const auto value = wld.get_raw(source, pair);
+		CHECK(value.valid());
+		if (value.valid())
+			CHECK(*(const float*)value.data == doctest::Approx(9.5f));
+	}
+
+	SUBCASE("dynamic vector element") {
+		TestWorld twld;
+		uint32_t commitCalls = 0;
+		const ecs::RuntimeSequenceAdapter adapter{
+				&commitCalls,
+				[](void*, const ecs::RuntimeSequenceScope& scope, uint32_t& count) {
+					const auto* value = (const RuntimeFloatVector*)scope.data;
+					if (value == nullptr)
+						return false;
+					count = (uint32_t)value->values.size();
+					return true;
+				},
+				[](void*, const ecs::RuntimeSequenceScope& scope, uint32_t index, ecs::RuntimeSequenceElement& out) {
+					const auto* value = (const RuntimeFloatVector*)scope.data;
+					if (value == nullptr || index >= value->values.size())
+						return false;
+					out.type = ecs::F32;
+					out.data = &value->values[index];
+					if (scope.mutData != nullptr)
+						out.mutData = &((RuntimeFloatVector*)scope.mutData)->values[index];
+					out.size = sizeof(float);
+					return true;
+				},
+				nullptr,
+				[](void* ctx, ecs::RuntimeSequenceScope&, ecs::RuntimeSequenceElement& element) {
+					++*(uint32_t*)ctx;
+					return *(const float*)element.data != 9.0f;
+				}};
+		ecs::RuntimeTypeDesc schema{};
+		schema.typeKind = ecs::RuntimeTypeKind::Vector;
+		schema.elementType = ecs::F32;
+		schema.sequenceAdapter = &adapter;
+		const auto& component = wld.add<RuntimeFloatVector>(schema);
+		const auto entity = wld.add();
+		RuntimeFloatVector value{};
+		value.values.push_back(1.0f);
+		value.values.push_back(2.0f);
+		wld.add<RuntimeFloatVector>(entity, value);
+		uint32_t setHits = 0;
+		const auto onSet = wld.observer()
+													 .event(ecs::ObserverEvent::OnSet)
+													 .all(component.entity)
+													 .on_each([&](ecs::Entity observed) {
+														 CHECK(observed == entity);
+														 ++setHits;
+													 })
+													 .entity();
+		(void)onSet;
+
+		ser::JsonDiagnostics diagnostics;
+		CHECK(wld.patch_comp_json(entity, component.entity, "/1", "4.5", diagnostics));
+		CHECK(wld.get<RuntimeFloatVector>(entity).values[1] == doctest::Approx(4.5f));
+		CHECK(setHits == 1);
+		CHECK(commitCalls == 1);
+		diagnostics.clear();
+		CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/1", "9.0", diagnostics));
+		CHECK(wld.get<RuntimeFloatVector>(entity).values[1] == doctest::Approx(4.5f));
+		CHECK(setHits == 1);
+		CHECK(commitCalls == 2);
+	}
+
+	SUBCASE("escaped symbolic enum field") {
+		TestWorld twld;
+		const ecs::RuntimeConstantInit constants[] = {{util::str_view("Idle"), 0}, {util::str_view("Running"), 1}};
+		ecs::ComponentDesc enumDesc{};
+		enumDesc.name = util::str_view("Runtime_Patch_Mode");
+		enumDesc.size = sizeof(uint32_t);
+		enumDesc.alig = alignof(uint32_t);
+		enumDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+		enumDesc.runtimeType.underlyingType = ecs::U32;
+		enumDesc.runtimeType.constants = constants;
+		enumDesc.runtimeType.constantCount = 2;
+		const auto& mode = wld.add(enumDesc);
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("mode/value"), mode.entity, 0, 0}};
+		ecs::ComponentDesc componentDesc{};
+		componentDesc.name = util::str_view("Runtime_Patch_Enum_Component");
+		componentDesc.size = sizeof(uint32_t);
+		componentDesc.alig = alignof(uint32_t);
+		componentDesc.runtimeType.fields = fields;
+		componentDesc.runtimeType.fieldCount = 1;
+		const auto& component = wld.add(componentDesc);
+		const auto entity = wld.add();
+		const uint32_t initial = 0;
+		CHECK(wld.add_raw(entity, component.entity, &initial, sizeof(initial)));
+		ser::RuntimeJsonPolicy policy{};
+		policy.symbolicEnums = true;
+		ser::JsonDiagnostics diagnostics;
+		CHECK(wld.patch_comp_json(entity, component.entity, "/mode~1value", "\"Running\"", diagnostics, policy));
+		const auto value = wld.get_raw(entity, component.entity);
+		CHECK(value.valid());
+		if (value.valid())
+			CHECK(*(const uint32_t*)value.data == 1);
+	}
+
+	SUBCASE("tag endpoint") {
+		TestWorld twld;
+		ecs::ComponentDesc desc{};
+		desc.name = util::str_view("Runtime_Patch_Tag");
+		const auto& component = wld.add(desc);
+		const auto entity = wld.add();
+		wld.add(entity, component.entity);
+		ser::JsonDiagnostics diagnostics;
+		CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "", "1", diagnostics));
+		CHECK(diagnostics.hasErrors);
+		CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::MissingComponentStorage);
+	}
+
+	SUBCASE("failed opaque commit rolls back") {
+		TestWorld twld;
+		const ecs::RuntimeFieldInit fields[] = {{util::str_view("value"), ecs::F32, 0, 0}};
+		ecs::ComponentDesc projectedDesc{};
+		projectedDesc.name = util::str_view("Runtime_Patch_Opaque_Projection");
+		projectedDesc.size = sizeof(float);
+		projectedDesc.alig = alignof(float);
+		projectedDesc.runtimeType.fields = fields;
+		projectedDesc.runtimeType.fieldCount = 1;
+		const auto& projected = wld.add(projectedDesc);
+		auto projectedType = projected.entity;
+		const ecs::RuntimeOpaqueAdapter adapter{
+				&projectedType,
+				[](void* ctx, const ecs::RuntimeOpaqueScope& scope, ecs::RuntimeOpaqueValue& out) {
+					out.data = scope.data;
+					out.mutData = scope.mutData;
+					out.size = sizeof(RuntimeRejectingOpaque);
+					out.type = *(const ecs::Entity*)ctx;
+					return true;
+				},
+				[](void*, ecs::RuntimeOpaqueScope&, ecs::RuntimeOpaqueValue&) {
+					return false;
+				}};
+		ecs::RuntimeTypeDesc schema{};
+		schema.typeKind = ecs::RuntimeTypeKind::Opaque;
+		schema.opaqueAsType = projected.entity;
+		schema.opaqueAdapter = &adapter;
+		const auto& component = wld.add<RuntimeRejectingOpaque>(schema);
+		const auto entity = wld.add();
+		wld.add<RuntimeRejectingOpaque>(entity, {1.0f});
+
+		ser::JsonDiagnostics diagnostics;
+		CHECK_FALSE(wld.patch_comp_json(entity, component.entity, "/value", "2.0", diagnostics));
+		CHECK(diagnostics.hasErrors);
+		CHECK(diagnostics.items.back().reason == ser::JsonDiagReason::UnsupportedPatchValue);
+		CHECK(wld.get<RuntimeRejectingOpaque>(entity).value == doctest::Approx(1.0f));
+	}
 }

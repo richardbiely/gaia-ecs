@@ -32,6 +32,8 @@ namespace gaia {
 
 			//! Lookup of component items by component entity index.
 			cnt::map<uint32_t, const ComponentCacheItem*> m_compByEntityId;
+			//! Interned component, field, unit, and constant symbols shared by all component metadata.
+			SymbolTable m_symbols;
 			//! World-local component lookup keyed by compile-time metadata hash.
 			cnt::map<ComponentLookupHash, const ComponentCacheItem*> m_compByTypeHash;
 
@@ -51,16 +53,18 @@ namespace gaia {
 			//!       would lose connection to it and effectively become dangling. This means that a new
 			//!       component of type T could be added with a new entity id.
 			void clear() {
+				m_compByTypeHash.clear();
+				m_compBySymbol.clear();
+				m_compByPath.clear();
+				m_compByShortSymbol.clear();
+
 				for (auto [entityId, pItem]: m_compByEntityId) {
 					(void)entityId;
 					ComponentCacheItem::destroy(const_cast<ComponentCacheItem*>(pItem));
 				}
 
 				m_compByEntityId.clear();
-				m_compByTypeHash.clear();
-				m_compBySymbol.clear();
-				m_compByPath.clear();
-				m_compByShortSymbol.clear();
+				m_symbols.clear();
 			}
 
 			GAIA_NODISCARD static bool is_internal_symbol(util::str_view symbol) noexcept {
@@ -70,8 +74,9 @@ namespace gaia {
 			}
 
 			static ComponentCacheItem::SymbolLookupKey short_name_key(const ComponentCacheItem& item) noexcept {
-				const auto* pName = item.name.str();
-				const auto len = item.name.len();
+				const auto symbol = item.symbol_name();
+				const auto* pName = symbol.data();
+				const auto len = symbol.size();
 				for (uint32_t i = len; i > 1; --i) {
 					const auto idx = i - 1;
 					if (pName[idx] != ':' || pName[idx - 1] != ':')
@@ -84,7 +89,7 @@ namespace gaia {
 			}
 
 			GAIA_NODISCARD static util::str_view short_symbol_view(const ComponentCacheItem& item) noexcept {
-				const auto symbol = util::str_view{item.name.str(), item.name.len()};
+				const auto symbol = item.symbol_name();
 				if (is_internal_symbol(symbol))
 					return {};
 
@@ -113,95 +118,107 @@ namespace gaia {
 			//! Validates descriptor-time runtime type metadata before immutable copy.
 			//! \param desc Component descriptor whose type metadata is being registered.
 			void validate_runtime_type(const ecs::ComponentDesc& desc) const noexcept {
+				const auto& runtimeType = desc.runtimeType;
 				ser::serialization_type_id type = ser::serialization_type_id::ignore;
-				if (desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask) {
-					GAIA_ASSERT(runtime_primitive_serialization_type(desc.underlyingType, type));
-					GAIA_ASSERT(desc.elementType == EntityBad);
-					GAIA_ASSERT(desc.elementCount == 0);
-					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
+				if (runtimeType.typeKind == RuntimeTypeKind::Enum || runtimeType.typeKind == RuntimeTypeKind::Bitmask) {
+					GAIA_ASSERT(runtime_primitive_serialization_type(runtimeType.underlyingType, type));
+					GAIA_ASSERT(runtimeType.elementType == EntityBad);
+					GAIA_ASSERT(runtimeType.elementCount == 0);
+					GAIA_ASSERT(runtimeType.opaqueAsType == EntityBad);
 					return;
 				}
 
-				if (desc.typeKind == RuntimeTypeKind::Array) {
-					GAIA_ASSERT(desc.underlyingType == EntityBad);
-					GAIA_ASSERT(desc.elementType != EntityBad);
-					GAIA_ASSERT(desc.elementCount > 0);
-					GAIA_ASSERT(desc.fields == nullptr);
-					GAIA_ASSERT(desc.fieldCount == 0);
-					GAIA_ASSERT(desc.constants == nullptr);
-					GAIA_ASSERT(desc.constantCount == 0);
-					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
-					const auto* pElementType = find(desc.elementType);
+				if (runtimeType.typeKind == RuntimeTypeKind::Array) {
+					GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
+					GAIA_ASSERT(runtimeType.elementType != EntityBad);
+					GAIA_ASSERT(runtimeType.elementCount > 0);
+					GAIA_ASSERT(runtimeType.fields == nullptr);
+					GAIA_ASSERT(runtimeType.fieldCount == 0);
+					GAIA_ASSERT(runtimeType.constants == nullptr);
+					GAIA_ASSERT(runtimeType.constantCount == 0);
+					GAIA_ASSERT(runtimeType.opaqueAsType == EntityBad);
+					const auto* pElementType = find(runtimeType.elementType);
 					GAIA_ASSERT(pElementType != nullptr);
 					const auto elementSize = pElementType != nullptr ? pElementType->comp.size() : 0;
 					const auto elementAlignment = pElementType != nullptr ? pElementType->comp.alig() : 0;
 					GAIA_ASSERT(elementSize > 0);
 					if (elementSize > 0) {
-						GAIA_ASSERT(desc.elementCount <= UINT32_MAX / elementSize);
-						GAIA_ASSERT(desc.size == elementSize * desc.elementCount);
+						GAIA_ASSERT(runtimeType.elementCount <= UINT32_MAX / elementSize);
+						GAIA_ASSERT(desc.size == elementSize * runtimeType.elementCount);
 					}
 					GAIA_ASSERT(desc.alig == elementAlignment);
 					return;
 				}
 
-				if (desc.typeKind == RuntimeTypeKind::Vector) {
-					GAIA_ASSERT(desc.underlyingType == EntityBad);
-					GAIA_ASSERT(desc.elementType != EntityBad);
-					GAIA_ASSERT(desc.elementCount == 0);
-					GAIA_ASSERT(desc.fields == nullptr);
-					GAIA_ASSERT(desc.fieldCount == 0);
-					GAIA_ASSERT(desc.constants == nullptr);
-					GAIA_ASSERT(desc.constantCount == 0);
-					GAIA_ASSERT(desc.opaqueAsType == EntityBad);
-					if (desc.sequenceAdapter == nullptr) {
+				if (runtimeType.typeKind == RuntimeTypeKind::Vector) {
+					GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
+					GAIA_ASSERT(runtimeType.elementType != EntityBad);
+					GAIA_ASSERT(runtimeType.elementCount == 0);
+					GAIA_ASSERT(runtimeType.fields == nullptr);
+					GAIA_ASSERT(runtimeType.fieldCount == 0);
+					GAIA_ASSERT(runtimeType.constants == nullptr);
+					GAIA_ASSERT(runtimeType.constantCount == 0);
+					GAIA_ASSERT(runtimeType.opaqueAsType == EntityBad);
+					if (runtimeType.sequenceAdapter == nullptr) {
 						GAIA_ASSERT(desc.size == 0);
 						GAIA_ASSERT(desc.soa == 0);
 					} else {
-						GAIA_ASSERT(desc.sequenceAdapter->count != nullptr);
-						GAIA_ASSERT(desc.sequenceAdapter->element != nullptr);
+						GAIA_ASSERT(runtimeType.sequenceAdapter->count != nullptr);
+						GAIA_ASSERT(runtimeType.sequenceAdapter->element != nullptr);
 					}
-					GAIA_ASSERT(find(desc.elementType) != nullptr);
+					GAIA_ASSERT(find(runtimeType.elementType) != nullptr);
+					GAIA_ASSERT(runtimeType.jsonEncoding != RuntimeJsonEncoding::Utf8String || runtimeType.elementType == Char8);
+					return;
+				}
+				GAIA_ASSERT(runtimeType.jsonEncoding == RuntimeJsonEncoding::Default);
+
+				if (runtimeType.typeKind == RuntimeTypeKind::Opaque) {
+					GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
+					GAIA_ASSERT(runtimeType.elementType == EntityBad);
+					GAIA_ASSERT(runtimeType.elementCount == 0);
+					GAIA_ASSERT(runtimeType.fields == nullptr);
+					GAIA_ASSERT(runtimeType.fieldCount == 0);
+					GAIA_ASSERT(runtimeType.constants == nullptr);
+					GAIA_ASSERT(runtimeType.constantCount == 0);
+					GAIA_ASSERT(runtimeType.opaqueAsType != EntityBad);
+					if (runtimeType.opaqueAdapter != nullptr)
+						GAIA_ASSERT(runtimeType.opaqueAdapter->project != nullptr);
+					GAIA_ASSERT(find(runtimeType.opaqueAsType) != nullptr);
 					return;
 				}
 
-				if (desc.typeKind == RuntimeTypeKind::Opaque) {
-					GAIA_ASSERT(desc.underlyingType == EntityBad);
-					GAIA_ASSERT(desc.elementType == EntityBad);
-					GAIA_ASSERT(desc.elementCount == 0);
-					GAIA_ASSERT(desc.fields == nullptr);
-					GAIA_ASSERT(desc.fieldCount == 0);
-					GAIA_ASSERT(desc.constants == nullptr);
-					GAIA_ASSERT(desc.constantCount == 0);
-					GAIA_ASSERT(desc.opaqueAsType != EntityBad);
-					if (desc.opaqueAdapter != nullptr)
-						GAIA_ASSERT(desc.opaqueAdapter->project != nullptr);
-					GAIA_ASSERT(find(desc.opaqueAsType) != nullptr);
-					return;
-				}
-
-				GAIA_ASSERT(desc.underlyingType == EntityBad);
-				GAIA_ASSERT(desc.elementType == EntityBad);
-				GAIA_ASSERT(desc.elementCount == 0);
-				GAIA_ASSERT(desc.opaqueAsType == EntityBad);
-				GAIA_ASSERT(desc.sequenceAdapter == nullptr);
-				GAIA_ASSERT(desc.opaqueAdapter == nullptr);
+				GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
+				GAIA_ASSERT(runtimeType.elementType == EntityBad);
+				GAIA_ASSERT(runtimeType.elementCount == 0);
+				GAIA_ASSERT(runtimeType.opaqueAsType == EntityBad);
+				GAIA_ASSERT(runtimeType.sequenceAdapter == nullptr);
+				GAIA_ASSERT(runtimeType.opaqueAdapter == nullptr);
 			}
 
 			//! Validates descriptor-time runtime field metadata before immutable copy.
 			//! \param desc Component descriptor whose field metadata is being registered.
 			void validate_runtime_fields(const ecs::ComponentDesc& desc) const noexcept {
-				if (desc.fieldCount == 0)
+				const auto& runtimeType = desc.runtimeType;
+				if (runtimeType.fieldCount == 0)
 					return;
 
-				GAIA_ASSERT(desc.fields != nullptr);
-				if (desc.fields == nullptr)
+				GAIA_ASSERT(runtimeType.fields != nullptr);
+				if (runtimeType.fields == nullptr)
 					return;
 
-				GAIA_FOR(desc.fieldCount) {
-					const auto& field = desc.fields[i];
+				GAIA_FOR(runtimeType.fieldCount) {
+					const auto& field = runtimeType.fields[i];
 					GAIA_ASSERT(!field.name.empty());
 					GAIA_ASSERT(field.name.size() < ComponentCacheItem::MaxNameLength);
+					GAIA_ASSERT(field.unit.size() < RuntimeFieldDesc::MaxUnitLength);
 					GAIA_ASSERT(field.type != EntityBad);
+					GAIA_ASSERT(
+							(field.flags & (RuntimeFieldFlag_HasMinimum | RuntimeFieldFlag_HasMaximum)) !=
+									(RuntimeFieldFlag_HasMinimum | RuntimeFieldFlag_HasMaximum) ||
+							field.minimum <= field.maximum);
+					GAIA_ASSERT((field.flags & RuntimeFieldFlag_HasStep) == 0 || field.step > 0.0);
+					GAIA_ASSERT(
+							field.jsonEncoding != RuntimeJsonEncoding::Utf8String || (field.type == Char8 && field.count != 0));
 
 					const auto* pType = find(field.type);
 					GAIA_ASSERT(pType != nullptr);
@@ -215,8 +232,8 @@ namespace gaia {
 					GAIA_ASSERT(elementSize <= availableSize);
 					GAIA_ASSERT(elementCount <= availableSize / elementSize);
 
-					GAIA_FOR2_(i + 1, desc.fieldCount, otherIdx) {
-						const auto& other = desc.fields[otherIdx];
+					GAIA_FOR2_(i + 1, runtimeType.fieldCount, otherIdx) {
+						const auto& other = runtimeType.fields[otherIdx];
 						const bool sameLen = field.name.size() == other.name.size();
 						const bool sameName = sameLen && field.name.data() != nullptr && other.name.data() != nullptr &&
 																	strncmp(field.name.data(), other.name.data(), field.name.size()) == 0;
@@ -228,21 +245,22 @@ namespace gaia {
 			//! Validates descriptor-time enum/bitmask constant metadata before immutable copy.
 			//! \param desc Component descriptor whose constant metadata is being registered.
 			static void validate_runtime_constants(const ecs::ComponentDesc& desc) noexcept {
-				if (desc.constantCount == 0)
+				const auto& runtimeType = desc.runtimeType;
+				if (runtimeType.constantCount == 0)
 					return;
 
-				GAIA_ASSERT(desc.typeKind == RuntimeTypeKind::Enum || desc.typeKind == RuntimeTypeKind::Bitmask);
-				GAIA_ASSERT(desc.constants != nullptr);
-				if (desc.constants == nullptr)
+				GAIA_ASSERT(runtimeType.typeKind == RuntimeTypeKind::Enum || runtimeType.typeKind == RuntimeTypeKind::Bitmask);
+				GAIA_ASSERT(runtimeType.constants != nullptr);
+				if (runtimeType.constants == nullptr)
 					return;
 
-				GAIA_FOR(desc.constantCount) {
-					const auto& constant = desc.constants[i];
+				GAIA_FOR(runtimeType.constantCount) {
+					const auto& constant = runtimeType.constants[i];
 					GAIA_ASSERT(!constant.name.empty());
 					GAIA_ASSERT(constant.name.size() < ComponentCacheItem::MaxNameLength);
 
-					GAIA_FOR2_(i + 1, desc.constantCount, otherIdx) {
-						const auto& other = desc.constants[otherIdx];
+					GAIA_FOR2_(i + 1, runtimeType.constantCount, otherIdx) {
+						const auto& other = runtimeType.constants[otherIdx];
 						const bool sameLen = constant.name.size() == other.name.size();
 						const bool sameName = sameLen && constant.name.data() != nullptr && other.name.data() != nullptr &&
 																	strncmp(constant.name.data(), other.name.data(), constant.name.size()) == 0;
@@ -250,6 +268,23 @@ namespace gaia {
 						GAIA_ASSERT(constant.value != other.value);
 					}
 				}
+			}
+
+			//! Validates reflection-only metadata against a typed component's physical layout.
+			//! \param item Typed component metadata carrying authoritative storage properties.
+			//! \param runtimeType Reflection-only metadata requested for the typed component.
+			void
+			validate_typed_runtime_type(const ComponentCacheItem& item, const RuntimeTypeDesc& runtimeType) const noexcept {
+				ecs::ComponentDesc desc{};
+				desc.size = item.comp.size();
+				desc.alig = item.comp.alig();
+				desc.storageType = item.comp.storage_type();
+				desc.soa = item.comp.soa();
+				desc.pSoaSizes = item.soaSizes;
+				desc.runtimeType = runtimeType;
+				validate_runtime_type(desc);
+				validate_runtime_fields(desc);
+				validate_runtime_constants(desc);
 			}
 #endif
 
@@ -296,13 +331,13 @@ namespace gaia {
 			//! \param scopePath Optional world-provided scope prefix used for default path generation.
 			static void initialize_names(ComponentCacheItem& item, util::str_view scopePath = {}) {
 				item.path.clear();
-				const auto symbol = util::str_view{item.name.str(), item.name.len()};
+				const auto symbol = item.symbol_name();
 				if (is_internal_symbol(symbol))
 					return;
 
 				const auto shortName = short_name_key(item);
 				const bool hasShortName =
-						shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != item.name.len();
+						shortName.str() != nullptr && shortName.len() != 0 && shortName.len() != symbol.size();
 				const auto leaf = hasShortName ? util::str_view{shortName.str(), shortName.len()} : symbol;
 
 				if (!build_scoped_path(item.path, scopePath, leaf))
@@ -362,11 +397,13 @@ namespace gaia {
 					return;
 				}
 
-				--entry.matches;
-				if (entry.pItem != &item)
+				const auto remainingMatches = entry.matches - 1;
+				if (entry.pItem != &item) {
+					entry.matches = remainingMatches;
 					return;
+				}
 
-				entry.pItem = nullptr;
+				const ComponentCacheItem* pReplacement = nullptr;
 				for (const auto& [entityId, pItem]: m_compByEntityId) {
 					(void)entityId;
 					GAIA_ASSERT(pItem != nullptr);
@@ -376,18 +413,23 @@ namespace gaia {
 					if (pItem->path.view() != pathValue)
 						continue;
 
-					entry.pItem = pItem;
-					return;
+					pReplacement = pItem;
+					break;
 				}
 
-				GAIA_ASSERT(false);
+				GAIA_ASSERT(pReplacement != nullptr);
+				// The map key borrows the representative path storage, so replace it before the old path changes.
+				m_compByPath.erase(it);
+				if (pReplacement != nullptr)
+					m_compByPath.emplace(
+							lookup_key(pReplacement->path.view()), ResolvedLookupEntry{pReplacement, remainingMatches});
 			}
 
 			//! Adds all name-based lookup mappings for a component item.
 			//! \param item Component cache item to register.
 			//! \param scopePath Optional world-provided scope prefix used for default path generation.
 			void add_name_mappings(ComponentCacheItem& item, util::str_view scopePath) {
-				m_compBySymbol.emplace(item.name, &item);
+				m_compBySymbol.emplace(lookup_key(item.symbol_name()), &item);
 				initialize_names(item, scopePath);
 				add_path_mapping(item);
 				add_lookup_mapping(m_compByShortSymbol, short_symbol_view(item), item);
@@ -454,8 +496,35 @@ namespace gaia {
 				if (pItem != nullptr)
 					return *pItem;
 
-				const auto* pNewItem = ComponentCacheItem::create<T>(entity);
+				const auto* pNewItem = ComponentCacheItem::create<T>(entity, m_symbols);
 				GAIA_ASSERT(entity.id() == pNewItem->comp.id());
+				const auto& item = add_item(pNewItem, scopePath);
+				add_hash_mapping<T>(item);
+				return item;
+			}
+
+			//! Registers the component item for \tparam T with explicit runtime type metadata.
+			//! If it already exists, the immutable existing item is returned.
+			//! \tparam T Component type.
+			//! \param entity Component entity to bind to the cache item.
+			//! \param runtimeType Reflection-only metadata attached during first registration.
+			//! \param scopePath Optional scoped path prefix used to derive the default component path.
+			//! \return Registered component metadata.
+			template <typename T>
+			GAIA_NODISCARD GAIA_FORCEINLINE const ComponentCacheItem&
+			add(Entity entity, const RuntimeTypeDesc& runtimeType, util::str_view scopePath = {}) {
+				static_assert(!is_pair<T>::value);
+				GAIA_ASSERT(!entity.pair());
+
+				const auto* pItem = find_item(detail::ComponentDesc<T>::hash_lookup());
+				if (pItem != nullptr)
+					return *pItem;
+
+				const auto* pNewItem = ComponentCacheItem::create<T>(entity, m_symbols, runtimeType);
+				GAIA_ASSERT(entity.id() == pNewItem->comp.id());
+#if GAIA_ASSERT_ENABLED
+				validate_typed_runtime_type(*pNewItem, runtimeType);
+#endif
 				const auto& item = add_item(pNewItem, scopePath);
 				add_hash_mapping<T>(item);
 				return item;
@@ -485,7 +554,7 @@ namespace gaia {
 				validate_runtime_constants(desc);
 #endif
 
-				const auto* pItem = ComponentCacheItem::create(entity, desc);
+				const auto* pItem = ComponentCacheItem::create(entity, m_symbols, desc);
 				GAIA_ASSERT(entity.id() == pItem->comp.id());
 				return add_item(pItem, scopePath);
 			}
@@ -552,7 +621,7 @@ namespace gaia {
 			//! \param item Component cache item to inspect.
 			//! \return Registered symbol name as a non-owning string view.
 			GAIA_NODISCARD util::str_view symbol_name(const ComponentCacheItem& item) const noexcept {
-				return {item.name.str(), item.name.len()};
+				return item.symbol_name();
 			}
 
 			//! Returns the path name used for scoped lookup.
@@ -724,10 +793,11 @@ namespace gaia {
 				GAIA_LOG_N("Registered components: %u", registeredTypes);
 
 				auto logDesc = [](const ComponentCacheItem& item) {
+					const auto symbol = item.symbol_name();
 					GAIA_LOG_N(
-							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %s [%s]", item.hashLookup.hash,
-							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), item.name.str(),
-							EntityKindString[item.entity.kind()]);
+							"    hash:%016" PRIx64 ", size:%3u B, align:%3u B, [%u:%u] %.*s [%s]", item.hashLookup.hash,
+							item.comp.size(), item.comp.alig(), item.entity.id(), item.entity.gen(), (int)symbol.size(),
+							symbol.data(), EntityKindString[item.entity.kind()]);
 				};
 				for (const auto& [entityId, pItem]: m_compByEntityId) {
 					(void)entityId;

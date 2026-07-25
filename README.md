@@ -106,6 +106,8 @@ NOTE: Due to its extensive use of acceleration structures and caching, this libr
   * [Runtime components](#runtime-components)
     * [Registration](#registration)
     * [Field metadata](#field-metadata)
+    * [Typed runtime schemas](#typed-runtime-schemas)
+    * [Schema manifests and validated edits](#schema-manifests-and-validated-edits)
     * [Nested structs and fixed arrays](#nested-structs-and-fixed-arrays)
     * [Opaque adapters](#opaque-adapters)
     * [Dynamic vectors](#dynamic-vectors)
@@ -494,7 +496,7 @@ The resulting configurations are:
 Rule of thumb:
 - Keep hot, common, frequently iterated data in table storage.
 - Use `Sparse` when the payload needs a stable address, but the component should still participate in archetype identity.
-- Use `GAIA_STORAGE(Sparse)` with `DontFragment` for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.
+- Use `GAIA_STORAGE(Sparse)` with `DontFragment` for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or runtime tool state.
 - Avoid sparse storage for components such as `Position` or `Velocity` that benefit from sequential table access, unless profiling justifies it.
 
 Directly adding or removing an already-registered `DontFragment` component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.
@@ -3391,6 +3393,8 @@ Recommended JSON API surface:
 - `ser::ser_json` for low-level JSON token writing/parsing
 - `ecs::component_to_json` / `ecs::json_to_component` for runtime component payloads with fields copied from the component descriptor during registration. JSON supports scalar primitive fields and `ecs::Char8` buffers.
 - `ecs::World::save_json` / `ecs::World::load_json` for full world snapshots
+- `ecs::World::save_runtime_schema_json` to export the world-level runtime schema manifest for tools
+- `ecs::World::patch_comp_json` to apply one validated JSON value to a component field or element
 
 For structured semantic load feedback, use diagnostics overloads:
 - `ecs::json_to_component(..., ser::JsonDiagnostics&, componentPath)`
@@ -3693,18 +3697,21 @@ world1.load();
 
 ## Runtime components
 
-Runtime components are components whose payload layout is described by data instead of a C++ type. They are useful for editors, mods, importers, and save formats that define component schemas outside compiled code.
+Runtime schemas give component fields stable names and reflected types. Generic APIs use this information to inspect, edit, and serialize component values without knowing their C++ type at the call site.
 
-The runtime API has three separate concerns:
-* registration: create a component entity from `ecs::ComponentDesc`
-* metadata: describe fields, nested structs, fixed arrays, dynamic vectors, enums, bitmasks, and opaque semantic types
-* access: add, read, write, query, and serialize payload bytes without a C++ component type
+Each component has one runtime schema. Register it before the component's first use. The schema then stays fixed for that component.
 
-For JSON, the [Serialization](#serialization) section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting `load_json(...)` rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays and adapted dynamic vectors serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.
+There are two registration paths:
+* use `ecs::ComponentDesc` when the component itself is defined at runtime
+* use `World::add<T>(const RuntimeTypeDesc&)` to add a schema to an existing C++ component
+
+For a simple struct, define its fields, register the component once, and then use the normal component, cursor, or JSON APIs. Nested types, dynamic vectors, presentation hints, schema export, and validated patches are optional features.
+
+For general JSON usage, see [Serialization](#serialization).
 
 ### Registration
 
-Register a runtime component by filling `ecs::ComponentDesc` and passing it to `World::add(...)`. The descriptor name, size, alignment, storage type, and metadata are copied into the component cache item.
+Use `ecs::ComponentDesc` when a component is defined from runtime data rather than a C++ type. Provide its name, size, alignment, storage mode, and fields, then pass it to `World::add(...)`.
 
 ```cpp
 ecs::ComponentDesc desc{};
@@ -3712,29 +3719,76 @@ desc.name = util::str_view("Cooldown", 8);
 desc.size = sizeof(float);
 desc.alig = alignof(float);
 desc.storageType = ecs::DataStorageType::Table;
-const ecs::RuntimeFieldDesc fields[] = {
+const ecs::RuntimeFieldInit fields[] = {
   {util::str_view("seconds", 7), ecs::F32, 0, 0}
 };
-desc.fields = fields;
-desc.fieldCount = 1;
+desc.runtimeType.fields = fields;
+desc.runtimeType.fieldCount = 1;
 
 ecs::ComponentCacheItem& cooldownCI = w.add(desc);
 ```
 
-Register runtime schemas before loading data that references them. Duplicate registration by the same component name returns the existing component metadata.
+The field and component-name buffers only need to remain valid until `World::add(...)` returns. Register the schema before adding component instances or loading data that references it. Registering the same component again returns its existing metadata and does not replace its schema.
 
 ### Field metadata
 
-Runtime fields describe byte ranges inside the payload. Each field has a name, a type entity, a byte offset, and a count. Use count `0` for one scalar value. Use a positive count for a fixed inline array when the element type is local to that field. Use a named array type entity when multiple schemas should refer to the same fixed array shape.
+Each `RuntimeFieldInit` gives one field a name, a reflected type such as `ecs::F32`, `ecs::S32`, or `ecs::Bool`, and its byte offset. Set count to `0` for a scalar field or to the element count for a fixed inline array. This is all the metadata a simple component needs.
 
-Primitive fields use Gaia's reflected primitive type entities such as `ecs::F32`, `ecs::S32`, or `ecs::Bool`. Runtime field descriptors are copied during registration and stay fixed for the lifetime of the component metadata.
+`RuntimeFieldInit` is the registration input. After registration, `ComponentCacheItem::field(...)` returns the immutable `RuntimeFieldDesc` used for metadata inspection. Use `ComponentCacheItem::field_name(...)` and `field_unit(...)` to read its registered name and unit. Most applications do not need to access this stored form directly.
+
+#### Optional tool metadata
+
+The remaining field metadata is optional. Set `semantic` to an application-defined named entity when tools need to distinguish values with the same storage type, such as a vector, asset reference, or localization key. Keep that entity and any scopes used by its name alive while the schema is in use.
+
+Set `jsonEncoding` to `ecs::RuntimeJsonEncoding::Utf8String` when a `Char8` sequence should be represented as one JSON string. Field flags can prevent validated edits, hide fields from the default tool presentation, or suggest multiline text input. Fields can also provide a unit, an accepted minimum and maximum, and a preferred input step.
+
+### Typed runtime schemas
+
+Use `World::add<T>(const RuntimeTypeDesc&)` when an existing C++ component should also be available to generic tools, cursors, and JSON serialization. Register the schema before the component's first use. This does not change normal typed access or the component's storage behavior.
 
 ```cpp
-const ecs::RuntimeField* secondsField = cooldownCI.field("seconds");
-if (secondsField != nullptr) {
-  // secondsField describes the registered byte range and type.
-}
+struct Position {
+  float x, y, z;
+};
+
+const ecs::RuntimeFieldInit positionFields[] = {
+  {util::str_view("x"), ecs::F32, (uint32_t)offsetof(Position, x), 0},
+  {util::str_view("y"), ecs::F32, (uint32_t)offsetof(Position, y), 0},
+  {util::str_view("z"), ecs::F32, (uint32_t)offsetof(Position, z), 0}
+};
+
+ecs::RuntimeTypeDesc positionSchema{};
+positionSchema.fields = positionFields;
+positionSchema.fieldCount = 3;
+const ecs::ComponentCacheItem& positionCI = w.add<Position>(positionSchema);
+
+const ecs::Entity entity = w.add();
+w.add<Position>(entity, {1.0f, 2.0f, 3.0f});
 ```
+
+For a simple typed struct, registration is now complete. The following sections are only needed for external tooling or more advanced value shapes.
+
+### Schema manifests and validated edits
+
+Most applications do not need to export schemas or apply JSON patches. These APIs are for tools that inspect and edit component values outside the normal typed or cursor workflow.
+
+Use `World::save_runtime_schema_json(...)` to export the world-level runtime schema manifest. The result includes all registered schemas with the names, types, constraints, and presentation metadata needed by a tool.
+
+Call `World::runtime_schema_hash()` when sending the manifest to another process or retaining edits for later. Pass that hash to `World::patch_comp_json(...)` so an edit is rejected if the registered runtime schema has changed.
+
+`patch_comp_json(...)` updates one scalar field or one array or vector element. Select the value with an RFC 6901 JSON Pointer relative to the component. For example, `/x` selects a field, `/nested/value` selects a nested field, and `/values/1` selects an element. Pass the replacement as a complete JSON value.
+
+```cpp
+ser::JsonDiagnostics diagnostics;
+const auto schemaJson = w.save_runtime_schema_json();
+const uint64_t expectedRuntimeSchema = w.runtime_schema_hash();
+const bool changed = w.patch_comp_json(
+    entity, positionCI.entity, "/x", "12.5", diagnostics, {}, expectedRuntimeSchema);
+```
+
+A successful call writes the value and emits the component's normal `OnSet` notification. A failed call leaves the component unchanged and reports the reason through `JsonDiagnostics`. Edits fail for stale schema hashes, invalid paths or JSON, incompatible types, hidden or read-only fields, and values outside the field's declared range.
+
+To replace a complete struct, array, vector, or opaque value, use the normal typed, raw, or cursor write APIs instead.
 
 ### Nested structs and fixed arrays
 
@@ -3745,7 +3799,7 @@ constexpr uint32_t FloatSize = sizeof(float);
 constexpr uint32_t Vec3Size = FloatSize * 3;
 constexpr uint32_t TransformSize = Vec3Size * 2;
 
-const ecs::RuntimeFieldDesc vec3Fields[] = {
+const ecs::RuntimeFieldInit vec3Fields[] = {
   {util::str_view("x", 1), ecs::F32, 0, 0},
   {util::str_view("y", 1), ecs::F32, FloatSize, 0},
   {util::str_view("z", 1), ecs::F32, FloatSize * 2, 0}
@@ -3756,12 +3810,12 @@ vec3Desc.name = util::str_view("Vec3", 4);
 vec3Desc.size = Vec3Size;
 vec3Desc.alig = alignof(float);
 vec3Desc.storageType = ecs::DataStorageType::Table;
-vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;
-vec3Desc.fields = vec3Fields;
-vec3Desc.fieldCount = 3;
+vec3Desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+vec3Desc.runtimeType.fields = vec3Fields;
+vec3Desc.runtimeType.fieldCount = 3;
 ecs::ComponentCacheItem& vec3CI = w.add(vec3Desc);
 
-const ecs::RuntimeFieldDesc transformFields[] = {
+const ecs::RuntimeFieldInit transformFields[] = {
   {util::str_view("position", 8), vec3CI.entity, 0, 0},
   {util::str_view("velocity", 8), vec3CI.entity, Vec3Size, 0}
 };
@@ -3771,9 +3825,9 @@ transformDesc.name = util::str_view("Transform", 9);
 transformDesc.size = TransformSize;
 transformDesc.alig = alignof(float);
 transformDesc.storageType = ecs::DataStorageType::Table;
-transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
-transformDesc.fields = transformFields;
-transformDesc.fieldCount = 2;
+transformDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+transformDesc.runtimeType.fields = transformFields;
+transformDesc.runtimeType.fieldCount = 2;
 ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
 
 ecs::Entity e = w.add();
@@ -3802,7 +3856,7 @@ The same metadata drives semantic world JSON. A `Vec3` field is emitted as an ob
 Most runtime-created components do not need opaque adapters. If the component bytes already contain the fields you want tools and cursors to see, register a normal runtime `Struct` with field metadata and stop there.
 
 ```cpp
-const ecs::RuntimeFieldDesc transformFields[] = {
+const ecs::RuntimeFieldInit transformFields[] = {
   {util::str_view("x", 1), ecs::F32, 0, 0},
   {util::str_view("y", 1), ecs::F32, 4, 0},
   {util::str_view("z", 1), ecs::F32, 8, 0}
@@ -3813,15 +3867,15 @@ transformDesc.name = util::str_view("Transform", 9);
 transformDesc.size = sizeof(float) * 3;
 transformDesc.alig = alignof(float);
 transformDesc.storageType = ecs::DataStorageType::Table;
-transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;
-transformDesc.fields = transformFields;
-transformDesc.fieldCount = 3;
+transformDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+transformDesc.runtimeType.fields = transformFields;
+transformDesc.runtimeType.fieldCount = 3;
 ecs::ComponentCacheItem& transformCI = w.add(transformDesc);
 ```
 
 Opaque adapters are only for components whose physical bytes are not the semantic value: for example a handle, compressed blob, VM object id, or external asset id. In that case the component stores the physical payload, `opaqueAsType` names the semantic runtime type, and `opaqueAdapter` projects the physical payload into semantic bytes.
 
-Without `ComponentDesc::opaqueAdapter`, cursors expose opaque scopes through `type_kind()` and `opaque_as_type()` but reject field traversal.
+Without `ComponentDesc::runtimeType.opaqueAdapter`, cursors expose opaque scopes through `type_kind()` and `opaque_as_type()` but reject field traversal.
 
 ```cpp
 constexpr uint32_t TransformSize = sizeof(float) * 3;
@@ -3862,9 +3916,9 @@ transformHandleDesc.name = util::str_view("TransformHandle", 15);
 transformHandleDesc.size = sizeof(TransformHandle);
 transformHandleDesc.alig = alignof(TransformHandle);
 transformHandleDesc.storageType = ecs::DataStorageType::Table;
-transformHandleDesc.typeKind = ecs::RuntimeTypeKind::Opaque;
-transformHandleDesc.opaqueAsType = transformCI.entity;
-transformHandleDesc.opaqueAdapter = &transformAdapter;
+transformHandleDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Opaque;
+transformHandleDesc.runtimeType.opaqueAsType = transformCI.entity;
+transformHandleDesc.runtimeType.opaqueAdapter = &transformAdapter;
 ecs::ComponentCacheItem& transformHandleCI = w.add(transformHandleDesc);
 ```
 
@@ -3883,7 +3937,7 @@ Mutable cursor writes call `commit` when the adapter provides it, then finish th
 
 Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set `typeKind = ecs::RuntimeTypeKind::Vector`, `elementType` to the reflected element type entity, and `elementCount = 0`. If no adapter is registered, the vector is metadata-only: cursors expose `element_type()` for introspection, while `count()`, `elem(...)`, `resize(...)`, and semantic JSON traversal reject deterministically.
 
-Register an adapted vector by assigning `ComponentDesc::sequenceAdapter`. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.
+Register an adapted vector by assigning `ComponentDesc::runtimeType.sequenceAdapter`. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.
 
 ```cpp
 struct PointsHeader {
@@ -3926,9 +3980,9 @@ pointsDesc.name = util::str_view("Points", 6);
 pointsDesc.size = sizeof(PointsHeader);
 pointsDesc.alig = alignof(PointsHeader);
 pointsDesc.storageType = ecs::DataStorageType::Table;
-pointsDesc.typeKind = ecs::RuntimeTypeKind::Vector;
-pointsDesc.elementType = vec3CI.entity;
-pointsDesc.sequenceAdapter = &pointsAdapter;
+pointsDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Vector;
+pointsDesc.runtimeType.elementType = vec3CI.entity;
+pointsDesc.runtimeType.sequenceAdapter = &pointsAdapter;
 ecs::ComponentCacheItem& pointsCI = w.add(pointsDesc);
 ```
 
@@ -3944,12 +3998,14 @@ if (count && count.value > 0 && cursor.elem(0) && cursor.field("x")) {
 
 Mutable cursor writes call `commitElement` when the adapter provides it, then finish the root component write so `OnSet` observers see the owning component change. Semantic JSON uses the same adapter: save calls `count` and `element`; load requires `resize` before per-element loading. Without `resize`, vector JSON load is treated as a best-effort failure rather than guessing ownership or allocation policy.
 
+Set `jsonEncoding = ecs::RuntimeJsonEncoding::Utf8String` on a vector with `ecs::Char8` elements to save it as one JSON string instead of an array of characters. Provide the sequence adapter's `resize` callback if the string also needs to be loaded from JSON.
+
 ### Enum and bitmask metadata
 
-Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. `underlyingType` points at the primitive type entity used for storage, so cursor primitive helpers work on enum/bitmask fields when the selected helper matches that primitive entity.
+Use runtime enum and bitmask types when tools or JSON documents should work with named values instead of unexplained numbers. Define the names and values with `RuntimeConstantInit`, set `underlyingType` to the reflected integer storage type, and look up registered constants by name or exact value.
 
 ```cpp
-const ecs::RuntimeConstantDesc movementConstants[] = {
+const ecs::RuntimeConstantInit movementConstants[] = {
   {util::str_view("Idle", 4), 0},
   {util::str_view("Walk", 4), 1},
   {util::str_view("Run", 3), 2}
@@ -3960,17 +4016,19 @@ movementDesc.name = util::str_view("MovementMode", 12);
 movementDesc.size = sizeof(uint32_t);
 movementDesc.alig = alignof(uint32_t);
 movementDesc.storageType = ecs::DataStorageType::Table;
-movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;
-movementDesc.underlyingType = ecs::U32;
-movementDesc.constants = movementConstants;
-movementDesc.constantCount = 3;
+movementDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;
+movementDesc.runtimeType.underlyingType = ecs::U32;
+movementDesc.runtimeType.constants = movementConstants;
+movementDesc.runtimeType.constantCount = 3;
 ecs::ComponentCacheItem& movementCI = w.add(movementDesc);
 
-const ecs::RuntimeConstant* run = movementCI.constant("Run");
+const ecs::RuntimeConstantDesc* run = movementCI.constant("Run");
 if (run != nullptr) {
   // run->value == 2
 }
 ```
+
+`RuntimeConstantInit` is the registration input. After registration, `ComponentCacheItem::constant(...)` and `constant_by_value(...)` return immutable `RuntimeConstantDesc` metadata. Use `ComponentCacheItem::constant_name(...)` to read the registered constant name.
 
 Bitmask types use the same constant descriptor shape with `ecs::RuntimeTypeKind::Bitmask`; each one-bit constant value describes one named flag.
 
@@ -4035,7 +4093,7 @@ struct Affinity {
   float score;
 };
 
-const ecs::RuntimeFieldDesc affinityFields[] = {
+const ecs::RuntimeFieldInit affinityFields[] = {
   {util::str_view("score", 5), ecs::F32, 0, 0}
 };
 
@@ -4044,9 +4102,9 @@ affinityDesc.name = util::str_view("Affinity", 8);
 affinityDesc.size = sizeof(Affinity);
 affinityDesc.alig = alignof(Affinity);
 affinityDesc.storageType = ecs::DataStorageType::Table;
-affinityDesc.typeKind = ecs::RuntimeTypeKind::Struct;
-affinityDesc.fields = affinityFields;
-affinityDesc.fieldCount = 1;
+affinityDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;
+affinityDesc.runtimeType.fields = affinityFields;
+affinityDesc.runtimeType.fieldCount = 1;
 
 ecs::ComponentCacheItem& affinity = w.add(affinityDesc);
 ```

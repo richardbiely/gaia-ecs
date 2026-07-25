@@ -89,7 +89,19 @@ namespace gaia {
 			//! Symbolic runtime constant is unknown.
 			UnknownRuntimeConstant,
 			//! Runtime constant is invalid in the current context.
-			InvalidRuntimeConstant
+			InvalidRuntimeConstant,
+			//! JSON Pointer syntax or traversal path is invalid.
+			InvalidPatchPath,
+			//! Validated patch targets a read-only reflected field.
+			ReadOnlyField,
+			//! Validated patch targets a hidden reflected field.
+			HiddenField,
+			//! Patch value or selected endpoint is unsupported.
+			UnsupportedPatchValue,
+			//! Patch value violates an authored numeric range.
+			RangeViolation,
+			//! Patch was prepared against a stale schema manifest.
+			StaleSchema
 		};
 
 		//! One structured issue produced while reading or writing JSON.
@@ -189,6 +201,42 @@ namespace gaia {
 			cnt::darray<Ctx> m_ctx;
 			const char* m_it = nullptr;
 			const char* m_end = nullptr;
+
+			GAIA_NODISCARD static bool parse_hex_quad(const char* str, uint32_t& value) {
+				value = 0;
+				GAIA_FOR(4) {
+					const char ch = str[i];
+					uint32_t digit = 0;
+					if (ch >= '0' && ch <= '9')
+						digit = (uint32_t)(ch - '0');
+					else if (ch >= 'a' && ch <= 'f')
+						digit = (uint32_t)(ch - 'a') + 10;
+					else if (ch >= 'A' && ch <= 'F')
+						digit = (uint32_t)(ch - 'A') + 10;
+					else
+						return false;
+					value = (value << 4U) | digit;
+				}
+				return true;
+			}
+
+			static void append_utf8(json_str& out, uint32_t codePoint) {
+				if (codePoint <= 0x7fU) {
+					out.append((char)codePoint);
+				} else if (codePoint <= 0x7ffU) {
+					out.append((char)(0xc0U | (codePoint >> 6U)));
+					out.append((char)(0x80U | (codePoint & 0x3fU)));
+				} else if (codePoint <= 0xffffU) {
+					out.append((char)(0xe0U | (codePoint >> 12U)));
+					out.append((char)(0x80U | ((codePoint >> 6U) & 0x3fU)));
+					out.append((char)(0x80U | (codePoint & 0x3fU)));
+				} else {
+					out.append((char)(0xf0U | (codePoint >> 18U)));
+					out.append((char)(0x80U | ((codePoint >> 12U) & 0x3fU)));
+					out.append((char)(0x80U | ((codePoint >> 6U) & 0x3fU)));
+					out.append((char)(0x80U | (codePoint & 0x3fU)));
+				}
+			}
 
 			static void add_escaped(json_str& out, const char* str, uint32_t len) {
 				GAIA_FOR(len) {
@@ -479,14 +527,22 @@ namespace gaia {
 							case 'u': {
 								if ((uint32_t)(m_end - m_it) < 4)
 									return false;
-								GAIA_FOR(4) {
-									const char h = m_it[i];
-									const bool isHex = (h >= '0' && h <= '9') || (h >= 'a' && h <= 'f') || (h >= 'A' && h <= 'F');
-									if (!isHex)
-										return false;
-								}
+								uint32_t codePoint = 0;
+								if (!parse_hex_quad(m_it, codePoint))
+									return false;
 								m_it += 4;
-								m_parseScratch.append('?');
+								if (codePoint >= 0xd800U && codePoint <= 0xdbffU) {
+									if ((uint32_t)(m_end - m_it) < 6 || m_it[0] != '\\' || m_it[1] != 'u')
+										return false;
+									uint32_t low = 0;
+									if (!parse_hex_quad(m_it + 2, low) || low < 0xdc00U || low > 0xdfffU)
+										return false;
+									m_it += 6;
+									codePoint = 0x10000U + ((codePoint - 0xd800U) << 10U) + (low - 0xdc00U);
+								} else if (codePoint >= 0xdc00U && codePoint <= 0xdfffU) {
+									return false;
+								}
+								append_utf8(m_parseScratch, codePoint);
 								break;
 							}
 							default:
