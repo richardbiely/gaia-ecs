@@ -1,10 +1,12 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include <cstdio>
-#include <cstring>
+#if GAIA_JSON_ENABLED
 
-#include "gaia/ser/ser_json.h"
+	#include <cstdio>
+	#include <cstring>
+
+	#include "gaia/ser/ser_json.h"
 
 namespace gaia {
 	namespace ecs {
@@ -1999,3 +2001,5 @@ namespace gaia {
 		}
 	} // namespace ecs
 } // namespace gaia
+
+#endif

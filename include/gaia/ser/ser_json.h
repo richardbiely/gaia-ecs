@@ -1,19 +1,21 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include <cctype>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <limits>
-#include <type_traits>
+#if GAIA_JSON_ENABLED
 
-#include "gaia/cnt/darray.h"
-#include "gaia/core/utility.h"
-#include "gaia/ser/ser_buffer_binary.h"
-#include "gaia/util/str.h"
+	#include <cctype>
+	#include <cmath>
+	#include <cstdint>
+	#include <cstdio>
+	#include <cstdlib>
+	#include <cstring>
+	#include <limits>
+	#include <type_traits>
+
+	#include "gaia/cnt/darray.h"
+	#include "gaia/core/utility.h"
+	#include "gaia/ser/ser_buffer_binary.h"
+	#include "gaia/util/str.h"
 
 namespace gaia {
 	namespace ser {
@@ -1089,3 +1091,5 @@ namespace gaia {
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia
+
+#endif

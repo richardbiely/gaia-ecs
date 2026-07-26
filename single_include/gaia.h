@@ -746,6 +746,11 @@ namespace gaia {
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, JSON serialization, runtime schema manifests, and JSON component patches are available.
+#ifndef GAIA_JSON_ENABLED
+	#define GAIA_JSON_ENABLED 1
+#endif
+
 //! If enabled, observers are enabled
 #ifndef GAIA_OBSERVERS_ENABLED
 	#define GAIA_OBSERVERS_ENABLED 1
@@ -26382,14 +26387,16 @@ namespace gaia {
 	} // namespace ser
 } // namespace gaia
 
-#include <cctype>
-#include <cmath>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <limits>
-#include <type_traits>
+#if GAIA_JSON_ENABLED
+
+	#include <cctype>
+	#include <cmath>
+	#include <cstdint>
+	#include <cstdio>
+	#include <cstdlib>
+	#include <cstring>
+	#include <limits>
+	#include <type_traits>
 
 namespace gaia {
 	namespace ser {
@@ -27465,6 +27472,8 @@ namespace gaia {
 		} // namespace detail
 	} // namespace ser
 } // namespace gaia
+
+#endif
 
 #if GAIA_PLATFORM_WINDOWS
 	#include <cstdio>
@@ -33291,6 +33300,7 @@ namespace gaia {
 			Opaque,
 		};
 
+#if GAIA_JSON_ENABLED
 		//! JSON representation applied to a reflected runtime value.
 		//! Encoding is runtime behavior and remains separate from dynamic application semantics.
 		enum class RuntimeJsonEncoding : uint8_t {
@@ -33299,6 +33309,7 @@ namespace gaia {
 			//! A Char8 sequence represented as one UTF-8 JSON string.
 			Utf8String
 		};
+#endif
 
 		//! Storage type used for runtime field presentation flags.
 		using RuntimeFieldFlagsType = uint16_t;
@@ -33359,8 +33370,10 @@ namespace gaia {
 			uint32_t count = 0;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation override for this field.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Presentation and validation flags.
 			RuntimeFieldFlagsType flags = RuntimeFieldFlag_None;
 			//! Optional unit label or its interned identifier.
@@ -33479,8 +33492,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation applied to this value.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
 			//! Runtime field initializers copied during registration.
@@ -34038,8 +34053,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation applied to this value.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
 			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
@@ -34640,7 +34657,9 @@ namespace gaia {
 				field.offset = desc.offset;
 				field.count = desc.count;
 				field.semantic = desc.semantic;
+#if GAIA_JSON_ENABLED
 				field.jsonEncoding = desc.jsonEncoding;
+#endif
 				field.flags = desc.flags;
 				field.unit = m_symbols->intern(desc.unit);
 				field.minimum = desc.minimum;
@@ -34797,7 +34816,9 @@ namespace gaia {
 				const auto& runtimeType = desc.runtimeType;
 				cci->typeKind = runtimeType.typeKind;
 				cci->semantic = runtimeType.semantic;
+#if GAIA_JSON_ENABLED
 				cci->jsonEncoding = runtimeType.jsonEncoding;
+#endif
 				cci->underlyingType = runtimeType.underlyingType;
 				cci->elementType = runtimeType.elementType;
 				cci->elementCount = runtimeType.elementCount;
@@ -35000,10 +35021,14 @@ namespace gaia {
 						GAIA_ASSERT(runtimeType.sequenceAdapter->element != nullptr);
 					}
 					GAIA_ASSERT(find(runtimeType.elementType) != nullptr);
+	#if GAIA_JSON_ENABLED
 					GAIA_ASSERT(runtimeType.jsonEncoding != RuntimeJsonEncoding::Utf8String || runtimeType.elementType == Char8);
+	#endif
 					return;
 				}
+	#if GAIA_JSON_ENABLED
 				GAIA_ASSERT(runtimeType.jsonEncoding == RuntimeJsonEncoding::Default);
+	#endif
 
 				if (runtimeType.typeKind == RuntimeTypeKind::Opaque) {
 					GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
@@ -35050,8 +35075,10 @@ namespace gaia {
 									(RuntimeFieldFlag_HasMinimum | RuntimeFieldFlag_HasMaximum) ||
 							field.minimum <= field.maximum);
 					GAIA_ASSERT((field.flags & RuntimeFieldFlag_HasStep) == 0 || field.step > 0.0);
+	#if GAIA_JSON_ENABLED
 					GAIA_ASSERT(
 							field.jsonEncoding != RuntimeJsonEncoding::Utf8String || (field.type == Char8 && field.count != 0));
+	#endif
 
 					const auto* pType = find(field.type);
 					GAIA_ASSERT(pType != nullptr);
@@ -64472,6 +64499,8 @@ namespace gaia {
 		} // namespace detail
 	} // namespace ecs
 } // namespace gaia
+#if GAIA_JSON_ENABLED
+#endif
 
 namespace gaia {
 	namespace ecs {
@@ -65468,12 +65497,14 @@ namespace gaia {
 #endif
 			}
 
+#if GAIA_JSON_ENABLED
 			//! Writes the deterministic world-level runtime schema manifest.
 			//! \param writer JSON writer receiving the manifest.
 			//! \param schemaHash Optional precomputed hash text included in the manifest.
 			//! \param includeRuntimeEntities Whether to include world-local entity ids and generations.
 			//! \return True when the manifest was serialized.
 			bool write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const;
+#endif
 
 			//! Finalizes a newly registered component entity after the cache record has been created.
 			//! This synchronizes the core `Component` value stored on the component entity, registers the
@@ -72919,7 +72950,9 @@ namespace gaia {
 
 		private:
 			static constexpr uint32_t WorldSerializerVersion = 4;
+#if GAIA_JSON_ENABLED
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
+#endif
 
 			void save_to(ser::serializer s) const {
 				GAIA_ASSERT(s.valid());
@@ -73116,6 +73149,7 @@ namespace gaia {
 				save_to(s);
 			}
 
+#if GAIA_JSON_ENABLED
 			//! Serializes world state into a JSON document.
 			//! Components with runtime fields are emitted as structured JSON objects.
 			//! Components with no runtime fields fallback to raw serialized bytes.
@@ -73186,6 +73220,7 @@ namespace gaia {
 			//! \param json JSON view
 			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json);
+#endif
 
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
@@ -80077,8 +80112,12 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cstdio>
-#include <cstring>
+#if GAIA_JSON_ENABLED
+
+	#if GAIA_JSON_ENABLED
+
+		#include <cstdio>
+		#include <cstring>
 
 namespace gaia {
 	namespace ecs {
@@ -81307,7 +81346,6 @@ namespace gaia {
 			if (detail::runtime_json_is_direct_value(item)) {
 				bool ok = true;
 				detail::RuntimeJsonReadContext ctx{item.owner_cache(), reader, diagnostics, policy, ok};
-
 				return detail::read_runtime_json_value(
 						ctx, &item, item.entity, reinterpret_cast<uint8_t*>(pComponentData), item.comp.size(), componentPath, 0);
 			}
@@ -82075,8 +82113,12 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cstdint>
-#include <cstring>
+	#endif
+
+	#if GAIA_JSON_ENABLED
+
+		#include <cstdint>
+		#include <cstring>
 
 namespace gaia {
 	namespace ecs {
@@ -82198,7 +82240,6 @@ namespace gaia {
 			auto cursor = cursor_mut(entity, component);
 			if (!cursor.valid() || cursor.size() == 0)
 				return error(ser::JsonDiagReason::MissingComponentStorage, "Component patch payload is unavailable.");
-
 			if (!pointer.empty() && pointer.data()[0] != '/')
 				return error(ser::JsonDiagReason::InvalidPatchPath, "Component patch path must be an RFC 6901 JSON Pointer.");
 			if (!pointer.empty() && (pointer.size() == 1 || pointer.data()[pointer.size() - 1] == '/'))
@@ -82316,8 +82357,12 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include <cstdio>
-#include <cstring>
+	#endif
+
+	#if GAIA_JSON_ENABLED
+
+		#include <cstdio>
+		#include <cstring>
 
 namespace gaia {
 	namespace ecs {
@@ -82724,6 +82769,9 @@ namespace gaia {
 
 	} // namespace ecs
 } // namespace gaia
+
+	#endif
+#endif
 
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {

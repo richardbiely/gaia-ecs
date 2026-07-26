@@ -3695,6 +3695,8 @@ world1.set_serializer(world0.get_serializer());
 world1.load();
 ```
 
+JSON support is enabled by default. Define `GAIA_JSON_ENABLED` as `0` before including Gaia headers, or pass `-DGAIA_JSON_ENABLED=0` to the compiler, to omit JSON serialization, runtime schema manifests, and JSON component patches.
+
 ## Runtime components
 
 Runtime schemas give component fields stable names and reflected types. Generic APIs use this information to inspect, edit, and serialize component values without knowing their C++ type at the call site.

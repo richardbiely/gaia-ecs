@@ -1,8 +1,10 @@
 #pragma once
 #include "gaia/config/config.h"
 
-#include <cstdint>
-#include <cstring>
+#if GAIA_JSON_ENABLED
+
+	#include <cstdint>
+	#include <cstring>
 
 namespace gaia {
 	namespace ecs {
@@ -240,3 +242,5 @@ namespace gaia {
 
 	} // namespace ecs
 } // namespace gaia
+
+#endif

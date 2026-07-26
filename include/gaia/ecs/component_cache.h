@@ -167,10 +167,14 @@ namespace gaia {
 						GAIA_ASSERT(runtimeType.sequenceAdapter->element != nullptr);
 					}
 					GAIA_ASSERT(find(runtimeType.elementType) != nullptr);
+	#if GAIA_JSON_ENABLED
 					GAIA_ASSERT(runtimeType.jsonEncoding != RuntimeJsonEncoding::Utf8String || runtimeType.elementType == Char8);
+	#endif
 					return;
 				}
+	#if GAIA_JSON_ENABLED
 				GAIA_ASSERT(runtimeType.jsonEncoding == RuntimeJsonEncoding::Default);
+	#endif
 
 				if (runtimeType.typeKind == RuntimeTypeKind::Opaque) {
 					GAIA_ASSERT(runtimeType.underlyingType == EntityBad);
@@ -217,8 +221,10 @@ namespace gaia {
 									(RuntimeFieldFlag_HasMinimum | RuntimeFieldFlag_HasMaximum) ||
 							field.minimum <= field.maximum);
 					GAIA_ASSERT((field.flags & RuntimeFieldFlag_HasStep) == 0 || field.step > 0.0);
+	#if GAIA_JSON_ENABLED
 					GAIA_ASSERT(
 							field.jsonEncoding != RuntimeJsonEncoding::Utf8String || (field.type == Char8 && field.count != 0));
+	#endif
 
 					const auto* pType = find(field.type);
 					GAIA_ASSERT(pType != nullptr);

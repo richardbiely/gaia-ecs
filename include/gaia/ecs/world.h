@@ -52,7 +52,9 @@
 #include "gaia/ecs/system_schedule_scratch.h"
 #include "gaia/mem/mem_alloc.h"
 #include "gaia/ser/ser_binary.h"
-#include "gaia/ser/ser_json.h"
+#if GAIA_JSON_ENABLED
+	#include "gaia/ser/ser_json.h"
+#endif
 #include "gaia/ser/ser_rt.h"
 #include "gaia/util/logging.h"
 #include "gaia/util/str.h"
@@ -1052,12 +1054,14 @@ namespace gaia {
 #endif
 			}
 
+#if GAIA_JSON_ENABLED
 			//! Writes the deterministic world-level runtime schema manifest.
 			//! \param writer JSON writer receiving the manifest.
 			//! \param schemaHash Optional precomputed hash text included in the manifest.
 			//! \param includeRuntimeEntities Whether to include world-local entity ids and generations.
 			//! \return True when the manifest was serialized.
 			bool write_runtime_schema_json(ser::ser_json& writer, const char* schemaHash, bool includeRuntimeEntities) const;
+#endif
 
 			//! Finalizes a newly registered component entity after the cache record has been created.
 			//! This synchronizes the core `Component` value stored on the component entity, registers the
@@ -8503,7 +8507,9 @@ namespace gaia {
 
 		private:
 			static constexpr uint32_t WorldSerializerVersion = 4;
+#if GAIA_JSON_ENABLED
 			static constexpr uint32_t WorldSerializerJSONVersion = 1;
+#endif
 
 			void save_to(ser::serializer s) const {
 				GAIA_ASSERT(s.valid());
@@ -8700,6 +8706,7 @@ namespace gaia {
 				save_to(s);
 			}
 
+#if GAIA_JSON_ENABLED
 			//! Serializes world state into a JSON document.
 			//! Components with runtime fields are emitted as structured JSON objects.
 			//! Components with no runtime fields fallback to raw serialized bytes.
@@ -8770,6 +8777,7 @@ namespace gaia {
 			//! \param json JSON view
 			//! \return True when loading succeeds. False otherwise.
 			bool load_json(ser::json_str_view json);
+#endif
 
 			//! Loads a world state from a buffer. The buffer is sought to 0 before any loading happens.
 			//! NOTE: In order for custom version of load to be used for a given component, it needs to have either
@@ -12718,9 +12726,11 @@ namespace gaia {
 	} // namespace ecs
 } // namespace gaia
 
-#include "gaia/ecs/impl/world_json.h"
-#include "gaia/ecs/impl/world_json_patch.h"
-#include "gaia/ecs/impl/world_schema_json.h"
+#if GAIA_JSON_ENABLED
+	#include "gaia/ecs/impl/world_json.h"
+	#include "gaia/ecs/impl/world_json_patch.h"
+	#include "gaia/ecs/impl/world_schema_json.h"
+#endif
 
 #if GAIA_SYSTEMS_ENABLED
 namespace gaia {

@@ -49,6 +49,11 @@
 	#define GAIA_SYSTEMS_ENABLED 1
 #endif
 
+//! If enabled, JSON serialization, runtime schema manifests, and JSON component patches are available.
+#ifndef GAIA_JSON_ENABLED
+	#define GAIA_JSON_ENABLED 1
+#endif
+
 //! If enabled, observers are enabled
 #ifndef GAIA_OBSERVERS_ENABLED
 	#define GAIA_OBSERVERS_ENABLED 1

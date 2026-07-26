@@ -38,6 +38,7 @@ namespace gaia {
 			Opaque,
 		};
 
+#if GAIA_JSON_ENABLED
 		//! JSON representation applied to a reflected runtime value.
 		//! Encoding is runtime behavior and remains separate from dynamic application semantics.
 		enum class RuntimeJsonEncoding : uint8_t {
@@ -46,6 +47,7 @@ namespace gaia {
 			//! A Char8 sequence represented as one UTF-8 JSON string.
 			Utf8String
 		};
+#endif
 
 		//! Storage type used for runtime field presentation flags.
 		using RuntimeFieldFlagsType = uint16_t;
@@ -106,8 +108,10 @@ namespace gaia {
 			uint32_t count = 0;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation override for this field.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Presentation and validation flags.
 			RuntimeFieldFlagsType flags = RuntimeFieldFlag_None;
 			//! Optional unit label or its interned identifier.
@@ -226,8 +230,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation applied to this value.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
 			//! Runtime field initializers copied during registration.

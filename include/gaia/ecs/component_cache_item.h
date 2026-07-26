@@ -170,8 +170,10 @@ namespace gaia {
 			RuntimeTypeKind typeKind = RuntimeTypeKind::Struct;
 			//! Optional named entity identifying the authored semantic.
 			Entity semantic = EntityBad;
+#if GAIA_JSON_ENABLED
 			//! JSON representation applied to this value.
 			RuntimeJsonEncoding jsonEncoding = RuntimeJsonEncoding::Default;
+#endif
 			//! Primitive storage type for enum/bitmask metadata. EntityBad otherwise.
 			Entity underlyingType = EntityBad;
 			//! Element type for fixed array or dynamic vector metadata. May reference another array/vector type.
@@ -772,7 +774,9 @@ namespace gaia {
 				field.offset = desc.offset;
 				field.count = desc.count;
 				field.semantic = desc.semantic;
+#if GAIA_JSON_ENABLED
 				field.jsonEncoding = desc.jsonEncoding;
+#endif
 				field.flags = desc.flags;
 				field.unit = m_symbols->intern(desc.unit);
 				field.minimum = desc.minimum;
@@ -929,7 +933,9 @@ namespace gaia {
 				const auto& runtimeType = desc.runtimeType;
 				cci->typeKind = runtimeType.typeKind;
 				cci->semantic = runtimeType.semantic;
+#if GAIA_JSON_ENABLED
 				cci->jsonEncoding = runtimeType.jsonEncoding;
+#endif
 				cci->underlyingType = runtimeType.underlyingType;
 				cci->elementType = runtimeType.elementType;
 				cci->elementCount = runtimeType.elementCount;
