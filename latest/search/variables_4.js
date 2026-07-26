@@ -2,8 +2,8 @@ var searchData=
 [
   ['edges_0',['edges',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html#ad3a79575f1e385d856c667696a18c10c',1,'gaia::ecs::detail::SystemScheduleScratch']]],
   ['element_1',['element',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#aa204a828e169031af9d9d9c22ee8ebb2',1,'gaia::ecs::RuntimeSequenceAdapter']]],
-  ['elementcount_2',['elementCount',['../structgaia_1_1ecs_1_1ComponentDesc.html#ae4f7dbf5c05ba2089d91afb7c7c45a9b',1,'gaia::ecs::ComponentDesc']]],
-  ['elementtype_3',['elementType',['../structgaia_1_1ecs_1_1ComponentDesc.html#a717e7533a5d67f615588c33326dda887',1,'gaia::ecs::ComponentDesc']]],
+  ['elementcount_2',['elementCount',['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html#af566801e8d977e5a135d3655e3314e08',1,'gaia::ecs::RuntimeTypeDesc']]],
+  ['elementtype_3',['elementType',['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a7e77ce3c4b1c0ec1992b7605dbf330b7',1,'gaia::ecs::RuntimeTypeDesc']]],
   ['elemsize_4',['elemSize',['../structgaia_1_1ecs_1_1RawSparseStoreOps.html#a54c6531f0ef45edf70bc21f9ac50ca62',1,'gaia::ecs::RawSparseStoreOps']]],
   ['enabledversion_5',['enabledVersion',['../structgaia_1_1ecs_1_1QueryInfo_1_1QueryState_1_1DynamicCacheState_1_1TraversedSourcePayload.html#a37b87b0605c012fd22df9cbb0653efbf',1,'gaia::ecs::QueryInfo::QueryState::DynamicCacheState::TraversedSourcePayload']]],
   ['ent_6',['ent',['../structgaia_1_1ecs_1_1Entity_1_1InternalData.html#a91dc1062e172e30680b408facc45fad9',1,'gaia::ecs::Entity::InternalData::ent'],['../structgaia_1_1ecs_1_1vm_1_1MatchingCtx.html#a1db130a415f6b3ea80d05aef16070631',1,'gaia::ecs::vm::MatchingCtx::ent']]],

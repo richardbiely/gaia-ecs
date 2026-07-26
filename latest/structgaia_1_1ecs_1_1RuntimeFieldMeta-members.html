@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gaia-ECS: gaia::ecs::RuntimeFieldDesc Struct Reference</title>
+<title>Gaia-ECS: Member List</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -81,7 +81,7 @@ $(function() {
 </div>
 <script type="text/javascript">
 /* @license magnet:?xt=urn:btih:d3d9a9a6595521f9666a5e94cc830dab83b65699&amp;dn=expat.txt MIT */
-$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1RuntimeFieldDesc.html',''); initResizable(); });
+$(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1RuntimeFieldMeta.html',''); initResizable(); });
 /* @license-end */
 </script>
 <div id="doc-content">
@@ -107,48 +107,29 @@ $(document).ready(function(){initNavTree('structgaia_1_1ecs_1_1RuntimeFieldDesc.
 </div>
 
 <div class="header">
-  <div class="summary">
-<a href="#pub-attribs">Public Attributes</a> &#124;
-<a href="structgaia_1_1ecs_1_1RuntimeFieldDesc-members.html">List of all members</a>  </div>
-  <div class="headertitle"><div class="title">gaia::ecs::RuntimeFieldDesc Struct Reference<span class="mlabels"><span class="mlabel">final</span></span></div></div>
+  <div class="headertitle"><div class="title">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt; Member List</div></div>
 </div><!--header-->
 <div class="contents">
 
-<p>User-authored runtime field descriptor. A count of 0 means scalar. Positive values describe a fixed inline array.  
- <a href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html#details">More...</a></p>
-
-<p><code>#include &lt;<a class="el" href="component__desc_8h_source.html">component_desc.h</a>&gt;</code></p>
-<table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
-Public Attributes</h2></td></tr>
-<tr class="memitem:af57bcf14f0b26896572e1b28ce6799a6" id="r_af57bcf14f0b26896572e1b28ce6799a6"><td class="memItemLeft" align="right" valign="top"><a id="af57bcf14f0b26896572e1b28ce6799a6" name="af57bcf14f0b26896572e1b28ce6799a6"></a>
-<a class="el" href="structgaia_1_1util_1_1str__view.html">util::str_view</a>&#160;</td><td class="memItemRight" valign="bottom"><b>name</b> {}</td></tr>
-<tr class="memdesc:af57bcf14f0b26896572e1b28ce6799a6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Field symbol. <br /></td></tr>
-<tr class="separator:af57bcf14f0b26896572e1b28ce6799a6"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:af8c1475ffec0aa07b2d1be8c98374e16" id="r_af8c1475ffec0aa07b2d1be8c98374e16"><td class="memItemLeft" align="right" valign="top"><a id="af8c1475ffec0aa07b2d1be8c98374e16" name="af8c1475ffec0aa07b2d1be8c98374e16"></a>
-<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td><td class="memItemRight" valign="bottom"><b>type</b> = EntityBad</td></tr>
-<tr class="memdesc:af8c1475ffec0aa07b2d1be8c98374e16"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> describing the field type. <br /></td></tr>
-<tr class="separator:af8c1475ffec0aa07b2d1be8c98374e16"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aff4f4ad92b50396d721044ac3f474cd7" id="r_aff4f4ad92b50396d721044ac3f474cd7"><td class="memItemLeft" align="right" valign="top"><a id="aff4f4ad92b50396d721044ac3f474cd7" name="aff4f4ad92b50396d721044ac3f474cd7"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>offset</b> = 0</td></tr>
-<tr class="memdesc:aff4f4ad92b50396d721044ac3f474cd7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Byte offset from the start of the component payload. <br /></td></tr>
-<tr class="separator:aff4f4ad92b50396d721044ac3f474cd7"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a458d6453a72f2b6bd87770c153eef0e8" id="r_a458d6453a72f2b6bd87770c153eef0e8"><td class="memItemLeft" align="right" valign="top"><a id="a458d6453a72f2b6bd87770c153eef0e8" name="a458d6453a72f2b6bd87770c153eef0e8"></a>
-uint32_t&#160;</td><td class="memItemRight" valign="bottom"><b>count</b> = 0</td></tr>
-<tr class="memdesc:a458d6453a72f2b6bd87770c153eef0e8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Inline array element count. 0 means scalar. <br /></td></tr>
-<tr class="separator:a458d6453a72f2b6bd87770c153eef0e8"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table>
-<a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>User-authored runtime field descriptor. A count of 0 means scalar. Positive values describe a fixed inline array. </p>
-</div><hr/>The documentation for this struct was generated from the following file:<ul>
-<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="component__desc_8h_source.html">component_desc.h</a></li>
-</ul>
-</div><!-- contents -->
+<p>This is the complete list of members for <a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a>, including all inherited members.</p>
+<table class="directory">
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a6379ca9ac8b6f2f3ce11b67d22fa7a77">count</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ae051fe6eb9af3cd72d0825603d69b31c">flags</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ab978c5a5093d708f8263191cd880096d">jsonEncoding</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a29a49a65aa4905c072486927345dd3bf">maximum</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a55d30c514444c0b027a8e0f10571aa4c">MaxUnitLength</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"><span class="mlabel">static</span></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#aefdbe88c7c0122c94c869d3e8360389c">minimum</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#aaaff6dbd6f903ba460c45b247b292e07">name</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ae762cf9d87a7820f6ce4400936963df1">offset</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a2d97145be1d9a7a50a8abe4e177cf012">semantic</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#af2cf946238017cb656b9919d2b991775">step</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="even"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#adb390cc91aecd8a45e1cc23399b57c8d">type</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+  <tr class="odd"><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html#a9c76654d2b2152888cd829fc89a3b2d3">unit</a></td><td class="entry"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldMeta.html">gaia::ecs::RuntimeFieldMeta&lt; StringType &gt;</a></td><td class="entry"></td></tr>
+</table></div><!-- contents -->
 </div><!-- doc-content -->
 <!-- start footer part -->
 <div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
   <ul>
-    <li class="navelem"><b>gaia</b></li><li class="navelem"><b>ecs</b></li><li class="navelem"><a class="el" href="structgaia_1_1ecs_1_1RuntimeFieldDesc.html">RuntimeFieldDesc</a></li>
     <li class="footer">Generated by <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.9.8 </li>
   </ul>
 </div>

@@ -112,7 +112,11 @@ var NAVTREE =
       ] ],
       [ "Runtime components", "index.html#runtime-components", [
         [ "Registration", "index.html#registration", null ],
-        [ "Field metadata", "index.html#field-metadata", null ],
+        [ "Field metadata", "index.html#field-metadata", [
+          [ "Optional tool metadata", "index.html#optional-tool-metadata", null ]
+        ] ],
+        [ "Typed runtime schemas", "index.html#typed-runtime-schemas", null ],
+        [ "Schema manifests and validated edits", "index.html#schema-manifests-and-validated-edits", null ],
         [ "Nested structs and fixed arrays", "index.html#nested-structs-and-fixed-arrays", null ],
         [ "Opaque adapters", "index.html#opaque-adapters", null ],
         [ "Dynamic vectors", "index.html#dynamic-vectors", null ],
@@ -183,15 +187,16 @@ var NAVTREEINDEX =
 "classgaia_1_1cnt_1_1sarr__ext.html#a60dde08a63bac6447929630d6f176d94",
 "classgaia_1_1cnt_1_1sringbuffer.html#a70dfca04bc4e14f188fd7df582a17f81",
 "classgaia_1_1ecs_1_1QueryInfo.html#a2f647000eb0c8465cbd28a6f04e54590",
-"classgaia_1_1ecs_1_1World.html#a9a204b62da6a116b2f52fc677a4bfc0c",
-"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#af8d1e2337fca718523beb8d989600241",
-"functions_j.html",
-"structgaia_1_1cnt_1_1const__page__iterator.html#a77a8729980326bd07ec3b9947ea07821",
-"structgaia_1_1cnt_1_1paged__ilist.html#add8b6feeab766b47d816b6b52800414d",
-"structgaia_1_1ecs_1_1ComponentDesc.html#a888e08add9827f54fec33fa555e37122",
-"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#a91aebffb03717b548fe0e8e007b5f9b2",
-"structgaia_1_1ecs_1_1detail_1_1NonFragmentingRelationStore.html#a3dcd62032724175f5a89210cb2bdea7a",
-"structgaia_1_1mem_1_1data__view__policy__soa.html#a31f687fdab677be24a18d9740c089aa3"
+"classgaia_1_1ecs_1_1World.html#a950a809f79f42dde23d9b82f7059a825",
+"classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#aefb18a425986ead471ae032deafefa5a",
+"functions_func_v.html",
+"stack__allocator_8h_source.html",
+"structgaia_1_1cnt_1_1paged__ilist.html#aa7991eb6e20b897e28b87c963a3b4d25",
+"structgaia_1_1ecs_1_1ComponentDesc.html#a7606f1367b1a5e8a5d0eb489d2d38a99",
+"structgaia_1_1ecs_1_1QueryCtx_1_1Data_1_1Dependencies.html#aa0ecb9f76d515dd78c1469392cdf36d2",
+"structgaia_1_1ecs_1_1detail_1_1ComponentDesc.html#a95a64aba00cd3bd5fd6549b034b52584",
+"structgaia_1_1mem_1_1data__view__policy__aos__set.html#ae8e6cd0e3152d3c8ed7fcd48dec65540",
+"system_8h_source.html"
 ];
 
 var SYNCONMSG = 'click to disable panel synchronisation';

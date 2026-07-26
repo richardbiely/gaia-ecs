@@ -54,5 +54,6 @@ var searchData=
   ['run_5fquery_5farch_5ffunc_51',['run_query_arch_func',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#ae0db299dd5b4ab4a5c57f4c91bd6b337',1,'gaia::ecs::detail::QueryImpl']]],
   ['run_5fquery_5ffunc_52',['run_query_func',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a029aee41f66a195cb5b007ed58aaf448',1,'gaia::ecs::detail::QueryImpl::run_query_func(World *pWorld, Func func, ChunkBatch &amp;batch)'],['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a2a6078892c93899d31c882f460f8402b',1,'gaia::ecs::detail::QueryImpl::run_query_func(World *pWorld, Func func, std::span&lt; ChunkBatch &gt; batches)']]],
   ['run_5fquery_5fon_5fchunks_5fruntime_5fdirect_5fplain_5fimpl_53',['run_query_on_chunks_runtime_direct_plain_impl',['../classgaia_1_1ecs_1_1detail_1_1QueryImpl.html#a4f3da7626d2532efeaaa224d22fc3b4e',1,'gaia::ecs::detail::QueryImpl']]],
-  ['runtime_5fcounters_54',['runtime_counters',['../classgaia_1_1ecs_1_1World.html#a9d2c51bef2908b4d017443bd1f986d1a',1,'gaia::ecs::World']]]
+  ['runtime_5fcounters_54',['runtime_counters',['../classgaia_1_1ecs_1_1World.html#a9d2c51bef2908b4d017443bd1f986d1a',1,'gaia::ecs::World']]],
+  ['runtime_5fschema_5fhash_55',['runtime_schema_hash',['../classgaia_1_1ecs_1_1World.html#a8debc341cdd272ed1990cde46866ee59',1,'gaia::ecs::World']]]
 ];

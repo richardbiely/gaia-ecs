@@ -10,12 +10,6 @@ var structgaia_1_1ecs_1_1ComponentDesc =
     [ "FuncSave", "structgaia_1_1ecs_1_1ComponentDesc.html#a314ea870255dc198ab80756531284f1b", null ],
     [ "FuncSwap", "structgaia_1_1ecs_1_1ComponentDesc.html#a7606f1367b1a5e8a5d0eb489d2d38a99", null ],
     [ "alig", "structgaia_1_1ecs_1_1ComponentDesc.html#a888e08add9827f54fec33fa555e37122", null ],
-    [ "constantCount", "structgaia_1_1ecs_1_1ComponentDesc.html#a86e3ba4959b26663317764b3896e0c6b", null ],
-    [ "constants", "structgaia_1_1ecs_1_1ComponentDesc.html#a1dd9938dabd944772291ca39525963c7", null ],
-    [ "elementCount", "structgaia_1_1ecs_1_1ComponentDesc.html#ae4f7dbf5c05ba2089d91afb7c7c45a9b", null ],
-    [ "elementType", "structgaia_1_1ecs_1_1ComponentDesc.html#a717e7533a5d67f615588c33326dda887", null ],
-    [ "fieldCount", "structgaia_1_1ecs_1_1ComponentDesc.html#a44d679e3d32e1d8c39ab5a780ac59c63", null ],
-    [ "fields", "structgaia_1_1ecs_1_1ComponentDesc.html#a5a5f16c172611a3fe421fb85d4f1dd90", null ],
     [ "funcCmp", "structgaia_1_1ecs_1_1ComponentDesc.html#aca8c00a59c277cea703729ef686a1784", null ],
     [ "funcCopy", "structgaia_1_1ecs_1_1ComponentDesc.html#a1b3a4f329ba13954b8f9bf844bcfb3fd", null ],
     [ "funcCopyCtor", "structgaia_1_1ecs_1_1ComponentDesc.html#a07e550becfc822b332d740f962e32852", null ],
@@ -28,13 +22,9 @@ var structgaia_1_1ecs_1_1ComponentDesc =
     [ "funcSwap", "structgaia_1_1ecs_1_1ComponentDesc.html#a0a9d62b16d9ec009993716aa7ce5d4f1", null ],
     [ "hashLookup", "structgaia_1_1ecs_1_1ComponentDesc.html#acb1a8c80e21d742fc7aed1ad4deeaa8f", null ],
     [ "name", "structgaia_1_1ecs_1_1ComponentDesc.html#af662463ce5b34b58d1401dd6df7da406", null ],
-    [ "opaqueAdapter", "structgaia_1_1ecs_1_1ComponentDesc.html#a9ef75ef704006efd529b992ac27a4387", null ],
-    [ "opaqueAsType", "structgaia_1_1ecs_1_1ComponentDesc.html#a61658f6117c502f42832caf40d76bdfb", null ],
     [ "pSoaSizes", "structgaia_1_1ecs_1_1ComponentDesc.html#a22092296096d34e1f45c0925aced78b8", null ],
-    [ "sequenceAdapter", "structgaia_1_1ecs_1_1ComponentDesc.html#afd2ab664057f2844aa200ef0bfd7a70c", null ],
+    [ "runtimeType", "structgaia_1_1ecs_1_1ComponentDesc.html#a422dce500ea662f5521dcd363a748bc7", null ],
     [ "size", "structgaia_1_1ecs_1_1ComponentDesc.html#aaad121a776a86c6994bd735510d3fffb", null ],
     [ "soa", "structgaia_1_1ecs_1_1ComponentDesc.html#a33f4cca9029d9bed7f5fd867efbe6887", null ],
-    [ "storageType", "structgaia_1_1ecs_1_1ComponentDesc.html#a3ce05fb4a26b803bbf25bfc88c54fd26", null ],
-    [ "typeKind", "structgaia_1_1ecs_1_1ComponentDesc.html#a232a1a36cc58fcfcb73692cb3084319b", null ],
-    [ "underlyingType", "structgaia_1_1ecs_1_1ComponentDesc.html#a0d0c08f797b38028c281cbdc128d2979", null ]
+    [ "storageType", "structgaia_1_1ecs_1_1ComponentDesc.html#a3ce05fb4a26b803bbf25bfc88c54fd26", null ]
 ];

@@ -12,5 +12,6 @@ var searchData=
   ['resize_9',['resize',['../structgaia_1_1ecs_1_1RuntimeSequenceAdapter.html#af367fdbd2003d1ab90d55405210b7477',1,'gaia::ecs::RuntimeSequenceAdapter']]],
   ['revision_10',['revision',['../structgaia_1_1ecs_1_1QueryArchetypeCacheCursor.html#ac19677c38e7be36477b91f90782294bc',1,'gaia::ecs::QueryArchetypeCacheCursor']]],
   ['rowfrom_11',['rowFrom',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#aae7d3fc9979375a7803717c4f04f3f45',1,'gaia::ecs::DirectChunkEntry']]],
-  ['rowto_12',['rowTo',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b',1,'gaia::ecs::DirectChunkEntry']]]
+  ['rowto_12',['rowTo',['../structgaia_1_1ecs_1_1DirectChunkEntry.html#afb6d94dcbf1bb90de5fe09482a8b680b',1,'gaia::ecs::DirectChunkEntry']]],
+  ['runtimetype_13',['runtimeType',['../structgaia_1_1ecs_1_1ComponentDesc.html#a422dce500ea662f5521dcd363a748bc7',1,'gaia::ecs::ComponentDesc']]]
 ];

@@ -212,6 +212,8 @@ Table of Contents</h1>
 <li><a class="el" href="index.html#runtime-components">Runtime components</a><ul>
 <li><a class="el" href="index.html#registration">Registration</a></li>
 <li><a class="el" href="index.html#field-metadata">Field metadata</a></li>
+<li><a class="el" href="index.html#typed-runtime-schemas">Typed runtime schemas</a></li>
+<li><a class="el" href="index.html#schema-manifests-and-validated-edits">Schema manifests and validated edits</a></li>
 <li><a class="el" href="index.html#nested-structs-and-fixed-arrays">Nested structs and fixed arrays</a></li>
 <li><a class="el" href="index.html#opaque-adapters">Opaque adapters</a></li>
 <li><a class="el" href="index.html#dynamic-vectors">Dynamic vectors</a></li>
@@ -549,7 +551,7 @@ Non-fragmenting membership</h4>
 <p>Rule of thumb:</p><ul>
 <li>Keep hot, common, frequently iterated data in table storage.</li>
 <li>Use <code>Sparse</code> when the payload needs a stable address, but the component should still participate in archetype identity.</li>
-<li>Use <code>GAIA_STORAGE(Sparse)</code> with <code>DontFragment</code> for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or editor/runtime state.</li>
+<li>Use <code>GAIA_STORAGE(Sparse)</code> with <code>DontFragment</code> for frequently toggled typed optional state such as cooldowns, temporary status effects, markers, or runtime tool state.</li>
 <li>Avoid sparse storage for components such as <code>Position</code> or <code>Velocity</code> that benefit from sequential table access, unless profiling justifies it.</li>
 </ul>
 <p>Directly adding or removing an already-registered <code>DontFragment</code> component is safe during serial query iteration because the entity does not move to another archetype. If the active query filters on that component, later rows are matched against the current world state rather than a snapshot taken before iteration.</p>
@@ -2864,6 +2866,8 @@ Serialization</h2>
 <li><code>ser::ser_json</code> for low-level JSON token writing/parsing</li>
 <li><code>ecs::component_to_json</code> / <code>ecs::json_to_component</code> for runtime component payloads with fields copied from the component descriptor during registration. JSON supports scalar primitive fields and <code>ecs::Char8</code> buffers.</li>
 <li><code>ecs::World::save_json</code> / <code>ecs::World::load_json</code> for full world snapshots</li>
+<li><code>ecs::World::save_runtime_schema_json</code> to export the world-level runtime schema manifest for tools</li>
+<li><code>ecs::World::patch_comp_json</code> to apply one validated JSON value to a component field or element</li>
 </ul>
 <p>For structured semantic load feedback, use diagnostics overloads:</p><ul>
 <li><code>ecs::json_to_component(..., ser::JsonDiagnostics&amp;, componentPath)</code></li>
@@ -3104,45 +3108,80 @@ World serialization</h3>
 <div class="line">world1.load();</div>
 </div><!-- fragment --><h2><a class="anchor" id="runtime-components"></a>
 Runtime components</h2>
-<p>Runtime components are components whose payload layout is described by data instead of a C++ type. They are useful for editors, mods, importers, and save formats that define component schemas outside compiled code.</p>
-<p>The runtime API has three separate concerns:</p><ul>
-<li>registration: create a component entity from <code>ecs::ComponentDesc</code></li>
-<li>metadata: describe fields, nested structs, fixed arrays, dynamic vectors, enums, bitmasks, and opaque semantic types</li>
-<li>access: add, read, write, query, and serialize payload bytes without a C++ component type</li>
+<p>Runtime schemas give component fields stable names and reflected types. Generic APIs use this information to inspect, edit, and serialize component values without knowing their C++ type at the call site.</p>
+<p>Each component has one runtime schema. Register it before the component's first use. The schema then stays fixed for that component.</p>
+<p>There are two registration paths:</p><ul>
+<li>use <code>ecs::ComponentDesc</code> when the component itself is defined at runtime</li>
+<li>use <code>World::add&lt;T&gt;(const RuntimeTypeDesc&amp;)</code> to add a schema to an existing C++ component</li>
 </ul>
-<p>For JSON, the <a class="el" href="index.html#serialization">Serialization</a> section remains the main reference. Runtime components participate in world JSON when their field metadata is registered before loading, letting <code>load_json(...)</code> rebuild payload bytes without a compile-time C++ component type. Primitive fields serialize as normal JSON values, nested runtime structs serialize as JSON objects, fixed arrays and adapted dynamic vectors serialize as JSON arrays, and enum/bitmask fields serialize through their primitive storage type.</p>
+<p>For a simple struct, define its fields, register the component once, and then use the normal component, cursor, or JSON APIs. Nested types, dynamic vectors, presentation hints, schema export, and validated patches are optional features.</p>
+<p>For general JSON usage, see <a class="el" href="index.html#serialization">Serialization</a>.</p>
 <h3><a class="anchor" id="registration"></a>
 Registration</h3>
-<p>Register a runtime component by filling <code>ecs::ComponentDesc</code> and passing it to <code>World::add(...)</code>. The descriptor name, size, alignment, storage type, and metadata are copied into the component cache item.</p>
+<p>Use <code>ecs::ComponentDesc</code> when a component is defined from runtime data rather than a C++ type. Provide its name, size, alignment, storage mode, and fields, then pass it to <code>World::add(...)</code>.</p>
 <div class="fragment"><div class="line">ecs::ComponentDesc desc{};</div>
 <div class="line">desc.name = util::str_view(<span class="stringliteral">&quot;Cooldown&quot;</span>, 8);</div>
 <div class="line">desc.size = <span class="keyword">sizeof</span>(float);</div>
 <div class="line">desc.alig = <span class="keyword">alignof</span>(float);</div>
 <div class="line">desc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc fields[] = {</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit fields[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;seconds&quot;</span>, 7), ecs::F32, 0, 0}</div>
 <div class="line">};</div>
-<div class="line">desc.fields = fields;</div>
-<div class="line">desc.fieldCount = 1;</div>
+<div class="line">desc.runtimeType.fields = fields;</div>
+<div class="line">desc.runtimeType.fieldCount = 1;</div>
 <div class="line"> </div>
 <div class="line">ecs::ComponentCacheItem&amp; cooldownCI = w.add(desc);</div>
-</div><!-- fragment --><p>Register runtime schemas before loading data that references them. Duplicate registration by the same component name returns the existing component metadata.</p>
+</div><!-- fragment --><p>The field and component-name buffers only need to remain valid until <code>World::add(...)</code> returns. Register the schema before adding component instances or loading data that references it. Registering the same component again returns its existing metadata and does not replace its schema.</p>
 <h3><a class="anchor" id="field-metadata"></a>
 Field metadata</h3>
-<p>Runtime fields describe byte ranges inside the payload. Each field has a name, a type entity, a byte offset, and a count. Use count <code>0</code> for one scalar value. Use a positive count for a fixed inline array when the element type is local to that field. Use a named array type entity when multiple schemas should refer to the same fixed array shape.</p>
-<p>Primitive fields use Gaia's reflected primitive type entities such as <code>ecs::F32</code>, <code>ecs::S32</code>, or <code>ecs::Bool</code>. Runtime field descriptors are copied during registration and stay fixed for the lifetime of the component metadata.</p>
-<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeField* secondsField = cooldownCI.field(<span class="stringliteral">&quot;seconds&quot;</span>);</div>
-<div class="line"><span class="keywordflow">if</span> (secondsField != <span class="keyword">nullptr</span>) {</div>
-<div class="line">  <span class="comment">// secondsField describes the registered byte range and type.</span></div>
-<div class="line">}</div>
-</div><!-- fragment --><h3><a class="anchor" id="nested-structs-and-fixed-arrays"></a>
+<p>Each <code>RuntimeFieldInit</code> gives one field a name, a reflected type such as <code>ecs::F32</code>, <code>ecs::S32</code>, or <code>ecs::Bool</code>, and its byte offset. Set count to <code>0</code> for a scalar field or to the element count for a fixed inline array. This is all the metadata a simple component needs.</p>
+<p><code>RuntimeFieldInit</code> is the registration input. After registration, <code>ComponentCacheItem::field(...)</code> returns the immutable <code>RuntimeFieldDesc</code> used for metadata inspection. Use <code>ComponentCacheItem::field_name(...)</code> and <code>field_unit(...)</code> to read its registered name and unit. Most applications do not need to access this stored form directly.</p>
+<h4><a class="anchor" id="optional-tool-metadata"></a>
+Optional tool metadata</h4>
+<p>The remaining field metadata is optional. Set <code>semantic</code> to an application-defined named entity when tools need to distinguish values with the same storage type, such as a vector, asset reference, or localization key. Keep that entity and any scopes used by its name alive while the schema is in use.</p>
+<p>Set <code>jsonEncoding</code> to <code>ecs::RuntimeJsonEncoding::Utf8String</code> when a <code>Char8</code> sequence should be represented as one JSON string. Field flags can prevent validated edits, hide fields from the default tool presentation, or suggest multiline text input. Fields can also provide a unit, an accepted minimum and maximum, and a preferred input step.</p>
+<h3><a class="anchor" id="typed-runtime-schemas"></a>
+Typed runtime schemas</h3>
+<p>Use <code>World::add&lt;T&gt;(const RuntimeTypeDesc&amp;)</code> when an existing C++ component should also be available to generic tools, cursors, and JSON serialization. Register the schema before the component's first use. This does not change normal typed access or the component's storage behavior.</p>
+<div class="fragment"><div class="line"><span class="keyword">struct </span>Position {</div>
+<div class="line">  <span class="keywordtype">float</span> x, y, z;</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit positionFields[] = {</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;x&quot;</span>), ecs::F32, (uint32_t)offsetof(Position, x), 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;y&quot;</span>), ecs::F32, (uint32_t)offsetof(Position, y), 0},</div>
+<div class="line">  {util::str_view(<span class="stringliteral">&quot;z&quot;</span>), ecs::F32, (uint32_t)offsetof(Position, z), 0}</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line">ecs::RuntimeTypeDesc positionSchema{};</div>
+<div class="line">positionSchema.fields = positionFields;</div>
+<div class="line">positionSchema.fieldCount = 3;</div>
+<div class="line"><span class="keyword">const</span> ecs::ComponentCacheItem&amp; positionCI = w.add&lt;Position&gt;(positionSchema);</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">const</span> ecs::Entity entity = w.add();</div>
+<div class="line">w.add&lt;Position&gt;(entity, {1.0f, 2.0f, 3.0f});</div>
+</div><!-- fragment --><p>For a simple typed struct, registration is now complete. The following sections are only needed for external tooling or more advanced value shapes.</p>
+<h3><a class="anchor" id="schema-manifests-and-validated-edits"></a>
+Schema manifests and validated edits</h3>
+<p>Most applications do not need to export schemas or apply JSON patches. These APIs are for tools that inspect and edit component values outside the normal typed or cursor workflow.</p>
+<p>Use <code>World::save_runtime_schema_json(...)</code> to export the world-level runtime schema manifest. The result includes all registered schemas with the names, types, constraints, and presentation metadata needed by a tool.</p>
+<p>Call <code>World::runtime_schema_hash()</code> when sending the manifest to another process or retaining edits for later. Pass that hash to <code>World::patch_comp_json(...)</code> so an edit is rejected if the registered runtime schema has changed.</p>
+<p><code>patch_comp_json(...)</code> updates one scalar field or one array or vector element. Select the value with an RFC 6901 JSON Pointer relative to the component. For example, <code>/x</code> selects a field, <code>/nested/value</code> selects a nested field, and <code>/values/1</code> selects an element. Pass the replacement as a complete JSON value.</p>
+<div class="fragment"><div class="line">ser::JsonDiagnostics diagnostics;</div>
+<div class="line"><span class="keyword">const</span> <span class="keyword">auto</span> schemaJson = w.save_runtime_schema_json();</div>
+<div class="line"><span class="keyword">const</span> uint64_t expectedRuntimeSchema = w.runtime_schema_hash();</div>
+<div class="line"><span class="keyword">const</span> <span class="keywordtype">bool</span> changed = w.patch_comp_json(</div>
+<div class="line">    entity, positionCI.entity, <span class="stringliteral">&quot;/x&quot;</span>, <span class="stringliteral">&quot;12.5&quot;</span>, diagnostics, {}, expectedRuntimeSchema);</div>
+</div><!-- fragment --><p>A successful call writes the value and emits the component's normal <code>OnSet</code> notification. A failed call leaves the component unchanged and reports the reason through <code>JsonDiagnostics</code>. Edits fail for stale schema hashes, invalid paths or JSON, incompatible types, hidden or read-only fields, and values outside the field's declared range.</p>
+<p>To replace a complete struct, array, vector, or opaque value, use the normal typed, raw, or cursor write APIs instead.</p>
+<h3><a class="anchor" id="nested-structs-and-fixed-arrays"></a>
 Nested structs and fixed arrays</h3>
 <p>Fields can reference runtime struct types. Register the nested type first, then use its component entity as the field type in the outer descriptor. Cursors use that type metadata to keep walking into nested fields.</p>
 <div class="fragment"><div class="line"><span class="keyword">constexpr</span> uint32_t FloatSize = <span class="keyword">sizeof</span>(float);</div>
 <div class="line"><span class="keyword">constexpr</span> uint32_t Vec3Size = FloatSize * 3;</div>
 <div class="line"><span class="keyword">constexpr</span> uint32_t TransformSize = Vec3Size * 2;</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc vec3Fields[] = {</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit vec3Fields[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;x&quot;</span>, 1), ecs::F32, 0, 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;y&quot;</span>, 1), ecs::F32, FloatSize, 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;z&quot;</span>, 1), ecs::F32, FloatSize * 2, 0}</div>
@@ -3153,12 +3192,12 @@ Nested structs and fixed arrays</h3>
 <div class="line">vec3Desc.size = Vec3Size;</div>
 <div class="line">vec3Desc.alig = <span class="keyword">alignof</span>(float);</div>
 <div class="line">vec3Desc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">vec3Desc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
-<div class="line">vec3Desc.fields = vec3Fields;</div>
-<div class="line">vec3Desc.fieldCount = 3;</div>
+<div class="line">vec3Desc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">vec3Desc.runtimeType.fields = vec3Fields;</div>
+<div class="line">vec3Desc.runtimeType.fieldCount = 3;</div>
 <div class="line">ecs::ComponentCacheItem&amp; vec3CI = w.add(vec3Desc);</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc transformFields[] = {</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit transformFields[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;position&quot;</span>, 8), vec3CI.entity, 0, 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;velocity&quot;</span>, 8), vec3CI.entity, Vec3Size, 0}</div>
 <div class="line">};</div>
@@ -3168,9 +3207,9 @@ Nested structs and fixed arrays</h3>
 <div class="line">transformDesc.size = TransformSize;</div>
 <div class="line">transformDesc.alig = <span class="keyword">alignof</span>(float);</div>
 <div class="line">transformDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
-<div class="line">transformDesc.fields = transformFields;</div>
-<div class="line">transformDesc.fieldCount = 2;</div>
+<div class="line">transformDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">transformDesc.runtimeType.fields = transformFields;</div>
+<div class="line">transformDesc.runtimeType.fieldCount = 2;</div>
 <div class="line">ecs::ComponentCacheItem&amp; transformCI = w.add(transformDesc);</div>
 <div class="line"> </div>
 <div class="line">ecs::Entity e = w.add();</div>
@@ -3191,7 +3230,7 @@ Nested structs and fixed arrays</h3>
 <h3><a class="anchor" id="opaque-adapters"></a>
 Opaque adapters</h3>
 <p>Most runtime-created components do not need opaque adapters. If the component bytes already contain the fields you want tools and cursors to see, register a normal runtime <code>Struct</code> with field metadata and stop there.</p>
-<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc transformFields[] = {</div>
+<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit transformFields[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;x&quot;</span>, 1), ecs::F32, 0, 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;y&quot;</span>, 1), ecs::F32, 4, 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;z&quot;</span>, 1), ecs::F32, 8, 0}</div>
@@ -3202,12 +3241,12 @@ Opaque adapters</h3>
 <div class="line">transformDesc.size = <span class="keyword">sizeof</span>(float) * 3;</div>
 <div class="line">transformDesc.alig = <span class="keyword">alignof</span>(float);</div>
 <div class="line">transformDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">transformDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
-<div class="line">transformDesc.fields = transformFields;</div>
-<div class="line">transformDesc.fieldCount = 3;</div>
+<div class="line">transformDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">transformDesc.runtimeType.fields = transformFields;</div>
+<div class="line">transformDesc.runtimeType.fieldCount = 3;</div>
 <div class="line">ecs::ComponentCacheItem&amp; transformCI = w.add(transformDesc);</div>
 </div><!-- fragment --><p>Opaque adapters are only for components whose physical bytes are not the semantic value: for example a handle, compressed blob, VM object id, or external asset id. In that case the component stores the physical payload, <code>opaqueAsType</code> names the semantic runtime type, and <code>opaqueAdapter</code> projects the physical payload into semantic bytes.</p>
-<p>Without <code>ComponentDesc::opaqueAdapter</code>, cursors expose opaque scopes through <code>type_kind()</code> and <code>opaque_as_type()</code> but reject field traversal.</p>
+<p>Without <code>ComponentDesc::runtimeType.opaqueAdapter</code>, cursors expose opaque scopes through <code>type_kind()</code> and <code>opaque_as_type()</code> but reject field traversal.</p>
 <div class="fragment"><div class="line"><span class="keyword">constexpr</span> uint32_t TransformSize = <span class="keyword">sizeof</span>(float) * 3;</div>
 <div class="line"> </div>
 <div class="line"><span class="keyword">struct </span>TransformHandle {</div>
@@ -3246,9 +3285,9 @@ Opaque adapters</h3>
 <div class="line">transformHandleDesc.size = <span class="keyword">sizeof</span>(TransformHandle);</div>
 <div class="line">transformHandleDesc.alig = <span class="keyword">alignof</span>(TransformHandle);</div>
 <div class="line">transformHandleDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">transformHandleDesc.typeKind = ecs::RuntimeTypeKind::Opaque;</div>
-<div class="line">transformHandleDesc.opaqueAsType = transformCI.entity;</div>
-<div class="line">transformHandleDesc.opaqueAdapter = &amp;transformAdapter;</div>
+<div class="line">transformHandleDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Opaque;</div>
+<div class="line">transformHandleDesc.runtimeType.opaqueAsType = transformCI.entity;</div>
+<div class="line">transformHandleDesc.runtimeType.opaqueAdapter = &amp;transformAdapter;</div>
 <div class="line">ecs::ComponentCacheItem&amp; transformHandleCI = w.add(transformHandleDesc);</div>
 </div><!-- fragment --><p>The cursor walks the projected semantic type as if it were normal reflected runtime data:</p>
 <div class="fragment"><div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, transformHandleCI.entity);</div>
@@ -3259,7 +3298,7 @@ Opaque adapters</h3>
 <h3><a class="anchor" id="dynamic-vectors"></a>
 Dynamic vectors</h3>
 <p>Dynamic vector/list runtime types describe variable-length sequences whose physical storage is adapter-owned. Set <code>typeKind = ecs::RuntimeTypeKind::Vector</code>, <code>elementType</code> to the reflected element type entity, and <code>elementCount = 0</code>. If no adapter is registered, the vector is metadata-only: cursors expose <code>element_type()</code> for introspection, while <code>count()</code>, <code>elem(...)</code>, <code>resize(...)</code>, and semantic JSON traversal reject deterministically.</p>
-<p>Register an adapted vector by assigning <code>ComponentDesc::sequenceAdapter</code>. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.</p>
+<p>Register an adapted vector by assigning <code>ComponentDesc::runtimeType.sequenceAdapter</code>. Gaia-ECS never assumes the sequence layout. The component bytes may be a pointer/count header, VM handle, arena handle, or other owner-defined token. The adapter receives the selected sequence scope and returns element scopes to the cursor and JSON layer.</p>
 <div class="fragment"><div class="line"><span class="keyword">struct </span>PointsHeader {</div>
 <div class="line">  uint32_t count = 0;</div>
 <div class="line">  uint32_t capacity = 0;</div>
@@ -3300,9 +3339,9 @@ Dynamic vectors</h3>
 <div class="line">pointsDesc.size = <span class="keyword">sizeof</span>(PointsHeader);</div>
 <div class="line">pointsDesc.alig = <span class="keyword">alignof</span>(PointsHeader);</div>
 <div class="line">pointsDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">pointsDesc.typeKind = ecs::RuntimeTypeKind::Vector;</div>
-<div class="line">pointsDesc.elementType = vec3CI.entity;</div>
-<div class="line">pointsDesc.sequenceAdapter = &amp;pointsAdapter;</div>
+<div class="line">pointsDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Vector;</div>
+<div class="line">pointsDesc.runtimeType.elementType = vec3CI.entity;</div>
+<div class="line">pointsDesc.runtimeType.sequenceAdapter = &amp;pointsAdapter;</div>
 <div class="line">ecs::ComponentCacheItem&amp; pointsCI = w.add(pointsDesc);</div>
 </div><!-- fragment --><p>The cursor surface is the same vocabulary used by fixed arrays: call <code>count()</code> to read the current element count, <code>elem(index)</code> to select one element, and then use normal field or primitive accessors on the selected element.</p>
 <div class="fragment"><div class="line">ecs::ComponentCursor cursor = w.cursor_mut(e, pointsCI.entity);</div>
@@ -3311,10 +3350,11 @@ Dynamic vectors</h3>
 <div class="line">  cursor.f32(42.0f);</div>
 <div class="line">}</div>
 </div><!-- fragment --><p>Mutable cursor writes call <code>commitElement</code> when the adapter provides it, then finish the root component write so <code>OnSet</code> observers see the owning component change. Semantic JSON uses the same adapter: save calls <code>count</code> and <code>element</code>; load requires <code>resize</code> before per-element loading. Without <code>resize</code>, vector JSON load is treated as a best-effort failure rather than guessing ownership or allocation policy.</p>
+<p>Set <code>jsonEncoding = ecs::RuntimeJsonEncoding::Utf8String</code> on a vector with <code>ecs::Char8</code> elements to save it as one JSON string instead of an array of characters. Provide the sequence adapter's <code>resize</code> callback if the string also needs to be loaded from JSON.</p>
 <h3><a class="anchor" id="enum-and-bitmask-metadata"></a>
 Enum and bitmask metadata</h3>
-<p>Runtime type entities can describe enum and bitmask constants for tools, editors, importers, and data-driven schemas. Constants are copied during registration and can be looked up by name or exact value. <code>underlyingType</code> points at the primitive type entity used for storage, so cursor primitive helpers work on enum/bitmask fields when the selected helper matches that primitive entity.</p>
-<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeConstantDesc movementConstants[] = {</div>
+<p>Use runtime enum and bitmask types when tools or JSON documents should work with named values instead of unexplained numbers. Define the names and values with <code>RuntimeConstantInit</code>, set <code>underlyingType</code> to the reflected integer storage type, and look up registered constants by name or exact value.</p>
+<div class="fragment"><div class="line"><span class="keyword">const</span> ecs::RuntimeConstantInit movementConstants[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;Idle&quot;</span>, 4), 0},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;Walk&quot;</span>, 4), 1},</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;Run&quot;</span>, 3), 2}</div>
@@ -3325,17 +3365,18 @@ Enum and bitmask metadata</h3>
 <div class="line">movementDesc.size = <span class="keyword">sizeof</span>(uint32_t);</div>
 <div class="line">movementDesc.alig = <span class="keyword">alignof</span>(uint32_t);</div>
 <div class="line">movementDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">movementDesc.typeKind = ecs::RuntimeTypeKind::Enum;</div>
-<div class="line">movementDesc.underlyingType = ecs::U32;</div>
-<div class="line">movementDesc.constants = movementConstants;</div>
-<div class="line">movementDesc.constantCount = 3;</div>
+<div class="line">movementDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Enum;</div>
+<div class="line">movementDesc.runtimeType.underlyingType = ecs::U32;</div>
+<div class="line">movementDesc.runtimeType.constants = movementConstants;</div>
+<div class="line">movementDesc.runtimeType.constantCount = 3;</div>
 <div class="line">ecs::ComponentCacheItem&amp; movementCI = w.add(movementDesc);</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">const</span> ecs::RuntimeConstant* run = movementCI.constant(<span class="stringliteral">&quot;Run&quot;</span>);</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeConstantDesc* run = movementCI.constant(<span class="stringliteral">&quot;Run&quot;</span>);</div>
 <div class="line"><span class="keywordflow">if</span> (run != <span class="keyword">nullptr</span>) {</div>
 <div class="line">  <span class="comment">// run-&gt;value == 2</span></div>
 <div class="line">}</div>
-</div><!-- fragment --><p>Bitmask types use the same constant descriptor shape with <code>ecs::RuntimeTypeKind::Bitmask</code>; each one-bit constant value describes one named flag.</p>
+</div><!-- fragment --><p><code>RuntimeConstantInit</code> is the registration input. After registration, <code>ComponentCacheItem::constant(...)</code> and <code>constant_by_value(...)</code> return immutable <code>RuntimeConstantDesc</code> metadata. Use <code>ComponentCacheItem::constant_name(...)</code> to read the registered constant name.</p>
+<p>Bitmask types use the same constant descriptor shape with <code>ecs::RuntimeTypeKind::Bitmask</code>; each one-bit constant value describes one named flag.</p>
 <p>Semantic JSON uses numeric enum and bitmask values by default. Pass an explicit <code>ser::RuntimeJsonPolicy</code> when a user-facing document should use enum names and arrays of bitmask flag names:</p>
 <div class="fragment"><div class="line">ser::RuntimeJsonPolicy policy{};</div>
 <div class="line">policy.symbolicEnums = <span class="keyword">true</span>;</div>
@@ -3380,7 +3421,7 @@ Data on runtime relationships</h3>
 <div class="line">  <span class="keywordtype">float</span> score;</div>
 <div class="line">};</div>
 <div class="line"> </div>
-<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldDesc affinityFields[] = {</div>
+<div class="line"><span class="keyword">const</span> ecs::RuntimeFieldInit affinityFields[] = {</div>
 <div class="line">  {util::str_view(<span class="stringliteral">&quot;score&quot;</span>, 5), ecs::F32, 0, 0}</div>
 <div class="line">};</div>
 <div class="line"> </div>
@@ -3389,9 +3430,9 @@ Data on runtime relationships</h3>
 <div class="line">affinityDesc.size = <span class="keyword">sizeof</span>(Affinity);</div>
 <div class="line">affinityDesc.alig = <span class="keyword">alignof</span>(Affinity);</div>
 <div class="line">affinityDesc.storageType = ecs::DataStorageType::Table;</div>
-<div class="line">affinityDesc.typeKind = ecs::RuntimeTypeKind::Struct;</div>
-<div class="line">affinityDesc.fields = affinityFields;</div>
-<div class="line">affinityDesc.fieldCount = 1;</div>
+<div class="line">affinityDesc.runtimeType.typeKind = ecs::RuntimeTypeKind::Struct;</div>
+<div class="line">affinityDesc.runtimeType.fields = affinityFields;</div>
+<div class="line">affinityDesc.runtimeType.fieldCount = 1;</div>
 <div class="line"> </div>
 <div class="line">ecs::ComponentCacheItem&amp; affinity = w.add(affinityDesc);</div>
 </div><!-- fragment --><p>Create the exact relationship by combining the relation and target. Pass that pair to the same raw and cursor APIs used for runtime components:</p>

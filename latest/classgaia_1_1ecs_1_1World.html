@@ -210,6 +210,12 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>reset_sched</b> ()</t
 <tr class="memitem:a0d2437c803eca9c87c8e17c9329bb606" id="r_a0d2437c803eca9c87c8e17c9329bb606"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0d2437c803eca9c87c8e17c9329bb606">sync_component_record</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> comp)</td></tr>
 <tr class="memdesc:a0d2437c803eca9c87c8e17c9329bb606"><td class="mdescLeft">&#160;</td><td class="mdescRight">Updates the cached component metadata in both the component cache and the core <a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> storage.  <br /></td></tr>
 <tr class="separator:a0d2437c803eca9c87c8e17c9329bb606"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a46fa1191b329e7997572f48f7a2a3a74" id="r_a46fa1191b329e7997572f48f7a2a3a74"><td class="memItemLeft" align="right" valign="top"><a id="a46fa1191b329e7997572f48f7a2a3a74" name="a46fa1191b329e7997572f48f7a2a3a74"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>validate_runtime_semantics</b> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;runtimeType) const</td></tr>
+<tr class="separator:a46fa1191b329e7997572f48f7a2a3a74"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa0fef5f4fed736c1f5f5e7bf944c10b2" id="r_aa0fef5f4fed736c1f5f5e7bf944c10b2"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa0fef5f4fed736c1f5f5e7bf944c10b2">write_runtime_schema_json</a> (<a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;writer, const char *schemaHash, bool includeRuntimeEntities) const</td></tr>
+<tr class="memdesc:aa0fef5f4fed736c1f5f5e7bf944c10b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Writes the deterministic world-level runtime schema manifest.  <br /></td></tr>
+<tr class="separator:aa0fef5f4fed736c1f5f5e7bf944c10b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40a8cd2a1d17aca1d603eeca337c8e74" id="r_a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a40a8cd2a1d17aca1d603eeca337c8e74">finalize_component_registration</a> (const ComponentCacheItem &amp;item, bool addSparseTrait)</td></tr>
 <tr class="memdesc:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="mdescLeft">&#160;</td><td class="mdescRight">Finalizes a newly registered component entity after the cache record has been created. This synchronizes the core <code><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a></code> value stored on the component entity, registers the default symbol through the normal naming path, and optionally latches the <code>Sparse</code> trait.  <br /></td></tr>
 <tr class="separator:a40a8cd2a1d17aca1d603eeca337c8e74"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -383,6 +389,10 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>set_serializer</b> (s
 <tr class="memitem:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const ComponentCacheItem &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a3ecd256e20fc18e2a07bd190c706f3a7">add</a> ()</td></tr>
 <tr class="memdesc:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new component if not found already.  <br /></td></tr>
 <tr class="separator:a3ecd256e20fc18e2a07bd190c706f3a7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a57ed785ea944b3eb6896ff36782da42f" id="r_a57ed785ea944b3eb6896ff36782da42f"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a57ed785ea944b3eb6896ff36782da42f"><td class="memTemplItemLeft" align="right" valign="top">GAIA_NODISCARD const ComponentCacheItem &amp;&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a57ed785ea944b3eb6896ff36782da42f">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;runtimeType)</td></tr>
+<tr class="memdesc:a57ed785ea944b3eb6896ff36782da42f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Registers a compile-time component with explicit runtime type metadata. Metadata is applied only during first registration. Existing component metadata remains immutable. Runtime metadata does not change typed storage, lifecycle callbacks, or the component symbol.  <br /></td></tr>
+<tr class="separator:a57ed785ea944b3eb6896ff36782da42f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aa3ca566ba0ec0108871bd831d88d7081" id="r_aa3ca566ba0ec0108871bd831d88d7081"><td class="memItemLeft" align="right" valign="top">GAIA_NODISCARD ComponentCacheItem &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#aa3ca566ba0ec0108871bd831d88d7081">add</a> (const <a class="el" href="structgaia_1_1ecs_1_1ComponentDesc.html">ComponentDesc</a> &amp;desc, EntityKind kind=EntityKind::EK_Gen)</td></tr>
 <tr class="memdesc:aa3ca566ba0ec0108871bd831d88d7081"><td class="mdescLeft">&#160;</td><td class="mdescRight">Creates a new runtime component from a plain component descriptor if not found already.  <br /></td></tr>
 <tr class="separator:aa3ca566ba0ec0108871bd831d88d7081"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -837,6 +847,18 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>save</b> ()</td></tr>
 <tr class="memitem:a0147a79e662e91c818df2ffb7e5e64a2" id="r_a0147a79e662e91c818df2ffb7e5e64a2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a0147a79e662e91c818df2ffb7e5e64a2">save_json</a> (bool &amp;ok, ser::JsonSaveFlags flags=ser::JsonSaveFlags::Default) const</td></tr>
 <tr class="memdesc:a0147a79e662e91c818df2ffb7e5e64a2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convenience overload returning JSON as a string.  <br /></td></tr>
 <tr class="separator:a0147a79e662e91c818df2ffb7e5e64a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8debc341cdd272ed1990cde46866ee59" id="r_a8debc341cdd272ed1990cde46866ee59"><td class="memItemLeft" align="right" valign="top">uint64_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a8debc341cdd272ed1990cde46866ee59">runtime_schema_hash</a> () const</td></tr>
+<tr class="memdesc:a8debc341cdd272ed1990cde46866ee59"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculates a deterministic hash of the world-level runtime schema manifest.  <br /></td></tr>
+<tr class="separator:a8debc341cdd272ed1990cde46866ee59"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:afb4a3bb8420e95e4711f28e649a0858c" id="r_afb4a3bb8420e95e4711f28e649a0858c"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#afb4a3bb8420e95e4711f28e649a0858c">save_runtime_schema_json</a> (<a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;writer) const</td></tr>
+<tr class="memdesc:afb4a3bb8420e95e4711f28e649a0858c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Serializes registered runtime component/type metadata into a self-describing schema manifest.  <br /></td></tr>
+<tr class="separator:afb4a3bb8420e95e4711f28e649a0858c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5aaff6df26111691792d8ca42f3aa1b5" id="r_a5aaff6df26111691792d8ca42f3aa1b5"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a5aaff6df26111691792d8ca42f3aa1b5">save_runtime_schema_json</a> () const</td></tr>
+<tr class="memdesc:a5aaff6df26111691792d8ca42f3aa1b5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Convenience overload returning the runtime schema manifest as JSON text.  <br /></td></tr>
+<tr class="separator:a5aaff6df26111691792d8ca42f3aa1b5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a83842cb4ad56f3a65a82b936e6112ea8" id="r_a83842cb4ad56f3a65a82b936e6112ea8"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#a83842cb4ad56f3a65a82b936e6112ea8">patch_comp_json</a> (<a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> entity, <a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> component, <a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a> pointer, <a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a> value, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics, const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;policy={}, uint64_t expectedRuntimeSchemaHash=0)</td></tr>
+<tr class="memdesc:a83842cb4ad56f3a65a82b936e6112ea8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Applies one validated JSON value to a reflected component leaf selected by JSON Pointer.  <br /></td></tr>
+<tr class="separator:a83842cb4ad56f3a65a82b936e6112ea8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae26133b8439b9c8f488c1ebf58989a02" id="r_ae26133b8439b9c8f488c1ebf58989a02"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classgaia_1_1ecs_1_1World.html#ae26133b8439b9c8f488c1ebf58989a02">load_json</a> (const char *json, uint32_t len, <a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;diagnostics, const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;policy={})</td></tr>
 <tr class="memdesc:ae26133b8439b9c8f488c1ebf58989a02"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads world state from JSON previously emitted by <a class="el" href="classgaia_1_1ecs_1_1World.html#a224ff329b562863f1f37d06f09c03cb0" title="Serializes world state into a JSON document. Components with runtime fields are emitted as structured...">save_json()</a>.  <br /></td></tr>
 <tr class="separator:ae26133b8439b9c8f488c1ebf58989a02"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -1048,7 +1070,7 @@ Undefined behavior if <em>entity</em> changes archetype after <a class="el" href
 </div>
 </div>
 <a id="a3ecd256e20fc18e2a07bd190c706f3a7" name="a3ecd256e20fc18e2a07bd190c706f3a7"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a3ecd256e20fc18e2a07bd190c706f3a7">&#9670;&#160;</a></span>add() <span class="overload">[1/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1084,7 +1106,7 @@ template&lt;typename T &gt; </div>
 </div>
 </div>
 <a id="aa3ca566ba0ec0108871bd831d88d7081" name="aa3ca566ba0ec0108871bd831d88d7081"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[2/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3ca566ba0ec0108871bd831d88d7081">&#9670;&#160;</a></span>add() <span class="overload">[2/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1129,8 +1151,51 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a57ed785ea944b3eb6896ff36782da42f" name="a57ed785ea944b3eb6896ff36782da42f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a57ed785ea944b3eb6896ff36782da42f">&#9670;&#160;</a></span>add() <span class="overload">[3/9]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;typename T &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">GAIA_NODISCARD const ComponentCacheItem &amp; gaia::ecs::World::add </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ecs_1_1RuntimeTypeDesc.html">RuntimeTypeDesc</a> &amp;&#160;</td>
+          <td class="paramname"><em>runtimeType</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Registers a compile-time component with explicit runtime type metadata. Metadata is applied only during first registration. Existing component metadata remains immutable. Runtime metadata does not change typed storage, lifecycle callbacks, or the component symbol. </p>
+<dl class="tparams"><dt>Template Parameters</dt><dd>
+  <table class="tparams">
+    <tr><td class="paramname">T</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> type to register. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">runtimeType</td><td>Reflection-only metadata attached during first registration. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Registered component cache item. </dd></dl>
+
+</div>
+</div>
 <a id="a53f667ddfe6c1f3ec42cdb398b6024fc" name="a53f667ddfe6c1f3ec42cdb398b6024fc"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[3/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a53f667ddfe6c1f3ec42cdb398b6024fc">&#9670;&#160;</a></span>add() <span class="overload">[4/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1175,7 +1240,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a40506c3fce6bd1ae3d902d556f679e75" name="a40506c3fce6bd1ae3d902d556f679e75"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[4/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a40506c3fce6bd1ae3d902d556f679e75">&#9670;&#160;</a></span>add() <span class="overload">[5/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1221,7 +1286,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a730bd1293329308354b59967bc08a19a" name="a730bd1293329308354b59967bc08a19a"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[5/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a730bd1293329308354b59967bc08a19a">&#9670;&#160;</a></span>add() <span class="overload">[6/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1280,7 +1345,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a950a809f79f42dde23d9b82f7059a825" name="a950a809f79f42dde23d9b82f7059a825"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[6/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a950a809f79f42dde23d9b82f7059a825">&#9670;&#160;</a></span>add() <span class="overload">[7/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1326,7 +1391,7 @@ It is expected <em>object</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a4cc525cae8ef955e749e3e9e7796ec3d" name="a4cc525cae8ef955e749e3e9e7796ec3d"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[7/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a4cc525cae8ef955e749e3e9e7796ec3d">&#9670;&#160;</a></span>add() <span class="overload">[8/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -1382,7 +1447,7 @@ It is expected <em>entity</em> is valid. Undefined behavior otherwise. </dd></dl
 </div>
 </div>
 <a id="a8e6ec95684084c20c5bb3361f74292cd" name="a8e6ec95684084c20c5bb3361f74292cd"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[8/8]</span></h2>
+<h2 class="memtitle"><span class="permalink"><a href="#a8e6ec95684084c20c5bb3361f74292cd">&#9670;&#160;</a></span>add() <span class="overload">[9/9]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -7000,6 +7065,87 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="a83842cb4ad56f3a65a82b936e6112ea8" name="a83842cb4ad56f3a65a82b936e6112ea8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a83842cb4ad56f3a65a82b936e6112ea8">&#9670;&#160;</a></span>patch_comp_json()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::patch_comp_json </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>entity</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a>&#160;</td>
+          <td class="paramname"><em>component</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a>&#160;</td>
+          <td class="paramname"><em>pointer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1util_1_1str__view.html">ser::json_str_view</a>&#160;</td>
+          <td class="paramname"><em>value</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structgaia_1_1ser_1_1JsonDiagnostics.html">ser::JsonDiagnostics</a> &amp;&#160;</td>
+          <td class="paramname"><em>diagnostics</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const <a class="el" href="structgaia_1_1ser_1_1RuntimeJsonPolicy.html">ser::RuntimeJsonPolicy</a> &amp;&#160;</td>
+          <td class="paramname"><em>policy</em> = <code>{}</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint64_t&#160;</td>
+          <td class="paramname"><em>expectedRuntimeSchemaHash</em> = <code>0</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Applies one validated JSON value to a reflected component leaf selected by JSON Pointer. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">entity</td><td><a class="el" href="structgaia_1_1ecs_1_1Entity.html">Entity</a> owning the component value. </td></tr>
+    <tr><td class="paramname">component</td><td><a class="el" href="structgaia_1_1ecs_1_1Component.html">Component</a> entity or exact relationship pair. </td></tr>
+    <tr><td class="paramname">pointer</td><td>RFC 6901 pointer selecting a reflected leaf. </td></tr>
+    <tr><td class="paramname">value</td><td>Complete JSON value for the selected leaf. </td></tr>
+    <tr><td class="paramname">diagnostics</td><td>Structured validation errors. </td></tr>
+    <tr><td class="paramname">policy</td><td>Runtime enum and bitmask JSON policy. </td></tr>
+    <tr><td class="paramname">expectedRuntimeSchemaHash</td><td>Optional non-zero runtime schema hash required to match the current manifest. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the selected leaf was updated. </dd></dl>
+
+</div>
+</div>
 <a id="aabc91385bedd24d0c81130aee04f88de" name="aabc91385bedd24d0c81130aee04f88de"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aabc91385bedd24d0c81130aee04f88de">&#9670;&#160;</a></span>path() <span class="overload">[1/3]</span></h2>
 
@@ -7966,6 +8112,34 @@ template&lt;typename Func &gt; </div>
 
 </div>
 </div>
+<a id="a8debc341cdd272ed1990cde46866ee59" name="a8debc341cdd272ed1990cde46866ee59"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8debc341cdd272ed1990cde46866ee59">&#9670;&#160;</a></span>runtime_schema_hash()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint64_t gaia::ecs::World::runtime_schema_hash </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Calculates a deterministic hash of the world-level runtime schema manifest. </p>
+<dl class="section return"><dt>Returns</dt><dd>Hash of the current runtime schema manifest. </dd></dl>
+
+</div>
+</div>
 <a id="a0147a79e662e91c818df2ffb7e5e64a2" name="a0147a79e662e91c818df2ffb7e5e64a2"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a0147a79e662e91c818df2ffb7e5e64a2">&#9670;&#160;</a></span>save_json() <span class="overload">[1/2]</span></h2>
 
@@ -8053,7 +8227,6 @@ template&lt;typename Func &gt; </div>
 </div><div class="memdoc">
 
 <p>Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Components with no runtime fields fallback to raw serialized bytes. </p>
-<p>Serializes world state into a JSON document. Components with runtime fields are emitted as structured JSON objects. Pair payload keys retain relation and target. Components with no runtime fields fallback to raw serialized bytes. Returns false when some runtime field types are unsupported (those fields are emitted as null).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">writer</td><td>Destination JSON writer. </td></tr>
@@ -8063,6 +8236,69 @@ template&lt;typename Func &gt; </div>
   </dd>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>False when some runtime field types are unsupported. </dd></dl>
+
+</div>
+</div>
+<a id="a5aaff6df26111691792d8ca42f3aa1b5" name="a5aaff6df26111691792d8ca42f3aa1b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5aaff6df26111691792d8ca42f3aa1b5">&#9670;&#160;</a></span>save_runtime_schema_json() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="structgaia_1_1util_1_1str.html">ser::json_str</a> gaia::ecs::World::save_runtime_schema_json </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Convenience overload returning the runtime schema manifest as JSON text. </p>
+<dl class="section return"><dt>Returns</dt><dd>Serialized runtime schema manifest. </dd></dl>
+
+</div>
+</div>
+<a id="afb4a3bb8420e95e4711f28e649a0858c" name="afb4a3bb8420e95e4711f28e649a0858c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afb4a3bb8420e95e4711f28e649a0858c">&#9670;&#160;</a></span>save_runtime_schema_json() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::save_runtime_schema_json </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;&#160;</td>
+          <td class="paramname"><em>writer</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Serializes registered runtime component/type metadata into a self-describing schema manifest. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">writer</td><td>JSON writer receiving the manifest. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the manifest was serialized. </dd></dl>
 
 </div>
 </div>
@@ -10321,6 +10557,59 @@ template&lt;typename T &gt; </div>
 
 </div>
 </div>
+<a id="aa0fef5f4fed736c1f5f5e7bf944c10b2" name="aa0fef5f4fed736c1f5f5e7bf944c10b2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa0fef5f4fed736c1f5f5e7bf944c10b2">&#9670;&#160;</a></span>write_runtime_schema_json()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool gaia::ecs::World::write_runtime_schema_json </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classgaia_1_1ser_1_1ser__json.html">ser::ser_json</a> &amp;&#160;</td>
+          <td class="paramname"><em>writer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const char *&#160;</td>
+          <td class="paramname"><em>schemaHash</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>includeRuntimeEntities</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Writes the deterministic world-level runtime schema manifest. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">writer</td><td>JSON writer receiving the manifest. </td></tr>
+    <tr><td class="paramname">schemaHash</td><td>Optional precomputed hash text included in the manifest. </td></tr>
+    <tr><td class="paramname">includeRuntimeEntities</td><td>Whether to include world-local entity ids and generations. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>True when the manifest was serialized. </dd></dl>
+
+</div>
+</div>
 <h2 class="groupheader">Friends And Related Symbol Documentation</h2>
 <a id="a8508e415c773be8243636601be0ef18c" name="a8508e415c773be8243636601be0ef18c"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a8508e415c773be8243636601be0ef18c">&#9670;&#160;</a></span>query_match_scratch_acquire</h2>
@@ -11002,6 +11291,8 @@ template&lt;typename T &gt; </div>
 <hr/>The documentation for this class was generated from the following files:<ul>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/<a class="el" href="world_8h_source.html">world.h</a></li>
 <li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/impl/<a class="el" href="world__json_8h_source.html">world_json.h</a></li>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/impl/<a class="el" href="world__json__patch_8h_source.html">world_json_patch.h</a></li>
+<li>/home/runner/work/gaia-ecs/gaia-ecs/include/gaia/ecs/impl/<a class="el" href="world__schema__json_8h_source.html">world_schema_json.h</a></li>
 </ul>
 </div><!-- contents -->
 </div><!-- doc-content -->

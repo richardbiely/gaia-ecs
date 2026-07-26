@@ -6,7 +6,7 @@ var searchData=
   ['joballocctx_3',['JobAllocCtx',['../structgaia_1_1mt_1_1JobAllocCtx.html',1,'gaia::mt']]],
   ['jobargs_4',['JobArgs',['../structgaia_1_1mt_1_1JobArgs.html',1,'gaia::mt']]],
   ['jobargsfunc_5',['JobArgsFunc',['../classgaia_1_1mt_1_1JobArgsFunc.html',1,'gaia::mt']]],
-  ['jobhandle_6',['jobhandle',['../structgaia_1_1mt_1_1JobHandle.html',1,'gaia::mt::JobHandle'],['../structgaia_1_1mt_1_1JobHandle.html#af41b3175cae29ef09e2a9efd39ca665c',1,'gaia::mt::JobHandle::JobHandle()'],['../structgaia_1_1mt_1_1JobHandle.html#add691287a8f216d46034b0d5a317480d',1,'gaia::mt::JobHandle::JobHandle(JobId id, JobGenId gen, JobGenId prio)'],['../structgaia_1_1mt_1_1JobHandle.html#a1280276f7dfd0f476469aa52fd4f1fad',1,'gaia::mt::JobHandle::JobHandle(uint32_t value)']]],
+  ['jobhandle_6',['jobhandle',['../structgaia_1_1mt_1_1JobHandle.html#af41b3175cae29ef09e2a9efd39ca665c',1,'gaia::mt::JobHandle::JobHandle()'],['../structgaia_1_1mt_1_1JobHandle.html#a1280276f7dfd0f476469aa52fd4f1fad',1,'gaia::mt::JobHandle::JobHandle(uint32_t value)'],['../structgaia_1_1mt_1_1JobHandle.html#add691287a8f216d46034b0d5a317480d',1,'gaia::mt::JobHandle::JobHandle(JobId id, JobGenId gen, JobGenId prio)'],['../structgaia_1_1mt_1_1JobHandle.html',1,'gaia::mt::JobHandle']]],
   ['jobnull_5ft_7',['JobNull_t',['../structgaia_1_1mt_1_1JobNull__t.html',1,'gaia::mt']]],
   ['jobparallel_8',['JobParallel',['../structgaia_1_1mt_1_1JobParallel.html',1,'gaia::mt']]],
   ['jobparallelref_9',['JobParallelRef',['../structgaia_1_1mt_1_1JobParallelRef.html',1,'gaia::mt']]],
@@ -14,5 +14,6 @@ var searchData=
   ['jobs_11',['jobs',['../index.html#background-jobs',1,'Background jobs'],['../index.html#jobs',1,'Jobs'],['../index.html#system-jobs',1,'System jobs']]],
   ['jobsizetype_12',['JobSizeType',['../structgaia_1_1mt_1_1JobHandle.html#af9d5f68f44a42147f73d3f175ce9e81d',1,'gaia::mt::JobHandle']]],
   ['jsondiagnostic_13',['JsonDiagnostic',['../structgaia_1_1ser_1_1JsonDiagnostic.html',1,'gaia::ser']]],
-  ['jsondiagnostics_14',['JsonDiagnostics',['../structgaia_1_1ser_1_1JsonDiagnostics.html',1,'gaia::ser']]]
+  ['jsondiagnostics_14',['JsonDiagnostics',['../structgaia_1_1ser_1_1JsonDiagnostics.html',1,'gaia::ser']]],
+  ['jsonencoding_15',['jsonencoding',['../structgaia_1_1ecs_1_1RuntimeFieldMeta.html#ab978c5a5093d708f8263191cd880096d',1,'gaia::ecs::RuntimeFieldMeta::jsonEncoding'],['../structgaia_1_1ecs_1_1RuntimeTypeDesc.html#a0d47373052f98e2171e538ee04720a2e',1,'gaia::ecs::RuntimeTypeDesc::jsonEncoding']]]
 ];

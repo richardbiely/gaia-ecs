@@ -48,10 +48,11 @@ var searchData=
   ['str_5fview_45',['str_view',['../structgaia_1_1util_1_1str__view.html',1,'gaia::util']]],
   ['stringlookupkey_46',['StringLookupKey',['../structgaia_1_1core_1_1StringLookupKey.html',1,'gaia::core']]],
   ['stringlookupkey_3c_20256_20_3e_47',['StringLookupKey&lt; 256 &gt;',['../structgaia_1_1core_1_1StringLookupKey.html',1,'gaia::core']]],
-  ['systemcollectctx_48',['SystemCollectCtx',['../structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html',1,'gaia::ecs::detail']]],
-  ['systemphasescheduleitem_49',['SystemPhaseScheduleItem',['../structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html',1,'gaia::ecs::detail']]],
-  ['systemrunctx_50',['SystemRunCtx',['../structgaia_1_1ecs_1_1detail_1_1SystemRunCtx.html',1,'gaia::ecs::detail']]],
-  ['systemscheduleedge_51',['SystemScheduleEdge',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge.html',1,'gaia::ecs::detail']]],
-  ['systemscheduleitem_52',['SystemScheduleItem',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html',1,'gaia::ecs::detail']]],
-  ['systemschedulescratch_53',['SystemScheduleScratch',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html',1,'gaia::ecs::detail']]]
+  ['symbolid_48',['SymbolId',['../structgaia_1_1ecs_1_1SymbolId.html',1,'gaia::ecs']]],
+  ['systemcollectctx_49',['SystemCollectCtx',['../structgaia_1_1ecs_1_1detail_1_1SystemCollectCtx.html',1,'gaia::ecs::detail']]],
+  ['systemphasescheduleitem_50',['SystemPhaseScheduleItem',['../structgaia_1_1ecs_1_1detail_1_1SystemPhaseScheduleItem.html',1,'gaia::ecs::detail']]],
+  ['systemrunctx_51',['SystemRunCtx',['../structgaia_1_1ecs_1_1detail_1_1SystemRunCtx.html',1,'gaia::ecs::detail']]],
+  ['systemscheduleedge_52',['SystemScheduleEdge',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleEdge.html',1,'gaia::ecs::detail']]],
+  ['systemscheduleitem_53',['SystemScheduleItem',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleItem.html',1,'gaia::ecs::detail']]],
+  ['systemschedulescratch_54',['SystemScheduleScratch',['../structgaia_1_1ecs_1_1detail_1_1SystemScheduleScratch.html',1,'gaia::ecs::detail']]]
 ];
